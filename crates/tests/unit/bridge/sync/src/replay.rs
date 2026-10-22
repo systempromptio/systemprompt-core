@@ -242,7 +242,7 @@ fn a_partial_sync_record_keeps_the_prior_hosts_and_update_policy_not_the_half_ap
     let prior = LastSyncState {
         manifest_version: Some(version("2026-09-17T11:04:01Z-000001a0af09abc9")),
         enabled_hosts: vec![HostKind::ClaudeCode],
-        host_model_protocols: [("claude-code".to_owned(), vec!["anthropic".to_owned()])]
+        host_model_protocols: [(HostKind::ClaudeCode, vec!["anthropic".to_owned()])]
             .into_iter()
             .collect(),
         auto_update: AutoUpdatePolicy::default(),
@@ -251,7 +251,7 @@ fn a_partial_sync_record_keeps_the_prior_hosts_and_update_policy_not_the_half_ap
     let attempted = LastSyncState {
         manifest_version: Some(version("2026-09-17T11:05:24Z-000001a0af0aee88")),
         enabled_hosts: vec![HostKind::ClaudeCode, HostKind::ClaudeDesktop],
-        host_model_protocols: [("claude-desktop".to_owned(), vec!["openai".to_owned()])]
+        host_model_protocols: [(HostKind::ClaudeDesktop, vec!["openai".to_owned()])]
             .into_iter()
             .collect(),
         auto_update: AutoUpdatePolicy::Disabled,

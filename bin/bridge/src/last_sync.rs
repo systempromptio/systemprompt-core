@@ -56,7 +56,7 @@ pub struct LastSyncState {
     #[serde(default)]
     pub enabled_hosts: Vec<HostKind>,
     #[serde(default)]
-    pub host_model_protocols: BTreeMap<String, Vec<String>>,
+    pub host_model_protocols: BTreeMap<HostKind, Vec<String>>,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
     #[serde(default)]

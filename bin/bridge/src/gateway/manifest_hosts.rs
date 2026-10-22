@@ -6,8 +6,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
-
 use systemprompt_models::bridge::host::{HostKind, HostProduct};
 use systemprompt_models::bridge::manifest::{SignedManifest, SkillEntry};
 
@@ -30,15 +28,6 @@ pub fn skill_targets_product(skill: &SkillEntry, product: HostProduct) -> bool {
             h.parse::<HostKind>()
                 .is_ok_and(|host| host.product() == product)
         })
-}
-
-#[must_use]
-pub fn model_protocol_overrides(manifest: &SignedManifest) -> BTreeMap<String, Vec<String>> {
-    manifest
-        .host_model_protocols
-        .iter()
-        .map(|(host, protocols)| (host.as_str().to_owned(), protocols.clone()))
-        .collect()
 }
 
 pub fn unknown_skill_hosts(manifest: &SignedManifest) -> impl Iterator<Item = (&str, &str)> {

@@ -159,13 +159,12 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                 source: Box::new(source),
             })?;
         let report = refresh_tool_catalog(ctx).await?;
-        let overrides = crate::gateway::manifest::model_protocol_overrides(ctx.manifest);
         let inputs = super::MdmPayloadInputs {
             policy_store: ctx.policy_store,
             loopback: ctx.loopback,
             registry: ctx.mcp_registry,
             egress_allowed_hosts: None,
-            overrides: &overrides,
+            overrides: &ctx.manifest.host_model_protocols,
         };
         #[cfg(target_os = "windows")]
         let report = {

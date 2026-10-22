@@ -13,6 +13,7 @@ use systemprompt_bridge::integration::host_apps;
 use systemprompt_bridge::integration::reapply::{
     Attendance, Outcome, ProfileFailure, build_profile_inputs, reapply_host, reapply_stale_profiles,
 };
+use systemprompt_models::bridge::host::HostKind;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -295,7 +296,7 @@ fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_surface() {
 #[test]
 fn a_surface_override_replaces_the_models_and_the_protocol_header() {
     let mut overrides = BTreeMap::new();
-    overrides.insert("codex-cli".to_owned(), vec!["anthropic".to_owned()]);
+    overrides.insert(HostKind::CodexCli, vec!["anthropic".to_owned()]);
     let inputs = with_gateway(None, |ctx, _managed| {
         ctx.block_on(build_profile_inputs(ctx, &CODEX_CLI_HOST, &overrides))
             .expect("inputs built from the mocked gateway")

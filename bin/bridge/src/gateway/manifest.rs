@@ -26,8 +26,7 @@ pub use systemprompt_models::plugin::PluginComponentRef;
 pub use systemprompt_identifiers::{AgentId, AgentName, ApiKeyId, TenantId, UserId, ValidatedUrl};
 
 pub use super::manifest_hosts::{
-    enables_host, model_protocol_overrides, skill_targets_host, skill_targets_product,
-    unknown_skill_hosts,
+    enables_host, skill_targets_host, skill_targets_product, unknown_skill_hosts,
 };
 
 #[derive(Debug, thiserror::Error)]

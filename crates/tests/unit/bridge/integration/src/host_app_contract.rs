@@ -76,15 +76,10 @@ impl HostApp for BareHost {
     }
 }
 
-fn surface_overrides(pairs: &[(&str, &[&str])]) -> BTreeMap<String, Vec<String>> {
+fn surface_overrides(pairs: &[(HostKind, &[&str])]) -> BTreeMap<HostKind, Vec<String>> {
     pairs
         .iter()
-        .map(|(host, tags)| {
-            (
-                (*host).to_owned(),
-                tags.iter().map(|t| (*t).to_owned()).collect(),
-            )
-        })
+        .map(|(host, tags)| (*host, tags.iter().map(|t| (*t).to_owned()).collect()))
         .collect()
 }
 
@@ -176,7 +171,7 @@ fn by_default_no_sync_failure_is_observed_by_the_probe() {
 
 #[test]
 fn a_host_without_an_override_keeps_its_declared_surfaces() {
-    let overrides = surface_overrides(&[("hermes", &["openai"])]);
+    let overrides = surface_overrides(&[(HostKind::Hermes, &["openai"])]);
     assert_eq!(
         effective_surfaces(HostKind::CodexCli, &[ApiSurface::OpenAi], &overrides),
         vec![ApiSurface::OpenAi]
@@ -187,7 +182,7 @@ fn a_host_without_an_override_keeps_its_declared_surfaces() {
 
 #[test]
 fn an_override_replaces_the_declared_surfaces_entirely() {
-    let overrides = surface_overrides(&[("codex-cli", &["anthropic", "gemini"])]);
+    let overrides = surface_overrides(&[(HostKind::CodexCli, &["anthropic", "gemini"])]);
     assert_eq!(
         effective_surfaces(HostKind::CodexCli, &[ApiSurface::OpenAi], &overrides),
         vec![ApiSurface::Anthropic, ApiSurface::Gemini],
@@ -197,7 +192,7 @@ fn an_override_replaces_the_declared_surfaces_entirely() {
 
 #[test]
 fn an_unknown_surface_tag_in_an_override_is_dropped_not_defaulted() {
-    let overrides = surface_overrides(&[("codex-cli", &["not-a-surface", "openai"])]);
+    let overrides = surface_overrides(&[(HostKind::CodexCli, &["not-a-surface", "openai"])]);
     assert_eq!(
         effective_surfaces(HostKind::CodexCli, &[ApiSurface::Anthropic], &overrides),
         vec![ApiSurface::OpenAi],
@@ -207,7 +202,7 @@ fn an_unknown_surface_tag_in_an_override_is_dropped_not_defaulted() {
 
 #[test]
 fn an_override_of_only_unknown_tags_yields_no_surfaces_at_all() {
-    let overrides = surface_overrides(&[("codex-cli", &["nonsense"])]);
+    let overrides = surface_overrides(&[(HostKind::CodexCli, &["nonsense"])]);
     assert!(
         effective_surfaces(HostKind::CodexCli, &[ApiSurface::Anthropic], &overrides).is_empty(),
         "an override that names nothing recognisable narrows to nothing"

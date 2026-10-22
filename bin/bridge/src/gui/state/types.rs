@@ -86,7 +86,8 @@ pub struct AppStateSnapshot {
     pub agents_onboarded: bool,
     pub first_run: crate::gui::first_run::state::FirstRunState,
     pub enabled_hosts: Vec<systemprompt_models::bridge::host::HostKind>,
-    pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
+    pub host_model_protocols:
+        std::collections::BTreeMap<systemprompt_models::bridge::host::HostKind, Vec<String>>,
     pub inference_catalog: InferenceCatalog,
     pub credential_error: Option<String>,
     pub startup_faults: Vec<crate::obs::StartupFault>,
