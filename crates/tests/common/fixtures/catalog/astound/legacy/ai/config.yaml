@@ -1,0 +1,33 @@
+ai:
+  default_provider: vertex-anthropic
+  default_max_output_tokens: 4096
+  sampling:
+    enable_smart_routing: false
+    fallback_enabled: true
+  providers:
+    # In-process callers reach Claude the way the gateway does: on Vertex AI
+    # under the vertex service account.
+    vertex-anthropic:
+      enabled: true
+      google_search_enabled: true
+      default_model: claude-sonnet-5
+    anthropic:
+      enabled: true
+      google_search_enabled: true
+      default_model: anthropic-claude-sonnet-5
+    # Why: the conversation_judge job judges through Gemini 3.8 Flash
+    # (response schema enforced by the API) in-process via AiService, which
+    # only registers providers enabled here; the gateway catalog alone is not
+    # enough.
+    gemini:
+      enabled: true
+      google_search_enabled: true
+      default_model: gemini-3.8-flash
+  mcp:
+    auto_discover: true
+    connect_timeout_ms: 5000
+    execution_timeout_ms: 30000
+    retry_attempts: 3
+  history:
+    retention_days: 30
+    log_tool_executions: true

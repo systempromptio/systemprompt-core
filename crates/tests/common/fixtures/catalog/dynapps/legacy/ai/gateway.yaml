@@ -1,0 +1,74 @@
+# Gateway routes — which requested model patterns map onto which provider in
+# providers.yaml, plus the default provider/model the bridge advertises.
+# Shipped in the image alongside the catalog it references.
+# Edit by hand or with: systemprompt admin config gateway ...
+gateway:
+  enabled: true
+  routes:
+  # Anthropic-only by customer requirement: every claude-* id is served from
+  # Anthropic's own API with the anthropic key, no failover.
+  - id: claude-star-4203d1
+    name: Claude (Anthropic API)
+    description: >-
+      Every claude-* request goes to Claude on Anthropic's own API by API key, with no failover.
+    model_pattern: claude-*
+    provider: anthropic
+  # Only an explicit deepseek-* id reaches DeepSeek; Claude stays the default.
+  - id: deepseek-route
+    name: DeepSeek (DeepSeek API)
+    description: >-
+      Every deepseek-* request goes to DeepSeek's own API (Anthropic-compatible endpoint), with no failover.
+    model_pattern: deepseek-*
+    provider: deepseek
+  # OpenCode Go, by each member's own subscription key. Go splits its models
+  # across two wire formats, so the Anthropic-Messages families (MiniMax,
+  # Qwen) are matched first and every other go-* id falls to Chat Completions.
+  # First match wins: these two must stay above the go-* catch-all.
+  - id: opencode-go-minimax-route
+    name: OpenCode Go MiniMax (member key)
+    description: >-
+      go-minimax-* requests go to OpenCode Go's Anthropic Messages endpoint with the member's own Go key, with no failover.
+    model_pattern: go-minimax-*
+    provider: opencode-go-anthropic
+  - id: opencode-go-qwen-route
+    name: OpenCode Go Qwen (member key)
+    description: >-
+      go-qwen* requests go to OpenCode Go's Anthropic Messages endpoint with the member's own Go key, with no failover.
+    model_pattern: go-qwen*
+    provider: opencode-go-anthropic
+  - id: opencode-go-route
+    name: OpenCode Go (member key)
+    description: >-
+      Every other go-* request goes to OpenCode Go's Chat Completions endpoint with the member's own Go key, with no failover.
+    model_pattern: go-*
+    provider: opencode-go
+  - id: e2e-mock-route
+    name: E2E mock
+    description: >-
+      Loopback Anthropic-wire mock for the Playwright suite; never advertised and fails upstream on any host without the mock.
+    model_pattern: e2e-mock-*
+    provider: e2e-mock
+  default_provider: anthropic
+  # `[1m]` is Claude Code's 1M-context marker: without it Claude Code budgets
+  # 200k for every gateway model. The bridge seeds it into Claude Code, hands
+  # OpenCode/Hermes the bare catalog id, and the gateway strips it before
+  # matching and forwarding.
+  default_model: "claude-sonnet-5-5[1m]"
+  allow_unlisted_models: false
+  # Closed: a quota window whose subject cannot be resolved — no provider,
+  # provider error, or a user with no value — refuses the request instead of
+  # passing it uncounted. Every subject policies.yaml names (user, group,
+  # project, role, organization) has a provider in an admin crate's src/authz,
+  # so a fault here is a bug to surface, not traffic to wave through.
+  quota_fault_mode: closed
+  auth_scheme: bearer
+  inference_path_prefix: /v1
+  bridge_releases:
+    repo: systempromptio/systemprompt-dynapps
+    token_secret: DYNAPPS_RELEASE_TOKEN
+    tag_prefix: v
+    assets:
+      macos: dynapps-bridge-macos.zip
+      windows: dynapps-bridge-windows.exe
+      linux-x86_64: dynapps-bridge-linux-x86_64.tar.gz
+      linux-aarch64: dynapps-bridge-linux-aarch64.tar.gz

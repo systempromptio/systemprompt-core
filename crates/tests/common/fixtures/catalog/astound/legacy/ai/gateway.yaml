@@ -1,0 +1,172 @@
+# Gateway routes — which requested model patterns map onto which provider in
+# providers.yaml, plus the default provider/model the bridge advertises.
+# Shipped in the image alongside the catalog it references.
+# Edit by hand or with: systemprompt admin config gateway ...
+gateway:
+  enabled: true
+  routes:
+  # There is no route to Anthropic's own API for Claude. Vertex AI serves
+  # Claude's server tools with three exceptions, and the gateway reconciles
+  # the body on the way in (core `UpstreamDialect::finish_body`): a newer
+  # `web_search_*` is downgraded to the basic `web_search_20250305` Vertex
+  # runs, and `web_fetch_*`, `code_execution_*` and `advisor_*` — which Vertex
+  # does not have — are removed so the model simply lacks them instead of the
+  # request failing. Tool search runs on Vertex as-is. Claude Code and Cowork
+  # alike therefore stay on Vertex under the same governance; the Desktop
+  # fleet policy denies WebFetch so no user is offered a tool that cannot run.
+  #
+  # History: 0.63.0–0.65.0 carried a `claude-native-tools` route to provider
+  # `anthropic` matched on `tool_names_any: [WebSearch, WebFetch, ToolSearch,
+  # …]`. Those are Claude Code's client tools, resent in every request's tool
+  # catalogue, so every Claude Code turn went to Anthropic by API key. A
+  # `when:` block may match a server tool only by `tool_types_any` (its
+  # provider-defined `type`), never by name; `scripts/check-gateway-routes.sh`
+  # and the `gateway_route_contract` unit test refuse the old shape.
+  # Claude is served from Vertex AI under the `vertex` service account: the
+  # bare claude-* ids Claude Code and the bridge ask for belong to
+  # `vertex-anthropic` (the `global` endpoint). Failover stays on Vertex: when
+  # the global deployment exhausts its retry budget (429/503), answers any
+  # other 5xx or the connection fails, the same governed request is re-sent
+  # down `fallbacks` to `vertex-anthropic-eu`, the europe-west1 regional
+  # deployment under the same credential, which serves the same model under a
+  # hidden `vertex-eu-claude-*` alias (matched on the upstream name, so no
+  # `upstream_model`). The audit row records `served_provider:
+  # vertex-anthropic-eu`. Anthropic's own API is in no chain: it is reached only
+  # by the explicit anthropic-claude-* ids and the native-tools route above.
+  # The id is kept from the Anthropic-hosted route so existing audit rows keep
+  # their label.
+  #
+  # `by_scope` gives every project its own deployment chain, keyed by the
+  # project core attributed the request to (the x-systemprompt-scope-project
+  # header, the API key's bound project, or the person's primary project).
+  # Today each chain is the route chain, so routing is unchanged; the point is
+  # that the audit row's `route_match` names `scope:project=<id>`, and moving
+  # one project onto its own Vertex project or region is a provider entry in
+  # providers.yaml plus one line here. `unmapped: shared` sends a project not
+  # listed (or a request with no project) down the route chain instead of
+  # refusing it; switch to `deny` only once every project has a chain.
+  - id: claude-star-4203d1
+    name: Claude (Vertex AI)
+    description: >-
+      Every claude-* request goes to Claude on Vertex AI under the vertex service account, failing over to the europe-west1 Vertex deployment when the global endpoint is out of capacity or unreachable.
+    model_pattern: claude-*
+    provider: vertex-anthropic
+    fallbacks:
+    - provider: vertex-anthropic-eu
+    by_scope:
+      dimension: project
+      unmapped: shared
+      chains:
+        commerce:
+          provider: vertex-anthropic
+          fallbacks:
+          - provider: vertex-anthropic-eu
+        core:
+          provider: vertex-anthropic
+          fallbacks:
+          - provider: vertex-anthropic-eu
+        storefront:
+          provider: vertex-anthropic
+          fallbacks:
+          - provider: vertex-anthropic-eu
+        business-implementation:
+          provider: vertex-anthropic
+          fallbacks:
+          - provider: vertex-anthropic-eu
+  # Anthropic's own API is also reachable directly by explicit id.
+  - name: Claude (Anthropic API)
+    description: >-
+      Claude on Anthropic's own API by API key, reached only by the anthropic-claude-* ids.
+    model_pattern: anthropic-claude-*
+    provider: anthropic
+  # Vertex routes and the core Vertex rate card are one change, not two.
+  # At boot, every model Vertex publishes that the rate card prices is added
+  # to its provider's catalog — so a rate-card id that matches none of the
+  # patterns below is priced but unreachable, and nothing in either file says
+  # so. Adding a rate-card entry means adding or widening a route here in the
+  # same change; `systemprompt admin config catalog discovery` shows what the
+  # last discovery pass actually found.
+  - name: Gemini on Vertex AI
+    description: >-
+      Google-hosted Gemini under the vertex OAuth credential; every model the Vertex rate card prices.
+    model_pattern: vertex-gemini-*
+    provider: vertex
+  - name: Gemini (public API)
+    description: >-
+      Gemini via the API-key endpoint; the classifier job dispatches here.
+    model_pattern: gemini-*
+    provider: gemini
+  - id: vertex-qwen
+    name: Qwen3 Coder (Vertex MaaS)
+    description: >-
+      Qwen open models on Vertex AI Model-as-a-Service.
+    model_pattern: qwen.*
+    provider: vertex-maas
+  - id: vertex-glm
+    name: GLM-5 (Vertex MaaS)
+    description: >-
+      Z.ai GLM open models on Vertex AI Model-as-a-Service.
+    model_pattern: zai.*
+    provider: vertex-maas
+  - name: Kimi (Vertex MaaS)
+    description: >-
+      Moonshot Kimi open models on Vertex AI Model-as-a-Service.
+    model_pattern: moonshotai.*
+    provider: vertex-maas
+  # First match wins: R1 is served only from the us-central1 endpoint, so its
+  # route precedes the global DeepSeek one.
+  - name: DeepSeek R1 (Vertex MaaS, us-central1)
+    description: >-
+      DeepSeek R1 on the us-central1 Model-as-a-Service endpoint, the only one that serves it.
+    model_pattern: deepseek.r1-*
+    provider: vertex-maas-us-central1
+  - name: DeepSeek (Vertex MaaS)
+    description: >-
+      DeepSeek open models on Vertex AI Model-as-a-Service.
+    model_pattern: deepseek.*
+    provider: vertex-maas
+  - name: MiniMax (Vertex MaaS)
+    description: >-
+      MiniMax open models on Vertex AI Model-as-a-Service.
+    model_pattern: minimax.*
+    provider: vertex-maas
+  # Every Qwen, Kimi, DeepSeek and MiniMax endpoint retires 2026-10-21, as do
+  # zai.glm-5, zai.glm-4.7 and openai.gpt-oss-20b (providers.yaml). After
+  # that core hides the retired models, so these routes stop being offered in
+  # any model list without failing boot; remove them with the entries.
+  - id: vertex-gpt-oss
+    name: GPT-OSS (Vertex MaaS)
+    description: >-
+      OpenAI GPT-OSS open-weight models on Vertex AI Model-as-a-Service.
+    model_pattern: openai.gpt-oss-*
+    provider: vertex-maas
+  - id: e2e-mock-route
+    name: E2E mock
+    description: >-
+      Loopback Anthropic-wire mock for the Playwright suite; never advertised and fails upstream on any host without the mock.
+    model_pattern: e2e-mock-*
+    provider: e2e-mock
+  default_provider: vertex-anthropic
+  # `[1m]` is Claude Code's 1M-context marker: without it Claude Code budgets
+  # 200k for every gateway model. The bridge seeds it into Claude Code, hands
+  # OpenCode/Hermes the bare catalog id, and the gateway strips it before
+  # matching and forwarding.
+  default_model: "claude-sonnet-5[1m]"
+  allow_unlisted_models: false
+  # Closed: a quota window whose subject cannot be resolved — no provider,
+  # provider error, or a user with no value — refuses the request instead of
+  # passing it uncounted. Every subject policies.yaml names (user, group,
+  # project, role, organization) has a provider in an admin crate's src/authz,
+  # so a fault here is a bug to surface, not traffic to wave through.
+  quota_fault_mode: closed
+  auth_scheme: bearer
+  inference_path_prefix: /v1
+  bridge_releases:
+    repo: Astound-Digital/systemprompt-astound
+    token_secret: ASTOUND_RELEASE_TOKEN
+    tag_prefix: v
+    assets:
+      macos: astound-bridge-macos.zip
+      windows: astound-bridge-windows.exe
+      linux-x86_64: astound-bridge-linux-x86_64.tar.gz
+      linux-aarch64: astound-bridge-linux-aarch64.tar.gz
