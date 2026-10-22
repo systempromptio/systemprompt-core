@@ -163,7 +163,7 @@ pub fn arb_artifact() -> impl Strategy<Value = Artifact> {
         arb_artifact_metadata(),
     )
         .prop_map(|(id, title, description, parts, metadata)| Artifact {
-            id: SkillId::new(id),
+            id,
             title,
             description,
             parts,

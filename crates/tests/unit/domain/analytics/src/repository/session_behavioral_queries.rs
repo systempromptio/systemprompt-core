@@ -290,8 +290,11 @@ async fn update_behavioral_detection_and_mark_bot() {
         .await
         .expect("find")
         .expect("present");
-    assert_eq!(s.is_behavioral_bot, Some(true));
-    assert_eq!(s.behavioral_bot_reason.as_deref(), Some("high_velocity"));
+    assert_eq!(s.classification.is_behavioral_bot, Some(true));
+    assert_eq!(
+        s.classification.behavioral_bot_reason.as_deref(),
+        Some("high_velocity")
+    );
 
     delete_session(&pool, &sid).await;
 }

@@ -157,6 +157,7 @@ async fn trait_object_session_lifecycle_persists_usage_behavior_and_terminal_sta
             .await
             .expect("retained lookup")
             .expect("ended row retained")
+            .timing
             .ended_at
             .is_some()
     );

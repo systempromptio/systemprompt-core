@@ -67,7 +67,7 @@ async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically()
     );
 
     let mut second = first.clone();
-    second.id = format!("evt_{}", uuid::Uuid::new_v4());
+    second.id = AnalyticsEventId::new(format!("evt_{}", uuid::Uuid::new_v4()));
     second.page_url = "/second".to_owned();
     second.event_data = json!([1, "unmodified"]);
     assert!(
