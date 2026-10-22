@@ -7,10 +7,11 @@
 //! servability check), and the authz hook allows this principal on that route.
 //! A `hidden` model stays out of the advertised list whatever admission says;
 //! admission only ever removes models from it. The authz
-//! question is asked through [`AuthzDecisionHook::probe`], which decides
-//! without writing an audit row, so building a profile never looks like a
-//! burst of refused requests. [`probe_route`] is the one place admission asks
-//! the catalog which route serves a model.
+//! question is asked through
+//! [`AuthzDecisionHook::probe`](systemprompt_governance::authz::AuthzDecisionHook::probe),
+//! which decides without writing an audit row, so building a profile never
+//! looks like a burst of refused requests. [`probe_route`] is the one place
+//! admission asks the catalog which route serves a model.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

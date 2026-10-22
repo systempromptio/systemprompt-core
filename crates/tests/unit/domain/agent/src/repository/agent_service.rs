@@ -2,7 +2,6 @@ use super::repos;
 use systemprompt_identifiers::AgentName;
 use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_test_fixtures::test_db_pool;
-use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
 
 fn unique_name(prefix: &str) -> AgentName {

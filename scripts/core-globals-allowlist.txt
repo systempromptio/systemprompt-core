@@ -75,3 +75,4 @@ crates/domain/marketplace/src/catalog/content/revision_cache.rs:VERIFIED — deb
 crates/entry/api/src/routes/admin/services/refresh.rs:REFRESH_LOCK — debt: services refresh lock
 crates/entry/api/src/routes/gateway/bridge_plugin_archive.rs:PACKED — debt: packed plugin archive memo
 crates/entry/api/src/services/server/scheduler_health.rs:DEGRADED_JOBS — debt: degraded jobs snapshot
+crates/entry/api/src/routes/gateway/otel/mod.rs:NO_SUBJECT_DIMENSIONS — immutable data: the empty subject-provider set for unauthenticated OTLP ingest
