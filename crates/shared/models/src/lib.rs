@@ -66,6 +66,7 @@ pub mod macros;
 pub mod a2a;
 pub mod agui;
 pub mod ai;
+pub mod analytics;
 pub mod api;
 pub mod artifacts;
 pub mod attribution;

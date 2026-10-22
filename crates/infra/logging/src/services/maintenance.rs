@@ -9,6 +9,8 @@ use systemprompt_database::DbPool;
 use crate::models::{LogEntry, LogFilter, LoggingError};
 use crate::repository::LoggingRepository;
 
+const CLEANUP_BATCH_ROWS: i64 = 5000;
+
 #[derive(Clone, Debug)]
 pub struct LoggingMaintenanceService {
     repo: LoggingRepository,
@@ -33,7 +35,17 @@ impl LoggingMaintenanceService {
     }
 
     pub async fn cleanup_old_logs(&self, older_than: DateTime<Utc>) -> Result<u64, LoggingError> {
-        self.repo.cleanup_old_logs(older_than).await
+        let mut deleted = 0;
+        loop {
+            let batch = self
+                .repo
+                .purge_before(older_than, CLEANUP_BATCH_ROWS)
+                .await?;
+            deleted += batch;
+            if batch < u64::try_from(CLEANUP_BATCH_ROWS).unwrap_or(u64::MAX) {
+                return Ok(deleted);
+            }
+        }
     }
 
     pub async fn count_logs_before(&self, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {

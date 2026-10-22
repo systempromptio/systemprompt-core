@@ -139,7 +139,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     assert!(consumer.claim("analytics").await.unwrap().is_none());
     assert_eq!(
         outbox
-            .prune_processed_before(chrono::Utc::now())
+            .purge_processed_before(chrono::Utc::now(), 5000)
             .await
             .unwrap(),
         1
@@ -176,7 +176,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     );
     assert_eq!(
         outbox
-            .prune_processed_before(chrono::Utc::now())
+            .purge_processed_before(chrono::Utc::now(), 5000)
             .await
             .unwrap(),
         1
@@ -205,7 +205,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
 
     assert_eq!(
         outbox
-            .prune_processed_before(chrono::Utc::now())
+            .purge_processed_before(chrono::Utc::now(), 5000)
             .await
             .unwrap(),
         0
@@ -244,7 +244,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     );
     assert_eq!(
         outbox
-            .prune_processed_before(chrono::Utc::now())
+            .purge_processed_before(chrono::Utc::now(), 5000)
             .await
             .unwrap(),
         1

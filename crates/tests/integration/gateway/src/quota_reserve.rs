@@ -26,7 +26,8 @@ fn repos(db: &DbPool) -> GatewayRepositories {
                 .app_paths
                 .storage()
                 .data(),
-            systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+            systemprompt_config::SecretsBootstrap::encryption_master_key()
+                .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(

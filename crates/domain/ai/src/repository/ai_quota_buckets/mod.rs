@@ -84,6 +84,31 @@ pub struct QuotaBucketState {
 }
 
 impl AiQuotaBucketRepository {
+    pub async fn purge_before(
+        &self,
+        cutoff: DateTime<Utc>,
+        batch: i64,
+    ) -> Result<u64, RepositoryError> {
+        let result = sqlx::query!(
+            "DELETE FROM ai_quota_buckets WHERE ctid = ANY(ARRAY(SELECT ctid FROM ai_quota_buckets WHERE window_start < $1 LIMIT $2))",
+            cutoff,
+            batch
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn count_before(&self, cutoff: DateTime<Utc>) -> Result<i64, RepositoryError> {
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "count!" FROM ai_quota_buckets WHERE window_start < $1"#,
+            cutoff
+        )
+        .fetch_one(&*self.write_pool)
+        .await?;
+        Ok(count)
+    }
+
     pub fn new(db: &DbPool) -> Self {
         let write_pool = db.write_pool();
         Self { write_pool }

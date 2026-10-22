@@ -40,7 +40,7 @@ impl SecurityRepository {
             FROM user_sessions
             WHERE started_at >= NOW() - INTERVAL '24 hours'
               AND ip_address IS NOT NULL
-              AND is_bot = false
+              AND is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)
             GROUP BY ip_address
             HAVING COUNT(*) >= $1
             "#,

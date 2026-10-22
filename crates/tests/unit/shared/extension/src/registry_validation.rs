@@ -153,6 +153,9 @@ impl ExtensionContext for StubCtx {
     fn instance_id(&self) -> systemprompt_identifiers::InstanceId {
         systemprompt_identifiers::InstanceId::new("extension-test-instance")
     }
+    fn background_tasks(&self) -> systemprompt_traits::BackgroundTasks {
+        systemprompt_traits::BackgroundTasks::new()
+    }
     fn get_extension(&self, _id: &str) -> Option<Arc<dyn Extension>> {
         None
     }

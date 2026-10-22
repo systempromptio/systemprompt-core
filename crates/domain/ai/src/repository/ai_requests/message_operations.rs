@@ -5,6 +5,7 @@
 
 use crate::models::rows::AiRequestToolCallRow;
 use crate::models::{AiRequestMessage, AiRequestToolCall};
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId, McpToolName};
 use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
@@ -28,6 +29,34 @@ pub struct InsertToolCallParams<'a> {
 }
 
 impl AiRequestRepository {
+    pub async fn purge_messages_before(
+        &self,
+        cutoff: DateTime<Utc>,
+        batch: i64,
+    ) -> Result<u64, RepositoryError> {
+        let result = sqlx::query!(
+            "DELETE FROM ai_request_messages WHERE ctid = ANY(ARRAY(SELECT ctid FROM ai_request_messages WHERE created_at < $1 LIMIT $2))",
+            cutoff,
+            batch
+        )
+        .execute(self.write_pool())
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn count_messages_before(
+        &self,
+        cutoff: DateTime<Utc>,
+    ) -> Result<i64, RepositoryError> {
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "count!" FROM ai_request_messages WHERE created_at < $1"#,
+            cutoff
+        )
+        .fetch_one(self.pool())
+        .await?;
+        Ok(count)
+    }
+
     pub async fn insert_message(
         &self,
         request_id: &AiRequestId,

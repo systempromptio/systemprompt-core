@@ -130,11 +130,8 @@ pub trait SessionStore: SessionProvider + SessionUsageCounters {
     async fn end_session(&self, session_id: &SessionId) -> AnalyticsResult<()>;
     async fn mark_as_scanner(&self, session_id: &SessionId) -> AnalyticsResult<()>;
     async fn mark_converted(&self, session_id: &SessionId) -> AnalyticsResult<()>;
-    async fn mark_as_behavioral_bot(
-        &self,
-        session_id: &SessionId,
-        reason: &str,
-    ) -> AnalyticsResult<()>;
+    async fn mark_ghost_sessions_as_bots(&self) -> AnalyticsResult<u64>;
+    async fn mark_no_js_sessions_as_bots(&self, engaged: &[SessionId]) -> AnalyticsResult<u64>;
     async fn check_and_mark_behavioral_bot(
         &self,
         session_id: &SessionId,

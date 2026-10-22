@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- **Breaking:** `user_sessions.session_source` defaults to `unknown` (migration `users/026`), matching `SessionSource::default()`. Migrate by binding `session_source` explicitly on every insert that means `web`.
+- **Breaking:** `systemprompt_extension::ExtensionContext` gains the required method `background_tasks(&self) -> BackgroundTasks`. Migrate by returning a clone of the process's `BackgroundTasks` owner (`AppContext` implements it); a fresh `BackgroundTasks::new()` is only for stubs.
+- **Breaking:** `GatewayJournal::open(state_dir, key: [u8; 32])` takes the decoded master key; `GatewayAuditError::MissingJournalKey` and `GatewayAuditError::JournalKey` are removed. Migrate by passing `SecretsBootstrap::encryption_master_key()?`.
+- **Breaking:** `systemprompt_traits::SessionStore` drops `mark_as_behavioral_bot(&str)` and gains `mark_ghost_sessions_as_bots()` and `mark_no_js_sessions_as_bots(&[SessionId])`. Migrate by implementing the two sweep methods; a typed `SessionRepository::mark_as_behavioral_bot(BehavioralBotReason)` remains on the concrete repository.
+
+### Added
+
+- `systemprompt_models::analytics::BehavioralBotReason`: the one vocabulary for `user_sessions.behavioral_bot_reason`, carrying each reason's score.
+- `SecretsBootstrap::encryption_master_key() -> Result<[u8; 32], SecretsBootstrapError>` beside `oauth_at_rest_pepper()`, the one decoder of the `encryption_master_key` secret for callers.
+- SQL function `is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)`; `v_clean_traffic` and `v_engaged_traffic` are defined over it, and every aggregate human-traffic filter calls it.
+
+### Changed
+
+- The ghost-session and no-JavaScript sweeps run through the injected session store; every statement that sets `is_behavioral_bot` lives in the users crate's session repository.
+- The `database_cleanup` job dispatches each `RetentionTarget` to the owning crate's repository (`LoggingRepository::purge_before`, `AnalyticsRepository::purge_before`, `AiRequestRepository::purge_messages_before`, `AiRequestPayloadRepository::release_bodies_before`, `AiQuotaBucketRepository::purge_before`, `ToolUsageRepository::purge_before`, `DurableOutbox::purge_processed_before`, `GovernanceDecisionRetention::purge_before`); the scheduler issues no delete of its own.
+- `lint-table-ownership` also scans `crates/app/**` and `crates/entry/**`: an app or entry crate may read a foreign table only when `scripts/table-ownership-reads.txt` lists it, and may never write one.
+
+### Removed
+
+- `LoggingRepository::cleanup_old_logs` and `DurableOutbox::prune_processed_before`. Migrate by calling `purge_before(cutoff, batch)` / `purge_processed_before(cutoff, batch)` in a loop until a batch comes back short.
+- `SchedulerError::UnknownRetentionTable`; the retention plan is the `RetentionTarget` enum.
+
 ## [0.72.1] - 2026-10-22
 
 ### Breaking

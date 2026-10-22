@@ -120,9 +120,9 @@ impl TrafficAnalyticsRepository {
             BotTotalsRow,
             r#"
             SELECT
-                COUNT(*) FILTER (WHERE is_bot = false AND is_ai_crawler = false AND is_scanner = false AND is_behavioral_bot = false AND landing_page IS NOT NULL AND request_count > 0)::bigint as "human!",
-                COUNT(*) FILTER (WHERE is_bot = false AND is_ai_crawler = false AND is_scanner = false AND is_behavioral_bot = false AND (landing_page IS NULL OR request_count = 0))::bigint as "ghost!",
-                COUNT(*) FILTER (WHERE is_bot = true OR is_ai_crawler = true OR is_scanner = true OR is_behavioral_bot = true)::bigint as "bot!"
+                COUNT(*) FILTER (WHERE is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot) AND landing_page IS NOT NULL AND request_count > 0)::bigint as "human!",
+                COUNT(*) FILTER (WHERE is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot) AND (landing_page IS NULL OR request_count = 0))::bigint as "ghost!",
+                COUNT(*) FILTER (WHERE NOT is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot))::bigint as "bot!"
             FROM report_user_sessions
             WHERE started_at >= $1 AND started_at < $2
             "#,

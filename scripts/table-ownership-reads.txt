@@ -1,0 +1,27 @@
+# App and entry crates may SELECT from a table they do not own only when it is
+# listed here as `path|table|reason`. A path ending in `/` covers every file
+# beneath it. Writes are never listed: a retention or cleanup write goes
+# through the owning crate's repository (scripts/lint-table-ownership.sh).
+crates/app/runtime/src/trace/repository/|agent_tasks|read-only trace projection over the request's agent task
+crates/app/runtime/src/trace/repository/|message_parts|read-only trace projection over task message parts
+crates/app/runtime/src/trace/repository/|task_messages|read-only trace projection over task messages
+crates/app/runtime/src/trace/repository/|task_execution_steps|read-only trace projection over execution steps
+crates/app/runtime/src/trace/repository/|task_artifacts|read-only trace projection over task artifacts
+crates/app/runtime/src/trace/repository/|artifact_parts|read-only trace projection over artifact parts
+crates/app/runtime/src/trace/repository/|ai_requests|read-only trace projection over AI requests
+crates/app/runtime/src/trace/repository/|ai_request_messages|read-only trace projection over AI request turns
+crates/app/runtime/src/trace/repository/|ai_request_tool_calls|read-only trace projection over AI tool calls
+crates/app/runtime/src/trace/repository/|ai_request_client_evidence|read-only trace projection over client evidence
+crates/app/runtime/src/trace/repository/|mcp_tool_executions|read-only trace projection over MCP executions
+crates/app/runtime/src/trace/repository/|logs|read-only trace projection over log rows
+crates/app/runtime/src/trace/repository/|log_rollup_hourly|read-only trace projection over hourly log rollups
+crates/app/runtime/src/trace/repository/|trace_facts|read-only trace projection over the trace fact ledger
+crates/app/scheduler/src/repository/otlp/tail.rs|ai_requests|OTLP export tails AI requests by watermark
+crates/app/scheduler/src/repository/otlp/tail.rs|tool_call_ledger|OTLP export tails the tool-call ledger by watermark
+crates/app/scheduler/src/repository/otlp/tail.rs|governance_decisions|OTLP export tails governance decisions by watermark
+crates/app/scheduler/src/repository/otlp/tail.rs|logs|OTLP export tails log rows by watermark
+crates/app/scheduler/src/repository/security/mod.rs|user_sessions|malicious-IP blacklist aggregates sessions per IP
+crates/app/scheduler/src/repository/analytics/mod.rs|user_contexts|empty-context sweep selects candidates; the delete goes through the agent repository
+crates/app/scheduler/src/repository/analytics/mod.rs|task_messages|empty-context sweep excludes contexts with messages
+crates/app/scheduler/src/repository/analytics/mod.rs|mcp_tool_executions|empty-context sweep excludes contexts with tool executions
+crates/app/scheduler/src/repository/analytics/mod.rs|governance_decisions|empty-context sweep excludes contexts with governance decisions

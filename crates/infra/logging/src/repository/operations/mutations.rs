@@ -125,13 +125,18 @@ pub(in crate::repository) async fn clear_all_logs(pool: &PgPool) -> Result<u64, 
     Ok(result.rows_affected())
 }
 
-pub(in crate::repository) async fn cleanup_logs_before(
+pub(in crate::repository) async fn purge_logs_before(
     pool: &PgPool,
     cutoff: DateTime<Utc>,
+    batch: i64,
 ) -> Result<u64, LoggingError> {
-    let result = sqlx::query!("DELETE FROM logs WHERE timestamp < $1", cutoff)
-        .execute(pool)
-        .await?;
+    let result = sqlx::query!(
+        "DELETE FROM logs WHERE ctid = ANY(ARRAY(SELECT ctid FROM logs WHERE timestamp < $1 LIMIT $2))",
+        cutoff,
+        batch
+    )
+    .execute(pool)
+    .await?;
 
     Ok(result.rows_affected())
 }

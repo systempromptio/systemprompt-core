@@ -1331,12 +1331,6 @@ fn test_scheduler_error_display_all_variants() {
             ),
             "Job execution failed: job - Invalid input: error",
         ),
-        (
-            SchedulerError::UnknownRetentionTable {
-                table: "nope".to_owned(),
-            },
-            "No retention path for table nope",
-        ),
         (SchedulerError::AlreadyRunning, "Scheduler already running"),
         (SchedulerError::NotInitialized, "Scheduler not initialized"),
     ];

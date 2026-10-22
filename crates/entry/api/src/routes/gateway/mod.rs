@@ -91,7 +91,7 @@ pub fn gateway_repositories(
 ) -> anyhow::Result<systemprompt_gateway::GatewayRepositories> {
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         ctx.app_paths().storage().data(),
-        systemprompt_config::SecretsBootstrap::get()?,
+        systemprompt_config::SecretsBootstrap::encryption_master_key()?,
     )?;
     let profile = systemprompt_config::ProfileBootstrap::get()?;
     Ok(systemprompt_gateway::GatewayRepositories::new(

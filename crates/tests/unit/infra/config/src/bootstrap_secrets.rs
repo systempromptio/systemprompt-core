@@ -32,6 +32,10 @@ async fn init_loads_secrets_from_file_with_seed() {
         SecretsBootstrap::manifest_signing_secret_seed().unwrap(),
         [0u8; MANIFEST_SIGNING_SEED_BYTES]
     );
+    assert_eq!(
+        SecretsBootstrap::encryption_master_key().unwrap(),
+        [0u8; 32]
+    );
     assert!(SecretsBootstrap::is_initialized());
 }
 

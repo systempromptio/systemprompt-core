@@ -1,7 +1,7 @@
 //! Encrypted terminal receipts retained until database settlement succeeds.
 //!
 //! [`GatewayJournal`] is built once at the gateway composition root from the
-//! storage data directory and the `encryption_master_key` secret, and injected
+//! storage data directory and the decoded `encryption_master_key`, and injected
 //! into every audit. It lives under `paths.storage`, never beside the profile:
 //! the profile is configuration and is mounted read-only in the self-host
 //! bundle, and receipts belong to the node that admitted them, so the data
@@ -35,7 +35,6 @@ use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::aead::KeyInit;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_manifest::Secrets;
 use systemprompt_traits::BackgroundTasks;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
@@ -59,13 +58,8 @@ impl std::fmt::Debug for GatewayJournal {
 }
 
 impl GatewayJournal {
-    pub fn open(state_dir: &Path, secrets: &Secrets) -> Result<Self> {
-        let key = secrets
-            .get("encryption_master_key")
-            .ok_or(GatewayAuditError::MissingJournalKey)?;
-        let decoded =
-            systemprompt_config::decode_master_key(key).map_err(GatewayAuditError::JournalKey)?;
-        let cipher = ChaCha20Poly1305::new(&decoded.into());
+    pub fn open(state_dir: &Path, key: [u8; 32]) -> Result<Self> {
+        let cipher = ChaCha20Poly1305::new(&key.into());
         let root = state_dir.join("gateway-journal");
         systemprompt_config::create_state_dir(&root).map_err(GatewayAuditError::JournalDir)?;
         #[cfg(unix)]
