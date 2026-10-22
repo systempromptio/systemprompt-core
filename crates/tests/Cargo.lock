@@ -6983,6 +6983,7 @@ dependencies = [
  "reqwest",
  "rmcp",
  "serde_json",
+ "serde_yaml_ng",
  "sqlx",
  "systemprompt-ai",
  "systemprompt-database",

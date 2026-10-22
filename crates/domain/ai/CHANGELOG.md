@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Fixed
+
+- Storing a personal key probes every entry that shares it (`credential_siblings`, `verify_personal_key`), not only the owner entry, so a key a sibling endpoint refuses is never stored as working.
+
 ## [0.72.1] - 2026-10-22
 
 ### Changed

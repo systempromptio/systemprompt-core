@@ -75,7 +75,7 @@ pub async fn store_personal_key(
     if key.is_empty() || key.len() > MAX_KEY_BYTES {
         return Err(PersonalKeyError::Rejected(provider_label(&entry)));
     }
-    verify_upstream(&entry, key, user_id).await?;
+    verify_personal_key(registry, &entry, key, user_id).await?;
     let label = label.map(str::trim).filter(|l| !l.is_empty());
     let sealed = systemprompt_security::at_rest::seal(key)
         .map_err(|e| PersonalKeyError::Internal(e.into()))?;
@@ -89,6 +89,33 @@ pub async fn store_personal_key(
         "Personal provider key stored"
     );
     Ok(meta)
+}
+
+#[must_use]
+pub fn credential_siblings<'r>(
+    registry: &'r ProviderRegistry,
+    owner: &ProviderEntry,
+) -> Vec<&'r ProviderEntry> {
+    registry
+        .providers
+        .iter()
+        .filter(|e| e.is_user_credential() && e.credential_owner() == owner.name.as_str())
+        .collect()
+}
+
+pub async fn verify_personal_key(
+    registry: &ProviderRegistry,
+    owner: &ProviderEntry,
+    key: &str,
+    user_id: &UserId,
+) -> Result<(), PersonalKeyError> {
+    verify_upstream(owner, key, user_id).await?;
+    for sibling in credential_siblings(registry, owner) {
+        if sibling.name.as_str() != owner.name.as_str() {
+            verify_upstream(sibling, key, user_id).await?;
+        }
+    }
+    Ok(())
 }
 
 #[must_use]
