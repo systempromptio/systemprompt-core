@@ -8,7 +8,9 @@ use std::time::Duration;
 
 use systemprompt_database::resilience::Outcome;
 
-use super::AiError;
+use systemprompt_identifiers::ProviderId;
+
+use super::{AiError, ProviderError};
 
 impl AiError {
     pub async fn from_error_response(provider: &str, response: reqwest::Response) -> Self {
@@ -18,22 +20,22 @@ impl AiError {
             .text()
             .await
             .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
-        Self::HttpStatus {
-            provider: provider.to_owned(),
+        Self::Provider(ProviderError::HttpStatus {
+            provider: ProviderId::new(provider),
             status,
             retry_after,
             body,
-        }
+        })
     }
 
     #[must_use]
     pub fn classify(&self) -> Outcome {
         match self {
-            Self::HttpStatus {
+            Self::Provider(ProviderError::HttpStatus {
                 status,
                 retry_after,
                 ..
-            } => {
+            }) => {
                 if matches!(*status, 408 | 425 | 429 | 500 | 502 | 503 | 504) {
                     Outcome::Transient {
                         retry_after: *retry_after,
@@ -42,10 +44,10 @@ impl AiError {
                     Outcome::Permanent
                 }
             },
-            Self::RateLimit { .. } | Self::Timeout { .. } => {
+            Self::Provider(ProviderError::Timeout { .. }) => {
                 Outcome::Transient { retry_after: None }
             },
-            Self::Http(err) if err.is_timeout() || err.is_connect() => {
+            Self::Provider(ProviderError::Http(err)) if err.is_timeout() || err.is_connect() => {
                 Outcome::Transient { retry_after: None }
             },
             _ => Outcome::Permanent,

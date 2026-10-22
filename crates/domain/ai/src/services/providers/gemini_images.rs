@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, RequestError, Result, RoutingError};
 use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,
     NewImageGenerationResponse,
@@ -20,6 +20,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::time::Instant;
+use systemprompt_identifiers::{ModelId, ProviderId};
 use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, IMAGE_GEN_LONG_POLL_TIMEOUT};
 use systemprompt_wire::WireProtocol;
@@ -69,31 +70,25 @@ impl GeminiImageProvider {
 
     fn validate_request(&self, request: &ImageGenerationRequest) -> Result<()> {
         if request.prompt.len() > self.capabilities().max_prompt_length {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!(
-                    "Prompt length {} exceeds maximum {}",
-                    request.prompt.len(),
-                    self.capabilities().max_prompt_length
-                ),
-            });
+            return Err(AiError::Request(RequestError::PromptTooLong {
+                provider: ProviderId::new(self.name()),
+                length: request.prompt.len(),
+                max: self.capabilities().max_prompt_length,
+            }));
         }
 
         if !self.supports_resolution(&request.resolution) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Resolution {} not supported", request.resolution.as_str()),
-            });
+            return Err(AiError::Request(RequestError::UnsupportedResolution {
+                provider: ProviderId::new(self.name()),
+                resolution: request.resolution,
+            }));
         }
 
         if !self.supports_aspect_ratio(&request.aspect_ratio) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!(
-                    "Aspect ratio {} not supported",
-                    request.aspect_ratio.as_str()
-                ),
-            });
+            return Err(AiError::Request(RequestError::UnsupportedAspectRatio {
+                provider: ProviderId::new(self.name()),
+                aspect_ratio: request.aspect_ratio,
+            }));
         }
 
         Ok(())
@@ -107,21 +102,13 @@ impl GeminiImageProvider {
         for (name, value) in call.headers(WireProtocol::Gemini) {
             request = request.header(name, value);
         }
-        let response = request.json(body).send().await.map_err(AiError::Http)?;
+        let response = request.json(body).send().await.map_err(AiError::from)?;
 
         if !response.status().is_success() {
-            let status = response.status();
-            let error_body = response
-                .text()
-                .await
-                .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("API returned status {status}: {error_body}"),
-            });
+            return Err(AiError::from_error_response(self.name(), response).await);
         }
 
-        response.json().await.map_err(AiError::Http)
+        response.json().await.map_err(AiError::from)
     }
 }
 
@@ -189,10 +176,10 @@ impl ImageProvider for GeminiImageProvider {
             .unwrap_or_else(|| self.default_model());
 
         if !self.supports_model(model) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Model {model} not supported"),
-            });
+            return Err(AiError::Routing(RoutingError::ModelUnsupported {
+                provider: ProviderId::new(self.name()),
+                model: ModelId::new(model),
+            }));
         }
 
         let gemini_request = build_image_request(request, model, &self.model_definitions);

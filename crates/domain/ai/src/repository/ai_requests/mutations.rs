@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::models::rows::AiRequestRow;
 use crate::models::{AiRequest, AiRequestRecord, RequestStatus};
 use systemprompt_identifiers::{
     AiRequestId, ApiKeyId, ClientSessionId, ContextId, GatewayConversationId, InstanceId,
@@ -22,7 +23,7 @@ impl AiRequestRepository {
         error_message: &str,
     ) -> Result<AiRequest, RepositoryError> {
         sqlx::query_as!(
-            AiRequest,
+            AiRequestRow,
             r#"
             UPDATE ai_requests
             SET status = $1, error_message = $2, completed_at = CURRENT_TIMESTAMP,
@@ -53,6 +54,7 @@ impl AiRequestRepository {
         )
         .fetch_one(self.write_pool())
         .await
+        .map(AiRequest::from)
         .map_err(RepositoryError::from)
     }
 

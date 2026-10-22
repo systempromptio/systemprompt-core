@@ -3,9 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, ProviderError, Result};
 use crate::models::image_generation::{ImageGenerationRequest, ImageResolution};
 use std::collections::HashMap;
+use systemprompt_identifiers::ProviderId;
 use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_wire::gemini::{
     GeminiContent, GeminiEmpty, GeminiGenerationConfig, GeminiImageConfig, GeminiInlineData,
@@ -89,24 +90,17 @@ const fn text_part(text: String) -> GeminiPart {
 }
 
 pub(super) fn extract_image_from_response(response: &GeminiResponse) -> Result<(String, String)> {
-    let candidate = response
-        .candidates
-        .first()
-        .ok_or_else(|| AiError::EmptyProviderResponse {
-            provider: "gemini-image".to_owned(),
-        })?;
+    let candidate = response.candidates.first().ok_or_else(|| {
+        AiError::Provider(ProviderError::EmptyResponse {
+            provider: ProviderId::new("gemini-image".to_owned()),
+        })
+    })?;
 
-    let content = candidate
-        .content
-        .as_ref()
-        .ok_or_else(|| AiError::ProviderError {
-            provider: "gemini-image".to_owned(),
-            message: "Image generation returned empty response - this may indicate the prompt was \
-                      rejected by content safety filters, API quota exceeded, or a transient \
-                      service error. Please inform the user that image generation failed and the \
-                      content was created without an image."
-                .to_owned(),
-        })?;
+    let content = candidate.content.as_ref().ok_or_else(|| {
+        AiError::Provider(ProviderError::ImageWithheld {
+            provider: ProviderId::new("gemini-image"),
+        })
+    })?;
 
     for part in &content.parts {
         if let GeminiPart::InlineData { inline_data } = part {
@@ -114,8 +108,7 @@ pub(super) fn extract_image_from_response(response: &GeminiResponse) -> Result<(
         }
     }
 
-    Err(AiError::ProviderError {
-        provider: "gemini-image".to_owned(),
-        message: "No image data found in response".to_owned(),
-    })
+    Err(AiError::Provider(ProviderError::NoImageData {
+        provider: ProviderId::new("gemini-image"),
+    }))
 }

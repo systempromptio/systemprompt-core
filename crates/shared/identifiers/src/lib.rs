@@ -117,6 +117,7 @@ pub use agent::{AgentId, AgentName, ExternalAgentId};
 pub use agent_run::{AgentRunId, HostSessionId};
 pub use ai::{
     AiGatewayPolicyId, AiQuotaBucketId, AiRequestId, AiSafetyFindingId, ConfigId, MessageId,
+    QuotaSubjectId,
 };
 pub use auth::{
     ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, DeviceId, JwtToken, SessionToken,

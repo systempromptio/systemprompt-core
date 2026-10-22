@@ -17,7 +17,6 @@ mod search;
 mod streaming;
 mod tool_conversion;
 mod tools;
-mod trait_impl;
 mod transport;
 
 pub use code_execution::{CodeExecutionResponse, generate_with_code_execution};

@@ -6,6 +6,7 @@
 use crate::error::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_identifiers::ProviderId;
 
 use crate::models::RequestStatus;
 use crate::models::ai::AiRequest;
@@ -213,12 +214,11 @@ impl AiService {
     }
 
     pub(super) fn get_provider(&self, name: &str) -> Result<Arc<dyn ProviderClient>> {
-        self.providers
-            .get(name)
-            .cloned()
-            .ok_or_else(|| crate::error::AiError::ProviderNotFound {
-                provider: name.to_owned(),
+        self.providers.get(name).cloned().ok_or_else(|| {
+            crate::error::AiError::Routing(crate::error::RoutingError::ProviderNotFound {
+                provider: ProviderId::new(name),
             })
+        })
     }
 
     pub(super) async fn audit(&self, params: &StoreParams<'_>) {

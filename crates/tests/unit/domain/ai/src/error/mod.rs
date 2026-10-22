@@ -1,167 +1,136 @@
 //! Tests for error module types and implementations.
 
+use std::path::PathBuf;
 use std::time::Duration;
-use systemprompt_ai::error::{AiError, ProviderCapability};
+use systemprompt_ai::error::{
+    AiError, ProviderCapability, ProviderError, RequestError, RoutingError, StorageError,
+    StorageOperation, ToolError,
+};
+use systemprompt_ai::models::image_generation::{AspectRatio, ImageResolution};
 use systemprompt_database::resilience::Outcome;
-use systemprompt_identifiers::{McpServerId, McpToolName};
+use systemprompt_identifiers::{AgentName, McpServerId, McpToolName, ModelId, ProviderId};
 use systemprompt_models::errors::AiInferenceError;
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{RepositoryError, ServerListingFailure};
 
 mod ai_error_tests {
     use super::*;
 
-    #[test]
-    fn model_not_specified_error_displays_provider() {
-        let err = AiError::ModelNotSpecified {
-            provider: "anthropic".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("anthropic"));
-        assert!(msg.contains("Model not specified"));
+    fn provider(name: &str) -> ProviderId {
+        ProviderId::new(name)
     }
 
     #[test]
-    fn missing_metadata_error_displays_field() {
-        let err = AiError::MissingMetadata {
-            field: "user_id".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("user_id"));
-        assert!(msg.contains("missing required field"));
+    fn empty_response_names_the_provider() {
+        let err = AiError::Provider(ProviderError::EmptyResponse {
+            provider: provider("gemini"),
+        });
+        assert_eq!(err.to_string(), "Provider gemini returned empty response");
     }
 
     #[test]
-    fn missing_user_context_error() {
-        let err = AiError::MissingUserContext;
-        let msg = err.to_string();
-        assert!(msg.contains("User context required"));
-    }
-
-    #[test]
-    fn empty_provider_response_error() {
-        let err = AiError::EmptyProviderResponse {
-            provider: "openai".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("openai"));
-        assert!(msg.contains("empty response"));
-    }
-
-    #[test]
-    fn invalid_tool_schema_error() {
-        let err = AiError::InvalidToolSchema {
-            reason: "missing required field 'name'".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("missing required field 'name'"));
-        assert!(msg.contains("schema validation failed"));
-    }
-
-    #[test]
-    fn authentication_required_error() {
-        let err = AiError::AuthenticationRequired {
-            service_id: McpServerId::try_new("github-mcp").expect("valid McpServerId"),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("github-mcp"));
-        assert!(msg.contains("Authentication required"));
-    }
-
-    #[test]
-    fn structured_output_failed_error() {
-        let err = AiError::StructuredOutputFailed {
-            retries: 3,
-            details: "JSON schema mismatch".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("3"));
-        assert!(msg.contains("JSON schema mismatch"));
-    }
-
-    #[test]
-    fn provider_error_displays_message() {
-        let err = AiError::ProviderError {
-            provider: "gemini".to_string(),
-            message: "rate limit exceeded".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("gemini"));
-        assert!(msg.contains("rate limit exceeded"));
-    }
-
-    #[test]
-    fn serialization_error_from_serde_json() {
-        let json_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
-        let err: AiError = json_err.into();
-        let msg = err.to_string();
-        assert!(msg.contains("Serialization failed"));
-    }
-
-    #[test]
-    fn message_serialization_failed_error() {
-        let err = AiError::MessageSerializationFailed;
-        let msg = err.to_string();
-        assert!(msg.contains("Message history cannot be serialized"));
-    }
-
-    #[test]
-    fn missing_tool_field_error() {
-        let err = AiError::MissingToolField {
+    fn missing_tool_field_names_tool_and_field() {
+        let err = AiError::Tool(ToolError::MissingField {
             tool_name: McpToolName::new("search"),
-            field: "description".to_string(),
-        };
+            field: "input_schema",
+        });
         let msg = err.to_string();
         assert!(msg.contains("search"));
-        assert!(msg.contains("description"));
+        assert!(msg.contains("input_schema"));
     }
 
     #[test]
-    fn empty_tool_description_error() {
-        let err = AiError::EmptyToolDescription {
-            tool_name: McpToolName::new("calculator"),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("calculator"));
-        assert!(msg.contains("cannot be empty"));
+    fn empty_tool_description_names_the_tool() {
+        let err = AiError::Tool(ToolError::EmptyDescription {
+            tool_name: McpToolName::new("lookup"),
+        });
+        assert!(err.to_string().contains("lookup"));
     }
 
     #[test]
-    fn no_tool_calls_error() {
-        let err = AiError::NoToolCalls;
-        let msg = err.to_string();
-        assert!(msg.contains("No tool calls found"));
+    fn incomplete_discovery_lists_every_failed_server() {
+        let err = AiError::Tool(ToolError::DiscoveryIncomplete {
+            agent: AgentName::new("planner"),
+            failed: vec![
+                ServerListingFailure {
+                    server: McpServerId::new("alpha"),
+                    message: "timeout".to_owned(),
+                },
+                ServerListingFailure {
+                    server: McpServerId::new("beta"),
+                    message: "refused".to_owned(),
+                },
+            ],
+        });
+        assert_eq!(
+            err.to_string(),
+            "tool inventory for agent planner is incomplete: alpha: timeout; beta: refused"
+        );
+        assert!(matches!(
+            AiInferenceError::from(err),
+            AiInferenceError::Tool(_)
+        ));
     }
 
     #[test]
-    fn rate_limit_error() {
-        let err = AiError::RateLimit {
-            provider: "anthropic".to_string(),
-            details: "retry after 60s".to_string(),
-        };
+    fn prompt_too_long_reports_length_and_limit_as_a_provider_failure() {
+        let err = AiError::Request(RequestError::PromptTooLong {
+            provider: provider("openai-image"),
+            length: 5000,
+            max: 4000,
+        });
         let msg = err.to_string();
-        assert!(msg.contains("anthropic"));
-        assert!(msg.contains("retry after 60s"));
-        assert!(msg.contains("Rate limit"));
+        assert!(msg.contains("5000"));
+        assert!(msg.contains("4000"));
+        assert!(matches!(
+            AiInferenceError::from(err),
+            AiInferenceError::Provider { ref provider, .. } if provider == "openai-image"
+        ));
     }
 
     #[test]
-    fn authentication_failed_error() {
-        let err = AiError::AuthenticationFailed {
-            provider: "openai".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("openai"));
-        assert!(msg.contains("Invalid API credentials"));
+    fn unsupported_resolution_and_aspect_ratio_name_the_value() {
+        let err = AiError::Request(RequestError::UnsupportedResolution {
+            provider: provider("gemini-image"),
+            resolution: ImageResolution::FourK,
+        });
+        assert!(err.to_string().contains(ImageResolution::FourK.as_str()));
+        let err = AiError::Request(RequestError::UnsupportedAspectRatio {
+            provider: provider("gemini-image"),
+            aspect_ratio: AspectRatio::Square,
+        });
+        assert!(err.to_string().contains(AspectRatio::Square.as_str()));
     }
 
     #[test]
-    fn configuration_error() {
-        let err = AiError::ConfigurationError {
-            message: "missing api_key".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("missing api_key"));
-        assert!(msg.contains("Configuration error"));
+    fn no_default_provider_is_a_configuration_failure() {
+        let err = AiError::Routing(RoutingError::NoDefaultProvider);
+        assert!(matches!(
+            AiInferenceError::from(err),
+            AiInferenceError::Configuration(_)
+        ));
+    }
+
+    #[test]
+    fn model_unsupported_names_provider_and_model() {
+        let err = AiError::Routing(RoutingError::ModelUnsupported {
+            provider: provider("openai-image"),
+            model: ModelId::new("dall-e-1"),
+        });
+        assert_eq!(
+            err.to_string(),
+            "provider openai-image does not support model dall-e-1"
+        );
+    }
+
+    #[test]
+    fn no_provider_for_model_keeps_the_model_on_the_inference_seam() {
+        let err = AiError::Routing(RoutingError::NoProviderForModel {
+            model: ModelId::new("gpt-9"),
+        });
+        assert!(matches!(
+            AiInferenceError::from(err),
+            AiInferenceError::NoProviderForModel { ref model } if model == "gpt-9"
+        ));
     }
 
     #[test]
@@ -171,40 +140,11 @@ mod ai_error_tests {
     }
 
     #[test]
-    fn mcp_service_not_found_error() {
-        let err = AiError::McpServiceNotFound {
-            service_id: McpServerId::try_new("custom-service").expect("valid McpServerId"),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("custom-service"));
-        assert!(msg.contains("not found or not configured"));
-    }
-
-    #[test]
-    fn mcp_authentication_missing_error() {
-        let err = AiError::McpAuthenticationMissing {
-            service_id: McpServerId::try_new("oauth-service").expect("valid McpServerId"),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("oauth-service"));
-        assert!(msg.contains("OAuth authentication"));
-    }
-
-    #[test]
-    fn service_auth_check_failed_error() {
-        let err = AiError::ServiceAuthCheckFailed {
-            details: "timeout".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("timeout"));
-    }
-
-    #[test]
     fn storage_error_keeps_the_backend_cause() {
-        let err = AiError::Storage {
-            context: "failed to write image file a.png".to_string(),
+        let err = AiError::Storage(StorageError::Operation {
+            operation: StorageOperation::WriteImage(PathBuf::from("a.png")),
             source: systemprompt_traits::FileStorageError::Validation("disk full".to_string()),
-        };
+        });
         let msg = err.to_string();
         assert!(msg.contains("disk full"));
         assert!(msg.contains("a.png"));
@@ -213,18 +153,10 @@ mod ai_error_tests {
 
     #[test]
     fn oversized_image_reports_both_sizes() {
-        let err = AiError::ImageTooLarge { size: 11, max: 10 };
+        let err = AiError::Storage(StorageError::ImageTooLarge { size: 11, max: 10 });
         let msg = err.to_string();
         assert!(msg.contains("11"));
         assert!(msg.contains("10"));
-    }
-
-    #[test]
-    fn invalid_input_error() {
-        let err = AiError::InvalidInput("prompt cannot be empty".to_string());
-        let msg = err.to_string();
-        assert!(msg.contains("prompt cannot be empty"));
-        assert!(msg.contains("Invalid input"));
     }
 
     #[test]
@@ -248,12 +180,12 @@ mod classify_tests {
 
     #[test]
     fn http_status_429_is_transient_with_retry_after() {
-        let err = AiError::HttpStatus {
-            provider: "anthropic".to_string(),
+        let err = AiError::Provider(ProviderError::HttpStatus {
+            provider: ProviderId::new("anthropic"),
             status: 429,
             retry_after: Some(Duration::from_secs(30)),
             body: "slow down".to_string(),
-        };
+        });
         assert!(matches!(
             err.classify(),
             Outcome::Transient {
@@ -265,35 +197,23 @@ mod classify_tests {
 
     #[test]
     fn http_status_400_is_permanent() {
-        let err = AiError::HttpStatus {
-            provider: "openai".to_string(),
+        let err = AiError::Provider(ProviderError::HttpStatus {
+            provider: ProviderId::new("openai"),
             status: 400,
             retry_after: None,
             body: "bad request".to_string(),
-        };
+        });
         assert!(matches!(err.classify(), Outcome::Permanent));
     }
 
     #[test]
     fn http_status_503_is_transient() {
-        let err = AiError::HttpStatus {
-            provider: "gemini".to_string(),
+        let err = AiError::Provider(ProviderError::HttpStatus {
+            provider: ProviderId::new("gemini"),
             status: 503,
             retry_after: None,
             body: String::new(),
-        };
-        assert!(matches!(
-            err.classify(),
-            Outcome::Transient { retry_after: None }
-        ));
-    }
-
-    #[test]
-    fn rate_limit_is_transient() {
-        let err = AiError::RateLimit {
-            provider: "anthropic".to_string(),
-            details: "tpm exceeded".to_string(),
-        };
+        });
         assert!(matches!(
             err.classify(),
             Outcome::Transient { retry_after: None }
@@ -302,10 +222,10 @@ mod classify_tests {
 
     #[test]
     fn timeout_is_transient_and_displays_provider() {
-        let err = AiError::Timeout {
-            provider: "openai".to_string(),
+        let err = AiError::Provider(ProviderError::Timeout {
+            provider: ProviderId::new("openai"),
             after_ms: 5000,
-        };
+        });
         assert!(matches!(
             err.classify(),
             Outcome::Transient { retry_after: None }
@@ -317,28 +237,28 @@ mod classify_tests {
 
     #[test]
     fn circuit_open_is_permanent() {
-        let err = AiError::CircuitOpen {
-            provider: "openai".to_string(),
-        };
+        let err = AiError::Provider(ProviderError::CircuitOpen {
+            provider: ProviderId::new("openai"),
+        });
         assert!(matches!(err.classify(), Outcome::Permanent));
         assert!(err.to_string().contains("Circuit breaker open"));
     }
 
     #[test]
     fn dependency_unavailable_displays_and_is_permanent() {
-        let err = AiError::DependencyUnavailable {
-            provider: "gemini".to_string(),
-        };
+        let err = AiError::Provider(ProviderError::DependencyUnavailable {
+            provider: ProviderId::new("gemini"),
+        });
         assert!(matches!(err.classify(), Outcome::Permanent));
         assert!(err.to_string().contains("concurrency limit"));
     }
 
     #[test]
     fn capability_unsupported_names_provider_and_capability() {
-        let err = AiError::CapabilityUnsupported {
-            provider: "minimal".to_string(),
+        let err = AiError::Routing(RoutingError::CapabilityUnsupported {
+            provider: ProviderId::new("minimal"),
             capability: ProviderCapability::ToolStreaming,
-        };
+        });
         assert_eq!(
             err.to_string(),
             "provider minimal does not support tool streaming"
@@ -348,9 +268,9 @@ mod classify_tests {
 
     #[test]
     fn provider_not_found_is_a_configuration_failure() {
-        let err: AiInferenceError = AiError::ProviderNotFound {
-            provider: "absent".to_string(),
-        }
+        let err: AiInferenceError = AiError::Routing(RoutingError::ProviderNotFound {
+            provider: ProviderId::new("absent"),
+        })
         .into();
         assert!(matches!(err, AiInferenceError::Configuration(_)));
     }
@@ -377,12 +297,12 @@ mod from_error_response_tests {
         let err = AiError::from_error_response("openai", reqwest::Response::from(http)).await;
 
         match &err {
-            AiError::HttpStatus {
+            AiError::Provider(ProviderError::HttpStatus {
                 provider,
                 status,
                 retry_after,
                 body,
-            } => {
+            }) => {
                 assert_eq!(provider, "openai");
                 assert_eq!(*status, 429);
                 assert_eq!(*retry_after, Some(Duration::from_secs(7)));
@@ -409,11 +329,11 @@ mod from_error_response_tests {
 
         assert!(matches!(
             err,
-            AiError::HttpStatus {
+            AiError::Provider(ProviderError::HttpStatus {
                 status: 503,
                 retry_after: None,
                 ..
-            }
+            })
         ));
     }
 
