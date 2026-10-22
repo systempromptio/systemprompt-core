@@ -28,6 +28,7 @@
 
 pub mod auth;
 pub mod bridge;
+pub mod bridge_admission;
 pub mod bridge_data;
 pub mod bridge_device;
 pub mod bridge_error;
