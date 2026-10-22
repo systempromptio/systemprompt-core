@@ -5,7 +5,9 @@ use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_gateway::service::chain_plan::{fit_context_window, order_chain};
-use systemprompt_gateway::service::failover::{DeploymentState, plan_selection};
+use systemprompt_gateway::service::failover::{
+    DeploymentLoad, DeploymentState, ProviderBreakers, plan_selection,
+};
 use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::{
     GatewayRoute, ProviderEntry, ProviderRegistry, SelectionStrategy,
@@ -106,6 +108,8 @@ fn ordered_chain_is_unchanged_and_not_described() {
     let planned = order_chain(
         r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
         "m",
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
     );
     let providers: Vec<&str> = planned
         .deployments
@@ -213,7 +217,12 @@ fn providers_of(planned: &systemprompt_gateway::service::chain_plan::PlannedChai
 
 #[test]
 fn an_empty_chain_plans_to_nothing() {
-    let planned = order_chain(Vec::new(), "m");
+    let planned = order_chain(
+        Vec::new(),
+        "m",
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
+    );
     assert!(planned.deployments.is_empty());
     assert_eq!(planned.descriptor, None);
 }
@@ -226,12 +235,30 @@ fn an_idle_least_busy_chain_keeps_chain_order_and_is_described() {
     let planned = order_chain(
         r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
         "m",
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
     );
     assert_eq!(
         providers_of(&planned),
         vec!["lb-plan-a", "lb-plan-b", "lb-plan-c"]
     );
     assert_eq!(planned.descriptor.as_deref(), Some("strategy:least_busy"));
+}
+
+#[test]
+fn a_busy_least_busy_primary_is_ordered_after_its_idle_fallbacks() {
+    let r = route(
+        "model_pattern: m\nprovider: lb-busy-a\nstrategy: least_busy\nfallbacks:\n  - {provider: lb-busy-b}\n",
+    );
+    let load = DeploymentLoad::default();
+    let _held = load.enter(&DeploymentLoad::key("lb-busy-a", "m"));
+    let planned = order_chain(
+        r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
+        "m",
+        &ProviderBreakers::new(),
+        &load,
+    );
+    assert_eq!(providers_of(&planned), vec!["lb-busy-b", "lb-busy-a"]);
 }
 
 #[test]
@@ -242,6 +269,8 @@ fn a_weighted_chain_is_a_permutation_of_its_deployments() {
     let planned = order_chain(
         r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
         "m",
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
     );
     let mut providers = providers_of(&planned);
     providers.sort_unstable();
@@ -255,6 +284,8 @@ fn a_single_weighted_deployment_is_not_reordered_but_is_described() {
     let planned = order_chain(
         r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
         "m",
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
     );
     assert_eq!(providers_of(&planned), vec!["w-plan-solo"]);
     assert_eq!(planned.descriptor.as_deref(), Some("strategy:weighted"));

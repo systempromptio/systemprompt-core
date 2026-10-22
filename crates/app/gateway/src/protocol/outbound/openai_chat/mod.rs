@@ -57,7 +57,7 @@ impl OutboundAdapter for OpenAiChatOutbound {
             ctx.upstream_model,
             ctx.request.stream,
         );
-        let mut req = super::http_client().post(&url).body(body.bytes.clone());
+        let mut req = ctx.http.post(&url).body(body.bytes.clone());
         for (name, value) in ctx
             .upstream
             .headers_forwarding(WireProtocol::OpenAiChat, ctx.forward_headers)

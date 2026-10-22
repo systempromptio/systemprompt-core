@@ -16,6 +16,8 @@ use crate::policies::{
     HeuristicScanner, NullScanner, OverrideEngine, RouteSelectorEngine, SafetyConfig,
     SafetyScanner, SafetyScannerRegistration, ScannerFactory, ScannerSettings,
 };
+use crate::service::failover::{DeploymentLoad, ProviderBreakers};
+use systemprompt_client::GuardedClientConfig;
 use systemprompt_wire::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
@@ -156,20 +158,45 @@ impl SafetyScannerRegistry {
     }
 }
 
-/// The engines one gateway owns: upstream adapters, safety scanners, the
-/// system-prompt override engine and the route selector. Built once at the
-/// composition root and shared by handle.
-#[derive(Debug, Default)]
+/// The engines one gateway owns, built once at the composition root and
+/// shared by handle.
+///
+/// Upstream adapters, safety scanners, the system-prompt override engine, the
+/// route selector, the per-provider circuit breakers, the per-deployment
+/// in-flight gauge and the upstream HTTP client.
+#[derive(Debug)]
 pub struct GatewayEngines {
     pub upstream_registry: Arc<GatewayUpstreamRegistry>,
     pub scanner_registry: Arc<SafetyScannerRegistry>,
     pub override_engine: Arc<OverrideEngine>,
     pub route_selector: Arc<RouteSelectorEngine>,
+    pub breakers: ProviderBreakers,
+    pub load: DeploymentLoad,
+    pub http: reqwest::Client,
+}
+
+/// Failure to assemble a [`GatewayEngines`] set at boot.
+#[derive(Debug, thiserror::Error)]
+pub enum GatewayEnginesError {
+    #[error("gateway upstream HTTP client could not be built")]
+    HttpClient(#[source] reqwest::Error),
 }
 
 impl GatewayEngines {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new() -> Result<Self, GatewayEnginesError> {
+        let http = systemprompt_client::guarded_client(&GuardedClientConfig {
+            timeout: None,
+            ..GuardedClientConfig::default()
+        })
+        .map_err(GatewayEnginesError::HttpClient)?;
+        Ok(Self {
+            upstream_registry: Arc::default(),
+            scanner_registry: Arc::default(),
+            override_engine: Arc::default(),
+            route_selector: Arc::default(),
+            breakers: ProviderBreakers::new(),
+            load: DeploymentLoad::default(),
+            http,
+        })
     }
 }

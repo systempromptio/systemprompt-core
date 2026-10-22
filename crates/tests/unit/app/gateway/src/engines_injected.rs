@@ -8,7 +8,7 @@ use systemprompt_gateway::policies::SafetyConfig;
 
 #[test]
 fn a_new_engine_set_carries_the_builtins_of_every_engine() {
-    let engines = GatewayEngines::new();
+    let engines = GatewayEngines::new().expect("gateway engines build");
 
     for tag in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
         assert!(
@@ -36,8 +36,8 @@ fn a_new_engine_set_carries_the_builtins_of_every_engine() {
 
 #[test]
 fn engines_are_values_not_a_process_singleton() {
-    let first = Arc::new(GatewayEngines::new());
-    let second = Arc::new(GatewayEngines::new());
+    let first = Arc::new(GatewayEngines::new().expect("gateway engines build"));
+    let second = Arc::new(GatewayEngines::new().expect("gateway engines build"));
 
     assert!(
         !Arc::ptr_eq(&first.scanner_registry, &second.scanner_registry),
@@ -45,4 +45,21 @@ fn engines_are_values_not_a_process_singleton() {
     );
     let shared = Arc::clone(&first.scanner_registry);
     assert!(Arc::ptr_eq(&shared, &first.scanner_registry));
+}
+
+#[test]
+fn failover_state_is_owned_per_engine_set() {
+    let first = GatewayEngines::new().expect("gateway engines build");
+    let second = GatewayEngines::new().expect("gateway engines build");
+    let key = systemprompt_gateway::service::failover::DeploymentLoad::key("p", "m");
+
+    let _held = first.load.enter(&key);
+
+    assert_eq!(first.load.in_flight(&key), 1);
+    assert_eq!(second.load.in_flight(&key), 0);
+    let settings = systemprompt_manifest::services::ResilienceSettings::default();
+    assert!(!Arc::ptr_eq(
+        &first.breakers.for_provider("p", &settings),
+        &second.breakers.for_provider("p", &settings),
+    ));
 }
