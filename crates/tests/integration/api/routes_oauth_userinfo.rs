@@ -46,7 +46,10 @@ async fn oauth_state() -> anyhow::Result<OAuthState> {
 }
 
 async fn userinfo_app() -> anyhow::Result<Router> {
-    Ok(public_router().with_state(oauth_state().await?))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(oauth_state().await?))
 }
 
 async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {

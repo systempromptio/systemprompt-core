@@ -17,6 +17,7 @@ use systemprompt_gateway::GatewayEngines;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::WebAuthnService;
+use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as AppContextTrait;
 
@@ -76,7 +77,7 @@ pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
     let sso = crate::routes::sso::router(sso_state)
         .with_rate_limit(limits, rate_config.oauth_public_per_second, "sso")?
         .with_auth(*public_middleware, AuthzPolicy::public());
-    let oauth = crate::routes::oauth::public_router()
+    let oauth = crate::routes::oauth::public_router(Arc::new(JwksCache::new()))
         .with_state(oauth_state.clone())
         .with_rate_limit(limits, rate_config.oauth_public_per_second, "oauth_public")?
         .with_auth(*public_middleware, AuthzPolicy::public())

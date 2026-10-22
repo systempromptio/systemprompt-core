@@ -18,7 +18,7 @@ use systemprompt_oauth_issuance::token_exchange::oidc::validate_oidc_subject;
 use systemprompt_oauth_issuance::token_exchange::{
     ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE,
 };
-use systemprompt_oauth_issuance::{IssuanceError, TokenExchangeRequest};
+use systemprompt_oauth_issuance::{IssuanceError, JwksCache, TokenExchangeRequest};
 use systemprompt_test_fixtures::fixture_config;
 
 const IDP: &str = "https://idp.test";
@@ -71,6 +71,7 @@ async fn issue_id_jag_rejects_an_access_token_subject() {
         &ClientId::new("client-1"),
         &request,
         &config_with(trusted_issuer(true, vec![])),
+        &JwksCache::new(),
     )
     .await);
 
@@ -92,7 +93,13 @@ async fn issue_id_jag_admits_both_id_token_and_jwt_subjects_to_oidc_validation()
             subject_token_type,
             ..TokenExchangeRequest::default()
         };
-        let message = err(issue_id_jag(&ClientId::new("client-1"), &request, &config).await);
+        let message = err(issue_id_jag(
+            &ClientId::new("client-1"),
+            &request,
+            &config,
+            &JwksCache::new(),
+        )
+        .await);
 
         assert!(
             message.contains("is not a trusted ID-JAG issuer"),
@@ -104,8 +111,12 @@ async fn issue_id_jag_admits_both_id_token_and_jwt_subjects_to_oidc_validation()
 
 #[tokio::test]
 async fn oidc_rejects_a_malformed_id_token_header() {
-    let message =
-        err(validate_oidc_subject("not-a-jwt", &config_with(trusted_issuer(true, vec![]))).await);
+    let message = err(validate_oidc_subject(
+        "not-a-jwt",
+        &config_with(trusted_issuer(true, vec![])),
+        &JwksCache::new(),
+    )
+    .await);
 
     assert!(message.contains("malformed id_token header"), "{message}");
 }
@@ -117,8 +128,12 @@ async fn oidc_rejects_an_unknown_issuer() {
         r#"{"iss":"https://attacker.test","sub":"u-1"}"#,
     );
 
-    let message =
-        err(validate_oidc_subject(&token, &config_with(trusted_issuer(true, vec![]))).await);
+    let message = err(validate_oidc_subject(
+        &token,
+        &config_with(trusted_issuer(true, vec![])),
+        &JwksCache::new(),
+    )
+    .await);
 
     assert!(
         message.contains("https://attacker.test")
@@ -132,6 +147,7 @@ async fn oidc_rejects_a_trusted_issuer_that_may_not_issue_id_jag() {
     let message = err(validate_oidc_subject(
         &id_token(r#"{"alg":"RS256","kid":"k1"}"#),
         &config_with(trusted_issuer(false, vec![])),
+        &JwksCache::new(),
     )
     .await);
 
@@ -148,6 +164,7 @@ async fn oidc_rejects_a_typ_outside_the_issuer_allowlist() {
     let message = err(validate_oidc_subject(
         &id_token(r#"{"alg":"RS256","kid":"k1","typ":"at+jwt"}"#),
         &config,
+        &JwksCache::new(),
     )
     .await);
 
@@ -158,8 +175,12 @@ async fn oidc_rejects_a_typ_outside_the_issuer_allowlist() {
 async fn oidc_rejects_a_missing_typ_when_the_issuer_declares_an_allowlist() {
     let config = config_with(trusted_issuer(true, vec!["JWT".to_owned()]));
 
-    let message =
-        err(validate_oidc_subject(&id_token(r#"{"alg":"RS256","kid":"k1"}"#), &config).await);
+    let message = err(validate_oidc_subject(
+        &id_token(r#"{"alg":"RS256","kid":"k1"}"#),
+        &config,
+        &JwksCache::new(),
+    )
+    .await);
 
     assert!(message.contains("not in issuer typ_allowlist"), "{message}");
 }
@@ -168,8 +189,12 @@ async fn oidc_rejects_a_missing_typ_when_the_issuer_declares_an_allowlist() {
 async fn oidc_accepts_a_typ_inside_the_issuer_allowlist() {
     let config = config_with(trusted_issuer(true, vec!["JWT".to_owned()]));
 
-    let message =
-        err(validate_oidc_subject(&id_token(r#"{"alg":"RS256","typ":"JWT"}"#), &config).await);
+    let message = err(validate_oidc_subject(
+        &id_token(r#"{"alg":"RS256","typ":"JWT"}"#),
+        &config,
+        &JwksCache::new(),
+    )
+    .await);
 
     assert!(
         message.contains("must carry a kid header"),
@@ -182,6 +207,7 @@ async fn oidc_rejects_a_non_rs256_id_token() {
     let message = err(validate_oidc_subject(
         &id_token(r#"{"alg":"HS256","kid":"k1"}"#),
         &config_with(trusted_issuer(true, vec![])),
+        &JwksCache::new(),
     )
     .await);
 
@@ -193,6 +219,7 @@ async fn oidc_rejects_an_id_token_with_no_kid() {
     let message = err(validate_oidc_subject(
         &id_token(r#"{"alg":"RS256"}"#),
         &config_with(trusted_issuer(true, vec![])),
+        &JwksCache::new(),
     )
     .await);
 

@@ -66,7 +66,10 @@ async fn app() -> anyhow::Result<Router> {
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = oauth_state(&ctx)?;
-    Ok(public_router().with_state(state))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state))
 }
 
 fn get(uri: &str) -> Request<Body> {
@@ -224,7 +227,10 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
 
     // `router()` is the merge of the public and authenticated halves; nothing
     // in the suite builds it, so a route lost from the merge would go unnoticed.
-    let merged = systemprompt_api::routes::oauth::router().with_state(state);
+    let merged = systemprompt_api::routes::oauth::router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state);
     let resp = merged.oneshot(get("/health")).await?;
 
     assert!(resp.status().is_success(), "{}", resp.status());
@@ -261,7 +267,13 @@ async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppCo
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = oauth_state(&ctx)?;
-    Ok((public_router().with_state(state), ctx))
+    Ok((
+        public_router(std::sync::Arc::new(
+            systemprompt_oauth_issuance::JwksCache::new(),
+        ))
+        .with_state(state),
+        ctx,
+    ))
 }
 
 async fn start_link(
