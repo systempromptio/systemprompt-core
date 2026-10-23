@@ -18,6 +18,7 @@ mod error;
 mod extension_mount;
 mod gateway;
 mod managed;
+mod oauth_mount;
 mod protocol;
 pub mod role;
 mod static_setup;
@@ -93,7 +94,7 @@ fn build_routes(
         user_middleware: &user_middleware,
     };
     if serves(RouteGroup::Oauth) {
-        router = protocol::mount_oauth(router, &mount)?;
+        router = oauth_mount::mount_oauth(router, &mount)?;
     }
     if serves(RouteGroup::Agent) {
         router = protocol::mount_agent(router, &mount, a2a_middleware)?;
