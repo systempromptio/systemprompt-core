@@ -26,7 +26,6 @@ systemprompt-security = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
 tempfile = { workspace = true }
 rmcp = { workspace = true }
 async-trait = { workspace = true }

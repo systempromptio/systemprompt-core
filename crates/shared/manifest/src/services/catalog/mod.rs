@@ -34,7 +34,7 @@ pub use credentials::{CredentialEntry, CredentialKind, CredentialRegistry, Platf
 pub use default::DefaultCatalog;
 pub use deployments::{DeploymentDetail, DeploymentRegistry, DeploymentTarget, PricingOverride};
 pub use document::{CATALOG_FILES, CatalogDocument, detect_legacy_shape};
-pub use endpoint::{BetaSpec, EndpointConfig, EndpointHosting, EndpointRef};
+pub use endpoint::{BetaSpec, EndpointConfig, EndpointHosting, EndpointRef, EndpointRefError};
 pub use error::{CatalogDocumentError, CatalogError, CatalogResult, MIGRATE_HINT, ResolveError};
 pub use models::{
     Capability, ModelEntry, ModelRegistry, apply_capability_overrides, capability_flags,

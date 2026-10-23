@@ -110,6 +110,13 @@ impl EndpointConfig {
     }
 }
 
+/// A string that is not a `provider/endpoint` reference.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("endpoint reference '{raw}' is not `provider/endpoint`")]
+pub struct EndpointRefError {
+    pub raw: String,
+}
+
 /// `provider/endpoint`: the address of one endpoint in the catalog.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, schemars::JsonSchema)]
 #[schemars(with = "String")]
@@ -127,7 +134,7 @@ impl EndpointRef {
         }
     }
 
-    pub fn parse(raw: &str) -> Result<Self, String> {
+    pub fn parse(raw: &str) -> Result<Self, EndpointRefError> {
         match raw.split_once('/') {
             Some((provider, endpoint))
                 if !provider.trim().is_empty()
@@ -136,9 +143,9 @@ impl EndpointRef {
             {
                 Ok(Self::new(provider.trim(), endpoint.trim()))
             },
-            _ => Err(format!(
-                "endpoint reference '{raw}' is not `provider/endpoint`"
-            )),
+            _ => Err(EndpointRefError {
+                raw: raw.to_owned(),
+            }),
         }
     }
 }

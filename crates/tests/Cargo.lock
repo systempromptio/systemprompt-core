@@ -7015,7 +7015,6 @@ dependencies = [
  "reqwest",
  "rmcp",
  "serde_json",
- "serde_yaml_ng",
  "sqlx",
  "systemprompt-ai",
  "systemprompt-database",
@@ -7946,7 +7945,6 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sqlx",
- "systemprompt-catalog-fixtures",
  "systemprompt-cli",
  "systemprompt-cloud",
  "systemprompt-config",
@@ -8163,7 +8161,6 @@ name = "systemprompt-config-migrate-tests"
 version = "0.0.11"
 dependencies = [
  "serde_json",
- "serde_yaml_ng",
  "sqlx",
  "systemprompt-cli",
  "systemprompt-identifiers",
@@ -9555,7 +9552,6 @@ dependencies = [
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "systemprompt-users",
- "systemprompt-wire",
  "temp-env",
  "tempfile",
  "tokio",
