@@ -54,6 +54,8 @@ pub(crate) struct AiRequestRow {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
+// Why: lint-ok: field-copy-from — the flat row regroups its columns into the
+// identity, routing, accounting, origin and lifecycle parts.
 impl From<AiRequestRow> for AiRequest {
     fn from(row: AiRequestRow) -> Self {
         Self {

@@ -185,6 +185,7 @@ struct IngestTarget<'a> {
 async fn persist_artifact(
     ingest: &ArtifactIngest,
     target: IngestTarget<'_>,
+    // JSON: the tool's structured content, shaped by each tool's output schema.
     structured: JsonValue,
 ) -> Result<IngestOutcome, McpError> {
     let mut wire = CallToolResult::success(Vec::new());

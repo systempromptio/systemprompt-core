@@ -32,6 +32,4 @@ pub use reporting::{
     ToolListRow, ToolStatsRow, ToolStatusBreakdownRow, ToolSummaryRow, TopContentRow,
     TrafficNavigationRow, TrafficPageRow, TrafficSourceRow,
 };
-pub(crate) use rows::{
-    AgentListDbRow, EngagementEventRow, RecentContextDbRow, ToolAgentUsageDbRow, ToolListDbRow,
-};
+pub(crate) use rows::{AgentListDbRow, RecentContextDbRow, ToolAgentUsageDbRow, ToolListDbRow};

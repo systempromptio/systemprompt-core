@@ -85,7 +85,6 @@ BOUNDARY=(
     "crates/shared/traits/src/sso/events.rs|provider_id|SSO provider registry key (/sso/{id}/...), not the gateway ProviderId"
     "crates/domain/oauth/src/repository/oauth/sso_state.rs|provider_id|SSO provider registry key (/sso/{id}/...), not the gateway ProviderId"
     "crates/domain/users/src/repository/sso_login_events.rs|provider_id|SSO provider registry key (/sso/{id}/...), not the gateway ProviderId"
-    "crates/shared/traits/src/sso/mod.rs|tenant_id|the IdP's own tenant claim (e.g. Entra tid) carried verbatim, not a systemprompt TenantId"
 )
 
 # Derived names whose call sites still carry the raw type: `name|reason`. The

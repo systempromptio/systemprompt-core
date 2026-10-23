@@ -10,7 +10,7 @@
 
 use super::PluginOAuthError;
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use systemprompt_identifiers::ClientId;
 
 /// Which backend a [`SecretStore`] resolved to.
@@ -28,7 +28,7 @@ pub enum SecretBackend {
 /// re-provisioned from the gateway on restart.
 #[derive(Debug)]
 pub struct SecretStore {
-    backend: Backend,
+    backend: OnceLock<Backend>,
 }
 
 #[derive(Debug)]
@@ -39,8 +39,14 @@ enum Backend {
 
 impl SecretStore {
     #[must_use]
-    pub fn resolve() -> Self {
-        let backend = match install_store() {
+    pub const fn resolve() -> Self {
+        Self {
+            backend: OnceLock::new(),
+        }
+    }
+
+    fn backend_ref(&self) -> &Backend {
+        self.backend.get_or_init(|| match install_store() {
             Ok(()) => Backend::Keyring,
             Err(e) => {
                 tracing::warn!(
@@ -54,20 +60,19 @@ impl SecretStore {
                 );
                 Backend::Memory(Mutex::new(HashMap::new()))
             },
-        };
-        Self { backend }
+        })
     }
 
     #[must_use]
-    pub const fn backend(&self) -> SecretBackend {
-        match self.backend {
+    pub fn backend(&self) -> SecretBackend {
+        match self.backend_ref() {
             Backend::Keyring => SecretBackend::Keyring,
             Backend::Memory(_) => SecretBackend::Memory,
         }
     }
 
     pub(super) fn write(&self, client_id: &ClientId, secret: &str) -> Result<(), PluginOAuthError> {
-        match &self.backend {
+        match self.backend_ref() {
             Backend::Keyring => keyring_entry(client_id)?
                 .set_password(secret)
                 .map_err(PluginOAuthError::Keyring),
@@ -79,7 +84,7 @@ impl SecretStore {
     }
 
     pub(super) fn read(&self, client_id: &ClientId) -> Result<Option<String>, PluginOAuthError> {
-        match &self.backend {
+        match self.backend_ref() {
             Backend::Keyring => match keyring_entry(client_id)?.get_password() {
                 Ok(s) => Ok(Some(s)),
                 Err(keyring_core::Error::NoEntry) => Ok(None),
@@ -90,7 +95,7 @@ impl SecretStore {
     }
 
     pub(super) fn delete(&self, client_id: &ClientId) -> Result<(), PluginOAuthError> {
-        match &self.backend {
+        match self.backend_ref() {
             Backend::Keyring => match keyring_entry(client_id)?.delete_credential() {
                 Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
                 Err(e) => Err(PluginOAuthError::Keyring(e)),

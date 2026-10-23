@@ -16,8 +16,6 @@ allow=(
     "i18n.rs:CATALOG — read-only message catalogue, parsed once"
     "integration/registry.rs:REGISTRY — link-time inventory of host apps, sorted once"
     "host_sync/mod.rs:REGISTRY — link-time inventory of sync emitters, sorted once"
-    "auth/plugin_oauth/secret_store.rs:BACKEND — mirrors keyring_core::set_default_store, a set-once third-party global"
-    "auth/plugin_oauth/secret_store.rs:MEMORY_SECRETS — the in-memory fallback behind that same set-once backend"
     "windows_acl/private.rs:PROTECT — a Mutex<()> holding no state; serialises the directory DACL write that would otherwise race a sibling thread's CreateFileW in that directory"
 )
 

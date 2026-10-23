@@ -43,7 +43,7 @@ impl UserRepository {
             UserActivityRow,
             r#"
             SELECT
-                u.id as "user_id: UserId",
+                u.id as user_id,
                 MAX(s.last_activity_at) as last_active,
                 COUNT(s.session_id) as "session_count!",
                 COALESCE(SUM(s.task_count), 0)::bigint as "task_count!",

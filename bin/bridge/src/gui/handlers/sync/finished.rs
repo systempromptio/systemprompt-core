@@ -15,6 +15,7 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::{i18n, sync};
 
 struct SyncOutcome {
+    // JSON: the IPC reply payload the GUI forwards verbatim to the waiting caller.
     reply: Result<serde_json::Value, BridgeError>,
     report: Option<sync::SyncSummary>,
     succeeded: bool,
@@ -25,6 +26,7 @@ struct SyncOutcome {
 struct FailureMessage {
     line: String,
     code: ErrorCode,
+    // JSON: error detail attached to the IPC reply, shaped by the failing stage.
     detail: Option<serde_json::Value>,
 }
 

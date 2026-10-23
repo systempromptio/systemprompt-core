@@ -2,7 +2,7 @@
 //!
 //! [`DatabaseLogService`] persists structured log entries; [`output`] holds the
 //! global publish path used during startup and steady state; [`spans`] provides
-//! the request and system span builders. The CLI display sink ([`CliService`])
+//! the request and system span builders. The CLI display sink (`CliService`)
 //! is gated behind the `cli` feature.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

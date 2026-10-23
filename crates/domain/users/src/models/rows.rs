@@ -10,13 +10,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{ApiKeyId, DeviceCertId, ScopeDimension, UserId};
+use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_traits::RepositoryError;
 
 use super::{
-    AccountKind, ApiKeyLimits, User, UserActivity, UserApiKey, UserDeviceCert, UserStatus,
-    UserWithSessions,
+    AccountKind, ApiKeyLimits, User, UserActivity, UserApiKey, UserStatus, UserWithSessions,
 };
 use crate::error::UserError;
 
@@ -84,7 +83,7 @@ impl TryFrom<UserRow> for User {
 
 #[derive(Debug)]
 pub(crate) struct UserActivityRow {
-    pub user_id: UserId,
+    pub user_id: String,
     pub last_active: Option<DateTime<Utc>>,
     pub session_count: i64,
     pub task_count: i64,
@@ -94,7 +93,7 @@ pub(crate) struct UserActivityRow {
 impl From<UserActivityRow> for UserActivity {
     fn from(row: UserActivityRow) -> Self {
         Self {
-            user_id: row.user_id,
+            user_id: UserId::new(row.user_id),
             last_active: row.last_active,
             session_count: row.session_count,
             task_count: row.task_count,
@@ -182,29 +181,6 @@ impl From<UserApiKeyRow> for UserApiKey {
                     value,
                 })
                 .collect(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct UserDeviceCertRow {
-    pub id: DeviceCertId,
-    pub user_id: UserId,
-    pub fingerprint: String,
-    pub label: String,
-    pub enrolled_at: Option<DateTime<Utc>>,
-    pub revoked_at: Option<DateTime<Utc>>,
-}
-
-impl From<UserDeviceCertRow> for UserDeviceCert {
-    fn from(row: UserDeviceCertRow) -> Self {
-        Self {
-            id: row.id,
-            user_id: row.user_id,
-            fingerprint: row.fingerprint,
-            label: row.label,
-            enrolled_at: row.enrolled_at,
-            revoked_at: row.revoked_at,
         }
     }
 }

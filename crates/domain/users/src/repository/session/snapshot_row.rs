@@ -40,6 +40,8 @@ pub(super) struct SessionSnapshotRow {
     pub message_count: Option<i32>,
 }
 
+// Why: lint-ok: field-copy-from — the flat row regroups its columns into the
+// identity, classification and timing parts.
 impl From<SessionSnapshotRow> for SessionSnapshot {
     fn from(row: SessionSnapshotRow) -> Self {
         Self {

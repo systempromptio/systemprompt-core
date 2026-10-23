@@ -9,6 +9,6 @@ publish = false
 license = "BUSL-1.1"
 
 [dependencies]
-syn = { version = "2", features = ["full", "visit"] }
+syn = { version = "3", features = ["full", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 rustc_lexer = "0.1"

@@ -56,7 +56,7 @@ tar = "0.4"
 flate2 = "1.1"
 uuid = { version = "1", features = ["v4", "v5"] }
 zeroize = { version = "1", features = ["zeroize_derive"] }
-tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-util = "0.7"
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["server", "server-auto", "tokio"] }
@@ -67,7 +67,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 url = "2.5"
 futures-util = "0.3"
 bytes = "1"
-parking_lot = "0.12"
+parking_lot = "0.13"
 arc-swap = "1"
 async-trait = "0.1"
 inventory = "0.3"

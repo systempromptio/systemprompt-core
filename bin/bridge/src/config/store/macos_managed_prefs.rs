@@ -104,7 +104,7 @@ impl ConfigStore for MacOsManagedPrefsStore {
 
 // Why: on macOS the bridge's signing trust is a managed profile installed
 // through `install --apply`, not a value in the Claude preferences domain.
-fn claude_only(target: PolicyTarget) -> Result<(), ConfigStoreError> {
+const fn claude_only(target: PolicyTarget) -> Result<(), ConfigStoreError> {
     match target {
         PolicyTarget::Claude => Ok(()),
         PolicyTarget::Bridge => Err(ConfigStoreError::Unsupported(

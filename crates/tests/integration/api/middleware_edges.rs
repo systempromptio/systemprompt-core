@@ -161,7 +161,9 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
         &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
     )
     .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
-    Ok(router)
+    Ok(router.layer(axum::Extension(Arc::new(
+        systemprompt_api::services::server::SchedulerHealth::new(),
+    ))))
 }
 
 static BOOT_GATE: OnceLock<()> = OnceLock::new();
