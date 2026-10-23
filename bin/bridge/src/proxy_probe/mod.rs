@@ -76,93 +76,74 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
     };
 
     let started = Instant::now();
-
-    let (host, port) = match parse_host_port(url) {
-        Ok(v) => v,
-        Err(e) => {
-            return ProxyHealth {
-                url: Some(url.to_owned()),
-                state: ProxyProbeState::HttpError,
-                error: Some(e.to_string()),
-                probed_at_unix,
-                ..Default::default()
-            };
-        },
-    };
-
-    let addr = format!("{host}:{port}");
-    let Some(resolved) = resolve_first(&addr) else {
-        return ProxyHealth {
+    match attempt(url, started) {
+        Ok((http_status, latency_ms)) => ProxyHealth {
             url: Some(url.to_owned()),
-            state: ProxyProbeState::HttpError,
-            error: Some(format!("cannot resolve {addr}")),
+            state: ProxyProbeState::Listening,
+            http_status: Some(http_status),
+            latency_ms: Some(latency_ms),
+            error: None,
+            probed_at_unix,
+        },
+        Err(failure) => ProxyHealth {
+            url: Some(url.to_owned()),
+            state: failure.state,
+            error: Some(failure.error),
+            latency_ms: failure.latency_ms,
             probed_at_unix,
             ..Default::default()
-        };
-    };
-
-    let mut stream = match std::net::TcpStream::connect_timeout(
-        &resolved,
-        std::time::Duration::from_millis(1500),
-    ) {
-        Ok(s) => s,
-        Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {
-            return ProxyHealth {
-                url: Some(url.to_owned()),
-                state: ProxyProbeState::Refused,
-                error: Some(e.to_string()),
-                latency_ms: Some(elapsed_ms(started)),
-                probed_at_unix,
-                ..Default::default()
-            };
         },
-        Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
-            return ProxyHealth {
-                url: Some(url.to_owned()),
-                state: ProxyProbeState::Timeout,
-                error: Some(e.to_string()),
-                latency_ms: Some(elapsed_ms(started)),
-                probed_at_unix,
-                ..Default::default()
-            };
-        },
-        Err(e) => {
-            return ProxyHealth {
-                url: Some(url.to_owned()),
-                state: ProxyProbeState::HttpError,
-                error: Some(e.to_string()),
-                latency_ms: Some(elapsed_ms(started)),
-                probed_at_unix,
-                ..Default::default()
-            };
-        },
-    };
-
-    let http_status = match http_head_status(&mut stream, &host) {
-        Ok(s) => s,
-        Err(e) => {
-            return ProxyHealth {
-                url: Some(url.to_owned()),
-                state: ProxyProbeState::HttpError,
-                error: Some(e.to_string()),
-                latency_ms: Some(elapsed_ms(started)),
-                probed_at_unix,
-                ..Default::default()
-            };
-        },
-    };
-
-    let latency_ms = elapsed_ms(started);
-    drop(stream);
-
-    ProxyHealth {
-        url: Some(url.to_owned()),
-        state: ProxyProbeState::Listening,
-        http_status: Some(http_status),
-        latency_ms: Some(latency_ms),
-        error: None,
-        probed_at_unix,
     }
+}
+
+struct ProbeFailure {
+    state: ProxyProbeState,
+    error: String,
+    latency_ms: Option<u64>,
+}
+
+impl ProbeFailure {
+    fn http_error(error: String, started: Instant) -> Self {
+        Self {
+            state: ProxyProbeState::HttpError,
+            error,
+            latency_ms: Some(elapsed_ms(started)),
+        }
+    }
+}
+
+fn attempt(url: &str, started: Instant) -> Result<(u16, u64), ProbeFailure> {
+    let (host, port) = parse_host_port(url).map_err(|e| ProbeFailure {
+        state: ProxyProbeState::HttpError,
+        error: e.to_string(),
+        latency_ms: None,
+    })?;
+
+    let addr = format!("{host}:{port}");
+    let resolved = resolve_first(&addr).ok_or_else(|| ProbeFailure {
+        state: ProxyProbeState::HttpError,
+        error: format!("cannot resolve {addr}"),
+        latency_ms: None,
+    })?;
+
+    let mut stream =
+        std::net::TcpStream::connect_timeout(&resolved, std::time::Duration::from_millis(1500))
+            .map_err(|e| {
+                let state = match e.kind() {
+                    std::io::ErrorKind::ConnectionRefused => ProxyProbeState::Refused,
+                    std::io::ErrorKind::TimedOut => ProxyProbeState::Timeout,
+                    _ => ProxyProbeState::HttpError,
+                };
+                ProbeFailure {
+                    state,
+                    error: e.to_string(),
+                    latency_ms: Some(elapsed_ms(started)),
+                }
+            })?;
+
+    let http_status = http_head_status(&mut stream, &host)
+        .map_err(|e| ProbeFailure::http_error(e.to_string(), started))?;
+    Ok((http_status, elapsed_ms(started)))
 }
 
 /// How a written client config compares to the port the proxy actually holds.

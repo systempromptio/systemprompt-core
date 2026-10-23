@@ -44,6 +44,11 @@ impl std::fmt::Debug for ProxyHandle {
     }
 }
 
+struct Bound {
+    loopback_secret: crate::ids::LoopbackSecret,
+    listener: tokio::net::TcpListener,
+}
+
 impl ProxyHandle {
     pub fn serve(rt: &Handle, deps: ProxyDeps, faults: &mut Vec<StartupFault>) -> Self {
         // Why: a proxy that cannot read its config would serve inference
@@ -102,6 +107,29 @@ impl ProxyHandle {
                 },
             };
 
+        Self::start(
+            rt,
+            deps,
+            runtime_config,
+            Bound {
+                loopback_secret,
+                listener,
+            },
+            faults,
+        )
+    }
+
+    fn start(
+        rt: &Handle,
+        deps: ProxyDeps,
+        runtime_config: SharedRuntimeConfig,
+        bound: Bound,
+        faults: &mut Vec<StartupFault>,
+    ) -> Self {
+        let Bound {
+            loopback_secret,
+            listener,
+        } = bound;
         let session_context = Arc::new(SessionContext::new());
         let session_id = session_context.session_id().clone();
         let token_cache = Arc::new(TokenCache::default_for_runtime(
