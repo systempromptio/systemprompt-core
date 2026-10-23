@@ -32,7 +32,7 @@ use systemprompt_manifest::none_if_blank;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
 pub use secrets::SecretsData;
-pub use types::*;
+pub use types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
 
 #[derive(Debug, Args)]
 #[expect(

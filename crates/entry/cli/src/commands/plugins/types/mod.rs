@@ -11,6 +11,14 @@ mod capability_types;
 mod extension_types;
 mod validation_types;
 
-pub use capability_types::*;
-pub use extension_types::*;
-pub use validation_types::*;
+pub use capability_types::{
+    CapabilitiesSummaryOutput, CapabilitySummary, JobWithExtension, JobsListOutput,
+    RoleWithExtension, RolesListOutput, SchemaWithExtension, SchemasListOutput,
+    TemplateWithExtension, TemplatesListOutput, ToolWithExtension, ToolsListOutput,
+};
+pub use extension_types::{
+    ExtensionConfigListOutput, ExtensionConfigOutput, ExtensionConfigSummary,
+    ExtensionDetailOutput, ExtensionListOutput, ExtensionSource, ExtensionSummary, JobInfo,
+    RoleInfo, RouteInfo, SchemaInfo, TemplateInfo, ToolInfo,
+};
+pub use validation_types::{ExtensionValidationOutput, ValidationError, ValidationWarning};

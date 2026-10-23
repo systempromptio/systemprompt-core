@@ -38,7 +38,14 @@ use crate::shared::render_result;
 use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
 
 pub use commands::{DbCommands, MigrationsCommands};
-pub use types::*;
+pub use types::{
+    AppliedMigrationInfo, ColumnInfo, DbAssignAdminOutput, DbCountOutput, DbDescribeOutput,
+    DbExecuteOutput, DbIndexesOutput, DbInfoOutput, DbMigrateDownOutput, DbMigrateOutput,
+    DbSizeOutput, DbStatusOutput, DbTablesOutput, ExtensionMigrationStatus, IndexInfo,
+    MigrateMarkAppliedOutput, MigratePlanOutput, MigrateRepairOutput, MigrateStatusOutput,
+    MigrateStatusRow, MigrationCollisionInfo, MigrationDriftInfo, MigrationHistoryOutput,
+    MigrationStatusOutput, PendingMigrationInfo, TableIndexInfo, TableInfo, TableSizeInfo,
+};
 
 pub(crate) use helpers::format_bytes;
 
