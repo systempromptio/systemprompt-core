@@ -29,6 +29,7 @@ crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data
 crates/shared/extension/src/gateway_guard.rs:GATEWAY_GUARDS — immutable data: link-time inventory of gateway guards, collected once
 crates/domain/mcp/src/lib.rs:VERSION — immutable data: the MCP protocol version string rendered once
 crates/domain/mcp/src/services/ui_renderer/artifact_ui.rs:REGISTRY — immutable data: the built-in UI renderer set, built once
+crates/entry/api/src/routes/gateway/otel/mod.rs:NO_SUBJECT_DIMENSIONS — immutable data: the empty subject-provider set for unauthenticated OTLP ingest
 
 # Third-party set-once globals mirrored by a static.
 crates/infra/logging/src/lib.rs:SUBSCRIBER_INITIALIZED — tracing's global dispatcher is itself set-once
