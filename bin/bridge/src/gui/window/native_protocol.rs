@@ -12,7 +12,7 @@ use std::borrow::Cow;
 use wry::http::Response;
 use wry::http::header::CONTENT_TYPE;
 
-use super::native::SP_HOST;
+use super::native_webview::SP_HOST;
 use crate::web_assets::{self, Asset};
 
 pub(super) const BRIDGE_BOOTSTRAP: &str = include_str!("../../../web/js/ipc-bootstrap.js");

@@ -6,6 +6,10 @@
 #[cfg(target_os = "windows")]
 pub use crate::windows_acl::open_read_guard;
 
+mod remove;
+
+pub use remove::{remove_leftover_dir, remove_leftover_file, remove_verified};
+
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
@@ -201,27 +205,6 @@ pub fn temp_path_for(path: &Path) -> std::path::PathBuf {
     }
 }
 
-pub fn remove_verified(path: &Path) -> io::Result<()> {
-    match fs::remove_file(path) {
-        Ok(()) => {},
-        Err(e) if e.kind() == io::ErrorKind::NotFound => {},
-        Err(e) => {
-            return Err(io::Error::new(
-                e.kind(),
-                format!("remove {}: {e}", path.display()),
-            ));
-        },
-    }
-    match fs::symlink_metadata(path) {
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e),
-        Ok(_) => Err(io::Error::other(format!(
-            "{} still exists after deletion",
-            path.display()
-        ))),
-    }
-}
-
 #[cfg(target_os = "windows")]
 pub fn atomic_write_for_reader(path: &Path, bytes: &[u8], reader: &str) -> io::Result<()> {
     let parent = path
@@ -273,25 +256,5 @@ pub(crate) fn verify_directory_write(path: &Path) -> io::Result<()> {
             "{}: access probe removal did not land",
             name.display()
         ))),
-    }
-}
-
-// Why: temporary probes and staging trees are cleaned up on a best-effort
-// basis; a leftover cannot change the installed result, but it must not be
-// silent either, because a directory that cannot be removed is usually the
-// first sign of a permission problem the next step will hit.
-pub fn remove_leftover_file(path: &Path) {
-    if let Err(e) = fs::remove_file(path)
-        && e.kind() != io::ErrorKind::NotFound
-    {
-        tracing::warn!(error = %e, path = %path.display(), "leftover file was not removed");
-    }
-}
-
-pub fn remove_leftover_dir(path: &Path) {
-    if let Err(e) = fs::remove_dir_all(path)
-        && e.kind() != io::ErrorKind::NotFound
-    {
-        tracing::warn!(error = %e, path = %path.display(), "leftover directory was not removed");
     }
 }
