@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- The authz reconcile and the base bundle ingest scope reconcile `ResolvedCatalog::route_ids()` (every declared policy route plus the catalog route id).
 - Entitlement deny hints name `services/access-control/rules.yaml` instead of `roles.yaml`.
 
 ## [0.71.0] - 2026-10-21

@@ -15,7 +15,9 @@
 ### Added
 
 - `BillingSource::{from_kind, of}` derives `ai_requests.billing_source` from the catalog credential kind (`personal` is `user_key`).
-- Migration `048_catalog_credentials.sql` (placeholder: renames `user_provider_credentials.provider` and its unique constraint; ACCESS EXCLUSIVE on that small table for milliseconds, no row rewrite, no `ai_requests` lock).
+- Migration `048_catalog_credentials.sql`: renames `user_provider_credentials.provider` and its unique constraint, adds nullable `ai_requests.credential` and `endpoint`, creates `ai_catalog_legacy_map`. Locks on a 100M-row `ai_requests`: each ADD COLUMN is catalog-only (nullable, no default), ACCESS EXCLUSIVE for milliseconds, no rewrite, no scan; the rename is catalog-only on a small table. Existing rows are backfilled by `config migrate --data` in bounded batches, never in the migration.
+- `AiRequestRecord.hop: Option<CatalogHop>` (written to `credential`/`endpoint` on insert); `AiRequestRepository::update_served_hop(ServedHop)` replaces `update_served_provider`; `AdmissionWrite.served_hop` replaces `served_provider`.
+- `CatalogMigrationRepository` (`upsert_legacy_map`, `update_personal_keys`, `update_audit_batch`, `update_served_audit_batch`) for `config migrate --data`.
 
 ### Fixed
 

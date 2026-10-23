@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `jobs::vertex_discovery::lifecycle_notices(&ModelRegistry, …)` replaces the `ProviderRegistry` argument; the job probes a clone of the booted catalog registries.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

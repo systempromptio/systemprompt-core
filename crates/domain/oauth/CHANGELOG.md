@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `BridgeHostPrefsRepository::update_model_protocol_tag` rewrites a stored host-filter tag (`config migrate --data` turns the 0.72 `anthropic` tag into the `claude` client family).
+
 ## [0.71.0] - 2026-10-21
 
 ### Removed

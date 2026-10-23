@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `systemprompt admin config migrate [--check] [--data] [--services <dir>]` rewrites a pre-0.73 services tree to the catalog shape (replaying 0.72.1 dispatch into deployments), refuses undecidable shapes naming file and keys, writes only after the result loads, emits `services/ai/legacy_map.yaml`, and with `--data` moves personal keys, `ai_requests.credential`/`endpoint` and host-filter tags through it.
+- `admin config credential|provider|endpoint|model|deployment` edit the catalog per object; `admin config provider` (the `ai.providers` editor) is replaced, `admin config catalog` keeps only `discovery`, and `admin config gateway` edits `default-model` and declared policy routes (`default-provider` is deleted). `services_io::{CatalogLocation, commit_catalog, write_gateway}` replace `ProvidersFile`, `GatewayFile`, `append_include` and `merged_registry_after_edit`; `config_section::{PROVIDERS,GATEWAY}_INCLUDE_RELATIVE` are deleted.
+- `admin setup` and `cloud init`/`cloud profile create` write the catalog files (`admin::setup::catalog::{seed_document, SeedRequest, first_model_on}`, `cloud::init::templates::catalog_files`); `admin::setup::ai_config` and `templates::ai_config(provider)` are deleted (`ai_config()` writes the AI policy only).
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

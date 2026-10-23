@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `ConfigAuthoringError::{NoDefaultModel, NoModelForProvider, ModelNotServable, Catalog, DefaultCatalog}` replace `NoDefaultProvider`, `NoDefaultModel(String)` and `ProviderCatalog`: an agent created with a provider and no model takes the first model core's default catalog deploys on it; with no provider it takes `gateway.default_model` and the provider of its first enabled deployment.
+
 ## [0.70.0] - 2026-10-18
 
 ### Changed
