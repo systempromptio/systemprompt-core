@@ -149,7 +149,7 @@ async fn per_user_cost_context_queries_exclude_other_users_and_evaluation_traffi
 
     let rollup: Vec<(String, i64, i64)> = sqlx::query_as(
         "SELECT traffic, request_count, cost_microdollars FROM ai_usage_rollup_hourly \
-         WHERE user_id = $1 AND bucket = $2 ORDER BY traffic",
+         WHERE user_id = $1 AND bucket = $2 ORDER BY traffic, model",
     )
     .bind(owner.as_str())
     .bind(window_end - Duration::hours(1))
@@ -160,7 +160,8 @@ async fn per_user_cost_context_queries_exclude_other_users_and_evaluation_traffi
         rollup,
         vec![
             ("evaluation".to_owned(), 1, 9_000),
-            ("production".to_owned(), 2, 330),
+            ("production".to_owned(), 1, 110),
+            ("production".to_owned(), 1, 220),
         ]
     );
 
