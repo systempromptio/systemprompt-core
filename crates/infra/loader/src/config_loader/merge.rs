@@ -47,6 +47,10 @@ pub(super) fn merge_into(
         target.bridge_policy = include.bridge_policy;
     }
 
+    if include.marketplace.is_some() && target.marketplace.is_none() {
+        target.marketplace = include.marketplace;
+    }
+
     if declares_ai {
         target.ai = include.ai;
     }

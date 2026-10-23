@@ -27,6 +27,7 @@ pub mod marketplace_external;
 mod marketplace_external_error;
 pub mod marketplace_external_plugin;
 mod marketplace_mirror;
+pub mod marketplace_publication;
 pub mod mcp;
 pub mod plugin;
 pub mod registry;
@@ -88,6 +89,9 @@ pub use marketplace::{
     MarketplaceRuleAccess, MarketplaceVisibility,
 };
 pub use marketplace_external_plugin::{ExternalPluginEntry, ExternalPluginSource};
+pub use marketplace_publication::{
+    CohortRing, ManagedMarketplaceConfig, PublicationConfig, PublicationGateConfig,
+};
 pub use mcp::{McpDeploymentProvider, McpServerSummary};
 pub use plugin::{
     PluginAuthor, PluginConfig, PluginConfigFile, PluginScript, PluginSummary, PluginVariableDef,
@@ -133,6 +137,8 @@ pub struct ServicesConfig {
     pub plugins: HashMap<String, PluginConfig>,
     #[serde(default)]
     pub marketplaces: HashMap<MarketplaceId, MarketplaceConfig>,
+    #[serde(default)]
+    pub marketplace: Option<ManagedMarketplaceConfig>,
     #[serde(default)]
     pub skills: SkillsConfig,
     #[serde(default)]
@@ -223,6 +229,10 @@ impl ServicesConfig {
         }
 
         self.validate_marketplace_selector()?;
+
+        if let Some(marketplace) = &self.marketplace {
+            marketplace.validate()?;
+        }
 
         for (name, app) in &self.slack_apps {
             app.validate(name)?;
