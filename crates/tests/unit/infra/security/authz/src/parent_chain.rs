@@ -311,6 +311,7 @@ fn from_services_records_which_plugin_selects_each_skill() {
         external_marketplaces: vec![],
         external_plugins: vec![],
         claude_code: None,
+        opencode: None,
     };
     services
         .marketplaces

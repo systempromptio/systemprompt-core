@@ -74,6 +74,8 @@ fn recorded_v1_servers(target: &Path) -> std::io::Result<Vec<String>> {
         .map_err(std::io::Error::other)
 }
 
+// JSON: the bridge's own `policies` statements as they sit in a user-tier
+// opencode.json, compared by value against what the file holds.
 fn owned_policies() -> Vec<Value> {
     provider_policies()
         .iter()
@@ -120,6 +122,8 @@ pub(crate) fn strip_v1(root: &mut Map<String, Value>, recorded_servers: &[String
     }
 }
 
+// JSON: a user-tier opencode.json document, edited in place without a schema
+// so keys the bridge does not own survive.
 fn remove_table_entry(root: &mut Map<String, Value>, table: &str, key: &str) {
     if let Some(Value::Object(entries)) = root.get_mut(table) {
         entries.remove(key);

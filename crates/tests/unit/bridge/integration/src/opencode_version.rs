@@ -38,3 +38,25 @@ fn a_client_below_the_v2_floor_fails_doctor() {
         check_client_version(&ClientVersion::Unreadable("timed out".into())).expect("reported");
     assert_eq!(unreadable.status, Status::Warn);
 }
+
+#[test]
+fn the_version_is_probed_only_for_an_enabled_opencode_packaging() {
+    use systemprompt_bridge::cli::doctor::opencode::{checks, opencode_enabled};
+    use systemprompt_models::bridge::host::HostKind;
+    assert!(opencode_enabled(&[HostKind::OpenCodeCli]));
+    assert!(opencode_enabled(&[
+        HostKind::ClaudeCode,
+        HostKind::OpenCode
+    ]));
+    assert!(!opencode_enabled(&[
+        HostKind::ClaudeCode,
+        HostKind::CodexCli
+    ]));
+    let unprobed = |enabled: Option<&[HostKind]>| {
+        checks(enabled)
+            .iter()
+            .all(|check| check.name != "opencode version")
+    };
+    assert!(unprobed(None));
+    assert!(unprobed(Some(&[HostKind::ClaudeCode])));
+}

@@ -98,7 +98,10 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.extend(proxy::check_proxy_client_config(&env));
     checks.extend(desktop_policy::check_settings(&env));
     checks.extend(claude_code::check_settings(&proxy.loopback().origin()));
-    checks.extend(opencode::checks());
+    match crate::last_sync::last_synced_enabled_hosts() {
+        Ok(enabled) => checks.extend(opencode::checks(enabled.as_deref())),
+        Err(e) => checks.push(Check::warn("enabled hosts", e.to_string())),
+    }
     if let Some(check) = hooks::check_hook_urls(proxy.port()) {
         checks.push(check);
     }

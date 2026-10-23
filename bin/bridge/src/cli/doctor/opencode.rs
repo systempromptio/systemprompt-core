@@ -1,10 +1,14 @@
 //! Doctor checks for `OpenCode`: which tier owns the provider, and whether
-//! the installed client reads the V2 config the bridge writes.
+//! the installed client reads the V2 config the bridge writes. The version
+//! is probed only when the last sync enabled an `OpenCode` packaging: an
+//! `OpenCode` the bridge does not drive is not this device's fault.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::Check;
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::integration::opencode::{ClientVersion, probe_client_version};
 
 #[must_use]
@@ -40,8 +44,17 @@ pub fn check_client_version(version: &ClientVersion) -> Option<Check> {
 }
 
 #[must_use]
-pub fn checks() -> Vec<Check> {
+pub fn opencode_enabled(enabled: &[HostKind]) -> bool {
+    enabled
+        .iter()
+        .any(|host| matches!(host, HostKind::OpenCode | HostKind::OpenCodeCli))
+}
+
+#[must_use]
+pub fn checks(enabled: Option<&[HostKind]>) -> Vec<Check> {
     let mut out: Vec<Check> = check_provider_tier().into_iter().collect();
-    out.extend(check_client_version(&probe_client_version()));
+    if enabled.is_some_and(opencode_enabled) {
+        out.extend(check_client_version(&probe_client_version()));
+    }
     out
 }
