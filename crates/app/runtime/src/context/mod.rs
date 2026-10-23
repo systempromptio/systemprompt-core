@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 
 use systemprompt_agent::repository::A2ARepositories;
@@ -101,7 +101,7 @@ pub struct Subsystems {
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<crate::SchemaState>,
-    pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
+    pub event_bridge: Arc<EventBridgeHandle>,
     pub event_router: EventRouter,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
@@ -243,7 +243,7 @@ impl AppContext {
         &self.plugins.marketplace_cache
     }
 
-    pub const fn event_bridge(&self) -> &Arc<OnceLock<EventBridgeHandle>> {
+    pub const fn event_bridge(&self) -> &Arc<EventBridgeHandle> {
         &self.subsystems.event_bridge
     }
 

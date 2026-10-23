@@ -227,12 +227,7 @@ pub async fn handle_health(
     );
 
     let degraded_jobs = scheduler_health.degraded();
-    let relay_status = ctx
-        .event_bridge()
-        .get()
-        .map_or(systemprompt_events::RelayStatus::NotStarted, |handle| {
-            handle.status()
-        });
+    let relay_status = ctx.event_bridge().status();
     let relay_listening = relay_status.is_listening();
 
     let (status, http_status) = if !db_healthy {

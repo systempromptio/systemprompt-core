@@ -16,10 +16,10 @@ mod core_layer;
 pub use composition::owner_reassignments;
 use composition::{build_data_plane, build_repositories, ensure_legacy_context};
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
-use systemprompt_events::EventRouter;
+use systemprompt_events::{EventBridgeHandle, EventRouter, PostgresEventBridge};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_manifest::Config;
@@ -180,6 +180,7 @@ impl AppContextBuilder {
 
         let (ai_service, connector_tokens) =
             ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
+        let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let subsystems = Subsystems {
             ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance.get()),
@@ -190,8 +191,8 @@ impl AppContextBuilder {
             services: ConfigWatch::new(systemprompt_loader::ServicesBootstrap::get()?.clone()),
             cache_epochs,
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
-            event_bridge: Arc::new(OnceLock::new()),
-            event_router: event_router_or_outbox(self.event_router, &database, &config),
+            event_bridge: Arc::new(bridge),
+            event_router: router,
             geoip_reader: content.geoip_reader,
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
@@ -226,6 +227,28 @@ impl AppContextBuilder {
             subsystems,
         ))
     }
+}
+
+fn event_plane(
+    configured: Option<EventRouter>,
+    database: &systemprompt_database::DbPool,
+    config: &Config,
+    cache_epochs: &systemprompt_traits::CacheEpochs,
+) -> (EventRouter, EventBridgeHandle) {
+    let event_router = event_router_or_outbox(configured, database, config);
+    // Why: LISTEN/NOTIFY, the outbox insert and the retention prune need the
+    // primary, so the relay takes the write pool; the LISTEN session itself
+    // takes the session pool, a direct connection beside a transaction-mode
+    // pooler.
+    let bridge = PostgresEventBridge::new(
+        database.write_pool().as_ref().clone(),
+        config.instance_id.clone(),
+        cache_epochs.clone(),
+        Arc::clone(event_router.broadcasters()),
+    )
+    .with_listener_pool(database.session_pool().as_ref().clone())
+    .into_idle_handle();
+    (event_router, bridge)
 }
 
 fn event_router_or_outbox(
