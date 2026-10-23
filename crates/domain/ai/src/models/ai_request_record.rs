@@ -13,8 +13,8 @@ use systemprompt_identifiers::{
     McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
-use super::served_hop::CatalogHop;
 pub use super::ai_request_usage::{CacheInfo, TokenInfo};
+use super::served_hop::CatalogHop;
 
 #[derive(Debug, Clone)]
 pub struct AiRequestRecord {

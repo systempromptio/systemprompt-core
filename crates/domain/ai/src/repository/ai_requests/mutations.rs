@@ -226,16 +226,16 @@ where
     E: sqlx::PgExecutor<'e>,
 {
     sqlx::query!(
-            r#"UPDATE ai_requests SET served_provider = $1, credential = $2, endpoint = $3,
+        r#"UPDATE ai_requests SET served_provider = $1, credential = $2, endpoint = $3,
                    updated_at = CURRENT_TIMESTAMP
                WHERE id = $4"#,
-            hop.provider,
-            hop.credential,
-            hop.endpoint,
-            id.as_str()
-        )
-        .execute(executor)
-        .await?;
+        hop.provider,
+        hop.credential,
+        hop.endpoint,
+        id.as_str()
+    )
+    .execute(executor)
+    .await?;
     Ok(())
 }
 
