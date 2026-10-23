@@ -45,7 +45,7 @@ fn api_http_error_constructors_map_to_expected_status() {
         StatusCode::FORBIDDEN
     );
     assert_eq!(
-        status_of(ApiHttpError::internal_error("x")),
+        status_of(ApiHttpError::internal("x", "cause")),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }

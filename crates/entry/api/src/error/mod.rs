@@ -27,7 +27,7 @@ use std::error::Error;
 use axum::Json;
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use systemprompt_models::api::{ApiError, ErrorCode};
+use systemprompt_models::api::ApiError;
 use systemprompt_traits::BoxedSource;
 
 #[derive(Debug)]
@@ -48,10 +48,6 @@ impl ApiHttpError {
 
     pub fn forbidden(message: impl Into<String>) -> Self {
         Self(ApiError::forbidden(message))
-    }
-
-    pub fn internal_error(context: &'static str) -> Self {
-        Self(ApiError::new(ErrorCode::InternalError, context))
     }
 
     pub fn internal(context: &'static str, source: impl Into<BoxedSource>) -> Self {

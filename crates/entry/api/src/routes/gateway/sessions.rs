@@ -51,12 +51,15 @@ pub async fn create_session(
     .await?
     .ok_or_else(|| ApiHttpError::unauthorized("Invalid or revoked API key"))?;
 
-    let analytics = ctx
-        .analytics_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("Analytics provider unavailable"))?;
-    let user_provider = ctx
-        .user_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("User provider unavailable"))?;
+    let analytics = ctx.analytics_provider().ok_or_else(|| {
+        ApiHttpError::internal(
+            "Analytics provider unavailable",
+            "provider is not registered",
+        )
+    })?;
+    let user_provider = ctx.user_provider().ok_or_else(|| {
+        ApiHttpError::internal("User provider unavailable", "provider is not registered")
+    })?;
 
     let caller_ip = client_ip_from_request(&request);
     let session_analytics = analytics.extract_analytics(
@@ -68,8 +71,9 @@ pub async fn create_session(
     );
 
     let session_id = SessionCreationService::new(
-        ctx.session_provider()
-            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?,
+        ctx.session_provider().ok_or_else(|| {
+            ApiHttpError::internal("Session provider unavailable", "provider is not registered")
+        })?,
         user_provider,
     )
     .create_authenticated_session(&record.user_id, &session_analytics, SessionSource::Api)

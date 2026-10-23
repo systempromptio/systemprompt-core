@@ -23,11 +23,13 @@ use systemprompt_marketplace::ResolvedCatalog;
 use systemprompt_runtime::AppContext;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
+use super::bridge_plugin_archive::ArchiveMemo;
 use super::{bridge_plugin_archive, bridge_resolved, bridge_services_cache};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
 pub async fn handle(
+    memo: ArchiveMemo,
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     headers: HeaderMap,
@@ -50,7 +52,7 @@ pub async fn handle(
     })?;
 
     if let Some(sha256) = bridge_plugin_archive::archive_sha(&relative_path) {
-        return bridge_plugin_archive::serve(&ctx, &user.id, &id, sha256).await;
+        return bridge_plugin_archive::serve(&memo, &ctx, &user.id, &id, sha256).await;
     }
 
     let resolved = resolve_entitled(&ctx, &user.id, &id).await?;
