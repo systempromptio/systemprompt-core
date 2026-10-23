@@ -1,4 +1,4 @@
-//! Query primitives: selectors and dynamic results.
+//! Query primitives: selectors, dynamic results and LIKE-pattern escaping.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +22,13 @@ impl DatabaseQuery {
     pub const fn postgres(&self) -> &str {
         self.postgres
     }
+}
+
+#[must_use]
+pub fn escape_like(raw: &str) -> String {
+    raw.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 pub trait QuerySelector: Sync {

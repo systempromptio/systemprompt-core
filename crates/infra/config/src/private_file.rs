@@ -11,16 +11,13 @@
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-static TEMP_NONCE: AtomicU64 = AtomicU64::new(0);
 
 pub fn write_private_atomic(path: &Path, content: &[u8]) -> std::io::Result<()> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     let name = path
         .file_name()
         .map_or_else(|| "file".to_owned(), |n| n.to_string_lossy().into_owned());
-    let nonce = TEMP_NONCE.fetch_add(1, Ordering::Relaxed);
+    let nonce = rand::random::<u64>();
     let temp_path = dir.join(format!(".{name}.{}.{nonce}.tmp", std::process::id()));
 
     let written = create_private(&temp_path, content).and_then(|()| fs::rename(&temp_path, path));

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 use axum::routing::get;
@@ -33,7 +34,7 @@ pub fn wellknown_router(ctx: &AppContext) -> Router {
 
 async fn handle_default_agent_card(
     State(ctx): State<AppContext>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<impl IntoResponse, ApiHttpError> {
     let registry = AgentRegistry::new().map_err(|e| {
         tracing::error!(error = %e, "Failed to create agent registry");
         ApiError::internal_error("Failed to create agent registry")
@@ -60,7 +61,7 @@ async fn handle_default_agent_card(
 async fn handle_agent_card_by_name(
     State(ctx): State<AppContext>,
     Path(agent_name): Path<String>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<impl IntoResponse, ApiHttpError> {
     let agent_name = AgentName::try_new(agent_name.trim_end_matches(".json"))?;
     let registry = AgentRegistry::new().map_err(|e| {
         tracing::error!(error = %e, "Failed to create agent registry");
@@ -87,7 +88,7 @@ async fn handle_agent_card_by_name(
 
 async fn handle_list_agent_cards(
     State(ctx): State<AppContext>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<impl IntoResponse, ApiHttpError> {
     let registry = AgentRegistry::new().map_err(|e| {
         tracing::error!(error = %e, "Failed to create agent registry");
         ApiError::internal_error("Failed to create agent registry")

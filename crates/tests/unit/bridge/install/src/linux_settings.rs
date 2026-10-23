@@ -6,7 +6,9 @@ use std::path::PathBuf;
 use serde_json::Value;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::install::mdm::MdmError;
-use systemprompt_bridge::install::{InstallError, InstallOptions, MdmDisplay, install, uninstall};
+use systemprompt_bridge::install::{
+    InstallError, InstallOptions, ManagedProfileRemoveError, MdmDisplay, install, uninstall,
+};
 use tempfile::TempDir;
 
 struct Dirs {
@@ -337,9 +339,11 @@ fn uninstall_refuses_a_settings_file_it_cannot_parse_and_leaves_it_in_place() {
     let err = dirs.run(|| {
         uninstall(false, &bridge()).expect_err("unreadable settings must fail the uninstall")
     });
-    let InstallError::ManagedProfileRemove(message) = &err else {
+    let InstallError::ManagedProfileRemove(source @ ManagedProfileRemoveError::Mdm(_)) = &err
+    else {
         panic!("an unparseable settings file fails the managed-profile removal, got {err:?}");
     };
+    let message = source.to_string();
     assert!(
         message.contains("settings.json") && message.contains("not valid JSON"),
         "the failure names the file and why it was refused: {message}"

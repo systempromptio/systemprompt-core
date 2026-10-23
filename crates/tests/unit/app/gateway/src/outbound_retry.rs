@@ -96,6 +96,7 @@ async fn send_once(endpoint: &str) -> Result<OutboundOutcome, OutboundError> {
     let ctx = OutboundCtx {
         route: &route,
         upstream: &support::api_key_call(endpoint, "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

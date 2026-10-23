@@ -100,8 +100,11 @@ pub fn gateway_repositories(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),
-        ctx.background_tasks().clone(),
-        ctx.cache_epochs().clone(),
+        systemprompt_gateway::GatewayHandles {
+            background: ctx.background_tasks().clone(),
+            cache_epochs: ctx.cache_epochs().clone(),
+            logging: ctx.logging().clone(),
+        },
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
     .with_session_store(ctx.session_store())
@@ -138,7 +141,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
 }
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
-    let parts = gateway_parts(ctx, &Arc::new(GatewayEngines::new()))?;
+    let parts = gateway_parts(ctx, &Arc::new(GatewayEngines::new()?))?;
     Ok(common_layers(ctx, parts.traffic.merge(parts.bridge_auth)))
 }
 
@@ -166,5 +169,8 @@ pub fn gateway_mount_router(
 fn common_layers(ctx: &AppContext, router: Router) -> Router {
     router
         .layer(Extension(ctx.clone()))
-        .layer(axum::middleware::from_fn(log_gateway_request))
+        .layer(axum::middleware::from_fn_with_state(
+            ctx.logging().clone(),
+            log_gateway_request,
+        ))
 }

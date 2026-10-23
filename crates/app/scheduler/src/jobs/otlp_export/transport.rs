@@ -64,17 +64,14 @@ pub(super) enum TransportError {
     Request(#[from] reqwest::Error),
 }
 
-fn http_client() -> &'static reqwest::Client {
-    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
-    CLIENT.get_or_init(
-        || match reqwest::Client::builder().timeout(REQUEST_TIMEOUT).build() {
-            Ok(client) => client,
-            Err(error) => {
-                tracing::warn!(error = %error, "OTLP client builder failed; using default client");
-                reqwest::Client::new()
-            },
+pub(super) fn build_client() -> reqwest::Client {
+    match reqwest::Client::builder().timeout(REQUEST_TIMEOUT).build() {
+        Ok(client) => client,
+        Err(error) => {
+            tracing::warn!(error = %error, "OTLP client builder failed; using default client");
+            reqwest::Client::new()
         },
-    )
+    }
 }
 
 pub(super) fn build_headers(config: &OtlpExportConfig) -> Result<HeaderMap, TransportError> {
@@ -100,6 +97,7 @@ pub(super) fn build_headers(config: &OtlpExportConfig) -> Result<HeaderMap, Tran
 }
 
 pub(super) async fn post_signal<M: Message>(
+    client: &reqwest::Client,
     config: &OtlpExportConfig,
     signal: OtlpSignal,
     envelope: &M,
@@ -112,7 +110,7 @@ pub(super) async fn post_signal<M: Message>(
     let mut attempt = 0usize;
     loop {
         attempt += 1;
-        let error = match send_once(&url, headers.clone(), body.clone()).await {
+        let error = match send_once(client, &url, headers.clone(), body.clone()).await {
             Ok(()) => {
                 record(signal, "ok");
                 return Ok(());
@@ -138,13 +136,13 @@ pub(super) async fn post_signal<M: Message>(
     }
 }
 
-async fn send_once(url: &str, headers: HeaderMap, body: Vec<u8>) -> Result<(), TransportError> {
-    let response = http_client()
-        .post(url)
-        .headers(headers)
-        .body(body)
-        .send()
-        .await?;
+async fn send_once(
+    client: &reqwest::Client,
+    url: &str,
+    headers: HeaderMap,
+    body: Vec<u8>,
+) -> Result<(), TransportError> {
+    let response = client.post(url).headers(headers).body(body).send().await?;
     let status = response.status();
     if status.is_success() {
         return Ok(());

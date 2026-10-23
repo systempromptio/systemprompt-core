@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use systemprompt_logging::services::cli::table::{
     ServiceTableEntry, render_service_table, render_service_table_into, render_startup_complete,
-    render_table, truncate_to_width,
+    render_table,
 };
 use systemprompt_logging::services::cli::theme::StatusGlyph;
 
@@ -37,32 +37,6 @@ fn render_service_lines(title: &str, services: &[ServiceTableEntry]) -> Vec<Stri
         .map(strip_ansi)
         .filter(|line| !line.is_empty())
         .collect()
-}
-
-#[test]
-fn truncate_to_width_returns_input_when_short_enough() {
-    assert_eq!(truncate_to_width("hello", 10), "hello");
-    assert_eq!(truncate_to_width("hello", 5), "hello");
-}
-
-#[test]
-fn truncate_to_width_truncates_and_appends_ellipsis() {
-    let out = truncate_to_width("abcdefghij", 6);
-    assert_eq!(out, "abc...");
-    assert!(out.chars().count() <= 6);
-}
-
-#[test]
-fn truncate_to_width_zero_width_yields_ellipsis_only() {
-    let out = truncate_to_width("abcdef", 3);
-    assert_eq!(out, "...");
-}
-
-#[test]
-fn truncate_to_width_handles_unicode() {
-    let s = "日本語テストひらがな";
-    let out = truncate_to_width(s, 5);
-    assert!(out.ends_with("..."));
 }
 
 #[test]

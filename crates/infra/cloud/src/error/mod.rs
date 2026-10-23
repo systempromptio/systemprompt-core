@@ -83,12 +83,6 @@ pub enum CloudError {
     #[error("Cloud credentials file not found: {path}")]
     CredentialsFileNotFound { path: String },
 
-    #[error("Credentials not initialized")]
-    CredentialsNotInitialized,
-
-    #[error("Credentials already initialized")]
-    CredentialsAlreadyInitialized,
-
     #[error(
         "Session file version mismatch: expected {min}-{max}, got {actual}. Delete {path} and \
          retry."

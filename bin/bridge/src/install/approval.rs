@@ -26,8 +26,9 @@ pub enum ApprovalRefusal {
 /// The elevated step ran (or tried to) and its result cannot be accepted.
 #[derive(Debug, thiserror::Error)]
 pub enum ElevationFailure {
-    #[error("the elevated helper could not run: {0}")]
-    Helper(String),
+    #[cfg(target_os = "windows")]
+    #[error("the elevated helper could not run")]
+    Helper(#[source] HelperLaunchError),
     #[error(transparent)]
     Protocol(#[from] ProtocolError),
     #[error("the elevated change did not land: {0}")]
@@ -35,6 +36,20 @@ pub enum ElevationFailure {
     #[cfg(target_os = "macos")]
     #[error(transparent)]
     Privileged(super::elevate::ElevationError),
+}
+
+/// Why the Windows elevated helper process could not be launched or awaited.
+#[cfg(target_os = "windows")]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+pub enum HelperLaunchError {
+    #[error("ShellExecuteExW(runas) failed with status {status}")]
+    Launch { status: u32 },
+    #[error("the elevated process handle was null")]
+    NullHandle,
+    #[error("WaitForSingleObject returned {status}")]
+    Wait { status: u32 },
+    #[error("GetExitCodeProcess failed")]
+    ExitCode,
 }
 
 /// The failure of a change that may need administrator approval.

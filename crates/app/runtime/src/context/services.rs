@@ -1,5 +1,6 @@
-//! Service accessors: the process-wide governance engine, AI service and
-//! artifact ingest the composition root built once.
+//! Service accessors: the process-wide governance engine, AI service,
+//! artifact ingest, logging runtime and lifecycle owners the composition root
+//! built once.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,11 +8,33 @@
 use std::sync::Arc;
 
 use systemprompt_governance::policy::GovernanceEngine;
-use systemprompt_traits::CacheEpochs;
+use systemprompt_logging::LoggingRuntime;
+use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_traits::{BackgroundTasks, CacheEpochs};
 
-use super::AppContext;
+use super::{AppContext, ShutdownRequest};
 
 impl AppContext {
+    pub fn system_admin(&self) -> &SystemAdmin {
+        &self.subsystems.system_admin
+    }
+
+    pub const fn logging(&self) -> &LoggingRuntime {
+        &self.subsystems.logging
+    }
+
+    pub const fn shutdown_request(&self) -> &ShutdownRequest {
+        &self.subsystems.shutdown
+    }
+
+    pub const fn background_tasks(&self) -> &BackgroundTasks {
+        &self.subsystems.background_tasks
+    }
+
+    pub fn request_restart(&self, reason: &str) {
+        self.subsystems.shutdown.request(reason);
+    }
+
     pub fn config_planes(
         &self,
     ) -> systemprompt_provider_contracts::ConfigPlaneResult<crate::ConfigPlaneSet> {

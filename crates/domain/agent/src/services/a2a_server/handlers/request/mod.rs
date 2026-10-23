@@ -9,9 +9,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod agent_run;
-pub mod helpers;
 pub mod list_tasks;
 mod non_streaming;
+pub mod routing;
 mod run_stream;
 mod streaming;
 pub mod validation;
@@ -31,8 +31,8 @@ use crate::services::a2a_server::auth::validate_oauth_for_request;
 use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 use crate::services::a2a_server::version::negotiate;
 
-use helpers::{handle_streaming_path, parse_a2a_request};
 use non_streaming::handle_non_streaming_request;
+use routing::{handle_streaming_path, parse_a2a_request};
 use validation::should_require_oauth;
 
 // Why: the body is read through the `Bytes` extractor so the router's

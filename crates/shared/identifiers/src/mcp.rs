@@ -15,3 +15,9 @@ crate::define_id!(McpServerId, checked, |value| {
 crate::define_id!(McpToolName, checked, |value| {
     crate::macros::validate_non_empty("McpToolName", value)
 });
+crate::define_id!(ConnectorAppId, checked, |value| {
+    crate::macros::validate_non_empty("ConnectorAppId", value)
+});
+crate::define_id!(ConnectorInstallationId, checked, |value| {
+    crate::macros::validate_non_empty("ConnectorInstallationId", value)
+});

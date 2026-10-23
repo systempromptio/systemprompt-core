@@ -2,8 +2,8 @@
 //!
 //! [`LogEntry`] is the persisted log row; [`LogActor`] bundles the mandatory
 //! attribution triple (user, session, trace) every entry must carry, with
-//! [`LogActor::platform`] resolving the system owner for originator-less
-//! platform telemetry. Optional task/context/client identifiers are layered on
+//! [`LogActor::platform`] attributing originator-less platform telemetry to
+//! the system owner. Optional task/context/client identifiers are layered on
 //! via the builder methods.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -11,10 +11,10 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{InstanceId, LogId, SessionId, TraceId, UserId};
+use systemprompt_manifest::services::SystemAdmin;
 
 use super::{LogLevel, LoggingError};
-use crate::attribution::{LogAttributionUnset, platform_owner_id};
 
 /// Mandatory attribution for every log row: who did the work, in which
 /// session, on which trace. Bundled so every `LogEntry::new` call carries
@@ -42,12 +42,13 @@ impl LogActor {
         }
     }
 
-    pub fn platform(trace_id: TraceId) -> Result<Self, LogAttributionUnset> {
-        Ok(Self {
-            user_id: platform_owner_id()?.clone(),
+    #[must_use]
+    pub fn platform(owner: &SystemAdmin, trace_id: TraceId) -> Self {
+        Self {
+            user_id: owner.id().clone(),
             session_id: SessionId::system(),
             trace_id,
-        })
+        }
     }
 }
 
@@ -66,7 +67,7 @@ pub struct LogEntry {
     pub trace_id: TraceId,
     pub context_id: Option<systemprompt_identifiers::ContextId>,
     pub client_id: Option<systemprompt_identifiers::ClientId>,
-    pub instance_id: Option<systemprompt_identifiers::InstanceId>,
+    pub instance_id: Option<InstanceId>,
 }
 
 impl LogEntry {
@@ -89,8 +90,14 @@ impl LogEntry {
             trace_id: actor.trace_id,
             context_id: None,
             client_id: None,
-            instance_id: crate::instance_id().cloned(),
+            instance_id: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_instance_id(mut self, instance_id: InstanceId) -> Self {
+        self.instance_id = Some(instance_id);
+        self
     }
 
     #[must_use]

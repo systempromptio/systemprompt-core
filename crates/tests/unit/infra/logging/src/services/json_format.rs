@@ -52,7 +52,7 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for CapturingWriter {
 fn json_subscriber(writer: CapturingWriter) -> impl Subscriber + Send + Sync {
     let layer = tracing_subscriber::fmt::layer()
         .fmt_fields(FilterSystemFields::new())
-        .event_format(JsonEventFormat)
+        .event_format(JsonEventFormat::default())
         .with_writer(writer)
         .with_ansi(false);
     tracing_subscriber::registry()

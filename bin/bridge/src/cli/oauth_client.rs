@@ -14,7 +14,7 @@ use crate::{auth, config, stdio};
 
 pub fn cmd_oauth_client(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     match args.get(2).map(String::as_str) {
-        None | Some("status") => cmd_status(),
+        None | Some("status") => cmd_status(ctx),
         Some("rotate") => cmd_rotate(ctx),
         Some(other) => {
             diag(&format!("unknown oauth-client subcommand: {other}"));
@@ -27,13 +27,13 @@ pub fn cmd_oauth_client(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     }
 }
 
-fn cmd_status() -> ExitCode {
+fn cmd_status(ctx: &BridgeContext) -> ExitCode {
     let Some(path) = plugin_oauth::creds_path() else {
         diag("oauth-client status: cache directory unresolvable");
         return ExitCode::from(1);
     };
     stdio::print_line(&format!("creds path: {}", path.display()));
-    match plugin_oauth::load_creds() {
+    match plugin_oauth::load_creds(ctx.secrets()) {
         Ok(Some(creds)) => {
             stdio::print_line(&format!("client_id: {}", creds.client_id));
             stdio::print_line(&format!("token endpoint: {}", creds.token_endpoint));
@@ -65,6 +65,7 @@ fn cmd_rotate(ctx: &BridgeContext) -> ExitCode {
     let client = ctx.gateway_client(base_url);
 
     let http = ctx.http.clone();
+    let tokens = std::sync::Arc::clone(&ctx.plugin_tokens);
     let outer = ctx.block_on(async move {
         let bearer = auth::obtain_live_token(
             &cfg,
@@ -72,7 +73,7 @@ fn cmd_rotate(ctx: &BridgeContext) -> ExitCode {
             &http,
         )
         .await?;
-        let creds = plugin_oauth::refresh_creds(&client, &bearer.token).await?;
+        let creds = plugin_oauth::refresh_creds(tokens.secrets(), &client, &bearer.token).await?;
         Ok::<_, Box<dyn std::error::Error>>(creds)
     });
 

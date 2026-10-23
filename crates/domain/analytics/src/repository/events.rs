@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{AnalyticsEventId, SessionId, UserId};
 use systemprompt_traits::analytics_events::{AnalyticsEventRecord, DynAnalyticsEventStore};
 
 use crate::models::{AnalyticsEventCreated, CreateAnalyticsEventInput};
@@ -65,7 +65,7 @@ impl AnalyticsEventsRepository {
         input: &CreateAnalyticsEventInput,
     ) -> AnalyticsEventRecord {
         AnalyticsEventRecord {
-            id: format!("evt_{}", uuid::Uuid::new_v4()),
+            id: AnalyticsEventId::new(format!("evt_{}", uuid::Uuid::new_v4())),
             user_id: user_id.clone(),
             session_id: session_id.clone(),
             event_type: input.event_type.as_str().to_owned(),

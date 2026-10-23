@@ -42,7 +42,7 @@ pub use cleanup_inactive_sessions::CleanupInactiveSessionsJob;
 pub use config_reconcile::ConfigReconcileJob;
 pub use database_cleanup::{DatabaseCleanupJob, RetentionTarget};
 pub use ghost_session_cleanup::GhostSessionCleanupJob;
-pub use inventory::InventoryRefreshJob;
+pub use inventory::{InventoryRefreshJob, InventoryRefreshMemo};
 pub use log_summary_rollup::LogSummaryRollupJob;
 pub use malicious_ip_blacklist::MaliciousIpBlacklistJob;
 pub use no_js_cleanup::NoJsCleanupJob;

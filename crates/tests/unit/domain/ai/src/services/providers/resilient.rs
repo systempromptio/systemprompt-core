@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::services::providers::mock_http;
-use systemprompt_ai::error::{AiError, Result};
+use systemprompt_ai::error::{AiError, ProviderError, Result};
 use systemprompt_ai::models::ai::{
     AiMessage, AiResponse, ResponseFormat, SamplingParams, StreamChunk,
 };
@@ -409,10 +409,10 @@ async fn idle_stream_timeout_releases_the_provider_bulkhead_for_a_later_stream()
     let error = error.expect_err("stream must time out");
     assert!(matches!(
         error,
-        AiError::Timeout {
+        AiError::Provider(ProviderError::Timeout {
             ref provider,
             after_ms: 20
-        } if provider == "sequenced"
+        }) if provider.as_str() == "sequenced"
     ));
 
     let mut recovered = provider

@@ -30,6 +30,7 @@ use prost::Message;
 use std::sync::Arc;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_logging::LoggingRuntime;
 use systemprompt_runtime::AppContext;
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -73,14 +74,15 @@ pub async fn handle(
         Err(rejection) => return rejection.into_response(),
     };
     let identity = (principal.user_id().clone(), principal.session_id().clone());
-    ingest_with_identity(request, Some(identity)).await
+    ingest_with_identity(ctx.logging(), request, Some(identity)).await
 }
 
-pub async fn ingest_envelope(request: Request<Body>) -> Response<Body> {
-    ingest_with_identity(request, None).await
+pub async fn ingest_envelope(logging: &LoggingRuntime, request: Request<Body>) -> Response<Body> {
+    ingest_with_identity(logging, request, None).await
 }
 
 async fn ingest_with_identity(
+    logging: &LoggingRuntime,
     request: Request<Body>,
     identity: Option<(UserId, SessionId)>,
 ) -> Response<Body> {
@@ -114,26 +116,31 @@ async fn ingest_with_identity(
     }
 
     if is_json && signal != "metrics" && signal != "traces" {
-        ingest_json_logs(&body_bytes, identity.as_ref());
+        ingest_json_logs(logging, &body_bytes, identity.as_ref());
         return accepted();
     }
-    ingest_protobuf(&signal, &body_bytes, identity.as_ref())
+    ingest_protobuf(logging, &signal, &body_bytes, identity.as_ref())
 }
 
-fn ingest_json_logs(body_bytes: &[u8], identity: Option<&(UserId, SessionId)>) {
+fn ingest_json_logs(
+    logging: &LoggingRuntime,
+    body_bytes: &[u8],
+    identity: Option<&(UserId, SessionId)>,
+) {
     match json::decode_logs(body_bytes) {
         Ok(mut req) if !req.resource_logs.is_empty() => {
             for item in &mut req.resource_logs {
                 bind_identity(&mut item.resource, identity);
             }
             count_export("logs");
-            ingest_logs(req);
+            ingest_logs(logging, req);
         },
         _ => tracing::warn!(bytes = body_bytes.len(), "otel: invalid JSON log export"),
     }
 }
 
 fn ingest_protobuf(
+    logging: &LoggingRuntime,
     signal: &str,
     body_bytes: &[u8],
     identity: Option<&(UserId, SessionId)>,
@@ -146,7 +153,7 @@ fn ingest_protobuf(
             bind_identity(&mut item.resource, identity);
         }
         count_export("traces");
-        ingest_traces(req);
+        ingest_traces(logging, req);
         return accepted();
     }
     if !matches!(signal, "traces" | "metrics")
@@ -157,7 +164,7 @@ fn ingest_protobuf(
             bind_identity(&mut item.resource, identity);
         }
         count_export("logs");
-        ingest_logs(req);
+        ingest_logs(logging, req);
         return accepted();
     }
     if !matches!(signal, "traces" | "logs")

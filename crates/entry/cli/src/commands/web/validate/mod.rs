@@ -39,7 +39,7 @@ pub struct ValidateArgs {
 
 pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<ValidationOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let web_paths = WebPaths::resolve_from_profile(profile)?;
+    let web_paths = WebPaths::resolve()?;
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();

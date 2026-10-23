@@ -25,6 +25,9 @@ async fn discovery_app() -> anyhow::Result<Router> {
         .route(ApiPaths::CORE_BASE, get(handle_core_discovery))
         .route(ApiPaths::AGENTS_BASE, get(handle_agents_discovery))
         .route(ApiPaths::MCP_BASE, get(handle_mcp_discovery))
+        .layer(axum::Extension(std::sync::Arc::new(
+            systemprompt_api::services::server::SchedulerHealth::new(),
+        )))
         .with_state((*ctx).clone()))
 }
 

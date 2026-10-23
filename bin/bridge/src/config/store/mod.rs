@@ -37,7 +37,37 @@ pub enum ConfigStoreError {
         source: Box<Self>,
     },
     #[error("config store: {0}")]
-    Backend(String),
+    Unsupported(&'static str),
+
+    #[error("config store: no per-user policy path for the current user")]
+    NoUserPolicyPath,
+
+    #[error("config store: {location} is not {expected}")]
+    InvalidValue {
+        location: String,
+        expected: &'static str,
+    },
+
+    #[cfg(target_os = "windows")]
+    #[error("config store: {call}({target}) failed with status {status}")]
+    Win32 {
+        call: &'static str,
+        target: String,
+        status: u32,
+    },
+
+    #[cfg(target_os = "macos")]
+    #[error("config store: {tool} {target} exited with {status}: {stderr}")]
+    Tool {
+        tool: &'static str,
+        target: String,
+        status: std::process::ExitStatus,
+        stderr: String,
+    },
+
+    #[cfg(target_os = "macos")]
+    #[error("config store: synchronising managed preferences {domain} failed")]
+    PreferencesSync { domain: &'static str },
 
     #[error("config store: {context}")]
     Io {
@@ -247,8 +277,8 @@ impl ConfigStore for NoopStore {
         _target: PolicyTarget,
         _entries: &[(String, PolicyDocumentValue)],
     ) -> Result<(), ConfigStoreError> {
-        Err(ConfigStoreError::Backend(
-            "managed policy writes are unsupported on this platform".to_owned(),
+        Err(ConfigStoreError::Unsupported(
+            "managed policy writes are unsupported on this platform",
         ))
     }
 

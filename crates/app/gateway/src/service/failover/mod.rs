@@ -65,7 +65,8 @@ pub(super) async fn send_with_failover(
     send: FailoverSend<'_, '_>,
 ) -> Result<OutboundOutcome, DispatchError> {
     if send.primary.deployments.len() <= 1 {
-        let _in_flight = enter_deployment(send.primary, scanned.request_model());
+        let _in_flight =
+            enter_deployment(&send.engines.load, send.primary, scanned.request_model());
         return with_policy(
             current_policy(),
             scanned.send(send.primary, send.forward_headers, send.audit),
@@ -75,8 +76,12 @@ pub(super) async fn send_with_failover(
     chain::run(scanned, send).await
 }
 
-pub(super) fn enter_deployment(upstream: &ResolvedUpstream<'_>, request_model: &str) -> InFlight {
-    DeploymentLoad::global().enter(&DeploymentLoad::key(
+pub(super) fn enter_deployment(
+    load: &DeploymentLoad,
+    upstream: &ResolvedUpstream<'_>,
+    request_model: &str,
+) -> InFlight {
+    load.enter(&DeploymentLoad::key(
         upstream.provider.name.as_str(),
         upstream.route.effective_upstream_model(request_model),
     ))

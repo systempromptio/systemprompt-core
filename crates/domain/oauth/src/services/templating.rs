@@ -6,9 +6,9 @@
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug)]
-pub struct TemplateEngine;
+pub struct TemplateService;
 
-impl TemplateEngine {
+impl TemplateService {
     pub fn render(template: &str, context: HashMap<&str, &str>) -> String {
         let mut result = template.to_owned();
 

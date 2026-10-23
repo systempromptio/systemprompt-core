@@ -4,10 +4,8 @@
 //! the wire: a field that is absent must be omitted rather than sent as null,
 //! since a client checking for presence treats an explicit null as a value.
 //!
-//! The `IntoResponse` impls carry the status codes and the `Location` header,
-//! but they are behind the `web` feature, which is off in this crate — testing
-//! them here would mean taking an axum dependency for the assertion, so they
-//! are left to the api-side suites that already build with the feature on.
+//! The envelopes carry no HTTP response mapping; status codes and headers are
+//! chosen by the API handlers that return them.
 
 use indexmap::IndexMap;
 use systemprompt_models::api::responses::{

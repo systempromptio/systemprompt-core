@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::ValidationConfigProvider;
+use super::validation_report::{ValidationIssue, ValidationReport};
+use super::{DomainConfig, DomainConfigError, ValidationConfigProvider};
 use crate::ServicesConfig;
 use std::collections::HashMap;
 use systemprompt_models::mcp::deployment::McpServerType;
-use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
-use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+use systemprompt_traits::ConfigProvider;
 
 #[derive(Debug, Default)]
 pub struct McpConfigValidator {

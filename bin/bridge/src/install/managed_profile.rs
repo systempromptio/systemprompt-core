@@ -12,9 +12,8 @@ pub(super) fn remove(_store: &crate::config::store::PolicyStore) -> super::Manag
             super::ManagedProfileOutcome::NotInstalled(super::mdm::macos::PAYLOAD_IDENTIFIER)
         },
         Err(e) => {
-            let msg = format!("profile remove failed: {e}");
-            crate::stdio::diag(&msg);
-            super::ManagedProfileOutcome::RemoveFailed(msg)
+            crate::stdio::diag(&format!("profile remove failed: {e}"));
+            super::ManagedProfileOutcome::RemoveFailed(e.into())
         },
     }
 }
@@ -25,7 +24,7 @@ pub(super) fn remove(store: &crate::config::store::PolicyStore) -> super::Manage
         Ok(removed) => removed,
         Err(e) => {
             crate::stdio::diag(&e.to_string());
-            return super::ManagedProfileOutcome::RemoveFailed(e.to_string());
+            return super::ManagedProfileOutcome::RemoveFailed(e.into());
         },
     };
     // Why: the machine policy carries the inference gateway and secret as
@@ -44,7 +43,7 @@ pub(super) fn remove(store: &crate::config::store::PolicyStore) -> super::Manage
         Ok(false) => super::ManagedProfileOutcome::NotInstalled("Windows Policies\\Claude"),
         Err(e) => {
             crate::stdio::diag(&e.to_string());
-            super::ManagedProfileOutcome::RemoveFailed(e.to_string())
+            super::ManagedProfileOutcome::RemoveFailed(e.into())
         },
     }
 }
@@ -103,7 +102,7 @@ fn remove_machine_claude_policy(
 pub(super) fn remove(_store: &crate::config::store::PolicyStore) -> super::ManagedProfileOutcome {
     let lines = match super::mdm::linux::remove() {
         Ok(lines) => lines,
-        Err(e) => return super::ManagedProfileOutcome::RemoveFailed(e.to_string()),
+        Err(e) => return super::ManagedProfileOutcome::RemoveFailed(e.into()),
     };
     if lines.is_empty() {
         return super::ManagedProfileOutcome::NotInstalled("Linux env configuration");

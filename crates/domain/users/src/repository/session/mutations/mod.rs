@@ -153,9 +153,11 @@ pub(super) async fn migrate_user_sessions(
 }
 
 pub(super) async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> Result<()> {
-    let session_id = params.session_id.as_str();
-    let user_id = params.user_id.map(UserId::as_str);
-    let session_source = params.session_source.as_str();
+    let session_id = params.identity.session_id.as_str();
+    let user_id = params.identity.user_id.map(UserId::as_str);
+    let session_source = params.identity.session_source.as_str();
+    let network = &params.network;
+    let attribution = &params.attribution;
     sqlx::query!(
         r#"
         INSERT INTO user_sessions (
@@ -174,25 +176,25 @@ pub(super) async fn create_session(pool: &PgPool, params: &CreateSessionParams<'
         session_id,
         user_id,
         session_source,
-        params.fingerprint_hash,
-        params.ip_address,
-        params.user_agent,
-        params.device_type,
-        params.browser,
-        params.os,
-        params.country,
-        params.region,
-        params.city,
-        params.preferred_locale,
-        params.referrer_source,
-        params.referrer_url,
-        params.landing_page,
-        params.entry_url,
-        params.utm_source,
-        params.utm_medium,
-        params.utm_campaign,
-        params.utm_content,
-        params.utm_term,
+        params.identity.fingerprint_hash,
+        network.ip_address,
+        network.user_agent,
+        network.device_type,
+        network.browser,
+        network.os,
+        network.country,
+        network.region,
+        network.city,
+        network.preferred_locale,
+        attribution.referrer_source,
+        attribution.referrer_url,
+        attribution.landing_page,
+        attribution.entry_url,
+        attribution.utm_source,
+        attribution.utm_medium,
+        attribution.utm_campaign,
+        attribution.utm_content,
+        attribution.utm_term,
         params.is_bot,
         params.is_ai_crawler,
         params.expires_at

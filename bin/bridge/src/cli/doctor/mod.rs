@@ -124,8 +124,8 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.push(filesystem::check_private_files());
     checks.push(filesystem::check_bridge_working_dir());
     checks.push(filesystem::check_org_plugins_writable());
-    checks.push(auth::check_credential_store());
-    checks.push(auth::check_hook_token_mint(&client).await);
+    checks.push(auth::check_credential_store(bridge.secrets()));
+    checks.push(auth::check_hook_token_mint(bridge.secrets(), &client).await);
     let any_fail = checks.iter().any(|c| matches!(c.status, Status::Fail));
     (checks, any_fail)
 }

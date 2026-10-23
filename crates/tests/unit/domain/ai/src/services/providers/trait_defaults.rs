@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use rmcp::model::ContentBlock;
 use serde_json::json;
 use std::sync::Mutex;
-use systemprompt_ai::error::{AiError, ProviderCapability, Result};
+use systemprompt_ai::error::{AiError, ProviderCapability, Result, RoutingError};
 use systemprompt_ai::models::ai::{
     AiMessage, AiResponse, MessageRole, ResponseFormat, SamplingParams,
 };
@@ -174,10 +174,10 @@ async fn default_capability_flags_and_unsupported_operations() {
         .await;
     assert!(matches!(
         stream,
-        Err(AiError::CapabilityUnsupported {
+        Err(AiError::Routing(RoutingError::CapabilityUnsupported {
             ref provider,
             capability: ProviderCapability::Streaming,
-        }) if provider == "minimal"
+        })) if provider.as_str() == "minimal"
     ));
 
     let tool_stream = provider
@@ -188,10 +188,10 @@ async fn default_capability_flags_and_unsupported_operations() {
         .await;
     assert!(matches!(
         tool_stream,
-        Err(AiError::CapabilityUnsupported {
+        Err(AiError::Routing(RoutingError::CapabilityUnsupported {
             capability: ProviderCapability::ToolStreaming,
             ..
-        })
+        }))
     ));
 
     let search = provider
@@ -201,9 +201,9 @@ async fn default_capability_flags_and_unsupported_operations() {
         .await;
     assert!(matches!(
         search,
-        Err(AiError::CapabilityUnsupported {
+        Err(AiError::Routing(RoutingError::CapabilityUnsupported {
             capability: ProviderCapability::GoogleSearch,
             ..
-        })
+        }))
     ));
 }

@@ -30,6 +30,7 @@ use crate::managed::RevisionFiles;
 
 mod managed;
 mod revision_cache;
+pub(crate) use revision_cache::VerifiedRevisions;
 
 /// The owned entry lists a [`CatalogContent`] yields, in the order
 /// [`CatalogContent::into_parts`] returns them: skills, rules, agents, managed

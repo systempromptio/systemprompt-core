@@ -6,7 +6,7 @@
 
 use serde_json::json;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
-use systemprompt_logging::{LogActor, LogEntry, LogLevel, enqueue_background};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRuntime};
 use systemprompt_models::origin::ClientKind;
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -20,7 +20,7 @@ const MODULE: &str = "otel";
 // (opentelemetry/proto/trace/v1/trace.proto).
 const OTLP_STATUS_CODE_ERROR: i32 = 2;
 
-pub fn ingest_traces(req: ExportTraceServiceRequest) {
+pub fn ingest_traces(logging: &LoggingRuntime, req: ExportTraceServiceRequest) {
     for resource in req.resource_spans {
         let resource_attrs = attrs_to_json(
             resource
@@ -60,23 +60,17 @@ pub fn ingest_traces(req: ExportTraceServiceRequest) {
                 } else {
                     TraceId::new(trace_hex)
                 };
-                let actor = match actor(&resource_attrs, trace_id) {
-                    Ok(a) => a,
-                    Err(e) => {
-                        tracing::warn!(error = %e, "otel: span log skipped, system admin not initialized");
-                        continue;
-                    },
-                };
+                let actor = actor(logging, &resource_attrs, trace_id);
                 let entry =
                     LogEntry::new(level, MODULE, "Desktop telemetry span".to_owned(), actor)
                         .with_metadata(metadata);
-                enqueue_background(entry);
+                logging.enqueue(entry);
             }
         }
     }
 }
 
-pub fn ingest_logs(req: ExportLogsServiceRequest) {
+pub fn ingest_logs(logging: &LoggingRuntime, req: ExportLogsServiceRequest) {
     for resource in req.resource_logs {
         let resource_attrs = attrs_to_json(
             resource
@@ -107,15 +101,9 @@ pub fn ingest_logs(req: ExportLogsServiceRequest) {
                 } else {
                     TraceId::new(trace_hex)
                 };
-                let actor = match actor(&resource_attrs, trace_id) {
-                    Ok(a) => a,
-                    Err(e) => {
-                        tracing::warn!(error = %e, "otel: log skipped, system admin not initialized");
-                        continue;
-                    },
-                };
+                let actor = actor(logging, &resource_attrs, trace_id);
                 let entry = LogEntry::new(level, MODULE, message, actor).with_metadata(metadata);
-                enqueue_background(entry);
+                logging.enqueue(entry);
             }
         }
     }
@@ -133,21 +121,18 @@ pub fn ingest_metrics(req: &ExportMetricsServiceRequest) {
 
 // JSON: Sanitized OTLP resource attributes carry server-bound identity
 // metadata.
-fn actor(
-    resource: &serde_json::Value,
-    trace: TraceId,
-) -> Result<LogActor, systemprompt_logging::LogAttributionUnset> {
+fn actor(logging: &LoggingRuntime, resource: &serde_json::Value, trace: TraceId) -> LogActor {
     if let (Some(user), Some(session)) = (
         resource["systemprompt.user.id"].as_str(),
         resource["systemprompt.session.id"].as_str(),
     ) {
-        return Ok(LogActor::new(
+        return LogActor::new(
             UserId::new(user.to_owned()),
             SessionId::new(session.to_owned()),
             trace,
-        ));
+        );
     }
-    LogActor::platform(trace)
+    logging.platform_actor(trace)
 }
 
 // JSON: Allowlisted OTLP attributes form the persisted log metadata envelope.

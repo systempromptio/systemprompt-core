@@ -1,8 +1,6 @@
-//! Private decode target for `sqlx::query_as!`: the macro converts each
-//! column with `From<inferred type>`, which the validating identifier types
-//! deliberately do not implement, so client rows decode `owner_user_id` as a
-//! plain string here and become a typed id through the trusted `new`
-//! constructor (a row is trusted).
+//! Private decode target for `sqlx::query_as!`: each query names the
+//! `owner_user_id` column's type with an `as "owner_user_id: UserId"`
+//! override, so the row decodes it as a typed id directly.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,7 +24,7 @@ pub(crate) struct OAuthClientDbRow {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_used_at: Option<DateTime<Utc>>,
-    pub owner_user_id: String,
+    pub owner_user_id: UserId,
 }
 
 impl From<OAuthClientDbRow> for OAuthClientRow {
@@ -44,7 +42,7 @@ impl From<OAuthClientDbRow> for OAuthClientRow {
             created_at: row.created_at,
             updated_at: row.updated_at,
             last_used_at: row.last_used_at,
-            owner_user_id: UserId::new(row.owner_user_id),
+            owner_user_id: row.owner_user_id,
         }
     }
 }

@@ -5,10 +5,11 @@
 
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_traits::validation_report::{
+use systemprompt_manifest::validators::validation_report::{
     ValidationIssue, ValidationReport, ValidationWarning,
 };
-use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
+use systemprompt_traits::ConfigProvider;
 
 use super::FilesConfig;
 use super::types::FilesConfigYaml;

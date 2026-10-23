@@ -22,8 +22,6 @@ mod extension_error;
 #[cfg(test)]
 mod validation;
 
-#[cfg(test)]
-mod validation_report;
 
 #[cfg(test)]
 mod startup_events;
@@ -42,9 +40,6 @@ mod jwt;
 
 
 #[cfg(test)]
-#[cfg(test)]
-mod domain_config;
-
 #[cfg(test)]
 mod context_errors;
 

@@ -12,6 +12,7 @@
 
 use chrono::{DateTime, Utc};
 use subtle::ConstantTimeEq;
+use systemprompt_identifiers::{SsoProviderId, SsoRequestId};
 
 use super::OAuthRepository;
 use super::at_rest::hash_at_rest;
@@ -31,10 +32,10 @@ pub struct SsoStateParams<'a> {
 
 #[derive(Debug, Clone)]
 pub struct SsoStateRow {
-    pub provider_id: String,
+    pub provider_id: SsoProviderId,
     pub return_to: String,
     pub binder_hash: String,
-    pub request_id: Option<String>,
+    pub request_id: Option<SsoRequestId>,
     pub nonce: Option<String>,
     pub pkce_verifier: Option<String>,
 }
@@ -85,7 +86,7 @@ impl OAuthRepository {
                 AND provider_id = $2
                 AND consumed_at IS NULL
                 AND expires_at > now()
-              RETURNING provider_id, return_to, binder_hash, request_id, nonce, pkce_verifier",
+              RETURNING provider_id, return_to, binder_hash, request_id as \"request_id?: SsoRequestId\", nonce, pkce_verifier",
             state_hash,
             provider_id
         )

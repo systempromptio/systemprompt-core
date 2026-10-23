@@ -42,7 +42,12 @@ pub struct PlannedChain {
 }
 
 #[must_use]
-pub fn order_chain(deployments: Vec<GatewayRoute>, request_model: &str) -> PlannedChain {
+pub fn order_chain(
+    deployments: Vec<GatewayRoute>,
+    request_model: &str,
+    breakers: &ProviderBreakers,
+    load: &DeploymentLoad,
+) -> PlannedChain {
     let Some(strategy) = deployments.first().map(|d| d.strategy) else {
         return PlannedChain {
             deployments,
@@ -52,7 +57,7 @@ pub fn order_chain(deployments: Vec<GatewayRoute>, request_model: &str) -> Plann
     let deployments = if deployments.len() > 1 && !strategy.is_ordered() {
         let states: Vec<DeploymentState> = deployments
             .iter()
-            .map(|view| deployment_state(view, request_model))
+            .map(|view| deployment_state(view, request_model, breakers, load))
             .collect();
         let order = plan_selection(strategy, &states, rand::random());
         let mut slots: Vec<Option<GatewayRoute>> = deployments.into_iter().map(Some).collect();
@@ -79,16 +84,21 @@ pub fn order_chain(deployments: Vec<GatewayRoute>, request_model: &str) -> Plann
     }
 }
 
-fn deployment_state(view: &GatewayRoute, request_model: &str) -> DeploymentState {
+fn deployment_state(
+    view: &GatewayRoute,
+    request_model: &str,
+    breakers: &ProviderBreakers,
+    load: &DeploymentLoad,
+) -> DeploymentState {
     let provider = view.provider.as_str();
-    let tripped = ProviderBreakers::global()
+    let tripped = breakers
         .for_provider(provider, &breaker_settings(provider))
         .is_open();
     let key = DeploymentLoad::key(provider, view.effective_upstream_model(request_model));
     DeploymentState {
         tripped,
         weight: view.effective_weight(),
-        in_flight: DeploymentLoad::global().in_flight(&key),
+        in_flight: load.in_flight(&key),
     }
 }
 

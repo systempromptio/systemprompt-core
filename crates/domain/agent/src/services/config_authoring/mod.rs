@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod edit;
+mod request;
 mod set_value;
 
 use std::fs;
@@ -27,7 +28,10 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::plugin::PluginComponentRef;
 use thiserror::Error;
 
-pub use edit::AgentEditRequest;
+pub use request::{
+    AgentCapabilityFlags, AgentCardEdit, AgentCardLinks, AgentCreateRequest, AgentEditRequest,
+    AgentModelChoice, AgentPlacement, MembershipEdit, SystemPromptSource,
+};
 
 #[derive(Debug, Error)]
 pub enum ConfigAuthoringError {
@@ -79,30 +83,6 @@ pub enum ConfigAuthoringError {
 
     #[error("Failed to load the provider catalogue for defaults: {0}")]
     ProviderCatalog(#[from] systemprompt_manifest::services::ProviderRegistryError),
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AgentCreateRequest {
-    pub name: String,
-    pub port: u16,
-    pub display_name: String,
-    pub description: String,
-    pub system_prompt: String,
-    pub enabled: bool,
-    pub endpoint: Option<String>,
-    pub dev_only: bool,
-    pub is_primary: bool,
-    pub default: bool,
-    pub version: Option<String>,
-    pub icon_url: Option<String>,
-    pub documentation_url: Option<String>,
-    pub streaming: Option<bool>,
-    pub push_notifications: Option<bool>,
-    pub extended_agent_card: Option<bool>,
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub mcp_servers: Vec<String>,
-    pub skills: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -182,15 +162,15 @@ impl AgentConfigAuthoringService {
 fn build_agent_config(
     mut request: AgentCreateRequest,
 ) -> Result<AgentConfig, ConfigAuthoringError> {
-    let provider = match request.provider.take() {
+    let provider = match request.model.provider.take() {
         Some(provider) => provider,
         None => default_provider()?,
     };
-    let model = match request.model.take() {
+    let model = match request.model.model.take() {
         Some(model) => model,
         None => default_model_for(&provider)?,
     };
-    let endpoint = match request.endpoint.take() {
+    let endpoint = match request.placement.endpoint.take() {
         Some(endpoint) => endpoint,
         None => ApiPaths::agent_endpoint(&AgentName::new(&request.name)),
     };
@@ -200,24 +180,27 @@ fn build_agent_config(
         port: request.port,
         endpoint,
         enabled: request.enabled,
-        dev_only: request.dev_only,
-        is_primary: request.is_primary,
-        default: request.default,
+        dev_only: request.placement.dev_only,
+        is_primary: request.placement.is_primary,
+        default: request.placement.default,
         tags: Vec::new(),
         card: AgentCardConfig {
             protocol_version: crate::A2A_PROTOCOL_VERSION.to_owned(),
             name: Some(request.name),
             display_name: request.display_name,
             description: request.description,
-            version: request.version.unwrap_or_else(|| "1.0.0".to_owned()),
+            version: request
+                .card_links
+                .version
+                .unwrap_or_else(|| "1.0.0".to_owned()),
             preferred_transport: "JSONRPC".to_owned(),
-            icon_url: request.icon_url,
-            documentation_url: request.documentation_url,
+            icon_url: request.card_links.icon_url,
+            documentation_url: request.card_links.documentation_url,
             provider: None,
             capabilities: CapabilitiesConfig {
-                streaming: request.streaming.unwrap_or(true),
-                push_notifications: request.push_notifications.unwrap_or(false),
-                extended_agent_card: request.extended_agent_card.unwrap_or(false),
+                streaming: request.capabilities.streaming.unwrap_or(true),
+                push_notifications: request.capabilities.push_notifications.unwrap_or(false),
+                extended_agent_card: request.capabilities.extended_agent_card.unwrap_or(false),
             },
             default_input_modes: vec!["text/plain".to_owned()],
             default_output_modes: vec!["text/plain".to_owned()],

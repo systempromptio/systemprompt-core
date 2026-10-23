@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use systemprompt_cloud::{CloudApiClient, CloudPath, CredentialsBootstrap, get_cloud_paths};
+use systemprompt_cloud::{CloudApiClient, CloudCredentials, CloudPath, get_cloud_paths};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
@@ -17,10 +17,13 @@ use crate::cli_settings::CliConfig;
 use crate::cloud::types::{CloudStatusOutput, CredentialsInfo, ProfileInfo, TenantStatusInfo};
 use crate::shared::CommandOutput;
 
-pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    config: &CliConfig,
+    credentials: Option<&CloudCredentials>,
+) -> Result<CommandOutput> {
     let (profile_info, tenant_id_from_profile) = load_profile_info();
     let (credentials_info, tenant_statuses) =
-        load_credentials_and_tenants(config, tenant_id_from_profile.as_ref()).await?;
+        load_credentials_and_tenants(config, credentials, tenant_id_from_profile.as_ref()).await?;
 
     let output = CloudStatusOutput {
         profile: profile_info.clone(),
@@ -73,6 +76,7 @@ fn load_profile_info() -> (Option<ProfileInfo>, Option<TenantId>) {
 
 async fn load_credentials_and_tenants(
     config: &CliConfig,
+    credentials: Option<&CloudCredentials>,
     tenant_id_from_profile: Option<&TenantId>,
 ) -> Result<(CredentialsInfo, Vec<TenantStatusInfo>)> {
     let mut credentials_info = CredentialsInfo {
@@ -82,13 +86,8 @@ async fn load_credentials_and_tenants(
     };
     let mut tenant_statuses = Vec::new();
 
-    let creds = match CredentialsBootstrap::get() {
-        Ok(Some(c)) => c,
-        Ok(None) => return Ok((credentials_info, tenant_statuses)),
-        Err(e) => {
-            tracing::debug!(error = %e, "Failed to get credentials bootstrap");
-            return Ok((credentials_info, tenant_statuses));
-        },
+    let Some(creds) = credentials else {
+        return Ok((credentials_info, tenant_statuses));
     };
 
     credentials_info.authenticated = true;

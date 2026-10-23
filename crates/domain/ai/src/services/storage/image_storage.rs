@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::AiError;
+use crate::error::{AiError, StorageError, StorageOperation};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use chrono::{Datelike, Utc};
@@ -130,10 +130,10 @@ impl ImageStorage {
         mime_type: &str,
     ) -> Result<(StoredFileId, String), AiError> {
         if image_bytes.len() > self.config.max_file_size_bytes {
-            return Err(AiError::ImageTooLarge {
+            return Err(AiError::Storage(StorageError::ImageTooLarge {
                 size: image_bytes.len(),
                 max: self.config.max_file_size_bytes,
-            });
+            }));
         }
 
         let extension = Self::mime_type_to_extension(mime_type);
@@ -161,32 +161,32 @@ impl ImageStorage {
             .storage
             .store(&relative_path, image_bytes)
             .await
-            .map_err(|source| AiError::Storage {
-                context: format!("failed to write image file {}", relative_path.display()),
-                source,
+            .map_err(|source| {
+                AiError::Storage(StorageError::Operation {
+                    operation: StorageOperation::WriteImage(relative_path.clone()),
+                    source,
+                })
             })?;
 
         Ok((stored_id, url_path))
     }
 
     pub async fn delete_image(&self, id: &StoredFileId) -> Result<(), AiError> {
-        self.storage
-            .delete(id)
-            .await
-            .map_err(|source| AiError::Storage {
-                context: format!("failed to delete file {id}"),
+        self.storage.delete(id).await.map_err(|source| {
+            AiError::Storage(StorageError::Operation {
+                operation: StorageOperation::Delete(id.clone()),
                 source,
             })
+        })
     }
 
     pub async fn exists(&self, id: &StoredFileId) -> Result<bool, AiError> {
-        self.storage
-            .exists(id)
-            .await
-            .map_err(|source| AiError::Storage {
-                context: format!("failed to stat file {id}"),
+        self.storage.exists(id).await.map_err(|source| {
+            AiError::Storage(StorageError::Operation {
+                operation: StorageOperation::Stat(id.clone()),
                 source,
             })
+        })
     }
 
     pub fn get_full_path(&self, relative_path: &str) -> PathBuf {

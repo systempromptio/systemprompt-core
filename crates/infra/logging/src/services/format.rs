@@ -8,28 +8,37 @@ use tracing::field::{Field, Visit};
 use tracing_subscriber::field::{MakeVisitor, VisitFmt, VisitOutput};
 use tracing_subscriber::fmt::format::Writer;
 
+use crate::layer::InstanceLabel;
 use crate::sanitize::{REDACTION_PLACEHOLDER, escape_control, is_redacted, is_system_sentinel};
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct FilterSystemFields;
+#[derive(Debug, Clone, Default)]
+pub struct FilterSystemFields {
+    instance: InstanceLabel,
+}
 
 impl FilterSystemFields {
-    pub const fn new() -> Self {
-        Self
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub(crate) const fn labelled(instance: InstanceLabel) -> Self {
+        Self { instance }
     }
 }
 
 #[derive(Debug)]
 pub struct FilteringVisitor<'a> {
     writer: Writer<'a>,
+    instance: InstanceLabel,
     is_first: bool,
     result: fmt::Result,
 }
 
 impl<'a> FilteringVisitor<'a> {
-    const fn new(writer: Writer<'a>) -> Self {
+    const fn new(writer: Writer<'a>, instance: InstanceLabel) -> Self {
         Self {
             writer,
+            instance,
             is_first: true,
             result: Ok(()),
         }
@@ -117,7 +126,7 @@ impl Visit for FilteringVisitor<'_> {
 impl VisitOutput<fmt::Result> for FilteringVisitor<'_> {
     fn finish(mut self) -> fmt::Result {
         self.result?;
-        if let Some(instance_id) = crate::instance_id() {
+        if let Some(instance_id) = self.instance.get().cloned() {
             self.write_field("instance", instance_id.as_str())?;
         }
         Ok(())
@@ -134,6 +143,6 @@ impl<'a> MakeVisitor<Writer<'a>> for FilterSystemFields {
     type Visitor = FilteringVisitor<'a>;
 
     fn make_visitor(&self, target: Writer<'a>) -> Self::Visitor {
-        FilteringVisitor::new(target)
+        FilteringVisitor::new(target, self.instance.clone())
     }
 }

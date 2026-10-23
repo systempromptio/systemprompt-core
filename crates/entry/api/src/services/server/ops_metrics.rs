@@ -93,7 +93,7 @@ pub(super) fn describe() {
 }
 
 pub(super) fn spawn_samplers(ctx: &AppContext, runs_scheduler: bool) {
-    let mut sampler = OpsSampler::new(ctx.db_pool(), runs_scheduler);
+    let mut sampler = OpsSampler::new(ctx.db_pool(), runs_scheduler, ctx.logging().sink().clone());
     ctx.background_tasks()
         .spawn_cancellable("ops_metrics", |cancel| async move {
             let mut tick = tokio::time::interval(SAMPLE_INTERVAL);
@@ -116,11 +116,16 @@ pub struct OpsSampler {
     backlog_due: Instant,
     seen_projections: HashSet<String>,
     config_info: Option<ConfigFingerprint>,
+    log_sink: systemprompt_logging::LogSink,
 }
 
 impl OpsSampler {
     #[must_use]
-    pub fn new(db: &Database, runs_scheduler: bool) -> Self {
+    pub fn new(
+        db: &Database,
+        runs_scheduler: bool,
+        log_sink: systemprompt_logging::LogSink,
+    ) -> Self {
         let write = db.write_pool();
         let read = db.pool();
         let read = (!Arc::ptr_eq(&read, &write)).then_some(read);
@@ -132,6 +137,7 @@ impl OpsSampler {
             backlog_due: Instant::now(),
             seen_projections: HashSet::new(),
             config_info: None,
+            log_sink,
         }
     }
 
@@ -141,8 +147,7 @@ impl OpsSampler {
             probe_acquire("read", read).await;
         }
         super::config_fingerprint::publish(&mut self.config_info);
-        metrics::counter!(LOG_ENTRIES_DROPPED_TOTAL)
-            .absolute(systemprompt_logging::dropped_log_entries());
+        metrics::counter!(LOG_ENTRIES_DROPPED_TOTAL).absolute(self.log_sink.dropped_entries());
         if let Some(pool) = self.backlog_pool.as_ref()
             && Instant::now() >= self.backlog_due
         {

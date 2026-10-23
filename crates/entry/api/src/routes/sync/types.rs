@@ -3,11 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use serde::{Deserialize, Serialize};
 use systemprompt_loader::BundleError;
 use systemprompt_models::api::ApiError;
 
-pub(super) type ApiResult<T> = Result<T, ApiError>;
+pub(super) type ApiResult<T> = Result<T, ApiHttpError>;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum SyncError {
@@ -23,9 +24,9 @@ pub(super) enum SyncError {
     Response(#[source] http::Error),
 }
 
-impl From<SyncError> for ApiError {
+impl From<SyncError> for ApiHttpError {
     fn from(error: SyncError) -> Self {
-        Self::internal("File sync operation failed", error)
+        Self::from(ApiError::internal("File sync operation failed", error))
     }
 }
 

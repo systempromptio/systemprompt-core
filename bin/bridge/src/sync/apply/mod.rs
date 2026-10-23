@@ -14,6 +14,7 @@ mod evidence;
 mod fetch;
 mod fragments;
 mod hooks;
+mod hosts;
 pub(super) mod loopback;
 pub mod node_deps;
 mod plugin;
@@ -129,87 +130,21 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         mcp_registry: &registry,
         start_menu: &bridge.start_menu,
     };
-    for (skill, host) in crate::gateway::manifest::unknown_skill_hosts(&manifest_for_write) {
-        tracing::warn!(
-            target: "bridge::sync::host",
-            skill,
-            host,
-            "skill targets a host id this bridge does not know; no host receives it under that id"
-        );
-    }
     let emitters = host_sync::registry();
-    let mut skipped_absent = std::collections::BTreeSet::new();
-    for (index, emitter) in emitters.iter().enumerate() {
-        let host_id = emitter.host_id();
-        bridge
-            .sync_progress
-            .report(&crate::progress::SyncProgress::new(
-                "hosts",
-                host_id.as_str().to_owned(),
-                index + 1,
-                emitters.len(),
-            ));
-        let enabled = host_sync::enabled_for(*emitter, &manifest_for_write);
-        if enabled && app_absent(*emitter, &bridge.start_menu) {
-            tracing::info!(
-                host = host_id.as_str(),
-                "host app not installed; settings not written"
-            );
-            skipped_absent.insert(host_id);
-            continue;
-        }
-        let outcome = if enabled {
-            emitter.apply(&ctx).await
-        } else {
-            emitter
-                .clear(&ctx)
-                .map(|()| host_sync::HostSyncReport::ok())
-        };
-        match outcome {
-            Ok(emitted) => {
-                report.host_warnings.extend(emitted.warnings);
-                host_sync::log_outcome(*emitter, enabled, Ok(()));
-            },
-            Err(e) => {
-                host_sync::log_outcome(*emitter, enabled, Err(&e));
-                report.host_failures.push(HostFailure {
-                    host_id,
-                    emitter: emitter.emitter_id().to_owned(),
-                    error: format!("{e:#}"),
-                    needs_elevation: matches!(e, ApplyError::ElevationRequired { .. }),
-                });
-            },
-        }
-    }
+    let hosts = hosts::emit_hosts(emitters, &ctx, bridge).await;
+    report.host_warnings.extend(hosts.warnings);
+    report.host_failures.extend(hosts.failures);
     let evidence_warnings = evidence::capture(
         emitters,
         &manifest_for_write,
         &ctx,
-        &skipped_absent,
+        &hosts.skipped_absent,
         &mut report,
     )
     .await;
     report.host_warnings.extend(evidence_warnings);
 
     Ok(ApplyOutcome::Applied(report))
-}
-
-// Why: an emitter serving both packagings of a product writes for whichever is
-// present; only when every packaging it serves is conclusively absent is the
-// tree left unwritten.
-fn app_absent(
-    emitter: &dyn host_sync::HostSync,
-    start_menu: &crate::probe_cache::StartMenuCache,
-) -> bool {
-    let served: Vec<&'static dyn crate::integration::HostApp> = crate::integration::host_apps()
-        .iter()
-        .copied()
-        .filter(|host| emitter.serves(host.id()))
-        .collect();
-    !served.is_empty()
-        && served.iter().all(|host| {
-            host.app_installed(start_menu) == crate::integration::AppInstallState::NotInstalled
-        })
 }
 
 pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), ApplyError> {

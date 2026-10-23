@@ -19,7 +19,6 @@ use systemprompt_templates::{
     CoreTemplateProvider, EmbeddedDefaultsProvider, TemplateRegistry, TemplateRegistryBuilder,
 };
 use tokio::fs;
-use tokio::sync::OnceCell;
 
 use crate::error::{GeneratorResult, PublishError};
 use crate::templates::{get_templates_path, load_web_config};
@@ -62,16 +61,12 @@ impl std::fmt::Debug for PrerenderContext {
     }
 }
 
-static PRERENDER_ASSETS: OnceCell<Arc<PrerenderAssets>> = OnceCell::const_new();
-
 pub(super) async fn load_prerender_context(
     db_pool: DbPool,
     content_repo: ContentRepository,
     paths: &AppPaths,
 ) -> GeneratorResult<PrerenderContext> {
-    let assets = PRERENDER_ASSETS
-        .get_or_try_init(|| async { load_prerender_assets(paths).await.map(Arc::new) })
-        .await?;
+    let assets = Arc::new(load_prerender_assets(paths).await?);
 
     let dependencies = Dependencies::new()
         .with(db_pool)
@@ -79,7 +74,7 @@ pub(super) async fn load_prerender_context(
     Ok(PrerenderContext {
         content_repo,
         dependencies,
-        assets: Arc::clone(assets),
+        assets,
     })
 }
 

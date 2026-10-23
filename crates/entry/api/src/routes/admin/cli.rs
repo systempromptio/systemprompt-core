@@ -10,6 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::extract::Extension;
 use axum::response::IntoResponse;
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -111,7 +112,7 @@ async fn execute_cli(
     Extension(req_ctx): Extension<RequestContext>,
     Extension(binary): Extension<CliBinaryPath>,
     Json(request): Json<CliExecuteRequest>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<impl IntoResponse, ApiHttpError> {
     let args = request.args;
     validate_cli_args(&args).map_err(|e| *e)?;
     let timeout_secs = request.timeout_secs.min(MAX_TIMEOUT_SECS);

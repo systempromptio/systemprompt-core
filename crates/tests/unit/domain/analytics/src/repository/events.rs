@@ -7,35 +7,23 @@ use systemprompt_identifiers::{ContentId, SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
-use systemprompt_traits::session_store::CreateSessionParams;
+use systemprompt_traits::session_store::{
+    CreateSessionParams, SessionAttribution, SessionIdentity, SessionNetwork,
+};
 
 async fn seed_session(pool: &DbPool, session_id: &SessionId) {
     let store = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
         .map(|repositories| repositories.session_store)
         .expect("session store");
     let params = CreateSessionParams {
-        session_id,
-        user_id: None,
-        session_source: SessionSource::Web,
-        fingerprint_hash: Some("fp"),
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: None,
-        referrer_url: None,
-        landing_page: None,
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        utm_content: None,
-        utm_term: None,
+        identity: SessionIdentity {
+            session_id,
+            user_id: None,
+            session_source: SessionSource::Web,
+            fingerprint_hash: Some("fp"),
+        },
+        network: SessionNetwork::default(),
+        attribution: SessionAttribution::default(),
         is_bot: false,
         is_ai_crawler: false,
         expires_at: chrono::Utc::now() + chrono::Duration::hours(1),

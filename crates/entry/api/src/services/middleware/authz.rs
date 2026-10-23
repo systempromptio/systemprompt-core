@@ -30,11 +30,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 
 #[derive(Clone, Copy, Debug)]
@@ -110,7 +110,7 @@ pub async fn authz_gate(policy: AuthzPolicy, request: Request, next: Next) -> Re
     if policy.permits(user_type) {
         next.run(request).await
     } else {
-        ApiError::forbidden(format!(
+        ApiHttpError::forbidden(format!(
             "caller type '{}' is not authorized for this route",
             user_type.as_str()
         ))

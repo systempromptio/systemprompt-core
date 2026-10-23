@@ -175,13 +175,23 @@ async fn load_marketplaces(
                 .marketplaces
                 .get(&id)
                 .and_then(|source| source.fallback_default_included);
+            let default_included = entities.get(id.as_str()).map_or_else(
+                || {
+                    if fallback.is_some() {
+                        tracing::warn!(
+                            marketplace_id = %id,
+                            "marketplace has no access-control entity row; using the declared \
+                             default_included"
+                        );
+                    }
+                    fallback
+                },
+                |row| Some(row.default_included),
+            );
             let parent = LoadedParent {
                 entity: EntityRef::Marketplace(id.clone()),
                 rules: rules.remove(id.as_str()).unwrap_or_default(),
-                default_included: entities
-                    .get(id.as_str())
-                    .map(|row| row.default_included)
-                    .or(fallback),
+                default_included,
             };
             (id, parent)
         })

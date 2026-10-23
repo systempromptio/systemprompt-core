@@ -9,7 +9,6 @@ pub mod security;
 pub mod skills;
 
 use std::sync::Arc;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
 use systemprompt_manifest::{AgentConfig, ServicesConfig};
@@ -230,9 +229,7 @@ fn build_extensions(
 }
 
 fn load_agent_skills(agent: &AgentConfig) -> AgentResult<Vec<crate::models::a2a::AgentSkill>> {
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| AgentError::invalid_config("profile is not initialised", e))?;
-    let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
+    let skills_path = ServicesRootBootstrap::require()?.path.join("skills");
     load_agent_skills_from_dir(agent, &skills_path)
 }
 

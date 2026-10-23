@@ -18,8 +18,7 @@ mod config_plane;
 mod extension;
 mod identifier;
 mod repository;
-#[cfg(feature = "web")]
-mod response;
+mod status;
 mod wire;
 
 use std::error::Error;

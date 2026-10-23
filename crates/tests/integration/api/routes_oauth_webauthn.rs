@@ -68,7 +68,10 @@ async fn webauthn_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
     )
     .with_webauthn(std::sync::Arc::new(webauthn));
-    Ok(public_router().with_state(state))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state))
 }
 
 async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {

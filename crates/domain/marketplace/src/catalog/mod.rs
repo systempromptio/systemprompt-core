@@ -26,6 +26,7 @@ pub use artifacts::{load_artifacts, validate_artifact_tools};
 pub use cache::{
     BundleMap, MarketplaceCache, RESOLVED_CAPACITY, RESOLVED_TTL, ResolvedCatalog, ResolvedKey,
 };
+pub(crate) use content::VerifiedRevisions;
 pub use content::{CatalogContent, CatalogParts};
 pub use hooks::load_hooks;
 pub use mcp::{disabled_mcp_server_names, load_managed_mcp_servers};

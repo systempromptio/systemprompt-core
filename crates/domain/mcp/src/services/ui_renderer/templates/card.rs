@@ -159,7 +159,7 @@ fn render_ctas(ctas: &[CardCta]) -> String {
             format!(
                 r#"<button type="button" class="card-cta card-cta-{variant}" data-cta-id="{id}">{icon}{label}</button>"#,
                 variant = cta.variant.class_suffix(),
-                id = html_escape(&cta.id),
+                id = html_escape(cta.id.as_str()),
                 icon = cta.icon.as_ref().map_or_else(String::new, |i| format!(
                     r#"<span class="card-cta-icon">{}</span>"#,
                     html_escape(i)

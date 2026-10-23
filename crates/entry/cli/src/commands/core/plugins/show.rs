@@ -72,11 +72,7 @@ pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<Command
 }
 
 fn get_plugins_path() -> Result<std::path::PathBuf> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(ServicesRootBootstrap::active_path_or(
-        &profile.paths.services,
-        "plugins",
-    ))
+    Ok(ServicesRootBootstrap::require()?.path.join("plugins"))
 }
 
 fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_manifest::PluginConfigFile> {

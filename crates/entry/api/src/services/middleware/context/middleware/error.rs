@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::api::ApiError;
@@ -92,8 +93,10 @@ pub(super) fn log_error_response(
         },
     }
 
-    extraction_error_to_api_error(error)
-        .with_trace_id(trace_id.clone())
-        .with_path(path)
-        .into_response()
+    ApiHttpError::from(
+        extraction_error_to_api_error(error)
+            .with_trace_id(trace_id.clone())
+            .with_path(path),
+    )
+    .into_response()
 }

@@ -27,7 +27,7 @@ struct UserFragment {
     email: Option<String>,
 }
 
-pub fn cmd_status() -> ExitCode {
+pub fn cmd_status(ctx: &crate::context::BridgeContext) -> ExitCode {
     let s = match setup::status() {
         Ok(s) => s,
         Err(e) => {
@@ -41,7 +41,7 @@ pub fn cmd_status() -> ExitCode {
     status_line("secret file", s.paths.pat_file.display());
     status_indent("present", s.pat_present);
 
-    print_oauth_client_status(&s);
+    print_oauth_client_status(ctx.secrets(), &s);
 
     if let Some(loc) = paths::org_plugins_effective() {
         print_org_plugins_status(&loc.path);
@@ -52,7 +52,10 @@ pub fn cmd_status() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn print_oauth_client_status(s: &setup::StatusReport) {
+fn print_oauth_client_status(
+    secrets: &crate::auth::plugin_oauth::SecretStore,
+    s: &setup::StatusReport,
+) {
     let path_display = s
         .oauth_creds_path
         .as_ref()
@@ -60,7 +63,7 @@ fn print_oauth_client_status(s: &setup::StatusReport) {
     status_line("oauth client creds", path_display);
     status_indent("present", s.oauth_creds_present);
     if s.oauth_creds_present
-        && let Ok(Some(creds)) = crate::auth::plugin_oauth::load_creds()
+        && let Ok(Some(creds)) = crate::auth::plugin_oauth::load_creds(secrets)
     {
         status_indent("client_id", creds.client_id);
         status_indent("token endpoint", creds.token_endpoint);

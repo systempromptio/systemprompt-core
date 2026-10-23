@@ -5,7 +5,8 @@
 
 use anyhow::Result;
 use systemprompt_agent::services::config_authoring::{
-    AgentConfigAuthoringService, AgentEditRequest,
+    AgentCapabilityFlags, AgentCardEdit, AgentCardLinks, AgentConfigAuthoringService,
+    AgentEditRequest, AgentModelChoice, AgentPlacement, MembershipEdit, SystemPromptSource,
 };
 use systemprompt_logging::CliService;
 
@@ -16,26 +17,42 @@ fn edit_request(args: &EditArgs) -> AgentEditRequest {
         enable: args.enable,
         disable: args.disable,
         port: args.agent.port,
-        endpoint: args.agent.endpoint.clone(),
-        dev_only: args.agent.dev_only,
-        is_primary: args.agent.is_primary,
-        default: args.agent.default,
-        display_name: args.agent.display_name.clone(),
-        description: args.agent.description.clone(),
-        version: args.agent.version.clone(),
-        icon_url: args.agent.icon_url.clone(),
-        documentation_url: args.agent.documentation_url.clone(),
-        streaming: args.agent.streaming,
-        push_notifications: args.agent.push_notifications,
-        extended_agent_card: args.agent.extended_agent_card,
-        provider: args.agent.provider.clone(),
-        model: args.agent.model.clone(),
-        system_prompt: args.agent.system_prompt.clone(),
-        system_prompt_file: args.agent.system_prompt_file.clone(),
-        mcp_servers: args.agent.mcp_servers.clone(),
-        remove_mcp_servers: args.remove_mcp_servers.clone(),
-        skills: args.agent.skills.clone(),
-        remove_skills: args.remove_skills.clone(),
+        placement: AgentPlacement {
+            endpoint: args.agent.endpoint.clone(),
+            dev_only: args.agent.dev_only,
+            is_primary: args.agent.is_primary,
+            default: args.agent.default,
+        },
+        card: AgentCardEdit {
+            display_name: args.agent.display_name.clone(),
+            description: args.agent.description.clone(),
+            links: AgentCardLinks {
+                version: args.agent.version.clone(),
+                icon_url: args.agent.icon_url.clone(),
+                documentation_url: args.agent.documentation_url.clone(),
+            },
+        },
+        capabilities: AgentCapabilityFlags {
+            streaming: args.agent.streaming,
+            push_notifications: args.agent.push_notifications,
+            extended_agent_card: args.agent.extended_agent_card,
+        },
+        model: AgentModelChoice {
+            provider: args.agent.provider.clone(),
+            model: args.agent.model.clone(),
+        },
+        system_prompt: SystemPromptSource {
+            inline: args.agent.system_prompt.clone(),
+            file: args.agent.system_prompt_file.clone(),
+        },
+        mcp_servers: MembershipEdit {
+            add: args.agent.mcp_servers.clone(),
+            remove: args.remove_mcp_servers.clone(),
+        },
+        skills: MembershipEdit {
+            add: args.agent.skills.clone(),
+            remove: args.remove_skills.clone(),
+        },
         set_values: args.set_values.clone(),
     }
 }

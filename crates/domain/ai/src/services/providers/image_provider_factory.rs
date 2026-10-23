@@ -17,6 +17,7 @@ use systemprompt_wire::WireProtocol;
 
 use crate::error::Result;
 use crate::services::upstream::UpstreamTarget;
+use systemprompt_identifiers::ProviderId;
 
 use super::{BoxedImageProvider, GeminiImageProvider, OpenAiImageProvider};
 
@@ -33,9 +34,11 @@ pub struct ImageProviderFactory;
 impl ImageProviderFactory {
     pub fn create(params: &ImageProviderParams<'_>) -> Result<BoxedImageProvider> {
         if !params.policy.enabled {
-            return Err(crate::error::AiError::ProviderDisabled {
-                provider: params.entry.name.as_str().to_owned(),
-            });
+            return Err(crate::error::AiError::Routing(
+                crate::error::RoutingError::ProviderDisabled {
+                    provider: ProviderId::new(params.entry.name.as_str()),
+                },
+            ));
         }
 
         match params.entry.wire {
@@ -43,10 +46,12 @@ impl ImageProviderFactory {
             WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => {
                 Ok(Self::create_openai(params))
             },
-            WireProtocol::Anthropic => Err(crate::error::AiError::CapabilityUnsupported {
-                provider: params.entry.name.as_str().to_owned(),
-                capability: crate::error::ProviderCapability::ImageGeneration,
-            }),
+            WireProtocol::Anthropic => Err(crate::error::AiError::Routing(
+                crate::error::RoutingError::CapabilityUnsupported {
+                    provider: ProviderId::new(params.entry.name.as_str()),
+                    capability: crate::error::ProviderCapability::ImageGeneration,
+                },
+            )),
         }
     }
 

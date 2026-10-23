@@ -40,7 +40,8 @@ fn path_and_url_accessors_derive_from_storage_and_prefix() {
 fn validator_load_without_profile_is_load_error() {
     // No bootstrap in this process: ProfileBootstrap::get() must fail.
     use systemprompt_files::FilesConfigValidator;
-    use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+    use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
+    use systemprompt_traits::ConfigProvider;
 
     struct StubProvider;
     impl ConfigProvider for StubProvider {

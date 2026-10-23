@@ -1,6 +1,7 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::*;
+use systemprompt_identifiers::SkillId;
 
 fn minimal_task() -> Task {
     Task {
@@ -87,7 +88,7 @@ fn agent_card() -> AgentCard {
         capabilities: AgentCapabilities::default(),
         skills: vec![
             AgentSkill {
-                id: "search".to_string(),
+                id: SkillId::new("search"),
                 name: "Web Search".to_string(),
                 description: "Search the web".to_string(),
                 tags: vec!["search".to_string(), "web".to_string()],
@@ -97,7 +98,7 @@ fn agent_card() -> AgentCard {
                 security_requirements: None,
             },
             AgentSkill {
-                id: "code".to_string(),
+                id: SkillId::new("code"),
                 name: "Code Generation".to_string(),
                 description: "Generate code".to_string(),
                 tags: vec!["code".to_string()],

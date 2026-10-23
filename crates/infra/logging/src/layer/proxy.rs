@@ -5,13 +5,15 @@
 //! [`ProxyDatabaseLayer::attach`] supplies a pool it delegates to the real
 //! `DatabaseLayer` and hands the caller the writer's [`LogWriterHandle`] (only
 //! on the first attach); until then span fields are recorded so attribution is
-//! not lost across the boot window. The free functions build the [`LogEntry`]
-//! actor triple by walking the span tree.
+//! not lost across the boot window. Clones share one state, so the copy inside
+//! the installed subscriber and the copy a [`crate::LogSink`] holds see the
+//! same sink, instance label, drop count and parked writer. The free functions
+//! build the [`LogEntry`] actor triple by walking the span tree.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use chrono::Utc;
 use tracing::{Event, Subscriber};
@@ -20,45 +22,83 @@ use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::LookupSpan;
 
 use super::visitor::{FieldVisitor, SpanContext, SpanFields, SpanVisitor, extract_span_context};
-use super::{DatabaseLayer, LogWriterHandle};
+use super::{DatabaseLayer, LayerShared, LogWriterHandle, LogWriterShutdownError};
 use crate::models::{LogEntry, LogLevel};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId,
+};
 
-#[derive(Clone)]
+#[derive(Default)]
+struct ProxyState {
+    db: OnceLock<DatabaseLayer>,
+    shared: LayerShared,
+    writer: Mutex<Option<LogWriterHandle>>,
+}
+
+#[derive(Clone, Default)]
 pub struct ProxyDatabaseLayer {
-    inner: Arc<OnceLock<DatabaseLayer>>,
+    inner: Arc<ProxyState>,
 }
 
 impl std::fmt::Debug for ProxyDatabaseLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProxyDatabaseLayer")
-            .field("attached", &self.inner.get().is_some())
+            .field("attached", &self.inner.db.get().is_some())
             .finish()
-    }
-}
-
-impl Default for ProxyDatabaseLayer {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
 impl ProxyDatabaseLayer {
     pub fn new() -> Self {
-        Self {
-            inner: Arc::new(OnceLock::new()),
-        }
+        Self::default()
     }
 
     pub fn attach(&self, db_pool: &DbPool) -> Option<LogWriterHandle> {
         let mut writer = None;
-        self.inner.get_or_init(|| {
-            let (layer, handle) = DatabaseLayer::new(db_pool);
+        self.inner.db.get_or_init(|| {
+            let (layer, handle) = DatabaseLayer::with_shared(db_pool, self.inner.shared.clone());
             writer = Some(handle);
             layer
         });
         writer
+    }
+
+    pub(crate) fn attach_owned(&self, db_pool: &DbPool, instance_id: Option<InstanceId>) {
+        if let Some(instance_id) = instance_id {
+            self.inner.shared.instance.set(instance_id);
+        }
+        if let Some(writer) = self.attach(db_pool) {
+            *self
+                .inner
+                .writer
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner) = Some(writer);
+        }
+    }
+
+    pub(crate) fn shared(&self) -> &LayerShared {
+        &self.inner.shared
+    }
+
+    pub(crate) fn enqueue(&self, entry: LogEntry) {
+        match self.inner.db.get() {
+            Some(db) => db.enqueue(entry),
+            None => self.inner.shared.record_drop(),
+        }
+    }
+
+    pub(crate) async fn shutdown(&self) -> Result<(), LogWriterShutdownError> {
+        let writer = self
+            .inner
+            .writer
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        match writer {
+            Some(writer) => writer.shutdown().await,
+            None => Ok(()),
+        }
     }
 }
 
@@ -72,7 +112,7 @@ where
         id: &tracing::span::Id,
         ctx: Context<'_, S>,
     ) {
-        if let Some(db) = self.inner.get() {
+        if let Some(db) = self.inner.db.get() {
             db.on_new_span(attrs, id, ctx);
         } else {
             record_span_fields(attrs, id, &ctx);
@@ -85,7 +125,7 @@ where
         values: &tracing::span::Record<'_>,
         ctx: Context<'_, S>,
     ) {
-        if let Some(db) = self.inner.get() {
+        if let Some(db) = self.inner.db.get() {
             db.on_record(id, values, ctx);
         } else {
             update_span_fields(id, values, &ctx);
@@ -93,7 +133,7 @@ where
     }
 
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
-        if let Some(db) = self.inner.get() {
+        if let Some(db) = self.inner.db.get() {
             db.on_event(event, ctx);
         }
     }
@@ -211,6 +251,6 @@ where
             .client
             .as_ref()
             .map(|s| ClientId::new(s.clone())),
-        instance_id: crate::instance_id().cloned(),
+        instance_id: None,
     })
 }

@@ -15,7 +15,7 @@ use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
-use crate::services::a2a_server::processing::message::MessageProcessor;
+use crate::services::a2a_server::processing::message::MessageHandler;
 use crate::services::registry::AgentRegistry;
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ pub struct StreamSetupResult {
     pub context: RequestContext,
     pub task_repo: TaskRepository,
     pub agent_runtime: AgentRuntimeInfo,
-    pub processor: Arc<MessageProcessor>,
+    pub processor: Arc<MessageHandler>,
     pub request_id: NumberOrString,
 }
 
@@ -62,5 +62,5 @@ pub struct StreamContext {
     pub request_id: NumberOrString,
     pub task_repo: TaskRepository,
     pub state: Arc<AgentHandlerState>,
-    pub processor: Arc<MessageProcessor>,
+    pub processor: Arc<MessageHandler>,
 }

@@ -178,7 +178,7 @@ impl IntoResponse for ReleaseError {
                     .with_source(err)
             },
         };
-        let mut response = api.into_response();
+        let mut response = ApiHttpError::from(api).into_response();
         // Why: `ErrorCode` has no 502, yet an upstream GitHub failure must still
         // read as a bad gateway to clients, proxies and the access log, so the
         // typed status is restored after the envelope renders.

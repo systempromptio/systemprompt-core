@@ -56,11 +56,7 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
 }
 
 fn get_plugins_path() -> Result<std::path::PathBuf> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(ServicesRootBootstrap::active_path_or(
-        &profile.paths.services,
-        "plugins",
-    ))
+    Ok(ServicesRootBootstrap::require()?.path.join("plugins"))
 }
 
 pub fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {

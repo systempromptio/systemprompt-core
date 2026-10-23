@@ -9,6 +9,7 @@ mod fingerprint;
 mod geo;
 mod mutations;
 mod queries;
+mod snapshot_row;
 
 use crate::Result;
 use chrono::{DateTime, Utc};

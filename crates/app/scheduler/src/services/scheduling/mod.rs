@@ -18,6 +18,7 @@ mod registration;
 mod unlisted;
 
 use crate::error::{SchedulerError, SchedulerResult};
+use crate::jobs::InventoryRefreshMemo;
 use crate::models::{SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
 use std::collections::{HashMap, HashSet};
@@ -128,6 +129,7 @@ pub struct SchedulerService {
     user_repository: Arc<systemprompt_users::UserRepository>,
     logging_repository: systemprompt_logging::LoggingRepository,
     app_context: Arc<AppContext>,
+    inventory_memo: Arc<InventoryRefreshMemo>,
 }
 
 impl SchedulerService {
@@ -142,6 +144,7 @@ impl SchedulerService {
             user_repository,
             logging_repository,
             app_context,
+            inventory_memo: Arc::new(InventoryRefreshMemo::new()),
         }
     }
 
@@ -244,8 +247,10 @@ pub(crate) fn make_job_context(
     db_pool: DbPool,
     app_context: Arc<AppContext>,
     budget: Option<DbBudget>,
+    inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
     let dependencies = Dependencies::new()
+        .with(Arc::clone(inventory_memo))
         .with(Arc::clone(app_context.app_paths_arc()))
         .with(Arc::clone(app_context.files_config()))
         .with(BudgetedDb::new(Arc::clone(&db_pool), budget))

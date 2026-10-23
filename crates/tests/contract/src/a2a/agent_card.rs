@@ -1,3 +1,4 @@
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::a2a::*;
 
 #[test]
@@ -133,7 +134,7 @@ fn api_key_location_serializes_to_spec_values() {
 #[test]
 fn agent_skill_has_required_fields() {
     let skill = AgentSkill {
-        id: "search".to_string(),
+        id: SkillId::new("search"),
         name: "Web Search".to_string(),
         description: "Search the web".to_string(),
         tags: vec!["search".to_string()],

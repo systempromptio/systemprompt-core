@@ -6,7 +6,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{CloudAppId, PriceId, TenantId};
+use systemprompt_identifiers::{CloudAppId, CloudPlanId, EnterpriseLicenseId, PriceId, TenantId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -21,7 +21,7 @@ pub enum SubscriptionStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudPlanInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
+    pub id: Option<CloudPlanId>,
     pub name: String,
     pub memory_mb: i32,
     pub volume_gb: i32,
@@ -29,7 +29,7 @@ pub struct CloudPlanInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudPlan {
-    pub id: String,
+    pub id: CloudPlanId,
     pub name: String,
     pub paddle_price_id: PriceId,
     #[serde(default)]
@@ -118,7 +118,7 @@ pub struct RotateCredentialsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudEnterpriseLicenseInfo {
-    pub id: String,
+    pub id: EnterpriseLicenseId,
     pub name: String,
     pub domain: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

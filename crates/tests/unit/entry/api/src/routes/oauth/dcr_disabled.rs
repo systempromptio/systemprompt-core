@@ -6,6 +6,8 @@
 //! The flag is read from the process-wide `Config`, which this binary installs
 //! closed (see `middleware::security_trace_served_by`).
 
+use std::sync::Arc;
+
 use axum::Extension;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
@@ -14,6 +16,7 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
@@ -46,7 +49,9 @@ async fn register_is_forbidden_when_dcr_is_closed() {
         AgentName::system(),
         Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
-    let app = public_router().with_state(state).layer(Extension(req_ctx));
+    let app = public_router(Arc::new(JwksCache::new()))
+        .with_state(state)
+        .layer(Extension(req_ctx));
     let body = serde_json::json!({
         "client_name": "probe",
         "redirect_uris": ["https://app.example/cb"],

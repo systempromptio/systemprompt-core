@@ -5,7 +5,9 @@
 //! immediately on an error. The task belongs to the [`LogWriterHandle`]
 //! returned alongside the layer; awaiting [`LogWriterHandle::shutdown`] flushes
 //! whatever is still buffered or queued and stops the task.
-//! [`ProxyDatabaseLayer`] is the proxy-side variant.
+//! [`ProxyDatabaseLayer`] is the proxy-side variant. Both share a
+//! [`LayerShared`]: the instance label stamped on every entry and the count of
+//! entries dropped on a full or closed queue.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,8 +16,8 @@ mod proxy;
 mod visitor;
 mod writer;
 
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use tokio::sync::mpsc;
 use tracing::{Event, Subscriber};
@@ -31,86 +33,88 @@ use self::writer::LogCommand;
 use crate::models::{LogEntry, LogLevel};
 use crate::repository::LoggingRepository;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::InstanceId;
 
 const CHANNEL_CAPACITY: usize = 8192;
 
-static BACKGROUND_SENDER: OnceLock<mpsc::Sender<LogCommand>> = OnceLock::new();
-static DROPPED: AtomicU64 = AtomicU64::new(0);
+#[derive(Debug, Clone, Default)]
+pub(crate) struct InstanceLabel(Arc<OnceLock<InstanceId>>);
 
-#[must_use]
-pub fn dropped_log_entries() -> u64 {
-    DROPPED.load(Ordering::Relaxed)
-}
-
-pub fn enqueue_background(entry: LogEntry) {
-    let Some(sender) = BACKGROUND_SENDER.get() else {
-        DROPPED.fetch_add(1, Ordering::Relaxed);
-        return;
-    };
-    let is_error = entry.level == LogLevel::Error;
-    if sender.try_send(LogCommand::Entry(Box::new(entry))).is_err() {
-        DROPPED.fetch_add(1, Ordering::Relaxed);
-        return;
-    }
-    if is_error {
-        // Why: a full queue already forces the flush this would request, and
-        // tracing here would re-enter this layer.
-        let _flush_requested = sender.try_send(LogCommand::FlushNow).is_ok();
-    }
-}
-
-struct LogChannel {
-    sender: mpsc::Sender<LogCommand>,
-}
-
-impl LogChannel {
-    fn new(capacity: usize) -> (Self, mpsc::Receiver<LogCommand>) {
-        let (sender, receiver) = mpsc::channel(capacity);
-        let channel = Self { sender };
-        (channel, receiver)
+impl InstanceLabel {
+    pub(crate) fn get(&self) -> Option<&InstanceId> {
+        self.0.get()
     }
 
-    fn send(&self, command: LogCommand) {
-        if let Err(mpsc::error::TrySendError::Full(_)) = self.sender.try_send(command) {
-            DROPPED.fetch_add(1, Ordering::Relaxed);
+    pub(crate) fn set(&self, instance_id: InstanceId) {
+        if let Err(rejected) = self.0.set(instance_id) {
+            tracing::debug!(instance_id = %rejected, "logging instance label already set; ignoring");
         }
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct LayerShared {
+    pub(crate) instance: InstanceLabel,
+    dropped: Arc<AtomicU64>,
+}
+
+impl LayerShared {
+    pub(crate) fn dropped(&self) -> u64 {
+        self.dropped.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn record_drop(&self) {
+        self.dropped.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
 pub struct DatabaseLayer {
-    channel: LogChannel,
+    sender: mpsc::Sender<LogCommand>,
+    shared: LayerShared,
 }
 
 impl std::fmt::Debug for DatabaseLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DatabaseLayer")
-            .field("dropped", &dropped_log_entries())
+            .field("dropped", &self.dropped_entries())
             .finish_non_exhaustive()
     }
 }
 
 impl DatabaseLayer {
     pub fn new(db_pool: &DbPool) -> (Self, LogWriterHandle) {
-        let (channel, receiver) = LogChannel::new(CHANNEL_CAPACITY);
-
-        BACKGROUND_SENDER.get_or_init(|| channel.sender.clone());
-
-        let writer = LogWriterHandle::spawn(
-            LoggingRepository::new(db_pool),
-            channel.sender.clone(),
-            receiver,
-        );
-
-        (Self { channel }, writer)
+        Self::with_shared(db_pool, LayerShared::default())
     }
-}
 
-impl DatabaseLayer {
-    fn send_entry(&self, entry: LogEntry) {
+    pub(crate) fn with_shared(db_pool: &DbPool, shared: LayerShared) -> (Self, LogWriterHandle) {
+        let (sender, receiver) = mpsc::channel(CHANNEL_CAPACITY);
+        let writer =
+            LogWriterHandle::spawn(LoggingRepository::new(db_pool), sender.clone(), receiver);
+        (Self { sender, shared }, writer)
+    }
+
+    #[must_use]
+    pub fn dropped_entries(&self) -> u64 {
+        self.shared.dropped()
+    }
+
+    pub fn enqueue(&self, mut entry: LogEntry) {
+        if entry.instance_id.is_none() {
+            entry.instance_id = self.shared.instance.get().cloned();
+        }
         let is_error = entry.level == LogLevel::Error;
-        self.channel.send(LogCommand::Entry(Box::new(entry)));
+        if self
+            .sender
+            .try_send(LogCommand::Entry(Box::new(entry)))
+            .is_err()
+        {
+            self.shared.record_drop();
+            return;
+        }
         if is_error {
-            self.channel.send(LogCommand::FlushNow);
+            // Why: a full queue already forces the flush this would request, and
+            // tracing here would re-enter this layer.
+            let _flush_requested = self.sender.try_send(LogCommand::FlushNow).is_ok();
         }
     }
 }
@@ -139,7 +143,7 @@ where
 
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         if let Some(entry) = build_log_entry(event, &ctx) {
-            self.send_entry(entry);
+            self.enqueue(entry);
         }
     }
 }

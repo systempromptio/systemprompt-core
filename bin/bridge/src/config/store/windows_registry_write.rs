@@ -36,9 +36,10 @@ pub(super) fn write_values_at(
     let mut completed = Vec::new();
     for (name, value) in entries {
         let Some(text) = value.as_str() else {
-            return Err(ConfigStoreError::Backend(format!(
-                "{name}: Windows policy values are REG_SZ strings"
-            )));
+            return Err(ConfigStoreError::InvalidValue {
+                location: name.clone(),
+                expected: "a REG_SZ string",
+            });
         };
         let result = set_string_value(key.0, hive_label, subkey, name, text)
             .and_then(|()| verify_written(hive, subkey, &[(name.clone(), value.clone())]));
@@ -100,9 +101,11 @@ pub(super) fn delete_values_at(
         } else if status == ERROR_ACCESS_DENIED {
             return Err(access_denied_at(hive_label, subkey));
         } else if status != ERROR_FILE_NOT_FOUND {
-            return Err(ConfigStoreError::Backend(format!(
-                "RegDeleteValueW({name}) failed with status {status}"
-            )));
+            return Err(ConfigStoreError::Win32 {
+                call: "RegDeleteValueW",
+                target: name.to_string(),
+                status,
+            });
         }
     }
     drop(key);
@@ -159,9 +162,11 @@ fn open_key_for_write(
     } else if status == ERROR_ACCESS_DENIED {
         Err(access_denied_at(hive_label, subkey))
     } else {
-        Err(ConfigStoreError::Backend(format!(
-            "RegOpenKeyExW({subkey}) failed with status {status}"
-        )))
+        Err(ConfigStoreError::Win32 {
+            call: "RegOpenKeyExW",
+            target: subkey.to_owned(),
+            status,
+        })
     }
 }
 fn create_key(hive: HKEY, hive_label: &str, subkey: &str) -> Result<OwnedKey, ConfigStoreError> {
@@ -188,9 +193,11 @@ fn create_key(hive: HKEY, hive_label: &str, subkey: &str) -> Result<OwnedKey, Co
     } else if status == ERROR_ACCESS_DENIED {
         Err(access_denied_at(hive_label, subkey))
     } else {
-        Err(ConfigStoreError::Backend(format!(
-            "RegCreateKeyExW({subkey}) failed with status {status}"
-        )))
+        Err(ConfigStoreError::Win32 {
+            call: "RegCreateKeyExW",
+            target: subkey.to_owned(),
+            status,
+        })
     }
 }
 fn access_denied_at(hive_label: &str, subkey: &str) -> ConfigStoreError {
@@ -231,8 +238,10 @@ fn set_string_value(
     } else if status == ERROR_ACCESS_DENIED {
         Err(access_denied_at(hive_label, subkey))
     } else {
-        Err(ConfigStoreError::Backend(format!(
-            "RegSetValueExW({name}) failed with status {status}"
-        )))
+        Err(ConfigStoreError::Win32 {
+            call: "RegSetValueExW",
+            target: name.to_owned(),
+            status,
+        })
     }
 }
