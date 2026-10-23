@@ -46,4 +46,3 @@ crates/infra/logging/src/services/output/mod.rs:NOTICE_BUFFER — debt: CLI outp
 crates/infra/loader/src/subprocess/spawn.rs:SPAWNER — debt: subprocess spawner channel
 crates/infra/security/src/keys/authority.rs:CELL — debt: signing authority
 crates/infra/security/src/manifest_signing.rs:CELL — debt: manifest signing key
-crates/entry/api/src/routes/gateway/bridge_plugin_archive.rs:PACKED — debt: packed plugin archive memo
