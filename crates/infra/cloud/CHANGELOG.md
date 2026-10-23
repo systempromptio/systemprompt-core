@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Return cloud credentials from the bootstrap instead of a process cell.
+- One task-state parser, no serde aliases, shared port defaults.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Decode owner, user, SSO request and client message ids as typed ids.
+- Own the JWKS client cache on the token route.
+- Type the remaining raw-string identifier fields.
+
 ## [0.69.0] - 2026-10-15
 
 ### Fixed

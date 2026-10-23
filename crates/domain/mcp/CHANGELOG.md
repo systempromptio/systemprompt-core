@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Rustdoc links, bridge layer order and globals, row/model unification, JSON reasons.
+- One enforcement mode, request status, quota subject and service status.
+- Type the remaining raw-string identifier fields.
+- Inject the proxy HTTP client, fold registry trait impls, split long steps.
+- Declare owner reassignments through one table-driven macro.
+- No dry-run ledger counts; high-volume IPs read v_clean_traffic.
+- Move process statics into owned state.
+- Header and gateway path constants spelled once.
+- Delete through owner repositories; table ownership covers app and entry.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed
