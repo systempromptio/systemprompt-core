@@ -15,8 +15,7 @@ use systemprompt_governance::authz::{
     UpsertRuleParams,
 };
 use systemprompt_governance::policy::types::AccessScope;
-use systemprompt_identifiers::{ContextId, ProviderId, RouteId, UserId};
-use systemprompt_manifest::services::{GatewayRoute, SelectionStrategy};
+use systemprompt_identifiers::{ContextId, RouteId, UserId};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams};
 
@@ -44,26 +43,6 @@ impl SubjectAttributeProvider for GroupProvider {
     }
 }
 
-fn route(id: &str) -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new(id)),
-        name: None,
-        description: None,
-        model_pattern: MODEL.to_owned(),
-        provider: ProviderId::new("anthropic"),
-        upstream_model: None,
-        extra_headers: std::collections::HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
-}
-
 async fn gate_on_role(repo: &AccessControlRepository, route: &str, role: &str) -> Result<()> {
     repo.upsert_entity(EntityKind::GatewayRoute, route, false, "test")
         .await?;
@@ -83,7 +62,7 @@ async fn gate_on_role(repo: &AccessControlRepository, route: &str, role: &str) -
 async fn allowed(principal: &AuthedPrincipal, route_id: &str, hook: &SharedAuthzHook) -> bool {
     enforce_authz_pre_dispatch(
         principal,
-        &route(route_id),
+        &RouteId::new(route_id),
         MODEL,
         &ContextId::generate(),
         hook,

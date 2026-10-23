@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 
 use axum::http::HeaderMap;
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
+use systemprompt_api::routes::gateway::bridge::provider_health;
 use systemprompt_api::routes::gateway::models::{families_from_header, model_entries};
 use systemprompt_catalog_fixtures::{
     CatalogFixture, claude_model, model, personal, platform, priced,
@@ -196,37 +196,37 @@ fn header_helper_rejects_garbage() {
 }
 
 #[test]
-fn canonicalize_org_uuid_peels_local_prefix_from_uuid_tenant() {
+fn organization_uuid_peels_local_prefix_from_uuid_tenant() {
     let tenant = TenantId::new("local_6fa459ea-ee8a-3ca4-894e-db77e160355e");
     assert_eq!(
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "6fa459ea-ee8a-3ca4-894e-db77e160355e"
     );
 }
 
 #[test]
-fn canonicalize_org_uuid_normalizes_bare_uuid_to_lowercase_canonical() {
+fn organization_uuid_normalizes_bare_uuid_to_lowercase_canonical() {
     let tenant = TenantId::new("6FA459EA-EE8A-3CA4-894E-DB77E160355E");
     assert_eq!(
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "6fa459ea-ee8a-3ca4-894e-db77e160355e"
     );
 }
 
 #[test]
-fn canonicalize_org_uuid_derives_stable_v5_for_non_uuid_tenant() {
+fn organization_uuid_derives_stable_v5_for_non_uuid_tenant() {
     let tenant = TenantId::new("local_acme-corp");
-    let got = canonicalize_org_uuid(&tenant);
+    let got = tenant.organization_uuid();
     assert_eq!(got.len(), 36, "{got}");
     assert_eq!(got.as_bytes()[14], b'5', "expected a v5 UUID: {got}");
     assert_eq!(
         got,
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "derivation must be deterministic"
     );
     assert_ne!(
         got,
-        canonicalize_org_uuid(&TenantId::new("local_other-corp")),
+        TenantId::new("local_other-corp").organization_uuid(),
         "distinct tenants must not collide"
     );
 }
