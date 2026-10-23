@@ -277,7 +277,7 @@ async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_w
     let msg = err.to_string();
     assert!(msg.contains(&phantom), "error must name the id: {msg}");
     assert!(
-        msg.contains("entity_match"),
+        msg.contains("gateway.catalog_route_id"),
         "error must say what to do instead: {msg}"
     );
 

@@ -258,6 +258,16 @@ fn inbound() -> Arc<dyn InboundAdapter> {
     Arc::new(AnthropicMessagesInbound)
 }
 
+// One engine set per test process, as one server holds one: breaker and
+// in-flight state must survive across the dispatches of one test.
+pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
+    static ENGINES: std::sync::OnceLock<Arc<systemprompt_gateway::GatewayEngines>> =
+        std::sync::OnceLock::new();
+    Arc::clone(ENGINES.get_or_init(|| {
+        Arc::new(systemprompt_gateway::GatewayEngines::new().expect("gateway engines build"))
+    }))
+}
+
 pub(super) fn inputs_with(
     cred: &AuthedFixture,
     request: CanonicalRequest,
@@ -275,9 +285,7 @@ pub(super) fn inputs_with(
         identity_headers: Vec::new(),
         trace_sampled: None,
         governance: systemprompt_test_fixtures::default_governance_engine(),
-        engines: Arc::new(
-            systemprompt_gateway::GatewayEngines::new().expect("gateway engines build"),
-        ),
+        engines: shared_engines(),
     }
 }
 

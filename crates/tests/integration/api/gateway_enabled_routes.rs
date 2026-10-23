@@ -311,7 +311,7 @@ async fn a_request_with_no_credential_is_refused_before_anything_else() -> anyho
 }
 
 #[tokio::test]
-async fn a_request_with_no_session_header_is_refused() -> anyhow::Result<()> {
+async fn a_jwt_request_with_no_session_header_binds_to_its_claim() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
     install_test_signing_key();
@@ -329,8 +329,11 @@ async fn a_request_with_no_session_header_is_refused() -> anyhow::Result<()> {
     )
     .await?;
 
-    assert_eq!(status.as_u16(), 400, "{body}");
-    assert!(body.contains(SESSION_ID), "{body}");
+    assert!(
+        status.as_u16() != 400 && status.as_u16() != 401,
+        "the credential names the session; an absent header is not an error: {status} {body}"
+    );
+    assert!(!body.contains(SESSION_ID), "{body}");
     Ok(())
 }
 
@@ -505,6 +508,7 @@ async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result
             header::AUTHORIZATION,
             format!("Bearer {}", cred.jwt.as_str()),
         )
+        .header(SESSION_ID, "sess-belonging-to-nobody")
         .body(Body::from(message_body("gpt-fixture-1").to_string()))
         .expect("request must build");
 
@@ -512,10 +516,10 @@ async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result
 
     assert_eq!(
         status.as_u16(),
-        400,
-        "the session header is mandatory on every inference wire: {body}"
+        401,
+        "a session header that contradicts the token is refused on every inference wire: {body}"
     );
-    assert!(body.contains(SESSION_ID), "{body}");
+    assert!(body.contains("X-Session-ID"), "{body}");
     Ok(())
 }
 

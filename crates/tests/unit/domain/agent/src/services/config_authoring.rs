@@ -240,7 +240,9 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
     assert!(
         matches!(
             err,
-            ConfigAuthoringError::ServicesConfig(_) | ConfigAuthoringError::Catalog(_)
+            ConfigAuthoringError::ServicesConfig(_)
+                | ConfigAuthoringError::Catalog(_)
+                | ConfigAuthoringError::NoDefaultModel
         ),
         "{err}"
     );
