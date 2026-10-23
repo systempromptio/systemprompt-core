@@ -29,24 +29,7 @@ pub fn render(ctx: &BridgeContext) -> String {
         crate::buildinfo::short_sha()
     ));
     out.push(String::new());
-    out.push("proxy:".to_owned());
-    out.push(format!("  install id: {}", ctx.install_id().as_str()));
-    out.push(format!("  role:       {}", describe_role(ctx.proxy.role())));
-    out.push(format!("  endpoint:   {}", ctx.proxy.loopback().origin()));
-    out.push(format!(
-        "  secret fp:  {}",
-        ctx.proxy
-            .loopback()
-            .secret_fingerprint()
-            .unwrap_or_else(|| "<unavailable>".to_owned())
-    ));
-    out.push(format!(
-        "  port {DEFAULT_PROXY_PORT}: {}",
-        describe_peer(peer::probe_identity(DEFAULT_PROXY_PORT, ctx.install_id()))
-    ));
-    for fault in &ctx.startup_faults {
-        out.push(format!("  startup fault: {fault}"));
-    }
+    append_proxy(&mut out, ctx);
     out.push(String::new());
     out.push("port file:".to_owned());
     match crate::proxy::portfile::portfile_path() {
@@ -74,11 +57,43 @@ pub fn render(ctx: &BridgeContext) -> String {
     out.push(String::new());
     hosts::append_update(&mut out);
     out.push(String::new());
+    append_claude_desktop_policy(&mut out);
+    out.push(String::new());
+    append_bridge_processes(&mut out);
+    out.join("\n") + "\n"
+}
+
+fn append_proxy(out: &mut Vec<String>, ctx: &BridgeContext) {
+    out.push("proxy:".to_owned());
+    out.push(format!("  install id: {}", ctx.install_id().as_str()));
+    out.push(format!("  role:       {}", describe_role(ctx.proxy.role())));
+    out.push(format!("  endpoint:   {}", ctx.proxy.loopback().origin()));
+    out.push(format!(
+        "  secret fp:  {}",
+        ctx.proxy
+            .loopback()
+            .secret_fingerprint()
+            .unwrap_or_else(|| "<unavailable>".to_owned())
+    ));
+    out.push(format!(
+        "  port {DEFAULT_PROXY_PORT}: {}",
+        describe_peer(peer::probe_identity(DEFAULT_PROXY_PORT, ctx.install_id()))
+    ));
+    for fault in &ctx.startup_faults {
+        out.push(format!("  startup fault: {fault}"));
+    }
+}
+
+fn append_claude_desktop_policy(out: &mut Vec<String>) {
     out.push("claude desktop policy:".to_owned());
     for line in crate::integration::claude_desktop::policy_summary() {
         out.push(format!("  {line}"));
     }
     out.push(String::new());
+}
+
+fn append_bridge_processes(out: &mut Vec<String>) {
+    let brand = crate::brand::brand();
     out.push("bridge processes:".to_owned());
     let mut any = false;
     let processes = match crate::sysproc::list_processes() {
@@ -106,7 +121,6 @@ pub fn render(ctx: &BridgeContext) -> String {
     if !any {
         out.push("  <none visible to this account>".to_owned());
     }
-    out.join("\n") + "\n"
 }
 
 fn describe_role(role: &ProxyRole) -> String {
