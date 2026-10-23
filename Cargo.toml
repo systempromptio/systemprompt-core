@@ -259,7 +259,7 @@ handlebars = "6"
 quick-xml = { version = "0.42", features = ["serialize"] }
 
 # MCP additional dependencies
-# Why: held at 0.2 because rmcp 3.5.1 requires sse-stream ^0.2.4; 0.3 would duplicate.
+# Why: held at 0.2 because rmcp 3.7.0 requires sse-stream ^0.2.4; 0.3 would duplicate.
 sse-stream = "0.2.6"
 # Lean by default = rmcp's own default features (`base64`, `macros`, `server`),
 # which give the `rmcp::model` types + their `schemars`/JsonSchema impls but pull
@@ -270,7 +270,7 @@ sse-stream = "0.2.6"
 # the SSRF guard (`validate_outbound_url`) and is held to our body limits. Every
 # other dependent (notably the desktop bridge) only uses `rmcp::model` via
 # systemprompt-models.
-rmcp = { version = "=3.5.1" }
+rmcp = { version = "=3.7.0" }
 
 # Security
 rand = "0.10"
