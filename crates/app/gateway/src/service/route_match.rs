@@ -1,6 +1,9 @@
 //! How a resolved route is described on the audit row, narrowed by route
 //! selectors, and checked against its declared governance requirements.
 //!
+//! The descriptor is `route:<id>` plus the matched `when:` predicates, the
+//! selector, `requires:` and the `scope:<dim>=<value>` the route matched.
+//!
 //! A selector sees the matched policy route, or the catalog route (an empty
 //! route under the access route id) when none matched. A refined route may
 //! only narrow the model's chain to a subset of its deployments and set the
@@ -28,8 +31,16 @@ pub fn describe_route_match(
         (!declared.is_empty()).then(|| format!("requires:{}", declared.join(",")))
     });
 
+    let scope = route.and_then(|r| r.when.as_ref()).and_then(|when| {
+        let pairs: Vec<String> = when
+            .scope
+            .iter()
+            .map(|(dimension, value)| format!("{dimension}={value}"))
+            .collect();
+        (!pairs.is_empty()).then(|| format!("scope:{}", pairs.join(",")))
+    });
     let identity = Some(format!("route:{route_id}"));
-    [identity, declarative, selector, governance]
+    [identity, declarative, selector, governance, scope]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()
