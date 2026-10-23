@@ -12,14 +12,15 @@ mod ai_service;
 mod assembly;
 mod composition;
 mod core_layer;
+mod events;
 
 pub use composition::owner_reassignments;
-use composition::{build_data_plane, build_repositories, ensure_legacy_context};
+use composition::{build_data_plane, build_plugins, build_repositories, ensure_legacy_context};
 
 use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
-use systemprompt_events::{EventBridgeHandle, EventRouter, PostgresEventBridge};
+use systemprompt_events::EventRouter;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_manifest::Config;
@@ -28,10 +29,11 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch};
 use systemprompt_users::UserService;
 
-use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
+use crate::context::{AppContext, ConfigPlane, DataPlane, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
 pub use core_layer::discover_vertex_models;
 use core_layer::{CoreLayer, SchemaPolicy, init_core, init_extensions};
+use events::event_plane;
 
 /// Assembles an [`AppContext`], owning the bootstrap order described on the
 /// module.
@@ -201,9 +203,16 @@ impl AppContextBuilder {
             connector_tokens,
         };
 
+        let plugins = build_plugins(
+            extension_registry,
+            mcp_registry,
+            self.marketplace_filter,
+            &database,
+        );
+
         Ok(AppContext::from_parts(
             build_data_plane(
-                Arc::clone(&database),
+                database,
                 content.analytics_service,
                 content.fingerprint_repo,
                 user_service,
@@ -216,53 +225,10 @@ impl AppContextBuilder {
                 content_config: content.content_config,
                 route_classifier: content.route_classifier,
             },
-            Plugins {
-                extension_registry,
-                mcp_registry,
-                marketplace_filter: self
-                    .marketplace_filter
-                    .unwrap_or_else(|| assembly::build_marketplace_filter(&database)),
-                marketplace_cache: Arc::default(),
-            },
+            plugins,
             subsystems,
         ))
     }
-}
-
-fn event_plane(
-    configured: Option<EventRouter>,
-    database: &systemprompt_database::DbPool,
-    config: &Config,
-    cache_epochs: &systemprompt_traits::CacheEpochs,
-) -> (EventRouter, EventBridgeHandle) {
-    let event_router = event_router_or_outbox(configured, database, config);
-    // Why: LISTEN/NOTIFY, the outbox insert and the retention prune need the
-    // primary, so the relay takes the write pool; the LISTEN session itself
-    // takes the session pool, a direct connection beside a transaction-mode
-    // pooler.
-    let bridge = PostgresEventBridge::new(
-        database.write_pool().as_ref().clone(),
-        config.instance_id.clone(),
-        cache_epochs.clone(),
-        Arc::clone(event_router.broadcasters()),
-    )
-    .with_listener_pool(database.session_pool().as_ref().clone())
-    .into_idle_handle();
-    (event_router, bridge)
-}
-
-fn event_router_or_outbox(
-    configured: Option<EventRouter>,
-    database: &systemprompt_database::DbPool,
-    config: &Config,
-) -> EventRouter {
-    configured.unwrap_or_else(|| {
-        EventRouter::with_outbox(
-            database.write_pool().as_ref().clone(),
-            config.instance_id.clone(),
-            Arc::new(systemprompt_events::EventBroadcasters::new()),
-        )
-    })
 }
 
 pub(crate) async fn load_governance(
