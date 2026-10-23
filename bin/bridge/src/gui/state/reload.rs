@@ -27,17 +27,7 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
     snap.first_run.done = crate::gui::first_run::record::read().is_some();
     snap.agents_onboarded = crate::gui::onboarding::is_complete();
 
-    if let Ok(s) = setup::status() {
-        snap.config_file = s.paths.config_file.display().to_string();
-        snap.pat_file = s.paths.pat_file.display().to_string();
-        snap.config_present = s.config_present;
-        snap.pat_present = s.pat_present;
-    } else {
-        snap.config_file.clear();
-        snap.pat_file.clear();
-        snap.config_present = false;
-        snap.pat_present = false;
-    }
+    reload_setup_paths(snap);
 
     snap.elevated = process_elevated();
     let loc = paths::org_plugins_effective();
@@ -49,9 +39,35 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
     snap.malformed_plugin_count = None;
     snap.enabled_hosts.clear();
     snap.host_model_protocols.clear();
-    if crate::auth::has_credential_source(&cfg) {
-        let gateway = config::gateway_url_or_default(&cfg);
-        snap.cached_token = match cache::read_for(&cfg, &gateway, 30) {
+    reload_credential(snap, &cfg);
+    reload_last_sync(snap, &cfg);
+
+    if let Some(loc) = loc {
+        snap.plugin_count = count_plugin_dirs(&loc.path);
+        snap.malformed_plugin_count = count_malformed_plugin_dirs(&loc.path);
+        snap.skill_count = super::counters::count_skills_across_plugins(&loc.path);
+        snap.agent_count = super::counters::count_agents_across_plugins(&loc.path);
+    }
+}
+
+fn reload_setup_paths(snap: &mut AppStateSnapshot) {
+    if let Ok(s) = setup::status() {
+        snap.config_file = s.paths.config_file.display().to_string();
+        snap.pat_file = s.paths.pat_file.display().to_string();
+        snap.config_present = s.config_present;
+        snap.pat_present = s.pat_present;
+    } else {
+        snap.config_file.clear();
+        snap.pat_file.clear();
+        snap.config_present = false;
+        snap.pat_present = false;
+    }
+}
+
+fn reload_credential(snap: &mut AppStateSnapshot, cfg: &config::Config) {
+    if crate::auth::has_credential_source(cfg) {
+        let gateway = config::gateway_url_or_default(cfg);
+        snap.cached_token = match cache::read_for(cfg, &gateway, 30) {
             Ok(token) => token.map(|out| CachedToken {
                 ttl_seconds: out.ttl,
                 length: out.token.len(),
@@ -72,8 +88,10 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
         snap.cached_token = None;
         snap.verified_identity = None;
     }
+}
 
-    let gateway = config::gateway_url_or_default(&cfg);
+fn reload_last_sync(snap: &mut AppStateSnapshot, cfg: &config::Config) {
+    let gateway = config::gateway_url_or_default(cfg);
     if let Some(meta) = paths::bridge_metadata_dir() {
         match crate::last_sync::read_last_sync(&meta.join(paths::LAST_SYNC_SENTINEL)) {
             Ok(Some(record)) if record.belongs_to(&gateway) => {
@@ -86,13 +104,6 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
                 snap.last_sync_summary = Some(format!("unreadable: {e}"));
             },
         }
-    }
-
-    if let Some(loc) = loc {
-        snap.plugin_count = count_plugin_dirs(&loc.path);
-        snap.malformed_plugin_count = count_malformed_plugin_dirs(&loc.path);
-        snap.skill_count = super::counters::count_skills_across_plugins(&loc.path);
-        snap.agent_count = super::counters::count_agents_across_plugins(&loc.path);
     }
 }
 

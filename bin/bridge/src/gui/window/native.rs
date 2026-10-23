@@ -67,25 +67,7 @@ impl SettingsWindow {
         event_loop: &dyn ActiveEventLoop,
         proxy: &UiEventProxy,
     ) -> GuiResult<Self> {
-        let mut attrs = chrome_attributes(
-            WindowAttributes::default()
-                .with_title(crate::brand::brand().window_title)
-                .with_surface_size(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT))
-                .with_min_surface_size(LogicalSize::new(MIN_WIDTH, MIN_HEIGHT))
-                .with_visible(false)
-                .with_window_icon(decode_icon()),
-        );
-
-        let restored = geometry::load().and_then(|saved| {
-            let areas = work_areas(event_loop);
-            geometry::restore(saved, &areas)
-        });
-        if let Some(geom) = restored {
-            attrs = attrs
-                .with_position(LogicalPosition::new(geom.x, geom.y))
-                .with_surface_size(LogicalSize::new(geom.width, geom.height));
-        }
-
+        let (attrs, restored) = initial_attributes(event_loop);
         let window = event_loop
             .create_window(attrs)
             .map_err(|e| GuiError::Window {
@@ -99,49 +81,7 @@ impl SettingsWindow {
             window.set_maximized(true);
         }
 
-        let ipc_proxy = proxy.clone();
-        let builder = WebViewBuilder::new();
-        #[cfg(target_os = "windows")]
-        let builder = {
-            use wry::WebViewBuilderExtWindows as _;
-            builder.with_https_scheme(true)
-        };
-        let initial_size = window.surface_size();
-        let webview = builder
-            .with_url(SP_INDEX_URL)
-            .with_background_color(BG_RGBA)
-            .with_accept_first_mouse(true)
-            .with_devtools(cfg!(debug_assertions))
-            .with_bounds(Rect {
-                position: LogicalPosition::new(0, 0).into(),
-                size: PhysicalSize::new(initial_size.width, initial_size.height).into(),
-            })
-            .with_initialization_script(BRIDGE_BOOTSTRAP)
-            .with_ipc_handler(move |req| {
-                let body = req.into_body();
-                ipc_proxy.send_event(UiEvent::IpcInbound(body));
-            })
-            .with_custom_protocol(SP_PROTOCOL.to_owned(), move |_id, request| {
-                serve_custom_asset(&request)
-            })
-            .with_navigation_handler(|target| allow_navigation(&target))
-            .with_new_window_req_handler(|target, _features| {
-                open_if_external(&target);
-                NewWindowResponse::Deny
-            })
-            .build_as_child(&WindowRef(&*window))
-            .map_err(|e| {
-                let source = WindowError::Wry(e);
-                // Why: windows_subsystem = "windows" provides no console for startup errors.
-                crate::user_alert::alert_user(
-                    &format!("{} could not start", crate::brand::brand().app_name),
-                    &format!("The embedded browser failed to initialise: {source}"),
-                );
-                GuiError::Window {
-                    context: "webview build".into(),
-                    source,
-                }
-            })?;
+        let webview = build_webview(&*window, proxy)?;
 
         window.set_visible(true);
         window.focus_window();
@@ -214,6 +154,77 @@ impl SettingsWindow {
     }
 }
 
+
+fn initial_attributes(
+    event_loop: &dyn ActiveEventLoop,
+) -> (WindowAttributes, Option<WindowGeometry>) {
+    let mut attrs = chrome_attributes(
+        WindowAttributes::default()
+            .with_title(crate::brand::brand().window_title)
+            .with_surface_size(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT))
+            .with_min_surface_size(LogicalSize::new(MIN_WIDTH, MIN_HEIGHT))
+            .with_visible(false)
+            .with_window_icon(decode_icon()),
+    );
+
+    let restored = geometry::load().and_then(|saved| {
+        let areas = work_areas(event_loop);
+        geometry::restore(saved, &areas)
+    });
+    if let Some(geom) = restored {
+        attrs = attrs
+            .with_position(LogicalPosition::new(geom.x, geom.y))
+            .with_surface_size(LogicalSize::new(geom.width, geom.height));
+    }
+    (attrs, restored)
+}
+
+fn build_webview(window: &dyn Window, proxy: &UiEventProxy) -> GuiResult<WebView> {
+    let ipc_proxy = proxy.clone();
+    let builder = WebViewBuilder::new();
+    #[cfg(target_os = "windows")]
+    let builder = {
+        use wry::WebViewBuilderExtWindows as _;
+        builder.with_https_scheme(true)
+    };
+    let initial_size = window.surface_size();
+    let webview = builder
+        .with_url(SP_INDEX_URL)
+        .with_background_color(BG_RGBA)
+        .with_accept_first_mouse(true)
+        .with_devtools(cfg!(debug_assertions))
+        .with_bounds(Rect {
+            position: LogicalPosition::new(0, 0).into(),
+            size: PhysicalSize::new(initial_size.width, initial_size.height).into(),
+        })
+        .with_initialization_script(BRIDGE_BOOTSTRAP)
+        .with_ipc_handler(move |req| {
+            let body = req.into_body();
+            ipc_proxy.send_event(UiEvent::IpcInbound(body));
+        })
+        .with_custom_protocol(SP_PROTOCOL.to_owned(), move |_id, request| {
+            serve_custom_asset(&request)
+        })
+        .with_navigation_handler(|target| allow_navigation(&target))
+        .with_new_window_req_handler(|target, _features| {
+            open_if_external(&target);
+            NewWindowResponse::Deny
+        })
+        .build_as_child(&WindowRef(window))
+        .map_err(|e| {
+            let source = WindowError::Wry(e);
+            // Why: windows_subsystem = "windows" provides no console for startup errors.
+            crate::user_alert::alert_user(
+                &format!("{} could not start", crate::brand::brand().app_name),
+                &format!("The embedded browser failed to initialise: {source}"),
+            );
+            GuiError::Window {
+                context: "webview build".into(),
+                source,
+            }
+        })?;
+    Ok(webview)
+}
 
 fn work_areas(event_loop: &dyn ActiveEventLoop) -> Vec<geometry::WorkArea> {
     event_loop

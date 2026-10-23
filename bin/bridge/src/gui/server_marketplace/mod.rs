@@ -24,7 +24,7 @@ pub use types::{
 };
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 
 use crate::config::paths;
@@ -51,58 +51,18 @@ pub fn build_listing(
         Err(e) => (None, Some(e.to_string())),
     };
 
-    let (mut plugins, skills, hooks, mcp, agents, rules) = match loc {
-        Some(loc) => {
-            let plugins = plugins::list_plugins(&loc.path)?;
-            let mut skills = Vec::new();
-            let mut agents = Vec::new();
-            let mut hooks = Vec::new();
-            let mut rules = Vec::new();
-            for dir in plugins::plugin_dirs(&loc.path)? {
-                let owner = dir
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or_default()
-                    .to_owned();
-                let own = |items: Vec<MarketplaceItem>| -> Vec<MarketplaceItem> {
-                    items
-                        .into_iter()
-                        .map(|mut i| {
-                            i.plugins.push(owner.clone());
-                            i
-                        })
-                        .collect()
-                };
-                skills.extend(own(components::list_skills(&dir.join("skills"))?));
-                agents.extend(own(components::list_agents(&dir.join("agents"))?));
-                hooks.extend(own(hooks::list_hooks(&dir.join("hooks"))));
-                rules.extend(own(components::list_rules(&dir.join("rules"))?));
-            }
-            let mcp = components::list_registry_mcp(loopback, registry);
-            (
-                plugins,
-                dedup_by_id(skills),
-                dedup_by_id(hooks),
-                mcp,
-                dedup_by_id(agents),
-                dedup_by_id(rules),
-            )
-        },
-        None => (
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-        ),
+    let Components {
+        mut plugins,
+        mut skills,
+        mut hooks,
+        mut mcp,
+        mut agents,
+        mut rules,
+    } = match loc {
+        Some(loc) => Components::collect(&loc.path, loopback, registry)?,
+        None => Components::default(),
     };
 
-    let mut skills = skills;
-    let mut hooks = hooks;
-    let mut mcp = mcp;
-    let mut agents = agents;
-    let mut rules = rules;
     let last_sync_diff = last_sync
         .as_ref()
         .map_or_else(MarketplaceDiff::default, |state| {
@@ -134,6 +94,58 @@ pub fn build_listing(
         last_sync_diff,
         last_sync_error,
     })
+}
+
+#[derive(Default)]
+struct Components {
+    plugins: Vec<MarketplaceItem>,
+    skills: Vec<MarketplaceItem>,
+    hooks: Vec<MarketplaceItem>,
+    mcp: Vec<MarketplaceItem>,
+    agents: Vec<MarketplaceItem>,
+    rules: Vec<MarketplaceItem>,
+}
+
+impl Components {
+    fn collect(
+        root: &Path,
+        loopback: &crate::proxy::LoopbackEndpoint,
+        registry: &crate::mcp_registry::McpRegistry,
+    ) -> std::io::Result<Self> {
+        let plugins = plugins::list_plugins(root)?;
+        let mut skills = Vec::new();
+        let mut agents = Vec::new();
+        let mut hooks = Vec::new();
+        let mut rules = Vec::new();
+        for dir in plugins::plugin_dirs(root)? {
+            let owner = dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default()
+                .to_owned();
+            let own = |items: Vec<MarketplaceItem>| -> Vec<MarketplaceItem> {
+                items
+                    .into_iter()
+                    .map(|mut i| {
+                        i.plugins.push(owner.clone());
+                        i
+                    })
+                    .collect()
+            };
+            skills.extend(own(components::list_skills(&dir.join("skills"))?));
+            agents.extend(own(components::list_agents(&dir.join("agents"))?));
+            hooks.extend(own(hooks::list_hooks(&dir.join("hooks"))));
+            rules.extend(own(components::list_rules(&dir.join("rules"))?));
+        }
+        Ok(Self {
+            plugins,
+            skills: dedup_by_id(skills),
+            hooks: dedup_by_id(hooks),
+            mcp: components::list_registry_mcp(loopback, registry),
+            agents: dedup_by_id(agents),
+            rules: dedup_by_id(rules),
+        })
+    }
 }
 
 fn dedup_by_id(items: Vec<MarketplaceItem>) -> Vec<MarketplaceItem> {

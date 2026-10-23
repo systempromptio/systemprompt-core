@@ -51,79 +51,16 @@ pub fn build(
     initial: &AppStateSnapshot,
     schedule: &crate::schedule::status::ScheduleStatusCache,
 ) -> GuiResult<TrayHandles> {
-    let menu = Menu::new();
-
-    let identity_item = MenuItem::new(text::format_identity(initial), false, None);
-    let last_sync_item = MenuItem::new(text::format_last_sync(initial), false, None);
-    let sync_item = MenuItem::new(i18n::t("tray-sync-now"), true, None);
-    let validate_item = MenuItem::new(i18n::t("tray-validate"), true, None);
-    let (update_label, update_enabled, update_event) = update_menu(&initial.update);
-    let update_item = MenuItem::new(update_label, update_enabled, None);
-    let open_settings_item = MenuItem::new(i18n::t("tray-open-settings"), true, None);
-    let open_folder_item = MenuItem::new(i18n::t("tray-open-config"), true, None);
-    let autostart = crate::install::gui_autostart_status(schedule);
-    let autostart_item = CheckMenuItem::new(
-        i18n::t("tray-autostart"),
-        autostart != ScheduleStatus::Unknown,
-        autostart == ScheduleStatus::Installed,
-        None,
-    );
-    let logout_item = MenuItem::new(i18n::t("tray-sign-out"), text::is_signed_in(initial), None);
-    let disconnect_item = MenuItem::new(i18n::t("tray-disconnect"), true, None);
-    let purge_item = MenuItem::new(i18n::t("tray-purge"), true, None);
-    let remove_item = MenuItem::new(i18n::t("tray-remove-application"), true, None);
-    let quit_item = MenuItem::new(i18n::t("tray-quit"), true, None);
-
-    menu.append(&identity_item)?;
-    menu.append(&last_sync_item)?;
-    menu.append(&PredefinedMenuItem::separator())?;
-    menu.append(&sync_item)?;
-    menu.append(&validate_item)?;
-    menu.append(&update_item)?;
-    menu.append(&PredefinedMenuItem::separator())?;
-    menu.append(&open_settings_item)?;
-    menu.append(&open_folder_item)?;
-    menu.append(&autostart_item)?;
-    menu.append(&PredefinedMenuItem::separator())?;
-    menu.append(&logout_item)?;
-    menu.append(&disconnect_item)?;
-    menu.append(&purge_item)?;
-    menu.append(&remove_item)?;
-    menu.append(&quit_item)?;
-
-    let mut bindings = HashMap::new();
-    bindings.insert(
-        sync_item.id().clone(),
-        UiEvent::SyncRequested { reply_to: None },
-    );
-    bindings.insert(
-        validate_item.id().clone(),
-        UiEvent::ValidateRequested { reply_to: None },
-    );
-    bindings.insert(update_item.id().clone(), update_event);
-    bindings.insert(
-        autostart_item.id().clone(),
-        UiEvent::AutostartToggleRequested,
-    );
-    bindings.insert(open_settings_item.id().clone(), UiEvent::OpenSettings);
-    bindings.insert(open_folder_item.id().clone(), UiEvent::OpenConfigFolder);
-    bindings.insert(
-        logout_item.id().clone(),
-        UiEvent::LogoutRequested { reply_to: None },
-    );
-    bindings.insert(
-        disconnect_item.id().clone(),
-        UiEvent::OpenDeviceAction(crate::wire::DeviceAction::Disconnect),
-    );
-    bindings.insert(
-        purge_item.id().clone(),
-        UiEvent::OpenDeviceAction(crate::wire::DeviceAction::Purge),
-    );
-    bindings.insert(
-        remove_item.id().clone(),
-        UiEvent::OpenDeviceAction(crate::wire::DeviceAction::RemoveApplication),
-    );
-    bindings.insert(quit_item.id().clone(), UiEvent::Quit);
+    let MenuParts {
+        menu,
+        bindings,
+        identity_item,
+        last_sync_item,
+        sync_item,
+        update_item,
+        autostart_item,
+        logout_item,
+    } = build_menu(initial, schedule)?;
 
     let icon_normal = icon::decode_icon()?;
     let icon_alert = icon::decode_alert_icon()?;
@@ -152,6 +89,115 @@ pub fn build(
         icon_alert,
         status: TrayStatus::Normal,
     })
+}
+
+struct MenuParts {
+    menu: Menu,
+    bindings: HashMap<MenuId, UiEvent>,
+    identity_item: MenuItem,
+    last_sync_item: MenuItem,
+    sync_item: MenuItem,
+    update_item: MenuItem,
+    autostart_item: CheckMenuItem,
+    logout_item: MenuItem,
+}
+
+fn build_menu(
+    initial: &AppStateSnapshot,
+    schedule: &crate::schedule::status::ScheduleStatusCache,
+) -> GuiResult<MenuParts> {
+    let menu = Menu::new();
+
+    let identity_item = MenuItem::new(text::format_identity(initial), false, None);
+    let last_sync_item = MenuItem::new(text::format_last_sync(initial), false, None);
+    let sync_item = MenuItem::new(i18n::t("tray-sync-now"), true, None);
+    let validate_item = MenuItem::new(i18n::t("tray-validate"), true, None);
+    let (update_label, update_enabled, update_event) = update_menu(&initial.update);
+    let update_item = MenuItem::new(update_label, update_enabled, None);
+    let open_settings_item = MenuItem::new(i18n::t("tray-open-settings"), true, None);
+    let open_folder_item = MenuItem::new(i18n::t("tray-open-config"), true, None);
+    let autostart = crate::install::gui_autostart_status(schedule);
+    let autostart_item = CheckMenuItem::new(
+        i18n::t("tray-autostart"),
+        autostart != ScheduleStatus::Unknown,
+        autostart == ScheduleStatus::Installed,
+        None,
+    );
+    let logout_item = MenuItem::new(i18n::t("tray-sign-out"), text::is_signed_in(initial), None);
+    let device_items = device_action_items();
+    let quit_item = MenuItem::new(i18n::t("tray-quit"), true, None);
+
+    menu.append(&identity_item)?;
+    menu.append(&last_sync_item)?;
+    menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&sync_item)?;
+    menu.append(&validate_item)?;
+    menu.append(&update_item)?;
+    menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&open_settings_item)?;
+    menu.append(&open_folder_item)?;
+    menu.append(&autostart_item)?;
+    menu.append(&PredefinedMenuItem::separator())?;
+    menu.append(&logout_item)?;
+    for (item, _) in &device_items {
+        menu.append(item)?;
+    }
+    menu.append(&quit_item)?;
+
+    let mut bindings = HashMap::new();
+    bindings.insert(
+        sync_item.id().clone(),
+        UiEvent::SyncRequested { reply_to: None },
+    );
+    bindings.insert(
+        validate_item.id().clone(),
+        UiEvent::ValidateRequested { reply_to: None },
+    );
+    bindings.insert(update_item.id().clone(), update_event);
+    bindings.insert(
+        autostart_item.id().clone(),
+        UiEvent::AutostartToggleRequested,
+    );
+    bindings.insert(open_settings_item.id().clone(), UiEvent::OpenSettings);
+    bindings.insert(open_folder_item.id().clone(), UiEvent::OpenConfigFolder);
+    bindings.insert(
+        logout_item.id().clone(),
+        UiEvent::LogoutRequested { reply_to: None },
+    );
+    for (item, event) in device_items {
+        bindings.insert(item.id().clone(), event);
+    }
+    bindings.insert(quit_item.id().clone(), UiEvent::Quit);
+
+    Ok(MenuParts {
+        menu,
+        bindings,
+        identity_item,
+        last_sync_item,
+        sync_item,
+        update_item,
+        autostart_item,
+        logout_item,
+    })
+}
+
+fn device_action_items() -> [(MenuItem, UiEvent); 3] {
+    use crate::wire::DeviceAction;
+
+    [
+        (
+            MenuItem::new(i18n::t("tray-disconnect"), true, None),
+            UiEvent::OpenDeviceAction(DeviceAction::Disconnect),
+        ),
+        (
+            MenuItem::new(i18n::t("tray-purge"), true, None),
+            UiEvent::OpenDeviceAction(DeviceAction::Purge),
+        ),
+        (
+            MenuItem::new(i18n::t("tray-remove-application"), true, None),
+            UiEvent::OpenDeviceAction(DeviceAction::RemoveApplication),
+        ),
+    ]
 }
 
 pub fn refresh(
