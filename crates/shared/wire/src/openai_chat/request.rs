@@ -44,22 +44,23 @@ pub fn build_request_body(
         "max_completion_tokens".into(),
         Value::from(super::output_token_ceiling(request, upstream_model, limits)),
     );
-    if let Some(t) = request.temperature {
+    if let Some(t) = request.sampling.temperature {
         obj.insert("temperature".into(), json!(t));
     }
-    if let Some(p) = request.top_p {
+    if let Some(p) = request.sampling.top_p {
         obj.insert("top_p".into(), json!(p));
     }
-    if !request.stop_sequences.is_empty() {
-        obj.insert("stop".into(), json!(request.stop_sequences));
+    if !request.sampling.stop_sequences.is_empty() {
+        obj.insert("stop".into(), json!(request.sampling.stop_sequences));
     }
     if request.stream {
         obj.insert("stream".into(), Value::Bool(true));
         obj.insert("stream_options".into(), json!({ "include_usage": true }));
     }
-    if !request.tools.is_empty() {
+    if !request.tooling.tools.is_empty() {
         let sanitizer = SchemaSanitizer::new(WireProtocol::OpenAiChat.schema_capabilities());
         let tools: Vec<Value> = request
+            .tooling
             .tools
             .iter()
             .map(|t| {
@@ -75,16 +76,16 @@ pub fn build_request_body(
             .collect();
         obj.insert("tools".into(), Value::Array(tools));
     }
-    if let Some(tc) = &request.tool_choice {
+    if let Some(tc) = &request.tooling.tool_choice {
         obj.insert("tool_choice".into(), tool_choice_to_chat(tc));
     }
-    if let Some(p) = request.presence_penalty {
+    if let Some(p) = request.sampling.presence_penalty {
         obj.insert("presence_penalty".into(), json!(p));
     }
-    if let Some(p) = request.frequency_penalty {
+    if let Some(p) = request.sampling.frequency_penalty {
         obj.insert("frequency_penalty".into(), json!(p));
     }
-    if let Some(effort) = request.reasoning_effort {
+    if let Some(effort) = request.reasoning.reasoning_effort {
         obj.insert(
             "reasoning_effort".into(),
             Value::String(effort.as_str().to_owned()),

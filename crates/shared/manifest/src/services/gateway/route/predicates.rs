@@ -91,11 +91,12 @@ impl RouteMatch {
     pub fn matches_request(&self, request: &CanonicalRequest) -> bool {
         (self.tool_names_any.is_empty()
             || request
+                .tooling
                 .tools
                 .iter()
                 .any(|tool| self.tool_names_any.contains(&tool.name)))
             && (self.tool_types_any.is_empty()
-                || request.tools.iter().any(|tool| {
+                || request.tooling.tools.iter().any(|tool| {
                     server_tool_type(tool).is_some_and(|kind| {
                         self.tool_types_any
                             .iter()
@@ -104,14 +105,19 @@ impl RouteMatch {
                 }))
             && self
                 .requires_tools
-                .is_none_or(|want| request.tools.is_empty() != want)
-            && self.min_tools.is_none_or(|n| request.tools.len() >= n)
+                .is_none_or(|want| request.tooling.tools.is_empty() != want)
+            && self
+                .min_tools
+                .is_none_or(|n| request.tooling.tools.len() >= n)
             && self
                 .thinking
-                .is_none_or(|want| request.thinking.is_some_and(|t| t.enabled) == want)
-            && self
-                .min_reasoning_effort
-                .is_none_or(|floor| request.reasoning_effort.is_some_and(|e| e >= floor))
+                .is_none_or(|want| request.reasoning.thinking.is_some_and(|t| t.enabled) == want)
+            && self.min_reasoning_effort.is_none_or(|floor| {
+                request
+                    .reasoning
+                    .reasoning_effort
+                    .is_some_and(|e| e >= floor)
+            })
             && self.stream.is_none_or(|want| request.stream == want)
             && self
                 .min_input_tokens

@@ -141,7 +141,7 @@ fn openai_responses_system_message_maps_to_developer_role() {
 #[test]
 fn openai_responses_reasoning_effort_explicit_wins() {
     let mut req = base_request();
-    req.reasoning_effort = Some(ReasoningEffort::High);
+    req.reasoning.reasoning_effort = Some(ReasoningEffort::High);
     let body = openai_responses::build_request_body(&req, "upstream", None);
     assert_eq!(body["reasoning"]["effort"], "high");
 }
@@ -156,7 +156,7 @@ fn openai_responses_reasoning_effort_derived_from_thinking_budget() {
     ];
     for (budget, expected) in cases {
         let mut req = base_request();
-        req.thinking = Some(ThinkingConfig {
+        req.reasoning.thinking = Some(ThinkingConfig {
             enabled: true,
             budget_tokens: budget,
         });
@@ -171,7 +171,7 @@ fn openai_responses_reasoning_effort_derived_from_thinking_budget() {
 #[test]
 fn openai_responses_disabled_thinking_omits_reasoning() {
     let mut req = base_request();
-    req.thinking = Some(ThinkingConfig {
+    req.reasoning.thinking = Some(ThinkingConfig {
         enabled: false,
         budget_tokens: Some(20_000),
     });
@@ -182,7 +182,7 @@ fn openai_responses_disabled_thinking_omits_reasoning() {
 #[test]
 fn openai_responses_serializes_flat_function_tools() {
     let mut req = base_request();
-    req.tools = vec![plain_tool()];
+    req.tooling.tools = vec![plain_tool()];
     let body = openai_responses::build_request_body(&req, "upstream", None);
     let tool = &body["tools"][0];
     assert_eq!(tool["type"], "function");
@@ -208,8 +208,8 @@ fn openai_responses_tool_choice_variants() {
     ];
     for (choice, expected) in cases {
         let mut req = base_request();
-        req.tools = vec![plain_tool()];
-        req.tool_choice = Some(choice);
+        req.tooling.tools = vec![plain_tool()];
+        req.tooling.tool_choice = Some(choice);
         let body = openai_responses::build_request_body(&req, "upstream", None);
         assert_eq!(body["tool_choice"], expected);
     }
@@ -231,7 +231,7 @@ fn openai_responses_response_format_uses_text_format() {
 #[test]
 fn openai_responses_adds_web_search_tool() {
     let mut req = base_request();
-    req.search = Some(SearchConfig {
+    req.tooling.search = Some(SearchConfig {
         max_uses: None,
         context_size: Some("high".to_owned()),
         urls: Vec::new(),
@@ -359,7 +359,7 @@ async fn openai_responses_stream_emits_message_start() {
 #[test]
 fn openai_responses_reasoning_requests_stateless_replay_params() {
     let mut req = base_request();
-    req.thinking = Some(ThinkingConfig {
+    req.reasoning.thinking = Some(ThinkingConfig {
         enabled: true,
         budget_tokens: Some(8000),
     });

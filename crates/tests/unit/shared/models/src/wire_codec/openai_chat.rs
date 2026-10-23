@@ -103,7 +103,7 @@ fn openai_chat_prepends_system_message() {
 #[test]
 fn openai_chat_serializes_function_tools() {
     let mut req = base_request();
-    req.tools = vec![plain_tool()];
+    req.tooling.tools = vec![plain_tool()];
     let body = openai_chat::build_request_body(&req, "upstream", None);
     let tool = &body["tools"][0];
     assert_eq!(tool["type"], "function");
@@ -128,8 +128,8 @@ fn openai_chat_tool_choice_variants() {
     ];
     for (choice, expected) in cases {
         let mut req = base_request();
-        req.tools = vec![plain_tool()];
-        req.tool_choice = Some(choice);
+        req.tooling.tools = vec![plain_tool()];
+        req.tooling.tool_choice = Some(choice);
         let body = openai_chat::build_request_body(&req, "upstream", None);
         assert_eq!(body["tool_choice"], expected);
     }
@@ -155,7 +155,7 @@ fn openai_chat_renders_image_url_parts() {
 #[test]
 fn openai_chat_maps_stop_sequences_and_stream_options() {
     let mut req = base_request();
-    req.stop_sequences = vec!["STOP".to_owned()];
+    req.sampling.stop_sequences = vec!["STOP".to_owned()];
     req.stream = true;
     let body = openai_chat::build_request_body(&req, "upstream", None);
     assert_eq!(body["stop"], json!(["STOP"]));
@@ -166,9 +166,9 @@ fn openai_chat_maps_stop_sequences_and_stream_options() {
 #[test]
 fn openai_chat_emits_penalties_and_reasoning_effort() {
     let mut req = base_request();
-    req.presence_penalty = Some(0.5);
-    req.frequency_penalty = Some(-0.25);
-    req.reasoning_effort = Some(ReasoningEffort::Medium);
+    req.sampling.presence_penalty = Some(0.5);
+    req.sampling.frequency_penalty = Some(-0.25);
+    req.reasoning.reasoning_effort = Some(ReasoningEffort::Medium);
     let body = openai_chat::build_request_body(&req, "upstream", None);
     assert_eq!(body["presence_penalty"], json!(0.5));
     assert_eq!(body["frequency_penalty"], json!(-0.25));

@@ -17,7 +17,8 @@ use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, InboundAdapter, Role, SystemBlock,
 };
 use systemprompt_gateway::service::{DispatchError, GatewayService};
 use systemprompt_gateway::{DispatchInputs, GatewayRepositories, GatewayRequestContext};
@@ -172,22 +173,28 @@ pub(super) fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
             content: vec![CanonicalContent::text("hello gateway".to_owned())],
         }],
         max_tokens: 256,
-        temperature: Some(0.5),
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: Some(0.5),
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

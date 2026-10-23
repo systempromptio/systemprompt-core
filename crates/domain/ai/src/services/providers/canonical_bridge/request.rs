@@ -9,8 +9,9 @@
 use serde_json::json;
 use systemprompt_identifiers::ModelId;
 use systemprompt_wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, SystemBlock, ThinkingConfig,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTool, CanonicalToolChoice, CanonicalTooling, ImageSource, ReasoningEffort,
+    ResponseFormat, Role, SearchConfig, SystemBlock, ThinkingConfig,
 };
 use systemprompt_wire::inspect::ForwardedSurface;
 
@@ -123,25 +124,31 @@ impl<'a> CanonicalBuild<'a> {
             system,
             messages,
             max_tokens: self.max_output_tokens,
-            temperature,
-            top_p: self.sampling.and_then(|s| s.top_p),
-            top_k: self.sampling.and_then(|s| s.top_k),
-            stop_sequences: self
-                .sampling
-                .and_then(|s| s.stop_sequences.clone())
-                .unwrap_or_default(),
-            tools: self.tools,
-            tool_choice: self.tool_choice,
             stream: self.stream,
-            thinking: auto_thinking(self.provider, self.model),
             metadata: None,
             response_format: self.response_format,
-            reasoning_effort: auto_reasoning(self.provider, self.model),
-            search: self.search,
-            code_execution: self.code_execution,
-            presence_penalty: self.sampling.and_then(|s| s.presence_penalty),
-            frequency_penalty: self.sampling.and_then(|s| s.frequency_penalty),
             forwarded_surface: ForwardedSurface::default(),
+            sampling: CanonicalSampling {
+                temperature,
+                top_p: self.sampling.and_then(|s| s.top_p),
+                top_k: self.sampling.and_then(|s| s.top_k),
+                stop_sequences: self
+                    .sampling
+                    .and_then(|s| s.stop_sequences.clone())
+                    .unwrap_or_default(),
+                presence_penalty: self.sampling.and_then(|s| s.presence_penalty),
+                frequency_penalty: self.sampling.and_then(|s| s.frequency_penalty),
+            },
+            tooling: CanonicalTooling {
+                tools: self.tools,
+                tool_choice: self.tool_choice,
+                search: self.search,
+                code_execution: self.code_execution,
+            },
+            reasoning: CanonicalReasoning {
+                thinking: auto_thinking(self.provider, self.model),
+                reasoning_effort: auto_reasoning(self.provider, self.model),
+            },
         }
     }
 }

@@ -192,28 +192,28 @@ fn parse_tools_function_type_only() {
         ]
     }"#;
     let req = parse_ok(body);
-    assert_eq!(req.tools.len(), 2);
-    assert_eq!(req.tools[0].name, "search");
-    assert_eq!(req.tools[1].name, "calc");
+    assert_eq!(req.tooling.tools.len(), 2);
+    assert_eq!(req.tooling.tools[0].name, "search");
+    assert_eq!(req.tooling.tools[1].name, "calc");
 }
 
 #[test]
 fn parse_tool_choice_string_auto() {
     let req = parse_ok(br#"{"model":"gpt-4o","tool_choice":"auto"}"#);
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Auto)));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Auto)));
 }
 
 #[test]
 fn parse_tool_choice_string_none() {
     let req = parse_ok(br#"{"model":"gpt-4o","tool_choice":"none"}"#);
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::None)));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::None)));
 }
 
 #[test]
 fn parse_tool_choice_string_required() {
     let req = parse_ok(br#"{"model":"gpt-4o","tool_choice":"required"}"#);
     assert!(matches!(
-        req.tool_choice,
+        req.tooling.tool_choice,
         Some(CanonicalToolChoice::Required)
     ));
 }
@@ -221,7 +221,7 @@ fn parse_tool_choice_string_required() {
 #[test]
 fn parse_tool_choice_function_object() {
     let req = parse_ok(br#"{"model":"gpt-4o","tool_choice":{"type":"function","name":"search"}}"#);
-    match req.tool_choice {
+    match req.tooling.tool_choice {
         Some(CanonicalToolChoice::Tool(n)) => assert_eq!(n, "search"),
         other => panic!("expected Tool, got {other:?}"),
     }
@@ -245,7 +245,7 @@ fn parse_reasoning_effort_low_medium_high() {
     for (eff, exp_budget) in [("low", 1024u32), ("medium", 4096), ("high", 16384)] {
         let body = format!(r#"{{"model":"gpt-4o","reasoning":{{"effort":"{eff}"}}}}"#);
         let req = parse_ok(body.as_bytes());
-        let t = req.thinking.expect("thinking present");
+        let t = req.reasoning.thinking.expect("thinking present");
         assert!(t.enabled);
         assert_eq!(t.budget_tokens, Some(exp_budget));
     }
@@ -254,7 +254,7 @@ fn parse_reasoning_effort_low_medium_high() {
 #[test]
 fn parse_reasoning_empty_effort_disabled() {
     let req = parse_ok(br#"{"model":"gpt-4o","reasoning":{"effort":""}}"#);
-    let t = req.thinking.expect("thinking present");
+    let t = req.reasoning.thinking.expect("thinking present");
     assert!(!t.enabled);
     assert!(t.budget_tokens.is_none());
 }
@@ -268,8 +268,8 @@ fn parse_max_output_tokens_override() {
 #[test]
 fn parse_temperature_top_p_round_trip() {
     let req = parse_ok(br#"{"model":"gpt-4o","temperature":0.5,"top_p":0.8}"#);
-    assert_eq!(req.temperature, Some(0.5));
-    assert_eq!(req.top_p, Some(0.8));
+    assert_eq!(req.sampling.temperature, Some(0.5));
+    assert_eq!(req.sampling.top_p, Some(0.8));
 }
 
 #[test]

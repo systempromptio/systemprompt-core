@@ -7,8 +7,9 @@ use std::collections::HashMap;
 
 use serde_json::json;
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, Role, SystemBlock, ThinkingConfig,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTool, CanonicalToolChoice, CanonicalTooling, ImageSource, Role, SystemBlock,
+    ThinkingConfig,
 };
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_gateway::protocol::outbound::gemini::GeminiOutbound;
@@ -111,31 +112,37 @@ fn rich_request() -> CanonicalRequest {
             },
         ],
         max_tokens: 100,
-        temperature: Some(0.5),
-        top_p: Some(0.9),
-        top_k: Some(40),
-        stop_sequences: vec!["END".into(), "STOP".into()],
-        tools: vec![CanonicalTool {
-            anthropic_definition: None,
-            name: "search".into(),
-            description: Some("web search".into()),
-            input_schema: json!({"type": "object"}),
-            cache_control: None,
-        }],
-        tool_choice: Some(CanonicalToolChoice::Tool("search".into())),
         stream: false,
-        thinking: Some(ThinkingConfig {
-            enabled: true,
-            budget_tokens: Some(2048),
-        }),
         metadata: Some(json!({"trace": "abc"})),
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: Some(0.5),
+            top_p: Some(0.9),
+            top_k: Some(40),
+            stop_sequences: vec!["END".into(), "STOP".into()],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![CanonicalTool {
+                anthropic_definition: None,
+                name: "search".into(),
+                description: Some("web search".into()),
+                input_schema: json!({"type": "object"}),
+                cache_control: None,
+            }],
+            tool_choice: Some(CanonicalToolChoice::Tool("search".into())),
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: Some(ThinkingConfig {
+                enabled: true,
+                budget_tokens: Some(2048),
+            }),
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -311,22 +318,28 @@ async fn anthropic_outbound_no_system_no_tools() {
             content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 16,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     };
     let ctx = OutboundCtx {
         target: &r,

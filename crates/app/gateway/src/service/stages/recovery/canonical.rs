@@ -64,7 +64,7 @@ pub(super) fn replace_canonical(request: &mut CanonicalRequest, replacements: &[
     for message in &mut request.messages {
         replace_content(&mut message.content, replacements);
     }
-    for tool in &mut request.tools {
+    for tool in &mut request.tooling.tools {
         if let Some(description) = &mut tool.description {
             replace_text(description, replacements);
         }

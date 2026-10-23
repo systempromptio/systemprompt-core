@@ -5,7 +5,9 @@ use systemprompt_gateway::{
 use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::EndpointRef;
 use systemprompt_manifest::services::{GatewayRoute, ModelGlobs, RouteDeployment};
-use systemprompt_wire::canonical::CanonicalRequest;
+use systemprompt_wire::canonical::{
+    CanonicalReasoning, CanonicalRequest, CanonicalSampling, CanonicalTooling,
+};
 
 fn pinned(provider: &str) -> Vec<RouteDeployment> {
     vec![RouteDeployment::Endpoint(EndpointRef::new(provider, "api"))]
@@ -30,22 +32,28 @@ fn req(model: &str) -> CanonicalRequest {
         system: Vec::new(),
         messages: Vec::new(),
         max_tokens: 0,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

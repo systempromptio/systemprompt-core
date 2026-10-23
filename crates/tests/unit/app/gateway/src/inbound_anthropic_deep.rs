@@ -332,11 +332,11 @@ fn parse_optional_sampling_params() {
         "messages":[{"role":"user","content":"x"}]
     }"#;
     let req = parse_ok(body);
-    assert_eq!(req.temperature, Some(0.7));
-    assert_eq!(req.top_p, Some(0.9));
-    assert_eq!(req.top_k, Some(40));
+    assert_eq!(req.sampling.temperature, Some(0.7));
+    assert_eq!(req.sampling.top_p, Some(0.9));
+    assert_eq!(req.sampling.top_k, Some(40));
     assert_eq!(
-        req.stop_sequences,
+        req.sampling.stop_sequences,
         vec!["END".to_owned(), "STOP".to_owned()]
     );
 }
@@ -352,32 +352,32 @@ fn parse_tools_array() {
         "messages":[{"role":"user","content":"x"}]
     }"#;
     let req = parse_ok(body);
-    assert_eq!(req.tools.len(), 2);
-    assert_eq!(req.tools[0].name, "search");
-    assert_eq!(req.tools[0].description.as_deref(), Some("web"));
-    assert_eq!(req.tools[1].name, "calc");
-    assert!(req.tools[1].description.is_none());
+    assert_eq!(req.tooling.tools.len(), 2);
+    assert_eq!(req.tooling.tools[0].name, "search");
+    assert_eq!(req.tooling.tools[0].description.as_deref(), Some("web"));
+    assert_eq!(req.tooling.tools[1].name, "calc");
+    assert!(req.tooling.tools[1].description.is_none());
 }
 
 #[test]
 fn parse_tool_choice_auto() {
     let body = br#"{"model":"m","max_tokens":1,"tool_choice":{"type":"auto"},"messages":[{"role":"user","content":"x"}]}"#;
     let req = parse_ok(body);
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Auto)));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Auto)));
 }
 
 #[test]
 fn parse_tool_choice_any() {
     let body = br#"{"model":"m","max_tokens":1,"tool_choice":{"type":"any"},"messages":[{"role":"user","content":"x"}]}"#;
     let req = parse_ok(body);
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Any)));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Any)));
 }
 
 #[test]
 fn parse_tool_choice_named() {
     let body = br#"{"model":"m","max_tokens":1,"tool_choice":{"type":"tool","name":"search"},"messages":[{"role":"user","content":"x"}]}"#;
     let req = parse_ok(body);
-    match req.tool_choice {
+    match req.tooling.tool_choice {
         Some(CanonicalToolChoice::Tool(name)) => assert_eq!(name, "search"),
         other => panic!("expected Tool, got {other:?}"),
     }
@@ -391,7 +391,7 @@ fn parse_thinking_enabled() {
         "messages":[{"role":"user","content":"x"}]
     }"#;
     let req = parse_ok(body);
-    let t = req.thinking.expect("thinking present");
+    let t = req.reasoning.thinking.expect("thinking present");
     assert!(t.enabled);
     assert_eq!(t.budget_tokens, Some(1024));
 }
@@ -407,7 +407,7 @@ fn parse_thinking_adaptive_is_enabled_without_a_budget() {
         "messages":[{"role":"user","content":"x"}]
     }"#;
     let req = parse_ok(body);
-    let t = req.thinking.expect("thinking present");
+    let t = req.reasoning.thinking.expect("thinking present");
     assert!(t.enabled);
     assert_eq!(t.budget_tokens, None);
 }

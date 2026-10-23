@@ -9,7 +9,8 @@ use systemprompt_identifiers::ModelId;
 use systemprompt_wire::inspect::ForwardedSurface;
 
 use super::super::super::canonical::{
-    CanonicalRequest, CanonicalTool, CanonicalToolChoice, SystemBlock, ThinkingConfig,
+    CanonicalReasoning, CanonicalRequest, CanonicalSampling, CanonicalTool, CanonicalToolChoice,
+    CanonicalTooling, SystemBlock, ThinkingConfig,
 };
 use super::super::InboundParseError;
 use super::input::parse_input;
@@ -57,24 +58,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .map(parse_input)
         .transpose()?
         .unwrap_or_else(Vec::new);
-    let temperature = value
-        .get("temperature")
-        .and_then(Value::as_f64)
-        .map(|v| v as f32);
-    let top_p = value.get("top_p").and_then(Value::as_f64).map(|v| v as f32);
-    let stop_sequences = value
-        .get("stop")
-        .and_then(|v| match v {
-            Value::String(s) => Some(vec![s.clone()]),
-            Value::Array(arr) => Some(
-                arr.iter()
-                    .filter_map(|x| x.as_str().map(str::to_owned))
-                    .collect(),
-            ),
-            _ => None,
-        })
-        .unwrap_or_else(Vec::new);
-
+    let sampling = parse_sampling(value);
     let tools = value
         .get("tools")
         .and_then(Value::as_array)
@@ -94,23 +78,51 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         system,
         messages,
         max_tokens,
+        stream,
+        metadata,
+        response_format: None,
+        forwarded_surface: ForwardedSurface::default(),
+        sampling,
+        tooling: CanonicalTooling {
+            tools,
+            tool_choice,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking,
+            reasoning_effort: None,
+        },
+    })
+}
+
+// JSON: inbound wire JSON, parsed leniently into canonical form.
+fn parse_sampling(value: &Value) -> CanonicalSampling {
+    let temperature = value
+        .get("temperature")
+        .and_then(Value::as_f64)
+        .map(|v| v as f32);
+    let top_p = value.get("top_p").and_then(Value::as_f64).map(|v| v as f32);
+    let stop_sequences = value
+        .get("stop")
+        .and_then(|v| match v {
+            Value::String(s) => Some(vec![s.clone()]),
+            Value::Array(arr) => Some(
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(str::to_owned))
+                    .collect(),
+            ),
+            _ => None,
+        })
+        .unwrap_or_else(Vec::new);
+    CanonicalSampling {
         temperature,
         top_p,
         top_k: None,
         stop_sequences,
-        tools,
-        tool_choice,
-        stream,
-        thinking,
-        metadata,
-        response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
-        forwarded_surface: ForwardedSurface::default(),
-    })
+    }
 }
 
 // JSON: OpenAI Responses request — inbound wire JSON, parsed leniently into

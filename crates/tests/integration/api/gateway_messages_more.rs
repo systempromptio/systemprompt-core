@@ -29,7 +29,8 @@ use systemprompt_api::routes::gateway::messages::rejection::{
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, InboundAdapter, Role,
 };
 use systemprompt_governance::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
@@ -104,22 +105,28 @@ fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
         system: Vec::new(),
         messages,
         max_tokens: 128,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

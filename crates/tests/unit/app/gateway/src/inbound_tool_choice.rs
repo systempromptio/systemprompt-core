@@ -97,12 +97,12 @@ fn anthropic_accepts_object_forms() {
     let req = AnthropicMessagesInbound
         .parse_request(&anthropic_body(&json!({"type": "any"})))
         .expect("parse");
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Any)));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Any)));
 
     let req = AnthropicMessagesInbound
         .parse_request(&anthropic_body(&json!({"type": "tool", "name": "f"})))
         .expect("parse");
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Tool(ref n)) if n == "f"));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Tool(ref n)) if n == "f"));
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn openai_chat_accepts_string_and_function_forms() {
         .parse_request(&chat_body(&json!("required")))
         .expect("parse");
     assert!(matches!(
-        req.tool_choice,
+        req.tooling.tool_choice,
         Some(CanonicalToolChoice::Required)
     ));
 
@@ -134,7 +134,7 @@ fn openai_chat_accepts_string_and_function_forms() {
     let req = OpenAiChatInbound
         .parse_request(&chat_body(&choice))
         .expect("parse");
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Tool(ref n)) if n == "f"));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Tool(ref n)) if n == "f"));
 }
 
 #[test]
@@ -157,13 +157,13 @@ fn openai_responses_accepts_string_and_function_forms() {
     let req = OpenAiResponsesInbound
         .parse_request(&responses_body(&json!("auto")))
         .expect("parse");
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Auto)));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Auto)));
 
     let choice = json!({"type": "function", "name": "f"});
     let req = OpenAiResponsesInbound
         .parse_request(&responses_body(&choice))
         .expect("parse");
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Tool(ref n)) if n == "f"));
+    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Tool(ref n)) if n == "f"));
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn openai_responses_accepts_hosted_tool_forms() {
             .parse_request(&responses_body(&form))
             .expect("a hosted tool choice is valid client input");
         assert!(
-            req.tool_choice.is_none(),
+            req.tooling.tool_choice.is_none(),
             "a hosted tool the gateway does not proxy carries no canonical constraint"
         );
     }

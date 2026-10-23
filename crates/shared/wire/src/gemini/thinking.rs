@@ -24,7 +24,7 @@ pub(super) fn thinking_config(
     let cap = limits.map(|l| l.max_output_tokens);
     let text = crate::clamp_output_tokens(request.max_tokens, cap);
     let max_budget = limits.and_then(|l| l.max_thinking_budget);
-    let Some(thinking) = request.thinking else {
+    let Some(thinking) = request.reasoning.thinking else {
         return (None, headroom_ceiling(text, cap, max_budget));
     };
     if !thinking.enabled {

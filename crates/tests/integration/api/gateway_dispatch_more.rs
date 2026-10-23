@@ -16,7 +16,8 @@ use systemprompt_api::routes::gateway::messages::error::RejectionError;
 use systemprompt_gateway::OverridePolicy;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::protocol::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, Role, SystemBlock,
 };
 use systemprompt_gateway::service::finalize::{apply_system_prompt_override, attach_request_id};
 use systemprompt_gateway::service::{
@@ -156,22 +157,28 @@ fn canonical() -> CanonicalRequest {
             content: vec![CanonicalContent::text("hi".to_owned())],
         }],
         max_tokens: 32,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

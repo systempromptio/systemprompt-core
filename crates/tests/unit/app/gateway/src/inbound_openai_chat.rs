@@ -139,13 +139,13 @@ fn parse_tools_tool_choice_effort_and_response_format() {
             "response_format":{"type":"json_schema","json_schema":{"name":"out","strict":true,"schema":{"type":"object"}}},
             "stream":true}"#,
     );
-    assert_eq!(req.tools.len(), 1);
-    assert_eq!(req.tools[0].name, "f");
+    assert_eq!(req.tooling.tools.len(), 1);
+    assert_eq!(req.tooling.tools[0].name, "f");
     assert!(matches!(
-        req.tool_choice,
+        req.tooling.tool_choice,
         Some(CanonicalToolChoice::Tool(ref n)) if n == "f"
     ));
-    assert_eq!(req.reasoning_effort, Some(ReasoningEffort::Low));
+    assert_eq!(req.reasoning.reasoning_effort, Some(ReasoningEffort::Low));
     assert!(matches!(
         req.response_format,
         Some(ResponseFormat::JsonSchema { ref name, strict: true, .. }) if name == "out"

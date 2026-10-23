@@ -71,7 +71,12 @@ pub fn build_request_body(
         obj.insert("system".into(), system_to_anthropic(request));
     }
     insert_sampling_params(&mut obj, request);
-    let mut tools: Vec<Value> = request.tools.iter().map(tool_to_anthropic).collect();
+    let mut tools: Vec<Value> = request
+        .tooling
+        .tools
+        .iter()
+        .map(tool_to_anthropic)
+        .collect();
     let forced_tool: Option<&str> = if let Some(ResponseFormat::JsonSchema {
         name,
         schema,
@@ -83,15 +88,15 @@ pub fn build_request_body(
     } else {
         None
     };
-    let searching = request.search.is_some();
-    if let Some(search) = &request.search {
+    let searching = request.tooling.search.is_some();
+    if let Some(search) = &request.tooling.search {
         tools.push(web_search_tool(search));
     }
     if !tools.is_empty() {
         obj.insert("tools".into(), Value::Array(tools));
     }
     if searching {
-        if let Some(thinking) = &request.thinking {
+        if let Some(thinking) = &request.reasoning.thinking {
             insert_thinking(&mut obj, thinking);
         }
         if let Some(meta) = &request.metadata {
@@ -104,13 +109,13 @@ pub fn build_request_body(
             "tool_choice".into(),
             json!({ "type": "tool", "name": name }),
         );
-    } else if let Some(tc) = &request.tool_choice {
+    } else if let Some(tc) = &request.tooling.tool_choice {
         obj.insert("tool_choice".into(), tool_choice_to_anthropic(tc));
     }
     if request.stream {
         obj.insert("stream".into(), Value::Bool(true));
     }
-    if let Some(thinking) = &request.thinking {
+    if let Some(thinking) = &request.reasoning.thinking {
         insert_thinking(&mut obj, thinking);
     }
     if let Some(meta) = &request.metadata {
@@ -150,17 +155,20 @@ fn system_to_anthropic(request: &CanonicalRequest) -> Value {
 
 // JSON: Anthropic Messages API request body; upstream JSON is the contract.
 fn insert_sampling_params(obj: &mut Map<String, Value>, request: &CanonicalRequest) {
-    if let Some(t) = request.temperature {
+    if let Some(t) = request.sampling.temperature {
         obj.insert("temperature".into(), json!(t));
     }
-    if let Some(p) = request.top_p {
+    if let Some(p) = request.sampling.top_p {
         obj.insert("top_p".into(), json!(p));
     }
-    if let Some(k) = request.top_k {
+    if let Some(k) = request.sampling.top_k {
         obj.insert("top_k".into(), json!(k));
     }
-    if !request.stop_sequences.is_empty() {
-        obj.insert("stop_sequences".into(), json!(request.stop_sequences));
+    if !request.sampling.stop_sequences.is_empty() {
+        obj.insert(
+            "stop_sequences".into(),
+            json!(request.sampling.stop_sequences),
+        );
     }
 }
 

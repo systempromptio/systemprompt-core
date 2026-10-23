@@ -15,9 +15,10 @@ pub mod outbound;
 pub use systemprompt_wire::canonical;
 
 pub use canonical::{
-    CacheControl, CacheTtl, CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalRequest,
-    CanonicalResponse, CanonicalStopReason, CanonicalTool, CanonicalToolChoice, CanonicalUsage,
-    CanonicalUsageUpdate, ContentBlockKind, ImageSource, Role, SystemBlock, ThinkingConfig,
+    CacheControl, CacheTtl, CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalReasoning,
+    CanonicalRequest, CanonicalResponse, CanonicalSampling, CanonicalStopReason, CanonicalTool,
+    CanonicalToolChoice, CanonicalTooling, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
+    ImageSource, Role, SystemBlock, ThinkingConfig,
 };
 pub use inbound::{InboundAdapter, InboundParseError, anthropic_messages, openai_responses};
 pub use outbound::{
