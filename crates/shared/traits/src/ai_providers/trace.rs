@@ -31,7 +31,7 @@ pub enum TraceSampleMode {
     Conversation,
 }
 
-/// Selection over completed, non-synthetic, user-attributed requests.
+/// Selection over completed, production-traffic, user-attributed requests.
 ///
 /// Rows attributed to a `job` actor are always excluded: judge and replay
 /// inference is attributed to a job, so without the exclusion each run would

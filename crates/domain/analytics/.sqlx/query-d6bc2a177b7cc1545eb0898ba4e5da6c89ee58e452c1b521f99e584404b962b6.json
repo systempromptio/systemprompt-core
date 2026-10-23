@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                COALESCE(SUM(request_count), 0)::bigint as \"requests!\",\n                SUM(cost_microdollars)::bigint as \"cost\",\n                SUM(tokens)::bigint as \"tokens\",\n                SUM(reasoning_tokens)::bigint as \"reasoning_tokens\",\n                SUM(cache_read_tokens)::bigint as \"cache_read_tokens\",\n                SUM(cache_creation_tokens)::bigint as \"cache_creation_tokens\"\n            FROM report_ai_usage_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2\n              AND NOT synthetic AND user_id = $3\n            ",
+  "query": "\n            SELECT\n                COALESCE(SUM(request_count), 0)::bigint as \"requests!\",\n                SUM(cost_microdollars)::bigint as \"cost\",\n                SUM(tokens)::bigint as \"tokens\",\n                SUM(reasoning_tokens)::bigint as \"reasoning_tokens\",\n                SUM(cache_read_tokens)::bigint as \"cache_read_tokens\",\n                SUM(cache_creation_tokens)::bigint as \"cache_creation_tokens\"\n            FROM report_ai_usage_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2\n              AND traffic = 'production'\n            ",
   "describe": {
     "columns": [
       {
@@ -43,8 +43,7 @@
     "parameters": {
       "Left": [
         "Timestamptz",
-        "Timestamptz",
-        "Text"
+        "Timestamptz"
       ]
     },
     "nullable": [
@@ -56,5 +55,5 @@
       null
     ]
   },
-  "hash": "774762713e61b9962a993c34c9ad09393d3caa291ed7abd014d1edc801ba4cea"
+  "hash": "d6bc2a177b7cc1545eb0898ba4e5da6c89ee58e452c1b521f99e584404b962b6"
 }

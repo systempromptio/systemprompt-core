@@ -50,7 +50,7 @@ impl AiUsageAnomalyRepository {
                        COALESCE(SUM(cost_microdollars), 0)::BIGINT AS cost
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
-                  AND status = $3 AND synthetic = FALSE
+                  AND status = $3 AND traffic = 'production'
                 GROUP BY user_id
             ),
             baseline AS (
@@ -58,7 +58,7 @@ impl AiUsageAnomalyRepository {
                        COALESCE(SUM(cost_microdollars), 0)::BIGINT AS cost
                 FROM ai_requests
                 WHERE created_at >= $1 - INTERVAL '7 days' AND created_at < $1
-                  AND status = $3 AND synthetic = FALSE
+                  AND status = $3 AND traffic = 'production'
                   AND user_id IN (SELECT user_id FROM observed)
                 GROUP BY user_id
             )

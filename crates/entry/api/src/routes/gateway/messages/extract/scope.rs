@@ -12,6 +12,11 @@
 //!    the provider's `default_attribution` is `false`, in which case the
 //!    dimension is header-only and the request carries no value for it.
 //!
+//! A provider's key-bound values are held by no user: a request carries one
+//! only when its API key is bound to that value, whether or not a header
+//! repeats it. A refused claim of one is not recorded on the attribution, so
+//! the rejected request keeps the class it actually holds.
+//!
 //! A header naming a dimension no provider registers is `400`, and a dimension
 //! listed in `gateway.require_scopes` that resolves to nothing is `400
 //! scope_required`.
@@ -108,12 +113,19 @@ pub fn resolve_scope_attribution(
         let held = input.subject.values(&provider.dimension().rule_type);
         match claimed {
             Some((value, source)) => {
-                let holds = held.iter().any(|h| h == value);
-                partial.attribution.entries.push(AttributionEntry {
-                    dimension: dimension.clone(),
-                    value: value.to_owned(),
-                    source,
-                });
+                let key_bound = provider.key_bound_values().contains(&value);
+                let holds = if key_bound {
+                    key_binds(&input, &dimension, value)
+                } else {
+                    held.iter().any(|h| h == value)
+                };
+                if holds || !key_bound {
+                    partial.attribution.entries.push(AttributionEntry {
+                        dimension: dimension.clone(),
+                        value: value.to_owned(),
+                        source,
+                    });
+                }
                 if !holds {
                     return Err(RejectionError::client(
                         StatusCode::FORBIDDEN,
@@ -186,6 +198,13 @@ fn claimed_value<'a>(
                 .find(|b| &b.dimension == dimension)
                 .map(|b| (b.value.as_str(), AttributionSource::ApiKey))
         })
+}
+
+fn key_binds(input: &ScopeResolution<'_>, dimension: &ScopeDimension, value: &str) -> bool {
+    input
+        .key_bindings
+        .iter()
+        .any(|b| &b.dimension == dimension && b.value == value)
 }
 
 fn ensure_required(

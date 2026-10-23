@@ -40,7 +40,7 @@ impl CostAnalyticsRepository {
                 SUM(cache_creation_tokens)::bigint as "cache_creation_tokens"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic
+              AND traffic = 'production'
             "#,
             start,
             end
@@ -61,7 +61,7 @@ impl CostAnalyticsRepository {
             SELECT SUM(cost_microdollars)::bigint as "cost"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic
+              AND traffic = 'production'
             "#,
             start,
             end
@@ -87,7 +87,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens), 0)::bigint as "tokens!"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic
+              AND traffic = 'production'
               AND model <> ''
             GROUP BY model
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -118,7 +118,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens), 0)::bigint as "tokens!"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic
+              AND traffic = 'production'
               AND provider <> ''
             GROUP BY provider
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -152,7 +152,7 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(user_key_tokens), 0)::bigint AS key_tokens
                 FROM report_ai_usage_hourly
                 WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-                  AND NOT synthetic
+                  AND traffic = 'production'
             )
             SELECT
                 split.name as "name!",
@@ -197,7 +197,7 @@ impl CostAnalyticsRepository {
             FROM report_ai_requests r
             LEFT JOIN report_users u ON u.id = r.user_id
             WHERE r.created_at >= $1 AND r.created_at < $2
-              AND NOT r.synthetic
+              AND r.traffic = 'production'
             GROUP BY r.user_id, u.name
             ORDER BY SUM(r.cost_microdollars) DESC NULLS LAST
             LIMIT $3
@@ -228,7 +228,7 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(tokens), 0)::bigint as "tokens!"
                 FROM report_ai_usage_hourly
                 WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-                  AND NOT synthetic
+                  AND traffic = 'production'
                   AND agent_name <> ''
                 GROUP BY agent_name
                 ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -243,7 +243,7 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(tokens), 0)::bigint as "tokens!"
                 FROM report_ai_usage_hourly
                 WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-                  AND NOT synthetic
+                  AND traffic = 'production'
                   AND agent_name = ''
                 HAVING SUM(request_count) > 0
             )
@@ -271,7 +271,7 @@ impl CostAnalyticsRepository {
                 tokens_used
             FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
-              AND NOT synthetic
+              AND traffic = 'production'
             ORDER BY created_at
             "#,
             start,

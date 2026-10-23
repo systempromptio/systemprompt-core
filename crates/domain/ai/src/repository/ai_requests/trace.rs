@@ -67,7 +67,7 @@ async fn sample_requests(
         LEFT JOIN ai_tool_catalogs c ON c.sha256 = p.offered_tools_sha256
         WHERE r.status = $8
           AND r.actor_kind <> 'job'
-          AND NOT r.synthetic
+          AND r.traffic = 'production'
           AND ($1::timestamptz IS NULL OR r.created_at >= $1)
           AND ($2::timestamptz IS NULL OR r.created_at < $2)
           AND ($3::text IS NULL OR r.provider = $3)
@@ -119,7 +119,7 @@ async fn sample_conversations(
             LEFT JOIN ai_tool_catalogs c ON c.sha256 = p.offered_tools_sha256
             WHERE r.status = $8
               AND r.actor_kind <> 'job'
-              AND NOT r.synthetic
+              AND r.traffic = 'production'
               AND ($1::timestamptz IS NULL OR r.created_at >= $1)
               AND ($2::timestamptz IS NULL OR r.created_at < $2)
               AND ($3::text IS NULL OR r.provider = $3)

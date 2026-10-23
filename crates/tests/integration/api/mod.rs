@@ -586,6 +586,10 @@ mod api_error_redaction;
 mod gateway_attribution;
 
 #[cfg(test)]
+#[path = "gateway_traffic.rs"]
+mod gateway_traffic;
+
+#[cfg(test)]
 #[path = "gateway_quota_reservation.rs"]
 mod gateway_quota_reservation;
 

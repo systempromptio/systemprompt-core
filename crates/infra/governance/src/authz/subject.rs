@@ -98,6 +98,11 @@ pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
 /// attribution for it, while a header or key binding is still verified against
 /// `values_for`.
 ///
+/// `key_bound_values` are values no user holds: an API key bound to one
+/// carries it, and a header may name it only when the authenticating key is
+/// bound to that same value. Key issuance accepts them without a membership
+/// check, so binding one is the issuer's authority, never the caller's.
+///
 /// `#[async_trait]` because providers are held as
 /// [`SharedSubjectAttributeProvider`], an `Arc<dyn …>`, so the trait must stay
 /// `dyn`-compatible.
@@ -109,6 +114,10 @@ pub trait SubjectAttributeProvider: Send + Sync + Debug {
 
     fn default_attribution(&self) -> bool {
         true
+    }
+
+    fn key_bound_values(&self) -> &'static [&'static str] {
+        &[]
     }
 }
 

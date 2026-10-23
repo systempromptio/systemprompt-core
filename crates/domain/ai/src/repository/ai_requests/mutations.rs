@@ -9,6 +9,7 @@ use systemprompt_identifiers::{
     AiRequestId, ApiKeyId, ClientSessionId, ContextId, GatewayConversationId, InstanceId,
     McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
+use systemprompt_models::attribution::TrafficClass;
 use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
@@ -138,18 +139,29 @@ impl AiRequestRepository {
     }
 }
 
+fn traffic_of(record: &AiRequestRecord) -> Result<TrafficClass, RepositoryError> {
+    TrafficClass::of(&record.attribution).ok_or_else(|| {
+        RepositoryError::invalid_argument("attribution.traffic", "not a traffic class")
+    })
+}
+
+const fn is_terminal(status: RequestStatus) -> bool {
+    matches!(
+        status,
+        RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
+    )
+}
+
 pub(super) async fn insert_request_row(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     id: &AiRequestId,
     record: &AiRequestRecord,
     has_offered_tools: bool,
 ) -> Result<bool, RepositoryError> {
-    let use_completed_at = matches!(
-        record.status,
-        RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
-    );
+    let use_completed_at = is_terminal(record.status);
     let (actor_kind, actor_id) = record.actor.audit_columns();
     let api_key_id = record.attribution.api_key_id.as_ref().map(ApiKeyId::as_str);
+    let traffic = traffic_of(record)?;
 
     let inserted = sqlx::query!(
             r#"
@@ -162,12 +174,13 @@ pub(super) async fn insert_request_row(
                 actor_kind, actor_id, requested_model, instance_id, reasoning_tokens,
                 client_session_id, request_kind, client_kind, wire_protocol,
                 client_attestation, api_key_id, has_offered_tools, credential, endpoint,
-                created_at, updated_at, completed_at
+                traffic, created_at, updated_at, completed_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
                 $25, $26, $27, $28, $29, $31, $32, $33, $34, $35, $36, $37, $38, $39,
+                $40,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
                 CASE WHEN $30 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
@@ -212,7 +225,8 @@ pub(super) async fn insert_request_row(
             api_key_id,
             has_offered_tools,
             record.hop.as_ref().map(|h| h.credential.as_str()),
-            record.hop.as_ref().map(|h| h.endpoint.as_str())
+            record.hop.as_ref().map(|h| h.endpoint.as_str()),
+            traffic.as_str()
         )
         .fetch_optional(&mut **tx)
         .await?;

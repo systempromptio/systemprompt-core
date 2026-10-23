@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                model as \"name!\",\n                COALESCE(SUM(cost_microdollars), 0)::bigint as \"cost!\",\n                SUM(request_count)::bigint as \"requests!\",\n                COALESCE(SUM(tokens), 0)::bigint as \"tokens!\"\n            FROM report_ai_usage_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2\n              AND NOT synthetic\n              AND model <> ''\n            GROUP BY model\n            ORDER BY SUM(cost_microdollars) DESC NULLS LAST\n            LIMIT $3\n            ",
+  "query": "\n            SELECT\n                model as \"name!\",\n                COALESCE(SUM(cost_microdollars), 0)::bigint as \"cost!\",\n                SUM(request_count)::bigint as \"requests!\",\n                COALESCE(SUM(tokens), 0)::bigint as \"tokens!\"\n            FROM report_ai_usage_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2\n              AND traffic = 'production' AND user_id = $4\n              AND model <> ''\n            GROUP BY model\n            ORDER BY SUM(cost_microdollars) DESC NULLS LAST\n            LIMIT $3\n            ",
   "describe": {
     "columns": [
       {
@@ -37,7 +37,8 @@
       "Left": [
         "Timestamptz",
         "Timestamptz",
-        "Int8"
+        "Int8",
+        "Text"
       ]
     },
     "nullable": [
@@ -47,5 +48,5 @@
       null
     ]
   },
-  "hash": "5e170269c10ebe0171b3c131c52273fbc9eea50c79cd94388ccd17b9dbdb1473"
+  "hash": "3b918beedf008dd7eb212184ff5cb29089d5469712fe545153a373ebd8127f69"
 }

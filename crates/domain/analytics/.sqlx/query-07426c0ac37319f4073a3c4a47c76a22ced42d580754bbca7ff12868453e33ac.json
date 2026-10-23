@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                model as \"name!\",\n                COUNT(DISTINCT context_id)::bigint as \"conversations!\",\n                COUNT(*)::bigint as \"ai_requests!\"\n            FROM report_ai_requests\n            WHERE created_at >= $1 AND created_at < $2\n              AND NOT synthetic\n              AND user_id = $3\n              AND context_id IS NOT NULL\n              AND model IS NOT NULL\n            GROUP BY model\n            ORDER BY COUNT(DISTINCT context_id) DESC\n            LIMIT $4\n            ",
+  "query": "\n            SELECT\n                model as \"name!\",\n                COUNT(DISTINCT context_id)::bigint as \"conversations!\",\n                COUNT(*)::bigint as \"ai_requests!\"\n            FROM report_ai_requests\n            WHERE created_at >= $1 AND created_at < $2\n              AND traffic = 'production'\n              AND user_id = $3\n              AND context_id IS NOT NULL\n              AND model IS NOT NULL\n            GROUP BY model\n            ORDER BY COUNT(DISTINCT context_id) DESC\n            LIMIT $4\n            ",
   "describe": {
     "columns": [
       {
@@ -41,5 +41,5 @@
       null
     ]
   },
-  "hash": "7c7537bbb4c4c7bf5b5ae56e14fb46b071501bc96b047ab97dc0acf9c9cb0c6e"
+  "hash": "07426c0ac37319f4073a3c4a47c76a22ced42d580754bbca7ff12868453e33ac"
 }

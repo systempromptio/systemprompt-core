@@ -12,6 +12,7 @@
 - **Breaking:** `PublicationRequest` gains `cohort: Option<CohortSelector>` (serde default `None`). Migrate by adding `cohort: None` to struct literals.
 - **Breaking:** a publication's `expected_generation` is compared against the resource's latest publication generation, base or cohort, instead of the base selection's. Migrate by reading `ManagedRepository::publication_head_generation` before publishing to a resource that has cohort publications.
 - **Breaking:** `ServicesConfig` gains `marketplace: Option<ManagedMarketplaceConfig>`. Migrate by adding `marketplace: None` to struct literals that do not spread `..Default::default()`.
+- **Breaking:** `ai_requests.synthetic` and `ai_usage_rollup_hourly.synthetic` are replaced by `traffic TEXT` (`production` | `evaluation`, migration `ai/052`); the rollup's primary key, `report_ai_requests` and `report_ai_usage_hourly` carry `traffic` instead. A `synthetic` row becomes `evaluation`. Migrate by filtering `traffic = 'production'` where a query read `NOT synthetic`.
 
 ### Added
 
@@ -24,6 +25,9 @@
 - Cohort publication: a request with a `cohort` selects a revision for one `marketplace.rings` entry (`role` or a registered subject dimension), stored in `managed_publication_cohort_selections` (migration `marketplace/019_publication_cohorts`); `Withdraw` with a cohort clears that override.
 - `ManagedRepository::list_skill_resolutions_for(owner, consumer)` resolves each skill through the consumer's first matching ring with a cohort selection, else the base selection; a ring on an unregistered dimension fails resolution. `with_organization_skills` uses it, and `managed_catalog_stamp` covers cohort selections and the consumer's ring membership.
 - `ManagedRepository::with_publication_policy` and `PublicationPolicy::{new, discover}` inject the gates, the `marketplace:` services block and the subject providers at the composition root.
+- **Governance:** a built-in `traffic` subject dimension (`TrafficProvider`). Every caller holds `production`; `evaluation` is reachable only through an API key bound to it (`ScopeBinding::traffic(TrafficClass::Evaluation)`), so `x-systemprompt-scope-traffic: evaluation` from an unbound caller is 403.
+- **Governance:** `SubjectAttributeProvider::key_bound_values` names values no user holds: a request carries one only through its key's binding, and key issuance accepts them without a membership check.
+- **Models:** `TrafficClass`, stamped on `ai_requests.traffic` from the request's attribution at admission.
 
 ## [0.73.0] - Unreleased
 

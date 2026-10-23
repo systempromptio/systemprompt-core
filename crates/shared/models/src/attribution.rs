@@ -90,3 +90,58 @@ pub struct ScopeBinding {
     pub dimension: ScopeDimension,
     pub value: String,
 }
+
+impl ScopeBinding {
+    #[must_use]
+    pub fn traffic(class: TrafficClass) -> Self {
+        Self {
+            dimension: ScopeDimension::new(TrafficClass::DIMENSION),
+            value: class.as_str().to_owned(),
+        }
+    }
+}
+
+/// The canonical traffic class of a request, persisted as
+/// `ai_requests.traffic`. `Evaluation` is reachable only through an API key
+/// bound to it, so production usage cannot be relabelled by a header.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TrafficClass {
+    #[default]
+    Production,
+    Evaluation,
+}
+
+impl TrafficClass {
+    pub const DIMENSION: &'static str = "traffic";
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Production => "production",
+            Self::Evaluation => "evaluation",
+        }
+    }
+
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "production" => Some(Self::Production),
+            "evaluation" => Some(Self::Evaluation),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn of(attribution: &RequestAttribution) -> Option<Self> {
+        attribution
+            .value_for(Self::DIMENSION)
+            .map_or(Some(Self::Production), Self::parse)
+    }
+}
+
+impl std::fmt::Display for TrafficClass {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}

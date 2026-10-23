@@ -41,7 +41,8 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     accounting_error TEXT,
     actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'job', 'mcp')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
-    synthetic BOOLEAN NOT NULL DEFAULT FALSE,
+    traffic TEXT NOT NULL DEFAULT 'production'
+        CONSTRAINT ai_requests_traffic_check CHECK (traffic IN ('production', 'evaluation')),
     request_kind TEXT NOT NULL DEFAULT 'turn'
         CONSTRAINT ai_requests_request_kind_check CHECK (request_kind IN ('turn', 'probe', 'utility')),
     client_kind TEXT NOT NULL DEFAULT 'unknown'
