@@ -174,15 +174,16 @@ impl AiService {
         self.clients
             .for_request(&self.catalog, provider, request.model())
             .ok_or_else(|| {
-                let routing = match provider {
-                    Some(provider) => crate::error::RoutingError::UnknownModel {
+                let model = ModelId::new(request.model());
+                let routing = provider.map_or_else(
+                    || crate::error::RoutingError::NoProviderForModel {
+                        model: model.clone(),
+                    },
+                    |provider| crate::error::RoutingError::UnknownModel {
                         provider: ProviderId::new(provider),
-                        model: ModelId::new(request.model()),
+                        model: model.clone(),
                     },
-                    None => crate::error::RoutingError::NoProviderForModel {
-                        model: ModelId::new(request.model()),
-                    },
-                };
+                );
                 crate::error::AiError::Routing(routing)
             })
     }
