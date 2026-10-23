@@ -209,3 +209,77 @@ mod act_claim_depth {
         assert_eq!(back.depth(), 2);
     }
 }
+
+mod jwt_claims_wire {
+    use super::*;
+    use systemprompt_identifiers::{ClientId, PluginId, SessionId};
+
+    fn full() -> JwtClaims {
+        JwtClaims {
+            registered: RegisteredClaims {
+                sub: "user_1".to_owned(),
+                iat: 1_000,
+                exp: 5_000,
+                nbf: Some(900),
+                iss: "test-issuer".to_owned(),
+                aud: vec![JwtAudience::Api],
+                jti: "jti-1".to_owned(),
+            },
+            custom: CustomClaims {
+                scope: vec![Permission::User],
+                username: "alice".to_owned(),
+                email: "alice@example.com".to_owned(),
+                user_type: UserType::User,
+                roles: vec!["editor".to_owned()],
+                attributes: BTreeMap::from([("team".to_owned(), serde_json::json!("core"))]),
+                client_id: Some(ClientId::new("client_1")),
+                token_type: TokenType::Bearer,
+                auth_time: 1_000,
+                session_id: Some(SessionId::new("sess_1")),
+                rate_limit_tier: Some(RateLimitTier::User),
+                plugin_id: Some(PluginId::new("plugin_1")),
+                act: Some(ActClaim {
+                    iss: "actor-issuer".to_owned(),
+                    sub: "actor_1".to_owned(),
+                    act: Box::new(None),
+                }),
+                purpose: Some("bridge".to_owned()),
+            },
+        }
+    }
+
+    #[test]
+    fn serialises_in_the_flat_wire_order() {
+        let json = serde_json::to_string(&full()).expect("serialise");
+        assert_eq!(
+            json,
+            r#"{"sub":"user_1","iat":1000,"exp":5000,"nbf":900,"iss":"test-issuer","aud":["api"],"jti":"jti-1","scope":"user","username":"alice","email":"alice@example.com","user_type":"user","roles":["editor"],"attributes":{"team":"core"},"client_id":"client_1","token_type":"Bearer","auth_time":1000,"session_id":"sess_1","rate_limit_tier":"user","plugin_id":"plugin_1","act":{"iss":"actor-issuer","sub":"actor_1"},"purpose":"bridge"}"#
+        );
+    }
+
+    #[test]
+    fn round_trips() {
+        let json = serde_json::to_string(&full()).expect("serialise");
+        let back: JwtClaims = serde_json::from_str(&json).expect("deserialise");
+        assert_eq!(serde_json::to_string(&back).expect("reserialise"), json);
+    }
+
+    #[test]
+    fn empty_optionals_are_omitted() {
+        let json = serde_json::to_string(&claims(vec![Permission::User], vec![])).expect("ser");
+        for key in [
+            "nbf",
+            "attributes",
+            "client_id",
+            "session_id",
+            "plugin_id",
+            "act",
+            "purpose",
+        ] {
+            assert!(
+                !json.contains(&format!("\"{key}\"")),
+                "{key} present in {json}"
+            );
+        }
+    }
+}
