@@ -120,3 +120,64 @@ async fn enqueue_refuses_unregistered_origins_and_server_paths() -> Result<()> {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     Ok(())
 }
+
+#[tokio::test]
+async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run() -> Result<()> {
+    use systemprompt_agent_runs::{
+        ErrorClass, RunEvent, RunEventKind, RunEventPayload, RunOutcome, RunStatus,
+    };
+    let (pool, ctx) = setup_ctx().await?;
+    let owner = seed_admin_credential(&pool, "agent-runs-stream").await?;
+    let state = AgentRunsState::build(&ctx);
+    let user = owner.user_id.as_str();
+    let body = json!({ "origin_kind": ORIGIN, "idempotency_key": format!("stream-{user}"), "request": request("s") });
+    let (_, created) = send(app(state.clone(), user), json_post("/", body)).await?;
+    let id = systemprompt_identifiers::AgentRunId::new(created["id"].as_str().expect("id"));
+    let events: Vec<RunEvent> = (0..3)
+        .map(|seq| RunEvent {
+            seq,
+            kind: RunEventKind::AssistantText,
+            tool_name: None,
+            tool_use_id: None,
+            payload: RunEventPayload::AssistantText {
+                text: format!("t{seq}"),
+            },
+            created_at: chrono::Utc::now(),
+        })
+        .collect();
+    state.runs().insert_events_batch(&id, &events).await?;
+    let outcome = RunOutcome {
+        status: RunStatus::Succeeded,
+        error_class: ErrorClass::Ok,
+        session_id: None,
+        cost_microdollars: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        turns: 1,
+        duration_ms: 1,
+        structured_output: None,
+        exit_code: Some(0),
+        error: None,
+        final_text: Some("t2".into()),
+    };
+    state.runs().finish(&id, &outcome, None).await?;
+
+    let req = http::Request::builder()
+        .uri(format!("/{id}/events/stream"))
+        .header("last-event-id", "0")
+        .body(axum::body::Body::empty())?;
+    let resp = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        body_to_string(app(state, user).oneshot(req).await?),
+    )
+    .await??;
+    let (status, text) = resp;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        !text.contains("\"t0\""),
+        "events at or before Last-Event-ID are not resent"
+    );
+    assert!(text.contains("t1") && text.contains("t2"));
+    assert!(text.contains("event: end"));
+    Ok(())
+}

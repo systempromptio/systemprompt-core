@@ -87,3 +87,36 @@ fn opencode_output_schema_requires_json_final_text() {
     assert_eq!(out.status, RunStatus::Succeeded);
     assert_eq!(out.structured_output, Some(serde_json::json!({"count": 2})));
 }
+
+fn class_of(kind: &str, message: &str) -> ErrorClass {
+    let line = format!(
+        r#"{{"type":"error","sessionID":"ses_1","error":{{"type":"{kind}","message":"{message}"}}}}"#
+    );
+    OpenCodeCli::default()
+        .outcome(exit(0), &decode(&line), &request())
+        .error_class
+}
+
+#[test]
+fn opencode_errors_are_classed_by_type_never_by_message() {
+    assert_eq!(
+        class_of("provider.auth", "denied"),
+        ErrorClass::ConnectorUnavailable
+    );
+    assert_eq!(
+        class_of("provider.rate-limit", "slow down"),
+        ErrorClass::ConnectorUnavailable
+    );
+    assert_eq!(
+        class_of("provider.quota", "spent"),
+        ErrorClass::BudgetExceeded
+    );
+    assert_eq!(
+        class_of("provider.invalid-output", "bad"),
+        ErrorClass::OutputInvalid
+    );
+    assert_eq!(
+        class_of("session.aborted", "upstream said 401 Unauthorized"),
+        ErrorClass::HostCrashed
+    );
+}

@@ -67,8 +67,13 @@ impl A2aRunnerConfig {
                 track_url: format!("{base}{TRACK_PATH}"),
             },
             issuer: issuer.to_owned(),
-            runs_root: data_root.join(A2A_RUNS_DIR),
+            runs_root: Self::runs_root(data_root),
         }
+    }
+
+    #[must_use]
+    pub fn runs_root(data_root: &Path) -> PathBuf {
+        data_root.join(A2A_RUNS_DIR)
     }
 
     #[must_use]

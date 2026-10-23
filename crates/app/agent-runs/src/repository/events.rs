@@ -37,6 +37,7 @@ impl AgentRunRepository {
             .map(|e| serde_json::to_value(&e.payload))
             .collect::<Result<Vec<_>, _>>()?;
         let created: Vec<DateTime<Utc>> = events.iter().map(|e| e.created_at).collect();
+        let mut tx = self.write_pool().begin().await?;
         sqlx::query!(
             r#"
             INSERT INTO agent_run_events
@@ -56,8 +57,15 @@ impl AgentRunRepository {
             &payloads,
             &created,
         )
-        .execute(self.write_pool())
+        .execute(&mut *tx)
         .await?;
+        sqlx::query_scalar!(
+            r#"SELECT 1 AS "notified!" FROM pg_notify('agent_run_events', $1)"#,
+            run_id.as_str(),
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(())
     }
 

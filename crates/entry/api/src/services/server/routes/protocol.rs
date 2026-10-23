@@ -137,13 +137,6 @@ pub(super) fn mount_agent(
     );
 
     router = router.nest(
-        ApiPaths::AGENT_RUNS,
-        crate::routes::agent_runs::router(crate::routes::agent_runs::AgentRunsState::build(ctx))
-            .with_rate_limit(limits, rate_config.tasks_per_second, "agent_runs")?
-            .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-    );
-
-    router = router.nest(
         ApiPaths::AGENTS_REGISTRY,
         crate::routes::agent::registry_router(ctx)
             .with_rate_limit(

@@ -1,28 +1,28 @@
 //! `GET /api/v1/agent-runs/{id}/events/stream`: the run's events as SSE.
 //!
-//! The stream polls the event table from the last `seq` it sent, so a
+//! The stream reads the event table from the last `seq` it sent, so a
 //! reconnect with `Last-Event-ID` resumes without loss, and ends once the
-//! run is terminal and every event has been sent.
+//! run is terminal and every event has been sent. Between reads it waits for
+//! this run's commit notification, with [`BACKSTOP`] as the re-read bound
+//! when a notification is lost.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-use std::convert::Infallible;
-use std::time::Duration;
 
 use axum::Extension;
 use axum::extract::{Path, State};
 use axum::http::HeaderMap;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures_util::Stream;
+use std::convert::Infallible;
 use systemprompt_agent_runs::RunStatus;
+use systemprompt_agent_runs::notify::BACKSTOP;
 use systemprompt_models::RequestContext;
+use tokio::sync::broadcast::error::RecvError;
 
 use super::AgentRunsState;
 use super::handlers::{EVENT_PAGE, owned_run};
 use crate::error::ApiHttpError;
-
-const POLL: Duration = Duration::from_millis(500);
 
 pub(super) async fn events_stream(
     Extension(req_ctx): Extension<RequestContext>,
@@ -36,6 +36,7 @@ pub(super) async fn events_stream(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(-1);
+    let mut wake = state.notifier.subscribe();
     let stream = async_stream::stream! {
         let mut after = after;
         loop {
@@ -71,7 +72,22 @@ pub(super) async fn events_stream(
                     yield Ok(Event::default().event("end").data(row.id.as_str()));
                     return;
                 }
-                tokio::time::sleep(POLL).await;
+                let deadline = tokio::time::sleep(BACKSTOP);
+                tokio::pin!(deadline);
+                loop {
+                    tokio::select! {
+                        () = &mut deadline => break,
+                        received = wake.recv() => match received {
+                            Ok(id) if id == row.id => break,
+                            Ok(_) => {},
+                            Err(RecvError::Lagged(_)) => break,
+                            Err(RecvError::Closed) => {
+                                deadline.as_mut().await;
+                                break;
+                            }
+                        },
+                    }
+                }
             }
         }
     };

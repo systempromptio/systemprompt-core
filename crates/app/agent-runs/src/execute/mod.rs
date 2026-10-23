@@ -128,7 +128,7 @@ async fn run(host: &dyn HeadlessHost, params: &ExecuteParams<'_>) -> AgentRunsRe
     };
     if let Some((harness_ref, bundle)) = params.harness {
         let root = harness::target_root(host.harness_targets(), params.layout, params.request);
-        if let Err(error) = harness::materialise(harness_ref, bundle, &root) {
+        if let Err(error) = harness::install(harness_ref.clone(), bundle.clone(), root).await {
             let message = error_chain(&error);
             return Ok(refused(params, ErrorClass::HarnessUnavailable, message).await);
         }

@@ -4,8 +4,10 @@
 //! (an invalid tool call exits 0), so the outcome comes from events alone.
 //! Precedence: cancelled, timed out, an `error` event, then a stream with no
 //! `text` and no `step_finish`, then the structured output check. A
-//! `provider.no-route` error or a 401/403 is the connector's fault; any
-//! other error is the host's. Tokens and turns are summed over every
+//! An `error` event is classed by its `type` alone, never by its message: a
+//! provider route, auth, transport or upstream failure is the connector's,
+//! a quota is the budget's, an unusable model output is the output's, and
+//! anything else is the host's. Tokens and turns are summed over every
 //! `step_finish`; cost is the gateway's to attribute and stays 0 here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -13,19 +15,24 @@
 
 use systemprompt_identifiers::HostSessionId;
 
-use super::events::DECODER_PREFIX;
+use super::events::{DECODER_PREFIX, ERROR_PREFIX};
 use crate::event::{RunEventPayload, RunnerLevel};
 use crate::host::ExitInfo;
 use crate::outcome::{ErrorClass, RunOutcome, RunStatus};
 use crate::request::RunRequest;
 
-const CONNECTOR_MARKERS: [&str; 5] = [
+const CONNECTOR_KINDS: [&str; 8] = [
     "provider.no-route",
-    "401",
-    "403",
-    "Unauthorized",
-    "Forbidden",
+    "provider.auth",
+    "provider.transport",
+    "provider.timeout",
+    "provider.rate-limit",
+    "provider.internal",
+    "provider.error",
+    "provider.unknown",
 ];
+const BUDGET_KINDS: [&str; 2] = ["provider.quota", "provider.free-limit"];
+const OUTPUT_KINDS: [&str; 1] = ["provider.invalid-output"];
 
 #[must_use]
 pub fn classify(exit: ExitInfo, events: &[RunEventPayload], request: &RunRequest) -> RunOutcome {
@@ -93,11 +100,18 @@ pub fn classify(exit: ExitInfo, events: &[RunEventPayload], request: &RunRequest
 }
 
 fn failure_class(message: &str) -> ErrorClass {
-    if CONNECTOR_MARKERS
-        .iter()
-        .any(|marker| message.contains(marker))
-    {
+    let Some(kind) = message
+        .strip_prefix(ERROR_PREFIX)
+        .and_then(|rest| rest.trim_start().split(':').next())
+    else {
+        return ErrorClass::HostCrashed;
+    };
+    if CONNECTOR_KINDS.contains(&kind) {
         ErrorClass::ConnectorUnavailable
+    } else if BUDGET_KINDS.contains(&kind) {
+        ErrorClass::BudgetExceeded
+    } else if OUTPUT_KINDS.contains(&kind) {
+        ErrorClass::OutputInvalid
     } else {
         ErrorClass::HostCrashed
     }

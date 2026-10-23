@@ -41,6 +41,8 @@ mod opencode;
 #[cfg(test)]
 mod opencode_outcome;
 #[cfg(test)]
+mod outputs;
+#[cfg(test)]
 mod repository;
 #[cfg(test)]
 mod runner;

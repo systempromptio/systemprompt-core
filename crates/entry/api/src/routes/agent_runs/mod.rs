@@ -17,15 +17,18 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::routing::{get, post};
+use systemprompt_agent_runs::notify::RunEventNotifier;
+use systemprompt_agent_runs::repository::AgentRunRepositories;
 use systemprompt_agent_runs::{A2aRunnerConfig, AgentRunRepository};
 use systemprompt_runtime::AppContext;
 
-/// Router-scoped state: the run repository and the run layout root, built
-/// once when the routes are mounted.
+/// Router-scoped state: the run repository, the run layout root and the one
+/// event notifier, built once when the routes are mounted.
 #[derive(Clone)]
 pub struct AgentRunsState {
     pub(crate) runs: AgentRunRepository,
     pub(crate) layouts: Arc<A2aRunnerConfig>,
+    pub(crate) notifier: RunEventNotifier,
 }
 
 impl std::fmt::Debug for AgentRunsState {
@@ -46,7 +49,11 @@ impl AgentRunsState {
     pub fn build(ctx: &AppContext) -> Self {
         let config = ctx.config();
         Self {
-            runs: AgentRunRepository::new(ctx.db_pool()),
+            runs: AgentRunRepositories::new(ctx.db_pool()).runs,
+            notifier: RunEventNotifier::spawn(
+                ctx.background_tasks(),
+                ctx.db_pool().write_pool().as_ref().clone(),
+            ),
             layouts: Arc::new(A2aRunnerConfig::new(
                 &config.api_internal_url,
                 &config.jwt_issuer,

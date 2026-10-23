@@ -3,8 +3,9 @@
 //!
 //! At most [`MAX_OUTPUT_FILES`] files and [`MAX_OUTPUT_BYTES`] in total are
 //! kept, in diff order; the rest are reported as skipped, never silently
-//! dropped. [`list`] and [`read`] serve the copies by relative path and
-//! refuse a path that leaves `outputs/`.
+//! dropped. The kept list (path, size, sha256) is written once beside the
+//! copies as [`OUTPUTS_MANIFEST`], which [`list`] reads; [`read`] serves a
+//! copy by relative path and refuses a path that leaves `outputs/`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +21,7 @@ use crate::layout::RunLayout;
 
 pub const MAX_OUTPUT_FILES: usize = 64;
 pub const MAX_OUTPUT_BYTES: u64 = 32 * 1024 * 1024;
+pub const OUTPUTS_MANIFEST: &str = "outputs.json";
 
 /// One kept output file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -78,32 +80,25 @@ pub async fn capture(
             sha256: hex::encode(Sha256::digest(&bytes)),
         });
     }
+    let index = manifest_path(layout);
+    let json = serde_json::to_vec(&capture.kept)?;
+    tokio::fs::write(&index, json)
+        .await
+        .map_err(|e| layout_error(&index, e))?;
     Ok(capture)
 }
 
+fn manifest_path(layout: &RunLayout) -> PathBuf {
+    layout.root.join(OUTPUTS_MANIFEST)
+}
+
 pub async fn list(layout: &RunLayout) -> AgentRunsResult<Vec<OutputFile>> {
-    let root = layout.outputs.clone();
-    let mut files = Vec::new();
-    for entry in walkdir::WalkDir::new(&root)
-        .follow_links(false)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|entry| entry.file_type().is_file())
-    {
-        let Ok(relative) = entry.path().strip_prefix(&root) else {
-            continue;
-        };
-        let bytes = tokio::fs::read(entry.path())
-            .await
-            .map_err(|e| layout_error(entry.path(), e))?;
-        files.push(OutputFile {
-            path: relative.to_string_lossy().replace('\\', "/"),
-            size: bytes.len() as u64,
-            sha256: hex::encode(Sha256::digest(&bytes)),
-        });
+    let index = manifest_path(layout);
+    match tokio::fs::read(&index).await {
+        Ok(bytes) => Ok(serde_json::from_slice(&bytes)?),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(error) => Err(layout_error(&index, error)),
     }
-    files.sort_by(|a, b| a.path.cmp(&b.path));
-    Ok(files)
 }
 
 pub async fn read(layout: &RunLayout, path: &str) -> AgentRunsResult<Option<Vec<u8>>> {

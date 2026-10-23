@@ -13,6 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod agent_runs;
 mod error;
 mod extension_mount;
 mod gateway;
@@ -96,6 +97,7 @@ fn build_routes(
     }
     if serves(RouteGroup::Agent) {
         router = protocol::mount_agent(router, &mount, a2a_middleware)?;
+        router = agent_runs::mount_agent_runs(router, &mount)?;
     }
     if serves(RouteGroup::McpAndStream) {
         router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;

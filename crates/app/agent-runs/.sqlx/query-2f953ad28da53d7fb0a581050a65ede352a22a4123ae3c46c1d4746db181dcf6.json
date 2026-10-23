@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT 1 AS \"notified!\" FROM pg_notify('agent_run_events', $1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "notified!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2f953ad28da53d7fb0a581050a65ede352a22a4123ae3c46c1d4746db181dcf6"
+}

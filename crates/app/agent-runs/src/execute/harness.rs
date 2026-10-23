@@ -7,7 +7,8 @@
 //! in the closure under the host's [`HarnessTargets`], keeping the
 //! executable bit. Two revisions that write one path, a path that escapes
 //! the target, or any digest mismatch refuse the whole harness; nothing is
-//! written past the first refusal.
+//! written past the first refusal. [`install`] runs it on a blocking thread,
+//! off the async executor.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -52,6 +53,8 @@ pub enum HarnessError {
     MissingAsset(String),
     #[error("harness path {0} is written by two revisions")]
     Collision(String),
+    #[error("harness installation task did not finish")]
+    Join(#[source] tokio::task::JoinError),
     #[error("harness file {path} could not be written")]
     Write {
         path: PathBuf,
@@ -92,6 +95,16 @@ pub fn target_root(targets: HarnessTargets, layout: &RunLayout, request: &RunReq
         HarnessTargets::Home(relative) => layout.home.join(relative),
         HarnessTargets::Workspace => request.workspace.clone(),
     }
+}
+
+pub async fn install(
+    harness: HarnessRef,
+    bundle: RevisionBundle,
+    root: PathBuf,
+) -> Result<Vec<PathBuf>, HarnessError> {
+    tokio::task::spawn_blocking(move || materialise(&harness, &bundle, &root))
+        .await
+        .map_err(HarnessError::Join)?
 }
 
 pub fn materialise(

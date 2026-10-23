@@ -20,7 +20,7 @@ use systemprompt_provider_contracts::{ProviderError, ProviderResult};
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 use crate::repository::AgentRunRepository;
-use crate::runner::A2A_RUNS_DIR;
+use crate::runner::A2aRunnerConfig;
 
 const BATCH: i64 = 200;
 
@@ -48,7 +48,7 @@ impl Job for AgentRunDirsCleanupJob {
         let config = Config::get().map_err(|e| ProviderError::Internal(Box::new(e)))?;
         let days = config.retention.agent_run_dirs_days;
         let cutoff = Utc::now() - chrono::Duration::days(i64::from(days));
-        let runs_root = paths.storage().data().join(A2A_RUNS_DIR);
+        let runs_root = A2aRunnerConfig::runs_root(paths.storage().data());
         let repo = AgentRunRepository::new(&db);
         let expired = repo
             .list_expired_run_dirs(cutoff, BATCH)

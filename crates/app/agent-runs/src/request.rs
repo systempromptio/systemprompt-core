@@ -23,10 +23,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{
-    HostSessionId, ManagedResourceId, PluginId, ResourceRevisionId, ScopeDimension,
-};
+use systemprompt_identifiers::{HostSessionId, ManagedResourceId, PluginId, ResourceRevisionId};
 use systemprompt_models::attribution::ScopeBinding;
+pub use systemprompt_models::attribution::TrafficClass;
 pub use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::managed::AssetDigest;
 
@@ -40,25 +39,6 @@ text_enum!(
         Plan => "plan",
     }
 );
-
-pub const TRAFFIC_DIMENSION: &str = "traffic";
-
-text_enum!(
-    TrafficClass, UnknownTrafficClass {
-        Production => "production",
-        Evaluation => "evaluation",
-    }
-);
-
-#[expect(
-    clippy::derivable_impls,
-    reason = "text_enum! generates the variants, so #[default] cannot be attached"
-)]
-impl Default for TrafficClass {
-    fn default() -> Self {
-        Self::Production
-    }
-}
 
 /// The managed revision a run installs into its host before spawn.
 /// `bundle_digest` is the digest of the whole revision closure; a bundle
@@ -151,7 +131,7 @@ impl RunRequest {
             .collect();
         if self.traffic == TrafficClass::Evaluation {
             headers.insert(
-                format!("x-systemprompt-scope-{TRAFFIC_DIMENSION}"),
+                format!("x-systemprompt-scope-{}", TrafficClass::DIMENSION),
                 self.traffic.as_str().to_owned(),
             );
         }
@@ -160,13 +140,7 @@ impl RunRequest {
 
     #[must_use]
     pub fn traffic_binding(&self) -> Option<ScopeBinding> {
-        (self.traffic == TrafficClass::Evaluation)
-            .then(|| ScopeDimension::try_new(TRAFFIC_DIMENSION).ok())
-            .flatten()
-            .map(|dimension| ScopeBinding {
-                dimension,
-                value: self.traffic.as_str().to_owned(),
-            })
+        (self.traffic == TrafficClass::Evaluation).then(|| ScopeBinding::traffic(self.traffic))
     }
 }
 

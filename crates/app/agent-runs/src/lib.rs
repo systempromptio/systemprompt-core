@@ -28,6 +28,7 @@ pub mod host;
 pub mod launcher;
 pub mod layout;
 pub mod lease;
+pub mod notify;
 pub mod origin;
 pub mod outcome;
 pub mod repository;
