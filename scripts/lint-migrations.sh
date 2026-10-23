@@ -47,7 +47,15 @@ done
 if [ -n "$SCAN_ROOT" ]; then
     mapfile -t files < <(find "$SCAN_ROOT" -type f -path '*/schema/migrations/*.sql' -not -path '*/target/*' | sort)
 else
-    tag="$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v*')"
+    # Why: CI checkouts are shallow and tagless; the release tag is fetched on
+    # demand so the "added since the last release" window is the same everywhere.
+    if ! tag="$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v*' 2>/dev/null)"; then
+        git -C "$ROOT" fetch --quiet --tags --filter=blob:none origin >/dev/null 2>&1 || true
+        tag="$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v*' 2>/dev/null)" || {
+            echo "lint-migrations: no v* release tag reachable from HEAD (fetch tags first)" >&2
+            exit 2
+        }
+    fi
     mapfile -t files < <(git -C "$ROOT" diff --name-only --diff-filter=A "$tag"..HEAD -- \
         'crates/*/*/schema/migrations/*.sql' | sed "s#^#$ROOT/#" | sort)
 fi

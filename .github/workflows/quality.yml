@@ -298,6 +298,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
+          fetch-tags: true
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # bridge-bindings-check compiles the bridge to run the ts-rs export, so
       # this job needs the keyring backend's libdbus-sys like every other job
