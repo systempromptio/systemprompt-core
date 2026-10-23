@@ -271,18 +271,9 @@ async fn catalog_file_lifecycle_helper() {
     println!("END_DISCOVERY_EMPTY");
 
     use systemprompt_scheduler::jobs::vertex_discovery::VertexDiscoveryJob;
-    use systemprompt_traits::{Job, JobContext};
-    let context = JobContext::new(
-        systemprompt_test_fixtures::fixture_actor(),
-        systemprompt_traits::Dependencies::new(),
-    );
-    let result = VertexDiscoveryJob
-        .execute(&context)
+    let report = VertexDiscoveryJob::probe()
         .await
-        .expect("run owned discovery job");
-    assert!(result.success, "discovery report job must complete");
-    let report = systemprompt_scheduler::jobs::vertex_discovery::latest_report()
-        .expect("scheduler publishes its latest discovery report");
+        .expect("discovery job produces a report");
     println!("DISCOVERY_RAN_AT={}", report.ran_at);
     assert_eq!(report.failed_publishers.len(), 1, "{report:?}");
     assert!(
@@ -290,7 +281,7 @@ async fn catalog_file_lifecycle_helper() {
         "{report:?}"
     );
     println!("BEGIN_DISCOVERY_PARTIAL");
-    catalog::execute(&CatalogCommands::Discovery, &config)
+    systemprompt_cli::admin::config::catalog_discovery::render_discovery(Some(&report), &config)
         .expect("partial discovery report is rendered");
     println!("END_DISCOVERY_PARTIAL");
 }

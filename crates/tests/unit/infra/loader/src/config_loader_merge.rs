@@ -3,8 +3,8 @@
 //!
 //! Each test writes an include file into a temp dir and references it from a
 //! root config, then asserts the merged `ServicesConfig` reflects the
-//! documented merge semantics (an include declaring `ai:` sets the AI policy, root-priority for
-//! `web`/`scheduler`, hard error on duplicate keys).
+//! documented merge semantics (an include declaring `ai:` sets the AI policy,
+//! root-priority for `web`/`scheduler`, hard error on duplicate keys).
 
 use systemprompt_loader::ConfigLoader;
 use tempfile::TempDir;
@@ -182,10 +182,7 @@ fn duplicate_plugin_in_include_errors() {
         ),
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\nplugins:{}",
-        plugin_block("Root Plugin")
-    );
+    let root = format!("{ROOT_HEAD}\nplugins:{}", plugin_block("Root Plugin"));
     let err = ConfigLoader::load_from_content(&root, &config_path)
         .expect_err("duplicate plugin must error");
     let msg = format!("{err:#}");
@@ -221,9 +218,8 @@ skills:
 "#,
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\nskills:\n  enabled: true\n  auto_discover: false\n  skills: {{}}\n"
-    );
+    let root =
+        format!("{ROOT_HEAD}\nskills:\n  enabled: true\n  auto_discover: false\n  skills: {{}}\n");
     let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
 
     assert!(

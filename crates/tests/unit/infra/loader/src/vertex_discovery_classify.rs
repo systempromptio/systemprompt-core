@@ -109,7 +109,8 @@ fn a_google_model_is_serverless_but_only_published_if_it_is_priced() {
 #[test]
 fn a_checkpoint_is_rejected_before_the_card_is_consulted() {
     let card = card();
-    let (classification, entry) = classify(&deployable_checkpoint(), &card, WireProtocol::OpenAiChat);
+    let (classification, entry) =
+        classify(&deployable_checkpoint(), &card, WireProtocol::OpenAiChat);
     assert_eq!(classification, Classification::NotServerless);
     assert!(entry.is_none());
 }

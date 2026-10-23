@@ -6,7 +6,9 @@ use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_gateway::service::chain_plan::{fit_context_window, order_chain};
-use systemprompt_gateway::service::failover::{DeploymentState, plan_selection};
+use systemprompt_gateway::service::failover::{
+    DeploymentLoad, DeploymentState, ProviderBreakers, plan_selection,
+};
 use systemprompt_identifiers::{ModelId, RouteId};
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, ProviderConfig, ResolvedCatalog, ResolvedHop,
@@ -181,6 +183,8 @@ fn ordered_chain_is_unchanged_and_not_described() {
         ],
         SelectionStrategy::Ordered,
         &route_id(),
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
     );
     assert_eq!(providers_of(&planned), vec!["small", "large"]);
     assert_eq!(planned.descriptor, None);
@@ -276,7 +280,13 @@ fn providers_of(planned: &systemprompt_gateway::service::chain_plan::PlannedChai
 
 #[test]
 fn an_empty_chain_plans_to_nothing() {
-    let planned = order_chain(Vec::new(), SelectionStrategy::Ordered, &route_id());
+    let planned = order_chain(
+        Vec::new(),
+        SelectionStrategy::Ordered,
+        &route_id(),
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
+    );
     assert!(planned.deployments.is_empty());
     assert_eq!(planned.descriptor, None);
 }
@@ -292,6 +302,8 @@ fn an_idle_least_busy_chain_keeps_chain_order_and_is_described() {
         ],
         SelectionStrategy::LeastBusy,
         &route_id(),
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
     );
     assert_eq!(
         providers_of(&planned),
@@ -310,6 +322,8 @@ fn a_weighted_chain_is_a_permutation_of_its_deployments() {
         ],
         SelectionStrategy::Weighted,
         &route_id(),
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
     );
     let mut providers = providers_of(&planned);
     providers.sort_unstable();
@@ -324,6 +338,8 @@ fn a_single_weighted_deployment_is_not_reordered_but_is_described() {
         vec![hop(&c, "plan-m", "w-plan-solo", None)],
         SelectionStrategy::Weighted,
         &route_id(),
+        &ProviderBreakers::new(),
+        &DeploymentLoad::default(),
     );
     assert_eq!(providers_of(&planned), vec!["w-plan-solo"]);
     assert_eq!(planned.descriptor.as_deref(), Some("strategy:weighted"));

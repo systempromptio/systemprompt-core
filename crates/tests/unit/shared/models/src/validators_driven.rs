@@ -40,7 +40,7 @@ mod ai_validator {
 
     fn report_for(
         services: ServicesConfig,
-    ) -> systemprompt_traits::validation_report::ValidationReport {
+    ) -> systemprompt_manifest::validators::validation_report::ValidationReport {
         let prov = provider(base_config(), services);
         let mut v = AiConfigValidator::new();
         v.load(&prov).expect("load");

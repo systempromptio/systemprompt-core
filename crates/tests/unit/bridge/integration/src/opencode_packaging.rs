@@ -2,9 +2,9 @@
 //! user config. The two hosts must tell their own packaging apart and share
 //! `opencode.json` without either overwriting the other.
 
+use std::path::Path;
 use systemprompt_bridge::gateway::model_view::host_client;
 use systemprompt_models::providers::ClientFamily;
-use std::path::Path;
 
 use systemprompt_bridge::integration::enrol::retained_for_sibling;
 use systemprompt_bridge::integration::host_app::{

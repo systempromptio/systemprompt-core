@@ -15,10 +15,10 @@ use systemprompt_manifest::services::catalog::{
 };
 use systemprompt_manifest::services::{GatewayRoute, RouteDeployment, RouteMatch};
 use systemprompt_models::providers::ClientFamily;
-use systemprompt_wire::WireProtocol;
 use systemprompt_wire::anthropic::AnthropicBeta;
+use systemprompt_wire::WireProtocol;
 
-use super::{CatalogFixture, claude_model, model, personal, platform, priced};
+use super::{claude_model, model, personal, platform, priced, CatalogFixture};
 
 pub const OPENCODE_GO_CHAT_URL: &str = "https://opencode.ai/zen/go/v1";
 pub const OPENCODE_GO_MESSAGES_URL: &str = "https://opencode.ai/zen/go/anthropic/v1";

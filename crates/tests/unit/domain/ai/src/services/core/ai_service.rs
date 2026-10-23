@@ -541,7 +541,10 @@ async fn build_fails_when_the_default_model_is_only_on_a_disabled_provider() {
         .expect_err("gpt-4.1 is deployed only on the disabled openai provider");
     let message = err.to_string();
     assert!(message.contains("gpt-4.1"), "{message}");
-    assert!(message.contains("no deployment on an enabled provider"), "{message}");
+    assert!(
+        message.contains("no deployment on an enabled provider"),
+        "{message}"
+    );
 }
 
 #[tokio::test]

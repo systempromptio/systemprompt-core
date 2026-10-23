@@ -32,7 +32,11 @@ fn provider() -> CatalogDocument {
     CatalogFixture::new()
         .credential("vertex", platform("vertex_maas"))
         .provider("vertex", ProviderConfig::new("vertex"))
-        .endpoint("vertex", "maas", EndpointConfig::new(WireProtocol::OpenAiChat, MAAS_URL))
+        .endpoint(
+            "vertex",
+            "maas",
+            EndpointConfig::new(WireProtocol::OpenAiChat, MAAS_URL),
+        )
         .model("openai.gpt-oss-20b", declared)
         .deploy("openai.gpt-oss-20b", ["vertex/maas"])
         .document()
@@ -114,11 +118,18 @@ fn a_priced_model_the_catalog_does_not_declare_is_appended() {
         .get("qwen.qwen3-235b")
         .expect("the discovered model is now servable");
     assert_eq!(
-        provider.deployments.get("qwen.qwen3-235b").map(|t| t[0].endpoint().to_string()),
+        provider
+            .deployments
+            .get("qwen.qwen3-235b")
+            .map(|t| t[0].endpoint().to_string()),
         Some("vertex/maas".to_owned()),
         "it is deployed on the endpoint that listed it"
     );
-    assert_eq!(added.clients, vec![ClientFamily::OpenAi], "advertised like its endpoint");
+    assert_eq!(
+        added.clients,
+        vec![ClientFamily::OpenAi],
+        "advertised like its endpoint"
+    );
     assert_eq!(
         added.upstream_model.as_deref(),
         Some("qwen/qwen3-235b-a22b-instruct-2507-maas")
@@ -250,7 +261,10 @@ fn an_explicit_declaration_past_its_retirement_date_is_unadvertised_not_removed(
         .models
         .get("openai.gpt-oss-20b")
         .expect("a retired declaration stays in the catalog");
-    assert!(model.clients.is_empty(), "a retired declaration leaves every listing");
+    assert!(
+        model.clients.is_empty(),
+        "a retired declaration leaves every listing"
+    );
     assert!(model.pricing.is_billable());
     assert_eq!(report.retiring, vec!["openai.gpt-oss-20b".to_string()]);
 }

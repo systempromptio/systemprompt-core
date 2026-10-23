@@ -155,7 +155,7 @@ async fn a_client_session_header_is_recorded_and_never_rejected() -> Result<()> 
     partial.session_id = Some(principal.session_id().clone());
     partial.client_session_id = principal.client_session.clone();
     let id = AiRequestId::generate();
-    let record = build_rejection_record(&id, &partial).expect("record");
+    let record = build_rejection_record(None, &id, &partial).expect("record");
     assert_eq!(
         record.client_session_id.as_ref().map(|c| c.as_str()),
         Some(opencode.as_str())

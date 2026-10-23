@@ -307,7 +307,12 @@ fn configured(model_id: &str) -> ModelEntry {
     }
 }
 
-fn with_provider(fixture: CatalogFixture, name: &str, secret: &str, model_id: &str) -> CatalogFixture {
+fn with_provider(
+    fixture: CatalogFixture,
+    name: &str,
+    secret: &str,
+    model_id: &str,
+) -> CatalogFixture {
     fixture
         .credential(name, platform(secret))
         .provider(name, ProviderConfig::new(name))
@@ -322,7 +327,12 @@ fn with_provider(fixture: CatalogFixture, name: &str, secret: &str, model_id: &s
 
 #[tokio::test]
 async fn discovery_filters_the_mixed_listing_and_isolates_a_malformed_credential() {
-    let fixture = with_provider(CatalogFixture::new(), "vertex-maas", "good_vertex", "configured.vertex");
+    let fixture = with_provider(
+        CatalogFixture::new(),
+        "vertex-maas",
+        "good_vertex",
+        "configured.vertex",
+    );
     let fixture = with_provider(fixture, "vertex-bad", "bad_vertex", "configured.bad");
     let fixture = with_provider(fixture, "other", "other_secret", "configured.other");
     let mut document = fixture.document().clone();

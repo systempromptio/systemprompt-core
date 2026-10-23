@@ -21,17 +21,17 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::catalog::{
-    CATALOG_FILES, CatalogContext, CatalogDocument, CatalogDocumentError, CatalogInput,
-    CatalogResult, CredentialEntry, DefaultCatalog, DeploymentTarget, EndpointConfig, EndpointRef,
-    ModelEntry, ProviderConfig, ResolvedCatalog,
+    CatalogContext, CatalogDocument, CatalogDocumentError, CatalogInput, CatalogResult,
+    CredentialEntry, DefaultCatalog, DeploymentTarget, EndpointConfig, EndpointRef, ModelEntry,
+    ProviderConfig, ResolvedCatalog, CATALOG_FILES,
 };
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute, ModelPricing};
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::ModelLimits;
 
 pub use canned::{
-    OPENCODE_GO_CHAT_URL, OPENCODE_GO_MESSAGES_URL, one_platform_provider, opencode_go,
-    vertex_regions,
+    one_platform_provider, opencode_go, vertex_regions, OPENCODE_GO_CHAT_URL,
+    OPENCODE_GO_MESSAGES_URL,
 };
 
 #[must_use]

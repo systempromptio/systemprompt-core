@@ -141,7 +141,10 @@ async fn a_disabled_providers_endpoint_is_not_probed() {
     let err = verify_personal_key(&catalog, credential, "sk-go", &UserId::new("member-1"))
         .await
         .expect_err("a credential with no enabled endpoint takes no key");
-    assert!(matches!(err, PersonalKeyError::NotPersonalCredential(_)), "{err:?}");
+    assert!(
+        matches!(err, PersonalKeyError::NotPersonalCredential(_)),
+        "{err:?}"
+    );
     server.verify().await;
 }
 

@@ -85,10 +85,7 @@ fn duplicate_slack_app_across_root_and_include_errors() {
         ),
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\n{}",
-        slack_app_block("other")
-    );
+    let root = format!("{ROOT_HEAD}\n{}", slack_app_block("other"));
     let err = ConfigLoader::load_from_content(&root, &config_path)
         .expect_err("duplicate slack app must error");
 
@@ -135,10 +132,7 @@ fn duplicate_teams_app_across_root_and_include_errors() {
         ),
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\n{}",
-        teams_app_block("other")
-    );
+    let root = format!("{ROOT_HEAD}\n{}", teams_app_block("other"));
     let err = ConfigLoader::load_from_content(&root, &config_path)
         .expect_err("duplicate teams app must error");
 
