@@ -39,18 +39,28 @@ impl JwtValidationProvider for StubJwt {
 }
 
 const GATEWAY_YAML: &str = r#"
+credentials:
+  anthropic:
+    kind: platform
+    secret: anthropic_api_key
 providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: http://127.0.0.1:1
-    api_key_secret: anthropic_api_key
-    models:
-      - id: claude-fixture-1
-        pricing:
-          input_per_million: 3.0
-          output_per_million: 15.0
-          cache_read_per_million: 0.0
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api:
+        wire: anthropic
+        url: http://127.0.0.1:1
+models:
+  claude-fixture-1:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 3.0
+      output_per_million: 15.0
+      cache_read_per_million: 0.0
+deployments:
+  claude-fixture-1:
+  - anthropic/api
 "#;
 
 const SERVICES_YAML: &str = r#"agents:

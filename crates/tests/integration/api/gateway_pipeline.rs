@@ -13,6 +13,7 @@ use std::time::Duration;
 
 use axum::body::to_bytes;
 use bytes::Bytes;
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::{
@@ -20,7 +21,6 @@ use systemprompt_gateway::protocol::{
 };
 use systemprompt_gateway::service::{DispatchError, GatewayService};
 use systemprompt_gateway::{DispatchInputs, GatewayRepositories, GatewayRequestContext};
-use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId, ModelId, TraceId};
 use systemprompt_manifest::services::GatewayConfig;
 use systemprompt_manifest::services::catalog::{
@@ -764,25 +764,33 @@ async fn unexposed_model_is_policy_denied() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn route_provider_absent_from_registry_is_pre_audit_error() -> anyhow::Result<()> {
+async fn a_model_only_on_a_disabled_provider_is_pre_audit_error() -> anyhow::Result<()> {
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-noprovider@example.invalid").await?;
 
-    let config = gateway_config("ghost-provider");
-    let registry = provider_registry(
+    let config = gateway_config(PROVIDER);
+    let registry = catalog_fixture(
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
         ClientFamily::Claude,
-    );
+    )
+    .with_provider(PROVIDER, |p| p.enabled = false)
+    .build();
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
     let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
-        .expect_err("route pointing at an unknown provider must fail");
-    assert!(matches!(err, DispatchError::PreAudit(_)), "got {err:?}");
+        .expect_err("a model with no enabled deployment must fail");
+    assert!(
+        matches!(
+            &err,
+            DispatchError::PreAudit(systemprompt_gateway::service::GatewayError::NoRoute { .. })
+        ),
+        "got {err:?}"
+    );
     Ok(())
 }
 
@@ -1827,13 +1835,11 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
     Ok(())
 }
 #[tokio::test]
-async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_dispatch()
--> anyhow::Result<()> {
+async fn a_model_absent_from_the_catalog_fails_before_audit_or_dispatch() -> anyhow::Result<()> {
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-no-route@example.invalid").await?;
-    let mut config = gateway_config(PROVIDER);
-    config.routes.clear();
+    let config = gateway_config(PROVIDER);
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(500))
@@ -1846,16 +1852,23 @@ async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_d
         WireProtocol::Anthropic,
         ClientFamily::Claude,
     );
-    let dispatch = inputs(&cred, canonical_request(MODEL, false), false);
+    let dispatch = inputs(
+        &cred,
+        canonical_request("claude-not-in-catalog", false),
+        false,
+    );
     let request_id = dispatch.ctx.ai_request_id.clone();
 
     let error = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch)
         .await
-        .expect_err("a registry-exposed model still requires a matching gateway route");
+        .expect_err("a model the catalog does not declare is refused");
     match error {
         DispatchError::PreAudit(inner) => assert!(
-            matches!(&inner, systemprompt_gateway::service::GatewayError::NoRoute { model } if model == MODEL),
-            "expected NoRoute, got {inner:?}"
+            matches!(
+                &inner,
+                systemprompt_gateway::service::GatewayError::PolicyDenied(_)
+            ),
+            "expected PolicyDenied, got {inner:?}"
         ),
         other => panic!("expected pre-audit route failure, got {other:?}"),
     }

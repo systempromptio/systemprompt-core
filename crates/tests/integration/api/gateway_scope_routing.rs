@@ -10,9 +10,9 @@ use systemprompt_api::routes::gateway::messages::extract::RejectionPartial;
 use systemprompt_api::routes::gateway::messages::extract::scope::{
     ScopeHeaders, ScopeResolution, resolve_scope_attribution,
 };
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_gateway::GatewayRepositories;
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
-use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, EndpointRef, ModelEntry, ProviderConfig, ResolvedCatalog,
@@ -91,8 +91,16 @@ async fn topology() -> Topology {
         .credential(&scoped_name, platform("anthropic"))
         .provider(&shared_name, ProviderConfig::new(&shared_name))
         .provider(&scoped_name, ProviderConfig::new(&scoped_name))
-        .endpoint(&shared_name, "api", EndpointConfig::new(WireProtocol::Anthropic, shared.uri()))
-        .endpoint(&scoped_name, "api", EndpointConfig::new(WireProtocol::Anthropic, scoped.uri()))
+        .endpoint(
+            &shared_name,
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, shared.uri()),
+        )
+        .endpoint(
+            &scoped_name,
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, scoped.uri()),
+        )
         .model(MODEL, ModelEntry::new(vec![ClientFamily::Claude]))
         .deploy(
             MODEL,
@@ -107,7 +115,10 @@ async fn topology() -> Topology {
                 scope,
                 ..RouteMatch::default()
             }),
-            deployments: vec![RouteDeployment::Endpoint(EndpointRef::new(&scoped_name, "api"))],
+            deployments: vec![RouteDeployment::Endpoint(EndpointRef::new(
+                &scoped_name,
+                "api",
+            ))],
             ..GatewayRoute::new(SCOPED_ROUTE)
         })
         .build();

@@ -19,7 +19,11 @@ fn resolution(model: &str) -> RouteResolution {
         fixture = fixture
             .credential(name, platform(name))
             .provider(name, ProviderConfig::new(name))
-            .endpoint(name, "api", EndpointConfig::new(wire, "https://example.invalid/v1"));
+            .endpoint(
+                name,
+                "api",
+                EndpointConfig::new(wire, "https://example.invalid/v1"),
+            );
     }
     let catalog = fixture
         .model("claude-x", claude_model(0))
@@ -37,7 +41,9 @@ fn resolution(model: &str) -> RouteResolution {
         })
         .build();
     RouteResolution {
-        target: catalog.resolve(&ModelRequest::new(model)).expect("resolves"),
+        target: catalog
+            .resolve(&ModelRequest::new(model))
+            .expect("resolves"),
     }
 }
 

@@ -143,7 +143,7 @@ async fn protocol_header_is_validated_but_does_not_hide_transcodable_models() ->
 {
     let request = Request::builder()
         .uri("/models")
-        .header("x-inference-protocol", "anthropic")
+        .header("x-inference-protocol", "claude")
         .body(Body::empty())?;
     let (status, body) = body_to_string(app().await?.oneshot(request).await?).await?;
     assert_eq!(status, http::StatusCode::OK, "{body}");
@@ -203,6 +203,20 @@ async fn app() -> anyhow::Result<Router> {
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
     Ok(gateway_router(&ctx).expect("gateway router builds"))
+}
+
+async fn authed_get(uri: &str, email: &str) -> anyhow::Result<Request<Body>> {
+    boot();
+    install_test_signing_key();
+    let pool = test_db_pool().await;
+    let cred = seed_admin_credential(&pool, email).await?;
+    Ok(Request::builder()
+        .uri(uri)
+        .header(
+            header::AUTHORIZATION,
+            format!("Bearer {}", cred.jwt.as_str()),
+        )
+        .body(Body::empty())?)
 }
 
 fn get(uri: &str) -> Request<Body> {
@@ -561,9 +575,17 @@ async fn the_gateway_root_describes_itself() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()> {
+async fn an_anonymous_bridge_profile_request_is_refused() -> anyhow::Result<()> {
     let (status, body) =
         body_to_string(app().await?.oneshot(get("/bridge/profile")).await?).await?;
+    assert_eq!(status.as_u16(), 401, "{body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()> {
+    let request = authed_get("/bridge/profile", "gw-profile@example.invalid").await?;
+    let (status, body) = body_to_string(app().await?.oneshot(request).await?).await?;
 
     assert_eq!(status.as_u16(), 200, "{body}");
     let profile: serde_json::Value = serde_json::from_str(&body)?;
@@ -584,8 +606,8 @@ async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()
 
 #[tokio::test]
 async fn the_bridge_profile_reports_which_providers_have_a_usable_key() -> anyhow::Result<()> {
-    let (status, body) =
-        body_to_string(app().await?.oneshot(get("/bridge/profile")).await?).await?;
+    let request = authed_get("/bridge/profile", "gw-profile-keys@example.invalid").await?;
+    let (status, body) = body_to_string(app().await?.oneshot(request).await?).await?;
     assert_eq!(status.as_u16(), 200, "{body}");
 
     let profile: serde_json::Value = serde_json::from_str(&body)?;

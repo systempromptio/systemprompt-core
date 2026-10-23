@@ -22,8 +22,8 @@ fn services_with_ai_json(ai: serde_json::Value) -> ServicesConfig {
 
 mod ai_validator {
     use super::*;
+    use systemprompt_manifest::services::GatewayState;
     use systemprompt_manifest::services::catalog::DefaultCatalog;
-    use systemprompt_manifest::services::{GatewayConfigSpec, GatewayState};
 
     fn services_with_catalog(ai: serde_json::Value, default_model: Option<&str>) -> ServicesConfig {
         let mut services = services_with_ai_json(ai);
@@ -32,7 +32,7 @@ mod ai_validator {
         services.providers = document.providers;
         services.models = document.models;
         services.deployments = document.deployments;
-        let mut gateway = document.gateway.unwrap_or_else(GatewayConfigSpec::default);
+        let mut gateway = document.gateway.unwrap_or_default();
         gateway.default_model = default_model.map(systemprompt_identifiers::ModelId::new);
         services.gateway = Some(GatewayState::Spec(gateway));
         services

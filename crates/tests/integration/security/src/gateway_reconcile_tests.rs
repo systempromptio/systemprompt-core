@@ -20,6 +20,7 @@
 use std::sync::Arc;
 
 use sqlx::PgPool;
+use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::resolver::{ResolveInput, resolve};
 use systemprompt_governance::authz::{
@@ -27,7 +28,6 @@ use systemprompt_governance::authz::{
     DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, RuleEntry, RuleTarget,
     reconcile_gateway_entities_exact,
 };
-use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
 use systemprompt_identifiers::{RouteId, UserId};
 use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
 use systemprompt_manifest::services::synthesize_route_id;

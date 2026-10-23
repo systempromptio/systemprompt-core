@@ -2,9 +2,9 @@
 //! healthy provider after an upstream failure.
 
 use axum::body::to_bytes;
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::service::{DispatchError, GatewayService};
-use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,
 };
@@ -123,7 +123,10 @@ async fn gateway_does_not_send_client_errors_to_a_configured_fallback() -> anyho
         .respond_with(ResponseTemplate::new(200).set_body_json(upstream_response("must not run")))
         .mount(&fallback)
         .await;
-    let registry = chain_catalog(&[(PROVIDER, &primary), ("anthropic-client-error-fallback", &fallback)]);
+    let registry = chain_catalog(&[
+        (PROVIDER, &primary),
+        ("anthropic-client-error-fallback", &fallback),
+    ]);
     let config = gateway_config(PROVIDER);
 
     let error = GatewayService::dispatch(
@@ -170,7 +173,11 @@ async fn gateway_preserves_primary_failure_when_fallback_provider_cannot_be_boun
     let unbindable = MockServer::start().await;
     let registry = chain_catalog_with_secrets(&[
         (PROVIDER, &primary, "anthropic"),
-        ("unbindable-fallback", &unbindable, "missing_fallback_secret"),
+        (
+            "unbindable-fallback",
+            &unbindable,
+            "missing_fallback_secret",
+        ),
     ]);
     let config = gateway_config(PROVIDER);
 
@@ -209,7 +216,10 @@ async fn gateway_records_the_fallback_when_both_upstreams_fail() -> anyhow::Resu
             .mount(server)
             .await;
     }
-    let registry = chain_catalog(&[(PROVIDER, &primary), ("anthropic-both-fail-fallback", &fallback)]);
+    let registry = chain_catalog(&[
+        (PROVIDER, &primary),
+        ("anthropic-both-fail-fallback", &fallback),
+    ]);
     let config = gateway_config(PROVIDER);
 
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
@@ -438,7 +448,10 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
         .await;
     let failing_name = format!("open-fallback-{}", uuid::Uuid::new_v4().simple());
     let training_name = format!("training-fallback-{}", uuid::Uuid::new_v4().simple());
-    let training_registry = chain_catalog(&[(&failing_name, &failing), (&training_name, &training_fallback)]);
+    let training_registry = chain_catalog(&[
+        (&failing_name, &failing),
+        (&training_name, &training_fallback),
+    ]);
     let training_config = gateway_config(&failing_name);
     for _ in 0..5 {
         let response = GatewayService::dispatch(

@@ -17,10 +17,10 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use serde_json::{Value, json};
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_gateway::protocol::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::service::GatewayService;
-use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_manifest::services::GatewayConfig;
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,

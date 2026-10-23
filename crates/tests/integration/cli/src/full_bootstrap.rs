@@ -175,8 +175,18 @@ fn build_files(api_port: u16, url_port: Option<u16>, bootstrap_admin: bool) -> F
     )
     .expect("write services config");
     std::fs::write(services_dir.join("ai/config.yaml"), AI_CONFIG).expect("write ai config");
-    std::fs::write(services_dir.join("ai/providers.yaml"), PROVIDERS_CONFIG)
-        .expect("write provider catalog");
+    let catalog: serde_yaml::Mapping =
+        serde_yaml::from_str(PROVIDERS_CONFIG).expect("fixture catalog parses");
+    for (section, value) in catalog {
+        let name = section.as_str().expect("section name");
+        let mut doc = serde_yaml::Mapping::new();
+        doc.insert(section.clone(), value);
+        std::fs::write(
+            services_dir.join(format!("ai/{name}.yaml")),
+            serde_yaml::to_string(&doc).expect("catalog section serializes"),
+        )
+        .expect("write catalog file");
+    }
     std::fs::write(services_dir.join("ai/gateway.yaml"), GATEWAY_CONFIG)
         .expect("write gateway config");
     std::fs::write(
@@ -350,8 +360,6 @@ const EXTRA_AGENT_TEMPLATE: &str = r#"agents:
 const SERVICES_CONFIG_TEMPLATE: &str = r#"includes:
   - ../agents/covedit.yaml
   - ../agents/covdelete.yaml
-  - ../ai/providers.yaml
-  - ../ai/gateway.yaml
 agents:
   covagent:
     name: covagent
@@ -406,53 +414,58 @@ mcp_servers:
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
-  providers:
-    anthropic:
-      enabled: true
-      default_model: claude-sonnet-4-5
 "#;
 
-const PROVIDERS_CONFIG: &str = r#"providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: https://api.anthropic.com/v1/messages
-    api_key_secret: anthropic
-    models:
-      - id: claude-sonnet-4-5
-        pricing:
-          input_per_million: 3.0
-          output_per_million: 15.0
-          cache_read_per_million: 0.0
-  - name: openai
-    wire: openai-chat
-    surface: openai
-    endpoint: https://api.openai.com/v1/chat/completions
-    api_key_secret: openai
-    models:
-      - id: gpt-5
-        pricing:
-          input_per_million: 1.25
-          output_per_million: 10.0
-          cache_read_per_million: 0.0
+const PROVIDERS_CONFIG: &str = r#"credentials:
+  anthropic:
+    kind: platform
+    secret: anthropic
+  openai:
+    kind: platform
+    secret: openai
+providers:
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api:
+        wire: anthropic
+        url: https://api.anthropic.com/v1/messages
+  openai:
+    credential: openai
+    endpoints:
+      api:
+        wire: openai-chat
+        url: https://api.openai.com/v1/chat/completions
+models:
+  claude-sonnet-4-5:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 3.0
+      output_per_million: 15.0
+      cache_read_per_million: 0.0
+  gpt-5:
+    clients:
+    - openai
+    pricing:
+      input_per_million: 1.25
+      output_per_million: 10.0
+      cache_read_per_million: 0.0
+deployments:
+  claude-sonnet-4-5:
+  - anthropic/api
+  gpt-5:
+  - openai/api
 "#;
 
 const GATEWAY_CONFIG: &str = r#"gateway:
   enabled: false
-  routes: []
+  default_model: claude-sonnet-4-5
 "#;
 
 const AI_CONFIG: &str = r#"ai:
-  default_provider: anthropic
-  providers:
-    anthropic:
-      enabled: true
-      default_model: claude-sonnet-4-5
-    openai:
-      enabled: false
-      default_model: gpt-5
+  sampling:
+    fallback_enabled: false
 "#;
 
 const WEB_CONFIG: &str = r#"branding:

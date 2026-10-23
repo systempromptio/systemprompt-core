@@ -7,6 +7,7 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
@@ -17,7 +18,6 @@ use systemprompt_gateway::{
     DispatchInputs, GatewayAudit, GatewayRepositories, GatewayRequestContext,
 };
 use systemprompt_governance::policy::types::AccessScope;
-use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_identifiers::{AiRequestId, ContextId, TraceId};
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,

@@ -76,6 +76,9 @@ pub fn boot(opts: &BootOptions) -> BootFixture {
     )
     .expect("write services config");
     std::fs::write(services_dir.join("ai/config.yaml"), AI_CONFIG).expect("write ai config");
+    for (name, body) in CATALOG {
+        std::fs::write(services_dir.join("ai").join(name), body).expect("write catalog file");
+    }
     std::fs::write(
         services_dir.join("skills/echo_skill/config.yaml"),
         "id: echo_skill\nname: Echo Skill\ndescription: Boot fixture skill\n",
@@ -196,22 +199,36 @@ fn services_config(mcp_servers_yaml: &str) -> String {
 {mcp_servers_yaml}settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
-  providers:
-    anthropic:
-      enabled: true
-      default_model: claude-sonnet-4-5
 "
     )
 }
 
+const CATALOG: [(&str, &str); 5] = [
+    (
+        "credentials.yaml",
+        "credentials:\n  anthropic: { kind: platform, secret: anthropic }\n",
+    ),
+    (
+        "providers.yaml",
+        "providers:\n  anthropic:\n    credential: anthropic\n    endpoints:\n      api: { wire: anthropic, url: \"https://api.anthropic.com/v1\" }\n",
+    ),
+    (
+        "models.yaml",
+        "models:\n  claude-sonnet-4-5:\n    clients: [claude]\n",
+    ),
+    (
+        "deployments.yaml",
+        "deployments:\n  claude-sonnet-4-5: [anthropic/api]\n",
+    ),
+    (
+        "gateway.yaml",
+        "gateway:\n  enabled: false\n  default_model: claude-sonnet-4-5\n",
+    ),
+];
+
 const AI_CONFIG: &str = r"ai:
-  default_provider: anthropic
-  providers:
-    anthropic:
-      enabled: true
-      default_model: claude-sonnet-4-5
+  sampling:
+    fallback_enabled: false
 ";
 
 const WEB_CONFIG: &str = r"branding:

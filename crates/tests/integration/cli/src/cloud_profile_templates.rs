@@ -65,10 +65,18 @@ fn update_ai_config_default_provider_creates_file_when_missing() {
         std::env::set_var("SYSTEMPROMPT_SERVICES_PATH", dir.path());
     }
     update_ai_config_default_provider("anthropic").expect("provider update should succeed");
-    let ai_yaml = dir.path().join("ai").join("config.yaml");
-    assert!(ai_yaml.exists());
-    let content = std::fs::read_to_string(&ai_yaml).unwrap();
-    assert!(content.contains("anthropic"));
+    let ai = dir.path().join("ai");
+    for file in [
+        "config.yaml",
+        "credentials.yaml",
+        "providers.yaml",
+        "models.yaml",
+        "deployments.yaml",
+    ] {
+        assert!(ai.join(file).exists(), "{file} seeded");
+    }
+    let gateway = std::fs::read_to_string(ai.join("gateway.yaml")).unwrap();
+    assert!(gateway.contains("default_model: claude-"), "{gateway}");
     unsafe {
         match original {
             Some(v) => std::env::set_var("SYSTEMPROMPT_SERVICES_PATH", v),
@@ -78,21 +86,24 @@ fn update_ai_config_default_provider_creates_file_when_missing() {
 }
 
 #[test]
-fn update_ai_config_default_provider_replaces_existing_value() {
+fn update_ai_config_default_provider_moves_the_default_model() {
     let _g = env_lock::ENV.lock().unwrap_or_else(|e| e.into_inner());
     let dir = tempdir().unwrap();
     let ai_dir = dir.path().join("ai");
     std::fs::create_dir_all(&ai_dir).unwrap();
-    let cfg_path = ai_dir.join("config.yaml");
-    std::fs::write(&cfg_path, "default_provider: \"openai\"\nother: value\n").unwrap();
+    for (name, body) in systemprompt_manifest::services::catalog::DefaultCatalog::FILES {
+        std::fs::write(ai_dir.join(name), body).unwrap();
+    }
     let original = std::env::var("SYSTEMPROMPT_SERVICES_PATH").ok();
     unsafe {
         std::env::set_var("SYSTEMPROMPT_SERVICES_PATH", dir.path());
     }
     update_ai_config_default_provider("anthropic").expect("update should succeed");
-    let content = std::fs::read_to_string(&cfg_path).unwrap();
-    assert!(content.contains("default_provider: \"anthropic\""));
-    assert!(content.contains("other: value"));
+    let gateway = std::fs::read_to_string(ai_dir.join("gateway.yaml")).unwrap();
+    assert!(gateway.contains("default_model: claude-"), "{gateway}");
+    update_ai_config_default_provider("openai").expect("update should succeed");
+    let gateway = std::fs::read_to_string(ai_dir.join("gateway.yaml")).unwrap();
+    assert!(!gateway.contains("default_model: claude-"), "{gateway}");
     unsafe {
         match original {
             Some(v) => std::env::set_var("SYSTEMPROMPT_SERVICES_PATH", v),

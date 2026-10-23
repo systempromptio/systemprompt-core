@@ -3,8 +3,8 @@
 //! configured credential can serve; a model with `clients: []` still routes but
 //! is never listed, and a platform credential whose secret is absent, or a
 //! personal credential the caller stored no key for, withholds its models while
-//! `providers` still reports the provider with the reason. `families_from_header`
-//! validates the advisory `x-inference-protocol` header.
+//! `providers` still reports the provider with the reason.
+//! `families_from_header` validates the advisory `x-inference-protocol` header.
 
 use std::collections::BTreeSet;
 
@@ -12,7 +12,9 @@ use axum::http::HeaderMap;
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
 use systemprompt_api::routes::gateway::models::{families_from_header, model_entries};
-use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, model, personal, platform, priced};
+use systemprompt_catalog_fixtures::{
+    CatalogFixture, claude_model, model, personal, platform, priced,
+};
 use systemprompt_identifiers::TenantId;
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_manifest::bridge_profile::{BridgeProfileParams, CredentialFacts, build};
@@ -30,13 +32,34 @@ fn catalog() -> ResolvedCatalog {
         .provider("anthropic", ProviderConfig::new("anthropic"))
         .provider("openai", ProviderConfig::new("openai"))
         .provider("go", ProviderConfig::new("go"))
-        .endpoint("anthropic", "api", EndpointConfig::new(WireProtocol::Anthropic, "https://a.invalid/v1"))
-        .endpoint("openai", "api", EndpointConfig::new(WireProtocol::OpenAiChat, "https://o.invalid/v1"))
-        .endpoint("go", "chat", EndpointConfig::new(WireProtocol::OpenAiChat, "https://g.invalid/v1"))
+        .endpoint(
+            "anthropic",
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, "https://a.invalid/v1"),
+        )
+        .endpoint(
+            "openai",
+            "api",
+            EndpointConfig::new(WireProtocol::OpenAiChat, "https://o.invalid/v1"),
+        )
+        .endpoint(
+            "go",
+            "chat",
+            EndpointConfig::new(WireProtocol::OpenAiChat, "https://g.invalid/v1"),
+        )
         .model("claude-sonnet-5", claude_model(1_000_000))
-        .model("claude-internal", model(&[], 200_000, priced(1.0, 2.0, 0.1)))
-        .model("gpt-5", model(&[ClientFamily::OpenAi], 400_000, priced(1.0, 2.0, 0.1)))
-        .model("go-kimi", model(&[ClientFamily::OpenAi], 0, priced(1.0, 2.0, 0.1)))
+        .model(
+            "claude-internal",
+            model(&[], 200_000, priced(1.0, 2.0, 0.1)),
+        )
+        .model(
+            "gpt-5",
+            model(&[ClientFamily::OpenAi], 400_000, priced(1.0, 2.0, 0.1)),
+        )
+        .model(
+            "go-kimi",
+            model(&[ClientFamily::OpenAi], 0, priced(1.0, 2.0, 0.1)),
+        )
         .deploy("claude-sonnet-5", ["anthropic/api"])
         .deploy("claude-internal", ["anthropic/api"])
         .deploy("gpt-5", ["openai/api"])
@@ -66,15 +89,26 @@ fn profile(catalog: &ResolvedCatalog, secrets: &[&str], keys: &[&str]) -> Bridge
 fn the_profile_lists_advertised_servable_models_only() {
     let c = catalog();
     let p = profile(&c, &["anthropic", "openai"], &[]);
-    assert_eq!(p.models, vec!["claude-sonnet-5".to_owned(), "gpt-5".to_owned()]);
+    assert_eq!(
+        p.models,
+        vec!["claude-sonnet-5".to_owned(), "gpt-5".to_owned()]
+    );
     assert_eq!(p.default_model.as_deref(), Some("claude-sonnet-5[1m]"));
 }
 
 #[test]
 fn a_personal_credential_serves_only_a_caller_who_stored_a_key() {
     let c = catalog();
-    assert!(!profile(&c, &["anthropic"], &[]).models.contains(&"go-kimi".to_owned()));
-    assert!(profile(&c, &["anthropic"], &["go"]).models.contains(&"go-kimi".to_owned()));
+    assert!(
+        !profile(&c, &["anthropic"], &[])
+            .models
+            .contains(&"go-kimi".to_owned())
+    );
+    assert!(
+        profile(&c, &["anthropic"], &["go"])
+            .models
+            .contains(&"go-kimi".to_owned())
+    );
 }
 
 #[test]
@@ -88,7 +122,12 @@ fn a_missing_secret_withholds_models_but_reports_the_provider() {
         .find(|h| h.name == "openai")
         .expect("provider still reported");
     assert!(!openai.configured);
-    assert!(openai.config_issue.as_deref().is_some_and(|m| m.contains("openai")));
+    assert!(
+        openai
+            .config_issue
+            .as_deref()
+            .is_some_and(|m| m.contains("openai"))
+    );
     assert_eq!(openai.clients, vec![ClientFamily::OpenAi]);
 }
 
@@ -104,7 +143,10 @@ fn provider_health_carries_credential_and_clients() {
             personal_keys: &keys,
         },
     );
-    let anthropic = health.iter().find(|h| h.name == "anthropic").expect("listed");
+    let anthropic = health
+        .iter()
+        .find(|h| h.name == "anthropic")
+        .expect("listed");
     assert_eq!(anthropic.credential, "anthropic");
     assert_eq!(anthropic.models, vec!["claude-sonnet-5".to_owned()]);
     assert!(!anthropic.models.contains(&"claude-internal".to_owned()));
@@ -119,7 +161,10 @@ fn model_entries_list_every_advertised_configured_model() {
         .into_iter()
         .map(|e| e.id)
         .collect();
-    assert_eq!(ids, vec!["claude-sonnet-5".to_owned(), "go-kimi".to_owned()]);
+    assert_eq!(
+        ids,
+        vec!["claude-sonnet-5".to_owned(), "go-kimi".to_owned()]
+    );
     let entry = model_entries(&c, |_| true)
         .into_iter()
         .find(|e| e.id == "claude-sonnet-5")
@@ -129,7 +174,11 @@ fn model_entries_list_every_advertised_configured_model() {
 
 #[test]
 fn header_helper_parses_client_families_and_defaults_to_empty() {
-    assert!(families_from_header(&HeaderMap::new()).expect("ok").is_empty());
+    assert!(
+        families_from_header(&HeaderMap::new())
+            .expect("ok")
+            .is_empty()
+    );
     let mut h = HeaderMap::new();
     h.insert(INFERENCE_PROTOCOL, "claude, openai".parse().unwrap());
     assert_eq!(
@@ -181,4 +230,3 @@ fn canonicalize_org_uuid_derives_stable_v5_for_non_uuid_tenant() {
         "distinct tenants must not collide"
     );
 }
-

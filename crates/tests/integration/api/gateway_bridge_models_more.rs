@@ -13,7 +13,7 @@ use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_api::routes::gateway::models::{humanize_model_id, families_from_header};
+use systemprompt_api::routes::gateway::models::{families_from_header, humanize_model_id};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::audit::GatewayAudit;
 use systemprompt_gateway::audit::message_text::flatten_message_content;
