@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                u.id as \"user_id: UserId\",\n                MAX(s.last_activity_at) as last_active,\n                COUNT(s.session_id) as \"session_count!\",\n                COALESCE(SUM(s.task_count), 0)::bigint as \"task_count!\",\n                COALESCE(SUM(s.message_count), 0)::bigint as \"message_count!\"\n            FROM users u\n            LEFT JOIN user_sessions s ON s.user_id = u.id\n            WHERE u.id = $1\n            GROUP BY u.id\n            ",
+  "query": "\n            SELECT\n                u.id as user_id,\n                MAX(s.last_activity_at) as last_active,\n                COUNT(s.session_id) as \"session_count!\",\n                COALESCE(SUM(s.task_count), 0)::bigint as \"task_count!\",\n                COALESCE(SUM(s.message_count), 0)::bigint as \"message_count!\"\n            FROM users u\n            LEFT JOIN user_sessions s ON s.user_id = u.id\n            WHERE u.id = $1\n            GROUP BY u.id\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "user_id: UserId",
+        "name": "user_id",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -52,5 +52,5 @@
       null
     ]
   },
-  "hash": "d5d01b8583c1b1d1e7f0fdf5c503304231cf64c636273a9785e4c96dea9f67ef"
+  "hash": "ba601718145b3acfec4270733633b00441cf2eb3f09d73b991c024718ad4fa96"
 }

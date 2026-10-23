@@ -6,7 +6,7 @@
 //! returned alongside the layer; awaiting [`LogWriterHandle::shutdown`] flushes
 //! whatever is still buffered or queued and stops the task.
 //! [`ProxyDatabaseLayer`] is the proxy-side variant. Both share a
-//! [`LayerShared`]: the instance label stamped on every entry and the count of
+//! `LayerShared`: the instance label stamped on every entry and the count of
 //! entries dropped on a full or closed queue.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

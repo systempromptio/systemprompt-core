@@ -7,7 +7,6 @@
 #![cfg(target_os = "windows")]
 #![allow(unsafe_code, reason = "Win32 process / window-manipulation FFI")]
 
-use crate::install::approval::HelperLaunchError;
 use std::mem::MaybeUninit;
 use std::os::windows::process::CommandExt;
 use std::path::Path;
@@ -109,6 +108,19 @@ pub(crate) fn detach_console() {
     // SAFETY: `FreeConsole` takes no arguments and is sound to call
     // unconditionally.
     unsafe { FreeConsole() };
+}
+
+/// Why the Windows elevated helper process could not be launched or awaited.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+pub enum HelperLaunchError {
+    #[error("ShellExecuteExW(runas) failed with status {status}")]
+    Launch { status: u32 },
+    #[error("the elevated process handle was null")]
+    NullHandle,
+    #[error("WaitForSingleObject returned {status}")]
+    Wait { status: u32 },
+    #[error("GetExitCodeProcess failed")]
+    ExitCode,
 }
 
 pub(crate) enum ElevationOutcome {

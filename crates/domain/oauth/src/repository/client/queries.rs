@@ -5,14 +5,14 @@
 
 use super::ClientRepository;
 use crate::error::OauthResult as Result;
-use crate::models::{OAuthClient, OAuthClientDbRow, OAuthClientRow};
+use crate::models::{OAuthClient, OAuthClientRow};
 use systemprompt_identifiers::{ClientId, UserId};
 
 impl ClientRepository {
     pub async fn find_by_client_id(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
         let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
-            OAuthClientDbRow,
+            OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
@@ -20,8 +20,7 @@ impl ClientRepository {
             client_id_str
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(OAuthClientRow::from))?;
+        .await?;
 
         match row {
             Some(row) => {
@@ -35,7 +34,7 @@ impl ClientRepository {
     pub async fn find_by_client_id_any(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
         let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
-            OAuthClientDbRow,
+            OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
@@ -43,8 +42,7 @@ impl ClientRepository {
             client_id_str
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(OAuthClientRow::from))?;
+        .await?;
 
         match row {
             Some(row) => {
@@ -57,19 +55,14 @@ impl ClientRepository {
 
     pub async fn list(&self) -> Result<Vec<OAuthClient>> {
         let rows = sqlx::query_as!(
-            OAuthClientDbRow,
+            OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
              FROM oauth_clients WHERE is_active = true ORDER BY created_at DESC"
         )
         .fetch_all(&*self.pool)
-        .await
-        .map(|rows| {
-            rows.into_iter()
-                .map(OAuthClientRow::from)
-                .collect::<Vec<_>>()
-        })?;
+        .await?;
 
         self.load_clients_with_relations_batch(rows).await
     }
@@ -78,7 +71,7 @@ impl ClientRepository {
         let limit_i64 = i64::from(limit);
         let offset_i64 = i64::from(offset);
         let rows = sqlx::query_as!(
-            OAuthClientDbRow,
+            OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
@@ -88,12 +81,7 @@ impl ClientRepository {
             offset_i64
         )
         .fetch_all(&*self.pool)
-        .await
-        .map(|rows| {
-            rows.into_iter()
-                .map(OAuthClientRow::from)
-                .collect::<Vec<_>>()
-        })?;
+        .await?;
 
         self.load_clients_with_relations_batch(rows).await
     }

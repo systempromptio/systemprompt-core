@@ -5,6 +5,7 @@
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum SingletonError {
+    #[cfg(unix)]
     #[error("{stage} {path}: {source}")]
     Lock {
         stage: &'static str,
