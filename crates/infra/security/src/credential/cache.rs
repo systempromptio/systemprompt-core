@@ -101,8 +101,9 @@ impl TokenCache {
         }
 
         // Why: the per-key lock is held in a map that is never pruned. Its keys
-        // are secret names, of which a deployment has a handful, so the map is
-        // bounded by configuration rather than by traffic.
+        // are catalog credential ids (see `TokenCacheKey`) and connector grant
+        // names, of which a deployment has a handful, so the map is bounded by
+        // configuration rather than by traffic.
         let lock = {
             let mut mints = self.mints.lock().await;
             Arc::clone(mints.entry(key.to_owned()).or_default())
