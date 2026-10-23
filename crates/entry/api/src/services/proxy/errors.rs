@@ -207,7 +207,8 @@ impl IntoResponse for ProxyError {
             | StatusCode::BAD_GATEWAY
             | StatusCode::GATEWAY_TIMEOUT => ApiError::service_unavailable("Proxy request failed")
                 .with_details(cause_chain(&self)),
-            _ => ApiError::internal_error("Proxy request failed").with_details(cause_chain(&self)),
+            _ => ApiError::internal("Proxy request failed", self.to_string())
+                .with_details(cause_chain(&self)),
         };
         ApiHttpError::from(api_error.with_error_key(error_key)).into_response()
     }

@@ -171,12 +171,8 @@ impl ApiError {
         Self::new(ErrorCode::ValidationError, message).with_validation_errors(errors)
     }
 
-    pub fn internal_error(context: &'static str) -> Self {
-        Self::new(ErrorCode::InternalError, context)
-    }
-
     pub fn internal(context: &'static str, source: impl Into<BoxedSource>) -> Self {
-        Self::internal_error(context).with_source(source)
+        Self::new(ErrorCode::InternalError, context).with_source(source)
     }
 
     pub fn service_unavailable(context: &'static str) -> Self {

@@ -33,7 +33,7 @@ pub async fn handle_mcp_registry(State(ctx): State<AppContext>) -> impl IntoResp
         Ok(configs) => configs,
         Err(e) => {
             tracing::error!(error = %e, "Failed to load MCP server configs");
-            return ApiHttpError::internal_error("Failed to retrieve MCP registry").into_response();
+            return ApiHttpError::internal("Failed to retrieve MCP registry", e).into_response();
         },
     };
 

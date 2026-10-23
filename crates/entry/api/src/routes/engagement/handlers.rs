@@ -108,7 +108,7 @@ pub(super) async fn record_engagement(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to record engagement");
-            ApiError::internal_error("Failed to record engagement")
+            ApiError::internal("Failed to record engagement", e)
         })?;
 
     mark_converted_if_applicable(&*state.sessions, req_ctx.session_id(), &input.event_type).await;

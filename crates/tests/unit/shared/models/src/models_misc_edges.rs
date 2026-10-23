@@ -111,7 +111,7 @@ fn a_server_error_body_never_carries_internal_text() {
     assert!(!body.contains("secret_table"), "{body}");
     assert!(api.source().is_some(), "the cause is kept for logging");
 
-    let raw = ApiError::internal_error("context").with_details("SELECT * FROM users");
+    let raw = ApiError::internal("context", "cause").with_details("SELECT * FROM users");
     let body = serde_json::to_value(&raw).unwrap();
     assert_eq!(body["message"], "Internal server error");
     assert!(body.get("details").is_none(), "{body}");

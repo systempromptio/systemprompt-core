@@ -28,7 +28,7 @@ pub async fn list_contexts(
         },
         Err(e) => {
             tracing::error!(error = %e, "Failed to list contexts");
-            api_error_response(ApiError::internal_error("Failed to list contexts"))
+            api_error_response(ApiError::internal("Failed to list contexts", e))
         },
     }
 }

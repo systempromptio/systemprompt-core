@@ -37,7 +37,7 @@ async fn handle_default_agent_card(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let registry = AgentRegistry::new().map_err(|e| {
         tracing::error!(error = %e, "Failed to create agent registry");
-        ApiError::internal_error("Failed to create agent registry")
+        ApiError::internal("Failed to create agent registry", e)
     })?;
 
     let default_agent = registry.get_default_agent().await.map_err(|e| {
@@ -52,7 +52,7 @@ async fn handle_default_agent_card(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to create agent card");
-            ApiError::internal_error("Failed to create agent card")
+            ApiError::internal("Failed to create agent card", e)
         })?;
 
     Ok(Json(json!(agent_card)))
@@ -65,7 +65,7 @@ async fn handle_agent_card_by_name(
     let agent_name = AgentName::try_new(agent_name.trim_end_matches(".json"))?;
     let registry = AgentRegistry::new().map_err(|e| {
         tracing::error!(error = %e, "Failed to create agent registry");
-        ApiError::internal_error("Failed to create agent registry")
+        ApiError::internal("Failed to create agent registry", e)
     })?;
 
     let _agent = registry.get_agent(agent_name.as_str()).await.map_err(|e| {
@@ -80,7 +80,7 @@ async fn handle_agent_card_by_name(
         .await
         .map_err(|e| {
             tracing::error!(agent = %agent_name, error = %e, "Failed to create agent card");
-            ApiError::internal_error("Failed to create agent card")
+            ApiError::internal("Failed to create agent card", e)
         })?;
 
     Ok(Json(json!(agent_card)))
@@ -91,12 +91,12 @@ async fn handle_list_agent_cards(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let registry = AgentRegistry::new().map_err(|e| {
         tracing::error!(error = %e, "Failed to create agent registry");
-        ApiError::internal_error("Failed to create agent registry")
+        ApiError::internal("Failed to create agent registry", e)
     })?;
 
     let agents = registry.list_agents().await.map_err(|e| {
         tracing::error!(error = %e, "Failed to list agents");
-        ApiError::internal_error("Failed to list agents")
+        ApiError::internal("Failed to list agents", e)
     })?;
 
     let base_url = &ctx.config().api_external_url;

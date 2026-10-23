@@ -36,7 +36,7 @@ pub(super) async fn create_new_session(
         })
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to create anonymous session");
-            ApiError::internal_error("Service temporarily unavailable")
+            ApiError::internal("Service temporarily unavailable", e)
         })
 }
 
@@ -53,15 +53,15 @@ pub(super) async fn refresh_session_for_user(
                 ApiError::not_found(format!("User not found: {}", user_id))
                     .with_error_key("user_not_found")
             },
-            SessionCreationError::Internal(ref msg) => {
-                tracing::error!(error = %msg, user_id = %user_id, "Failed to create session for user");
-                ApiError::internal_error("Failed to refresh session")
+            SessionCreationError::Internal(source) => {
+                tracing::error!(error = %source, user_id = %user_id, "Failed to create session for user");
+                ApiError::internal("Failed to refresh session", source)
             },
         })?;
 
     let config = systemprompt_manifest::Config::get().map_err(|e| {
         tracing::error!(error = %e, "Failed to get config during session refresh");
-        ApiError::internal_error("Failed to refresh session")
+        ApiError::internal("Failed to refresh session", e)
     })?;
 
     let token = systemprompt_oauth::services::generation::generate_anonymous_jwt(
@@ -74,7 +74,7 @@ pub(super) async fn refresh_session_for_user(
     )
     .map_err(|e| {
         tracing::error!(error = %e, "Failed to generate JWT during session refresh");
-        ApiError::internal_error("Failed to refresh session")
+        ApiError::internal("Failed to refresh session", e)
     })?;
 
     Ok((

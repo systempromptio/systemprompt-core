@@ -89,7 +89,7 @@ pub(super) async fn record_event(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to record analytics event");
-            ApiError::internal_error("Failed to record analytics event")
+            ApiError::internal("Failed to record analytics event", e)
         })?;
 
     if input.event_type == AnalyticsEventType::PageExit {
@@ -122,7 +122,7 @@ pub(super) async fn record_events_batch(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to record analytics events batch");
-            ApiError::internal_error("Failed to record analytics events")
+            ApiError::internal("Failed to record analytics events", e)
         })?;
 
     for event in &input.events {

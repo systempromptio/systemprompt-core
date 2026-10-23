@@ -23,7 +23,7 @@ fn constructors_carry_their_error_codes() {
             ApiError::service_unavailable("storage"),
             ErrorCode::ServiceUnavailable,
         ),
-        (ApiError::internal_error("boom"), ErrorCode::InternalError),
+        (ApiError::internal("boom", "cause"), ErrorCode::InternalError),
     ] {
         assert_eq!(error.code, code, "{}", error.message);
     }
@@ -91,7 +91,7 @@ fn a_server_error_body_is_redacted_to_the_public_message() {
 
 #[test]
 fn a_server_error_round_trips_through_the_wire_shape() {
-    let body = serde_json::to_string(&ApiError::internal_error("context")).unwrap();
+    let body = serde_json::to_string(&ApiError::internal("context", "cause")).unwrap();
     let parsed: ApiError = serde_json::from_str(&body).unwrap();
     assert_eq!(parsed.code, ErrorCode::InternalError);
     assert_eq!(parsed.message, "Internal server error");
