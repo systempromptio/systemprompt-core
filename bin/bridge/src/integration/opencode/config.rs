@@ -6,35 +6,41 @@
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-
 pub(super) const BINARY: &str = "opencode";
 pub(super) const PROVIDER_ID: &str = "systemprompt";
-pub(super) const NPM_PACKAGE: &str = "@ai-sdk/openai-compatible";
 pub(super) const CONFIG_FILE: &str = "opencode.json";
 pub(super) const CONFIG_FILE_JSONC: &str = "opencode.jsonc";
 pub(super) const AUTH_FILE: &str = "auth.json";
+pub(super) const TOKEN_FILE: &str = "systemprompt.token";
+pub(super) const MANAGED_PLIST: &str = "/Library/Managed Preferences/ai.opencode.managed.plist";
 
-pub(super) const PROVIDER_NPM: &str = "provider.systemprompt.npm";
-pub(super) const PROVIDER_NAME: &str = "provider.systemprompt.name";
-pub(super) const PROVIDER_BASE_URL: &str = "provider.systemprompt.options.baseURL";
+pub(super) const PROVIDER_PACKAGE: &str = "providers.systemprompt.package";
+pub(super) const PROVIDER_NAME: &str = "providers.systemprompt.name";
+pub(super) const PROVIDER_BASE_URL: &str = "providers.systemprompt.settings.baseURL";
 pub(super) const PROVIDER_PROTOCOL_HEADER: &str =
-    "provider.systemprompt.options.headers.x-inference-protocol";
-pub(super) const PROVIDER_MODELS: &str = "provider.systemprompt.models";
+    "providers.systemprompt.settings.headers.x-inference-protocol";
+pub(super) const PROVIDER_API_KEY: &str = "providers.systemprompt.settings.apiKey";
+pub(super) const PROVIDER_MODELS: &str = "providers.systemprompt.models";
 pub(super) const DEFAULT_MODEL: &str = "model";
-pub(super) const ENABLED_PROVIDERS: &str = "enabled_providers";
-
-pub(super) const PROVIDER_API_KEY: &str = "provider.systemprompt.options.apiKey";
+pub(super) const POLICIES: &str = "policies";
+// Why: the host token lives in its own 0600 file the config names with
+// `{file:}`; this synthetic key carries its fingerprint so a rotated token
+// reads as drift without the token reaching the GUI.
+pub(super) const TOKEN_KEY: &str = "systemprompt.token";
 
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
-    PROVIDER_NPM,
+    PROVIDER_PACKAGE,
     PROVIDER_NAME,
     PROVIDER_BASE_URL,
     PROVIDER_PROTOCOL_HEADER,
-    PROVIDER_MODELS,
     PROVIDER_API_KEY,
+    PROVIDER_MODELS,
     DEFAULT_MODEL,
-    ENABLED_PROVIDERS,
+    POLICIES,
+    TOKEN_KEY,
 ];
+
+pub(super) const MANAGED_KEYS_OF_INTEREST: &[&str] = &[TOKEN_KEY];
 
 #[must_use]
 pub(super) fn role_of(key: &str) -> crate::drift::EntryRole {
@@ -42,15 +48,13 @@ pub(super) fn role_of(key: &str) -> crate::drift::EntryRole {
     match key {
         PROVIDER_BASE_URL => EntryRole::Endpoint,
         PROVIDER_MODELS | DEFAULT_MODEL => EntryRole::Models,
-        PROVIDER_API_KEY => EntryRole::Secret,
+        TOKEN_KEY => EntryRole::Secret,
         _ => EntryRole::Setting,
     }
 }
 
-// Why: OpenCode 2.x does not load the admin-managed tier, so a provider block
-// in it is dead config that only uninstall and
-// doctor still look at. `[opencode] managed_dir` relocates it (a test sandbox);
-// the platform default applies only when the config does not set it.
+// Why: `[opencode] managed_dir` relocates the admin-managed tier (a test
+// sandbox); the platform default applies only when the config does not set it.
 pub(super) fn managed_dir() -> Result<PathBuf, crate::config::ConfigReadError> {
     let cfg = crate::config::load()?;
     if let Some(custom) = cfg.opencode.and_then(|o| o.managed_dir) {
@@ -71,10 +75,6 @@ fn platform_managed_dir() -> PathBuf {
     }
 }
 
-pub(super) fn managed_config_path() -> Result<PathBuf, crate::config::ConfigReadError> {
-    Ok(managed_dir()?.join(CONFIG_FILE))
-}
-
 // Why: OpenCode uses ~/.config/opencode even on macOS, honoring
 // XDG_CONFIG_HOME.
 pub(super) fn user_dir() -> PathBuf {
@@ -92,6 +92,10 @@ pub(super) fn skills_dir() -> PathBuf {
     user_dir().join("skills")
 }
 
+pub(super) fn token_path() -> PathBuf {
+    user_dir().join(TOKEN_FILE)
+}
+
 pub(super) fn data_dir() -> PathBuf {
     let base = crate::basedirs::data_home_override()
         .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".local").join("share")))
@@ -99,8 +103,8 @@ pub(super) fn data_dir() -> PathBuf {
     base.join(BINARY)
 }
 
-// Why: OpenCode 2.x imports `auth.json` into its own store once and never
-// reads it again, so a key there cannot rotate; it is only ever removed.
+// Why: `auth.json` is where the V1 writer left the key; V2 never reads it, so
+// the bridge only ever removes its entry.
 pub(super) fn auth_json_path() -> PathBuf {
     data_dir().join(AUTH_FILE)
 }

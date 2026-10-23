@@ -53,6 +53,8 @@ mod opencode_packaging;
 #[cfg(test)]
 mod opencode_user_tier;
 #[cfg(test)]
+mod opencode_version;
+#[cfg(test)]
 mod plist_drift;
 #[cfg(test)]
 mod plugin_oauth;

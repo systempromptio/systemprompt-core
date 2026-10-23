@@ -7,13 +7,14 @@
 
 use systemprompt_models::bridge::host::{HostAppKind, HostKind};
 
+use super::tier::{ProviderTier, provider_tier};
 use super::{config, install, probe};
 use crate::drift::DesiredProfile;
 use crate::integration::app_launch;
 use crate::integration::host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
     HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe, ProfileRemoval,
-    ProfileState, StaleReason,
+    ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -33,24 +34,12 @@ fn snapshot(
 ) -> HostAppSnapshot {
     let read = probe::read_config();
     let desired = env.desired_for(host);
-    let profile_state = match ProfileState::classify(&ProfileProbe {
+    let profile_state = ProfileState::classify(&ProfileProbe {
         present: &read.keys,
         observed: &read.observed,
         read_error: read.probe_error.as_deref(),
         desired: &desired,
-    }) {
-        // Why: a host enrolled before OpenCode 2.x has its block only in the
-        // retired admin tier, so the user config reads as never enrolled and
-        // sync, which re-applies only stale profiles, would never move it.
-        ProfileState::Absent if install::stale_admin_tier().is_some() => ProfileState::Stale {
-            reason: StaleReason::Settings,
-            keys: vec![
-                config::PROVIDER_BASE_URL.to_owned(),
-                config::ENABLED_PROVIDERS.to_owned(),
-            ],
-        },
-        state => state,
-    };
+    });
     let found = HostProcesses::from_enumeration(probe::list_opencode_processes(), packaging);
     HostAppSnapshot {
         host_id: host.id(),
@@ -68,10 +57,23 @@ fn snapshot(
 }
 
 fn desired(inputs: &ProfileGenInputs) -> Result<DesiredProfile, HostAppError> {
-    let rendered: serde_json::Value =
-        serde_json::from_str(&install::provider_json_text(inputs)?)
+    let token = Some(inputs.host_token.as_str());
+    let read = if provider_tier() == ProviderTier::User {
+        let rendered = serde_json::to_value(install::render(inputs))
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    Ok(probe::keys_of(&rendered, "rendered profile").desired(config::role_of))
+        probe::keys_of(
+            &probe::with_token(rendered, token),
+            "rendered profile",
+            config::KEYS_OF_INTEREST,
+        )
+    } else {
+        probe::keys_of(
+            &probe::with_token(serde_json::Value::Object(serde_json::Map::new()), token),
+            "rendered profile",
+            config::MANAGED_KEYS_OF_INTEREST,
+        )
+    };
+    Ok(read.desired(config::role_of))
 }
 
 const fn install_action_label() -> &'static str {
@@ -85,7 +87,7 @@ const fn install_action_label() -> &'static str {
 const fn description() -> &'static str {
     "The open-source OpenCode coding agent. systemprompt-bridge writes the configuration that \
      routes inference through the gateway, registers MCP connectors, and publishes managed \
-     skills."
+     skills, agents, plugins and rules."
 }
 
 impl HostApp for OpenCodeAppHost {

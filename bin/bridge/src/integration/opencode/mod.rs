@@ -28,9 +28,12 @@ mod hosts;
 mod install;
 mod managed_resources;
 mod probe;
+mod tier;
+mod version;
 
 pub use hosts::{OPENCODE_APP_HOST, OPENCODE_CLI_HOST, OpenCodeAppHost, OpenCodeCliHost};
-pub use managed_resources::OpenCodeSync;
+pub use managed_resources::{OpenCodeSync, agents_block, as_subagent, splice_block};
+pub use version::{ClientVersion, MIN_CLIENT_VERSION, parse_version, probe_client_version};
 
 use systemprompt_models::bridge::host::HostKind;
 
@@ -46,6 +49,9 @@ pub(crate) fn feedback_skill_root() -> std::path::PathBuf {
 }
 
 #[must_use]
-pub fn retired_admin_tier() -> Option<std::path::PathBuf> {
-    install::stale_admin_tier()
+pub fn managed_provider_source() -> Option<std::path::PathBuf> {
+    match tier::provider_tier() {
+        tier::ProviderTier::Managed(source) => Some(source),
+        tier::ProviderTier::User => None,
+    }
 }

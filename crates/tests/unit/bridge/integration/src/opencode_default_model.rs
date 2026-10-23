@@ -47,7 +47,8 @@ fn rendered(models: &[&str], default_model: Option<&str>) -> serde_json::Value {
     });
     let body = std::fs::read_to_string(&generated.path).expect("generated readable");
     _ = std::fs::remove_file(&generated.path);
-    serde_json::from_str(&body).expect("generated is JSON")
+    let generated: serde_json::Value = serde_json::from_str(&body).expect("generated is JSON");
+    generated["config"].clone()
 }
 
 #[test]

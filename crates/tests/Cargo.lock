@@ -7596,6 +7596,7 @@ dependencies = [
  "keyring-core",
  "linux-keyutils-keyring-store",
  "reqwest",
+ "semver",
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-bridge",

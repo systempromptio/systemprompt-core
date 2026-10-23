@@ -111,11 +111,11 @@ fn codex_reads_back_what_it_wrote_and_names_a_changed_policy_value() {
 }
 
 #[test]
-fn opencode_reads_back_what_it_wrote_and_names_a_changed_allowlist() {
+fn opencode_reads_back_what_it_wrote_and_names_changed_policies() {
     opencode_sandbox(|user| {
-        assert_installed_then_stale_on(&OPENCODE_HOST, user, "enabled_providers", |body| {
+        assert_installed_then_stale_on(&OPENCODE_HOST, user, "policies", |body| {
             let mut doc: serde_json::Value = serde_json::from_str(body).expect("json");
-            doc["enabled_providers"] = serde_json::json!(["systemprompt", "opencode"]);
+            doc["policies"] = serde_json::json!([]);
             doc.to_string()
         });
     });
@@ -204,10 +204,15 @@ fn codex_sandbox_free<R>(f: impl FnOnce() -> R) -> R {
 #[test]
 fn every_key_the_opencode_writer_sets_is_compared_by_its_probe() {
     let text = opencode_sandbox(|_| generated_text(&OPENCODE_HOST));
-    let doc: serde_json::Value = serde_json::from_str(&text).expect("generated is JSON");
-    let mut leaves = Vec::new();
-    json_leaves("", &doc, &mut leaves);
-    assert_every_leaf_is_compared(&OPENCODE_HOST, &leaves, "_systemprompt_api_key");
+    let generated: serde_json::Value = serde_json::from_str(&text).expect("generated is JSON");
+    let mut config = generated["config"].clone();
+    config
+        .as_object_mut()
+        .expect("config object")
+        .remove("$schema");
+    let mut leaves = vec!["systemprompt.token".to_owned()];
+    json_leaves("", &config, &mut leaves);
+    assert_every_leaf_is_compared(&OPENCODE_HOST, &leaves, "");
 }
 
 #[test]
