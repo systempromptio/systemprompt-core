@@ -78,12 +78,13 @@ pub enum PlatformSecretKind {
 impl PlatformSecretKind {
     #[must_use]
     pub fn detect(secret_value: &str) -> Self {
-        let parsed = serde_json::from_str::<serde_json::Value>(secret_value.trim()).ok();
-        let is_service_account = parsed
-            .as_ref()
-            .and_then(|doc| doc.get("type"))
-            .and_then(serde_json::Value::as_str)
-            == Some("service_account");
+        let is_service_account =
+            match serde_json::from_str::<serde_json::Value>(secret_value.trim()) {
+                Ok(doc) => {
+                    doc.get("type").and_then(serde_json::Value::as_str) == Some("service_account")
+                },
+                Err(_not_json) => false,
+            };
         if is_service_account {
             Self::ServiceAccount
         } else {
