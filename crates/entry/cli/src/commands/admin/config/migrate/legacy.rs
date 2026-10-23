@@ -13,6 +13,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::Deserialize;
+use systemprompt_identifiers::SecretName;
 use systemprompt_manifest::services::gateway::{
     ModelGlobs, RouteMatch, RouteRequirements, SelectionStrategy,
 };
@@ -73,7 +74,7 @@ pub struct LegacyProvider {
     pub surface: LegacySurface,
     pub endpoint: String,
     #[serde(default)]
-    pub api_key_secret: Option<String>,
+    pub api_key_secret: Option<SecretName>,
     #[serde(default)]
     pub credential: LegacyCredentialSource,
     #[serde(default)]

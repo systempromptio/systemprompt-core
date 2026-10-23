@@ -52,8 +52,6 @@ use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 pub use access_log::GatewayAccessLog;
 
 impl GatewayRequestContext {
-    /// Opens the audit row on the hop dispatch resolved: its provider name
-    /// (the historical report dimension) plus its credential and endpoint.
     pub fn open_on(&mut self, hop: &ResolvedHop) {
         hop.provider.as_str().clone_into(&mut self.provider);
         self.hop = Some(CatalogHop {

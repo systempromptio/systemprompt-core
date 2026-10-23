@@ -46,7 +46,7 @@ fn credential_of(entry: &LegacyProvider) -> MigrateResult<(CredentialId, Credent
             CredentialEntry::personal(entry.display_name.clone()),
         ));
     }
-    let secret = entry.api_key_secret.as_deref().ok_or_else(|| {
+    let secret = entry.api_key_secret.as_ref().ok_or_else(|| {
         MigrateAbort::new(
             PROVIDERS_FILE,
             [format!("providers[{}].api_key_secret", entry.name)],

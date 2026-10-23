@@ -94,8 +94,6 @@ ai: {}
     .to_owned()
 }
 
-/// The catalog files a new project starts with: core's default catalog with
-/// `gateway.default_model` on `default_provider`, gateway off.
 pub fn catalog_files(default_provider: &str) -> anyhow::Result<Vec<(&'static str, String)>> {
     let document = crate::commands::admin::setup::catalog::seed_document(
         crate::commands::admin::setup::catalog::SeedRequest {

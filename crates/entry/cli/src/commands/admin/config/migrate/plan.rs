@@ -47,8 +47,6 @@ fn read_value(path: &Path) -> Result<Option<Value>> {
         .with_context(|| format!("Failed to parse {}", path.display()))
 }
 
-/// Every file of the tree that is in the pre-0.73 shape, with what gave it
-/// away.
 pub fn legacy_files(services: &Path) -> Result<Vec<(PathBuf, &'static str)>> {
     let mut found = Vec::new();
     let ai = services.join("ai");
@@ -131,7 +129,6 @@ fn rewrite_root(services: &Path) -> Result<Option<String>> {
     Ok((rewritten.trim_end() != text.trim_end()).then_some(rewritten))
 }
 
-/// What the legacy files say, read and checked for shapes with no 0.73 home.
 struct LegacyInput {
     tree: LegacyTree,
     ai: LegacyAi,

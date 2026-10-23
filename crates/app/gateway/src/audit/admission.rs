@@ -38,7 +38,6 @@ pub(super) struct PendingAdmission {
     decisions: Vec<DecisionAudit>,
 }
 
-/// The served hop an admission records: provider, credential and endpoint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct OwnedHop {
     pub(super) provider: String,

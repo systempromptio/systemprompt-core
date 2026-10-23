@@ -78,13 +78,18 @@ fn write_document(location: &CatalogLocation, document: &CatalogDocument) -> Res
     write_gateway(&location.dir, document.gateway.as_ref())
 }
 
-fn snapshot(location: &CatalogLocation) -> Vec<(PathBuf, Option<Vec<u8>>)> {
+fn snapshot(location: &CatalogLocation) -> Result<Vec<(PathBuf, Option<Vec<u8>>)>> {
     CATALOG_FILES
         .iter()
         .map(|name| {
             let path = location.dir.join(name);
-            let bytes = std::fs::read(&path).ok();
-            (path, bytes)
+            match std::fs::read(&path) {
+                Ok(bytes) => Ok((path, Some(bytes))),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok((path, None)),
+                Err(error) => {
+                    Err(error).with_context(|| format!("Failed to read {}", path.display()))
+                },
+            }
         })
         .collect()
 }
@@ -102,13 +107,11 @@ fn restore(files: &[(PathBuf, Option<Vec<u8>>)]) -> Result<()> {
     Ok(())
 }
 
-/// Writes `after` and re-loads the services tree; if the tree no longer
-/// loads, every catalog file is put back byte for byte.
 pub fn commit_catalog(
     location: &CatalogLocation,
     after: &CatalogDocument,
 ) -> Result<ServicesConfig> {
-    let previous = snapshot(location);
+    let previous = snapshot(location)?;
     write_document(location, after)?;
     match ConfigLoader::reload_from_path(&location.root) {
         Ok(services) => Ok(services),

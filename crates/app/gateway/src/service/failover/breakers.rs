@@ -56,7 +56,6 @@ impl Default for ProviderBreakers {
     }
 }
 
-/// The breaker and load key of one hop: its `provider/endpoint`.
 #[must_use]
 pub fn breaker_key(hop: &ResolvedHop) -> String {
     hop.endpoint_ref().to_string()

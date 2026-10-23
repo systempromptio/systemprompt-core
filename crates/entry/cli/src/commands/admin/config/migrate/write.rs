@@ -95,7 +95,6 @@ fn copy_tree(from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Loads `services` as the server would after the plan is written.
 pub fn verify(services: &Path, plan: &MigrationPlan) -> Result<ServicesConfig> {
     let scratch = tempfile::tempdir().context("Failed to create a scratch directory")?;
     let copy = scratch.path().join("services");

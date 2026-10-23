@@ -97,7 +97,6 @@ impl LegacyTree {
             || (!hidden_gate && self.contains_model(requested))
     }
 
-    /// `None` when 0.72.1 would not have dispatched the id at all.
     #[must_use]
     pub fn resolve(&self, requested: &str) -> Option<LegacyResolution> {
         let Some(gateway) = self.gateway.as_ref() else {
@@ -157,9 +156,6 @@ impl LegacyTree {
         self.hop(deployment, None, requested)
     }
 
-    /// One hop as dispatch would bind it; `None` when the entry is undeclared.
-    /// `pricing` is `None` when dispatch had no price for it (it refused such a
-    /// primary and skipped such a failover hop).
     fn hop(
         &self,
         deployment: &LegacyDeployment,

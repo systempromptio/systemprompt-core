@@ -124,7 +124,7 @@ fn plain_chain(deployments: &DeploymentRegistry, model: &ModelId) -> Vec<Endpoin
 
 fn check_pins(
     inputs: &RouteInputs<'_>,
-    route_id: &str,
+    route: &str,
     pattern: &str,
     pinned: &[(EndpointRef, Option<u32>)],
 ) -> MigrateResult<()> {
@@ -133,7 +133,7 @@ fn check_pins(
         if let Some((missing, _)) = pinned.iter().find(|(e, _)| !chain.contains(e)) {
             return Err(MigrateAbort::new(
                 GATEWAY_FILE,
-                [format!("gateway.routes[{route_id}]")],
+                [format!("gateway.routes[{route}]")],
                 format!(
                     "the route sends '{model}' to '{missing}', which its plain chain never reaches; a \
                      0.73 route narrows a model's deployments and cannot add one"

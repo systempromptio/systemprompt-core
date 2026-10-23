@@ -30,7 +30,6 @@ use super::fold::Folded;
 use super::legacy::{LegacyModel, LegacyProvider, LegacySurface};
 use super::replay::{LegacyHop, LegacyTree};
 
-/// One deployed hop before multipliers are chosen.
 #[derive(Debug, Clone)]
 struct Hop {
     endpoint: EndpointRef,
