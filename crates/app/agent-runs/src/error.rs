@@ -25,6 +25,9 @@ pub enum AgentRunsError {
     #[error("unknown error class '{value}'")]
     UnknownErrorClass { value: String },
 
+    #[error("unknown traffic class '{value}'")]
+    UnknownTrafficClass { value: String },
+
     #[error("host {host} cannot run headless: {reason}")]
     UnsupportedHost {
         host: crate::request::HostKind,

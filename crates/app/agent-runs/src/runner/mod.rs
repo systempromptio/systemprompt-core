@@ -87,7 +87,7 @@ pub fn credential_request(
         user_id: user_id.clone(),
         name: format!("a2a-run-{run_id}"),
         ttl: request.wall_clock + CREDENTIAL_GRACE,
-        scopes: Vec::new(),
+        scopes: request.traffic_binding().into_iter().collect(),
         plugin_id: request.plugin_id.clone(),
         limits: RunCredentialLimits {
             max_budget_usd: request.max_budget_usd,
@@ -135,7 +135,8 @@ impl RunnerService for A2aRunnerService {
                 ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
             ),
             runner,
-        );
+        )
+        .with_harness_source(Arc::new(repos.managed));
         let mut claim = ClaimLoop::new(
             repos.runs,
             AGENT_RUN_ORIGIN_KIND,

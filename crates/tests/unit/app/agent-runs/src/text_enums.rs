@@ -35,10 +35,6 @@ fn status_and_error_class_round_trip() {
 
 #[test]
 fn undeclared_hosts_are_unsupported() {
-    assert!(matches!(
-        host_for(HostKind::OpenCodeCli),
-        Execution::Unsupported { .. }
-    ));
     for app in [HostKind::ClaudeDesktop, HostKind::Codex, HostKind::OpenCode] {
         assert!(
             matches!(host_for(app), Execution::Unsupported { .. }),

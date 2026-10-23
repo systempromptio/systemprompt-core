@@ -49,6 +49,7 @@ pub struct AgentRunRow {
     pub error: Option<String>,
     // JSON: the workspace diff summary.
     pub diff_summary: Option<serde_json::Value>,
+    pub harness_digest: Option<String>,
     pub cancel_requested_at: Option<DateTime<Utc>>,
     pub task_id: Option<TaskId>,
     pub context_id: Option<ContextId>,
@@ -69,7 +70,7 @@ impl AgentRunRepository {
                    host_session_id AS "host_session_id: HostSessionId",
                    pid, started_at, finished_at, duration_ms, error_class, turns,
                    input_tokens, output_tokens, cost_microdollars, structured_output,
-                   exit_code, error, diff_summary, cancel_requested_at,
+                   exit_code, error, diff_summary, harness_digest, cancel_requested_at,
                    task_id AS "task_id: TaskId", context_id AS "context_id: ContextId",
                    created_at, updated_at
             FROM agent_runs
@@ -98,7 +99,7 @@ impl AgentRunRepository {
                    host_session_id AS "host_session_id: HostSessionId",
                    pid, started_at, finished_at, duration_ms, error_class, turns,
                    input_tokens, output_tokens, cost_microdollars, structured_output,
-                   exit_code, error, diff_summary, cancel_requested_at,
+                   exit_code, error, diff_summary, harness_digest, cancel_requested_at,
                    task_id AS "task_id: TaskId", context_id AS "context_id: ContextId",
                    created_at, updated_at
             FROM agent_runs

@@ -15,7 +15,8 @@ pub mod plugin;
 pub mod stream_json;
 
 use super::{
-    Execution, ExitInfo, HeadlessHost, HostCapabilities, HostEvent, HostInvocation, PrepareContext,
+    Execution, ExitInfo, HarnessTargets, HeadlessHost, HostCapabilities, HostEvent, HostInvocation,
+    PrepareContext,
 };
 use crate::error::AgentRunsResult;
 use crate::event::RunEventPayload;
@@ -35,6 +36,10 @@ impl HeadlessHost for ClaudeCode {
 
     fn persistent_home_paths(&self) -> &'static [&'static str] {
         &[".claude/projects"]
+    }
+
+    fn harness_targets(&self) -> HarnessTargets {
+        HarnessTargets::Home(".claude")
     }
 
     fn capabilities(&self) -> HostCapabilities {

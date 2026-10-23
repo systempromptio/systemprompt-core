@@ -97,6 +97,7 @@ systemprompt-ai = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-marketplace = { workspace = true }
+systemprompt-agent-runs = { workspace = true }
 systemprompt-slack = { workspace = true }
 systemprompt-teams = { workspace = true }
 

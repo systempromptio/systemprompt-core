@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id AS \"id: AgentRunId\", origin_kind, origin_id,\n                   user_id AS \"user_id: UserId\", host, status, request, attempt,\n                   not_before, claimed_by, lease_until, claimed_at, run_dir,\n                   gateway_session_id AS \"gateway_session_id: SessionId\",\n                   api_key_id AS \"api_key_id: ApiKeyId\",\n                   host_session_id AS \"host_session_id: HostSessionId\",\n                   pid, started_at, finished_at, duration_ms, error_class, turns,\n                   input_tokens, output_tokens, cost_microdollars, structured_output,\n                   exit_code, error, diff_summary, cancel_requested_at,\n                   task_id AS \"task_id: TaskId\", context_id AS \"context_id: ContextId\",\n                   created_at, updated_at\n            FROM agent_runs\n            WHERE id = $1\n            ",
+  "query": "\n            SELECT id AS \"id: AgentRunId\", origin_kind, origin_id,\n                   user_id AS \"user_id: UserId\", host, status, request, attempt,\n                   not_before, claimed_by, lease_until, claimed_at, run_dir,\n                   gateway_session_id AS \"gateway_session_id: SessionId\",\n                   api_key_id AS \"api_key_id: ApiKeyId\",\n                   host_session_id AS \"host_session_id: HostSessionId\",\n                   pid, started_at, finished_at, duration_ms, error_class, turns,\n                   input_tokens, output_tokens, cost_microdollars, structured_output,\n                   exit_code, error, diff_summary, harness_digest, cancel_requested_at,\n                   task_id AS \"task_id: TaskId\", context_id AS \"context_id: ContextId\",\n                   created_at, updated_at\n            FROM agent_runs\n            WHERE origin_kind = $1 AND origin_id = $2\n            ORDER BY created_at\n            ",
   "describe": {
     "columns": [
       {
@@ -324,6 +324,17 @@
       },
       {
         "ordinal": 29,
+        "name": "harness_digest",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agent_runs",
+            "name": "harness_digest"
+          }
+        }
+      },
+      {
+        "ordinal": 30,
         "name": "cancel_requested_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -334,7 +345,7 @@
         }
       },
       {
-        "ordinal": 30,
+        "ordinal": 31,
         "name": "task_id: TaskId",
         "type_info": "Text",
         "origin": {
@@ -345,7 +356,7 @@
         }
       },
       {
-        "ordinal": 31,
+        "ordinal": 32,
         "name": "context_id: ContextId",
         "type_info": "Text",
         "origin": {
@@ -356,7 +367,7 @@
         }
       },
       {
-        "ordinal": 32,
+        "ordinal": 33,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -367,7 +378,7 @@
         }
       },
       {
-        "ordinal": 33,
+        "ordinal": 34,
         "name": "updated_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -380,6 +391,7 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Text"
       ]
     },
@@ -416,9 +428,10 @@
       true,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "9a548fddaf688ea843ba9f2a9b58c1825967e304b482c1fdf527159aa2997bf0"
+  "hash": "c445e5e23619e62b18b24a2f09f8909968fe9fc49c8fbd3bec24a87e1b775a32"
 }

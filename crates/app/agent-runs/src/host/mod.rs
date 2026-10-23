@@ -69,6 +69,22 @@ pub struct ExitInfo {
     pub duration_ms: i64,
 }
 
+/// A minimum client version, checked by running the host program with
+/// `args` and reading the first semver in its output.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VersionRequirement {
+    pub args: &'static [&'static str],
+    pub minimum: semver::Version,
+}
+
+/// Where a run's harness revision is written: a directory under the run
+/// home (the host's global config tree) or the workspace itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HarnessTargets {
+    Home(&'static str),
+    Workspace,
+}
+
 /// One coding-agent host.
 ///
 /// Held as `Box<dyn HeadlessHost>` by [`Execution`] so the executor picks the
@@ -80,6 +96,14 @@ pub trait HeadlessHost: Send + Sync {
 
     fn persistent_home_paths(&self) -> &'static [&'static str] {
         &[]
+    }
+
+    fn version_requirement(&self) -> Option<VersionRequirement> {
+        None
+    }
+
+    fn harness_targets(&self) -> HarnessTargets {
+        HarnessTargets::Workspace
     }
 
     fn prepare(&self, ctx: &PrepareContext<'_>) -> AgentRunsResult<HostInvocation>;

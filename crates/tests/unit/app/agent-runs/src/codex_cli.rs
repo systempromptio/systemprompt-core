@@ -52,6 +52,8 @@ pub(crate) fn request() -> RunRequest {
         attribution_scopes: Vec::new(),
         plugin_id: None,
         plugin_dirs: Vec::new(),
+        harness: None,
+        traffic: systemprompt_agent_runs::TrafficClass::Production,
     }
 }
 
@@ -95,10 +97,6 @@ fn host_for_codex_is_supported() {
     };
     let caps = host.capabilities();
     assert!(!caps.hooks && caps.resume && caps.structured_output && caps.mcp);
-    assert!(matches!(
-        host_for(HostKind::OpenCodeCli),
-        Execution::Unsupported { .. }
-    ));
     assert!(matches!(
         host_for(HostKind::Hermes),
         Execution::Unsupported { .. }

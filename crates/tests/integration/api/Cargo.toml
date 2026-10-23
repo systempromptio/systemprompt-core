@@ -14,7 +14,7 @@ path = "mod.rs"
 workspace = true
 
 [package.metadata.cargo-machete]
-# register_gateway_guard! expands to ::inventory::submit! in this crate.
+# register_gateway_guard! and register_run_origin! expand to ::inventory::submit! in this crate.
 ignored = ["inventory"]
 
 [dependencies]
@@ -47,6 +47,7 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-agent-runs = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["json"] }
 systemprompt-slack = { workspace = true }

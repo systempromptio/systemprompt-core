@@ -33,7 +33,13 @@ mod execute_support;
 #[cfg(test)]
 mod governance;
 #[cfg(test)]
+mod harness;
+#[cfg(test)]
 mod lease;
+#[cfg(test)]
+mod opencode;
+#[cfg(test)]
+mod opencode_outcome;
 #[cfg(test)]
 mod repository;
 #[cfg(test)]

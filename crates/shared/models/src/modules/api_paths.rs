@@ -29,6 +29,8 @@ impl ApiPaths {
     pub const CORE_TASKS: &'static str = "/api/v1/core/tasks";
     pub const CORE_ARTIFACTS: &'static str = "/api/v1/core/artifacts";
 
+    pub const AGENT_RUNS: &'static str = "/api/v1/agent-runs";
+
     pub const AGENTS_REGISTRY: &'static str = "/api/v1/agents/registry";
 
     pub const MCP_REGISTRY: &'static str = "/api/v1/mcp/registry";

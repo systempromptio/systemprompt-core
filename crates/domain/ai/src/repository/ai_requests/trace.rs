@@ -1,6 +1,6 @@
 //! `AiRequestTrace` over the request rows this crate owns: sampling of
-//! completed production traffic and owner-scoped usage reads for the
-//! evaluation domain.
+//! completed production traffic and owner-scoped usage reads for an
+//! extension that evaluates it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

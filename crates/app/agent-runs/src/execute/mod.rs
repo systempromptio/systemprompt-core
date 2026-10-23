@@ -17,11 +17,14 @@
 
 mod command;
 pub mod diff;
+pub mod harness;
 mod home_keep;
+pub mod outputs;
 mod pump;
 pub mod sink;
 mod spawn;
 mod supervise;
+pub mod version;
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -39,8 +42,9 @@ use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::event::{RunEventPayload, RunnerLevel};
 use crate::host::{Execution, ExitInfo, HeadlessHost, HostInvocation, PrepareContext, host_for};
 use crate::layout::RunLayout;
-use crate::outcome::{RunOutcome, RunStatus};
-use crate::request::RunRequest;
+use crate::outcome::{ErrorClass, RunOutcome, RunStatus};
+use crate::request::{HarnessRef, RunRequest};
+use systemprompt_models::managed::RevisionBundle;
 
 const DRAIN_GRACE: Duration = Duration::from_secs(5);
 
@@ -55,6 +59,7 @@ pub struct ExecuteParams<'a> {
     pub seq_after: Option<i64>,
     pub sink: &'a dyn EventSink,
     pub cancel: CancellationToken,
+    pub harness: Option<(&'a HarnessRef, &'a RevisionBundle)>,
 }
 
 impl std::fmt::Debug for ExecuteParams<'_> {
@@ -72,6 +77,7 @@ impl std::fmt::Debug for ExecuteParams<'_> {
 pub struct RunReport {
     pub outcome: RunOutcome,
     pub diff: DiffSummary,
+    pub outputs: outputs::OutputCapture,
     pub stderr_tail: Vec<String>,
 }
 
@@ -120,7 +126,20 @@ async fn run(host: &dyn HeadlessHost, params: &ExecuteParams<'_>) -> AgentRunsRe
         gateway_base_url: params.gateway_base_url,
         hooks_file: params.hooks_file.clone(),
     };
+    if let Some((harness_ref, bundle)) = params.harness {
+        let root = harness::target_root(host.harness_targets(), params.layout, params.request);
+        if let Err(error) = harness::materialise(harness_ref, bundle, &root) {
+            let message = error_chain(&error);
+            return Ok(refused(params, ErrorClass::HarnessUnavailable, message).await);
+        }
+    }
     let invocation = host.prepare(&ctx)?;
+    if let Some(requirement) = host.version_requirement()
+        && let Err(error) = version::check(&requirement, &invocation).await
+    {
+        let message = error_chain(&error);
+        return Ok(refused(params, ErrorClass::ConnectorUnavailable, message).await);
+    }
     home_keep::restore(params.layout, host.persistent_home_paths()).await?;
     let before = diff::snapshot_async(invocation.cwd.clone()).await;
 
@@ -152,11 +171,58 @@ async fn run(host: &dyn HeadlessHost, params: &ExecuteParams<'_>) -> AgentRunsRe
         outcome.error = Some(stderr_tail.join("\n"));
     }
     let after = diff::snapshot_async(invocation.cwd.clone()).await;
+    let diff = diff::workspace_diff(&before, &after);
+    let outputs = outputs::capture(&invocation.cwd, &diff, params.layout).await?;
     Ok(RunReport {
         outcome,
-        diff: diff::workspace_diff(&before, &after),
+        diff,
+        outputs,
         stderr_tail,
     })
+}
+
+#[must_use]
+pub fn error_chain(error: &dyn std::error::Error) -> String {
+    let mut parts = vec![error.to_string()];
+    let mut cause = error.source();
+    while let Some(next) = cause {
+        parts.push(next.to_string());
+        cause = next.source();
+    }
+    parts.join(": ")
+}
+
+async fn refused(
+    params: &ExecuteParams<'_>,
+    error_class: ErrorClass,
+    message: String,
+) -> RunReport {
+    let mut sink = pump::BufferedSink::new(params.sink, params.seq_after);
+    sink.push(RunEventPayload::Runner {
+        message: message.clone(),
+        level: RunnerLevel::Error,
+    })
+    .await;
+    sink.flush().await;
+    RunReport {
+        outcome: RunOutcome {
+            status: RunStatus::Failed,
+            error_class,
+            session_id: None,
+            cost_microdollars: 0,
+            input_tokens: 0,
+            output_tokens: 0,
+            turns: 0,
+            duration_ms: 0,
+            structured_output: None,
+            exit_code: None,
+            error: Some(message),
+            final_text: None,
+        },
+        diff: DiffSummary::default(),
+        outputs: outputs::OutputCapture::default(),
+        stderr_tail: Vec::new(),
+    }
 }
 
 async fn drive(

@@ -1,10 +1,10 @@
 //! Read-only access to the `ai_requests` trace for domains that never own it.
 //!
-//! The evaluation domain samples completed production requests, verifies the
-//! audit trail of an execution, and settles budget reservations against the
-//! recorded usage; the request rows belong to the AI domain, so every one of
-//! those reads goes through [`AiRequestTrace`], implemented by the AI domain
-//! and held as `Arc<dyn AiRequestTrace>` — hence `#[async_trait]`.
+//! An extension that evaluates traffic samples completed production requests,
+//! verifies the audit trail of a run, and settles budget reservations against
+//! the recorded usage; the request rows belong to the AI domain, so every one
+//! of those reads goes through [`AiRequestTrace`], implemented by the AI
+//! domain and held as `Arc<dyn AiRequestTrace>` — hence `#[async_trait]`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -207,7 +207,7 @@ impl TraceRequestUsage {
 ///
 /// Every usage read is scoped to `owner`: a request another user made is
 /// reported as absent, never as someone else's usage. Held as
-/// `Arc<dyn AiRequestTrace>` by the evaluation repositories, hence
+/// `Arc<dyn AiRequestTrace>` by the extension that reads it, hence
 /// `#[async_trait]`.
 #[async_trait]
 pub trait AiRequestTrace: Send + Sync {

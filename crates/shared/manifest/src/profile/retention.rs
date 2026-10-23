@@ -26,6 +26,9 @@ use serde::{Deserialize, Serialize};
 /// - `archived_users_days` is how long an archived user (status `deleted`,
 ///   `archived_at` set) stays restorable before `database_cleanup` purges the
 ///   account and its rows; an account under legal hold is never purged.
+/// - `agent_run_dirs_days` is how long a finished agent run keeps its run
+///   directory (logs and `outputs/`) on disk; the `agent_run_dirs_cleanup` job
+///   removes it and clears `agent_runs.run_dir`, the row stays.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[expect(
@@ -49,6 +52,8 @@ pub struct RetentionConfig {
     pub governance_decisions_days: u32,
     #[serde(default = "default_archived_users_days")]
     pub archived_users_days: u32,
+    #[serde(default = "default_agent_run_dirs_days")]
+    pub agent_run_dirs_days: u32,
 }
 
 impl Default for RetentionConfig {
@@ -62,8 +67,13 @@ impl Default for RetentionConfig {
             ai_request_payload_raw_days: default_ai_request_payload_raw_days(),
             governance_decisions_days: default_governance_decisions_days(),
             archived_users_days: default_archived_users_days(),
+            agent_run_dirs_days: default_agent_run_dirs_days(),
         }
     }
+}
+
+const fn default_agent_run_dirs_days() -> u32 {
+    7
 }
 
 const fn default_logs_days() -> u32 {

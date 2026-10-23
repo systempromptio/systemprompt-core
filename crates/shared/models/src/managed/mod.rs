@@ -1,5 +1,5 @@
-//! Verified revision closures shared across the marketplace, evaluation and
-//! scheduler domains.
+//! Verified revision closures shared across the marketplace, agent-runs and
+//! scheduler crates.
 //!
 //! A [`RevisionBundle`] is the wire form of a managed-resource revision plus
 //! every revision it depends on and the exact bytes of every file. It is

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.74.0] - 2026-10-23
+
+### Breaking
+
+- **Breaking:** **Agent runs:** `HostKind::OpenCodeCli` runs headless on `OpenCode` V2 (`@opencode/cli` >= 2.0.30) through `host::opencode::OpenCodeCli`: `opencode run --standalone --format json --auto` in an isolated run home, a V2 `opencode.json` whose tool, provider and MCP limits are `policies`, and an outcome classified from events. `host::opencode::execution` returning `Unsupported` is removed. A client below 2.0.30 fails the run as `connector_unavailable` before spawn.
+- **Breaking:** **Agent runs:** `HeadlessHost` gains `version_requirement(&self) -> Option<VersionRequirement>` (default `None`); the executor probes the host program and refuses an older client.
+- **Breaking:** **Agent runs:** `RunRequest` gains `harness: Option<HarnessRef>` and `traffic: TrafficClass` (both serde-defaulted), `ExecuteParams` gains `harness`, `RunReport` gains `outputs`, `RunLayout` gains `outputs`, and `HeadlessHost` gains `harness_targets()` (default `Workspace`; Claude Code `~/.claude`, OpenCode `~/.config/opencode`). Migrate struct literals by adding `harness: None` (and `traffic: TrafficClass::Production` for `RunRequest`).
+- **Breaking:** **Agent runs:** `ErrorClass::HarnessUnavailable` (`harness_unavailable`): a harness that cannot be loaded, whose closure digest differs from `HarnessRef::bundle_digest`, or that collides or escapes its target fails the run before spawn. `agent_runs` gains `harness_digest`, `idempotency_key` and `request_digest` (migrations `002_agent_runs_harness`, `003_agent_runs_idempotency`).
+- **Breaking:** **Manifest:** `ServicesConfig::validate_single_evaluation_hook_owner` is `validate_single_judge_hook_owner`, and `evaluation` is no longer an allowed services-bundle directory. Migrate by moving any files under a bundle's `evaluation/` into the directory of the extension that reads them.
+
+### Added
+
+- **API:** `/api/v1/agent-runs` (`POST /`, `GET /{id}`, `POST /{id}/cancel`, `GET /{id}/events?after=`, `GET /{id}/events/stream` (SSE, resumes from `Last-Event-ID`), `GET /{id}/outputs`, `GET /{id}/outputs/{path}`), user-scoped and rate-limited. Enqueue is idempotent per `(origin_kind, idempotency_key)`: the same request answers the existing run, a different one is 409. The server sets the run's workspace and refuses `add_dirs`, `plugin_dirs` and stdio MCP servers.
+- **Agent runs:** `register_run_origin!(name)`; the API refuses an origin no extension registered. `execute::harness::{HarnessSource, materialise}` with `HarnessSource` implemented for `ManagedRepository`; `A2aRunHandler::with_harness_source`. `execute::outputs` keeps up to 64 added or modified workspace files (32 MiB) under `<run>/outputs/`. `TrafficClass::Evaluation` binds the run credential to `traffic=evaluation` and sends `x-systemprompt-scope-traffic`.
+- **Agent runs:** `agent_run_dirs_cleanup` job removes finished run directories after `profile.retention.agent_run_dirs_days` (default 7).
+- **Models:** `bridge::opencode::OpenCodeConfig`, the one `OpenCode` V2 `opencode.json` builder shared by the bridge and the headless host: `Provider`, `ModelEntry`, `McpServer`, typed `Policy` statements, `ApiKeyRef::{Env, File}`, `gateway_provider` and `lockdown_policies` (deny-then-allow, last match wins, skills left reachable).
+
 ## [0.73.0] - Unreleased
 
 ### Breaking

@@ -5,7 +5,7 @@
 //! webhook, say) must charge the same rate-limiter budget as the gateway, and
 //! the only way it can reach that engine is to be handed it here. The same
 //! layer carries the process's `Option<Arc<AiService>>`, so an extension
-//! handler that needs inference (a console-triggered evaluation) shares the
+//! handler that needs inference (a console-triggered judge) shares the
 //! one service instead of assembling its own, and a `ServicesRefresh` handle,
 //! so a console that authorises a caller by its own rule can run the services
 //! refresh in-process rather than minting an admin token for the admin route.

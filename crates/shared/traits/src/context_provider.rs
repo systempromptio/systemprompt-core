@@ -125,9 +125,10 @@ pub struct EnsureContextParams<'a> {
 
 /// Idempotent materialization of derived contexts.
 ///
-/// Boundaries that mint a `ContextId` deterministically (session, evaluation
-/// run, probe) call this so the id resolves to a real `user_contexts` row and
-/// joins/audit queries see it. Existing rows are never modified.
+/// Boundaries that mint a `ContextId` deterministically (session, an
+/// extension's evaluation run, probe) call this so the id resolves to a real
+/// `user_contexts` row and joins/audit queries see it. Existing rows are never
+/// modified.
 ///
 /// Injected as `dyn ContextMaterializer`, hence `#[async_trait]`.
 #[async_trait]

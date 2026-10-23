@@ -44,6 +44,7 @@ text_enum!(
         HookDenied => "hook_denied",
         HostCrashed => "host_crashed",
         ConnectorUnavailable => "connector_unavailable",
+        HarnessUnavailable => "harness_unavailable",
     }
 );
 
