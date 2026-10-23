@@ -61,32 +61,35 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
     let claims = decode_claims(&issued.token);
 
     assert_eq!(
-        claims.session_id.as_ref(),
+        claims.custom.session_id.as_ref(),
         Some(&session_id),
         "the caller's persisted session must reach the claim, or the governance webhook cannot attest it"
     );
 
-    assert_eq!(claims.sub, "11111111-2222-3333-4444-555555555555");
-    assert_eq!(claims.iss, ISSUER);
-    assert_eq!(claims.jti, issued.jti.as_str());
-    assert_eq!(claims.username, "Admin User");
-    assert_eq!(claims.email, "admin@example.com");
     assert_eq!(
-        claims.scope,
+        claims.registered.sub,
+        "11111111-2222-3333-4444-555555555555"
+    );
+    assert_eq!(claims.registered.iss, ISSUER);
+    assert_eq!(claims.registered.jti, issued.jti.as_str());
+    assert_eq!(claims.custom.username, "Admin User");
+    assert_eq!(claims.custom.email, "admin@example.com");
+    assert_eq!(
+        claims.custom.scope,
         vec![Permission::HookGovern, Permission::HookTrack]
     );
     assert_eq!(
-        claims.aud,
+        claims.registered.aud,
         vec![
             JwtAudience::Hook,
             JwtAudience::Resource("plugin".to_owned())
         ]
     );
     assert_eq!(
-        claims.plugin_id.as_ref().map(|id| id.as_str()),
+        claims.custom.plugin_id.as_ref().map(|id| id.as_str()),
         Some("cowork-bundle")
     );
-    assert!(claims.roles.is_empty());
+    assert!(claims.custom.roles.is_empty());
 }
 
 #[test]
@@ -105,7 +108,7 @@ fn issue_sets_expiry_from_duration_days() {
 
     // The service computes `exp` from a clock read taken just before `iat`,
     // so the difference may undershoot the full window by a second or two.
-    let lifetime = claims.exp - claims.iat;
+    let lifetime = claims.registered.exp - claims.registered.iat;
     let expected = 30 * 24 * 3600;
     assert!((expected - 2..=expected).contains(&lifetime));
 }

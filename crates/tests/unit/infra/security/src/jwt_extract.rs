@@ -29,32 +29,36 @@ fn mint_with(
     install_test_signing_key();
     use chrono::{Duration, Utc};
     use jsonwebtoken::{Algorithm, Header, encode};
-    use systemprompt_models::auth::JwtClaims;
+    use systemprompt_models::auth::{CustomClaims, JwtClaims, RegisteredClaims};
     use systemprompt_security::keys::authority;
 
     let now = Utc::now();
     let claims = JwtClaims {
-        sub: user_id.to_owned(),
-        iat: now.timestamp(),
-        exp: (now + Duration::hours(1)).timestamp(),
-        nbf: Some(now.timestamp()),
-        iss: issuer.to_owned(),
-        aud: JwtAudience::standard(),
-        jti: "test-jti".to_owned(),
-        scope,
-        username: "u@t.com".to_owned(),
-        email: "u@t.com".to_owned(),
-        user_type,
-        roles: vec![],
-        attributes: Default::default(),
-        client_id: None,
-        token_type: TokenType::Bearer,
-        auth_time: now.timestamp(),
-        session_id,
-        rate_limit_tier: Some(RateLimitTier::User),
-        plugin_id: None,
-        act,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: user_id.to_owned(),
+            iat: now.timestamp(),
+            exp: (now + Duration::hours(1)).timestamp(),
+            nbf: Some(now.timestamp()),
+            iss: issuer.to_owned(),
+            aud: JwtAudience::standard(),
+            jti: "test-jti".to_owned(),
+        },
+        custom: CustomClaims {
+            scope,
+            username: "u@t.com".to_owned(),
+            email: "u@t.com".to_owned(),
+            user_type,
+            roles: vec![],
+            attributes: Default::default(),
+            client_id: None,
+            token_type: TokenType::Bearer,
+            auth_time: now.timestamp(),
+            session_id,
+            rate_limit_tier: Some(RateLimitTier::User),
+            plugin_id: None,
+            act,
+            purpose: None,
+        },
     };
 
     let kid = authority::active_kid().expect("kid");

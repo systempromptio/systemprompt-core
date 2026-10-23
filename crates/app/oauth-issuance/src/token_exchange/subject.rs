@@ -101,8 +101,8 @@ pub async fn validate_subject_token(
     })?;
 
     Ok(SubjectIdentity {
-        scope: data.claims.scope,
-        prior_act: data.claims.act,
+        scope: data.claims.custom.scope,
+        prior_act: data.claims.custom.act,
         principal: None,
         bound_resource: None,
     })
@@ -163,8 +163,8 @@ fn validate_self_issued(
     let data = decode::<JwtClaims>(token, key, &validation)
         .map_err(|e| IssuanceError::rejected_grant("subject_token rejected", e))?;
     Ok(SubjectIdentity {
-        scope: data.claims.scope,
-        prior_act: data.claims.act,
+        scope: data.claims.custom.scope,
+        prior_act: data.claims.custom.act,
         principal: None,
         bound_resource: None,
     })

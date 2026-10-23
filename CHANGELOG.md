@@ -33,6 +33,24 @@
 - **Marketplace:** `list_skill_resolutions`, `list_skill_resolutions_for` and `revoked_skill_keys` are `list_resolutions(owner, kind)`, `list_resolutions_for(owner, consumer, kind)` and `revoked_keys(owner, consumer, kind)`, `SkillResolutionRow` is `ResourceResolutionRow`, and `CatalogContent::{with,without}_organization_skills` are `{with,without}_organization_resources`. Migrate by passing `ResourceKind::Skill` for the previous behaviour.
 - **Marketplace:** a managed plugin or rule (new `ResourceKind::Rule`, migration `marketplace/020_managed_rule_kind`) is withheld from the catalogue unless the consumer resolves it to a published generation; a published one whose revision cannot be resolved is withheld, never served from disk; a resolved one is served from its verified revision (a rule's `config.yaml` and content file, a plugin's scripts, Node package files and `hosts/` tree, replacing the on-disk copy) and carries its `ManagedPublicationRef`; unmanaged keys are unchanged. Plugin bundles now carry the plugin directory's `hosts/` tree.
 - **Bridge:** `OpenCode` is written in the V2 config shape only (`@opencode/cli` >= 2.0.30): `providers.systemprompt` with a `{file:}` `apiKey` naming a 0600 `~/.config/opencode/systemprompt.token`, provider-pinning `policies`, and `mcp.servers` connectors; every install and sync strips the V1 keys (`provider.systemprompt`, `enabled_providers`, flat `mcp.<slug>`, `plugin/systemprompt-hooks.js`, the `auth.json` key). `integration::opencode::retired_admin_tier` and the `opencode admin config` doctor check are removed. Migrate by upgrading `OpenCode` to 2.0.30 or later.
+
+### Added
+
+- New files: `crates/infra/loader/src/config_loader/catalog.rs`, `crates/app/gateway/src/routing.rs`, `crates/domain/ai/schema/ai_catalog_legacy_map.sql`, `crates/domain/ai/src/models/served_hop.rs`, `crates/domain/ai/src/repository/catalog_migration.rs`, `crates/entry/cli/src/commands/admin/config/{catalog_edit,credential,endpoint,model,deployment}.rs`, `crates/entry/cli/src/commands/admin/config/migrate/` and the `crates/tests/integration/config-migrate` golden proof.
+
+### Fixed
+
+- **Governance:** the authz reconcile reconciles the gateway routes the resolved catalog dispatches.
+- **Config:** `admin config catalog` provider upserts no longer downgrade a personal (`credential: user`) provider or drop its headers and betas.
+- **Gateway:** failover never moves a request between two different personal subscriptions; the guard compares the credential owner, not only the credential source.
+- **AI:** personal-key verification probes every endpoint the key will be sent to, including `credential_from` siblings.
+- **AI:** entries sharing one personal credential share one cached token instead of minting separately.
+- **Governance:** deny messages name `services/access-control/rules.yaml`.
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- **Breaking:** **Models:** `JwtClaims` is composed of `RegisteredClaims` (`sub`, `iat`, `exp`, `nbf`, `iss`, `aud`, `jti`) and `CustomClaims` (scope, identity, authorization and delegation claims), serde-flattened so the token payload is unchanged. Read fields through `claims.registered` and `claims.custom`; construct with the two halves.
 - **Breaking:** **Gateway:** a personal access token's principal carries its user's roles, groups and projects (every registered subject dimension), exactly as the same user's bridge JWT does. Calls that were 403 on role-gated routes with a PAT now succeed, and `access_scope` for a PAT is derived from those roles instead of `unknown`.
 - **Breaking:** **Gateway:** the session id is bound to the credential. A PAT request without a gateway-issued `x-session-id` lands on a session minted for and bound to the key; a client's own header (such as OpenCode's `ses_…`) is recorded as `ai_requests.client_session_id` and never rejected. A JWT request whose `x-session-id` differs from its `session_id` claim is 401; without the header the claim is used.
 - **Breaking:** **Bridge profile:** `GET /v1/bridge/profile` is 401 for a missing, invalid or stale bearer instead of returning an anonymous profile. Its model list is what dispatch would serve the caller: route-resolved (`resolve_route`), configured and entitled.

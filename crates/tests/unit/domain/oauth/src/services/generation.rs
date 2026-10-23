@@ -379,17 +379,17 @@ mod jwt_minting {
         .expect("mint");
 
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        assert_eq!(claims.sub, user.id.to_string());
-        assert_eq!(claims.jti, "jti-gen-1");
-        assert_eq!(claims.username, "gen-user");
-        assert_eq!(claims.email, "gen@test.invalid");
+        assert_eq!(claims.registered.sub, user.id.to_string());
+        assert_eq!(claims.registered.jti, "jti-gen-1");
+        assert_eq!(claims.custom.username, "gen-user");
+        assert_eq!(claims.custom.email, "gen@test.invalid");
         assert_eq!(
-            claims.session_id.as_ref().map(|s| s.as_str()),
+            claims.custom.session_id.as_ref().map(|s| s.as_str()),
             Some(session.as_str())
         );
-        assert_eq!(claims.token_type, TokenType::Bearer);
-        assert!(claims.act.is_none());
-        assert!(claims.exp > claims.iat);
+        assert_eq!(claims.custom.token_type, TokenType::Bearer);
+        assert!(claims.custom.act.is_none());
+        assert!(claims.registered.exp > claims.registered.iat);
     }
 
     #[test]
@@ -413,6 +413,7 @@ mod jwt_minting {
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
         assert!(
             claims
+                .registered
                 .aud
                 .iter()
                 .any(|a| matches!(a, JwtAudience::Resource(r) if r == "https://rs.example"))
@@ -440,7 +441,7 @@ mod jwt_minting {
         .expect("mint");
 
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        assert_eq!(claims.client_id, Some(ClientId::bridge()));
+        assert_eq!(claims.custom.client_id, Some(ClientId::bridge()));
     }
 
     #[test]
@@ -489,7 +490,7 @@ mod jwt_minting {
         .expect("mint");
 
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        let act = claims.act.expect("act claim present");
+        let act = claims.custom.act.expect("act claim present");
         assert_eq!(act.sub, "client-actor");
         assert_eq!(act.iss, "test");
         assert!(act.act.is_none());
@@ -506,13 +507,13 @@ mod jwt_minting {
         let token = generate_anonymous_jwt(&user_id, &session, &client, &signing()).expect("mint");
 
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        assert_eq!(claims.sub, user_id.as_str());
-        assert_eq!(claims.user_type, UserType::Anon);
-        assert_eq!(claims.scope, vec![Permission::Anonymous]);
-        assert_eq!(claims.roles, vec!["anonymous".to_owned()]);
-        assert_eq!(claims.client_id.as_ref(), Some(&client));
-        assert_eq!(claims.rate_limit_tier, Some(RateLimitTier::Anon));
-        assert!(claims.exp - claims.iat <= 3600);
+        assert_eq!(claims.registered.sub, user_id.as_str());
+        assert_eq!(claims.custom.user_type, UserType::Anon);
+        assert_eq!(claims.custom.scope, vec![Permission::Anonymous]);
+        assert_eq!(claims.custom.roles, vec!["anonymous".to_owned()]);
+        assert_eq!(claims.custom.client_id.as_ref(), Some(&client));
+        assert_eq!(claims.custom.rate_limit_tier, Some(RateLimitTier::Anon));
+        assert!(claims.registered.exp - claims.registered.iat <= 3600);
     }
 
     #[test]
@@ -545,7 +546,7 @@ mod jwt_minting {
         .expect("mint");
 
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        let lifetime = claims.exp - claims.iat;
+        let lifetime = claims.registered.exp - claims.registered.iat;
         assert!(
             (895..=905).contains(&lifetime),
             "a 900 s expiry used to mint an already-expired token; got {lifetime}"

@@ -16,7 +16,7 @@ pub mod permission;
 pub mod roles;
 pub mod types;
 
-pub use claims::{ActClaim, JwtClaims, MAX_ACT_CHAIN_DEPTH};
+pub use claims::{ActClaim, CustomClaims, JwtClaims, MAX_ACT_CHAIN_DEPTH, RegisteredClaims};
 pub use cloud_claims::CloudAuthClaims;
 pub use enums::{
     AccountKind, JwtAudience, RateLimitTier, TokenType, UserRole, UserStatus, UserType,

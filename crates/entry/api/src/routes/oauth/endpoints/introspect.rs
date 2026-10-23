@@ -89,17 +89,26 @@ fn introspect_token(
         Ok(claims) => Ok(Some(IntrospectResponse {
             active: true,
             scope: Some(systemprompt_models::auth::permissions_to_string(
-                &claims.scope,
+                &claims.custom.scope,
             )),
-            client_id: claims.client_id.as_ref().map(|c| c.as_str().to_owned()),
-            username: Some(claims.username),
+            client_id: claims
+                .custom
+                .client_id
+                .as_ref()
+                .map(|c| c.as_str().to_owned()),
+            username: Some(claims.custom.username),
             token_type: Some("Bearer".to_owned()),
-            exp: Some(claims.exp),
-            iat: Some(claims.iat),
-            sub: Some(claims.sub),
-            aud: claims.aud.iter().map(ToString::to_string).collect(),
-            iss: Some(claims.iss),
-            jti: Some(claims.jti),
+            exp: Some(claims.registered.exp),
+            iat: Some(claims.registered.iat),
+            sub: Some(claims.registered.sub),
+            aud: claims
+                .registered
+                .aud
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+            iss: Some(claims.registered.iss),
+            jti: Some(claims.registered.jti),
         })),
         Err(_) => Ok(None),
     }

@@ -12,7 +12,8 @@ use jsonwebtoken::{Algorithm, Header, encode};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
+    UserType,
 };
 
 use crate::error::{JwtError, JwtResult};
@@ -37,27 +38,31 @@ impl JwtService {
         let expiry = now + params.duration;
 
         let claims = JwtClaims {
-            sub: params.user_id.to_string(),
-            iat: now.timestamp(),
-            exp: expiry.timestamp(),
-            nbf: Some(now.timestamp()),
-            iss: params.issuer.to_owned(),
-            aud: JwtAudience::standard(),
-            jti: uuid::Uuid::new_v4().to_string(),
-            scope: vec![Permission::Admin],
-            username: params.email.to_owned(),
-            email: params.email.to_owned(),
-            user_type: UserType::Admin,
-            roles: vec!["admin".to_owned(), "user".to_owned()],
-            attributes: BTreeMap::new(),
-            client_id: params.client_id.cloned(),
-            token_type: TokenType::Bearer,
-            auth_time: now.timestamp(),
-            session_id: Some(params.session_id.clone()),
-            rate_limit_tier: Some(RateLimitTier::Admin),
-            plugin_id: None,
-            act: None,
-            purpose: None,
+            registered: RegisteredClaims {
+                sub: params.user_id.to_string(),
+                iat: now.timestamp(),
+                exp: expiry.timestamp(),
+                nbf: Some(now.timestamp()),
+                iss: params.issuer.to_owned(),
+                aud: JwtAudience::standard(),
+                jti: uuid::Uuid::new_v4().to_string(),
+            },
+            custom: CustomClaims {
+                scope: vec![Permission::Admin],
+                username: params.email.to_owned(),
+                email: params.email.to_owned(),
+                user_type: UserType::Admin,
+                roles: vec!["admin".to_owned(), "user".to_owned()],
+                attributes: BTreeMap::new(),
+                client_id: params.client_id.cloned(),
+                token_type: TokenType::Bearer,
+                auth_time: now.timestamp(),
+                session_id: Some(params.session_id.clone()),
+                rate_limit_tier: Some(RateLimitTier::Admin),
+                plugin_id: None,
+                act: None,
+                purpose: None,
+            },
         };
 
         let kid = authority::active_kid().map_err(JwtError::Signing)?;

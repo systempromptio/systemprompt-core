@@ -179,6 +179,7 @@ fn diagnostic_headers(parts: &http::request::Parts) -> Vec<String> {
 
 fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
     claims
+        .custom
         .act
         .as_ref()
         .map(systemprompt_models::auth::ActClaim::flatten_to_chain)
@@ -198,17 +199,17 @@ pub fn build_mcp_authz_request(
     let context = floor.map_or_else(AuthzContext::none, |floor| {
         AuthzContext::none().with_marketplace_floor(floor)
     });
-    let user_id = UserId::new(claims.sub.clone());
+    let user_id = UserId::new(claims.registered.sub.clone());
     AuthzRequest {
         entity: EntityRef::McpServer(server_id.clone()),
         user_id: user_id.clone(),
         actor: Some(Actor::mcp(user_id, server_id.as_str())),
-        client_id: claims.client_id.clone(),
+        client_id: claims.custom.client_id.clone(),
         access_scope: None,
-        roles: claims.roles.clone(),
-        attributes: claims.attributes.clone(),
+        roles: claims.custom.roles.clone(),
+        attributes: claims.custom.attributes.clone(),
         trace_id: execution.trace_id.clone(),
-        session_id: claims.session_id.clone(),
+        session_id: claims.custom.session_id.clone(),
         context,
         context_id: Some(execution.context_id.clone()),
         task_id: execution.task_id.clone(),
@@ -239,15 +240,15 @@ fn build_authenticated_context(
     token: JwtToken,
     act_chain: Vec<Actor>,
 ) -> Result<AuthenticatedRequestContext, McpError> {
-    let user_id = UserId::try_new(claims.sub.clone()).map_err(|e| {
+    let user_id = UserId::try_new(claims.registered.sub.clone()).map_err(|e| {
         tracing::error!(error = %e, "Invalid user ID in JWT");
         McpError::internal_error("Invalid user ID in JWT", None)
     })?;
 
     let authenticated_user = AuthenticatedUser::new_with_roles(
         user_id.clone(),
-        claims.username.clone(),
-        claims.email.clone(),
+        claims.custom.username.clone(),
+        claims.custom.email.clone(),
         claims.get_permissions(),
         claims.roles().to_vec(),
     );
@@ -256,10 +257,10 @@ fn build_authenticated_context(
         .with_user(authenticated_user)
         .with_actor(Actor::user(user_id))
         .with_act_chain(act_chain)
-        .with_user_type(claims.user_type);
+        .with_user_type(claims.custom.user_type);
     // Why: the caller purpose comes only from the signed `purpose` claim, so
     // a service account's broker sees the run that issued the token.
-    if let Some(purpose) = claims.purpose.clone() {
+    if let Some(purpose) = claims.custom.purpose.clone() {
         context = context.with_caller_purpose(purpose);
     }
 

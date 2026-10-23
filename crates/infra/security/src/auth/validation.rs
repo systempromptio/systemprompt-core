@@ -37,14 +37,16 @@ impl AuthValidationService {
         let claims = decode_session_claims(token, &policy)?;
 
         Ok(ValidatedSessionClaims {
-            user_id: UserId::try_new(claims.sub).map_err(AuthError::InvalidSubject)?,
+            user_id: UserId::try_new(claims.registered.sub).map_err(AuthError::InvalidSubject)?,
             session_id: claims
+                .custom
                 .session_id
                 .map(SessionId::new)
                 .ok_or(AuthError::MissingSessionId)?,
-            user_type: claims.user_type,
-            jti: (!claims.jti.is_empty()).then(|| AccessTokenId::new(claims.jti)),
-            exp: claims.exp,
+            user_type: claims.custom.user_type,
+            jti: (!claims.registered.jti.is_empty())
+                .then(|| AccessTokenId::new(claims.registered.jti)),
+            exp: claims.registered.exp,
         })
     }
 

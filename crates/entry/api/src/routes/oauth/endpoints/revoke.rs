@@ -156,9 +156,9 @@ async fn revoke_access_token(
             return Ok(());
         },
     };
-    caller.check_client(claims.client_id.as_ref())?;
+    caller.check_client(claims.custom.client_id.as_ref())?;
 
-    let owner = match UserId::try_new(&claims.sub) {
+    let owner = match UserId::try_new(&claims.registered.sub) {
         Ok(owner) => owner,
         Err(e) => {
             tracing::debug!(error = %e, "Access token subject is not a user id; nothing to revoke");
@@ -173,12 +173,12 @@ async fn revoke_access_token(
         return Ok(());
     }
 
-    match AccessTokenId::try_new(&claims.jti) {
-        Ok(jti) => record_jti_revocation(repo, &jti, &owner, claims.exp).await?,
+    match AccessTokenId::try_new(&claims.registered.jti) {
+        Ok(jti) => record_jti_revocation(repo, &jti, &owner, claims.registered.exp).await?,
         Err(e) => tracing::debug!(error = %e, "Access token has no jti; nothing to record"),
     }
 
-    if let Some(session_id) = &claims.session_id {
+    if let Some(session_id) = &claims.custom.session_id {
         state
             .session_provider()
             .revoke_session(session_id)

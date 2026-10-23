@@ -1,6 +1,8 @@
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, Header, encode};
-use systemprompt_models::auth::{JwtAudience, JwtClaims, TokenType, UserType};
+use systemprompt_models::auth::{
+    CustomClaims, JwtAudience, JwtClaims, RegisteredClaims, TokenType, UserType,
+};
 use systemprompt_security::AuthError;
 use systemprompt_security::jwt::{JWT_LEEWAY_SECONDS, ValidationPolicy, decode_rs256_claims};
 use systemprompt_security::keys::authority;
@@ -9,27 +11,31 @@ use systemprompt_test_fixtures::install_test_signing_key;
 fn make_claims(issuer: &str, aud: Vec<JwtAudience>) -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
-        sub: "u1".to_owned(),
-        iat: now.timestamp(),
-        exp: (now + Duration::hours(1)).timestamp(),
-        nbf: Some(now.timestamp()),
-        iss: issuer.to_owned(),
-        aud,
-        jti: "jti1".to_owned(),
-        scope: vec![],
-        username: "u@test.com".to_owned(),
-        email: "u@test.com".to_owned(),
-        user_type: UserType::User,
-        roles: vec![],
-        attributes: Default::default(),
-        client_id: None,
-        token_type: TokenType::Bearer,
-        auth_time: now.timestamp(),
-        session_id: None,
-        rate_limit_tier: None,
-        plugin_id: None,
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: "u1".to_owned(),
+            iat: now.timestamp(),
+            exp: (now + Duration::hours(1)).timestamp(),
+            nbf: Some(now.timestamp()),
+            iss: issuer.to_owned(),
+            aud,
+            jti: "jti1".to_owned(),
+        },
+        custom: CustomClaims {
+            scope: vec![],
+            username: "u@test.com".to_owned(),
+            email: "u@test.com".to_owned(),
+            user_type: UserType::User,
+            roles: vec![],
+            attributes: Default::default(),
+            client_id: None,
+            token_type: TokenType::Bearer,
+            auth_time: now.timestamp(),
+            session_id: None,
+            rate_limit_tier: None,
+            plugin_id: None,
+            act: None,
+            purpose: None,
+        },
     }
 }
 
@@ -47,7 +53,7 @@ fn session_context_accepts_first_party_audience() {
     let token = mint_active_kid(&make_claims("test", JwtAudience::standard()));
     let claims =
         decode_rs256_claims(&token, &ValidationPolicy::session_context("test")).expect("decode");
-    assert_eq!(claims.sub, "u1");
+    assert_eq!(claims.registered.sub, "u1");
 }
 
 #[test]

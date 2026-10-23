@@ -11,14 +11,15 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, Algorithm, Header};
+use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
+    UserType,
 };
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
-use systemprompt_security::keys::authority::{active_kid, encoding_key, install};
 use systemprompt_security::keys::RsaSigningKey;
+use systemprompt_security::keys::authority::{active_kid, encoding_key, install};
 
 static SIGNING_KEY: OnceLock<RsaSigningKey> = OnceLock::new();
 
@@ -51,27 +52,31 @@ pub fn mint_bridge_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken 
     let expiry = now + Duration::hours(1);
 
     let claims = JwtClaims {
-        sub: user_id.to_string(),
-        iat: now.timestamp(),
-        exp: expiry.timestamp(),
-        nbf: Some(now.timestamp()),
-        iss: issuer.to_owned(),
-        aud: JwtAudience::standard(),
-        jti: uuid::Uuid::new_v4().to_string(),
-        scope: vec![Permission::User],
-        username: email.to_owned(),
-        email: email.to_owned(),
-        user_type: UserType::User,
-        roles: vec!["user".to_owned()],
-        attributes: BTreeMap::new(),
-        client_id: None,
-        token_type: TokenType::Bearer,
-        auth_time: now.timestamp(),
-        session_id: Some(session),
-        rate_limit_tier: Some(RateLimitTier::User),
-        plugin_id: None,
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: user_id.to_string(),
+            iat: now.timestamp(),
+            exp: expiry.timestamp(),
+            nbf: Some(now.timestamp()),
+            iss: issuer.to_owned(),
+            aud: JwtAudience::standard(),
+            jti: uuid::Uuid::new_v4().to_string(),
+        },
+        custom: CustomClaims {
+            scope: vec![Permission::User],
+            username: email.to_owned(),
+            email: email.to_owned(),
+            user_type: UserType::User,
+            roles: vec!["user".to_owned()],
+            attributes: BTreeMap::new(),
+            client_id: None,
+            token_type: TokenType::Bearer,
+            auth_time: now.timestamp(),
+            session_id: Some(session),
+            rate_limit_tier: Some(RateLimitTier::User),
+            plugin_id: None,
+            act: None,
+            purpose: None,
+        },
     };
 
     let kid = active_kid().expect("active kid present");

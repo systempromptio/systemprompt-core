@@ -8,7 +8,8 @@ use jsonwebtoken::{Algorithm, Header, encode};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
+    UserType,
 };
 
 use crate::error::{JwtError, JwtResult};
@@ -45,27 +46,31 @@ impl SessionGenerator {
         let expiry = now + params.duration;
 
         let claims = JwtClaims {
-            sub: params.user_id.to_string(),
-            iat: now.timestamp(),
-            exp: expiry.timestamp(),
-            nbf: Some(now.timestamp()),
-            iss: self.issuer.clone(),
-            aud: JwtAudience::standard(),
-            jti: uuid::Uuid::new_v4().to_string(),
-            scope: params.permissions.clone(),
-            username: params.email.to_owned(),
-            email: params.email.to_owned(),
-            user_type: params.user_type,
-            roles: params.roles.clone(),
-            attributes: params.attributes.clone(),
-            client_id: None,
-            token_type: TokenType::Bearer,
-            auth_time: now.timestamp(),
-            session_id: Some(params.session_id.clone()),
-            rate_limit_tier: Some(params.rate_limit_tier),
-            plugin_id: None,
-            act: None,
-            purpose: None,
+            registered: RegisteredClaims {
+                sub: params.user_id.to_string(),
+                iat: now.timestamp(),
+                exp: expiry.timestamp(),
+                nbf: Some(now.timestamp()),
+                iss: self.issuer.clone(),
+                aud: JwtAudience::standard(),
+                jti: uuid::Uuid::new_v4().to_string(),
+            },
+            custom: CustomClaims {
+                scope: params.permissions.clone(),
+                username: params.email.to_owned(),
+                email: params.email.to_owned(),
+                user_type: params.user_type,
+                roles: params.roles.clone(),
+                attributes: params.attributes.clone(),
+                client_id: None,
+                token_type: TokenType::Bearer,
+                auth_time: now.timestamp(),
+                session_id: Some(params.session_id.clone()),
+                rate_limit_tier: Some(params.rate_limit_tier),
+                plugin_id: None,
+                act: None,
+                purpose: None,
+            },
         };
 
         let kid = authority::active_kid().map_err(JwtError::Signing)?;

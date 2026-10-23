@@ -12,7 +12,8 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header, decode_header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
 use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
+    UserType,
 };
 use systemprompt_security::keys::{RsaSigningKey, authority};
 
@@ -23,27 +24,31 @@ fn ensure_authority() -> &'static RsaSigningKey {
 fn sample_claims(iss: &str) -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
-        sub: "user-1".to_string(),
-        iat: now.timestamp(),
-        exp: (now + Duration::hours(1)).timestamp(),
-        nbf: Some(now.timestamp()),
-        iss: iss.to_string(),
-        aud: vec![JwtAudience::Api],
-        jti: "jti-1".to_string(),
-        scope: vec![Permission::User],
-        username: "u".to_string(),
-        email: "u@example.com".to_string(),
-        user_type: UserType::User,
-        roles: vec!["user".to_string()],
-        attributes: std::collections::BTreeMap::new(),
-        client_id: Some(ClientId::new("c")),
-        token_type: TokenType::Bearer,
-        auth_time: now.timestamp(),
-        session_id: Some(SessionId::new("s")),
-        rate_limit_tier: Some(RateLimitTier::User),
-        plugin_id: None,
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: "user-1".to_string(),
+            iat: now.timestamp(),
+            exp: (now + Duration::hours(1)).timestamp(),
+            nbf: Some(now.timestamp()),
+            iss: iss.to_string(),
+            aud: vec![JwtAudience::Api],
+            jti: "jti-1".to_string(),
+        },
+        custom: CustomClaims {
+            scope: vec![Permission::User],
+            username: "u".to_string(),
+            email: "u@example.com".to_string(),
+            user_type: UserType::User,
+            roles: vec!["user".to_string()],
+            attributes: std::collections::BTreeMap::new(),
+            client_id: Some(ClientId::new("c")),
+            token_type: TokenType::Bearer,
+            auth_time: now.timestamp(),
+            session_id: Some(SessionId::new("s")),
+            rate_limit_tier: Some(RateLimitTier::User),
+            plugin_id: None,
+            act: None,
+            purpose: None,
+        },
     }
 }
 
@@ -138,7 +143,7 @@ fn active_decoding_key_verifies_locally_minted_token() {
     validation.validate_aud = false;
     let decoded = jsonwebtoken::decode::<JwtClaims>(&token, decoding, &validation)
         .expect("active decoding key must verify a token minted by the active signing key");
-    assert_eq!(decoded.claims.sub, "user-1");
+    assert_eq!(decoded.claims.registered.sub, "user-1");
 }
 
 #[test]

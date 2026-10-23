@@ -101,7 +101,7 @@ pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthRe
 pub fn decode_session_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthResult<JwtClaims> {
     let claims = decode_rs256_claims(token, policy)?;
 
-    if let Some(act) = claims.act.as_ref() {
+    if let Some(act) = claims.custom.act.as_ref() {
         let depth = act.depth();
         if depth > MAX_ACT_CHAIN_DEPTH {
             return Err(AuthError::ActChainTooDeep {
@@ -111,10 +111,10 @@ pub fn decode_session_claims(token: &str, policy: &ValidationPolicy<'_>) -> Auth
         }
     }
 
-    let derived_type = UserType::from_permissions(&claims.scope);
-    if derived_type != claims.user_type {
+    let derived_type = UserType::from_permissions(&claims.custom.scope);
+    if derived_type != claims.custom.user_type {
         return Err(AuthError::UserTypeMismatch {
-            claimed: claims.user_type,
+            claimed: claims.custom.user_type,
             derived: derived_type,
         });
     }
