@@ -83,7 +83,13 @@ pub(super) fn remove_autostart() -> ScheduleRemoval {
     {
         Ok(s) if s.success() => ScheduleRemoval::Removed(task.to_owned()),
         Ok(_) => ScheduleRemoval::NotInstalled(task.to_owned()),
-        Err(e) => ScheduleRemoval::Failed(format!("schtasks /Delete: {e}")),
+        Err(source) => ScheduleRemoval::Failed(
+            SchedulerError::Spawn {
+                command: "schtasks /Delete".to_owned(),
+                source,
+            }
+            .into(),
+        ),
     }
 }
 
@@ -123,6 +129,12 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     {
         Ok(s) if s.success() => ScheduleRemoval::Removed(task.to_owned()),
         Ok(_) => ScheduleRemoval::NotInstalled(task.to_owned()),
-        Err(e) => ScheduleRemoval::Failed(format!("schtasks /Delete: {e}")),
+        Err(source) => ScheduleRemoval::Failed(
+            SchedulerError::Spawn {
+                command: "schtasks /Delete".to_owned(),
+                source,
+            }
+            .into(),
+        ),
     }
 }

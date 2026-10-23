@@ -23,7 +23,7 @@ use systemprompt_oauth::services::validation::id_jag::{
 use systemprompt_security::jwt::reject_critical_header;
 use systemprompt_security::keys::authority;
 
-use super::subject::{REQUIRED_CLAIMS, SubjectIdentity, peek_issuer, shared_jwks_client};
+use super::subject::{JwksCache, REQUIRED_CLAIMS, SubjectIdentity, peek_issuer};
 use crate::{IssuanceError, IssuanceResult};
 
 pub async fn validate_id_jag_subject(
@@ -31,8 +31,9 @@ pub async fn validate_id_jag_subject(
     authenticated_client: &ClientId,
     repo: &OAuthRepository,
     global: &Config,
+    jwks: &JwksCache,
 ) -> IssuanceResult<SubjectIdentity> {
-    let (claims, allowed_client_ids) = verify_id_jag_signature(token, global).await?;
+    let (claims, allowed_client_ids) = verify_id_jag_signature(token, global, jwks).await?;
 
     let policy = ClaimPolicy {
         expected_audience: global.jwt_issuer.as_str(),
@@ -90,6 +91,7 @@ pub async fn validate_id_jag_subject(
 async fn verify_id_jag_signature(
     token: &str,
     global: &Config,
+    jwks: &JwksCache,
 ) -> IssuanceResult<(IdJagClaims, Vec<ClientId>)> {
     let header = decode_header(token)
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG header decode failed", e))?;
@@ -130,7 +132,8 @@ async fn verify_id_jag_signature(
         .ok_or_else(|| IssuanceError::InvalidGrant {
             reason: format!("ID-JAG issuer '{declared_iss}' is not trusted"),
         })?;
-    let jwk = shared_jwks_client(&global.trusted_issuers)
+    let jwk = jwks
+        .client_for(trusted)
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG JWKS resolution failed", e))?;

@@ -14,7 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{AgentRunId, ContextId, TaskId, UserId};
+use systemprompt_identifiers::{AgentRunId, AgentRunOriginId, ContextId, TaskId, UserId};
 
 /// One run to queue on behalf of an A2A task.
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ pub struct AgentRunLaunch {
     // JSON: the agent-runs crate's `RunRequest`, which this crate cannot name.
     pub request: serde_json::Value,
     pub origin_kind: String,
-    pub origin_id: String,
+    pub origin_id: AgentRunOriginId,
 }
 
 #[derive(Debug, thiserror::Error)]

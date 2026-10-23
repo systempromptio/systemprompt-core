@@ -27,7 +27,7 @@ impl GatewayAudit {
         .streaming(self.ctx.is_streaming)
         .request_kind(RequestKind::classify(self.ctx.max_tokens))
         .attribution(self.ctx.attribution.clone());
-        if let Some(instance_id) = systemprompt_logging::instance_id() {
+        if let Some(instance_id) = self.logging.instance_id() {
             record = record.instance_id(instance_id.clone());
         }
         if let Some(hop) = &self.ctx.hop {

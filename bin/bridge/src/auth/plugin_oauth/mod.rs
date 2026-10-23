@@ -9,14 +9,13 @@
 mod secret_store;
 mod token;
 
-pub use secret_store::{SecretBackend, credential_backend};
+pub use secret_store::{SecretBackend, SecretStore};
 pub use token::{
     CachedHookToken, PluginTokenCache, REFRESH_THRESHOLD_SECS, mint_or_refresh_plugin_token,
 };
 
 use crate::gateway::{BridgeOAuthClientResponse, GatewayClient, GatewayError};
 use crate::ids::BearerToken;
-use secret_store::{delete_secret, read_secret, write_secret};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::{fs, io};
@@ -91,7 +90,10 @@ pub fn creds_path() -> Option<PathBuf> {
     )
 }
 
-pub fn store_creds(creds: &OAuthClientCreds) -> Result<(), PluginOAuthError> {
+pub fn store_creds(
+    secrets: &SecretStore,
+    creds: &OAuthClientCreds,
+) -> Result<(), PluginOAuthError> {
     let path = creds_path().ok_or(PluginOAuthError::CredsPathUnresolvable)?;
     let stored = StoredCreds {
         client_id: creds.client_id.clone(),
@@ -102,12 +104,12 @@ pub fn store_creds(creds: &OAuthClientCreds) -> Result<(), PluginOAuthError> {
     let bytes = serde_json::to_vec_pretty(&stored)?;
     // Why: the secret goes to the keystore before the metadata names it; a
     // keystore failure then leaves the previous, still-usable pair in place.
-    write_secret(&creds.client_id, &creds.client_secret)?;
+    secrets.write(&creds.client_id, &creds.client_secret)?;
     crate::fsutil::atomic_write_0600(&path, &bytes).map_err(PluginOAuthError::CredsWrite)?;
     Ok(())
 }
 
-pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
+pub fn load_creds(secrets: &SecretStore) -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
     let Some(path) = creds_path() else {
         return Err(PluginOAuthError::CredsPathUnresolvable);
     };
@@ -116,7 +118,7 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
         return Ok(None);
     };
     let stored: StoredCreds = serde_json::from_str(&text)?;
-    let Some(secret) = read_secret(&stored.client_id)? else {
+    let Some(secret) = secrets.read(&stored.client_id)? else {
         tracing::warn!(client_id = %stored.client_id, "OAuth metadata on disk but no keyring entry; treating as unprovisioned");
         return Ok(None);
     };
@@ -129,13 +131,13 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
     }))
 }
 
-pub fn delete_creds() -> Result<(), PluginOAuthError> {
+pub fn delete_creds(secrets: &SecretStore) -> Result<(), PluginOAuthError> {
     let Some(path) = creds_path() else {
         return Ok(());
     };
     if let Some(text) = crate::fsutil::read_optional(&path).map_err(PluginOAuthError::CredsRead)? {
         let stored: StoredCreds = serde_json::from_str(&text)?;
-        delete_secret(&stored.client_id)?;
+        secrets.delete(&stored.client_id)?;
     }
     match fs::remove_file(&path) {
         Ok(()) | Err(_) if !path.exists() => Ok(()),
@@ -145,9 +147,10 @@ pub fn delete_creds() -> Result<(), PluginOAuthError> {
 }
 
 fn load_creds_for(
+    secrets: &SecretStore,
     gateway: &systemprompt_identifiers::ValidatedUrl,
 ) -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
-    let Some(existing) = load_creds()? else {
+    let Some(existing) = load_creds(secrets)? else {
         return Ok(None);
     };
     let current = crate::config::trust::GatewayIdentity::new(gateway)?;
@@ -170,29 +173,32 @@ fn load_creds_for(
 }
 
 pub async fn ensure_creds(
+    secrets: &SecretStore,
     gateway: &GatewayClient,
     bearer: &BearerToken,
 ) -> Result<OAuthClientCreds, PluginOAuthError> {
-    if let Some(existing) = load_creds_for(gateway.base_url())? {
+    if let Some(existing) = load_creds_for(secrets, gateway.base_url())? {
         return Ok(existing);
     }
-    provision(gateway, bearer).await
+    provision(secrets, gateway, bearer).await
 }
 
 pub async fn refresh_creds(
+    secrets: &SecretStore,
     gateway: &GatewayClient,
     bearer: &BearerToken,
 ) -> Result<OAuthClientCreds, PluginOAuthError> {
-    provision(gateway, bearer).await
+    provision(secrets, gateway, bearer).await
 }
 
 async fn provision(
+    secrets: &SecretStore,
     gateway: &GatewayClient,
     bearer: &BearerToken,
 ) -> Result<OAuthClientCreds, PluginOAuthError> {
     let response = gateway.provision_oauth_client(bearer).await?;
     let mut creds: OAuthClientCreds = response.into();
     creds.gateway = Some(gateway.base_url_str().to_owned());
-    store_creds(&creds)?;
+    store_creds(secrets, &creds)?;
     Ok(creds)
 }

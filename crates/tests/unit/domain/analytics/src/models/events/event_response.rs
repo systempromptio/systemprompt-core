@@ -1,6 +1,7 @@
 //! Tests for analytics event response types.
 
 use systemprompt_analytics::{AnalyticsEventBatchResponse, AnalyticsEventCreated};
+use systemprompt_identifiers::AnalyticsEventId;
 
 mod analytics_event_created_tests {
     use super::*;
@@ -8,18 +9,18 @@ mod analytics_event_created_tests {
     #[test]
     fn created_stores_id_and_type() {
         let created = AnalyticsEventCreated {
-            id: "evt_123".to_string(),
+            id: AnalyticsEventId::new("evt_123"),
             event_type: "page_view".to_string(),
         };
 
-        assert_eq!(created.id, "evt_123");
+        assert_eq!(created.id.as_str(), "evt_123");
         assert_eq!(created.event_type, "page_view");
     }
 
     #[test]
     fn created_serializes() {
         let created = AnalyticsEventCreated {
-            id: "evt_456".to_string(),
+            id: AnalyticsEventId::new("evt_456"),
             event_type: "scroll".to_string(),
         };
 
@@ -46,11 +47,11 @@ mod analytics_event_batch_response_tests {
     fn response_stores_events() {
         let events = vec![
             AnalyticsEventCreated {
-                id: "evt_1".to_string(),
+                id: AnalyticsEventId::new("evt_1"),
                 event_type: "page_view".to_string(),
             },
             AnalyticsEventCreated {
-                id: "evt_2".to_string(),
+                id: AnalyticsEventId::new("evt_2"),
                 event_type: "scroll".to_string(),
             },
         ];
@@ -62,8 +63,8 @@ mod analytics_event_batch_response_tests {
 
         assert_eq!(response.recorded, 2);
         assert_eq!(response.events.len(), 2);
-        assert_eq!(response.events[0].id, "evt_1");
-        assert_eq!(response.events[1].id, "evt_2");
+        assert_eq!(response.events[0].id.as_str(), "evt_1");
+        assert_eq!(response.events[1].id.as_str(), "evt_2");
     }
 
     #[test]
@@ -71,7 +72,7 @@ mod analytics_event_batch_response_tests {
         let response = AnalyticsEventBatchResponse {
             recorded: 1,
             events: vec![AnalyticsEventCreated {
-                id: "test".to_string(),
+                id: AnalyticsEventId::new("test"),
                 event_type: "page_view".to_string(),
             }],
         };

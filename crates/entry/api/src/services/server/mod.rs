@@ -34,4 +34,5 @@ pub mod startup;
 pub use builder::*;
 pub use readiness::{ReadinessEvent, ReadinessState};
 pub use runner::*;
+pub use scheduler_health::SchedulerHealth;
 pub use startup::{EarlyServer, bind_and_serve, starting_router};

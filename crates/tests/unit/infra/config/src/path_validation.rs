@@ -4,7 +4,7 @@
 use systemprompt_config::path_validation::{
     format_path_errors, validate_optional_path, validate_required_path,
 };
-use systemprompt_traits::validation_report::{
+use systemprompt_manifest::validators::validation_report::{
     ValidationIssue, ValidationReport, ValidationWarning,
 };
 use tempfile::TempDir;

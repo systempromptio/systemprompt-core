@@ -36,7 +36,7 @@ systemprompt-oauth-issuance = "0.73"
 use systemprompt_oauth_issuance::{RequestOrigin, TokenIssuanceOrchestrator};
 
 let origin = RequestOrigin { headers: &headers, caller_ip };
-let response = TokenIssuanceOrchestrator::new(&oauth_state)
+let response = TokenIssuanceOrchestrator::new(&oauth_state, &jwks_cache)
     .issue(request, origin)
     .await?;
 ```

@@ -7,7 +7,7 @@
 use systemprompt_database::resilience::Probe;
 
 use super::FailoverSend;
-use super::breakers::{ProviderBreakers, acquire, breaker_key, settle};
+use super::breakers::{acquire, breaker_key, settle};
 use super::decision::{FailoverReason, failover_reason, plan_attempts};
 use crate::protocol::outbound::OutboundOutcome;
 use crate::protocol::outbound::retry::{current_policy, with_policy};
@@ -23,7 +23,7 @@ pub(super) async fn run(
     send: FailoverSend<'_, '_>,
 ) -> Result<OutboundOutcome, DispatchError> {
     let names: Vec<String> = send.primary.deployments.iter().map(breaker_key).collect();
-    let breakers = ProviderBreakers::global();
+    let breakers = &send.engines.breakers;
     let handles: Vec<_> = send
         .primary
         .deployments
@@ -102,7 +102,7 @@ impl<'r> Chain<'_, 'r> {
             self.record_hop(&name);
         }
         let upstream = rebound.as_ref().unwrap_or(self.send.primary);
-        let _in_flight = super::enter_deployment(upstream);
+        let _in_flight = super::enter_deployment(&self.send.engines.load, upstream);
         let outcome = with_policy(
             current_policy(),
             scanned.send_attempt(upstream, self.send.forward_headers, self.send.audit),

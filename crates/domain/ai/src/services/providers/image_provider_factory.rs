@@ -18,8 +18,9 @@ use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
 use systemprompt_wire::WireProtocol;
 
-use crate::error::{AiError, ProviderCapability, Result};
+use crate::error::{AiError, ProviderCapability, Result, RoutingError};
 use crate::services::upstream::{EndpointBinding, UpstreamTarget};
+use systemprompt_identifiers::ProviderId;
 
 use super::{BoxedImageProvider, GeminiImageProvider, OpenAiImageProvider};
 
@@ -50,19 +51,19 @@ pub struct ImageProviderFactory;
 impl ImageProviderFactory {
     pub fn create(params: &ImageProviderParams<'_>) -> Result<BoxedImageProvider> {
         if !params.catalog.is_enabled(params.hop) {
-            return Err(AiError::ProviderDisabled {
-                provider: params.hop.provider.as_str().to_owned(),
-            });
+            return Err(AiError::Routing(RoutingError::ProviderDisabled {
+                provider: ProviderId::new(params.hop.provider.as_str()),
+            }));
         }
         match params.hop.wire {
             WireProtocol::Gemini => Ok(Self::create_gemini(params)),
             WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => {
                 Ok(Self::create_openai(params))
             },
-            WireProtocol::Anthropic => Err(AiError::CapabilityUnsupported {
-                provider: params.hop.provider.as_str().to_owned(),
+            WireProtocol::Anthropic => Err(AiError::Routing(RoutingError::CapabilityUnsupported {
+                provider: ProviderId::new(params.hop.provider.as_str()),
                 capability: ProviderCapability::ImageGeneration,
-            }),
+            })),
         }
     }
 
@@ -74,8 +75,10 @@ impl ImageProviderFactory {
             .enabled_hops(model.as_str())
             .filter(|hop| Self::supports_image_generation(hop.wire))
             .find(|hop| !hop.credential.is_personal())
-            .ok_or_else(|| AiError::NoProviderForModel {
-                model: model.as_str().to_owned(),
+            .ok_or_else(|| {
+                AiError::Routing(RoutingError::NoProviderForModel {
+                    model: model.clone(),
+                })
             })?;
         let binding = EndpointBinding::of_hop(catalog, hop)?;
         let target = UpstreamTarget::from_secrets(binding)?;

@@ -11,7 +11,7 @@ use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_oauth_issuance::token_exchange::claims::resolve_audience;
 use systemprompt_oauth_issuance::token_exchange::subject::jwks_host_allowlist;
-use systemprompt_oauth_issuance::token_exchange::validate_resource;
+use systemprompt_oauth_issuance::token_exchange::{JwksCache, validate_resource};
 use systemprompt_test_fixtures::fixture_config;
 
 fn config_with_audiences(allowed: &[&str]) -> Config {
@@ -137,4 +137,45 @@ fn jwks_allowlist_drops_entries_with_an_unparseable_uri() {
 #[test]
 fn jwks_allowlist_is_empty_when_no_issuer_is_trusted() {
     assert!(jwks_host_allowlist(&[]).is_empty());
+}
+
+fn named_issuer(name: &str, jwks_uri: &str) -> TrustedIssuer {
+    TrustedIssuer {
+        issuer: name.to_owned(),
+        ..issuer(jwks_uri)
+    }
+}
+
+#[test]
+fn jwks_cache_reuses_the_client_for_one_issuer() {
+    let cache = JwksCache::new();
+    let trusted = issuer("https://idp.test/jwks");
+
+    let first = cache.client_for(&trusted);
+    let second = cache.client_for(&trusted);
+
+    assert!(std::sync::Arc::ptr_eq(&first, &second));
+}
+
+#[test]
+fn jwks_cache_keeps_distinct_issuers_apart() {
+    let cache = JwksCache::new();
+    let a = named_issuer("https://a.test", "https://a.test/jwks");
+    let b = named_issuer("https://b.test", "https://b.test/jwks");
+
+    let a_first = cache.client_for(&a);
+    let b_client = cache.client_for(&b);
+    let a_again = cache.client_for(&a);
+
+    assert!(!std::sync::Arc::ptr_eq(&a_first, &b_client));
+    assert!(std::sync::Arc::ptr_eq(&a_first, &a_again));
+}
+
+#[test]
+fn jwks_cache_rebuilds_when_an_issuer_moves_its_jwks_host() {
+    let cache = JwksCache::new();
+    let before = cache.client_for(&issuer("https://idp.test/jwks"));
+    let after = cache.client_for(&issuer("https://keys.idp.test/jwks"));
+
+    assert!(!std::sync::Arc::ptr_eq(&before, &after));
 }

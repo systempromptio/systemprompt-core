@@ -21,8 +21,6 @@ crates/infra/loader/src/config_loader/mod.rs:CONFIG_CACHE — owned by config-ar
 crates/entry/api/src/routes/gateway/bridge_services_cache.rs:CACHED — owned by config-arch Phase 3
 
 # Gateway failover statics (config-arch session hand-off).
-crates/app/gateway/src/service/failover/breakers.rs:BREAKERS — debt: hand-off to the config-arch session
-crates/app/gateway/src/service/failover/load.rs:LOAD — debt: hand-off to the config-arch session
 crates/infra/security/src/credential/mod.rs:PROVIDER_TOKENS — debt: ProviderCredential::bearer is called from domain/ai upstream/target.rs and loader vertex_discovery (config-arch session); the owned form is TokenCache
 
 # Immutable data: compiled once, never mutated.
@@ -31,7 +29,7 @@ crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data
 crates/shared/extension/src/gateway_guard.rs:GATEWAY_GUARDS — immutable data: link-time inventory of gateway guards, collected once
 crates/domain/mcp/src/lib.rs:VERSION — immutable data: the MCP protocol version string rendered once
 crates/domain/mcp/src/services/ui_renderer/artifact_ui.rs:REGISTRY — immutable data: the built-in UI renderer set, built once
-crates/infra/governance/src/policy/secrets/fingerprint.rs:KEY — immutable data: per-process fingerprint key derived once
+crates/entry/api/src/routes/gateway/otel/mod.rs:NO_SUBJECT_DIMENSIONS — immutable data: the empty subject-provider set for unauthenticated OTLP ingest
 
 # Third-party set-once globals mirrored by a static.
 crates/infra/logging/src/lib.rs:SUBSCRIBER_INITIALIZED — tracing's global dispatcher is itself set-once
@@ -40,39 +38,12 @@ crates/entry/api/src/services/server/metrics.rs:RECORDER_INIT — serialises the
 
 # Debt: service state a later package moves onto an owner (logging, boot
 # display, process-wide HTTP clients, per-job memo, cloud credentials).
-crates/infra/logging/src/lib.rs:INSTANCE_ID — debt: logging layer state
-crates/infra/logging/src/lib.rs:DB_PROXY — debt: logging layer state
-crates/infra/logging/src/lib.rs:DB_WRITER — debt: logging layer state
-crates/infra/logging/src/layer/mod.rs:BACKGROUND_SENDER — debt: logging layer state
-crates/infra/logging/src/layer/mod.rs:DROPPED — debt: logging layer state
-crates/infra/logging/src/attribution.rs:PLATFORM_OWNER — debt: logging attribution state
 crates/infra/logging/src/services/json_format.rs:JSON_CONSOLE — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:STARTUP_MODE — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:STRUCTURED_MODE — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:STRUCTURED_EMITTED — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:NOTICE_BUFFER — debt: CLI output buffer
-crates/infra/cloud/src/credentials_bootstrap/mod.rs:CREDENTIALS — debt: cloud credentials bootstrap
-crates/infra/config/src/private_file.rs:TEMP_NONCE — debt: temp-file nonce counter
-crates/infra/config/src/state_dir.rs:PROBE_SEQ — debt: write-probe sequence counter
-crates/infra/database/src/services/postgres/connection.rs:POOL_CLOCK — debt: pool clock
-crates/infra/database/src/services/postgres/connection.rs:SCHEMA_CHANGED_AT_NANOS — debt: schema-change stamp
-crates/infra/loader/src/bundle/provenance.rs:CACHE — debt: tree-hash memo
 crates/infra/loader/src/subprocess/spawn.rs:SPAWNER — debt: subprocess spawner channel
-crates/infra/security/src/credential/http.rs:CLIENT — debt: process-wide HTTP client
 crates/infra/security/src/keys/authority.rs:CELL — debt: signing authority
 crates/infra/security/src/manifest_signing.rs:CELL — debt: manifest signing key
-crates/app/gateway/src/protocol/outbound/mod.rs:CLIENT — debt: process-wide HTTP client
-crates/app/scheduler/src/jobs/otlp_export/transport.rs:CLIENT — debt: process-wide HTTP client
-crates/domain/mcp/src/services/network/proxy.rs:CLIENT — debt: process-wide HTTP client
-crates/entry/api/src/routes/messaging/mod.rs:GUARDED_CLIENT — debt: process-wide HTTP client
-crates/app/scheduler/src/jobs/inventory.rs:LAST — debt: per-job memo
-crates/app/scheduler/src/jobs/vertex_discovery.rs:LATEST — debt: last discovery report
-crates/app/oauth-issuance/src/token_exchange/subject.rs:SHARED_JWKS — debt: JWKS client cache
-crates/app/generator/src/atomic.rs:SEQUENCE — debt: temp-file sequence counter
-crates/app/generator/src/prerender/context.rs:PRERENDER_ASSETS — debt: prerender asset memo
-crates/domain/analytics/src/services/extractor/geoip.rs:NO_READER_NOTICE — debt: once-only notice
-crates/domain/marketplace/src/catalog/content/revision_cache.rs:VERIFIED — debt: verified revision memo
-crates/entry/api/src/routes/admin/services/refresh.rs:REFRESH_LOCK — debt: services refresh lock
 crates/entry/api/src/routes/gateway/bridge_plugin_archive.rs:PACKED — debt: packed plugin archive memo
-crates/entry/api/src/services/server/scheduler_health.rs:DEGRADED_JOBS — debt: degraded jobs snapshot
-crates/entry/api/src/routes/gateway/otel/mod.rs:NO_SUBJECT_DIMENSIONS — immutable data: the empty subject-provider set for unauthenticated OTLP ingest

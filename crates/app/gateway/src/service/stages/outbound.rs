@@ -31,6 +31,7 @@ pub(super) const fn outbound_ctx<'a>(
     OutboundCtx {
         target: &upstream.hop,
         upstream: &upstream.call,
+        http: &upstream.http,
         request,
         upstream_model: parts.upstream_model,
         model_limits: parts.model_limits,

@@ -91,7 +91,10 @@ async fn public_app() -> anyhow::Result<Router> {
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
-    Ok(public_router().with_state(state))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state))
 }
 
 async fn authenticated_app() -> anyhow::Result<Router> {
@@ -277,9 +280,11 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
-    let app = systemprompt_api::routes::oauth::public_router()
-        .with_state(state)
-        .layer(Extension(req_ctx));
+    let app = systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state)
+    .layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "client_name": "rfc7591-probe",
@@ -343,9 +348,11 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
-    let app = systemprompt_api::routes::oauth::public_router()
-        .with_state(state)
-        .layer(Extension(req_ctx));
+    let app = systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state)
+    .layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "client_name": "native-probe",
@@ -430,9 +437,13 @@ async fn dcr_app() -> anyhow::Result<Router> {
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
-    Ok(systemprompt_api::routes::oauth::public_router()
+    Ok(
+        systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+            systemprompt_oauth_issuance::JwksCache::new(),
+        ))
         .with_state(state)
-        .layer(Extension(req_ctx)))
+        .layer(Extension(req_ctx)),
+    )
 }
 
 async fn register_with(scope: Option<&str>) -> anyhow::Result<(u16, serde_json::Value)> {

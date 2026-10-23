@@ -174,7 +174,7 @@ async fn count_unique_ips_by_fingerprint() {
     for ip in ["1.1.1.1", "2.2.2.2", "1.1.1.1"] {
         let sid = unique_session_id();
         let mut params = base_params(&sid, Some(&fp), Utc::now() + Duration::hours(1));
-        params.ip_address = Some(ip);
+        params.network.ip_address = Some(ip);
         store
             .insert_session(&params)
             .await
@@ -290,8 +290,11 @@ async fn update_behavioral_detection_and_mark_bot() {
         .await
         .expect("find")
         .expect("present");
-    assert_eq!(s.is_behavioral_bot, Some(true));
-    assert_eq!(s.behavioral_bot_reason.as_deref(), Some("high_velocity"));
+    assert_eq!(s.classification.is_behavioral_bot, Some(true));
+    assert_eq!(
+        s.classification.behavioral_bot_reason.as_deref(),
+        Some("high_velocity")
+    );
 
     delete_session(&pool, &sid).await;
 }

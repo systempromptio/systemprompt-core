@@ -3,13 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::ValidationConfigProvider;
+use super::validation_report::{ValidationIssue, ValidationReport, ValidationWarning};
+use super::{DomainConfig, DomainConfigError, ValidationConfigProvider};
 use crate::ServicesConfig;
 use crate::services::CatalogContext;
-use systemprompt_traits::validation_report::{
-    ValidationIssue, ValidationReport, ValidationWarning,
-};
-use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+use systemprompt_traits::ConfigProvider;
 
 #[derive(Debug, Default)]
 pub struct AiConfigValidator {

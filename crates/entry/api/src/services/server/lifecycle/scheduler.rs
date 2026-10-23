@@ -14,11 +14,12 @@ use systemprompt_scheduler::services::{
 };
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
-use crate::services::server::scheduler_health;
+use crate::services::server::scheduler_health::SchedulerHealth;
 
 pub(in crate::services::server) async fn initialize_scheduler(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
+    scheduler_health: &SchedulerHealth,
 ) -> Result<Option<SchedulerHandle>> {
     events.scheduler_initializing();
     reconcile_config_planes(ctx).await?;
@@ -45,7 +46,7 @@ pub(in crate::services::server) async fn initialize_scheduler(
             "scheduler started degraded: jobs skipped due to unresolved owners"
         );
     }
-    scheduler_health::record(startup.degraded);
+    scheduler_health.record(startup.degraded);
 
     events.scheduler_ready(startup.scheduled, available_jobs);
     Ok(startup.handle)

@@ -189,27 +189,24 @@ pub(crate) fn log_terminal(audit: &GatewayAudit, status: u16, error: Option<&str
     let Some(access) = audit.ctx.access_log.as_ref() else {
         return;
     };
-    log_gateway_terminal(TerminalOutcome {
-        access,
-        status,
-        actor: terminal_actor(audit),
-        error,
-    });
+    log_gateway_terminal(
+        audit.logging(),
+        TerminalOutcome {
+            access,
+            status,
+            actor: terminal_actor(audit),
+            error,
+        },
+    );
 }
 
-fn terminal_actor(audit: &GatewayAudit) -> Option<LogActor> {
+fn terminal_actor(audit: &GatewayAudit) -> LogActor {
     if let (Some(session), Some(trace)) =
         (audit.ctx.session_id.as_ref(), audit.ctx.trace_id.as_ref())
     {
-        return Some(LogActor::new(
-            audit.ctx.user_id.clone(),
-            session.clone(),
-            trace.clone(),
-        ));
+        return LogActor::new(audit.ctx.user_id.clone(), session.clone(), trace.clone());
     }
-    LogActor::platform(TraceId::system())
-        .inspect_err(|error| tracing::warn!(%error, "Gateway terminal log actor unavailable"))
-        .ok()
+    audit.logging().platform_actor(TraceId::system())
 }
 
 async fn capture_signatures(ctx: &TapFinalizeCtx, audit: &GatewayAudit, summary: &Summary) {

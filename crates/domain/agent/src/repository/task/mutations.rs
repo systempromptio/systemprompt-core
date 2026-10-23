@@ -13,10 +13,7 @@ use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Task;
 
-#[expect(
-    missing_debug_implementations,
-    reason = "params struct holds non-Debug references"
-)]
+#[derive(Debug)]
 pub struct CreateTaskParams<'a> {
     pub pool: &'a Arc<PgPool>,
     pub task: &'a Task,

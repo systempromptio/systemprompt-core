@@ -10,6 +10,7 @@
 
 use crate::error::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::ProviderId;
 
 use crate::models::RequestStatus;
 use crate::models::ai::AiRequest;
@@ -172,11 +173,10 @@ impl AiService {
         let provider = Some(request.provider()).filter(|p| !p.is_empty());
         self.clients
             .for_request(&self.catalog, provider, request.model())
-            .ok_or_else(|| crate::error::AiError::ProviderNotFound {
-                provider: provider.map_or_else(
-                    || request.model().to_owned(),
-                    |p| format!("{p} (model {})", request.model()),
-                ),
+            .ok_or_else(|| {
+                crate::error::AiError::Routing(crate::error::RoutingError::ProviderNotFound {
+                    provider: ProviderId::new(provider.unwrap_or_else(|| request.model())),
+                })
             })
     }
 

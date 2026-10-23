@@ -10,7 +10,9 @@ use systemprompt_traits::{
 };
 
 use crate::repository::SessionRepository;
-use systemprompt_traits::session_store::CreateSessionParams;
+use systemprompt_traits::session_store::{
+    CreateSessionParams, SessionAttribution, SessionIdentity, SessionNetwork,
+};
 
 #[derive(Debug)]
 pub struct UsersAiSessionProvider {
@@ -27,28 +29,14 @@ impl UsersAiSessionProvider {
 impl AiSessionProvider for UsersAiSessionProvider {
     async fn create_session(&self, params: CreateAiSessionParams<'_>) -> AiProviderResult<()> {
         let full_params = CreateSessionParams {
-            session_id: params.session_id,
-            user_id: params.user_id,
-            session_source: params.session_source,
-            fingerprint_hash: None,
-            ip_address: None,
-            user_agent: None,
-            device_type: None,
-            browser: None,
-            os: None,
-            country: None,
-            region: None,
-            city: None,
-            preferred_locale: None,
-            referrer_source: None,
-            referrer_url: None,
-            landing_page: None,
-            entry_url: None,
-            utm_source: None,
-            utm_medium: None,
-            utm_campaign: None,
-            utm_content: None,
-            utm_term: None,
+            identity: SessionIdentity {
+                session_id: params.session_id,
+                user_id: params.user_id,
+                session_source: params.session_source,
+                fingerprint_hash: None,
+            },
+            network: SessionNetwork::default(),
+            attribution: SessionAttribution::default(),
             is_bot: false,
             is_ai_crawler: false,
             expires_at: params.expires_at,

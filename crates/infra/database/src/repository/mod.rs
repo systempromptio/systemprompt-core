@@ -12,6 +12,7 @@ pub mod base;
 pub mod change_context;
 pub mod coordination;
 pub mod lease;
+pub mod ownership;
 pub mod release_stamp;
 pub mod service;
 

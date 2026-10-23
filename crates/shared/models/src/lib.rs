@@ -41,7 +41,7 @@
 //! - [`routing`] — request routing classification.
 //! - [`scope`] — per-request scoping identity for scoped DB transactions.
 //! - [`subprocess`] — identity contract for supervised child processes.
-//! - [`text`], [`time_format`] — display formatting helpers.
+//! - [`text`] — display formatting helpers.
 //! - [`users`] — public user / session summaries.
 //!
 //! No module here spawns processes or opens sockets: process spawning lives
@@ -94,7 +94,6 @@ pub mod routing;
 pub mod scope;
 pub mod subprocess;
 pub mod text;
-pub mod time_format;
 pub mod users;
 
 pub use a2a::{

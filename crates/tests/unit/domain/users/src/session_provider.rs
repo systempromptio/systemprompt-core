@@ -4,7 +4,9 @@ use chrono::{Duration, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
-use systemprompt_traits::session_store::CreateSessionParams;
+use systemprompt_traits::session_store::{
+    CreateSessionParams, SessionAttribution, SessionIdentity, SessionNetwork,
+};
 use systemprompt_traits::{
     AnalyticsProviderError, CreateSessionInput, SessionAnalytics as TraitSessionAnalytics,
     SessionProvider,
@@ -49,28 +51,14 @@ async fn seed_owned(
 ) {
     let repo = SessionRepository::new(pool);
     let params = CreateSessionParams {
-        session_id,
-        user_id,
-        session_source: SessionSource::Web,
-        fingerprint_hash: Some(fingerprint),
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: None,
-        referrer_url: None,
-        landing_page: None,
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        utm_content: None,
-        utm_term: None,
+        identity: SessionIdentity {
+            session_id,
+            user_id,
+            session_source: SessionSource::Web,
+            fingerprint_hash: Some(fingerprint),
+        },
+        network: SessionNetwork::default(),
+        attribution: SessionAttribution::default(),
         is_bot: false,
         is_ai_crawler: false,
         expires_at: Utc::now() + Duration::hours(1),

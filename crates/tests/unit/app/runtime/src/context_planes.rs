@@ -131,6 +131,7 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let subsystems = Subsystems {
         system_admin: Arc::new(fixture_system_admin("planeadmin")),
+        logging: systemprompt_test_fixtures::fixture_logging_runtime(),
         authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
         governance: systemprompt_test_fixtures::default_governance_engine(),
         cache_epochs: systemprompt_traits::CacheEpochs::new(),

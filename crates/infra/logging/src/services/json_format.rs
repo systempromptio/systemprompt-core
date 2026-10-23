@@ -25,6 +25,7 @@ use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFields};
 use tracing_subscriber::registry::LookupSpan;
 
+use crate::layer::InstanceLabel;
 use crate::sanitize::{REDACTION_PLACEHOLDER, is_redacted, is_system_sentinel};
 
 static JSON_CONSOLE: AtomicBool = AtomicBool::new(false);
@@ -43,14 +44,25 @@ pub fn console_format() -> LogFormat {
 }
 
 /// One JSON object per event, with sensitive field values redacted.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct JsonEventFormat;
+#[derive(Debug, Clone, Default)]
+pub struct JsonEventFormat {
+    instance: InstanceLabel,
+}
 
 /// The installed console formatter: text or JSON per [`set_console_format`].
 #[derive(Debug, Clone, Default)]
 pub struct ConsoleEventFormat {
     text: Format<Full, SystemTime>,
     json: JsonEventFormat,
+}
+
+impl ConsoleEventFormat {
+    pub(crate) fn labelled(instance: InstanceLabel) -> Self {
+        Self {
+            text: Format::default(),
+            json: JsonEventFormat { instance },
+        }
+    }
 }
 
 impl<S, N> FormatEvent<S, N> for ConsoleEventFormat
@@ -114,7 +126,7 @@ where
         if !spans.is_empty() {
             object.insert("spans".to_owned(), Value::Array(spans));
         }
-        if let Some(instance_id) = crate::instance_id() {
+        if let Some(instance_id) = self.instance.get() {
             object.insert(
                 "instance".to_owned(),
                 Value::String(instance_id.as_str().to_owned()),

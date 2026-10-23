@@ -19,12 +19,12 @@ use systemprompt_logging::services::cli::{
 };
 use systemprompt_logging::{CliService, is_startup_mode};
 use systemprompt_manifest::Config;
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
 use systemprompt_manifest::validators::{
-    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    RateLimitsConfigValidator, ValidationConfigProvider, WebConfigValidator,
+    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, DomainConfigRegistry,
+    McpConfigValidator, RateLimitsConfigValidator, StartupValidationReport,
+    ValidationConfigProvider, ValidationReport, WebConfigValidator,
 };
-use systemprompt_traits::validation_report::ValidationIssue;
-use systemprompt_traits::{DomainConfigRegistry, StartupValidationReport, ValidationReport};
 
 use config_loaders::{create_spinner, load_content_config, load_web_config, load_web_metadata};
 use extension_validator::validate_extensions;

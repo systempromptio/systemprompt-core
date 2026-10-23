@@ -89,8 +89,8 @@ fn login_stores_pat_then_logout_and_clean_remove_it() {
         let cfg_path = systemprompt_bridge::config::config_path().expect("config path resolvable");
         assert!(cfg_path.exists(), "login should create the config file");
 
-        let _ = logout::cmd_logout();
-        let _ = clean::cmd_clean();
+        let _ = logout::cmd_logout(&ctx());
+        let _ = clean::cmd_clean(&ctx());
         // clean wipes the config back to a fresh splash.
         assert!(
             !cfg_path.exists()
@@ -117,14 +117,14 @@ fn login_without_a_terminal_fails_instead_of_waiting_for_a_person() {
 #[test]
 fn clean_on_fresh_state_is_ok() {
     sandbox(None, || {
-        let _ = clean::cmd_clean();
+        let _ = clean::cmd_clean(&ctx());
     });
 }
 
 #[test]
 fn status_renders_in_sandbox() {
     sandbox(None, || {
-        let _ = status::cmd_status();
+        let _ = status::cmd_status(&ctx());
     });
 }
 

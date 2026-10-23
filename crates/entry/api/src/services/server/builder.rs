@@ -49,7 +49,7 @@ pub fn setup_api_server(
         tx.warning("Rate limiting disabled - development mode only");
     }
 
-    let engines = Arc::new(GatewayEngines::new());
+    let engines = Arc::new(GatewayEngines::new()?);
     register_artifact_scanner(ctx, &engines);
     let router =
         configure_routes(ctx, events, &engines)?.layer(axum::Extension(Arc::clone(readiness)));

@@ -13,14 +13,14 @@
 //! router receives as an axum extension (see `extension_mount`), so a console
 //! that has authorised a caller by its own rule — a marketplace participant
 //! syncing their own kit, say — runs the same refresh the admin route runs
-//! without minting an admin token. One process-wide lock guards both. The
+//! without minting an admin token. One lock, built once with the router,
+//! guards both. The
 //! handle never restarts the process: an extension router is authorised by
 //! `AuthzPolicy::user()`, so the restart stays on the admin route alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::LazyLock;
 use std::time::Duration;
 
 use axum::Json;
@@ -47,17 +47,6 @@ use crate::error::ApiHttpError;
 const RESTART_DELAY: Duration = Duration::from_millis(250);
 const RESTART_REASON: &str = "admin services refresh";
 
-// Why: one lock for the process, not one per router. The admin route and every
-// extension handle share it, so two callers on different routes cannot fetch
-// at once. `RefreshLock` clones share the mutex, so the router's extension is
-// a clone of this same lock.
-static REFRESH_LOCK: LazyLock<RefreshLock> = LazyLock::new(RefreshLock::default);
-
-#[must_use]
-pub fn process_refresh_lock() -> RefreshLock {
-    REFRESH_LOCK.clone()
-}
-
 /// In-process handle to the fetch-verify-compose-reconcile pipeline.
 #[derive(Debug, Clone)]
 pub struct ServicesRefresh {
@@ -67,14 +56,7 @@ pub struct ServicesRefresh {
 
 impl ServicesRefresh {
     #[must_use]
-    pub fn new(ctx: &AppContext) -> Self {
-        Self::with_lock(ctx, process_refresh_lock())
-    }
-
-    // Why: the lock is injectable so a test can hold it and prove the second
-    // caller is refused; production always passes the process lock.
-    #[must_use]
-    pub fn with_lock(ctx: &AppContext, lock: RefreshLock) -> Self {
+    pub fn new(ctx: &AppContext, lock: RefreshLock) -> Self {
         Self {
             ctx: ctx.clone(),
             lock,

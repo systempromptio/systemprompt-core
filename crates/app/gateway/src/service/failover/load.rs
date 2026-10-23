@@ -10,9 +10,9 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
-/// Process-wide in-flight counters, one per deployment.
+/// In-flight counters owned by one gateway, one per deployment.
 #[derive(Debug, Default)]
 pub struct DeploymentLoad {
     inner: Mutex<HashMap<String, Arc<AtomicU64>>>,
@@ -29,11 +29,6 @@ impl Drop for InFlight {
 }
 
 impl DeploymentLoad {
-    pub fn global() -> &'static Self {
-        static LOAD: OnceLock<DeploymentLoad> = OnceLock::new();
-        LOAD.get_or_init(Self::default)
-    }
-
     fn counter(&self, key: &str) -> Arc<AtomicU64> {
         let mut map = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         Arc::clone(map.entry(key.to_owned()).or_default())

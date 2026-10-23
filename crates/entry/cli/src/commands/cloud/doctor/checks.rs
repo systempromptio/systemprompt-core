@@ -14,7 +14,6 @@ use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::CredentialRegistry;
 
@@ -28,8 +27,7 @@ pub fn check_profile_valid(profile: &Profile) -> CheckResult {
 }
 
 pub fn check_extension_configs(profile: &Profile) -> CheckResult {
-    let services_root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
-    let services_path = services_root.as_path();
+    let services_path = Path::new(&profile.paths.services);
     match systemprompt_runtime::validate_extension_configs(services_path) {
         Err(err) => CheckResult::fail(
             "extension-config",

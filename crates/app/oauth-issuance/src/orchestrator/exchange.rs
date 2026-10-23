@@ -49,7 +49,7 @@ impl TokenIssuanceOrchestrator<'_> {
         };
 
         let response =
-            handle_token_exchange(self.repo(), &client_id, exchange, origin, self.state).await?;
+            handle_token_exchange(&client_id, exchange, origin, self.state, self.jwks).await?;
 
         tracing::info!(
             grant_type = "urn:ietf:params:oauth:grant-type:token-exchange",
@@ -79,7 +79,7 @@ impl TokenIssuanceOrchestrator<'_> {
         };
 
         let response =
-            handle_token_exchange(self.repo(), &client_id, exchange, origin, self.state).await?;
+            handle_token_exchange(&client_id, exchange, origin, self.state, self.jwks).await?;
 
         tracing::info!(
             grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer",

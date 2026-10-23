@@ -10,6 +10,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::QuotaSubjectId;
 use systemprompt_traits::RepositoryError;
 
 use super::QuotaBucketState;
@@ -25,7 +26,7 @@ pub struct QuotaWindowKey<'a> {
 
 #[derive(Debug, Clone)]
 pub struct QuotaSubjectUsage {
-    pub subject_id: String,
+    pub subject_id: QuotaSubjectId,
     pub usage: QuotaBucketState,
     pub updated_at: DateTime<Utc>,
 }
@@ -44,7 +45,7 @@ impl QuotaUsageRepository {
     pub async fn usage(
         &self,
         window: QuotaWindowKey<'_>,
-        subject_id: &str,
+        subject_id: &QuotaSubjectId,
     ) -> Result<QuotaBucketState, RepositoryError> {
         let row = sqlx::query!(
             r#"
@@ -57,7 +58,7 @@ impl QuotaUsageRepository {
               AND window_seconds = $3 AND window_start = $4
             "#,
             window.subject_kind,
-            subject_id,
+            subject_id.as_str(),
             window.window_seconds,
             window.window_start
         )
@@ -100,7 +101,7 @@ impl QuotaUsageRepository {
         Ok(rows
             .into_iter()
             .map(|row| QuotaSubjectUsage {
-                subject_id: row.subject_id,
+                subject_id: QuotaSubjectId::new(row.subject_id),
                 usage: QuotaBucketState {
                     requests: row.requests,
                     input_tokens: row.input_tokens,

@@ -13,7 +13,7 @@ mod artifact;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName};
+use systemprompt_identifiers::{ArtifactElementId, McpExecutionId, SkillId, SkillName};
 
 pub use artifact::PresentationCardArtifact;
 
@@ -150,7 +150,7 @@ impl CardSection {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CardCta {
-    pub id: String,
+    pub id: ArtifactElementId,
     pub label: String,
     pub message: String,
     pub variant: CtaVariant,
@@ -160,13 +160,13 @@ pub struct CardCta {
 
 impl CardCta {
     pub fn new(
-        id: impl Into<String>,
+        id: ArtifactElementId,
         label: impl Into<String>,
         message: impl Into<String>,
         variant: CtaVariant,
     ) -> Self {
         Self {
-            id: id.into(),
+            id,
             label: label.into(),
             message: message.into(),
             variant,

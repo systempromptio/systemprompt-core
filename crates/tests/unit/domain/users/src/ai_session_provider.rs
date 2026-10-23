@@ -50,7 +50,7 @@ async fn create_session_then_increment_usage_round_trip() {
         .await
         .expect("find")
         .expect("present");
-    assert_eq!(session.ai_request_count, Some(1));
+    assert_eq!(session.activity.ai_request_count, Some(1));
 
     cleanup(&pool, &sid).await;
 }

@@ -128,6 +128,4 @@ pub fn truncate_to_period(dt: DateTime<Utc>, period: &str) -> DateTime<Utc> {
     }
 }
 
-pub use systemprompt_models::time_format::{
-    format_duration_ms, format_period_label, format_timestamp,
-};
+pub use crate::shared::time_format::{format_duration_ms, format_period_label, format_timestamp};

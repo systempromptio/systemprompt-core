@@ -119,8 +119,8 @@ pub fn check_pinned_pubkey() -> Check {
     }
 }
 
-pub fn check_credential_store() -> Check {
-    match plugin_oauth::credential_backend() {
+pub fn check_credential_store(secrets: &plugin_oauth::SecretStore) -> Check {
+    match secrets.backend() {
         plugin_oauth::SecretBackend::Keyring => Check::ok(
             "credential store",
             "OS credential store available for the OAuth client secret",
@@ -136,8 +136,11 @@ pub fn check_credential_store() -> Check {
     }
 }
 
-pub async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
-    let creds = match plugin_oauth::load_creds() {
+pub async fn check_hook_token_mint(
+    secrets: &plugin_oauth::SecretStore,
+    gateway: &GatewayClient,
+) -> Check {
+    let creds = match plugin_oauth::load_creds(secrets) {
         Ok(Some(c)) => c,
         Ok(None) => {
             return Check::warn(

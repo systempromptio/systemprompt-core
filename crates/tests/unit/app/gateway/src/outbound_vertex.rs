@@ -118,6 +118,7 @@ async fn buffered_request_posts_raw_predict_with_bearer_and_body_version() {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5@fixture",
         model_limits: None,
@@ -182,6 +183,7 @@ async fn streaming_request_posts_stream_raw_predict() {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5@fixture",
         model_limits: None,
@@ -224,6 +226,7 @@ fn passthrough_body_drops_model_and_carries_the_vertex_version() {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5@fixture",
         model_limits: None,
@@ -256,6 +259,7 @@ async fn first_party_anthropic_keeps_messages_path_and_api_key() {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5",
         model_limits: None,
@@ -288,6 +292,7 @@ async fn an_undeclared_beta_is_not_forwarded_to_vertex() {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5@fixture",
         model_limits: None,
@@ -344,6 +349,7 @@ async fn send_context_management(
     let ctx = OutboundCtx {
         target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5",
         model_limits: None,

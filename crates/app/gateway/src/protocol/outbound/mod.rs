@@ -122,11 +122,6 @@ impl UpstreamError {
     }
 }
 
-pub(crate) fn http_client() -> &'static reqwest::Client {
-    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
-    CLIENT.get_or_init(reqwest::Client::new)
-}
-
 pub(crate) async fn send_checked(
     provider: &str,
     req: reqwest::RequestBuilder,
@@ -148,6 +143,7 @@ pub fn extract_upstream_message(body: &str) -> String {
 pub struct OutboundCtx<'a> {
     pub target: &'a ResolvedHop,
     pub upstream: &'a UpstreamCall,
+    pub http: &'a reqwest::Client,
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
     pub model_limits: Option<ModelLimits>,

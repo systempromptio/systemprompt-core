@@ -13,13 +13,13 @@ use axum::body::Body;
 use axum::extract::{Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 use super::archive::{collect_manifest, create_tarball, get_services_path};
 use super::types::{ApiResult, FileManifest, FilesQuery, SyncError};
+use crate::error::ApiHttpError;
 
-async fn run_blocking<T, F>(job: F) -> Result<T, ApiError>
+async fn run_blocking<T, F>(job: F) -> Result<T, ApiHttpError>
 where
     F: FnOnce() -> Result<T, SyncError> + Send + 'static,
     T: Send + 'static,
@@ -48,7 +48,7 @@ pub(super) async fn manifest(
 pub(super) async fn download(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
-) -> Result<Response, ApiError> {
+) -> Result<Response, ApiHttpError> {
     let services_path = get_services_path(&ctx)?;
     let directories = owned_directories(&query);
     let dry_run = query.dry_run;

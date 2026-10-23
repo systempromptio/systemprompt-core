@@ -4,9 +4,11 @@
 //! they execute every branch without panicking.
 
 use std::path::PathBuf;
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
+use systemprompt_manifest::validators::{
+    StartupValidationReport, ValidationReport, ValidationWarning,
+};
 use systemprompt_runtime::{display_validation_report, display_validation_warnings};
-use systemprompt_traits::validation_report::ValidationIssue;
-use systemprompt_traits::{StartupValidationReport, ValidationReport, ValidationWarning};
 
 fn make_error_report(domain: &str, with_path: bool, with_suggestion: bool) -> ValidationReport {
     let mut report = ValidationReport::new(domain);

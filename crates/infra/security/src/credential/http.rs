@@ -1,4 +1,5 @@
-//! The one HTTP client every credential exchange uses.
+//! How every credential exchange talks HTTP; the client itself is owned by
+//! the [`super::cache::TokenCache`] the exchange mints into.
 //!
 //! Token exchange sits in front of a user's request, so it is bounded twice —
 //! a connect timeout and a total timeout — rather than left to inherit
@@ -18,7 +19,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_models::net::{HTTP_AUTH_VERIFY_TIMEOUT, HTTP_CONNECT_TIMEOUT};
@@ -27,33 +28,29 @@ use super::error::CredentialError;
 
 const RETRY_BACKOFF: Duration = Duration::from_millis(250);
 
-fn client() -> Result<&'static reqwest::Client, CredentialError> {
-    static CLIENT: OnceLock<Result<reqwest::Client, Arc<reqwest::Error>>> = OnceLock::new();
-    CLIENT
-        .get_or_init(|| {
-            reqwest::Client::builder()
-                .connect_timeout(HTTP_CONNECT_TIMEOUT)
-                .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
-                .build()
-                .map_err(Arc::new)
-        })
-        .as_ref()
-        .map_err(|e| CredentialError::Client(Arc::clone(e)))
+pub(super) fn build_client() -> Result<reqwest::Client, Arc<reqwest::Error>> {
+    reqwest::Client::builder()
+        .connect_timeout(HTTP_CONNECT_TIMEOUT)
+        .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
+        .build()
+        .map_err(Arc::new)
 }
 
 pub(crate) async fn post_form(
+    client: &reqwest::Client,
     uri: &str,
     form: &[(&str, String)],
 ) -> Result<String, CredentialError> {
-    send_with_retry(uri, |client| client.post(uri).form(form)).await
+    send_with_retry(client, uri, |client| client.post(uri).form(form)).await
 }
 
 pub(crate) async fn post_bearer(
+    client: &reqwest::Client,
     uri: &str,
     bearer: &str,
     headers: &[(&str, &str)],
 ) -> Result<String, CredentialError> {
-    send_with_retry(uri, |client| {
+    send_with_retry(client, uri, |client| {
         headers.iter().fold(
             client.post(uri).bearer_auth(bearer),
             |request, (name, value)| request.header(*name, *value),
@@ -62,11 +59,14 @@ pub(crate) async fn post_bearer(
     .await
 }
 
-async fn send_with_retry<B>(uri: &str, build: B) -> Result<String, CredentialError>
+async fn send_with_retry<B>(
+    client: &reqwest::Client,
+    uri: &str,
+    build: B,
+) -> Result<String, CredentialError>
 where
     B: Fn(&reqwest::Client) -> reqwest::RequestBuilder,
 {
-    let client = client()?;
     let mut attempt = 0;
     loop {
         let outcome = attempt_send(build(client)).await;

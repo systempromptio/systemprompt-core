@@ -80,6 +80,7 @@ impl std::fmt::Debug for Subsystems {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Subsystems")
             .field("system_admin", &self.system_admin.username())
+            .field("logging", &self.logging)
             .field("authz_hook", &"SharedAuthzHook")
             .field("governance", &self.governance)
             .field("cache_epochs", &self.cache_epochs)

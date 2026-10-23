@@ -8,9 +8,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod ai_request;
 mod direct_response;
-mod helpers;
 mod tool_execution;
+mod tool_recording;
 
 use std::sync::Arc;
 
@@ -22,7 +23,7 @@ use systemprompt_models::ai::PlanningResult;
 use super::{ExecutionContext, ExecutionResult, ExecutionStrategy};
 use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::processing::message::StreamEvent;
-use helpers::build_ai_request;
+use ai_request::build_ai_request;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PlannedAgenticStrategy;

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::{InstallError, ScheduleRemoval, home, write};
-use crate::install::SchedulerError;
+use crate::install::{ScheduleRemovalError, SchedulerError};
 use crate::schedule::{self, Os};
 
 fn gui_domain() -> String {
@@ -56,18 +56,18 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
 pub(super) fn remove_autostart() -> ScheduleRemoval {
     let label = schedule::autostart_label(Os::Mac);
     let Ok(dir) = agents_dir() else {
-        return ScheduleRemoval::Failed("cannot resolve the user's home directory".into());
+        return ScheduleRemoval::Failed(ScheduleRemovalError::NoHome);
     };
     let path = dir.join(format!("{label}.plist"));
     if !path.exists() {
         return ScheduleRemoval::NotInstalled(label.to_owned());
     }
     if let Err(e) = bootout(&gui_domain(), label) {
-        return ScheduleRemoval::Failed(e.to_string());
+        return ScheduleRemoval::Failed(e.into());
     }
     match fs::remove_file(&path) {
         Ok(()) => ScheduleRemoval::Removed(label.to_owned()),
-        Err(e) => ScheduleRemoval::Failed(format!("remove {}: {e}", path.display())),
+        Err(source) => ScheduleRemoval::Failed(ScheduleRemovalError::Remove { path, source }),
     }
 }
 
@@ -97,18 +97,18 @@ pub(super) fn schedule_registered() -> super::ScheduleStatus {
 pub(super) fn remove_current() -> ScheduleRemoval {
     let label = schedule::schedule_label(Os::Mac);
     let Ok(dir) = agents_dir() else {
-        return ScheduleRemoval::Failed("cannot resolve the user's home directory".into());
+        return ScheduleRemoval::Failed(ScheduleRemovalError::NoHome);
     };
     let path = dir.join(format!("{label}.plist"));
     if !path.exists() {
         return ScheduleRemoval::NotInstalled(label.to_owned());
     }
     if let Err(e) = bootout(&gui_domain(), label) {
-        return ScheduleRemoval::Failed(e.to_string());
+        return ScheduleRemoval::Failed(e.into());
     }
     match fs::remove_file(&path) {
         Ok(()) => ScheduleRemoval::Removed(label.to_owned()),
-        Err(e) => ScheduleRemoval::Failed(format!("remove {}: {e}", path.display())),
+        Err(source) => ScheduleRemoval::Failed(ScheduleRemovalError::Remove { path, source }),
     }
 }
 

@@ -1,4 +1,5 @@
 use super::sandbox::{Sandbox, argv};
+use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::cli::run_with_args;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -143,7 +144,7 @@ fn oauth_client_rotate_provisions_and_persists_the_client() {
     let sb = Sandbox::new();
     authenticated(&gw, &sb, || {
         let _ = run_with_args(&argv(&["oauth-client", "rotate"]));
-        let creds = systemprompt_bridge::auth::plugin_oauth::load_creds()
+        let creds = systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
             .expect("creds load")
             .expect("rotate persists the provisioned client");
         assert_eq!(creds.client_id.as_str(), "client-abc");
@@ -181,7 +182,8 @@ fn a_gateway_that_rejects_the_pat_leaves_no_oauth_client_behind() {
         let _ = run_with_args(&argv(&["oauth-client", "rotate"]));
         let _ = run_with_args(&argv(&["whoami"]));
         let _ = run_with_args(&argv(&["run"]));
-        systemprompt_bridge::auth::plugin_oauth::load_creds().expect("creds load")
+        systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
+            .expect("creds load")
     });
     assert!(
         creds.is_none(),
@@ -323,7 +325,7 @@ fn failed_oauth_client_rotation_preserves_the_last_working_client() {
         assert_eq!(status, std::process::ExitCode::SUCCESS);
     });
     let before = sb.run(|| {
-        systemprompt_bridge::auth::plugin_oauth::load_creds()
+        systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
             .expect("credential read")
             .expect("healthy rotation stores credentials")
     });
@@ -351,7 +353,7 @@ fn failed_oauth_client_rotation_preserves_the_last_working_client() {
     assert_eq!(status, std::process::ExitCode::from(1));
 
     let after = sb.run(|| {
-        systemprompt_bridge::auth::plugin_oauth::load_creds()
+        systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
             .expect("credential read after refusal")
             .expect("last working credential remains")
     });

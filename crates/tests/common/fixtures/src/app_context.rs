@@ -339,6 +339,7 @@ fn fixture_app_context_assembled(
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
+            logging: crate::fixture_logging_runtime(),
             authz_hook,
             governance,
             cache_epochs: systemprompt_traits::CacheEpochs::new(),

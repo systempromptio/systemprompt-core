@@ -1,11 +1,11 @@
 use systemprompt_manifest::validators::{
-    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    RateLimitsConfigValidator, ValidationConfigProvider, WebConfigRaw, WebConfigValidator,
+    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, DomainConfig,
+    McpConfigValidator, RateLimitsConfigValidator, ValidationConfigProvider, WebConfigRaw,
+    WebConfigValidator,
 };
 use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_test_fixtures::fixture_config;
-use systemprompt_traits::DomainConfig;
 
 fn base_config() -> Config {
     fixture_config("postgres://localhost/test")
@@ -553,7 +553,7 @@ mod agents_validator {
 
     fn validated(
         services: ServicesConfig,
-    ) -> systemprompt_traits::validation_report::ValidationReport {
+    ) -> systemprompt_manifest::validators::validation_report::ValidationReport {
         let prov = provider(base_config(), services);
         let mut v = AgentConfigValidator::new();
         v.load(&prov).expect("load");
@@ -692,7 +692,7 @@ mod web_validator_paths {
     fn validated(
         config: Config,
         raw: WebConfigRaw,
-    ) -> systemprompt_traits::validation_report::ValidationReport {
+    ) -> systemprompt_manifest::validators::validation_report::ValidationReport {
         let prov = provider(config, ServicesConfig::default()).with_web_config(raw);
         let mut v = WebConfigValidator::new();
         v.load(&prov).expect("load");

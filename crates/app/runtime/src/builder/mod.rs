@@ -156,6 +156,7 @@ impl AppContextBuilder {
             governance,
             file_storage,
             cache_epochs,
+            log_sink,
         } = init_core(self.authz_hook).await?;
 
         let (extension_registry, schema_install) = init_extensions(
@@ -185,6 +186,7 @@ impl AppContextBuilder {
         let subsystems = Subsystems {
             ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance),
+            logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
             authz_hook,
             governance,
@@ -269,7 +271,7 @@ async fn build_domain_layer(
         UserService::new(Arc::clone(&repositories.users))
             .with_owner_reassignments(owner_reassignments(database)),
     );
-    let system_admin = assembly::resolve_and_install_system_admin(config, &user_service).await?;
+    let system_admin = assembly::load_system_admin(config, &user_service).await?;
     repositories.install_organization_resolver(system_admin.id());
     let mcp_registry = RegistryService::new(system_admin.id().clone());
     ensure_legacy_context(&repositories, &system_admin).await?;

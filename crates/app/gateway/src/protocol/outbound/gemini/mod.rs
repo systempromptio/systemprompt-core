@@ -43,7 +43,7 @@ impl OutboundAdapter for GeminiOutbound {
         let url = ctx
             .upstream
             .url(WireProtocol::Gemini, ctx.upstream_model, ctx.request.stream);
-        let mut req = super::http_client().post(&url).body(body.bytes.clone());
+        let mut req = ctx.http.post(&url).body(body.bytes.clone());
         for (name, value) in ctx
             .upstream
             .headers_forwarding(WireProtocol::Gemini, ctx.forward_headers)

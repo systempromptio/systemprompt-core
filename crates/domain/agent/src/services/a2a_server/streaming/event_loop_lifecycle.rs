@@ -32,10 +32,7 @@ pub(super) async fn send_a2a_status_event(
     send_stream_response(tx, StreamResponse::StatusUpdate(event), request_id).await;
 }
 
-#[expect(
-    missing_debug_implementations,
-    reason = "params struct holds non-Debug references"
-)]
+#[derive(Debug)]
 pub struct EmitRunStartedParams<'a> {
     pub tx: &'a Sender<Event>,
     pub request_id: &'a NumberOrString,

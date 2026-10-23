@@ -11,7 +11,7 @@ use systemprompt_manifest::Config;
 use systemprompt_oauth::services::validation::id_jag::bool_or_bool_string;
 use systemprompt_security::jwt::reject_critical_header;
 
-use super::subject::{REQUIRED_CLAIMS, peek_issuer, shared_jwks_client};
+use super::subject::{JwksCache, REQUIRED_CLAIMS, peek_issuer};
 use crate::{IssuanceError, IssuanceResult};
 
 #[derive(Debug)]
@@ -64,7 +64,11 @@ fn check_authorized_party(claims: &OidcIdTokenClaims, client: &str) -> IssuanceR
     Ok(())
 }
 
-pub async fn validate_oidc_subject(token: &str, global: &Config) -> IssuanceResult<OidcSubject> {
+pub async fn validate_oidc_subject(
+    token: &str,
+    global: &Config,
+    jwks: &JwksCache,
+) -> IssuanceResult<OidcSubject> {
     let header = decode_header(token)
         .map_err(|e| IssuanceError::malformed("subject_token", "malformed id_token header", e))?;
     reject_critical_header(&header)
@@ -103,7 +107,8 @@ pub async fn validate_oidc_subject(token: &str, global: &Config) -> IssuanceResu
         message: "id_token must carry a kid header".to_owned(),
     })?;
 
-    let jwk = shared_jwks_client(&global.trusted_issuers)
+    let jwk = jwks
+        .client_for(trusted)
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;

@@ -9,8 +9,8 @@ use crate::auth::setup;
 use crate::stdio;
 use crate::stdio::diag;
 
-pub fn cmd_logout() -> ExitCode {
-    match setup::logout() {
+pub fn cmd_logout(ctx: &crate::context::BridgeContext) -> ExitCode {
+    match setup::logout(ctx.secrets()) {
         Ok(paths) => {
             stdio::print_line("Removed PAT.");
             stdio::print_line(&format!("  config: {}", paths.config_file.display()));

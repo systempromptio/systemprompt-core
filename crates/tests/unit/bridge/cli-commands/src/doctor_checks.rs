@@ -6,6 +6,7 @@
 
 use std::path::Path;
 
+use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::cli::doctor::auth::{
     check_gateway_reachable, check_hook_token_mint, check_mint_jwt, check_whoami,
 };
@@ -330,7 +331,7 @@ fn whoami_check_passes_on_identity_and_fails_generically_on_a_500() {
 fn hook_token_check_warns_when_no_oauth_client_is_provisioned() {
     sandbox(|_| {
         let client = client_for("http://127.0.0.1:1");
-        let check = block_on(check_hook_token_mint(&client));
+        let check = block_on(check_hook_token_mint(&SecretStore::resolve(), &client));
         assert_eq!(check.status, Status::Warn, "{}", check.detail);
         assert!(
             check.detail.contains("first plugin hook request"),
@@ -353,7 +354,7 @@ fn hook_token_check_fails_when_the_stored_creds_are_unreadable() {
         std::fs::create_dir_all(creds.parent().unwrap()).expect("cache dir");
         std::fs::write(&creds, "not json at all").expect("garbage creds");
         let client = client_for("http://127.0.0.1:1");
-        let check = block_on(check_hook_token_mint(&client));
+        let check = block_on(check_hook_token_mint(&SecretStore::resolve(), &client));
         assert_eq!(check.status, Status::Fail, "{}", check.detail);
         assert!(
             check.detail.contains("load OAuth client creds"),

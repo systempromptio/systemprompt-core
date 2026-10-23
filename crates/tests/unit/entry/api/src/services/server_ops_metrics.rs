@@ -14,7 +14,7 @@ async fn one_sample_records_the_acquire_probe_and_the_scheduler_backlog() {
         .await
         .expect("backlog queues");
 
-    let mut sampler = OpsSampler::new(&db, true);
+    let mut sampler = OpsSampler::new(&db, true, systemprompt_logging::LogSink::default());
     sampler.sample().await;
     let rendered = handle.render();
 
@@ -56,7 +56,9 @@ async fn a_non_scheduler_node_never_samples_the_backlog() {
     .await
     .expect("backlog queues");
 
-    OpsSampler::new(&db, false).sample().await;
+    OpsSampler::new(&db, false, systemprompt_logging::LogSink::default())
+        .sample()
+        .await;
     let rendered = handle.render();
 
     sqlx::query("DELETE FROM projection_backlog WHERE projection = $1")

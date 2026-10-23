@@ -3,11 +3,11 @@ use serde_json::{Value, json};
 use systemprompt_identifiers::ClientId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
-use systemprompt_oauth_issuance::TokenExchangeRequest;
 use systemprompt_oauth_issuance::token_exchange::ID_TOKEN_TYPE;
 use systemprompt_oauth_issuance::token_exchange::issue::issue_id_jag;
 use systemprompt_oauth_issuance::token_exchange::oidc::validate_oidc_subject;
 use systemprompt_oauth_issuance::token_exchange::subject::validate_subject_token;
+use systemprompt_oauth_issuance::{JwksCache, TokenExchangeRequest};
 use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, test_key};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -49,9 +49,14 @@ fn sign(claims: &Value, key_index: usize) -> String {
 #[tokio::test]
 async fn coverage_federated_subject_accepts_verified_identity_and_preserves_delegation() {
     let (_server, config) = issuer().await;
-    let subject = validate_subject_token(&sign(&claims(&config), 2), ID_TOKEN_TYPE, &config)
-        .await
-        .unwrap();
+    let subject = validate_subject_token(
+        &sign(&claims(&config), 2),
+        ID_TOKEN_TYPE,
+        &config,
+        &JwksCache::new(),
+    )
+    .await
+    .unwrap();
     assert!(subject.scope.is_empty());
     assert_eq!(
         serde_json::to_value(subject.prior_act.unwrap()).unwrap()["sub"],
@@ -78,7 +83,9 @@ async fn coverage_id_jag_issuance_binds_subject_client_resource_and_scope() {
             scope: Some("mcp:read"),
             ..Default::default()
         };
-        let response = issue_id_jag(&client, &request, &config).await.unwrap();
+        let response = issue_id_jag(&client, &request, &config, &JwksCache::new())
+            .await
+            .unwrap();
         assert_eq!(response.token_type, "N_A");
         assert_eq!(response.expires_in, config.id_jag_ttl_secs);
         assert_eq!(response.scope.as_deref(), Some("mcp:read"));
@@ -110,9 +117,14 @@ async fn coverage_id_jag_rejects_unapproved_audience_after_verifying_the_subject
         audience: Some("https://attacker.example"),
         ..Default::default()
     };
-    let err = issue_id_jag(&ClientId::new("exchange"), &request, &config)
-        .await
-        .unwrap_err();
+    let err = issue_id_jag(
+        &ClientId::new("exchange"),
+        &request,
+        &config,
+        &JwksCache::new(),
+    )
+    .await
+    .unwrap_err();
     assert!(
         err.to_string()
             .contains("neither this issuer nor an allowed resource")
@@ -130,7 +142,7 @@ async fn coverage_federated_signatures_and_required_claims_are_verified() {
         } else {
             invalid.as_object_mut().unwrap().remove(field);
         }
-        let err = validate_oidc_subject(&sign(&invalid, 2), &config)
+        let err = validate_oidc_subject(&sign(&invalid, 2), &config, &JwksCache::new())
             .await
             .unwrap_err();
         assert!(
@@ -140,14 +152,14 @@ async fn coverage_federated_signatures_and_required_claims_are_verified() {
     }
     let token = sign(&claims(&config), 1);
     assert!(
-        validate_oidc_subject(&token, &config)
+        validate_oidc_subject(&token, &config, &JwksCache::new())
             .await
             .unwrap_err()
             .to_string()
             .contains("signature/claims rejected")
     );
     assert!(
-        validate_subject_token(&token, ID_TOKEN_TYPE, &config)
+        validate_subject_token(&token, ID_TOKEN_TYPE, &config, &JwksCache::new())
             .await
             .unwrap_err()
             .to_string()
@@ -162,7 +174,7 @@ async fn coverage_federated_jwks_missing_key_is_not_accepted() {
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({"keys":[]})))
         .mount(&server)
         .await;
-    let err = validate_oidc_subject(&sign(&claims(&config), 2), &config)
+    let err = validate_oidc_subject(&sign(&claims(&config), 2), &config, &JwksCache::new())
         .await
         .unwrap_err();
     assert!(err.to_string().contains("JWKS resolution failed"));

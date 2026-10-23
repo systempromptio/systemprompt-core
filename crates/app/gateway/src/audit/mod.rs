@@ -106,6 +106,7 @@ pub struct GatewayAudit {
     started_at: Instant,
     upstream: Mutex<UpstreamClock>,
     background: systemprompt_traits::BackgroundTasks,
+    logging: systemprompt_logging::LoggingRuntime,
     quota_buckets: AiQuotaBucketRepository,
     quota_reservation: Mutex<Option<crate::quota::QuotaReservation>>,
     admission: Mutex<Option<admission::PendingAdmission>>,
@@ -136,6 +137,7 @@ impl GatewayAudit {
             started_at: Instant::now(),
             upstream: Mutex::new(UpstreamClock::default()),
             background: repos.background.clone(),
+            logging: repos.logging.clone(),
             quota_buckets: repos.quota_buckets.clone(),
             quota_reservation: Mutex::new(None),
             admission: Mutex::new(None),
@@ -145,6 +147,10 @@ impl GatewayAudit {
 
     pub const fn background(&self) -> &systemprompt_traits::BackgroundTasks {
         &self.background
+    }
+
+    pub const fn logging(&self) -> &systemprompt_logging::LoggingRuntime {
+        &self.logging
     }
 
     pub async fn set_served_model(&self, model: &str) {

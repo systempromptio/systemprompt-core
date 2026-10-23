@@ -11,6 +11,7 @@ mod revisions;
 mod sources;
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -19,10 +20,14 @@ use systemprompt_identifiers::{
 };
 
 use super::{DependencyRef, RevisionFiles};
+use crate::catalog::VerifiedRevisions;
+use systemprompt_loader::bundle::BaseTreeHashMemo;
 
 #[derive(Debug, Clone)]
 pub struct ManagedRepository {
     pub(crate) pool: PgPool,
+    verified: Arc<VerifiedRevisions>,
+    tree_hash: Arc<BaseTreeHashMemo>,
 }
 
 impl ManagedRepository {
@@ -31,7 +36,17 @@ impl ManagedRepository {
     pub fn new(db: &systemprompt_database::DbPool) -> Self {
         Self {
             pool: db.write_pool().as_ref().clone(),
+            verified: Arc::new(VerifiedRevisions::default()),
+            tree_hash: Arc::new(BaseTreeHashMemo::new()),
         }
+    }
+
+    pub(crate) fn base_tree_hash_memo(&self) -> &BaseTreeHashMemo {
+        &self.tree_hash
+    }
+
+    pub(crate) fn verified_revisions(&self) -> &VerifiedRevisions {
+        &self.verified
     }
 }
 

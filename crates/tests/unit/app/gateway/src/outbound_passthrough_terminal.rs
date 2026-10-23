@@ -128,6 +128,7 @@ async fn relay_buffered(upstream: &Value) -> Bytes {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -159,6 +160,7 @@ async fn relay_streaming(sse: &str) -> String {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

@@ -134,6 +134,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
             governance: systemprompt_test_fixtures::default_governance_engine(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),

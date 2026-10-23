@@ -9,13 +9,6 @@ use serde::{Deserialize, Serialize};
 
 use super::envelopes::ResponseMeta;
 
-#[cfg(feature = "web")]
-use axum::Json;
-#[cfg(feature = "web")]
-use axum::http::StatusCode;
-#[cfg(feature = "web")]
-use axum::response::IntoResponse;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SuccessResponse {
     pub message: String,
@@ -125,31 +118,5 @@ impl<T: Serialize + 'static> DiscoveryResponse<T> {
     pub fn with_meta(mut self, meta: ResponseMeta) -> Self {
         self.meta = meta;
         self
-    }
-}
-
-#[cfg(feature = "web")]
-impl IntoResponse for SuccessResponse {
-    fn into_response(self) -> axum::response::Response {
-        (StatusCode::OK, Json(self)).into_response()
-    }
-}
-
-#[cfg(feature = "web")]
-impl<T: Serialize + 'static> IntoResponse for CreatedResponse<T> {
-    fn into_response(self) -> axum::response::Response {
-        (
-            StatusCode::CREATED,
-            [("Location", self.location.clone())],
-            Json(self),
-        )
-            .into_response()
-    }
-}
-
-#[cfg(feature = "web")]
-impl IntoResponse for AcceptedResponse {
-    fn into_response(self) -> axum::response::Response {
-        (StatusCode::ACCEPTED, Json(self)).into_response()
     }
 }

@@ -131,6 +131,7 @@ fn automatic_caching_marks_an_unmarked_rebuilt_request() {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &support::api_key_call("http://unused.invalid", "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-x",
         model_limits: None,
@@ -172,6 +173,7 @@ fn passthrough_prepared_body_digest_equals_request_body_digest() {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &support::api_key_call("http://unused.invalid", "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-x",
         model_limits: None,

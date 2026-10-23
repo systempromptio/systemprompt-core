@@ -40,6 +40,7 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) route_id: RouteId,
     pub(super) call: UpstreamCall,
     pub(super) adapter: Arc<dyn OutboundAdapter>,
+    pub(super) http: reqwest::Client,
     pub(super) route_match_descriptor: Option<String>,
     pub(super) deployments: Vec<ResolvedHop>,
     pub(super) billing: BillingSource,
@@ -85,7 +86,7 @@ pub(super) async fn resolve_upstream<'a>(
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
     let selector = refine_chain(engines, catalog, &mut target, route.as_ref(), request).await;
-    let planned = plan_chain(catalog, request, &target.chain, &target, ai_request_id)?;
+    let planned = plan_chain(catalog, engines, request, &target, ai_request_id)?;
     let route_match_descriptor = join_segments(
         Some(describe_route_match(
             &target.access_route_id,
@@ -146,12 +147,18 @@ fn refusal(
 
 fn plan_chain(
     catalog: &ResolvedCatalog,
+    engines: &GatewayEngines,
     request: &CanonicalRequest,
-    chain: &[ResolvedHop],
     target: &ResolvedTarget,
     ai_request_id: &AiRequestId,
 ) -> Result<PlannedChain, DispatchError> {
-    let ordered = order_chain(chain.to_vec(), target.strategy, &target.access_route_id);
+    let ordered = order_chain(
+        target.chain.clone(),
+        target.strategy,
+        &target.access_route_id,
+        &engines.breakers,
+        &engines.load,
+    );
     let fitted = fit_context_window(
         catalog,
         request,
@@ -283,6 +290,7 @@ async fn bind_hop<'a>(
         route_id,
         call,
         adapter,
+        http: engines.http.clone(),
         route_match_descriptor,
         deployments: Vec::new(),
         billing,

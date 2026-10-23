@@ -17,6 +17,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::extract::FromRequestParts;
 use axum::response::{IntoResponse, Response};
 use http::header;
@@ -125,7 +126,7 @@ pub enum RequestBaseUrlError {
 
 impl IntoResponse for RequestBaseUrlError {
     fn into_response(self) -> Response {
-        ApiError::internal("Request base URL unavailable", self).into_response()
+        ApiHttpError::from(ApiError::internal("Request base URL unavailable", self)).into_response()
     }
 }
 

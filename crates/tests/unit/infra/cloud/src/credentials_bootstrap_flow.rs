@@ -1,11 +1,9 @@
-//! Behaviour tests for the process-wide `CredentialsBootstrap` on the
-//! Fly-container path. The bootstrap cell is a process-global `OnceLock`,
-//! so the whole lifecycle (uninitialised -> strict validation failure ->
-//! unvalidated override -> initialised accessors -> double-init rejection)
-//! is sequenced inside one test.
+//! Behaviour tests for `CredentialsBootstrap` on the Fly-container path:
+//! strict validation failure, then the unvalidated override. The steps share
+//! process environment variables, so they are sequenced inside one test.
 
 use chrono::Duration;
-use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError};
+use systemprompt_cloud::CredentialsBootstrap;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -27,23 +25,16 @@ async fn fly_bootstrap_lifecycle() {
         std::env::remove_var("SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS");
     }
 
-    assert!(matches!(
-        CredentialsBootstrap::get(),
-        Err(CredentialsBootstrapError::NotInitialized)
-    ));
-    assert!(!CredentialsBootstrap::is_initialized());
-    assert!(!CredentialsBootstrap::expires_within(Duration::hours(1)));
-
-    let err = CredentialsBootstrap::init().await.unwrap_err();
+    let err = CredentialsBootstrap::load().await.unwrap_err();
     let message = err.to_string();
     assert!(
         message.contains("rejected by api.systemprompt.io"),
         "got {message}"
     );
-    assert!(!CredentialsBootstrap::is_initialized());
+    assert!(CredentialsBootstrap::require().await.is_err());
 
     unsafe { std::env::set_var("SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS", "1") };
-    let creds = CredentialsBootstrap::init()
+    let creds = CredentialsBootstrap::load()
         .await
         .expect("unvalidated init succeeds")
         .expect("credentials loaded from environment");
@@ -52,19 +43,15 @@ async fn fly_bootstrap_lifecycle() {
     assert_eq!(creds.api_token.as_str(), "env-token");
     assert!(creds.last_validated_at.is_none());
 
-    assert!(CredentialsBootstrap::is_initialized());
-    assert!(CredentialsBootstrap::require().is_ok());
-    assert!(
-        CredentialsBootstrap::try_init()
-            .await
-            .expect("try_init after init")
-            .is_some()
-    );
-    assert!(CredentialsBootstrap::expires_within(Duration::hours(1)));
+    assert!(creds.expires_within(Duration::hours(1)));
 
-    let err = CredentialsBootstrap::init().await.unwrap_err();
-    assert!(err.to_string().contains("already initialized"), "got {err}");
+    let required = CredentialsBootstrap::require()
+        .await
+        .expect("require after override");
+    assert_eq!(required.api_token.as_str(), "env-token");
 
-    CredentialsBootstrap::init_empty();
-    assert!(CredentialsBootstrap::require().is_ok());
+    let unvalidated = CredentialsBootstrap::read_unvalidated()
+        .expect("read unvalidated")
+        .expect("environment credentials");
+    assert_eq!(unvalidated.user_email.as_str(), "ops@example.com");
 }

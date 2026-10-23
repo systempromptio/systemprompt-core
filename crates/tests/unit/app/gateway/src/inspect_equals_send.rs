@@ -74,6 +74,9 @@ fn raw_body_hiding_a_secret() -> bytes::Bytes {
 static UNUSED_UPSTREAM: std::sync::LazyLock<UpstreamCall> =
     std::sync::LazyLock::new(|| support::api_key_call("http://unused.invalid", "k"));
 
+static UNUSED_HTTP: std::sync::LazyLock<reqwest::Client> =
+    std::sync::LazyLock::new(reqwest::Client::new);
+
 fn ctx<'a>(
     target: &'a systemprompt_manifest::services::catalog::ResolvedHop,
     request: &'a CanonicalRequest,
@@ -83,6 +86,7 @@ fn ctx<'a>(
     OutboundCtx {
         target,
         upstream: &UNUSED_UPSTREAM,
+        http: &UNUSED_HTTP,
         request,
         upstream_model: "upstream-1",
         model_limits: limits,

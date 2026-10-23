@@ -16,6 +16,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
+use systemprompt_cloud::CloudCredentials;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 use tokio::sync::OnceCell;
@@ -31,6 +32,7 @@ pub struct CommandContext {
     runtime: OnceCell<Arc<AppContext>>,
     db: Option<DatabaseContext>,
     database_url: Option<String>,
+    cloud_credentials: Option<CloudCredentials>,
 }
 
 impl CommandContext {
@@ -43,7 +45,19 @@ impl CommandContext {
             runtime: OnceCell::new(),
             db: None,
             database_url: None,
+            cloud_credentials: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_cloud_credentials(mut self, credentials: Option<CloudCredentials>) -> Self {
+        self.cloud_credentials = credentials;
+        self
+    }
+
+    #[must_use]
+    pub const fn cloud_credentials(&self) -> Option<&CloudCredentials> {
+        self.cloud_credentials.as_ref()
     }
 
     #[must_use]
@@ -60,6 +74,7 @@ impl CommandContext {
             runtime: OnceCell::new(),
             db: Some(db),
             database_url: Some(database_url),
+            cloud_credentials: None,
         }
     }
 
@@ -72,6 +87,7 @@ impl CommandContext {
             runtime: OnceCell::new_with(Some(app)),
             db: None,
             database_url: None,
+            cloud_credentials: None,
         }
     }
 

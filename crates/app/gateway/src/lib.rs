@@ -64,7 +64,9 @@ pub use protocol::{
     CanonicalEvent, CanonicalRequest, CanonicalResponse, InboundAdapter, OutboundAdapter,
     OutboundAdapterRegistration, OutboundCtx, OutboundOutcome,
 };
-pub use registry::{GatewayEngines, GatewayUpstreamRegistry, SafetyScannerRegistry};
-pub use repository::GatewayRepositories;
+pub use registry::{
+    GatewayEngines, GatewayEnginesError, GatewayUpstreamRegistry, SafetyScannerRegistry,
+};
+pub use repository::{GatewayHandles, GatewayRepositories};
 pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};

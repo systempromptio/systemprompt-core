@@ -95,10 +95,12 @@ pub trait ImageProvider: Send + Sync {
         requests: &[ImageGenerationRequest],
     ) -> Result<Vec<ImageGenerationResponse>> {
         if !self.capabilities().supports_batch {
-            return Err(crate::error::AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: "Batch generation not supported by this provider".to_owned(),
-            });
+            return Err(crate::error::AiError::Routing(
+                crate::error::RoutingError::CapabilityUnsupported {
+                    provider: systemprompt_identifiers::ProviderId::new(self.name()),
+                    capability: crate::error::ProviderCapability::BatchImageGeneration,
+                },
+            ));
         }
 
         let mut responses = Vec::new();

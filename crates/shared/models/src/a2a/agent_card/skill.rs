@@ -7,6 +7,7 @@ use crate::a2a::PROTOCOL_VERSION;
 use crate::a2a::security::SecurityRequirement;
 use crate::a2a::transport::ProtocolBinding;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::SkillId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +29,7 @@ pub struct AgentProvider {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentSkill {
-    pub id: String,
+    pub id: SkillId,
     pub name: String,
     pub description: String,
     pub tags: Vec<String>,

@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, Result};
-use systemprompt_identifiers::AiRequestId;
+use crate::error::{AiError, Result, RoutingError};
+use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 
 use crate::models::RequestStatus;
 use crate::models::ai::{AiMessage, AiRequest, AiResponse, GenerateResponseParams};
@@ -131,9 +131,11 @@ impl AiService {
             .clients
             .for_request(&self.catalog, Some(&response.provider), &response.model)
             .and_then(|p| p.get_pricing(&response.model))
-            .ok_or_else(|| AiError::UnknownModel {
-                provider: response.provider.clone(),
-                model: response.model.clone(),
+            .ok_or_else(|| {
+                AiError::Routing(RoutingError::UnknownModel {
+                    provider: ProviderId::new(response.provider.clone()),
+                    model: ModelId::new(response.model.clone()),
+                })
             })?;
 
         let usage = CanonicalUsage {

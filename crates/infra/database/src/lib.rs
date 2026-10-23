@@ -73,12 +73,13 @@ pub use extension::DatabaseExtension;
 
 pub use models::{
     ColumnInfo, DatabaseInfo, DatabaseQuery, DatabaseTransaction, DbValue, FromDbValue, IndexInfo,
-    JsonRow, QueryResult, QueryRow, QuerySelector, TableInfo, ToDbValue, parse_database_datetime,
+    JsonRow, QueryResult, QueryRow, QuerySelector, TableInfo, ToDbValue, escape_like,
+    parse_database_datetime,
 };
 
 pub use services::{
     BoxFuture, BudgetedDb, Database, DatabaseCliDisplay, DatabaseExt, DatabaseProvider, DbPool,
-    PoolConfig, PostgresProvider, SqlExecutor, mark_schema_changed, with_transaction_retry,
+    PoolConfig, PostgresProvider, SchemaEpoch, SqlExecutor, with_transaction_retry,
 };
 
 pub use error::DatabaseResult;

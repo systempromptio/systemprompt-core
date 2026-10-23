@@ -8,13 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::pagination::PaginationInfo;
 
-#[cfg(feature = "web")]
-use axum::Json;
-#[cfg(feature = "web")]
-use axum::http::StatusCode;
-#[cfg(feature = "web")]
-use axum::response::IntoResponse;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseLinks {
     pub self_link: String,
@@ -167,19 +160,5 @@ impl<T: Serialize + 'static> CollectionResponse<T> {
     pub fn with_links(mut self, links: ResponseLinks) -> Self {
         self.links = Some(links);
         self
-    }
-}
-
-#[cfg(feature = "web")]
-impl<T: Serialize + 'static> IntoResponse for SingleResponse<T> {
-    fn into_response(self) -> axum::response::Response {
-        (StatusCode::OK, Json(self)).into_response()
-    }
-}
-
-#[cfg(feature = "web")]
-impl<T: Serialize + 'static> IntoResponse for CollectionResponse<T> {
-    fn into_response(self) -> axum::response::Response {
-        (StatusCode::OK, Json(self)).into_response()
     }
 }

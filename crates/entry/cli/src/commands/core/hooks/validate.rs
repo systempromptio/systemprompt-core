@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Args;
 use std::path::Path;
 
@@ -21,8 +21,7 @@ const PLUGIN_ROOT_VAR: &str = "${CLAUDE_PLUGIN_ROOT}";
 pub struct ValidateArgs;
 
 pub(super) fn execute(_args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let hooks_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "hooks");
+    let hooks_path = ServicesRootBootstrap::require()?.path.join("hooks");
 
     let results = validate_all_hooks(&hooks_path)?;
     let valid = results.iter().all(|entry| entry.valid);

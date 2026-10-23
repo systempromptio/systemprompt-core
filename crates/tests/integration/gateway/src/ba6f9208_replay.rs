@@ -104,6 +104,7 @@ async fn opencode_parallel_tool_results_reach_an_anthropic_wire_upstream_as_one_
     let ctx = OutboundCtx {
         target: &hop,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &request,
         upstream_model: "deepseek-flash",
         model_limits: None,

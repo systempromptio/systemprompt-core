@@ -46,6 +46,7 @@ pub(super) struct CoreLayer {
     pub(super) governance: Arc<GovernanceEngine>,
     pub(super) file_storage: Arc<dyn FileStorage>,
     pub(super) cache_epochs: CacheEpochs,
+    pub(super) log_sink: systemprompt_logging::LogSink,
 }
 
 async fn init_services(
@@ -105,7 +106,6 @@ pub(super) async fn init_core(
     let services = init_services(secrets).await?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = config.instance_id.clone();
-    systemprompt_logging::set_instance_id(instance_id.clone());
     let file_storage =
         crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, secrets)
             .await?;
@@ -142,7 +142,7 @@ pub(super) async fn init_core(
     )?);
 
     systemprompt_logging::set_console_format(profile.observability.log_format);
-    systemprompt_logging::init_logging(&database);
+    let log_sink = systemprompt_logging::init_logging(&database, Some(instance_id.clone()));
 
     if config.database_write_url.is_some() {
         tracing::debug!(
@@ -159,6 +159,7 @@ pub(super) async fn init_core(
         governance,
         file_storage,
         cache_epochs,
+        log_sink,
     })
 }
 
@@ -239,7 +240,7 @@ pub(super) async fn init_extensions(
                 .await?;
         crate::schema_currency::refuse_breaking(&report.ahead, ProfileBootstrap::get()?)?;
         crate::schema_currency::warn_ahead(&report.ahead);
-        systemprompt_database::mark_schema_changed();
+        database.mark_schema_changed();
         report
     } else if schema.verify {
         let profile = ProfileBootstrap::get()?;

@@ -5,7 +5,9 @@
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
-use systemprompt_traits::session_store::CreateSessionParams;
+use systemprompt_traits::session_store::{
+    CreateSessionParams, SessionAttribution, SessionIdentity, SessionNetwork,
+};
 use systemprompt_users::SessionRepository;
 use uuid::Uuid;
 
@@ -17,28 +19,14 @@ fn params_for_user<'a>(
     fingerprint: &'a str,
 ) -> CreateSessionParams<'a> {
     CreateSessionParams {
-        session_id,
-        user_id: Some(user_id),
-        session_source: SessionSource::Web,
-        fingerprint_hash: Some(fingerprint),
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: None,
-        referrer_url: None,
-        landing_page: None,
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        utm_content: None,
-        utm_term: None,
+        identity: SessionIdentity {
+            session_id,
+            user_id: Some(user_id),
+            session_source: SessionSource::Web,
+            fingerprint_hash: Some(fingerprint),
+        },
+        network: SessionNetwork::default(),
+        attribution: SessionAttribution::default(),
         is_bot: false,
         is_ai_crawler: false,
         expires_at: Utc::now() + Duration::hours(1),

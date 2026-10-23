@@ -21,7 +21,7 @@ async fn proxy_forwards_post_with_query_headers_and_body() {
         .mount(&mock)
         .await;
 
-    let router = create_proxy_router("127.0.0.1", mock.address().port());
+    let router = create_proxy_router(reqwest::Client::new(), "127.0.0.1", mock.address().port());
     let req = Request::builder()
         .method(Method::POST)
         .uri("/api/echo?q=1")
@@ -58,7 +58,7 @@ async fn proxy_forwards_get_without_body_and_returns_upstream_status() {
         .mount(&mock)
         .await;
 
-    let router = create_proxy_router("127.0.0.1", mock.address().port());
+    let router = create_proxy_router(reqwest::Client::new(), "127.0.0.1", mock.address().port());
     let req = Request::builder()
         .method(Method::GET)
         .uri("/health")
@@ -78,7 +78,7 @@ async fn proxy_passes_through_upstream_error_statuses() {
         .mount(&mock)
         .await;
 
-    let router = create_proxy_router("127.0.0.1", mock.address().port());
+    let router = create_proxy_router(reqwest::Client::new(), "127.0.0.1", mock.address().port());
     let req = Request::builder()
         .method(Method::GET)
         .uri("/missing")
@@ -107,7 +107,7 @@ async fn proxy_preserves_upstream_response_headers_and_strips_hop_by_hop() {
         .mount(&mock)
         .await;
 
-    let router = create_proxy_router("127.0.0.1", mock.address().port());
+    let router = create_proxy_router(reqwest::Client::new(), "127.0.0.1", mock.address().port());
     let req = Request::builder()
         .method(Method::GET)
         .uri("/mcp")
@@ -146,7 +146,7 @@ async fn proxy_forwards_sep_2243_operation_headers() {
         .mount(&mock)
         .await;
 
-    let router = create_proxy_router("127.0.0.1", mock.address().port());
+    let router = create_proxy_router(reqwest::Client::new(), "127.0.0.1", mock.address().port());
     let req = Request::builder()
         .method(Method::POST)
         .uri("/mcp")

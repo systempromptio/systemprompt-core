@@ -211,8 +211,11 @@ async fn replay() -> Result<()> {
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(&db),
         )),
-        background.clone(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: background.clone(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+        },
     );
     let cred = seed_admin_credential(
         &db,
@@ -332,7 +335,10 @@ async fn replay() -> Result<()> {
                         identity_headers: vec![],
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
-                        engines: std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()),
+                        engines: std::sync::Arc::new(
+                            systemprompt_gateway::GatewayEngines::new()
+                                .expect("gateway engines build"),
+                        ),
                     },
                 ),
             )
@@ -391,7 +397,10 @@ async fn replay() -> Result<()> {
                         identity_headers: vec![],
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
-                        engines: std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()),
+                        engines: std::sync::Arc::new(
+                            systemprompt_gateway::GatewayEngines::new()
+                                .expect("gateway engines build"),
+                        ),
                     },
                 ),
             )

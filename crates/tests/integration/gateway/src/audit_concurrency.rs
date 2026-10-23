@@ -33,8 +33,11 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
         db,
         gateway_journal(),
         materializer(db),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+        },
     )
 }
 

@@ -14,7 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::postgres::PostgresProvider;
-use super::postgres::connection::PoolConfig;
+use super::postgres::connection::{PoolConfig, SchemaEpoch};
 use super::provider::DatabaseProvider;
 use crate::error::DatabaseResult;
 use crate::models::{DatabaseInfo, QueryResult};
@@ -24,6 +24,7 @@ pub struct Database {
     provider: Arc<dyn DatabaseProvider>,
     write_provider: Option<Arc<dyn DatabaseProvider>>,
     session_provider: Option<Arc<dyn DatabaseProvider>>,
+    schema_epoch: SchemaEpoch,
 }
 
 impl std::fmt::Debug for Database {
@@ -36,11 +37,14 @@ impl std::fmt::Debug for Database {
 
 impl Database {
     pub async fn new_postgres(url: &str) -> DatabaseResult<Self> {
-        let provider = PostgresProvider::new(url).await?;
+        let schema_epoch = SchemaEpoch::new();
+        let provider =
+            PostgresProvider::new_with_pool(url, &PoolConfig::default(), &schema_epoch).await?;
         Ok(Self {
             provider: Arc::new(provider),
             write_provider: None,
             session_provider: None,
+            schema_epoch,
         })
     }
 
@@ -49,11 +53,14 @@ impl Database {
         write_url: Option<&str>,
         pool: &PoolConfig,
     ) -> DatabaseResult<Self> {
+        let schema_epoch = SchemaEpoch::new();
         let provider: Arc<dyn DatabaseProvider> =
-            Arc::new(PostgresProvider::new_with_pool(read_url, pool).await?);
+            Arc::new(PostgresProvider::new_with_pool(read_url, pool, &schema_epoch).await?);
 
         let write_provider: Option<Arc<dyn DatabaseProvider>> = match write_url {
-            Some(url) => Some(Arc::new(PostgresProvider::new_with_pool(url, pool).await?)),
+            Some(url) => Some(Arc::new(
+                PostgresProvider::new_with_pool(url, pool, &schema_epoch).await?,
+            )),
             None => None,
         };
 
@@ -61,6 +68,7 @@ impl Database {
             provider,
             write_provider,
             session_provider: None,
+            schema_epoch,
         })
     }
 
@@ -70,8 +78,9 @@ impl Database {
         pool: &PoolConfig,
     ) -> DatabaseResult<Self> {
         if let Some(url) = session_url {
-            self.session_provider =
-                Some(Arc::new(PostgresProvider::new_with_pool(url, pool).await?));
+            self.session_provider = Some(Arc::new(
+                PostgresProvider::new_with_pool(url, pool, &self.schema_epoch).await?,
+            ));
         }
         Ok(self)
     }
@@ -85,7 +94,12 @@ impl Database {
             provider: Arc::new(PostgresProvider::from_pool(read)),
             write_provider,
             session_provider: None,
+            schema_epoch: SchemaEpoch::new(),
         }
+    }
+
+    pub fn mark_schema_changed(&self) {
+        self.schema_epoch.mark_changed();
     }
 
     #[must_use]

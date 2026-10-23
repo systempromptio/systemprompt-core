@@ -7,7 +7,7 @@ use super::validation::ValidatedAuthorizeRequest;
 use super::{AuthorizeQuery, AuthorizeRequest};
 use std::collections::HashMap;
 use systemprompt_manifest::Config;
-use systemprompt_oauth::services::templating::TemplateEngine;
+use systemprompt_oauth::services::templating::TemplateService;
 use url::Url;
 
 pub fn convert_form_to_query(form: &AuthorizeRequest) -> AuthorizeQuery {
@@ -36,7 +36,7 @@ pub fn generate_webauthn_form(
     params: &AuthorizeQuery,
     validated: &ValidatedAuthorizeRequest,
 ) -> String {
-    let template = TemplateEngine::load_webauthn_oauth_template();
+    let template = TemplateService::load_webauthn_oauth_template();
     let mut context = HashMap::new();
 
     let redirect_uri = params.redirect_uri.as_deref().unwrap_or("");
@@ -73,7 +73,7 @@ pub fn generate_webauthn_form(
     let register_class = if allow_registration { "" } else { "hidden" };
     context.insert("register_class", register_class);
 
-    TemplateEngine::render(template, context)
+    TemplateService::render(template, context)
 }
 
 fn is_http_url(value: &str) -> bool {

@@ -66,8 +66,8 @@ impl ConfigLoader {
     }
 
     pub fn for_active_profile() -> ConfigLoadResult<Self> {
-        let profile = ProfileBootstrap::get()?;
-        let root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
+        ProfileBootstrap::get()?;
+        let root = &ServicesRootBootstrap::require()?.path;
         Ok(Self::new(root.join("config").join("config.yaml")))
     }
 

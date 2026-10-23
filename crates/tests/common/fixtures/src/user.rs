@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, UserId};
+use systemprompt_logging::{LogSink, LoggingRuntime};
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_users::{UserRepository, UserService};
 
@@ -25,6 +26,14 @@ pub fn fixture_actor() -> Actor {
 #[must_use]
 pub fn fixture_system_admin(username: &str) -> SystemAdmin {
     SystemAdmin::new(unique_user_id("admin"), username.to_string())
+}
+
+#[must_use]
+pub fn fixture_logging_runtime() -> LoggingRuntime {
+    LoggingRuntime::new(
+        LogSink::default(),
+        Arc::new(fixture_system_admin("logging-owner")),
+    )
 }
 
 pub fn merging_user_service(pool: &DbPool) -> anyhow::Result<UserService> {

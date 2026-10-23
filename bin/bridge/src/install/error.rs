@@ -57,7 +57,7 @@ pub enum InstallError {
     #[error("managed settings removal failed: {0}")]
     MdmRemove(#[source] crate::install::mdm::MdmError),
     #[error("managed profile removal failed: {0}")]
-    ManagedProfileRemove(String),
+    ManagedProfileRemove(#[source] ManagedProfileRemoveError),
     #[error("credential purge failed: {0}")]
     CredentialPurge(#[source] crate::auth::setup::SetupError),
     #[error("version sentinel write failed: {0}")]
@@ -69,7 +69,9 @@ pub enum InstallError {
     #[error("--apply-mobileconfig is only supported on macOS")]
     MobileconfigUnsupported,
     #[error("registering the scheduled sync job failed: {0}")]
-    ScheduleApply(String),
+    ScheduleApply(&'static str),
+    #[error("removing the scheduled sync job failed: {0}")]
+    ScheduleRemove(#[source] ScheduleRemovalError),
     #[error("registering the scheduled sync job failed: {0}")]
     ScheduleCommand(#[from] SchedulerError),
     #[error(
@@ -133,4 +135,26 @@ fn stderr_suffix(stderr: &str) -> String {
     } else {
         format!(": {trimmed}")
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ScheduleRemovalError {
+    #[error("cannot resolve the user's home directory")]
+    NoHome,
+    #[error(transparent)]
+    Command(#[from] SchedulerError),
+    #[error("remove {}: {source}", path.display())]
+    Remove {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ManagedProfileRemoveError {
+    #[error(transparent)]
+    Mdm(#[from] crate::install::mdm::MdmError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }

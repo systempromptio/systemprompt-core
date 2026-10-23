@@ -9,8 +9,8 @@ use crate::auth::setup;
 use crate::stdio;
 use crate::stdio::diag;
 
-pub fn cmd_clean() -> ExitCode {
-    match setup::clean() {
+pub fn cmd_clean(ctx: &crate::context::BridgeContext) -> ExitCode {
+    match setup::clean(ctx.secrets()) {
         Ok(report) => {
             if report.config_removed {
                 stdio::print_line(&format!(

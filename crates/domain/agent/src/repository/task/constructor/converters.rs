@@ -28,7 +28,7 @@ pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
     if let Some(client_id) = row.client_message_id {
         final_metadata.insert(
             "clientMessageId".to_owned(),
-            serde_json::Value::String(client_id),
+            serde_json::Value::String(client_id.as_str().to_owned()),
         );
     }
 

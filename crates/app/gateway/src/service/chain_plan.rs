@@ -47,9 +47,14 @@ pub fn order_chain(
     deployments: Vec<ResolvedHop>,
     strategy: SelectionStrategy,
     route: &RouteId,
+    breakers: &ProviderBreakers,
+    load: &DeploymentLoad,
 ) -> PlannedChain {
     let deployments = if deployments.len() > 1 && !strategy.is_ordered() {
-        let states: Vec<DeploymentState> = deployments.iter().map(deployment_state).collect();
+        let states: Vec<DeploymentState> = deployments
+            .iter()
+            .map(|hop| deployment_state(hop, breakers, load))
+            .collect();
         let order = plan_selection(strategy, &states, rand::random());
         let mut slots: Vec<Option<ResolvedHop>> = deployments.into_iter().map(Some).collect();
         order
@@ -75,15 +80,17 @@ pub fn order_chain(
     }
 }
 
-fn deployment_state(hop: &ResolvedHop) -> DeploymentState {
+fn deployment_state(
+    hop: &ResolvedHop,
+    breakers: &ProviderBreakers,
+    load: &DeploymentLoad,
+) -> DeploymentState {
     let key = breaker_key(hop);
-    let tripped = ProviderBreakers::global()
-        .for_endpoint(&key, &hop.resilience)
-        .is_open();
+    let tripped = breakers.for_endpoint(&key, &hop.resilience).is_open();
     DeploymentState {
         tripped,
         weight: hop.effective_weight(),
-        in_flight: DeploymentLoad::global().in_flight(&key),
+        in_flight: load.in_flight(&key),
     }
 }
 

@@ -34,8 +34,7 @@ pub(super) fn read_document(
     hive: PolicyHive,
     keys: &[&str],
 ) -> Result<PolicyDocument, ConfigStoreError> {
-    let path = plist_path(hive)
-        .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
+    let path = plist_path(hive).ok_or_else(|| ConfigStoreError::NoUserPolicyPath)?;
     read_document_at(&path, keys)
 }
 
@@ -51,10 +50,10 @@ pub(super) fn read_string_at(
     match read_document_at(path, &[key])?.get(key) {
         None => Ok(None),
         Some(PolicyDocumentValue::Str(value)) => Ok(Some(value.clone())),
-        Some(_) => Err(ConfigStoreError::Backend(format!(
-            "{}: {key} must be a string",
-            path.display()
-        ))),
+        Some(_) => Err(ConfigStoreError::InvalidValue {
+            location: format!("{}: {key}", path.display()),
+            expected: "a string",
+        }),
     }
 }
 
@@ -74,11 +73,7 @@ fn read_document_at(
             source,
         })?;
     if !output.status.success() {
-        return Err(ConfigStoreError::Backend(format!(
-            "plutil exited with {}: {}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
+        return Err(tool_failed("plutil", path, &output));
     }
     let json: serde_json::Value =
         serde_json::from_slice(&output.stdout).map_err(|source| ConfigStoreError::Decode {
@@ -86,17 +81,20 @@ fn read_document_at(
             source: Box::new(source),
         })?;
     let mut doc = PolicyDocument::new();
-    let obj = json.as_object().ok_or_else(|| {
-        ConfigStoreError::Backend(format!("{}: expected plist dictionary", path.display()))
-    })?;
+    let obj = json
+        .as_object()
+        .ok_or_else(|| ConfigStoreError::InvalidValue {
+            location: path.display().to_string(),
+            expected: "a plist dictionary",
+        })?;
     {
         for key in keys {
             if let Some(v) = obj.get(*key) {
                 let value = PolicyDocumentValue::from_json(v).ok_or_else(|| {
-                    ConfigStoreError::Backend(format!(
-                        "{}: unsupported value at {key}",
-                        path.display()
-                    ))
+                    ConfigStoreError::InvalidValue {
+                        location: format!("{}: {key}", path.display()),
+                        expected: "a supported policy value",
+                    }
                 })?;
                 doc.insert((*key).to_owned(), value);
             }
@@ -110,9 +108,7 @@ pub(super) fn write_values(
     entries: &[(String, PolicyDocumentValue)],
 ) -> Result<(), ConfigStoreError> {
     let Some(path) = plist_path(hive) else {
-        return Err(ConfigStoreError::Backend(
-            "no $USER for the per-user plist".into(),
-        ));
+        return Err(ConfigStoreError::NoUserPolicyPath);
     };
     let mut doc = read_all(hive)?;
     for (name, value) in entries {
@@ -122,8 +118,7 @@ pub(super) fn write_values(
 }
 
 pub(super) fn delete_values(hive: PolicyHive, names: &[&str]) -> Result<usize, ConfigStoreError> {
-    let path = plist_path(hive)
-        .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
+    let path = plist_path(hive).ok_or_else(|| ConfigStoreError::NoUserPolicyPath)?;
     if !path.try_exists().map_err(map_io(&path))? {
         return Ok(0);
     }
@@ -139,8 +134,7 @@ pub(super) fn delete_values(hive: PolicyHive, names: &[&str]) -> Result<usize, C
     Ok(removed)
 }
 fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
-    let path = plist_path(hive)
-        .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
+    let path = plist_path(hive).ok_or_else(|| ConfigStoreError::NoUserPolicyPath)?;
     if !path.try_exists().map_err(map_io(&path))? {
         return Ok(PolicyDocument::new());
     }
@@ -153,12 +147,7 @@ fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
             source,
         })?;
     if !output.status.success() {
-        return Err(ConfigStoreError::Backend(format!(
-            "plutil {}: {}: {}",
-            path.display(),
-            output.status,
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
+        return Err(tool_failed("plutil", &path, &output));
     }
     let json: serde_json::Value =
         serde_json::from_slice(&output.stdout).map_err(|source| ConfigStoreError::Decode {
@@ -166,13 +155,19 @@ fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
             source: Box::new(source),
         })?;
     let mut doc = PolicyDocument::new();
-    let obj = json.as_object().ok_or_else(|| {
-        ConfigStoreError::Backend(format!("{}: expected plist dictionary", path.display()))
-    })?;
+    let obj = json
+        .as_object()
+        .ok_or_else(|| ConfigStoreError::InvalidValue {
+            location: path.display().to_string(),
+            expected: "a plist dictionary",
+        })?;
     {
         for (k, v) in obj {
             let value = PolicyDocumentValue::from_json(v).ok_or_else(|| {
-                ConfigStoreError::Backend(format!("{}: unsupported value at {k}", path.display()))
+                ConfigStoreError::InvalidValue {
+                    location: format!("{}: {k}", path.display()),
+                    expected: "a supported policy value",
+                }
             })?;
             doc.insert(k.clone(), value);
         }
@@ -190,12 +185,7 @@ fn write_document(path: &std::path::Path, doc: &PolicyDocument) -> Result<(), Co
         .output()
         .map_err(map_io(path))?;
     if !output.status.success() && !cfprefsd_was_not_running(&output) {
-        return Err(ConfigStoreError::Backend(format!(
-            "refresh managed preferences {}: {}: {}",
-            path.display(),
-            output.status,
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
+        return Err(tool_failed("killall cfprefsd for", path, &output));
     }
     Ok(())
 }
@@ -220,5 +210,18 @@ fn map_io(path: &std::path::Path) -> impl FnOnce(std::io::Error) -> ConfigStoreE
                 source,
             }
         }
+    }
+}
+
+fn tool_failed(
+    tool: &'static str,
+    path: &std::path::Path,
+    output: &std::process::Output,
+) -> ConfigStoreError {
+    ConfigStoreError::Tool {
+        tool,
+        target: path.display().to_string(),
+        status: output.status,
+        stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
     }
 }

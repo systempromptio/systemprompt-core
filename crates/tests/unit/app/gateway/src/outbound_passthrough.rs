@@ -134,6 +134,7 @@ async fn passthrough_forwards_unmodelled_body_fields_verbatim() {
         OutboundCtx {
             target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -177,6 +178,7 @@ async fn passthrough_forwards_anthropic_beta_header_verbatim() {
         OutboundCtx {
             target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -211,6 +213,7 @@ async fn client_anthropic_version_is_not_overridden() {
         OutboundCtx {
             target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -244,6 +247,7 @@ async fn absent_client_version_falls_back_to_the_pinned_default() {
         OutboundCtx {
             target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -285,6 +289,7 @@ async fn upstream_error_body_and_retry_after_are_preserved() {
         OutboundCtx {
             target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -349,6 +354,7 @@ async fn passthrough_streaming_relays_frames_unchanged() {
         OutboundCtx {
             target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -388,6 +394,7 @@ async fn passthrough_rewrites_only_the_model_when_the_route_remaps_it() {
         OutboundCtx {
             target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "remapped-model",
             model_limits: None,

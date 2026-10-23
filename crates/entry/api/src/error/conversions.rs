@@ -12,6 +12,7 @@ use systemprompt_agent::AgentError;
 use systemprompt_config::{ProfileBootstrapError, SecretsBootstrapError};
 use systemprompt_content::ContentError;
 use systemprompt_governance::authz::{AuthzError, ScopeBindingError};
+use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_marketplace::managed::ManagedError;
@@ -24,6 +25,12 @@ use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
 use super::ApiHttpError;
+
+impl From<IdValidationError> for ApiHttpError {
+    fn from(err: IdValidationError) -> Self {
+        Self(ApiError::from(err))
+    }
+}
 
 impl From<RepositoryError> for ApiHttpError {
     fn from(err: RepositoryError) -> Self {
