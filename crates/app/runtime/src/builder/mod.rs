@@ -157,6 +157,7 @@ impl AppContextBuilder {
             file_storage,
             cache_epochs,
             log_sink,
+            policy,
         } = init_core(self.authz_hook).await?;
 
         let (extension_registry, schema_install) = init_extensions(
@@ -175,7 +176,7 @@ impl AppContextBuilder {
         )?;
 
         let (repositories, user_service, system_admin, mcp_registry) =
-            build_domain_layer(&config, &database, content.analytics_repositories).await?;
+            build_domain_layer(&config, &database, content.analytics_repositories, policy).await?;
 
         let marketplace_filter = self
             .marketplace_filter
@@ -259,14 +260,19 @@ async fn build_domain_layer(
     config: &Config,
     database: &systemprompt_database::DbPool,
     analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+    policy: systemprompt_marketplace::managed::PublicationPolicy,
 ) -> RuntimeResult<(
     composition::RepositoryBundles,
     Arc<UserService>,
     Arc<systemprompt_manifest::SystemAdmin>,
     RegistryService,
 )> {
-    let mut repositories =
-        build_repositories(database, analytics_repositories, config.instance_id.clone());
+    let mut repositories = build_repositories(
+        database,
+        analytics_repositories,
+        config.instance_id.clone(),
+        policy,
+    );
     let user_service = Arc::new(
         UserService::new(Arc::clone(&repositories.users))
             .with_owner_reassignments(owner_reassignments(database)),

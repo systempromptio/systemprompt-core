@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO managed_publication_cohort_selections(owner_id,resource_id,cohort_dimension,cohort_value,generation,publication_id,revision_id,bundle_digest,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'published') ON CONFLICT(owner_id,resource_id,cohort_dimension,cohort_value) DO UPDATE SET generation=EXCLUDED.generation,publication_id=EXCLUDED.publication_id,revision_id=EXCLUDED.revision_id,bundle_digest=EXCLUDED.bundle_digest,updated_at=now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1442d3b3dd4ee767e42a2d64d7033308bc90592de0d4ff1246c30e3f84d5062c"
+}

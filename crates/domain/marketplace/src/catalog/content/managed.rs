@@ -45,20 +45,24 @@ impl CatalogContent {
         owner: &UserId,
         consumer: &UserId,
     ) -> Result<Self, MarketplaceError> {
-        if consumer == owner {
-            return self.with_managed_skills(repository, owner).await;
-        }
-        let mut catalog = self
-            .with_managed_skills(repository.clone(), consumer)
-            .await?;
+        let mut catalog = if consumer == owner {
+            self
+        } else {
+            self.with_managed_skills(repository.clone(), consumer)
+                .await?
+        };
         // Why: the manifest records the grant it hands out, so catalogue
         // inclusion runs without one; only an explicit revocation withholds.
-        let revoked = repository
-            .revoked_skill_keys(owner, consumer)
-            .await
-            .map_err(MarketplaceError::Managed)?;
+        let revoked = if consumer == owner {
+            BTreeSet::new()
+        } else {
+            repository
+                .revoked_skill_keys(owner, consumer)
+                .await
+                .map_err(MarketplaceError::Managed)?
+        };
         let rows = repository
-            .list_skill_resolutions(owner)
+            .list_skill_resolutions_for(owner, consumer)
             .await
             .map_err(MarketplaceError::Managed)?;
         catalog

@@ -9,6 +9,9 @@
 - **Breaking:** **Agent runs:** `RunRequest` gains `harness: Option<HarnessRef>` and `traffic: TrafficClass` (both serde-defaulted), `ExecuteParams` gains `harness`, `RunReport` gains `outputs`, `RunLayout` gains `outputs`, and `HeadlessHost` gains `harness_targets()` (default `Workspace`; Claude Code `~/.claude`, OpenCode `~/.config/opencode`). Migrate struct literals by adding `harness: None` (and `traffic: TrafficClass::Production` for `RunRequest`).
 - **Breaking:** **Agent runs:** `ErrorClass::HarnessUnavailable` (`harness_unavailable`): a harness that cannot be loaded, whose closure digest differs from `HarnessRef::bundle_digest`, or that collides or escapes its target fails the run before spawn. `agent_runs` gains `harness_digest`, `idempotency_key` and `request_digest` (migrations `002_agent_runs_harness`, `003_agent_runs_idempotency`).
 - **Breaking:** **Manifest:** `ServicesConfig::validate_single_evaluation_hook_owner` is `validate_single_judge_hook_owner`, and `evaluation` is no longer an allowed services-bundle directory. Migrate by moving any files under a bundle's `evaluation/` into the directory of the extension that reads them.
+- **Breaking:** `PublicationRequest` gains `cohort: Option<CohortSelector>` (serde default `None`). Migrate by adding `cohort: None` to struct literals.
+- **Breaking:** a publication's `expected_generation` is compared against the resource's latest publication generation, base or cohort, instead of the base selection's. Migrate by reading `ManagedRepository::publication_head_generation` before publishing to a resource that has cohort publications.
+- **Breaking:** `ServicesConfig` gains `marketplace: Option<ManagedMarketplaceConfig>`. Migrate by adding `marketplace: None` to struct literals that do not spread `..Default::default()`.
 
 ### Added
 
@@ -16,6 +19,11 @@
 - **Agent runs:** `register_run_origin!(name)`; the API refuses an origin no extension registered. `execute::harness::{HarnessSource, materialise}` with `HarnessSource` implemented for `ManagedRepository`; `A2aRunHandler::with_harness_source`. `execute::outputs` keeps up to 64 added or modified workspace files (32 MiB) under `<run>/outputs/`. `TrafficClass::Evaluation` binds the run credential to `traffic=evaluation` and sends `x-systemprompt-scope-traffic`.
 - **Agent runs:** `agent_run_dirs_cleanup` job removes finished run directories after `profile.retention.agent_run_dirs_days` (default 7).
 - **Models:** `bridge::opencode::OpenCodeConfig`, the one `OpenCode` V2 `opencode.json` builder shared by the bridge and the headless host: `Provider`, `ModelEntry`, `McpServer`, typed `Policy` statements, `ApiKeyRef::{Env, File}`, `gateway_provider` and `lockdown_policies` (deny-then-allow, last match wins, skills left reachable).
+- `PublicationGate` and `register_publication_gate!`: extension-registered checks that run before a `PublishImprovement` (and an `InitialAdoption` when `marketplace.publication.gate.on_adoption` is set) is recorded; a refusal or gate failure refuses the publication, and `marketplace.publication.gate.required` with no registered gate refuses it as unavailable.
+- `managed_publication_reviews.gate_id` and `gate_evidence_digest` record the admitting gate and its evidence digest (migration `marketplace/018_publication_gate`).
+- Cohort publication: a request with a `cohort` selects a revision for one `marketplace.rings` entry (`role` or a registered subject dimension), stored in `managed_publication_cohort_selections` (migration `marketplace/019_publication_cohorts`); `Withdraw` with a cohort clears that override.
+- `ManagedRepository::list_skill_resolutions_for(owner, consumer)` resolves each skill through the consumer's first matching ring with a cohort selection, else the base selection; a ring on an unregistered dimension fails resolution. `with_organization_skills` uses it, and `managed_catalog_stamp` covers cohort selections and the consumer's ring membership.
+- `ManagedRepository::with_publication_policy` and `PublicationPolicy::{new, discover}` inject the gates, the `marketplace:` services block and the subject providers at the composition root.
 
 ## [0.73.0] - Unreleased
 

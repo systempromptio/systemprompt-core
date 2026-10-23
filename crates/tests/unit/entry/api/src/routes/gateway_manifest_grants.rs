@@ -244,6 +244,7 @@ async fn publish_organisation_skill_with_hosts(
                 ),
                 limitations: String::new(),
                 operation_key: format!("adopt-{key}"),
+                cohort: None,
             },
         )
         .await

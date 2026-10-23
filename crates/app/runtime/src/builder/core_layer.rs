@@ -47,6 +47,7 @@ pub(super) struct CoreLayer {
     pub(super) file_storage: Arc<dyn FileStorage>,
     pub(super) cache_epochs: CacheEpochs,
     pub(super) log_sink: systemprompt_logging::LogSink,
+    pub(super) policy: systemprompt_marketplace::managed::PublicationPolicy,
 }
 
 async fn init_services(
@@ -124,6 +125,11 @@ pub(super) async fn init_core(
     )
     .await?;
 
+    let policy = systemprompt_marketplace::managed::PublicationPolicy::discover(
+        &database,
+        services.marketplace.clone().unwrap_or_default(),
+    )?;
+
     let cache_epochs = CacheEpochs::new();
     let authz_audit_pool = database.write_pool();
     let authz_hook = systemprompt_governance::authz::build_authz_hook(
@@ -160,6 +166,7 @@ pub(super) async fn init_core(
         file_storage,
         cache_epochs,
         log_sink,
+        policy,
     })
 }
 

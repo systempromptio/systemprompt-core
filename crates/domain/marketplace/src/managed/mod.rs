@@ -31,9 +31,10 @@ pub use installation::{
 };
 pub use provenance::{SnapshotProvenance, SourceSpec};
 pub use publication::{
-    ComparisonEvidence, INVENTORY_REFRESH_SOURCE, ManagedResolution, PublicationAction,
-    PublicationAdmission, PublicationDecision, PublicationHistoryEntry, PublicationRequest,
-    SkillResolutionRow,
+    CohortSelector, ComparisonEvidence, GateContext, GateVerdict, INVENTORY_REFRESH_SOURCE,
+    ManagedResolution, PublicationAction, PublicationAdmission, PublicationDecision,
+    PublicationGate, PublicationGateError, PublicationGateRegistration, PublicationHistoryEntry,
+    PublicationPolicy, PublicationRequest, SkillResolutionRow, discover_publication_gates,
 };
 pub use reconciliation::{
     ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,

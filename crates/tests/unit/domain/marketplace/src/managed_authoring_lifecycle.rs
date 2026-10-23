@@ -348,6 +348,7 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
         operation_key: "retained-rollback".into(),
         comparison_evidence: human_review(),
         limitations: "prior content only".into(),
+        cohort: None,
     };
     assert!(matches!(
         f.repository

@@ -101,15 +101,19 @@ impl ManagedRepository {
 
     pub async fn managed_catalog_stamp(&self, owner: &UserId, consumer: &UserId) -> Result<String> {
         let principals = vec![owner.as_str().to_owned(), consumer.as_str().to_owned()];
+        let cohorts = self.cohort_stamp(consumer).await?;
         let stamp = sqlx::query_scalar!(
             r#"SELECT md5(concat_ws('|',
                 (SELECT count(*)::text || ':' || coalesce(max(created_at)::text, '') FROM managed_resources WHERE owner_id = ANY($1) AND kind='skill'),
                 (SELECT count(*)::text || ':' || coalesce(sum(generation)::text, '') || ':' || coalesce(max(updated_at)::text, '') FROM managed_publication_selections WHERE owner_id = ANY($1)),
-                (SELECT count(revoked_at)::text || ':' || coalesce(max(revoked_at)::text, '') FROM managed_consumer_grants WHERE owner_id=$2 AND consumer_id=$3)
+                (SELECT count(*)::text || ':' || coalesce(sum(generation)::text, '') || ':' || coalesce(max(updated_at)::text, '') FROM managed_publication_cohort_selections WHERE owner_id = ANY($1)),
+                (SELECT count(revoked_at)::text || ':' || coalesce(max(revoked_at)::text, '') FROM managed_consumer_grants WHERE owner_id=$2 AND consumer_id=$3),
+                $4::text
             )) AS "stamp!""#,
             &principals,
             owner.as_str(),
-            consumer.as_str()
+            consumer.as_str(),
+            cohorts
         )
         .fetch_one(&self.pool)
         .await?;

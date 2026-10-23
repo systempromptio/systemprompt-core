@@ -63,6 +63,7 @@ async fn approved_removal_keeps_content_until_explicit_withdrawal_and_retains_bo
                     )]),
                 },
                 limitations: "source removed; retained evidence remains available".into(),
+                cohort: None,
             },
         )
         .await

@@ -165,6 +165,7 @@ async fn publish(fixture: &ManagedSkillFixture) {
                 operation_key: format!("publish-{}", fixture.key),
                 comparison_evidence: ComparisonEvidence::default(),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await
@@ -186,6 +187,7 @@ async fn withdraw(fixture: &ManagedSkillFixture) {
                 operation_key: format!("withdraw-{}", fixture.key),
                 comparison_evidence: ComparisonEvidence::default(),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await

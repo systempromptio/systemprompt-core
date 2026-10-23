@@ -14,8 +14,15 @@ use systemprompt_identifiers::{
 use super::error::invalid;
 use super::{AssetDigest, ManagedError, ManagedRepository, ResourceKind, Result, RevisionBundle};
 
+mod cohort;
+mod gate;
 mod repository;
 
+pub use cohort::CohortSelector;
+pub use gate::{
+    GateContext, GateVerdict, PublicationGate, PublicationGateError, PublicationGateRegistration,
+    PublicationPolicy, discover_publication_gates,
+};
 pub use repository::SkillResolutionRow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -73,6 +80,8 @@ pub struct PublicationRequest {
     pub operation_key: String,
     pub comparison_evidence: ComparisonEvidence,
     pub limitations: String,
+    #[serde(default)]
+    pub cohort: Option<CohortSelector>,
 }
 
 /// The reviewer's evidence for a publication. `PublishImprovement` requires
@@ -161,6 +170,17 @@ fn validate_request(request: &PublicationRequest) -> Result<()> {
             "Publication action does not match its generation or revision",
         ));
     }
+    if let Some(cohort) = &request.cohort
+        && (request.action == PublicationAction::InitialAdoption
+            || cohort.dimension.trim().is_empty()
+            || cohort.value.trim().is_empty()
+            || cohort.dimension.len() > 200
+            || cohort.value.len() > 200)
+    {
+        return Err(invalid(
+            "A cohort publication needs an adopted resource and a named cohort",
+        ));
+    }
     Ok(())
 }
 
@@ -178,6 +198,11 @@ fn validate_admission(request: &PublicationRequest, admission: PublicationAdmiss
             ));
         }
         return Ok(());
+    }
+    if request.cohort.is_some() {
+        return Err(ManagedError::Conflict(
+            "Inventory synchronisation publishes the base selection only".to_owned(),
+        ));
     }
     if !matches!(
         request.action,

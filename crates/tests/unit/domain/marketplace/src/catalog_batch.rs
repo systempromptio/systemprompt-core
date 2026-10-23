@@ -84,6 +84,7 @@ async fn batched_resolution_matches_the_per_key_states_and_bundles() {
                 operation_key: format!("adopt-{withdrawn_key}"),
                 comparison_evidence: Default::default(),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await
@@ -100,6 +101,7 @@ async fn batched_resolution_matches_the_per_key_states_and_bundles() {
                 operation_key: format!("withdraw-{withdrawn_key}"),
                 comparison_evidence: Default::default(),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await
@@ -306,6 +308,7 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
                     operation_key: format!("publish-{key}"),
                     comparison_evidence: Default::default(),
                     limitations: String::new(),
+                    cohort: None,
                 },
             )
             .await

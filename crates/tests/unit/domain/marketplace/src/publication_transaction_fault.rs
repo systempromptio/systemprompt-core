@@ -86,6 +86,7 @@ async fn final_outbox_write_failure_rolls_back_publication_then_identical_retry_
         operation_key: format!("publication-tx-{}", uuid::Uuid::new_v4()),
         comparison_evidence: ComparisonEvidence::default(),
         limitations: String::new(),
+        cohort: None,
     };
 
     sqlx::query(

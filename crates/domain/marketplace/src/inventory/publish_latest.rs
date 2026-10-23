@@ -205,12 +205,14 @@ impl InventoryService {
             }),
             ManagedResolution::Published {
                 resource_id,
-                generation,
                 revision_id,
                 ..
             } => Ok(Managed {
+                generation: self
+                    .repository
+                    .publication_head_generation(scope.owner, &resource_id)
+                    .await?,
                 resource_id,
-                generation,
                 published: Some(revision_id),
             }),
             _ => Err(crate::managed::ManagedError::Unavailable),

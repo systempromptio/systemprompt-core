@@ -81,12 +81,14 @@ pub(super) fn build_repositories(
     database: &systemprompt_database::DbPool,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     instance_id: systemprompt_identifiers::InstanceId,
+    publication: systemprompt_marketplace::managed::PublicationPolicy,
 ) -> RepositoryBundles {
     let session_store = Arc::clone(&analytics.session_store);
     let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
-    let managed = Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
-        database,
-    ));
+    let managed = Arc::new(
+        systemprompt_marketplace::managed::ManagedRepository::new(database)
+            .with_publication_policy(publication),
+    );
     let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database));
     let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
         systemprompt_mcp::repository::ToolUsageRepository::new(database),

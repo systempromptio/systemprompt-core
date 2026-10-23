@@ -205,6 +205,8 @@ mod installation_coverage;
 mod organization_resolution;
 
 #[cfg(test)]
+mod publication_gate;
+#[cfg(test)]
 mod publication_transaction_fault;
 #[cfg(test)]
 mod reconciliation_persistence;
