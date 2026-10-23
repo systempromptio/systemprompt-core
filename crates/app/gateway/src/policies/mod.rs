@@ -27,7 +27,7 @@ mod spec;
 pub use config::{GatewayPolicyConfig, GatewayPolicyEntry};
 pub use error::GatewayPolicyError;
 pub use overrides::{
-    OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine, OverrideError,
+    OverrideAction, OverrideContext, OverrideContextBuilder, OverrideError, OverridePolicy,
     OverrideResolution, OverrideSource, SystemPromptOverride, SystemPromptOverrideRegistration,
 };
 pub use plane::{GATEWAY_POLICIES_FILE, GATEWAY_POLICIES_PLANE, GatewayPoliciesPlane};
@@ -35,7 +35,7 @@ pub use resolver::{
     MalformedPolicy, MalformedSpec, PolicyResolver, PolicyUnavailable, merge_policy_rows,
 };
 pub use route_selector::{
-    RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
+    RouteSelector, RouteSelectorChain, RouteSelectorError, RouteSelectorRegistration,
 };
 pub use safety::{
     CATEGORY_SCANNER_FAILURE, Finding, FindingSpan, HeuristicScanner, NullScanner, PHASE_REQUEST,

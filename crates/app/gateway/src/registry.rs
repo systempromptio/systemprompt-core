@@ -13,8 +13,8 @@ use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
 use crate::policies::{
-    HeuristicScanner, NullScanner, OverrideEngine, RouteSelectorEngine, SafetyConfig,
-    SafetyScanner, SafetyScannerRegistration, ScannerFactory, ScannerSettings,
+    HeuristicScanner, NullScanner, OverridePolicy, RouteSelectorChain, SafetyConfig, SafetyScanner,
+    SafetyScannerRegistration, ScannerFactory, ScannerSettings,
 };
 use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
@@ -168,8 +168,8 @@ impl SafetyScannerRegistry {
 pub struct GatewayEngines {
     pub upstream_registry: Arc<GatewayUpstreamRegistry>,
     pub scanner_registry: Arc<SafetyScannerRegistry>,
-    pub override_engine: Arc<OverrideEngine>,
-    pub route_selector: Arc<RouteSelectorEngine>,
+    pub override_engine: Arc<OverridePolicy>,
+    pub route_selector: Arc<RouteSelectorChain>,
     pub breakers: ProviderBreakers,
     pub load: DeploymentLoad,
     pub http: reqwest::Client,
