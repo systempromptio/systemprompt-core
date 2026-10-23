@@ -6,11 +6,12 @@
 //! [`AgentEditRequest`] mutations to an in-memory config, and deleting agent
 //! files through [`ConfigWriter`]. An agent created without a model takes,
 //! for a given provider, the first model core's default catalog deploys on it
-//! ([`DefaultCatalog`]), else the install catalog's `gateway.default_model`;
-//! without a provider it takes the provider serving that model's first
-//! enabled deployment. Interactive prompting, profile resolution,
-//! and post-write configuration reloads stay with the caller. All failures
-//! surface as [`ConfigAuthoringError`].
+//! ([`DefaultCatalog`]), else the install catalog's `gateway.default_model`
+//! (core's default catalog when no services tree loads); without a provider
+//! it takes the provider serving that model's first enabled deployment.
+//! Interactive prompting, profile resolution, and post-write configuration
+//! reloads stay with the caller. All failures surface as
+//! [`ConfigAuthoringError`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -256,8 +257,10 @@ fn agent_defaults(
             Ok((provider, model))
         },
         (None, model) => {
-            let services = systemprompt_loader::ConfigLoader::load()?;
-            let catalog = services.resolve_catalog(&CatalogContext::default())?;
+            let catalog = match systemprompt_loader::ConfigLoader::load() {
+                Ok(services) => services.resolve_catalog(&CatalogContext::default())?,
+                Err(_) => DefaultCatalog::document()?.resolve(&CatalogContext::default())?,
+            };
             let model = match model {
                 Some(model) => model,
                 None => catalog
