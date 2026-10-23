@@ -8,6 +8,7 @@ use super::{
 };
 use crate::install::mdm::error::MdmError;
 use crate::install::mdm::{self, windows_policy};
+use systemprompt_identifiers::ValidatedUrl;
 
 pub(in crate::install::mdm) fn apply(
     inputs: &mdm::MdmPayloadInputs<'_>,
@@ -19,24 +20,7 @@ pub(in crate::install::mdm) fn apply(
     let values = policy_values(inputs)?;
     let cfg = crate::config::load()?;
     let gateway_url = crate::config::gateway_url_or_default(&cfg);
-    // Why: the machine anchor is what the policy writer verifies manifests
-    // against, and an elevated install is the one moment it can be written.
-    // A pin the operator already holds is carried up rather than asking for
-    // --pubkey again; no pin at all leaves the anchor unwritten and the
-    // writer unregistered.
-    let pinned = match pubkey {
-        Some(key) => Some(key.to_owned()),
-        None if elevated => {
-            match crate::config::trust::pinned_pubkey_state_for(&cfg, &gateway_url)? {
-                crate::config::PinnedPubkeyState::Pinned { key, .. } => {
-                    Some(key.as_str().to_owned())
-                },
-                crate::config::PinnedPubkeyState::Unpinned
-                | crate::config::PinnedPubkeyState::StaleForGateway { .. } => None,
-            }
-        },
-        None => None,
-    };
+    let pinned = resolve_pinned_pubkey(pubkey, elevated, &cfg, &gateway_url)?;
     let bridge = mdm::bridge_policy_values(pinned.as_deref(), &gateway_url)?;
     let plan = windows_policy::WritePlan::new(&values, &bridge, elevated, inputs.policy_store);
     let key = policy_key(plan.hive());
@@ -49,57 +33,11 @@ pub(in crate::install::mdm) fn apply(
             .iter()
             .map(crate::config::store::verified::PolicyReceipt::describe),
     );
-    let provisioning = (|| {
-        if elevated {
-            {
-                let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
-                    .map_err(|e| MdmError::OrgPlugins {
-                        context: "location",
-                        source: e.into(),
-                    })?;
-                crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
-                    .map_err(|e| MdmError::OrgPlugins {
-                        context: "provisioning failed",
-                        source: e.into(),
-                    })?;
-                crate::windows_acl::verify_modify_tree(&org.path).map_err(|e| {
-                    MdmError::OrgPlugins {
-                        context: "access check",
-                        source: e.into(),
-                    }
-                })?;
-                summary.push(format!(
-                    "provisioned {} with a Modify grant for {}",
-                    org.path.display(),
-                    org.grant_user
-                ));
-            }
-            // Why: registering the writer is what makes every later sync
-            // prompt-free; without a machine trust anchor it cannot verify a
-            // manifest, so it is not registered and the install says so.
-            match std::env::current_exe()
-                .map_err(|e| crate::install::policy_writer::PolicyWriterError::Io {
-                    context: "locate this binary".to_owned(),
-                    source: e,
-                })
-                .and_then(|exe| crate::install::policy_writer::install(&exe))
-            {
-                Ok(lines) => summary.extend(lines),
-                Err(crate::install::policy_writer::PolicyWriterError::NoAnchor) => {
-                    summary.push(
-                        "policy writer not registered: no signing trust anchor in the machine \
-                         policy (pass --pubkey, or pin the gateway key first); later connector \
-                         changes will ask for administrator approval"
-                            .to_owned(),
-                    );
-                },
-                Err(e) => return Err(MdmError::PolicyWriter(Box::new(e))),
-            }
-        } else {
-            require_org_plugins()?;
-        }
-        Ok::<_, MdmError>(())
-    })();
+    let provisioning = if elevated {
+        provision_org_plugins(&mut summary).and_then(|()| register_policy_writer(&mut summary))
+    } else {
+        require_org_plugins()
+    };
     provisioning.map_err(|source| MdmError::Partial {
         completed: mdm::MdmApplication {
             lines: summary.clone(),
@@ -114,4 +52,81 @@ pub(in crate::install::mdm) fn apply(
         policies,
         files: Vec::new(),
     })
+}
+
+fn resolve_pinned_pubkey(
+    pubkey: Option<&str>,
+    elevated: bool,
+    cfg: &crate::config::Config,
+    gateway_url: &ValidatedUrl,
+) -> Result<Option<String>, MdmError> {
+    // Why: the machine anchor is what the policy writer verifies manifests
+    // against, and an elevated install is the one moment it can be written.
+    // A pin the operator already holds is carried up rather than asking for
+    // --pubkey again; no pin at all leaves the anchor unwritten and the
+    // writer unregistered.
+    Ok(match pubkey {
+        Some(key) => Some(key.to_owned()),
+        None if elevated => {
+            match crate::config::trust::pinned_pubkey_state_for(cfg, gateway_url)? {
+                crate::config::PinnedPubkeyState::Pinned { key, .. } => {
+                    Some(key.as_str().to_owned())
+                },
+                crate::config::PinnedPubkeyState::Unpinned
+                | crate::config::PinnedPubkeyState::StaleForGateway { .. } => None,
+            }
+        },
+        None => None,
+    })
+}
+
+fn provision_org_plugins(summary: &mut Vec<String>) -> Result<(), MdmError> {
+    let org =
+        crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user().map_err(|e| {
+            MdmError::OrgPlugins {
+                context: "location",
+                source: e.into(),
+            }
+        })?;
+    crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user).map_err(
+        |e| MdmError::OrgPlugins {
+            context: "provisioning failed",
+            source: e.into(),
+        },
+    )?;
+    crate::windows_acl::verify_modify_tree(&org.path).map_err(|e| MdmError::OrgPlugins {
+        context: "access check",
+        source: e.into(),
+    })?;
+    summary.push(format!(
+        "provisioned {} with a Modify grant for {}",
+        org.path.display(),
+        org.grant_user
+    ));
+    Ok(())
+}
+
+fn register_policy_writer(summary: &mut Vec<String>) -> Result<(), MdmError> {
+    // Why: registering the writer is what makes every later sync
+    // prompt-free; without a machine trust anchor it cannot verify a
+    // manifest, so it is not registered and the install says so.
+    match std::env::current_exe()
+        .map_err(|e| crate::install::policy_writer::PolicyWriterError::Io {
+            context: "locate this binary".to_owned(),
+            source: e,
+        })
+        .and_then(|exe| crate::install::policy_writer::install(&exe))
+    {
+        Ok(lines) => summary.extend(lines),
+        Err(crate::install::policy_writer::PolicyWriterError::NoAnchor) => {
+            summary.push(
+                "policy writer not registered: no signing trust anchor in the machine \
+                 policy (pass --pubkey, or pin the gateway key first); later connector \
+                 changes will ask for administrator approval"
+                    .to_owned(),
+            );
+        },
+        Err(e) => return Err(MdmError::PolicyWriter(Box::new(e))),
+    }
+    Ok(())
 }
