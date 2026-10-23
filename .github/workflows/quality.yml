@@ -329,6 +329,12 @@ jobs:
       - run: just lint-core-globals
         if: ${{ !cancelled() }}
       - run: just lint-serde-aliases
+      - run: just lint-mode-enums
+      - run: just lint-sql-vocab
+      - run: just lint-migrations
+      - run: just lint-host-ids
+      - run: just lint-header-literals
+      - run: just lint-path-literals
         if: ${{ !cancelled() }}
       - run: just lint-bridge-file-size
         if: ${{ !cancelled() }}
