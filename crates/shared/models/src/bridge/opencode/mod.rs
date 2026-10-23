@@ -151,12 +151,39 @@ pub enum McpServer {
         headers: BTreeMap<String, String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         codemode: Option<bool>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        oauth: Option<McpOAuth>,
     },
     Local {
         command: Vec<String>,
         #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
         environment: BTreeMap<String, String>,
     },
+}
+
+/// A remote server's `oauth` setting. `OpenCode` registers every remote server
+/// as an OAuth integration and answers a 401 with client registration unless
+/// `oauth` is `false`; only that opt-out is modelled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpOAuth {
+    Disabled,
+}
+
+impl Serialize for McpOAuth {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bool(false)
+    }
+}
+
+impl<'de> Deserialize<'de> for McpOAuth {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        if bool::deserialize(deserializer)? {
+            return Err(serde::de::Error::custom(
+                "only `oauth: false` is modelled for a remote MCP server",
+            ));
+        }
+        Ok(Self::Disabled)
+    }
 }
 
 /// Where `OpenCode` reads a secret from at load time; never the secret.

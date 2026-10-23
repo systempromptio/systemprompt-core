@@ -209,7 +209,7 @@ fn opencode_config_golden() {
                 { "effect": "allow", "action": "tool.use", "resource": "edit:*" },
                 { "effect": "deny", "action": "tool.use", "resource": "webfetch:*" }
             ],
-            "mcp": { "servers": { "odoo": { "type": "remote", "url": "https://gw/mcp/odoo" } } }
+            "mcp": { "servers": { "odoo": { "type": "remote", "url": "https://gw/mcp/odoo", "oauth": false } } }
         })
     );
 }

@@ -66,7 +66,17 @@ impl CatalogContent {
             let bundles = if admitted.published.is_empty() {
                 BTreeMap::new()
             } else {
-                verified_bundles(repository, owner, &admitted.published).await?
+                match verified_bundles(repository, owner, &admitted.published).await {
+                    Ok(bundles) => bundles,
+                    Err(error) => {
+                        tracing::warn!(
+                            kind = kind.as_str(),
+                            error = %error,
+                            "managed revisions unresolved; their entries are withheld"
+                        );
+                        BTreeMap::new()
+                    },
+                }
             };
             let mut published = BTreeMap::new();
             for (key, resolution) in &admitted.published {
@@ -75,13 +85,14 @@ impl CatalogContent {
                 else {
                     continue;
                 };
-                let bundle = bundles
-                    .get(revision_id)
-                    .ok_or(MarketplaceError::Managed(ManagedError::Integrity))?;
+                let Some(bundle) = bundles.get(revision_id) else {
+                    withheld(kind, key, "revision unresolved");
+                    continue;
+                };
                 published.insert(key.clone(), (reference, Arc::clone(bundle)));
             }
             match kind {
-                ResourceKind::Rule => self.overlay_rules(&admitted.managed, published)?,
+                ResourceKind::Rule => self.overlay_rules(&admitted.managed, published),
                 _ => self.overlay_plugins(&admitted.managed, published)?,
             }
         }
@@ -92,16 +103,19 @@ impl CatalogContent {
         &mut self,
         managed: &BTreeSet<String>,
         published: BTreeMap<String, (ManagedPublicationRef, Arc<RevisionBundle>)>,
-    ) -> Result<(), MarketplaceError> {
+    ) {
         self.rules
             .retain(|rule| !managed.contains(rule.id.as_str()));
         for (key, (reference, bundle)) in published {
-            let mut entry = managed_rule(&key, &reference, &bundle)?;
-            entry.publication = Some(reference);
-            self.rules.push(entry);
+            match managed_rule(&key, &reference, &bundle) {
+                Ok(mut entry) => {
+                    entry.publication = Some(reference);
+                    self.rules.push(entry);
+                },
+                Err(error) => withheld(ResourceKind::Rule, &key, &error.to_string()),
+            }
         }
         self.rules.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
-        Ok(())
     }
 
     fn overlay_plugins(
@@ -113,12 +127,15 @@ impl CatalogContent {
             let id = PluginId::try_new(key.as_str())
                 .map_err(|error| MarketplaceError::catalog("managed plugin id", error))?;
             match published.remove(key) {
-                Some((reference, bundle)) => {
-                    let files = bundle
-                        .revision_files(&bundle.root)
-                        .map_err(|e| MarketplaceError::Managed(ManagedError::from(e)))?;
-                    self.managed_plugin_files.insert(id.clone(), files);
-                    self.plugin_publications.insert(id, reference);
+                Some((reference, bundle)) => match bundle.revision_files(&bundle.root) {
+                    Ok(files) => {
+                        self.managed_plugin_files.insert(id.clone(), files);
+                        self.plugin_publications.insert(id, reference);
+                    },
+                    Err(error) => {
+                        withheld(ResourceKind::Plugin, key, &error.to_string());
+                        self.withheld_plugins.insert(id);
+                    },
                 },
                 None => {
                     self.withheld_plugins.insert(id);
@@ -162,6 +179,18 @@ impl CatalogContent {
             })
             .collect()
     }
+}
+
+// Why: a published entry whose revision bytes cannot be resolved is withheld
+// rather than served from disk, so a receipt never names bytes that did not
+// run.
+fn withheld(kind: ResourceKind, key: &str, reason: &str) {
+    tracing::warn!(
+        kind = kind.as_str(),
+        key = %key,
+        reason = %reason,
+        "managed resource withheld: published revision unresolved"
+    );
 }
 
 fn managed_rule(

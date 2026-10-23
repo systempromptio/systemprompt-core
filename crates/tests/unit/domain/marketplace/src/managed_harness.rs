@@ -311,3 +311,31 @@ async fn a_published_plugin_bundle_carries_its_revision_files() {
         "a managed plugin serves only its revision's own files"
     );
 }
+
+#[tokio::test]
+async fn a_published_rule_whose_revision_does_not_resolve_is_withheld_not_served_from_disk() {
+    let (repository, owner) = owner_repository().await;
+    let key = format!("rule_{}", Uuid::new_v4().simple());
+    managed_files(
+        &repository,
+        &owner,
+        ResourceKind::Rule,
+        &key,
+        true,
+        files(&[("index.md", "No config.yaml in this revision.\n")]),
+    )
+    .await;
+    let root = tempfile::tempdir().expect("services root");
+    write_rule(root.path(), &key);
+    let catalog = CatalogContent::load(
+        &ServicesConfig::default(),
+        root.path(),
+        "https://api.example.invalid",
+    )
+    .expect("catalog")
+    .with_organization_resources(repository, &owner, &owner)
+    .await
+    .expect("an unresolved revision withholds, it does not fail the catalogue");
+    let (_, rules, ..) = catalog.into_parts();
+    assert!(rules.iter().all(|r| r.id.as_str() != key), "{rules:?}");
+}

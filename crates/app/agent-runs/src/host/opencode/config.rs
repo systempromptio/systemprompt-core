@@ -16,7 +16,8 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::headers;
 use systemprompt_models::bridge::opencode::{
-    ApiKeyRef, Lockdown, McpServer, ModelEntry, OpenCodeConfig, gateway_provider, lockdown_policies,
+    ApiKeyRef, Lockdown, McpOAuth, McpServer, ModelEntry, OpenCodeConfig, gateway_provider,
+    lockdown_policies,
 };
 
 use super::PAT_ENV;
@@ -96,6 +97,7 @@ fn mcp_server(spec: &McpServerSpec) -> McpServer {
             url: url.clone(),
             headers: headers.clone(),
             codemode: None,
+            oauth: Some(McpOAuth::Disabled),
         },
     }
 }

@@ -1,7 +1,10 @@
 //! The bridge's entries in the user's V2 `opencode.json`: `mcp.servers.<slug>`
 //! remote servers pointing at the loopback proxy, and the client defaults a
 //! marketplace declares. Every foreign key survives, including MCP servers the
-//! user added; only server names the sidecar recorded are bridge-owned. A
+//! user added; only server names the sidecar recorded are bridge-owned. Each
+//! entry sets `oauth: false`: the loopback bearer is the credential, and
+//! `OpenCode` otherwise answers a 401 with OAuth client registration against
+//! the proxy, which has no OAuth server. A
 //! client default is set only where the user has not set the key, and is
 //! never removed.
 //!
@@ -11,7 +14,7 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
-use systemprompt_models::bridge::opencode::McpServer;
+use systemprompt_models::bridge::opencode::{McpOAuth, McpServer};
 
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest};
 use crate::host_sync::ApplyError;
@@ -50,6 +53,7 @@ pub(super) fn write_mcp_servers(
                 url: loopback.mcp_url(&slug),
                 headers: BTreeMap::from([("Authorization".to_owned(), bearer.clone())]),
                 codemode: None,
+                oauth: Some(McpOAuth::Disabled),
             };
             let entry = serde_json::to_value(server).map_err(|source| ApplyError::Serialize {
                 what: format!("OpenCode MCP server {slug}"),

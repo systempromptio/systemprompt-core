@@ -510,7 +510,7 @@ fn authored_frontmatter_keys_follow_name_and_description() {
 }
 
 #[test]
-fn every_bridge_mcp_entry_is_a_v2_remote_server_and_user_entries_are_untouched() {
+fn every_bridge_mcp_entry_disables_oauth_and_user_entries_are_untouched() {
     with_sandbox(|sb| {
         fs::create_dir_all(sb.config.parent().unwrap()).unwrap();
         let mine = serde_json::json!({
@@ -531,6 +531,7 @@ fn every_bridge_mcp_entry_is_a_v2_remote_server_and_user_entries_are_untouched()
         let doc = read_json(&sb.config);
         for slug in ["primary", "secondary"] {
             let entry = &doc["mcp"]["servers"][slug];
+            assert_eq!(entry["oauth"], false, "{slug}: {doc}");
             assert_eq!(entry["type"], "remote", "{slug}: {doc}");
             assert!(
                 entry["url"]
