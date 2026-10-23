@@ -38,6 +38,11 @@ pub(super) async fn forward_to_gateway(
         path,
         credential,
     } = meta;
+    let log = RequestLog {
+        req_id,
+        method,
+        path,
+    };
     match forward::forward(
         req,
         forward::ForwardDeps {
@@ -59,55 +64,84 @@ pub(super) async fn forward_to_gateway(
             let status = response.status().as_u16();
             let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
             record_stats(&ctx.stats, status, latency_ms);
-            tracing::info!(
-                target: "systemprompt_bridge::proxy",
-                req_id = %req_id,
-                method = %method,
-                path = %path,
-                status,
-                latency_ms,
-                "req out"
-            );
-            ctx.deps.activity.append_at(
-                upstream_level(status),
-                format!("proxy: {method} {path} → {status} ({latency_ms}ms) [{req_id}]"),
-            );
+            log_forwarded(&ctx, &log, status, latency_ms);
             Ok(response)
         },
         Err(e) => {
             let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
             record_stats(&ctx.stats, StatusCode::BAD_GATEWAY.as_u16(), latency_ms);
-            if forward::is_client_disconnect(&e) {
-                tracing::warn!(
-                    target: "systemprompt_bridge::proxy",
-                    req_id = %req_id,
-                    method = %method,
-                    path = %path,
-                    latency_ms,
-                    "req out: client disconnected"
-                );
-                ctx.deps.activity.append_warn(format!(
-                    "proxy: {method} {path} → client disconnected [{req_id}]"
-                ));
-            } else {
-                tracing::error!(
-                    target: "systemprompt_bridge::proxy",
-                    req_id = %req_id,
-                    method = %method,
-                    path = %path,
-                    latency_ms,
-                    error = %e,
-                    "req out: forward error"
-                );
-                ctx.deps
-                    .activity
-                    .append_error(format!("proxy: {method} {path} → error: {e} [{req_id}]"));
-            }
-            if let Some(challenge) = mcp_auth_challenge(&e, &path, cfg.gateway_base.as_ref()) {
+            log_forward_failure(&ctx, &log, &e, latency_ms);
+            if let Some(challenge) = mcp_auth_challenge(&e, &log.path, cfg.gateway_base.as_ref()) {
                 return Ok(challenge);
             }
             Ok(owned_response(e.status(), e.client_detail()))
         },
+    }
+}
+
+struct RequestLog {
+    req_id: String,
+    method: Method,
+    path: String,
+}
+
+fn log_forwarded(ctx: &ProxyContext, log: &RequestLog, status: u16, latency_ms: u64) {
+    let RequestLog {
+        req_id,
+        method,
+        path,
+    } = log;
+    tracing::info!(
+        target: "systemprompt_bridge::proxy",
+        req_id = %req_id,
+        method = %method,
+        path = %path,
+        status,
+        latency_ms,
+        "req out"
+    );
+    ctx.deps.activity.append_at(
+        upstream_level(status),
+        format!("proxy: {method} {path} → {status} ({latency_ms}ms) [{req_id}]"),
+    );
+}
+
+fn log_forward_failure(
+    ctx: &ProxyContext,
+    log: &RequestLog,
+    e: &forward::ForwardError,
+    latency_ms: u64,
+) {
+    let RequestLog {
+        req_id,
+        method,
+        path,
+    } = log;
+    if forward::is_client_disconnect(e) {
+        tracing::warn!(
+            target: "systemprompt_bridge::proxy",
+            req_id = %req_id,
+            method = %method,
+            path = %path,
+            latency_ms,
+            "req out: client disconnected"
+        );
+        ctx.deps.activity.append_warn(format!(
+            "proxy: {method} {path} → client disconnected [{req_id}]"
+        ));
+    } else {
+        tracing::error!(
+            target: "systemprompt_bridge::proxy",
+            req_id = %req_id,
+            method = %method,
+            path = %path,
+            latency_ms,
+            error = %e,
+            "req out: forward error"
+        );
+        ctx.deps
+            .activity
+            .append_error(format!("proxy: {method} {path} → error: {e} [{req_id}]"));
     }
 }
 

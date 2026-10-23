@@ -156,50 +156,8 @@ pub fn check_plugin_installation_preference() -> Option<Check> {
             .join(id)
             .join(".claude-plugin")
             .join("plugin.json");
-        let Ok(text) = std::fs::read_to_string(&plugin_json) else {
-            return Some(Check::fail(
-                "plugin auto-install",
-                format!("{} not present", plugin_json.display()),
-            ));
-        };
-        let Ok(probe) = serde_json::from_str::<PluginManifestProbe>(&text) else {
-            return Some(Check::fail(
-                "plugin auto-install",
-                format!("{}: invalid JSON", plugin_json.display()),
-            ));
-        };
-        match probe.installation_preference.as_deref() {
-            Some("required" | "auto_install") => {},
-            Some("available") => {
-                return Some(Check::fail(
-                    "plugin auto-install",
-                    format!(
-                        "{}: installationPreference=available — Cowork will require a manual \
-                         install click, which surfaces \"Contact an organization owner\" under MDM",
-                        plugin_json.display(),
-                    ),
-                ));
-            },
-            Some(other) => {
-                return Some(Check::fail(
-                    "plugin auto-install",
-                    format!(
-                        "{}: installationPreference={other} is not one of \
-                         required|auto_install|available",
-                        plugin_json.display(),
-                    ),
-                ));
-            },
-            None => {
-                return Some(Check::fail(
-                    "plugin auto-install",
-                    format!(
-                        "{}: installationPreference is missing — Cowork will default to \
-                         \"available\" (manual install, owner-gated)",
-                        plugin_json.display(),
-                    ),
-                ));
-            },
+        if let Some(problem) = installation_preference_problem(&plugin_json) {
+            return Some(Check::fail("plugin auto-install", problem));
         }
     }
     Some(Check::ok(
@@ -209,6 +167,33 @@ pub fn check_plugin_installation_preference() -> Option<Check> {
             plugin_ids.len()
         ),
     ))
+}
+
+fn installation_preference_problem(plugin_json: &std::path::Path) -> Option<String> {
+    let Ok(text) = std::fs::read_to_string(plugin_json) else {
+        return Some(format!("{} not present", plugin_json.display()));
+    };
+    let Ok(probe) = serde_json::from_str::<PluginManifestProbe>(&text) else {
+        return Some(format!("{}: invalid JSON", plugin_json.display()));
+    };
+    match probe.installation_preference.as_deref() {
+        Some("required" | "auto_install") => None,
+        Some("available") => Some(format!(
+            "{}: installationPreference=available — Cowork will require a manual \
+             install click, which surfaces \"Contact an organization owner\" under MDM",
+            plugin_json.display(),
+        )),
+        Some(other) => Some(format!(
+            "{}: installationPreference={other} is not one of \
+             required|auto_install|available",
+            plugin_json.display(),
+        )),
+        None => Some(format!(
+            "{}: installationPreference is missing — Cowork will default to \
+             \"available\" (manual install, owner-gated)",
+            plugin_json.display(),
+        )),
+    }
 }
 
 pub fn check_personal_session_sentinel() -> Option<Check> {

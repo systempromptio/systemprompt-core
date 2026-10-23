@@ -83,7 +83,7 @@ impl ProfileFacts {
             .secret()
             .map_err(ProfileFactsError::LoopbackSecret)?;
         let mcp_servers = if crate::mcp_registry::fragment_exists() {
-            crate::install::mdm::policy::mcp_entries(loopback, registry)
+            crate::install::mdm::policy_mcp::mcp_entries(loopback, registry)
                 .map_err(ProfileFactsError::ManagedServers)?
         } else {
             None

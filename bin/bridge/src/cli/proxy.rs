@@ -47,7 +47,13 @@ pub fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
         },
     };
 
-    stdio::print_str(&format!(
+    stdio::print_str(&render_usage(&origin, &secret));
+
+    wait_for_shutdown(ctx)
+}
+
+fn render_usage(origin: &str, secret: &str) -> String {
+    format!(
         "{bin} proxy listening on {origin}\n\
          \n\
          Point an Anthropic-API client (Claude Code, Claude Desktop) at it:\n\
@@ -72,8 +78,10 @@ pub fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
          injects the canonical identity headers, and refreshes in the\n\
          background. Press Ctrl-C to stop.\n",
         bin = crate::brand::brand().binary_name,
-    ));
+    )
+}
 
+fn wait_for_shutdown(ctx: &BridgeContext) -> ExitCode {
     let (tx, rx) = channel::<()>();
     match ctrlc::set_handler(move || {
         if let Err(e) = tx.send(()) {

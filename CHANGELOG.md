@@ -170,6 +170,7 @@
 - The "no GeoIP reader" notice is logged once when `AnalyticsService` is built.
 - The verified-revision memo lives on `ManagedRepository`.
 - `systemprompt_traits` re-exports the startup-event items by name instead of through a glob; every path is unchanged.
+- **Bridge:** the manifest apply, plugin apply, `install` and `proxy` commands, the proxy probe, the tray menu and the MDM apply paths are composed from named phases; no bridge function exceeds 80 lines except the exhaustive `HostUiEvent` router, and no bridge source file exceeds 300 lines. `mcp_entries` and `mcp_entries_with` live in `install::mdm::policy_mcp`.
 
 ### Removed
 

@@ -17,15 +17,37 @@ pub fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
 }
 
 pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
-    use crate::host_sync::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
+    use crate::host_sync::hooks_schema::HooksFile;
 
     let Ok(file) = serde_json::from_slice::<HooksFile>(bytes) else {
         return Vec::new();
     };
 
-    let mut governed_events: BTreeSet<String> = BTreeSet::new();
-    let mut tracked_events: BTreeSet<String> = BTreeSet::new();
-    let mut user_rows: Vec<MarketplaceItem> = Vec::new();
+    let HookClassification {
+        governed_events,
+        tracked_events,
+        mut user_rows,
+    } = classify(&file);
+
+    let mut out = Vec::new();
+    out.extend(governance_item(&governed_events, &tracked_events, path));
+
+    user_rows.sort_by(|a, b| a.name.cmp(&b.name));
+    out.extend(user_rows);
+    out
+}
+
+#[derive(Default)]
+struct HookClassification {
+    governed_events: BTreeSet<String>,
+    tracked_events: BTreeSet<String>,
+    user_rows: Vec<MarketplaceItem>,
+}
+
+fn classify(file: &crate::host_sync::hooks_schema::HooksFile) -> HookClassification {
+    use crate::host_sync::hooks_schema::HookEntry as WireHookEntry;
+
+    let mut found = HookClassification::default();
 
     for (event, matchers) in &file.hooks {
         for matcher in matchers {
@@ -33,9 +55,9 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
                 match entry {
                     WireHookEntry::Http { url, .. } => {
                         if url.contains("/hooks/govern") {
-                            governed_events.insert(event.clone());
+                            found.governed_events.insert(event.clone());
                         } else {
-                            tracked_events.insert(event.clone());
+                            found.tracked_events.insert(event.clone());
                         }
                     },
                     WireHookEntry::Command {
@@ -51,7 +73,7 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
                         } else {
                             command.clone()
                         };
-                        user_rows.push(
+                        found.user_rows.push(
                             MarketplaceItem::builder(
                                 format!("{event}:{}:{i}", matcher.matcher),
                                 String::new(),
@@ -65,45 +87,47 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
             }
         }
     }
+    found
+}
 
-    let mut out = Vec::new();
-
-    if !governed_events.is_empty() || !tracked_events.is_empty() {
-        let mut summary_parts = Vec::new();
-        if !governed_events.is_empty() {
-            let events: Vec<String> = governed_events.iter().cloned().collect();
-            summary_parts.push(format!("Governing {}", events.join(", ")));
-        }
-        if !tracked_events.is_empty() {
-            summary_parts.push(format!("tracking {} events", tracked_events.len()));
-        }
-
-        let mut readme = format!(
-            "System hooks installed by {}.\n",
-            crate::brand::brand().app_name
-        );
-        if !governed_events.is_empty() {
-            let events: Vec<String> = governed_events.iter().cloned().collect();
-            readme.push_str(&format!(
-                "\nGovernance (PreToolUse policy):\n- {}\n",
-                events.join("\n- ")
-            ));
-        }
-        if !tracked_events.is_empty() {
-            let events: Vec<String> = tracked_events.iter().cloned().collect();
-            readme.push_str(&format!("\nTracking:\n- {}\n", events.join("\n- ")));
-        }
-
-        out.push(
-            MarketplaceItem::builder("systemprompt-governance", path.display().to_string())
-                .name("Governance & tracking (active)")
-                .summary(Some(summary_parts.join("; ")))
-                .readme(Some(readme))
-                .build(),
-        );
+fn governance_item(
+    governed_events: &BTreeSet<String>,
+    tracked_events: &BTreeSet<String>,
+    path: &Path,
+) -> Option<MarketplaceItem> {
+    if governed_events.is_empty() && tracked_events.is_empty() {
+        return None;
+    }
+    let mut summary_parts = Vec::new();
+    if !governed_events.is_empty() {
+        let events: Vec<String> = governed_events.iter().cloned().collect();
+        summary_parts.push(format!("Governing {}", events.join(", ")));
+    }
+    if !tracked_events.is_empty() {
+        summary_parts.push(format!("tracking {} events", tracked_events.len()));
     }
 
-    user_rows.sort_by(|a, b| a.name.cmp(&b.name));
-    out.extend(user_rows);
-    out
+    let mut readme = format!(
+        "System hooks installed by {}.\n",
+        crate::brand::brand().app_name
+    );
+    if !governed_events.is_empty() {
+        let events: Vec<String> = governed_events.iter().cloned().collect();
+        readme.push_str(&format!(
+            "\nGovernance (PreToolUse policy):\n- {}\n",
+            events.join("\n- ")
+        ));
+    }
+    if !tracked_events.is_empty() {
+        let events: Vec<String> = tracked_events.iter().cloned().collect();
+        readme.push_str(&format!("\nTracking:\n- {}\n", events.join("\n- ")));
+    }
+
+    Some(
+        MarketplaceItem::builder("systemprompt-governance", path.display().to_string())
+            .name("Governance & tracking (active)")
+            .summary(Some(summary_parts.join("; ")))
+            .readme(Some(readme))
+            .build(),
+    )
 }

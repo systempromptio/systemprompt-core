@@ -134,20 +134,7 @@ fn install_profile_with(
 ) -> Result<ProfileInstalled, HostAppError> {
     let elevated = winproc::is_elevated();
     tracing::info!(path, elevated, "installing Claude Desktop profile");
-    let body = std::fs::read_to_string(path)?;
-    let entries = crate::install::reg_values::parse_reg_entries(&body)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    tracing::info!(
-        path,
-        parsed_values = entries.len(),
-        names = ?entries.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
-        "parsed staged registry profile"
-    );
-    if entries.is_empty() {
-        return Err(
-            std::io::Error::other("staged registry profile contained no policy values").into(),
-        );
-    }
+    let entries = read_staged_entries(path)?;
     // Why: an ordinary process writes the per-user policy, which Claude honours
     // while no machine policy exists. A machine policy that already holds other
     // values shadows anything HKCU says, and only an elevated write can replace
@@ -185,14 +172,7 @@ fn install_profile_with(
             return Err(std::io::Error::other(e).into());
         },
     };
-    match outcome.outcome() {
-        PolicyWrite::Written(hive) | PolicyWrite::AlreadyVerified(hive) => {
-            tracing::info!(hive = hive.label(), "policy written and read back");
-        },
-        PolicyWrite::SatisfiedByMachine => {
-            tracing::info!("HKLM already holds this policy; per-user copy not written");
-        },
-    }
+    log_policy_write(outcome.outcome());
     // Why: the policy is already written and verified above. Provisioning
     // org-plugins is a distinct, later step and stays fatal when it fails;
     // a verification that cannot run afterwards is a warning, because the
@@ -209,6 +189,35 @@ fn install_profile_with(
         "Claude Desktop profile installed"
     );
     Ok(outcome)
+}
+
+fn read_staged_entries(path: &str) -> Result<Vec<(String, String)>, HostAppError> {
+    let body = std::fs::read_to_string(path)?;
+    let entries = crate::install::reg_values::parse_reg_entries(&body)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    tracing::info!(
+        path,
+        parsed_values = entries.len(),
+        names = ?entries.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
+        "parsed staged registry profile"
+    );
+    if entries.is_empty() {
+        return Err(
+            std::io::Error::other("staged registry profile contained no policy values").into(),
+        );
+    }
+    Ok(entries)
+}
+
+fn log_policy_write(outcome: PolicyWrite) {
+    match outcome {
+        PolicyWrite::Written(hive) | PolicyWrite::AlreadyVerified(hive) => {
+            tracing::info!(hive = hive.label(), "policy written and read back");
+        },
+        PolicyWrite::SatisfiedByMachine => {
+            tracing::info!("HKLM already holds this policy; per-user copy not written");
+        },
+    }
 }
 
 fn install_needing_approval(
