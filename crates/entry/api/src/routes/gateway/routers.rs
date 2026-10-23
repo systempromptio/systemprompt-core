@@ -19,9 +19,8 @@ use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesIn
 use systemprompt_models::ApiPaths;
 
 use super::{
-    auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_archive,
-    bridge_plugin_file, bridge_profile_usage, bridge_release, bridge_stream, bridge_whoami,
-    messages, otel,
+    auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
+    bridge_profile_usage, bridge_release, bridge_stream, bridge_whoami, messages, otel,
 };
 
 pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
@@ -177,21 +176,6 @@ pub(super) fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) ->
         )
 }
 
-fn plugin_file_route(
-    ctx: &AppContext,
-    jwt_extractor: &Arc<JwtContextExtractor>,
-) -> axum::routing::MethodRouter {
-    let ctx = ctx.clone();
-    let jwt = Arc::clone(jwt_extractor);
-    let memo = bridge_plugin_archive::ArchiveMemo::default();
-    get(move |headers, path| {
-        let extractor = Arc::clone(&jwt);
-        let context = ctx.clone();
-        let memo = memo.clone();
-        async move { bridge_plugin_file::handle(memo, extractor, context, headers, path).await }
-    })
-}
-
 pub(super) fn bridge_profile_routes(
     ctx: &AppContext,
     jwt_extractor: &Arc<JwtContextExtractor>,
@@ -236,7 +220,7 @@ pub(super) fn bridge_profile_routes(
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PLUGIN_FILE_ROUTE),
-            plugin_file_route(ctx, jwt_extractor),
+            bridge_plugin_file::route(ctx, jwt_extractor),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DEVICE),

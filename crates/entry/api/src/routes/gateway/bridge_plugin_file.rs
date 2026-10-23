@@ -17,6 +17,7 @@ use axum::body::Body;
 use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
+use axum::routing::get;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_marketplace::ResolvedCatalog;
@@ -71,6 +72,21 @@ pub async fn handle(
         header::HeaderValue::from_static(content_type(&relative_path)),
     );
     Ok(response)
+}
+
+pub(super) fn route(
+    ctx: &AppContext,
+    jwt_extractor: &Arc<JwtContextExtractor>,
+) -> axum::routing::MethodRouter {
+    let ctx = ctx.clone();
+    let jwt = Arc::clone(jwt_extractor);
+    let memo = ArchiveMemo::default();
+    get(move |headers, path| {
+        let extractor = Arc::clone(&jwt);
+        let context = ctx.clone();
+        let memo = memo.clone();
+        async move { handle(memo, extractor, context, headers, path).await }
+    })
 }
 
 // Why: the downloads of one sync follow its manifest, so the user's latest
