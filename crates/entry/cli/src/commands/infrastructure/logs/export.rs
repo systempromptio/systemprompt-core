@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use anyhow::Result;
 use clap::{Args, ValueEnum};
@@ -96,7 +97,7 @@ async fn execute_with_pool_inner(
     };
 
     let content = match args.format {
-        ExportFormat::Json => serde_json::to_string_pretty(&logs)?,
+        ExportFormat::Json => CliService::json_string(&logs)?,
         ExportFormat::Jsonl => logs
             .iter()
             .map(serde_json::to_string)

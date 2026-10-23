@@ -18,6 +18,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use anyhow::{Result, anyhow};
 use clap::Args;
@@ -137,7 +138,7 @@ fn render(output: &ConfigValidateOutput) -> (CommandOutput, bool) {
 
 fn print_profile_schema() -> Result<(CommandOutput, bool)> {
     let schema = schemars::schema_for!(Profile);
-    let json = serde_json::to_string_pretty(&schema)
+    let json = CliService::json_string(&schema)
         .map_err(|e| anyhow!("failed to serialize Profile JSON schema: {e}"))?;
     Ok((CommandOutput::text(json), true))
 }

@@ -38,7 +38,7 @@ pub(super) fn print_artifacts(artifacts: &[TaskArtifact]) {
             },
             Some("data") => {
                 if let Some(ref data) = artifact.data_content {
-                    let formatted = serde_json::to_string_pretty(data).unwrap_or_else(|e| {
+                    let formatted = CliService::json_string(data).unwrap_or_else(|e| {
                         tracing::warn!(error = %e, "Failed to format artifact data as JSON");
                         String::new()
                     });

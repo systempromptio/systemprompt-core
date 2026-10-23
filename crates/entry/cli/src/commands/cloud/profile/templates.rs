@@ -189,7 +189,7 @@ pub fn save_secrets(
         secrets["internal_database_url"] = json!(internal);
     }
 
-    let content = serde_json::to_string_pretty(&secrets).context("Failed to serialize secrets")?;
+    let content = CliService::json_string(&secrets).context("Failed to serialize secrets")?;
     write_private_atomic(secrets_path, content.as_bytes())
         .with_context(|| format!("Failed to write {}", secrets_path.display()))
 }

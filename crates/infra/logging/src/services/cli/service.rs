@@ -75,9 +75,13 @@ impl CliService {
         }
     }
 
+    pub fn json_string<T: Serialize + ?Sized>(value: &T) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(value)
+    }
+
     pub fn json<T: Serialize>(value: &T) {
         mark_structured_emitted();
-        match serde_json::to_string_pretty(value) {
+        match Self::json_string(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
                 if let Err(e) = writeln!(stdout, "{json}") {

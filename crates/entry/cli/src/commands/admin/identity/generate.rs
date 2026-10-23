@@ -29,7 +29,7 @@ pub(super) fn execute(args: GenerateArgs, ctx: &CommandContext) -> Result<()> {
             CliService::json(&fragment);
         } else {
             CliService::output(
-                &serde_json::to_string_pretty(&fragment).context("serialising identity bundle")?,
+                &CliService::json_string(&fragment).context("serialising identity bundle")?,
             );
         }
         return Ok(());
