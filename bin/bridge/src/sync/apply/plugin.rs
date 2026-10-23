@@ -28,6 +28,7 @@ use std::path::Path;
 use systemprompt_models::bridge::host::HostKind;
 use tokio_util::sync::CancellationToken;
 
+#[derive(Default)]
 pub(crate) struct PluginApplyOutcome {
     pub installed: Vec<String>,
     pub updated: Vec<String>,
@@ -68,12 +69,7 @@ pub(super) async fn apply_plugins(
     ctx: &PluginSyncCtx<'_>,
     manifest: &SignedManifest,
 ) -> Result<PluginPhase, super::ApplyError> {
-    let mut installed = Vec::new();
-    let mut updated = Vec::new();
-    let mut malformed = Vec::new();
-    let mut mcp_servers_by_plugin = BTreeMap::new();
-    let mut receipts = Vec::new();
-    let mut warnings = Vec::new();
+    let mut outcome = PluginApplyOutcome::default();
     let total = manifest.plugins.len();
     if let Some(unsafe_id) = manifest
         .plugins
@@ -112,9 +108,35 @@ pub(super) async fn apply_plugins(
             Some(stamp) => refresh_unchanged(ctx, plugin, &manifest.hooks, stamp).await?,
             None => promote_plugin(ctx, plugin, &manifest.hooks).await?,
         };
-        receipts.push(applied.hooks_receipt);
+        outcome.record(plugin, applied);
+    }
+    if ctx.cancel.is_cancelled() {
+        return Ok(PluginPhase::Cancelled { applied: total });
+    }
+
+    outcome.removed = remove_stale_plugins(ctx, manifest)?;
+    Ok(PluginPhase::Complete(outcome))
+}
+
+fn remove_stale_plugins(
+    ctx: &PluginSyncCtx<'_>,
+    manifest: &SignedManifest,
+) -> Result<Vec<String>, super::ApplyError> {
+    let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
+    let removed = remove_stale(ctx.root, &expected)?;
+    for id in &removed {
+        let id = systemprompt_identifiers::PluginId::new(id);
+        stamp::clear(ctx.meta_dir, &id)?;
+        ctx.plugin_tokens.invalidate_plugin(&id);
+    }
+    Ok(removed)
+}
+
+impl PluginApplyOutcome {
+    fn record(&mut self, plugin: &PluginEntry, applied: PluginApplied) {
+        self.receipts.push(applied.hooks_receipt);
         if let NodeInstall::Skipped { reason } = &applied.node_install {
-            warnings.push(HostWarning::raise(
+            self.host_warnings.push(HostWarning::raise(
                 HostWarningKind::NodePackages,
                 WarningScope::OrgPlugins,
                 format!(
@@ -124,12 +146,13 @@ pub(super) async fn apply_plugins(
             ));
         }
         match applied.change {
-            PluginChange::Installed(id) => installed.push(id),
-            PluginChange::Updated(id) => updated.push(id),
+            PluginChange::Installed(id) => self.installed.push(id),
+            PluginChange::Updated(id) => self.updated.push(id),
             PluginChange::Unchanged => {},
         }
         if !applied.mcp_servers.is_empty() {
-            mcp_servers_by_plugin.insert(plugin.id.to_string(), applied.mcp_servers);
+            self.mcp_servers_by_plugin
+                .insert(plugin.id.to_string(), applied.mcp_servers);
         }
         match applied.manifest_shape {
             PluginJsonShape::Stamped => {},
@@ -138,7 +161,7 @@ pub(super) async fn apply_plugins(
                     plugin_id = %plugin.id,
                     "synced plugin is missing claude-plugin/plugin.json — Claude Desktop will skip it"
                 );
-                malformed.push(plugin.id.to_string());
+                self.malformed.push(plugin.id.to_string());
             },
             PluginJsonShape::Malformed(detail) => {
                 tracing::warn!(
@@ -146,32 +169,10 @@ pub(super) async fn apply_plugins(
                     detail = %detail,
                     "synced plugin.json cannot be read; delivered verbatim and reported"
                 );
-                malformed.push(plugin.id.to_string());
+                self.malformed.push(plugin.id.to_string());
             },
         }
     }
-    if ctx.cancel.is_cancelled() {
-        return Ok(PluginPhase::Cancelled { applied: total });
-    }
-
-    let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
-    let removed = remove_stale(ctx.root, &expected)?;
-    for id in &removed {
-        let id = systemprompt_identifiers::PluginId::new(id);
-        stamp::clear(ctx.meta_dir, &id)?;
-        ctx.plugin_tokens.invalidate_plugin(&id);
-    }
-
-    Ok(PluginPhase::Complete(PluginApplyOutcome {
-        installed,
-        updated,
-        removed,
-        malformed,
-        host_failures: Vec::new(),
-        host_warnings: warnings,
-        mcp_servers_by_plugin,
-        receipts,
-    }))
 }
 
 enum PluginChange {

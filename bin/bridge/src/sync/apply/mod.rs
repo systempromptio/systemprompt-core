@@ -93,7 +93,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
     };
     let phase = plugin::apply_plugins(&plugin_ctx, manifest).await;
     crate::fsutil::remove_leftover_dir(&staging_root);
-    let mut report = match phase? {
+    let report = match phase? {
         plugin::PluginPhase::Complete(report) => report,
         plugin::PluginPhase::Cancelled { applied } => {
             return Ok(ApplyOutcome::Cancelled { applied });
@@ -102,15 +102,33 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
 
     check_not_superseded(client.base_url())?;
 
+    emit_to_hosts(req, &meta_dir, report).await
+}
+
+async fn emit_to_hosts(
+    req: &ApplyRequest<'_>,
+    meta_dir: &Path,
+    mut report: plugin::PluginApplyOutcome,
+) -> Result<ApplyOutcome, ApplyError> {
+    let ApplyRequest {
+        client,
+        bearer,
+        bridge,
+        manifest,
+        location,
+        ..
+    } = *req;
+    let loopback = bridge.proxy.loopback();
+    let root = &location.path;
     let mcp_servers =
         loopback::rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
     let mut manifest_for_write = loopback::manifest_with_servers(manifest, mcp_servers.clone());
     skill_bodies::resolve(&mut manifest_for_write, root);
     report
         .receipts
-        .push(write_user(&meta_dir, manifest.user.as_ref())?);
+        .push(write_user(meta_dir, manifest.user.as_ref())?);
     report.receipts.push(write_mcp_servers(
-        &meta_dir,
+        meta_dir,
         client.base_url(),
         &mcp_servers,
     )?);
