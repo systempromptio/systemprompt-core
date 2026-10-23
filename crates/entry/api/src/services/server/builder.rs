@@ -26,7 +26,10 @@ use crate::services::middleware::{
     inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
 };
 
-pub use super::discovery::*;
+pub use super::discovery::{
+    authenticated_discovery_router, discovery_router, handle_agents_discovery,
+    handle_core_discovery, handle_mcp_discovery, handle_root_discovery, probes_router,
+};
 pub use super::health::handle_health;
 
 pub fn setup_api_server(
