@@ -47,6 +47,7 @@ use std::path::Path;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::RouteId;
+use systemprompt_manifest::services::catalog::CatalogContext;
 use systemprompt_manifest::services::{BundleOwnership, ServicesBundleManifest, ServicesConfig};
 
 use super::AuthzError;
@@ -122,11 +123,7 @@ async fn run_pass(
     let repo = AccessControlRepository::new(db);
     let svc = AccessControlIngestionService::new(db);
 
-    let route_ids = services
-        .gateway
-        .as_ref()
-        .map(|_g| Vec::<RouteId>::new()) // WP6A-LOCAL
-        .unwrap_or_default();
+    let route_ids = dispatchable_route_ids(services);
     let id_refs: Vec<&str> = route_ids.iter().map(RouteId::as_str).collect();
 
     let mut report = ReconcileReport::default();
@@ -180,6 +177,19 @@ fn bundle_view(services: &ServicesConfig, owns: &BundleOwnership, is_base: bool)
     view
 }
 
+fn dispatchable_route_ids(services: &ServicesConfig) -> Vec<RouteId> {
+    if services.gateway.is_none() {
+        return Vec::new();
+    }
+    match services.resolve_catalog(&CatalogContext::default()) {
+        Ok(catalog) => catalog.route_ids(),
+        Err(error) => {
+            tracing::warn!(%error, "catalog does not resolve; no gateway route is reconciled");
+            Vec::new()
+        },
+    }
+}
+
 fn bundle_scope(owns: &BundleOwnership, view: &ServicesConfig, is_base: bool) -> IngestScope {
     let mut scope = IngestScope::new()
         .with_kind(EntityKind::Marketplace, owns.marketplaces.clone())
@@ -187,11 +197,7 @@ fn bundle_scope(owns: &BundleOwnership, view: &ServicesConfig, is_base: bool) ->
         .with_kind(EntityKind::Skill, owns.skills.clone())
         .with_kind(EntityKind::Hook, owns.hooks.clone());
     if is_base {
-        let route_ids = view
-            .gateway
-            .as_ref()
-            .map(|_g| Vec::<RouteId>::new()) // WP6A-LOCAL
-            .unwrap_or_default();
+        let route_ids = dispatchable_route_ids(view);
         scope = scope.with_kind(
             EntityKind::GatewayRoute,
             route_ids.iter().map(|id| id.as_str().to_owned()),
