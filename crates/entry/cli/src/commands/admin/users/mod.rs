@@ -140,20 +140,20 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
 
 async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<CommandOutput> {
     match cmd {
-        UsersCommands::List(args) => list::execute(args, ctx).await,
-        UsersCommands::Show(args) => show::execute(args, ctx).await,
-        UsersCommands::Search(args) => search::execute(args, ctx).await,
-        UsersCommands::Create(args) => create::execute(args, ctx).await,
-        UsersCommands::Update(args) => update::execute(args, ctx).await,
-        UsersCommands::Delete(args) => delete::execute(args, ctx).await,
-        UsersCommands::Restore(args) => restore::execute(args, ctx).await,
-        UsersCommands::LegalHold(args) => restore::execute_legal_hold(args, ctx).await,
-        UsersCommands::Count(args) => count::execute(args, ctx).await,
-        UsersCommands::Export(args) => export::execute(args, ctx).await,
-        UsersCommands::Stats => stats::execute(ctx).await,
-        UsersCommands::Merge(args) => merge::execute(args, ctx).await,
-        UsersCommands::ApiKey(cmd) => apikey::execute(cmd, ctx).await,
-        UsersCommands::ServiceAccount(cmd) => service_account::execute(cmd, ctx).await,
+        UsersCommands::List(args) => Box::pin(list::execute(args, ctx)).await,
+        UsersCommands::Show(args) => Box::pin(show::execute(args, ctx)).await,
+        UsersCommands::Search(args) => Box::pin(search::execute(args, ctx)).await,
+        UsersCommands::Create(args) => Box::pin(create::execute(args, ctx)).await,
+        UsersCommands::Update(args) => Box::pin(update::execute(args, ctx)).await,
+        UsersCommands::Delete(args) => Box::pin(delete::execute(args, ctx)).await,
+        UsersCommands::Restore(args) => Box::pin(restore::execute(args, ctx)).await,
+        UsersCommands::LegalHold(args) => Box::pin(restore::execute_legal_hold(args, ctx)).await,
+        UsersCommands::Count(args) => Box::pin(count::execute(args, ctx)).await,
+        UsersCommands::Export(args) => Box::pin(export::execute(args, ctx)).await,
+        UsersCommands::Stats => Box::pin(stats::execute(ctx)).await,
+        UsersCommands::Merge(args) => Box::pin(merge::execute(args, ctx)).await,
+        UsersCommands::ApiKey(cmd) => Box::pin(apikey::execute(cmd, ctx)).await,
+        UsersCommands::ServiceAccount(cmd) => Box::pin(service_account::execute(cmd, ctx)).await,
         UsersCommands::Bulk(_)
         | UsersCommands::Role(_)
         | UsersCommands::Session(_)

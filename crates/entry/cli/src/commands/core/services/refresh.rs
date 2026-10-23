@@ -181,7 +181,7 @@ async fn swap_sources(
     let outcome = outcome_for(&rows);
 
     let reconciled = if outcome == RefreshOutcome::Changed {
-        reconcile_after_swap(profile, &root, cache, ctx).await?
+        Box::pin(reconcile_after_swap(profile, &root, cache, ctx)).await?
     } else {
         Vec::new()
     };
