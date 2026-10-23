@@ -25,6 +25,7 @@ fn rule(id: &str, body: &str) -> RuleEntry {
         instructions: body.to_owned(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        publication: None,
     }
 }
 

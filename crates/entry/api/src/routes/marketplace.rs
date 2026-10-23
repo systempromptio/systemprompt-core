@@ -178,7 +178,7 @@ async fn serve_plugin_file(
             .catalog(&services, services_root, api_external_url)?;
     let catalog = (*disk_catalog)
         .clone()
-        .without_organization_skills(
+        .without_organization_resources(
             ctx.managed_repository().as_ref().clone(),
             ctx.system_admin().id(),
         )

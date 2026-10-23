@@ -1,5 +1,5 @@
 //! Cohort resolution: which configured ring a consumer resolves a managed
-//! skill through.
+//! resource through.
 //!
 //! A consumer's membership is read per ring dimension — `role` from the
 //! consumer's roles, any other dimension from the registered subject-attribute
@@ -19,8 +19,8 @@ use systemprompt_identifiers::{ManagedResourceId, PublicationId, ResourceRevisio
 use systemprompt_manifest::services::CohortRing;
 
 use super::{
-    AssetDigest, ManagedError, ManagedRepository, ManagedResolution, Result, SkillResolutionRow,
-    invalid,
+    AssetDigest, ManagedError, ManagedRepository, ManagedResolution, ResourceKind,
+    ResourceResolutionRow, Result, invalid,
 };
 
 const ROLE_DIMENSION: &str = "role";
@@ -79,17 +79,18 @@ impl ManagedRepository {
             })
     }
 
-    pub async fn list_skill_resolutions_for(
+    pub async fn list_resolutions_for(
         &self,
         owner: &UserId,
         consumer: &UserId,
-    ) -> Result<Vec<SkillResolutionRow>> {
-        let mut rows = self.list_skill_resolutions(owner).await?;
+        kind: ResourceKind,
+    ) -> Result<Vec<ResourceResolutionRow>> {
+        let mut rows = self.list_resolutions(owner, kind).await?;
         let rings = self.consumer_rings(consumer).await?;
         if rings.is_empty() {
             return Ok(rows);
         }
-        let mut overrides = self.cohort_overrides(owner, &rings).await?;
+        let mut overrides = self.cohort_overrides(owner, &rings, kind).await?;
         for row in &mut rows {
             if let Some(resolution) = overrides.remove(&row.resource_key) {
                 row.resolution = resolution;
@@ -102,6 +103,7 @@ impl ManagedRepository {
         &self,
         owner: &UserId,
         rings: &[CohortRing],
+        kind: ResourceKind,
     ) -> Result<BTreeMap<String, ManagedResolution>> {
         let dimensions: Vec<String> = rings.iter().map(|ring| ring.dimension.clone()).collect();
         let selections = sqlx::query!(
@@ -112,10 +114,11 @@ impl ManagedRepository {
             JOIN managed_resources r ON r.owner_id=c.owner_id AND r.id=c.resource_id
             LEFT JOIN managed_publications p ON p.owner_id=c.owner_id AND p.resource_id=c.resource_id
                 AND p.id=c.publication_id AND p.generation=c.generation
-            WHERE c.owner_id=$1 AND r.kind='skill' AND c.cohort_dimension = ANY($2)
+            WHERE c.owner_id=$1 AND r.kind=$3 AND c.cohort_dimension = ANY($2)
             ORDER BY r.resource_key, c.cohort_dimension, c.cohort_value"#,
             owner.as_str(),
-            &dimensions
+            &dimensions,
+            kind.as_str()
         )
         .fetch_all(&self.pool)
         .await?;

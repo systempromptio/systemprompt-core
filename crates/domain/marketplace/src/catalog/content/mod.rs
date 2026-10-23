@@ -13,10 +13,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::SkillId;
+use systemprompt_identifiers::{PluginId, SkillId};
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
+    AgentEntry, ArtifactEntry, ManagedMcpServer, ManagedPublicationRef, RuleEntry, SkillEntry,
 };
 
 use crate::bundle::BundleContent;
@@ -29,6 +29,7 @@ use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
 
 mod managed;
+mod managed_harness;
 mod revision_cache;
 pub(crate) use revision_cache::VerifiedRevisions;
 
@@ -53,6 +54,8 @@ pub struct CatalogContent {
     artifacts: Vec<ArtifactEntry>,
     plugins_root: PathBuf,
     managed_files: BTreeMap<SkillId, RevisionFiles>,
+    plugin_publications: BTreeMap<PluginId, ManagedPublicationRef>,
+    withheld_plugins: BTreeSet<PluginId>,
 }
 
 impl CatalogContent {
@@ -88,6 +91,8 @@ impl CatalogContent {
             },
             plugins_root: services_root.join("plugins"),
             managed_files: BTreeMap::new(),
+            plugin_publications: BTreeMap::new(),
+            withheld_plugins: BTreeSet::new(),
         })
     }
 

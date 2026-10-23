@@ -7,7 +7,7 @@ mod catalog_batch;
 mod history;
 mod record;
 
-pub use catalog_batch::SkillResolutionRow;
+pub use catalog_batch::ResourceResolutionRow;
 
 use record::{Publication, admit_generation, existing_decision, record_publication};
 

@@ -15,7 +15,7 @@ use systemprompt_manifest::services::{
 use systemprompt_marketplace::managed::{
     AssetDigest, CohortSelector, ComparisonEvidence, GateContext, GateVerdict, ManagedError,
     ManagedRepository, ManagedResolution, NewRevision, PublicationAction, PublicationDecision,
-    PublicationGate, PublicationGateError, PublicationPolicy, PublicationRequest,
+    PublicationGate, PublicationGateError, PublicationPolicy, PublicationRequest, ResourceKind,
 };
 use systemprompt_test_fixtures::{seed_user_row_with_roles, test_db_pool};
 use uuid::Uuid;
@@ -135,7 +135,7 @@ async fn resolved_revision(
     consumer: &UserId,
 ) -> ResourceRevisionId {
     let rows = repository
-        .list_skill_resolutions_for(&f.owner, consumer)
+        .list_resolutions_for(&f.owner, consumer, ResourceKind::Skill)
         .await
         .expect("cohort resolution");
     let row = rows
@@ -382,7 +382,7 @@ async fn a_ring_on_an_unregistered_dimension_fails_resolution() {
     let repository = ringed(&f, &[("department", "finance")]);
     let reader = consumer(&["user"]).await;
     let resolution = repository
-        .list_skill_resolutions_for(&f.owner, &reader)
+        .list_resolutions_for(&f.owner, &reader, ResourceKind::Skill)
         .await;
     assert!(
         matches!(resolution, Err(ManagedError::Invalid(_))),

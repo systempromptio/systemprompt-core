@@ -71,6 +71,7 @@ fn sample_manifest() -> SignedManifest {
                 size: 42,
             }],
             hooks: Default::default(),
+            publication: None,
         }],
         skills: vec![SkillEntry {
             publication: None,
@@ -96,6 +97,7 @@ fn sample_manifest() -> SignedManifest {
             instructions: "never force-push".into(),
             hosts: Vec::new(),
             plugins: Vec::new(),
+            publication: None,
         }],
         agents: vec![AgentEntry {
             id: AgentId::new("agent_one"),

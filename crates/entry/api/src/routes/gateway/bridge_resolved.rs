@@ -107,7 +107,7 @@ pub async fn resolve_for_user(
     let started = std::time::Instant::now();
     let catalog = (*disk_catalog)
         .clone()
-        .with_organization_skills(ctx.managed_repository().as_ref().clone(), owner, user_id)
+        .with_organization_resources(ctx.managed_repository().as_ref().clone(), owner, user_id)
         .await?;
     let candidate = ManifestService::assemble_candidate_from_catalog(
         catalog.clone(),

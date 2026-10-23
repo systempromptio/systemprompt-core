@@ -27,6 +27,7 @@ pub mod marketplace_external;
 mod marketplace_external_error;
 pub mod marketplace_external_plugin;
 mod marketplace_mirror;
+mod marketplace_opencode;
 pub mod marketplace_publication;
 pub mod mcp;
 pub mod plugin;
@@ -86,7 +87,7 @@ pub use hooks::{
 pub use marketplace::{
     ClaudeCodeMarketplaceConfig, ExternalMarketplace, ExternalMarketplaceSource, MarketplaceAccess,
     MarketplaceAccessRule, MarketplaceConfig, MarketplaceConfigFile, MarketplaceMemberKind,
-    MarketplaceRuleAccess, MarketplaceVisibility,
+    MarketplaceRuleAccess, MarketplaceVisibility, OpenCodeMarketplaceConfig, OpenCodeThemeConfig,
 };
 pub use marketplace_external_plugin::{ExternalPluginEntry, ExternalPluginSource};
 pub use marketplace_publication::{

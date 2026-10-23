@@ -39,6 +39,7 @@ fn sample_plugin() -> PluginEntry {
             size: 42,
         }],
         hooks: Default::default(),
+        publication: None,
     }
 }
 

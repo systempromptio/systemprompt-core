@@ -223,6 +223,7 @@ fn hash_entry(
         sha256: aggregate,
         files,
         hooks: config.hooks.clone(),
+        publication: None,
     })
 }
 

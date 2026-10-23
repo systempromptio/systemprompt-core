@@ -1348,6 +1348,7 @@ fn rule_entry(id: &str, description: &str, instructions: &str) -> RuleEntry {
         instructions: instructions.to_owned(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        publication: None,
     }
 }
 

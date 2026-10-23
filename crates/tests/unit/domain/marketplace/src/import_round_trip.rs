@@ -90,6 +90,7 @@ fn original_marketplace() -> MarketplaceConfig {
         external_marketplaces: vec![],
         external_plugins: vec![],
         claude_code: None,
+        opencode: None,
     }
 }
 
@@ -127,6 +128,7 @@ fn rule_entry(id: &str, body: &str) -> RuleEntry {
         instructions: body.to_owned(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        publication: None,
     }
 }
 

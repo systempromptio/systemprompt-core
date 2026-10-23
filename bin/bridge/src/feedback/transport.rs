@@ -61,7 +61,7 @@ pub async fn bind(enrollment: &Enrollment, request: &SessionBindingRequest) -> R
 
 pub async fn plan(
     enrollment: &Enrollment,
-    publication: &systemprompt_models::bridge::manifest::SkillPublication,
+    publication: &systemprompt_models::bridge::manifest::ManagedPublicationRef,
     requested_host: systemprompt_models::feedback::EvaluatorClient,
 ) -> Result<ConsumerInstallationPlan> {
     let resource: String =

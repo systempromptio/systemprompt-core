@@ -17,8 +17,8 @@ use std::sync::Arc;
 use super::CatalogContent;
 use crate::error::MarketplaceError;
 use crate::managed::{
-    AssetDigest, ManagedError, ManagedRepository, ManagedResolution, RevisionBundle,
-    SkillResolutionRow,
+    AssetDigest, ManagedError, ManagedRepository, ManagedResolution, ResourceKind,
+    ResourceResolutionRow, RevisionBundle,
 };
 use systemprompt_identifiers::{ResourceRevisionId, UserId};
 
@@ -29,7 +29,7 @@ impl CatalogContent {
         owner: &UserId,
     ) -> Result<Self, MarketplaceError> {
         let rows = repository
-            .list_skill_resolutions(owner)
+            .list_resolutions(owner, ResourceKind::Skill)
             .await
             .map_err(MarketplaceError::Managed)?;
         self.overlay_managed(&repository, owner, rows, &BTreeSet::new())
@@ -39,7 +39,7 @@ impl CatalogContent {
         Ok(self)
     }
 
-    pub async fn with_organization_skills(
+    pub async fn with_organization_resources(
         self,
         repository: ManagedRepository,
         owner: &UserId,
@@ -53,16 +53,9 @@ impl CatalogContent {
         };
         // Why: the manifest records the grant it hands out, so catalogue
         // inclusion runs without one; only an explicit revocation withholds.
-        let revoked = if consumer == owner {
-            BTreeSet::new()
-        } else {
-            repository
-                .revoked_skill_keys(owner, consumer)
-                .await
-                .map_err(MarketplaceError::Managed)?
-        };
+        let revoked = revoked_keys(&repository, owner, consumer, ResourceKind::Skill).await?;
         let rows = repository
-            .list_skill_resolutions_for(owner, consumer)
+            .list_resolutions_for(owner, consumer, ResourceKind::Skill)
             .await
             .map_err(MarketplaceError::Managed)?;
         catalog
@@ -71,80 +64,40 @@ impl CatalogContent {
         catalog
             .skills
             .sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+        catalog
+            .overlay_harness(&repository, owner, consumer)
+            .await?;
         Ok(catalog)
     }
 
-    pub async fn without_organization_skills(
+    pub async fn without_organization_resources(
         mut self,
         repository: ManagedRepository,
         owner: &UserId,
     ) -> Result<Self, MarketplaceError> {
         for row in repository
-            .list_skill_resolutions(owner)
+            .list_resolutions(owner, ResourceKind::Skill)
             .await
             .map_err(MarketplaceError::Managed)?
         {
             self.remove_managed_key(&row.resource_key);
         }
+        self.withhold_harness(&repository, owner).await?;
         Ok(self)
-    }
-
-    fn admit_published(
-        &mut self,
-        rows: Vec<SkillResolutionRow>,
-        revoked: &BTreeSet<String>,
-    ) -> Result<Vec<(String, ManagedResolution)>, MarketplaceError> {
-        let mut published: Vec<(String, ManagedResolution)> = Vec::new();
-        for row in rows {
-            self.remove_managed_key(&row.resource_key);
-            if revoked.contains(&row.resource_key) {
-                tracing::info!(
-                    skill = %row.resource_key,
-                    reason = "not_granted",
-                    "managed skill withheld from the catalogue"
-                );
-                continue;
-            }
-            match row.resolution {
-                ManagedResolution::Published { .. } => {
-                    published.push((row.resource_key, row.resolution));
-                },
-                ManagedResolution::NeverAdopted { .. } => {
-                    tracing::info!(
-                        skill = %row.resource_key,
-                        reason = "never_adopted",
-                        "managed skill withheld from the catalogue"
-                    );
-                },
-                ManagedResolution::Withdrawn { .. } => {
-                    tracing::info!(
-                        skill = %row.resource_key,
-                        reason = "withdrawn",
-                        "managed skill withheld from the catalogue"
-                    );
-                },
-                ManagedResolution::IntegrityFailure { .. } => {
-                    return Err(MarketplaceError::Managed(ManagedError::Integrity));
-                },
-                ManagedResolution::NotManaged => {
-                    return Err(MarketplaceError::Catalog(format!(
-                        "managed skill {} lost its resource binding",
-                        row.resource_key
-                    )));
-                },
-            }
-        }
-        Ok(published)
     }
 
     async fn overlay_managed(
         &mut self,
         repository: &ManagedRepository,
         principal: &UserId,
-        rows: Vec<SkillResolutionRow>,
+        rows: Vec<ResourceResolutionRow>,
         revoked: &BTreeSet<String>,
     ) -> Result<(), MarketplaceError> {
-        let published = self.admit_published(rows, revoked)?;
+        let admitted = admit_published(rows, revoked, ResourceKind::Skill)?;
+        for key in &admitted.managed {
+            self.remove_managed_key(key);
+        }
+        let published = admitted.published;
         if published.is_empty() {
             return Ok(());
         }
@@ -169,6 +122,69 @@ impl CatalogContent {
         self.skills.retain(|entry| entry.id.as_str() != key);
         self.managed_files.retain(|id, _| id.as_str() != key);
     }
+}
+
+pub(super) struct Admitted {
+    pub managed: BTreeSet<String>,
+    pub published: Vec<(String, ManagedResolution)>,
+}
+
+pub(super) async fn revoked_keys(
+    repository: &ManagedRepository,
+    owner: &UserId,
+    consumer: &UserId,
+    kind: ResourceKind,
+) -> Result<BTreeSet<String>, MarketplaceError> {
+    if consumer == owner {
+        return Ok(BTreeSet::new());
+    }
+    repository
+        .revoked_keys(owner, consumer, kind)
+        .await
+        .map_err(MarketplaceError::Managed)
+}
+
+pub(super) fn admit_published(
+    rows: Vec<ResourceResolutionRow>,
+    revoked: &BTreeSet<String>,
+    kind: ResourceKind,
+) -> Result<Admitted, MarketplaceError> {
+    let mut admitted = Admitted {
+        managed: BTreeSet::new(),
+        published: Vec::new(),
+    };
+    for row in rows {
+        admitted.managed.insert(row.resource_key.clone());
+        let reason = if revoked.contains(&row.resource_key) {
+            "not_granted"
+        } else {
+            match row.resolution {
+                ManagedResolution::Published { .. } => {
+                    admitted.published.push((row.resource_key, row.resolution));
+                    continue;
+                },
+                ManagedResolution::NeverAdopted { .. } => "never_adopted",
+                ManagedResolution::Withdrawn { .. } => "withdrawn",
+                ManagedResolution::IntegrityFailure { .. } => {
+                    return Err(MarketplaceError::Managed(ManagedError::Integrity));
+                },
+                ManagedResolution::NotManaged => {
+                    return Err(MarketplaceError::Catalog(format!(
+                        "managed {} {} lost its resource binding",
+                        kind.as_str(),
+                        row.resource_key
+                    )));
+                },
+            }
+        };
+        tracing::info!(
+            kind = kind.as_str(),
+            key = %row.resource_key,
+            reason,
+            "managed resource withheld from the catalogue"
+        );
+    }
+    Ok(admitted)
 }
 
 // Why: a published revision never changes, so only revisions this repository

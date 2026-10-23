@@ -148,5 +148,6 @@ fn build_rule_entry(
         instructions,
         hosts: config.hosts,
         plugins: Vec::new(),
+        publication: None,
     }))
 }

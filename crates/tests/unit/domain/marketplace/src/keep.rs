@@ -131,6 +131,7 @@ fn plugin(id: &str) -> PluginEntry {
         sha256: Sha256Digest::try_new(ZERO_DIGEST).expect("valid digest"),
         files: vec![],
         hooks: Default::default(),
+        publication: None,
     }
 }
 

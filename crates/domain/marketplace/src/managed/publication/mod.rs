@@ -23,7 +23,7 @@ pub use gate::{
     GateContext, GateVerdict, PublicationGate, PublicationGateError, PublicationGateRegistration,
     PublicationPolicy, discover_publication_gates,
 };
-pub use repository::SkillResolutionRow;
+pub use repository::ResourceResolutionRow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]

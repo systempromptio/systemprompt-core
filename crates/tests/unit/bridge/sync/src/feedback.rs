@@ -82,9 +82,9 @@ fn prepared(
     (dir, receipt)
 }
 
-fn publication() -> systemprompt_models::bridge::manifest::SkillPublication {
+fn publication() -> systemprompt_models::bridge::manifest::ManagedPublicationRef {
     let plan = plan(EvaluatorClient::Codex);
-    systemprompt_models::bridge::manifest::SkillPublication {
+    systemprompt_models::bridge::manifest::ManagedPublicationRef {
         publication_id: plan.publication_id,
         resource_id: plan.resource_id,
         revision_id: plan.revision_id,

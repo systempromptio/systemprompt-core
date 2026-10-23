@@ -73,6 +73,7 @@ fn plugin_entry() -> PluginEntry {
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files,
         hooks: systemprompt_models::plugin::PluginHooksRef::default(),
+        publication: None,
     }
 }
 
@@ -196,6 +197,7 @@ fn org_provisioned_marketplace() -> ManifestMarketplace {
         external_marketplaces: vec![],
         external_plugins: vec![],
         claude_code: None,
+        opencode: None,
     }
 }
 
@@ -744,6 +746,7 @@ fn a_manifest_naming_marketplaces_mirrors_each_and_spares_every_marketplace_it_d
             external_marketplaces: vec![],
             external_plugins: vec![],
             claude_code: None,
+            opencode: None,
         })
         .collect();
     let (server, dirs) = rt.block_on(async {
@@ -1394,6 +1397,7 @@ fn foreign_plugin_entry(plugin_id: &str, files: &[(String, Vec<u8>)]) -> PluginE
             })
             .collect(),
         hooks: systemprompt_models::plugin::PluginHooksRef::default(),
+        publication: None,
     }
 }
 
@@ -1458,6 +1462,7 @@ fn claude_code_sync_aggregates_shared_foreign_marketplaces_once() {
             external_marketplaces: vec![vendor.clone()],
             external_plugins: vec![],
             claude_code: None,
+            opencode: None,
         },
         ManifestMarketplace {
             id: systemprompt_identifiers::MarketplaceId::new("commerce"),
@@ -1467,6 +1472,7 @@ fn claude_code_sync_aggregates_shared_foreign_marketplaces_once() {
             external_marketplaces: vec![vendor],
             external_plugins: vec![],
             claude_code: None,
+            opencode: None,
         },
     ];
     let (server, dirs) = rt.block_on(async {
@@ -1553,6 +1559,7 @@ fn claude_code_sync_lists_and_enables_a_pass_through_dependency_and_spares_its_i
             skills: None,
         }],
         claude_code: None,
+        opencode: None,
     }];
     let (server, dirs) = rt.block_on(async {
         let server = MockServer::start().await;

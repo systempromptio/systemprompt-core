@@ -34,7 +34,7 @@ pub use publication::{
     CohortSelector, ComparisonEvidence, GateContext, GateVerdict, INVENTORY_REFRESH_SOURCE,
     ManagedResolution, PublicationAction, PublicationAdmission, PublicationDecision,
     PublicationGate, PublicationGateError, PublicationGateRegistration, PublicationHistoryEntry,
-    PublicationPolicy, PublicationRequest, SkillResolutionRow, discover_publication_gates,
+    PublicationPolicy, PublicationRequest, ResourceResolutionRow, discover_publication_gates,
 };
 pub use reconciliation::{
     ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,

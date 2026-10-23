@@ -22,6 +22,8 @@ pub struct PluginEntry {
     pub files: Vec<PluginFile>,
     #[serde(default)]
     pub hooks: PluginHooksRef,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication: Option<ManagedPublicationRef>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,7 +52,7 @@ pub struct ArtifactEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub publication: Option<SkillPublication>,
+    pub publication: Option<ManagedPublicationRef>,
     pub id: SkillId,
     pub name: SkillName,
     pub description: String,
@@ -78,10 +80,11 @@ pub struct SkillSource {
     pub path: String,
 }
 
-/// Exact signed publication identity shared by every host projection. This is
-/// distribution evidence, not proof that a host installed or invoked the skill.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillPublication {
+/// Exact signed publication identity of a managed skill, plugin or rule,
+/// shared by every host projection. This is distribution evidence, not proof
+/// that a host installed or invoked the resource.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManagedPublicationRef {
     pub publication_id: systemprompt_identifiers::PublicationId,
     pub resource_id: systemprompt_identifiers::ManagedResourceId,
     pub revision_id: systemprompt_identifiers::ResourceRevisionId,
@@ -103,6 +106,8 @@ pub struct RuleEntry {
     pub hosts: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication: Option<ManagedPublicationRef>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

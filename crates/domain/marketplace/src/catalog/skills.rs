@@ -176,14 +176,17 @@ pub(crate) fn build_managed_skill_entry(
     }
     let sha256 = skill_digest(skill.frontmatter.as_ref(), &skill.instructions)?;
     let entry = SkillEntry {
-        publication: Some(systemprompt_models::bridge::manifest::SkillPublication {
-            publication_id: skill.publication_id,
-            resource_id: skill.resource_id,
-            revision_id: skill.revision_id,
-            generation: skill.generation,
-            bundle_digest: Sha256Digest::try_new(skill.bundle_digest.as_str())
-                .map_err(|error| MarketplaceError::catalog("managed skill bundle digest", error))?,
-        }),
+        publication: Some(
+            systemprompt_models::bridge::manifest::ManagedPublicationRef {
+                publication_id: skill.publication_id,
+                resource_id: skill.resource_id,
+                revision_id: skill.revision_id,
+                generation: skill.generation,
+                bundle_digest: Sha256Digest::try_new(skill.bundle_digest.as_str()).map_err(
+                    |error| MarketplaceError::catalog("managed skill bundle digest", error),
+                )?,
+            },
+        ),
         file_path: format!("managed://{}@{}", id.as_str(), skill.bundle_digest.as_str()),
         id,
         name,

@@ -129,6 +129,7 @@ fn plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files: plugin_files,
         hooks: PluginHooksRef::default(),
+        publication: None,
     }
 }
 

@@ -8,3 +8,5 @@ mod builder;
 mod envelope;
 #[cfg(test)]
 mod marketplace_claude_code;
+#[cfg(test)]
+mod marketplace_opencode;

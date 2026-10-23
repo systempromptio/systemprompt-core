@@ -577,6 +577,7 @@ fn rule(id: &str) -> RuleEntry {
         instructions: String::new(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        publication: None,
     }
 }
 

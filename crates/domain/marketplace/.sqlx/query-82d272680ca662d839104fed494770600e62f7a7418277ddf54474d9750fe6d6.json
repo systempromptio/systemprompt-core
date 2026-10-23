@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT r.resource_key, c.resource_id, c.cohort_dimension, c.cohort_value, c.generation,\n                c.publication_id, c.revision_id, c.bundle_digest,\n                p.revision_id AS \"published_revision_id?\", p.bundle_digest AS \"published_bundle_digest?\"\n            FROM managed_publication_cohort_selections c\n            JOIN managed_resources r ON r.owner_id=c.owner_id AND r.id=c.resource_id\n            LEFT JOIN managed_publications p ON p.owner_id=c.owner_id AND p.resource_id=c.resource_id\n                AND p.id=c.publication_id AND p.generation=c.generation\n            WHERE c.owner_id=$1 AND r.kind='skill' AND c.cohort_dimension = ANY($2)\n            ORDER BY r.resource_key, c.cohort_dimension, c.cohort_value",
+  "query": "SELECT r.resource_key, c.resource_id, c.cohort_dimension, c.cohort_value, c.generation,\n                c.publication_id, c.revision_id, c.bundle_digest,\n                p.revision_id AS \"published_revision_id?\", p.bundle_digest AS \"published_bundle_digest?\"\n            FROM managed_publication_cohort_selections c\n            JOIN managed_resources r ON r.owner_id=c.owner_id AND r.id=c.resource_id\n            LEFT JOIN managed_publications p ON p.owner_id=c.owner_id AND p.resource_id=c.resource_id\n                AND p.id=c.publication_id AND p.generation=c.generation\n            WHERE c.owner_id=$1 AND r.kind=$3 AND c.cohort_dimension = ANY($2)\n            ORDER BY r.resource_key, c.cohort_dimension, c.cohort_value",
   "describe": {
     "columns": [
       {
@@ -117,7 +117,8 @@
     "parameters": {
       "Left": [
         "Text",
-        "TextArray"
+        "TextArray",
+        "Text"
       ]
     },
     "nullable": [
@@ -133,5 +134,5 @@
       true
     ]
   },
-  "hash": "8efd5cc988933ed367c482e090428d37ab8a0cf9022eb77afa1ec99282f39748"
+  "hash": "82d272680ca662d839104fed494770600e62f7a7418277ddf54474d9750fe6d6"
 }

@@ -72,6 +72,7 @@ pub enum ResourceKind {
     Plugin,
     Marketplace,
     Supporting,
+    Rule,
 }
 
 impl ResourceKind {
@@ -81,6 +82,7 @@ impl ResourceKind {
             Self::Plugin => "plugin",
             Self::Marketplace => "marketplace",
             Self::Supporting => "supporting",
+            Self::Rule => "rule",
         }
     }
 }
