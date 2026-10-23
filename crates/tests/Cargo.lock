@@ -8128,12 +8128,15 @@ version = "0.0.11"
 dependencies = [
  "serde_json",
  "serde_yaml_ng",
+ "sqlx",
  "systemprompt-cli",
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-test-fixtures",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]

@@ -10,6 +10,8 @@
 #[cfg(test)]
 mod aborts;
 #[cfg(test)]
+mod data;
+#[cfg(test)]
 mod golden;
 #[cfg(test)]
 mod support;
