@@ -1,4 +1,4 @@
-//! Helpers resolving an existing CLI session for reuse.
+//! Resolution of an existing CLI session for reuse.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

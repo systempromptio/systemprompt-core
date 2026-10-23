@@ -9,12 +9,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod catalog;
-pub mod common;
 pub mod ddl;
 pub mod docker;
 pub mod docker_compose;
 mod docker_database;
 pub mod postgres;
+pub mod postgres_access;
 mod profile;
 mod profile_sections;
 pub mod secrets;

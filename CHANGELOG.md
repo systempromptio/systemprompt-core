@@ -43,6 +43,7 @@
 - **Breaking:** **Governance:** `AuthzDecisionHook` gains a required `probe` that decides without writing an audit row.
 - **Bridge profile:** `organization_uuid` has one derivation, `TenantId::organization_uuid`.
 - **CLI:** the `types` modules of the CLI command trees re-export their output types by name instead of through `pub use ...::*` globs.
+- **Breaking:** **CLI:** the `helpers`/`common` modules are named by responsibility: `admin::setup::postgres_access`, `infrastructure::db::text_format`, `session::creation::admin_bootstrap` and `session::resolution::context_resolver`.
 - **CLI:** JSON rendered for display or written to disk goes through `CliService::json_string`, the one pretty-JSON sink in `systemprompt-logging`.
 - **Breaking:** **Identifiers:** `ClientSessionId` is an opaque token (1–128 printable ASCII characters, no whitespace) instead of a lowercase hyphenated UUID, so a harness's own session id fits.
 - **Breaking:** **Sync:** boot and the `config_reconcile` job no longer write any config plane: they diff each declaration against the database and report the drift (`PlaneOutcome::{Corrected, Seeded}`, `PlaneReport::changes` and `ReconcileReport::changes` are removed; `ReconcileReport::drift_rows` replaces the last). A declaration reaches the database only through an explicit apply. Migrate by running `systemprompt admin config apply --reason <why>` in the deploy pipeline after each release (and once on a fresh install, which boot no longer seeds).

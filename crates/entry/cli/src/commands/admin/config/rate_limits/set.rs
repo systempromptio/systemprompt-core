@@ -8,7 +8,9 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 
 use super::SetArgs;
-use super::helpers::{get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate};
+use super::profile_edit::{
+    get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate,
+};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
 use crate::shared::{CommandOutput, render_result};

@@ -21,10 +21,10 @@ mod admin_migrations;
 mod commands;
 mod dispatch;
 mod doctor;
-pub mod helpers;
 mod introspect;
 mod query;
 mod schema;
+pub mod text_format;
 mod types;
 
 use anyhow::{Context, Result, bail};
@@ -47,7 +47,7 @@ pub use types::{
     MigrationStatusOutput, PendingMigrationInfo, TableIndexInfo, TableInfo, TableSizeInfo,
 };
 
-pub(crate) use helpers::format_bytes;
+pub(crate) use text_format::format_bytes;
 
 pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;

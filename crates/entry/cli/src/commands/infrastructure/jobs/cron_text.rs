@@ -1,4 +1,4 @@
-//! Shared job-command helpers.
+//! Human-readable rendering of job cron schedules.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

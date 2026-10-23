@@ -3,7 +3,7 @@
 //! [`get_or_create_session`] is the entry point. It resolves the active
 //! profile (CLI override, `SYSTEMPROMPT_PROFILE`, the stored active key, or
 //! bootstrap), reuses a valid cached session when present, and otherwise mints
-//! a new local or tenant session. The [`helpers`] submodule holds the
+//! a new local or tenant session. The [`context_resolver`] submodule holds the
 //! per-strategy resolution steps.
 //!
 //! A freshly minted session is stored under its key, but only a profile
@@ -16,7 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod helpers;
+pub mod context_resolver;
 
 use std::path::{Path, PathBuf};
 
@@ -33,7 +33,7 @@ use crate::cli_settings::{OutputFormat, VerbosityLevel};
 use crate::context::CommandContext;
 use crate::paths::ResolvedPaths;
 use crate::shared::ProfileSource;
-use helpers::{
+use context_resolver::{
     create_new_session, extract_profile_name, initialize_profile_bootstraps,
     resolve_profile_path_from_session, resolve_profile_path_without_session, try_session_from_env,
     try_validate_context,

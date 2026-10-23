@@ -1,4 +1,4 @@
-//! Shared db-command helpers: table-name suggestions, byte formatting.
+//! Byte formatting and table-name suggestions for db commands.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

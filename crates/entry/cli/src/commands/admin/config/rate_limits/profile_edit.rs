@@ -1,4 +1,4 @@
-//! Shared rate-limit command helpers.
+//! Rate-limit profile loading, saving and endpoint-rate edits.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

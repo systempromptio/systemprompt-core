@@ -8,7 +8,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use super::helpers::{collect_endpoint_changes, load_profile_for_edit, save_profile};
+use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;

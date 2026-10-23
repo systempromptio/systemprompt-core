@@ -9,7 +9,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
 use super::ResetArgs;
-use super::helpers::{
+use super::profile_edit::{
     collect_endpoint_changes, get_endpoint_rate, load_profile_for_edit, save_profile,
     set_endpoint_rate,
 };

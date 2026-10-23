@@ -5,7 +5,7 @@
 
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
-use systemprompt_cli::admin::setup::common::{
+use systemprompt_cli::admin::setup::postgres_access::{
     PostgresConfig, detect_postgresql, generate_password, test_connection,
 };
 use systemprompt_cli::admin::setup::docker_compose::create_compose_files_if_missing;

@@ -9,7 +9,7 @@ use std::process::Command;
 use systemprompt_logging::CliService;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
-use super::common::PostgresConfig;
+use super::postgres_access::PostgresConfig;
 
 pub fn is_docker_available() -> bool {
     Command::new("docker").arg("--version").output().is_ok()

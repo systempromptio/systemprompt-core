@@ -10,7 +10,7 @@ use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use super::helpers::{load_profile_for_edit, save_profile};
+use super::profile_edit::{load_profile_for_edit, save_profile};
 use super::{ExportArgs, ImportArgs};
 use crate::CliConfig;
 use crate::interactive::{Prompter, require_confirmation};
