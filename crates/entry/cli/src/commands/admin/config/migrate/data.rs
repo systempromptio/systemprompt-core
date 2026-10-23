@@ -55,8 +55,11 @@ async fn connect() -> Result<DbPool> {
 }
 
 pub async fn apply(map: &LegacyMap) -> Result<DataReport> {
-    let db = connect().await?;
-    let repo = CatalogMigrationRepository::new(&db);
+    apply_with(&connect().await?, map).await
+}
+
+pub async fn apply_with(db: &DbPool, map: &LegacyMap) -> Result<DataReport> {
+    let repo = CatalogMigrationRepository::new(db);
     let mut report = DataReport {
         legacy_entries: map.providers.len(),
         ..DataReport::default()
@@ -88,7 +91,7 @@ pub async fn apply(map: &LegacyMap) -> Result<DataReport> {
             }
         }
     }
-    report.host_filters_rewritten = BridgeHostPrefsRepository::new(&db)
+    report.host_filters_rewritten = BridgeHostPrefsRepository::new(db)
         .update_model_protocol_tag("anthropic", "claude")
         .await?;
     Ok(report)
