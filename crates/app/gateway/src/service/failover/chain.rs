@@ -173,7 +173,11 @@ impl<'r> Chain<'_, 'r> {
         hops.push(self.names[index].clone());
         let bound = resolve_deployment_upstream(
             self.send.primary,
-            DeploymentHop { index, hops: &hops },
+            DeploymentHop {
+                index,
+                hops: &hops,
+                engines: self.send.engines,
+            },
             self.send.ai_request_id,
         )
         .await;

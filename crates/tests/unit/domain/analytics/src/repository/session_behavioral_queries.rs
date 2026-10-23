@@ -293,11 +293,6 @@ async fn update_behavioral_detection_and_mark_bot() {
     assert_eq!(s.is_behavioral_bot, Some(true));
     assert_eq!(s.behavioral_bot_reason.as_deref(), Some("high_velocity"));
 
-    store
-        .mark_as_behavioral_bot(&sid, "manual_flag")
-        .await
-        .expect("mark bot");
-
     delete_session(&pool, &sid).await;
 }
 

@@ -51,8 +51,8 @@ use systemprompt_models::bridge::host::HostKind;
 use crate::drift::DesiredProfile;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
-    HostAppSnapshot, HostProcesses, ProbeEnv, ProfileInstalled, ProfileRemoval, ProfileState,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
+    HostProcesses, ProbeEnv, ProfileInstalled, ProfileRemoval, ProfileState,
 };
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::profile_state::ProfileProbe;
@@ -86,7 +86,10 @@ impl HostApp for ClaudeDesktopHost {
             read_error: read.probe_error.as_deref(),
             desired: &desired,
         });
-        let found = HostProcesses::from_enumeration(os::list_claude_processes());
+        let found = HostProcesses::from_enumeration(
+            os::list_claude_processes(),
+            systemprompt_models::bridge::host::HostAppKind::DesktopApp,
+        );
         let update_needs_approval = os::update_needs_approval(read.source_path.as_deref(), env);
         HostAppSnapshot {
             host_id: self.id(),
@@ -152,10 +155,6 @@ impl HostApp for ClaudeDesktopHost {
         } else {
             "offered to System Settings — approve it under General › Device Management"
         }
-    }
-
-    fn kind(&self) -> HostAppKind {
-        HostAppKind::DesktopApp
     }
 
     fn description(&self) -> &'static str {

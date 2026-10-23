@@ -13,6 +13,8 @@
 
 use std::sync::Arc;
 
+use systemprompt_security::credential::TokenCache;
+
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_database::DbPool;
 use systemprompt_mcp::McpToolProvider;
@@ -26,12 +28,14 @@ pub(super) fn build_ai_service(
     database: &DbPool,
     repositories: &RepositoryBundles,
     mcp_registry: &RegistryService,
-) -> RuntimeResult<Option<Arc<AiService>>> {
+) -> RuntimeResult<(Option<Arc<AiService>>, Arc<TokenCache>)> {
     let services = systemprompt_loader::ServicesBootstrap::get()?;
+    let connector_tokens: Arc<TokenCache> = Arc::default();
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(database),
         mcp_registry.clone(),
         &services.ai.mcp.resilience,
+        Arc::clone(&connector_tokens),
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
         SessionRepository::new(database),
@@ -49,12 +53,13 @@ pub(super) fn build_ai_service(
         },
         &repositories.ai,
     ) {
-        Ok(service) => Ok(Some(Arc::new(
-            service.with_context_materializer(materializer),
-        ))),
+        Ok(service) => Ok((
+            Some(Arc::new(service.with_context_materializer(materializer))),
+            connector_tokens,
+        )),
         Err(err) => {
             tracing::warn!(error = %err, "Inference is not configured; the runtime carries no AI service");
-            Ok(None)
+            Ok((None, connector_tokens))
         },
     }
 }

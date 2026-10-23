@@ -91,7 +91,7 @@ pub async fn build_profile_inputs(
 
     let mut facts = ProfileFacts::load(loopback, &bridge.mcp_registry.load(), overrides.clone())?;
     facts.profile = Some(server_profile);
-    Ok(facts.inputs_for(host.id()))
+    Ok(facts.inputs_for(host.profile_identity()))
 }
 
 /// Whether the user asked for this repair.

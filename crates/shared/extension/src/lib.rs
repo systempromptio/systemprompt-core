@@ -71,7 +71,6 @@ pub mod migration;
 pub mod purge;
 pub mod registry;
 pub mod router;
-pub mod runtime_config;
 pub mod seed;
 mod traits;
 

@@ -506,7 +506,7 @@ agents:
       audience: a2a
 mcp_servers:
   fixture_mcp:
-    type: internal
+    server_type: internal
     binary: fixture-mcp-binary
     package: fixture
     port: 5100
@@ -763,7 +763,7 @@ fn rejects_absolute_internal_mcp_endpoint() {
     let content = r#"
 mcp_servers:
   fixture:
-    type: internal
+    server_type: internal
     binary: fixture-bin
     port: 5100
     endpoint: http://localhost:8080/api/v1/mcp/fixture/mcp

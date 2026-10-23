@@ -10,7 +10,10 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use systemprompt_api::services::server::{discovery_router, signal_ready, signal_shutdown};
+use std::sync::Arc;
+
+use axum::Extension;
+use systemprompt_api::services::server::{ReadinessState, discovery_router};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use tower::ServiceExt;
@@ -21,8 +24,13 @@ async fn ctx() -> AppContext {
     (*test_app_context(&pool, &url)).clone()
 }
 
-async fn probe(ctx: &AppContext, path: &str) -> (StatusCode, serde_json::Value) {
+async fn probe(
+    ctx: &AppContext,
+    readiness: &Arc<ReadinessState>,
+    path: &str,
+) -> (StatusCode, serde_json::Value) {
     let response = discovery_router(ctx)
+        .layer(Extension(Arc::clone(readiness)))
         .oneshot(
             Request::builder()
                 .uri(path)
@@ -41,9 +49,10 @@ async fn probe(ctx: &AppContext, path: &str) -> (StatusCode, serde_json::Value) 
 #[tokio::test]
 async fn livez_answers_alive_and_names_the_replica_that_answered() {
     let ctx = ctx().await;
+    let readiness = Arc::new(ReadinessState::new());
     let expected = ctx.config().instance_id.as_str().to_owned();
 
-    let (status, body) = probe(&ctx, "/livez").await;
+    let (status, body) = probe(&ctx, &readiness, "/livez").await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "alive");
@@ -61,8 +70,9 @@ async fn livez_answers_alive_and_names_the_replica_that_answered() {
 #[tokio::test]
 async fn readyz_refuses_admission_before_the_process_signals_ready() {
     let ctx = ctx().await;
+    let readiness = Arc::new(ReadinessState::new());
 
-    let (status, body) = probe(&ctx, "/readyz").await;
+    let (status, body) = probe(&ctx, &readiness, "/readyz").await;
 
     assert_eq!(
         status,
@@ -75,9 +85,10 @@ async fn readyz_refuses_admission_before_the_process_signals_ready() {
 #[tokio::test]
 async fn readyz_admits_the_node_once_it_is_ready_and_the_database_answers() {
     let ctx = ctx().await;
-    signal_ready();
+    let readiness = Arc::new(ReadinessState::new());
+    readiness.signal_ready();
 
-    let (status, body) = probe(&ctx, "/readyz").await;
+    let (status, body) = probe(&ctx, &readiness, "/readyz").await;
 
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["status"], "ready");
@@ -91,13 +102,14 @@ async fn readyz_admits_the_node_once_it_is_ready_and_the_database_answers() {
 #[tokio::test]
 async fn readyz_stops_admitting_the_moment_the_drain_starts() {
     let ctx = ctx().await;
-    signal_ready();
-    let (ready, _) = probe(&ctx, "/readyz").await;
+    let readiness = Arc::new(ReadinessState::new());
+    readiness.signal_ready();
+    let (ready, _) = probe(&ctx, &readiness, "/readyz").await;
     assert_eq!(ready, StatusCode::OK, "precondition: the node was admitted");
 
-    signal_shutdown();
+    readiness.signal_shutdown();
 
-    let (status, body) = probe(&ctx, "/readyz").await;
+    let (status, body) = probe(&ctx, &readiness, "/readyz").await;
     assert_eq!(
         status,
         StatusCode::SERVICE_UNAVAILABLE,
@@ -109,10 +121,11 @@ async fn readyz_stops_admitting_the_moment_the_drain_starts() {
 #[tokio::test]
 async fn livez_keeps_answering_alive_while_the_node_drains() {
     let ctx = ctx().await;
-    signal_ready();
-    signal_shutdown();
+    let readiness = Arc::new(ReadinessState::new());
+    readiness.signal_ready();
+    readiness.signal_shutdown();
 
-    let (status, body) = probe(&ctx, "/livez").await;
+    let (status, body) = probe(&ctx, &readiness, "/livez").await;
 
     assert_eq!(
         status,

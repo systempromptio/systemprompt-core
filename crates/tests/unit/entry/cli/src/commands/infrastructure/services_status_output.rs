@@ -10,11 +10,12 @@ use systemprompt_cli::infrastructure::services::status::{
     build_status_output, external_row, health_label, managed_health_label,
 };
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::ServiceStatus;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_scheduler::{DesiredStatus, RuntimeStatus, ServiceType, VerifiedServiceState};
+use systemprompt_scheduler::{DesiredStatus, ServiceType, VerifiedService, VerifiedServiceState};
 
-fn state(name: &str, service_type: ServiceType, runtime: RuntimeStatus) -> VerifiedServiceState {
+fn state(name: &str, service_type: ServiceType, runtime: VerifiedService) -> VerifiedServiceState {
     VerifiedServiceState::builder(
         ServiceName::new(name),
         service_type,
@@ -68,28 +69,52 @@ fn managed_health_label_uses_mcp_health_map_for_mcp_services() {
     let mut health = HashMap::new();
     health.insert("filesystem".to_string(), HealthStatus::Healthy);
 
-    let known = state("filesystem", ServiceType::Mcp, RuntimeStatus::Running);
+    let known = state(
+        "filesystem",
+        ServiceType::Mcp,
+        VerifiedService::observed(ServiceStatus::Running),
+    );
     assert_eq!(managed_health_label(&known, &health), "OK");
 
-    let unknown = state("missing", ServiceType::Mcp, RuntimeStatus::Running);
+    let unknown = state(
+        "missing",
+        ServiceType::Mcp,
+        VerifiedService::observed(ServiceStatus::Running),
+    );
     assert_eq!(managed_health_label(&unknown, &health), "DEGRADED");
 }
 
 #[test]
 fn managed_health_label_uses_runtime_state_for_non_mcp_services() {
     let health = HashMap::new();
-    let running = state("api", ServiceType::Api, RuntimeStatus::Running);
+    let running = state(
+        "api",
+        ServiceType::Api,
+        VerifiedService::observed(ServiceStatus::Running),
+    );
     assert_eq!(managed_health_label(&running, &health), "OK");
 
-    let crashed = state("api", ServiceType::Api, RuntimeStatus::Crashed);
+    let crashed = state(
+        "api",
+        ServiceType::Api,
+        VerifiedService::observed(ServiceStatus::Error),
+    );
     assert_eq!(managed_health_label(&crashed, &health), "DEGRADED");
 }
 
 #[test]
 fn build_status_output_counts_managed_and_external_running_services() {
     let states = vec![
-        state("api", ServiceType::Api, RuntimeStatus::Running),
-        state("agent", ServiceType::Agent, RuntimeStatus::Stopped),
+        state(
+            "api",
+            ServiceType::Api,
+            VerifiedService::observed(ServiceStatus::Running),
+        ),
+        state(
+            "agent",
+            ServiceType::Agent,
+            VerifiedService::observed(ServiceStatus::Stopped),
+        ),
     ];
     let external = vec![
         external_row(&mcp_status("github", HealthStatus::Healthy, None)),
@@ -109,7 +134,11 @@ fn build_status_output_counts_managed_and_external_running_services() {
 
 #[test]
 fn build_status_output_attaches_health_labels_when_requested() {
-    let states = vec![state("api", ServiceType::Api, RuntimeStatus::Running)];
+    let states = vec![state(
+        "api",
+        ServiceType::Api,
+        VerifiedService::observed(ServiceStatus::Running),
+    )];
     let output = build_status_output(&states, &HashMap::new(), &[], true);
     assert_eq!(output.services[0].health.as_deref(), Some("OK"));
 }

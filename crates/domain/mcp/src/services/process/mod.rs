@@ -37,6 +37,10 @@ impl ProcessService {
         subprocess::is_running(pid).await
     }
 
+    pub async fn owns(pid: u32, service_name: &ServiceName) -> bool {
+        subprocess::owns(pid, ChildKind::Mcp, service_name).await
+    }
+
     pub async fn owned_port_holders(
         port: u16,
         service_name: &ServiceName,

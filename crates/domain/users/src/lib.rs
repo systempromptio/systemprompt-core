@@ -50,8 +50,8 @@ pub use repository::{
     ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams,
     BannedIp, BannedIpRepository, CreateApiKeyParams, EnrollDeviceCertParams,
     EnsuredServiceAccount, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
-    NewSsoLoginEvent, PurgeCount, SessionRepository, SsoLoginEvent, SsoLoginEventRepository,
-    UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
+    NewSsoLoginEvent, PurgeCount, SessionRepository, SessionTrafficRollupRepository, SsoLoginEvent,
+    SsoLoginEventRepository, UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyLifetime, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,

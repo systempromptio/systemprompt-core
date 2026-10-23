@@ -5,7 +5,7 @@ use serde_json::json;
 use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
 };
-use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+use systemprompt_mcp::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
 
 use systemprompt_models::mcp::ExecutionSource;
@@ -39,7 +39,7 @@ fn create_test_result() -> ToolExecutionResult {
     ToolExecutionResult {
         output: Some(json!({"result": "success"})),
         output_schema: Some(json!({"type": "object"})),
-        status: ExecutionStatus::Success.as_str().to_string(),
+        status: McpToolExecutionStatus::Success.as_str().to_string(),
         error_message: None,
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),
@@ -159,7 +159,7 @@ fn test_tool_execution_result_failure() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: ExecutionStatus::Failed.as_str().to_string(),
+        status: McpToolExecutionStatus::Failed.as_str().to_string(),
         error_message: Some("Connection timeout".to_string()),
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),
@@ -175,7 +175,7 @@ fn test_tool_execution_result_pending() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: ExecutionStatus::Pending.as_str().to_string(),
+        status: McpToolExecutionStatus::Pending.as_str().to_string(),
         error_message: None,
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),

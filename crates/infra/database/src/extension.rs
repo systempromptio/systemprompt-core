@@ -59,7 +59,13 @@ impl Extension for DatabaseExtension {
                 include_str!("../schema/release_stamps.sql"),
             )
             .with_required_columns(vec!["name".into(), "version".into()]),
+            SchemaDefinition::new(
+                "config_version",
+                include_str!("../schema/config_version.sql"),
+            )
+            .with_required_columns(vec!["id".into(), "version".into(), "plane".into()]),
             SchemaDefinition::sql_only(include_str!("../schema/functions.sql")),
+            SchemaDefinition::sql_only(include_str!("../schema/config_change_triggers.sql")),
         ]
     }
 

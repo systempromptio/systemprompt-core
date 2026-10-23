@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use systemprompt_bridge::ids::HostToken;
-use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
+use systemprompt_bridge::integration::codex::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
     HostApp, ProfileGenInputs, ProfileState, StaleReason,
 };

@@ -3,9 +3,11 @@
 //! Resolves the profile-driven foundation an
 //! [`AppContext`](crate::context::AppContext) is assembled on — config, paths,
 //! files, database pool, signing key, authz hook, and logging — plus extension
-//! discovery and schema installation. The path/files/config inits are
-//! idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can build a
-//! context self-sufficiently while a CLI that already ran them sees a no-op.
+//! discovery and schema installation. The files configuration is built here
+//! from the resolved paths and owned by the context; the profile and config
+//! inits are idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can
+//! build a context self-sufficiently while a CLI that already ran them sees a
+//! no-op.
 //!
 //! Upstreams publish and retire models without an operator edit, so the
 //! catalog is augmented at boot from their live listings
@@ -27,6 +29,7 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_manifest::{Config, Profile};
@@ -37,6 +40,7 @@ use crate::error::RuntimeResult;
 pub(super) struct CoreLayer {
     pub(super) config: Arc<Config>,
     pub(super) app_paths: Arc<AppPaths>,
+    pub(super) files_config: Arc<FilesConfig>,
     pub(super) database: Arc<Database>,
     pub(super) authz_hook: SharedAuthzHook,
     pub(super) governance: Arc<GovernanceEngine>,
@@ -80,9 +84,15 @@ async fn resolve_services_root(
         profile.path_resolution(),
         Some(active_root.path.as_path()),
     )?);
-    systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))?;
     Ok((active_root, app_paths))
+}
+
+fn init_files_config(app_paths: &AppPaths) -> RuntimeResult<Arc<FilesConfig>> {
+    let files_config = FilesConfig::from_profile(app_paths)?;
+    files_config.validate()?;
+    files_config.ensure_storage_structure()?;
+    Ok(Arc::new(files_config))
 }
 
 pub(super) async fn init_core(
@@ -91,6 +101,7 @@ pub(super) async fn init_core(
     let profile = ProfileBootstrap::get()?;
     let secrets = SecretsBootstrap::get()?;
     let (active_root, app_paths) = resolve_services_root(profile, secrets).await?;
+    let files_config = init_files_config(&app_paths)?;
     let services = init_services(secrets).await?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = config.instance_id.clone();
@@ -142,6 +153,7 @@ pub(super) async fn init_core(
     Ok(CoreLayer {
         config,
         app_paths,
+        files_config,
         database,
         authz_hook,
         governance,

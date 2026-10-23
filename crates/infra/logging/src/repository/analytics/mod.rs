@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -33,6 +33,21 @@ impl AnalyticsRepository {
     pub async fn log_event(&self, event: &AnalyticsEvent) -> Result<i64, LoggingError> {
         let result = execute_insert(&self.write_pool, event).await?;
         Ok(i64::try_from(result).unwrap_or(i64::MAX))
+    }
+
+    pub async fn purge_before(
+        &self,
+        cutoff: DateTime<Utc>,
+        batch: i64,
+    ) -> Result<u64, LoggingError> {
+        let result = sqlx::query!(
+            "DELETE FROM analytics_events WHERE ctid = ANY(ARRAY(SELECT ctid FROM analytics_events WHERE timestamp < $1 LIMIT $2))",
+            cutoff,
+            batch
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
     }
 }
 
@@ -84,7 +99,7 @@ struct EventParams<'a> {
     error_code: Option<i32>,
     response_time_ms: Option<i32>,
     metadata: String,
-    timestamp: chrono::DateTime<Utc>,
+    timestamp: DateTime<Utc>,
 }
 
 impl<'a> From<&'a AnalyticsEvent> for EventParams<'a> {

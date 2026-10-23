@@ -31,6 +31,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::bridge::host::HostKind;
 pub use crate::bridge::ids::ManifestSignature;
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::bridge::update_policy::AutoUpdatePolicy;
@@ -114,9 +115,9 @@ pub struct SignedManifest {
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub revocations: Vec<ApiKeyId>,
     #[serde(default)]
-    pub enabled_hosts: Vec<String>,
+    pub enabled_hosts: Vec<HostKind>,
     #[serde(default)]
-    pub host_model_protocols: BTreeMap<String, Vec<String>>,
+    pub host_model_protocols: BTreeMap<HostKind, Vec<String>>,
     #[serde(default)]
     pub artifacts: Vec<ArtifactEntry>,
     #[serde(default)]

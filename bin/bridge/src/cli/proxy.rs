@@ -59,7 +59,7 @@ pub fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
          OpenCode has no environment override for a provider, so it is\n\
          configured by file. Let the bridge write both halves:\n\
          \n  \
-         {bin} install --host opencode\n\
+         {bin} install --host opencode-cli\n\
          \n\
          or add this to ~/.config/opencode/opencode.json by hand and put the\n\
          same token in ~/.local/share/opencode/auth.json as\n\

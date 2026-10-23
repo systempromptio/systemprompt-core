@@ -23,9 +23,24 @@ pub mod ai;
 
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
+use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::paths::AppPaths;
+use systemprompt_files::FilesConfig;
+use systemprompt_loader::ServicesRootBootstrap;
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
+
+fn load_files_config() -> Result<FilesConfig> {
+    let profile = ProfileBootstrap::get()?;
+    let paths = AppPaths::from_profile(
+        &profile.paths,
+        profile.path_resolution(),
+        ServicesRootBootstrap::get().map(|root| root.path.as_path()),
+    )
+    .context("Failed to build paths")?;
+    Ok(FilesConfig::from_profile(&paths)?)
+}
 
 #[derive(Debug, Subcommand)]
 pub enum FilesCommands {

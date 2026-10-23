@@ -247,6 +247,7 @@ pub(crate) fn make_job_context(
 ) -> JobContext {
     let dependencies = Dependencies::new()
         .with(Arc::clone(app_context.app_paths_arc()))
+        .with(Arc::clone(app_context.files_config()))
         .with(BudgetedDb::new(Arc::clone(&db_pool), budget))
         .with(db_pool)
         .with(app_context);

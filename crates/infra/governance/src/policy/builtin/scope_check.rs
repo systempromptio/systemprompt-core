@@ -31,7 +31,7 @@ use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
 use super::role_gate::RoleRule;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
-const ID: &str = "scope_check";
+pub(crate) const ID: &str = "scope_check";
 const DEFAULT_ADMIN_ONLY_PREFIXES: &[&str] = &["mcp__systemprompt__"];
 
 #[derive(Debug)]

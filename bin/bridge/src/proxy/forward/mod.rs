@@ -28,7 +28,7 @@ pub mod headers;
 mod hook;
 pub mod replay;
 mod retry;
-mod route;
+pub mod route;
 
 use body::prepare_upstream_body;
 pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
@@ -155,7 +155,7 @@ pub(crate) async fn forward(
     })?;
 
     headers::ensure_ingestion_delivery_id(&request_path, &mut upstream_headers)?;
-    if hook_plugin.is_some() && request_path == "/api/public/hooks/track" {
+    if hook_plugin.is_some() && request_path == systemprompt_models::ApiPaths::PUBLIC_HOOKS_TRACK {
         authenticate_hook_track(
             gateway_base,
             &parts.headers,

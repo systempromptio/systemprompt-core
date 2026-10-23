@@ -74,7 +74,7 @@ impl ProbeEnv {
             .facts
             .as_ref()
             .map_err(|e| DesiredError::Facts(Arc::clone(e)))?;
-        host.desired(&facts.inputs_for(host.id()))
+        host.desired(&facts.inputs_for(host.profile_identity()))
             .map_err(|e| DesiredError::Render(Arc::new(e)))
     }
 }

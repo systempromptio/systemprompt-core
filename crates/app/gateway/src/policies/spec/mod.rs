@@ -19,10 +19,12 @@ mod window;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::QuotaSubjectKind;
+use systemprompt_manifest::EnforcementMode;
 
 pub use safety::{
-    DEFAULT_SCANNER_TIMEOUT_MS, HeuristicConfig, SafetyConfig, SafetyHistoryMode, SafetyMode,
-    ScannerFailMode, ScannerSettings,
+    DEFAULT_SCANNER_TIMEOUT_MS, HeuristicConfig, SafetyConfig, SafetyHistoryMode, ScannerFailMode,
+    ScannerSettings,
 };
 pub use window::{CalendarPeriod, WindowSpan};
 
@@ -91,58 +93,31 @@ impl QuotaWindow {
 }
 
 fn default_subject() -> String {
-    "user".to_owned()
+    QuotaSubjectKind::User.to_string()
 }
 
-pub const USER_QUOTA_SUBJECT: &str = "user";
-pub const API_KEY_QUOTA_SUBJECT: &str = "api_key";
-
-/// Whether an exhausted quota window refuses the request or only records
-/// that it would have.
-///
-/// The quota windows are the third enforcement plane on an inference request,
-/// beside the governance chain and the safety scanners, and warn mode has to
-/// cover it too or "nothing blocks" is not true. Under `warn` every window is
-/// still reserved against and every ceiling still evaluated; a breach is
-/// written to `governance_decisions` as a `warn` under policy `quota`, and
-/// the request proceeds.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum QuotaMode {
-    #[default]
-    Enforce,
-    Warn,
-}
-
-impl QuotaMode {
-    #[must_use]
-    pub const fn is_warn(self) -> bool {
-        matches!(self, Self::Warn)
+// Why: a request-rate window is counted per principal; a scope dimension has
+// no per-request identity to throttle on, so the policy file rejects it here
+// rather than silently skipping the window at request time.
+fn principal_subject<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<QuotaSubjectKind, D::Error> {
+    let kind = QuotaSubjectKind::deserialize(deserializer)?;
+    if kind.is_principal() {
+        Ok(kind)
+    } else {
+        Err(serde::de::Error::custom(format!(
+            "rate window subject must be `user` or `api_key`, got `{kind}`"
+        )))
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum RateSubject {
-    User,
-    ApiKey,
-}
-
-impl RateSubject {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::User => USER_QUOTA_SUBJECT,
-            Self::ApiKey => API_KEY_QUOTA_SUBJECT,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct RateWindow {
     pub window_seconds: u32,
-    pub subject: RateSubject,
+    #[serde(deserialize_with = "principal_subject")]
+    pub subject: QuotaSubjectKind,
     pub max_requests: u32,
 }
 
@@ -150,7 +125,7 @@ pub struct RateWindow {
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicySpec {
     #[serde(default)]
-    pub quota_mode: QuotaMode,
+    pub quota_mode: EnforcementMode,
     #[serde(default)]
     pub quota_windows: Vec<QuotaWindow>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

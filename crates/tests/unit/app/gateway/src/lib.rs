@@ -17,6 +17,8 @@ mod canonical_response;
 #[cfg(test)]
 mod chain_plan;
 #[cfg(test)]
+mod engines_injected;
+#[cfg(test)]
 mod failover;
 #[cfg(test)]
 mod google_credentials;
@@ -88,6 +90,8 @@ mod prompt_recovery_transport;
 mod quota_calendar;
 #[cfg(test)]
 mod quota_estimate;
+#[cfg(test)]
+mod quota_subject_kind;
 #[cfg(test)]
 mod registry;
 #[cfg(test)]

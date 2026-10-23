@@ -57,4 +57,13 @@ impl AuthzDecisionHook for CompositeAuthzHook {
         }
         AuthzDecision::Allow
     }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        for hook in &self.hooks {
+            if let deny @ AuthzDecision::Deny { .. } = hook.probe(req.clone()).await {
+                return deny;
+            }
+        }
+        AuthzDecision::Allow
+    }
 }

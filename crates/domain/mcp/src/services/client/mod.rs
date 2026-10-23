@@ -14,6 +14,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use crate::error::McpDomainResult;
 use rmcp::ServiceExt;
 use rmcp::model::{ClientConfig, Implementation, ProtocolVersion};
@@ -23,6 +25,7 @@ use rmcp::transport::streamable_http_client::{
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::Config;
 use systemprompt_models::ai::tools::McpTool;
+use systemprompt_security::credential::TokenCache;
 
 mod bounded_sse;
 mod capabilities;
@@ -49,18 +52,26 @@ pub use validation::{
     validate_connection_with_auth,
 };
 
-#[derive(Debug, Clone, Copy)]
-pub struct McpClient;
+#[derive(Debug, Clone)]
+pub struct McpClient {
+    connector_tokens: Arc<TokenCache>,
+}
 
 impl McpClient {
+    #[must_use]
+    pub const fn new(connector_tokens: Arc<TokenCache>) -> Self {
+        Self { connector_tokens }
+    }
+
     pub async fn list_tools(
+        &self,
         server_config: &systemprompt_models::mcp::McpServerConfig,
         context: &systemprompt_models::RequestContext,
     ) -> McpDomainResult<Vec<McpTool>> {
         let service_id = McpServerId::try_new(server_config.name.as_str()).map_err(|e| {
             crate::McpDomainError::invalid_configuration("invalid MCP server name", e)
         })?;
-        let transport = build_transport(server_config, context, false).await?;
+        let transport = self.build_transport(server_config, context, false).await?;
 
         let client_info = ClientConfig::new(
             capabilities::client_capabilities(false),
@@ -119,17 +130,24 @@ impl McpClient {
     // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
     // spec.
     pub async fn call_tool(
+        &self,
         server_config: &systemprompt_models::mcp::McpServerConfig,
         name: String,
         arguments: Option<serde_json::Value>,
         context: &systemprompt_models::RequestContext,
     ) -> McpDomainResult<systemprompt_models::CallToolResult> {
-        Self::call_tool_with_elicitation(server_config, name, arguments, context, None).await
+        self.call_tool_with_elicitation(server_config, name, arguments, context, None)
+            .await
     }
 
     // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
     // spec.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the MCP call shape (server, tool, arguments, caller context, elicitation) is the protocol's; bundling it would only rename the fields"
+    )]
     pub async fn call_tool_with_elicitation(
+        &self,
         server_config: &systemprompt_models::mcp::McpServerConfig,
         name: String,
         arguments: Option<serde_json::Value>,
@@ -137,8 +155,25 @@ impl McpClient {
         elicitation: Option<SharedElicitationDelegate>,
     ) -> McpDomainResult<systemprompt_models::CallToolResult> {
         let service_name = server_config.name.as_str();
-        let transport = build_transport(server_config, context, elicitation.is_some()).await?;
+        let transport = self
+            .build_transport(server_config, context, elicitation.is_some())
+            .await?;
         execute_tool_call(transport, service_name, &name, arguments, elicitation).await
+    }
+
+    async fn build_transport(
+        &self,
+        server_config: &systemprompt_models::mcp::McpServerConfig,
+        context: &systemprompt_models::RequestContext,
+        with_elicitation: bool,
+    ) -> McpDomainResult<StreamableHttpClientTransport<HttpClientWithContext>> {
+        build_transport(
+            &self.connector_tokens,
+            server_config,
+            context,
+            with_elicitation,
+        )
+        .await
     }
 }
 
@@ -150,6 +185,7 @@ fn transport_unavailable(server: &str, error: McpTransportError) -> crate::McpDo
 }
 
 async fn build_transport(
+    connector_tokens: &TokenCache,
     server_config: &systemprompt_models::mcp::McpServerConfig,
     context: &systemprompt_models::RequestContext,
     with_elicitation: bool,
@@ -164,8 +200,13 @@ async fn build_transport(
     let mut transport_config = StreamableHttpClientTransportConfig::with_uri(url.as_str());
 
     let client = if let Some(ext) = server_config.external_auth.as_ref() {
-        let bearer =
-            external_auth::resolve_external_bearer(ext, context, &server_config.name).await?;
+        let bearer = external_auth::resolve_external_bearer(
+            connector_tokens,
+            ext,
+            context,
+            &server_config.name,
+        )
+        .await?;
         let outbound = external_auth::outbound_headers(
             ext,
             &bearer,

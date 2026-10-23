@@ -1,8 +1,8 @@
 //! OTLP telemetry ingest endpoint.
 //!
 //! [`handle`] authenticates the caller with the same gateway credential the
-//! inference routes accept (bridge JWT or API key, plus
-//! the attested `x-session-id`) and then hands the body to
+//! inference routes accept (bridge JWT or API key, bound to the
+//! credential's session) and then hands the body to
 //! [`ingest_envelope`], which decodes a protobuf OTLP envelope (traces, logs,
 //! or metrics) and persists spans and log records to the logging repository
 //! (see the `ingest` submodule); metrics are only summarised. Once
@@ -28,6 +28,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use prost::Message;
 use std::sync::Arc;
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_runtime::AppContext;
 
@@ -36,13 +37,16 @@ use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequ
 use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
 use super::bridge_error::BridgeError;
-use super::messages::auth::authenticate;
-use super::messages::extract::headers::{extract_credential, require_session_id};
+use super::messages::auth::{AuthInputs, authenticate};
+use super::messages::extract::headers::{extract_credential, optional_session_id};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
+
+static NO_SUBJECT_DIMENSIONS: std::sync::LazyLock<SubjectProviderSet> =
+    std::sync::LazyLock::new(SubjectProviderSet::default);
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
@@ -52,18 +56,24 @@ pub async fn handle(
     let Some(credential) = extract_credential(request.headers()) else {
         return ApiHttpError::from(BridgeError::MissingCredential).into_response();
     };
-    let session_id = match require_session_id(request.headers()) {
-        Ok(session_id) => session_id,
-        Err(rejection) => return rejection.into_response(),
-    };
-    let principal = match authenticate(&credential, &session_id, &jwt_extractor, &ctx).await {
+    let header_session = optional_session_id(request.headers());
+    let principal = match authenticate(
+        &credential,
+        AuthInputs {
+            header_session: header_session.as_ref(),
+            headers: request.headers(),
+            jwt_extractor: &jwt_extractor,
+            providers: &NO_SUBJECT_DIMENSIONS,
+            ctx: &ctx,
+        },
+    )
+    .await
+    {
         Ok(principal) => principal,
         Err(rejection) => return rejection.into_response(),
     };
-    if let Err(rejection) = principal.enforce_session_binding(&session_id) {
-        return rejection.into_response();
-    }
-    ingest_with_identity(request, Some((principal.user_id().clone(), session_id))).await
+    let identity = (principal.user_id().clone(), principal.session_id().clone());
+    ingest_with_identity(request, Some(identity)).await
 }
 
 pub async fn ingest_envelope(request: Request<Body>) -> Response<Body> {

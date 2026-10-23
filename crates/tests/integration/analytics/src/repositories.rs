@@ -211,7 +211,12 @@ async fn traffic_repository_smoke() -> Result<()> {
     )
     .await?;
 
-    let repo = TrafficAnalyticsRepository::new(&fx.db);
+    let repo = TrafficAnalyticsRepository::new(
+        &fx.db,
+        std::sync::Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &fx.db,
+        )),
+    );
     let sources = repo
         .get_sources(fx.window_start, fx.window_end, 50, false)
         .await?;

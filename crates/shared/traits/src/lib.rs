@@ -51,11 +51,14 @@ pub mod background_tasks;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod cache_epoch;
 pub use cache_epoch::{CacheDomain, CacheEpochs};
+pub mod config_watch;
+pub use config_watch::{CONFIG_WATCH_POLL, ConfigVersionSource, ConfigWatch, WatchSignals};
 pub use stream_drain::{StreamDrain, StreamDrainWatch};
 pub mod analytics_events;
 pub mod auth;
 pub mod content;
 pub use content::{ContentCatalogStats, DynContentCatalogStats};
+pub use traffic_class_counts::{DynTrafficClassCounts, TrafficClassCounts, TrafficClassTotals};
 pub mod context;
 pub mod context_provider;
 pub mod coordination;
@@ -65,23 +68,26 @@ pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
 pub mod ownership;
+pub mod process_liveness;
 pub mod registry;
 pub mod repository;
 pub mod runner_service;
 pub mod secret;
+pub use process_liveness::ProcessLiveness;
 pub use runner_service::RunnerService;
 pub use secret::ExtensionSecret;
 pub mod storage;
 pub mod stream_drain;
 pub mod tool_executions;
+pub mod traffic_class_counts;
 pub mod validation;
 pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
-    BatchPlan, BatchedRun, DbBudget, Dependencies, Job, JobContext, JobResult, JobScope,
-    MissingDependency, ProviderError, ProviderResult, ServerListingFailure, ToolCallRequest,
-    ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
-    ToolProviderError, ToolProviderResult, run_batched, submit_job,
+    BatchPlan, BatchedRun, ChangeActor, ChangeSource, DbBudget, Dependencies, Job, JobContext,
+    JobResult, JobScope, MissingDependency, ProviderError, ProviderResult, ServerListingFailure,
+    ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
+    ToolProvider, ToolProviderError, ToolProviderResult, run_batched, submit_job,
 };
 
 pub use context::{
@@ -139,8 +145,9 @@ pub use storage::{
 pub use ai_providers::{
     AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult, AiRequestTrace,
     AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiSessionProvider,
-    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams, TraceMessage,
-    TraceRequestStatus, TraceRequestUsage, TraceSample, TraceSampleFilter, TraceSampleMode,
+    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams, RequestStatus,
+    TraceMessage, TraceRequestUsage, TraceSample, TraceSampleFilter, TraceSampleMode,
+    UnknownRequestStatus,
 };
 
 pub use registry::{

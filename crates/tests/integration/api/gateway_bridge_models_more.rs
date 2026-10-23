@@ -1,17 +1,17 @@
 //! Integration tests (coverage campaign 2026-07).
 //!
 //! Covers the bridge/model surface of the gateway router plus the pure helpers
-//! reached through the `services::gateway` seams: `canonicalize_org_uuid`, the
-//! `x-inference-protocol` surface parser, model-id humanisation, the outbound
-//! and safety-scanner registries, canonical-message flattening, the
-//! `GatewayAudit` mutators, and the bridge credential-exchange handlers.
+//! reached through the `services::gateway` seams:
+//! `TenantId::organization_uuid`, the `x-inference-protocol` surface parser,
+//! model-id humanisation, the outbound and safety-scanner registries,
+//! canonical-message flattening, the `GatewayAudit` mutators, and the bridge
+//! credential-exchange handlers.
 
 use anyhow::Result;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_api::routes::gateway::models::{families_from_header, humanize_model_id};
 use systemprompt_database::DbPool;
@@ -41,7 +41,8 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_config::SecretsBootstrap::encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("gateway journal opens")
 }
@@ -80,21 +81,21 @@ fn header_map(pairs: &[(&str, &str)]) -> HeaderMap {
 fn canonicalize_org_uuid_strips_local_prefix_of_valid_uuid() {
     let raw = "550e8400-e29b-41d4-a716-446655440000";
     let tenant = TenantId::new(format!("local_{raw}"));
-    assert_eq!(canonicalize_org_uuid(&tenant), raw);
+    assert_eq!(tenant.organization_uuid(), raw);
 }
 
 #[test]
 fn canonicalize_org_uuid_passes_through_bare_uuid() {
     let raw = "550e8400-e29b-41d4-a716-446655440000";
     let tenant = TenantId::new(raw.to_owned());
-    assert_eq!(canonicalize_org_uuid(&tenant), raw);
+    assert_eq!(tenant.organization_uuid(), raw);
 }
 
 #[test]
 fn canonicalize_org_uuid_hashes_non_uuid_deterministically() {
     let tenant = TenantId::new("acme-corp".to_owned());
-    let a = canonicalize_org_uuid(&tenant);
-    let b = canonicalize_org_uuid(&tenant);
+    let a = tenant.organization_uuid();
+    let b = tenant.organization_uuid();
     assert_eq!(a, b, "hash is stable");
     assert!(uuid::Uuid::parse_str(&a).is_ok(), "produces a valid uuid");
 }
@@ -178,7 +179,7 @@ fn flatten_message_content_empty_is_empty_string() {
 
 #[test]
 fn upstream_registry_serves_builtin_wire_adapters() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
     assert!(registry.get("anthropic").is_some());
     assert!(registry.get("openai-chat").is_some());
     assert!(registry.get("nonexistent-wire").is_none());
@@ -187,7 +188,7 @@ fn upstream_registry_serves_builtin_wire_adapters() {
 
 #[test]
 fn safety_scanner_registry_carries_the_builtins() {
-    let registry = SafetyScannerRegistry::global();
+    let registry = SafetyScannerRegistry::new();
     let safety = SafetyConfig::default();
     assert!(registry.create("null", &safety).is_some());
     assert!(registry.create("heuristic", &safety).is_some());

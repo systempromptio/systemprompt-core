@@ -1,10 +1,11 @@
 //! Session minting for API-key callers of the gateway.
 //!
 //! A JWT caller gets its session row minted alongside its token, so the
-//! `session_id` claim is attested by construction. An API-key caller has no
-//! such step, and the gateway now refuses a session id it did not issue — so
-//! this endpoint is that step: present the PAT, receive a `user_sessions` row
-//! to send as `x-session-id` on `/v1/messages`.
+//! `session_id` claim is attested by construction. An API-key caller that
+//! sends no gateway-issued `x-session-id` lands on the session bound to its
+//! key (see `messages::session_binding`); this endpoint is for a caller that
+//! wants a distinct session of its own: present the PAT, receive a
+//! `user_sessions` row to send as `x-session-id` on `/v1/messages`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

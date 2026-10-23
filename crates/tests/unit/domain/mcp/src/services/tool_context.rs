@@ -19,7 +19,12 @@ use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 async fn provider() -> McpToolProvider {
     let db = test_db_pool().await;
     let registry = RegistryService::new(fixture_user_id());
-    McpToolProvider::new(db, registry, &ResilienceSettings::default())
+    McpToolProvider::new(
+        db,
+        registry,
+        &ResilienceSettings::default(),
+        std::sync::Arc::default(),
+    )
 }
 
 fn base_ctx() -> ToolContext {

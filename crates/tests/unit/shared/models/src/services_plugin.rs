@@ -303,20 +303,19 @@ fn plugin_hooks_ref_pairing_comms_with_governance_is_not_empty() {
     assert!(!parsed.is_empty());
 }
 
-// Evaluation is a server-side switch: it installs no client hook, so on its
+// The judge is a server-side switch: it installs no client hook, so on its
 // own it declares nothing for the bridge to build.
 #[test]
-fn plugin_hooks_ref_declaring_only_evaluation_is_still_empty() {
-    let parsed: PluginHooksRef = serde_yaml::from_str("evaluation: true").unwrap();
+fn plugin_hooks_ref_declaring_only_judge_is_still_empty() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("judge: true").unwrap();
     assert!(parsed.judge);
     assert!(!parsed.governance);
     assert!(parsed.is_empty());
 }
 
 #[test]
-fn plugin_hooks_ref_pairing_evaluation_with_governance_parses() {
-    let parsed: PluginHooksRef =
-        serde_yaml::from_str("governance: true\nevaluation: true").unwrap();
+fn plugin_hooks_ref_pairing_judge_with_governance_parses() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("governance: true\njudge: true").unwrap();
     assert!(parsed.judge);
     assert!(!parsed.is_empty());
 }

@@ -7,6 +7,7 @@ mod ai_request_payloads;
 mod ai_request_settlement;
 mod ai_request_trace;
 mod ai_requests;
+mod ai_requests_status_check_db;
 mod ai_safety_findings;
 mod ownership;
 mod personal_credentials;

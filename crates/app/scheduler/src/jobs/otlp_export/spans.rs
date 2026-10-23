@@ -22,6 +22,7 @@ use systemprompt_identifiers::{
     AiRequestId, AiToolCallId, ApiKeyId, InstanceId, McpExecutionId, McpServerId, McpToolName,
     PluginId, SessionId, TraceId,
 };
+use systemprompt_traits::RequestStatus;
 
 pub const REQUEST_SPAN: &str = "ai_request";
 pub const TOOL_SPAN: &str = "tool_call";
@@ -180,10 +181,10 @@ fn request_span(row: &RequestRow, trace_id: Vec<u8>, span_id: Vec<u8>) -> Span {
 }
 
 fn request_status(row: &RequestRow) -> (StatusCode, String) {
-    match row.status.as_str() {
-        "completed" => (StatusCode::Ok, String::new()),
-        "pending" => (StatusCode::Unset, String::new()),
-        _ => (
+    match row.status.parse::<RequestStatus>() {
+        Ok(RequestStatus::Completed) => (StatusCode::Ok, String::new()),
+        Ok(RequestStatus::Pending) => (StatusCode::Unset, String::new()),
+        Ok(RequestStatus::Failed | RequestStatus::Rejected) | Err(_) => (
             StatusCode::Error,
             row.error_message
                 .clone()

@@ -38,7 +38,7 @@ pub struct MarketplaceMetadata {
     pub description: String,
     #[serde(default)]
     pub version: String,
-    #[serde(default, rename = "pluginRoot", alias = "plugin_root")]
+    #[serde(default, rename = "pluginRoot")]
     pub plugin_root: Option<String>,
 }
 
@@ -51,11 +51,7 @@ pub struct MarketplaceJson {
     pub metadata: MarketplaceMetadata,
     #[serde(default)]
     pub plugins: Vec<MarketplacePluginEntry>,
-    #[serde(
-        default,
-        rename = "allowCrossMarketplaceDependenciesOn",
-        alias = "allow_cross_marketplace_dependencies_on"
-    )]
+    #[serde(default, rename = "allowCrossMarketplaceDependenciesOn")]
     pub allow_cross_marketplace_dependencies_on: Vec<String>,
 }
 

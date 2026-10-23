@@ -41,6 +41,7 @@ bytes = { workspace = true }
 http = { workspace = true }
 xxhash-rust = { workspace = true }
 sqlx = { workspace = true, optional = true }
-tokio = { version = "1.53", default-features = false, features = ["rt", "time", "sync"] }
+tokio = { version = "1.53", default-features = false, features = ["rt", "time", "sync", "macros"] }
 tokio-util = { workspace = true }
+arc-swap = { workspace = true }
 zeroize = { workspace = true }

@@ -21,7 +21,7 @@ use systemprompt_database::{
 };
 use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_files::FileRepository;
+use systemprompt_files::{FileRepository, FilesConfig};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_manifest::Config;
@@ -33,9 +33,11 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
+use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
+mod accessors;
 mod context_loaders;
 mod debug_impls;
 mod repositories;
@@ -74,6 +76,7 @@ pub struct DataPlane {
 pub struct ConfigPlane {
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
+    pub files_config: Arc<FilesConfig>,
     pub content_config: Option<Arc<ContentConfigRaw>>,
     pub route_classifier: Arc<RouteClassifier>,
 }
@@ -102,6 +105,7 @@ pub struct Subsystems {
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
+    pub connector_tokens: Arc<TokenCache>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the

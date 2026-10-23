@@ -72,9 +72,11 @@ macro_rules! register_host_app {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 register_host_app!(super::claude_desktop::CLAUDE_DESKTOP_HOST);
-register_host_app!(super::codex_cli::CODEX_CLI_HOST);
+register_host_app!(super::codex::CODEX_APP_HOST);
+register_host_app!(super::codex::CODEX_CLI_HOST);
 register_host_app!(super::hermes::HERMES_HOST);
-register_host_app!(super::opencode::OPENCODE_HOST);
+register_host_app!(super::opencode::OPENCODE_APP_HOST);
+register_host_app!(super::opencode::OPENCODE_CLI_HOST);
 
 struct Registry {
     hosts: Vec<&'static dyn HostApp>,

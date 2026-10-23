@@ -55,7 +55,7 @@ impl BrandColors {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ServiceStatus {
+pub enum StatusGlyph {
     Running,
     Stopped,
     Starting,
@@ -63,7 +63,7 @@ pub enum ServiceStatus {
     Unknown,
 }
 
-impl ServiceStatus {
+impl StatusGlyph {
     pub const fn symbol(&self) -> &'static str {
         match self {
             Self::Running => "●",

@@ -51,7 +51,7 @@ use systemprompt_manifest::profile::resolve_with_home;
 use systemprompt_manifest::secrets::Secrets;
 
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
-use super::master_key::decode_master_key;
+use super::master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key};
 use super::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
@@ -96,6 +96,14 @@ impl SecretsBootstrap {
 
     pub fn oauth_at_rest_pepper() -> Result<&'static str, SecretsBootstrapError> {
         Ok(&Self::get()?.oauth_at_rest_pepper)
+    }
+
+    pub fn encryption_master_key()
+    -> Result<[u8; ENCRYPTION_MASTER_KEY_BYTES], SecretsBootstrapError> {
+        let encoded = Self::get()?
+            .get("encryption_master_key")
+            .ok_or(SecretsBootstrapError::EncryptionMasterKeyRequired)?;
+        decode_master_key(encoded)
     }
 
     pub fn signing_key_pem() -> Result<Option<String>, SecretsBootstrapError> {

@@ -21,6 +21,10 @@ impl AuthzDecisionHook for AllowHook {
     async fn evaluate(&self, _req: AuthzRequest) -> AuthzDecision {
         AuthzDecision::Allow
     }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.evaluate(req).await
+    }
 }
 
 #[derive(Debug)]
@@ -36,6 +40,10 @@ impl AuthzDecisionHook for DenyHook {
             },
             policy: "registry_test_deny".into(),
         }
+    }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.evaluate(req).await
     }
 }
 

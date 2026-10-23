@@ -91,13 +91,13 @@
       }
     },
     {
-      "id": "codex-cli",
-      "display_name": "Codex CLI",
-      "kind": "cli-tool",
-      "description": "OpenAI's terminal coding agent",
+      "id": "codex",
+      "display_name": "Codex",
+      "kind": "desktop-app",
+      "description": "OpenAI's Codex desktop app",
       "icon": "codex-cli",
       "config_format": "toml",
-      "download_url": "https://github.com/openai/codex",
+      "download_url": "https://developers.openai.com/codex/app",
       "install_action_label": "written to config file",
       "can_open": true,
       "can_verify": true,
@@ -133,9 +133,50 @@
       }
     },
     {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli-tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": true,
+      "enabled": true,
+      "last_generated_profile": null,
+      "health": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "checking",
+        "tone": "unknown",
+        "reason": {
+          "code": "never-probed"
+        },
+        "action": null,
+        "secondary_action": null,
+        "is_set_up": false,
+        "is_listed": false,
+        "is_installed": false,
+        "is_running": false
+      }
+    },
+    {
       "id": "hermes",
       "display_name": "Hermes",
-      "kind": "desktop-app",
+      "kind": "cli-tool",
       "description": "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
       "icon": "hermes",
       "config_format": "yaml",
@@ -177,7 +218,7 @@
     {
       "id": "opencode",
       "display_name": "OpenCode",
-      "kind": "cli-tool",
+      "kind": "desktop-app",
       "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
       "icon": "opencode",
       "config_format": "json",
@@ -201,6 +242,47 @@
       ],
       "model_protocols_overridden": false,
       "cowork_session": null,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "checking",
+        "tone": "unknown",
+        "reason": {
+          "code": "never-probed"
+        },
+        "action": null,
+        "secondary_action": null,
+        "is_set_up": false,
+        "is_listed": false,
+        "is_installed": false,
+        "is_running": false
+      }
+    },
+    {
+      "id": "opencode-cli",
+      "display_name": "OpenCode CLI",
+      "kind": "cli-tool",
+      "description": "The open-source OpenCode terminal agent",
+      "icon": "opencode",
+      "config_format": "json",
+      "download_url": "https://opencode.ai/",
+      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
+      "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "health": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
       "surface": "local-profile",
       "verdict": {
         "state": "checking",
@@ -361,14 +443,14 @@
   "last_sync_report": null,
   "agent_fleet": {
     "all": {
-      "total": 5,
+      "total": 7,
       "working": 0,
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,
       "not_installed": 0,
       "down": 0,
-      "checking": 5,
+      "checking": 7,
       "running": 0,
       "state": "unknown",
       "headline": "checking"

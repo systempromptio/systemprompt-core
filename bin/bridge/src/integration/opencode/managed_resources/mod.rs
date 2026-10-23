@@ -1,4 +1,4 @@
-//! `OpenCode` sync emitter.
+//! `OpenCode` sync emitter, shared by the desktop app and the CLI.
 //!
 //! MCP connectors merge into the user's global `opencode.json` as remote
 //! servers and skills are written into the user skills directory — both
@@ -19,7 +19,7 @@
 
 use async_trait::async_trait;
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, HostProduct};
 
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::integration::managed_skills::{SkillDirPolicy, SkillTarget};
@@ -37,7 +37,7 @@ pub struct OpenCodeSync;
 fn skills() -> SkillTarget {
     SkillTarget {
         root: super::config::skills_dir(),
-        host_id: HostKind::OpenCode,
+        product: HostProduct::OpenCode,
         policy: SkillDirPolicy::KebabNamed,
     }
 }
@@ -45,7 +45,11 @@ fn skills() -> SkillTarget {
 #[async_trait]
 impl HostSync for OpenCodeSync {
     fn host_id(&self) -> HostKind {
-        HostKind::OpenCode
+        super::TOKEN_HOST
+    }
+
+    fn serves(&self, host: HostKind) -> bool {
+        host.product() == HostProduct::OpenCode
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {

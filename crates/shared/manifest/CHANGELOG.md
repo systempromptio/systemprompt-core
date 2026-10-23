@@ -13,6 +13,7 @@
 - The embedded default catalog is `DefaultCatalog::FILES` (the five files in the new shape); `ProviderRegistry::default_seed` is gone.
 - The Vertex rate card moved to `services::catalog::vertex`; entries are keyed by endpoint shape (`wire`) instead of a provider name, `to_model_entry` replaces `to_provider_model`, and its errors are `VertexRateCardError`.
 - `bridge_profile` builds from the `ResolvedCatalog` with `CredentialFacts`; `default_model` is presented as `<id>[1m]` only when the model is advertised to Claude clients and its context window is at least 1M.
+## [Unreleased]
 
 ### Fixed
 

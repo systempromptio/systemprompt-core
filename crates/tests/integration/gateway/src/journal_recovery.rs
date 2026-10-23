@@ -37,7 +37,8 @@ fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
         db,
         GatewayJournal::open(
             state_dir,
-            systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+            systemprompt_config::SecretsBootstrap::encryption_master_key()
+                .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
         Arc::new(systemprompt_agent::services::ContextProviderService::new(

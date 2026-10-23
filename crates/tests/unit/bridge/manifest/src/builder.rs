@@ -5,6 +5,7 @@ use systemprompt_bridge::gateway::manifest::{
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{McpServerId, PluginId, Sha256Digest, SkillId, SkillName};
 use systemprompt_identifiers::{HookId, TenantId};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::hooks::{HookCategory, HookEvent};
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -210,10 +211,10 @@ fn with_revocations_populates_field() {
 #[test]
 fn with_enabled_hosts_populates_field() {
     let manifest = builder("08aaaaaa")
-        .with_enabled_hosts(vec!["claude-desktop".into()])
+        .with_enabled_hosts(vec![HostKind::ClaudeDesktop])
         .build();
 
-    assert_eq!(manifest.enabled_hosts, vec!["claude-desktop"]);
+    assert_eq!(manifest.enabled_hosts, vec![HostKind::ClaudeDesktop]);
 }
 
 #[test]
@@ -244,7 +245,7 @@ fn all_setters_round_trip_together() {
         .with_hooks(vec![sample_hook()])
         .with_managed_mcp_servers(vec![sample_mcp_server()])
         .with_revocations(vec!["rev-1".into()])
-        .with_enabled_hosts(vec!["claude-desktop".into()])
+        .with_enabled_hosts(vec![HostKind::ClaudeDesktop])
         .with_tenant_id(TenantId::new("tenant-abc"))
         .with_user(sample_user())
         .build();

@@ -213,7 +213,7 @@ pub type ContextBroadcaster = GenericBroadcaster<ContextEvent>;
 pub type AnalyticsBroadcaster = GenericBroadcaster<AnalyticsEvent>;
 
 pub struct ConnectionGuard<E: ToSse + Clone + Send + Sync + 'static> {
-    broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,
+    broadcaster: Arc<GenericBroadcaster<E>>,
     user_id: UserId,
     connection_id: ConnectionId,
 }
@@ -223,15 +223,15 @@ impl<E: ToSse + Clone + Send + Sync + 'static> std::fmt::Debug for ConnectionGua
         f.debug_struct("ConnectionGuard")
             .field("user_id", &self.user_id)
             .field("connection_id", &self.connection_id)
-            .field("broadcaster", &"<LazyLock<GenericBroadcaster>>")
+            .field("broadcaster", &"<GenericBroadcaster>")
             .finish()
     }
 }
 
 impl<E: ToSse + Clone + Send + Sync + 'static> ConnectionGuard<E> {
     #[must_use]
-    pub fn new(
-        broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,
+    pub const fn new(
+        broadcaster: Arc<GenericBroadcaster<E>>,
         user_id: UserId,
         connection_id: ConnectionId,
     ) -> Self {

@@ -129,6 +129,11 @@ lint-schema:
 lint-extensions:
     ./scripts/lint-extensions.sh crates
 
+# Judge the migrations added since the last release against the large-table
+# rules (NOT VALID constraints, CONCURRENTLY indexes, bounded bulk writes).
+lint-migrations:
+    ./scripts/lint-migrations.sh
+
 # Check production comment syntax and Rustdoc placement; review meaning per AGENTS.md.
 lint-comments:
     ./scripts/lint-inline-comments.sh
@@ -149,6 +154,14 @@ lint-inline-tests:
 # Reject upward crate dependencies and cycles in the layer stack
 lint-layers:
     ./scripts/lint-layers.sh
+
+# One EnforcementMode and one ServiceStatus vocabulary; copies fail
+lint-mode-enums:
+    ./scripts/lint-mode-enums.sh
+
+# Each CHECK-constrained vocabulary column agrees with its Rust enum; no status literals in query! strings
+lint-sql-vocab:
+    ./scripts/lint-sql-vocab.sh
 
 # Reject ad-hoc Repository::new() outside composition roots
 lint-repo-construction:
@@ -359,11 +372,41 @@ lint-bridge-layers:
 lint-bridge-globals:
     ./scripts/lint-bridge-globals.sh
 
+# Core service state lives on AppContext (and the server, gateway and bridge
+# roots), built once and injected. A `static X: OnceLock<..>` in a production
+# crate fails unless scripts/core-globals-allowlist.txt names it with a reason.
+# `just lint-core-globals ROOT...` scans other roots (the installs).
+lint-core-globals *ARGS:
+    ./scripts/lint-core-globals.sh {{ARGS}}
+
+# A field has one wire name: `#[serde(alias = ...)]` fails unless
+# scripts/serde-aliases-allowlist.txt names it with a vendor reason. The same
+# gate rejects a bare `8080`/`5432` outside `systemprompt_models::defaults`.
+lint-serde-aliases *ARGS:
+    ./scripts/lint-serde-aliases.sh {{ARGS}}
+
+# The root-walking gates scan the roots they are given and default to core;
+# this proves both against a fixture tree per script.
+test-gate-roots:
+    python3 scripts/test-gate-roots.py
+
 # The web tree has no bundler or type checker, so a file is only ever reviewed
 # by reading it. The standard caps JS at 150 lines and CSS at 300; this makes
 # the cap a failure instead of a note, so files are split before they sprawl.
 lint-bridge-file-size:
     ./scripts/lint-bridge-file-size.sh
+
+# A bridge host id is spelled only in HostKind (and its web mirror host-ids.js).
+lint-host-ids:
+    ./scripts/lint-host-ids.sh
+
+# A systemprompt header name is spelled once, in identifiers::headers or the bridge's headers.rs.
+lint-header-literals:
+    ./scripts/lint-header-literals.sh
+
+# A bridge-facing gateway path is spelled once, in ApiPaths.
+lint-path-literals:
+    ./scripts/lint-path-literals.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:
@@ -1098,7 +1141,8 @@ lint-owned-tasks:
 lint-json-value:
     ./scripts/lint-json-value.sh
 
-# A crate queries only the tables its own schema/*.sql declares (infra may read infra).
+# A crate queries only the tables its own schema/*.sql declares (infra may read
+# infra; app/entry may read what scripts/table-ownership-reads.txt lists, never write).
 lint-table-ownership:
     ./scripts/lint-table-ownership.sh
 

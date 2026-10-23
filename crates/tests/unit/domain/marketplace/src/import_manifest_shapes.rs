@@ -85,7 +85,7 @@ fn a_manifest_defaults_every_key_but_the_name() {
 }
 
 #[test]
-fn plugin_root_is_accepted_in_both_spellings() {
+fn only_the_camel_case_plugin_root_spelling_is_read() {
     let camel: MarketplaceJson =
         serde_json::from_str(r#"{"name":"acme","metadata":{"pluginRoot":"./pkgs"}}"#)
             .expect("parses");
@@ -94,5 +94,5 @@ fn plugin_root_is_accepted_in_both_spellings() {
             .expect("parses");
 
     assert_eq!(camel.metadata.plugin_root.as_deref(), Some("./pkgs"));
-    assert_eq!(snake.metadata.plugin_root.as_deref(), Some("./pkgs"));
+    assert!(snake.metadata.plugin_root.is_none());
 }

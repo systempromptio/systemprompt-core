@@ -12,6 +12,11 @@
 //! credentials from the process environment; [`ExtensionContext::instance_id`]
 //! is the node identity in place of `HOSTNAME`.
 //!
+//! [`ExtensionContext::background_tasks`] hands out the process's one
+//! [`BackgroundTasks`] owner (a clone shares the tracker), so work an
+//! extension starts after a response is drained by the server's shutdown
+//! instead of being detached through `tokio::spawn`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,8 +24,8 @@ use std::sync::Arc;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
 use systemprompt_traits::{
-    ConfigProvider, DatabaseHandle, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository,
-    ExtensionSecret, FileStorage, UnavailableCoordination,
+    BackgroundTasks, ConfigProvider, DatabaseHandle, DynAdvisoryLocks, DynInstanceRegistry,
+    DynLeaseRepository, ExtensionSecret, FileStorage, UnavailableCoordination,
 };
 
 pub trait ExtensionContext: Send + Sync {
@@ -33,6 +38,8 @@ pub trait ExtensionContext: Send + Sync {
     fn file_storage(&self) -> Arc<dyn FileStorage>;
 
     fn instance_id(&self) -> InstanceId;
+
+    fn background_tasks(&self) -> BackgroundTasks;
 
     fn instances(&self) -> DynInstanceRegistry {
         Arc::new(UnavailableCoordination)

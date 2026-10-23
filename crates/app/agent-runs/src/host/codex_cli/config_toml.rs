@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use super::PAT_ENV;
 use crate::credentials::RunCredentials;
 use crate::request::{McpServerSpec, PermissionMode, RunRequest};
+use systemprompt_identifiers::headers;
 
 pub const CLIENT_HEADER: &str = "headless-codex";
 
@@ -57,10 +58,10 @@ pub fn render(
     line(&mut out, "env_key", &quote(PAT_ENV));
     let mut headers = BTreeMap::from([
         (
-            "x-session-id".to_owned(),
+            headers::SESSION_ID.to_owned(),
             credentials.gateway_session_id.as_str().to_owned(),
         ),
-        ("x-systemprompt-client".to_owned(), CLIENT_HEADER.to_owned()),
+        (headers::CLIENT_KIND.to_owned(), CLIENT_HEADER.to_owned()),
     ]);
     headers.extend(request.scope_headers());
     line(&mut out, "http_headers", &table(&headers));

@@ -24,7 +24,12 @@ async fn full_router(rate_limits: RateLimitsConfig) -> anyhow::Result<Router> {
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
     config.trusted_proxies = Vec::new();
     let ctx = fixture_app_context_with_config(&pool, config)?;
-    setup_api_server(&ctx, None).map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
+    setup_api_server(
+        &ctx,
+        None,
+        &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
 }
 
 fn post(uri: &str, peer: &str, headers: &[(&str, &str)]) -> Request<Body> {

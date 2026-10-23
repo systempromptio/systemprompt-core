@@ -46,7 +46,7 @@ pub use audit::{
     PrincipalSnapshot, record_decision, record_decision_with,
 };
 pub use builtin::{ApprovalSettings, SECRET_SCAN_ID};
-pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
+pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
 pub use engine::{ChargedCall, Evaluation, GovernanceEngine, GovernanceEngineError};
 pub use governed::{
     GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,

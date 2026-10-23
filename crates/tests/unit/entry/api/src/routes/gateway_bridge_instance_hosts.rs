@@ -39,12 +39,11 @@ fn a_disabled_catalog_entry_removes_its_host() {
         .extend([catalog_entry("codex_cli", false)]);
     assert_eq!(
         services.instance_enabled_hosts(),
-        vec![
-            HostKind::ClaudeCode,
-            HostKind::ClaudeDesktop,
-            HostKind::Hermes,
-            HostKind::OpenCode
-        ]
+        HostKind::ALL
+            .into_iter()
+            .filter(|host| *host != HostKind::CodexCli)
+            .collect::<Vec<_>>(),
+        "disabling the CLI catalog entry leaves the Codex desktop app enabled"
     );
 }
 
@@ -67,6 +66,12 @@ fn snake_case_catalog_ids_map_onto_kebab_case_host_ids() {
     ]);
     assert_eq!(
         services.instance_enabled_hosts(),
-        vec![HostKind::CodexCli, HostKind::Hermes, HostKind::OpenCode]
+        vec![
+            HostKind::Codex,
+            HostKind::CodexCli,
+            HostKind::OpenCode,
+            HostKind::OpenCodeCli,
+            HostKind::Hermes,
+        ]
     );
 }

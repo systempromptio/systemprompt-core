@@ -30,16 +30,23 @@ use systemprompt_runtime::ShutdownRequest;
 use systemprompt_traits::{OwnedTask, StartupEvent, StartupEventExt, StartupEventSender};
 use tower::ServiceExt;
 
+use super::readiness::ReadinessState;
+
 #[derive(Debug)]
 pub struct EarlyServer {
     swap: Arc<RwLock<Router>>,
     join: OwnedTask<Result<()>>,
     local_addr: SocketAddr,
+    readiness: Arc<ReadinessState>,
 }
 
 impl EarlyServer {
     pub const fn local_addr(&self) -> SocketAddr {
         self.local_addr
+    }
+
+    pub const fn readiness(&self) -> &Arc<ReadinessState> {
+        &self.readiness
     }
 
     pub fn activate(&self, router: Router) {
@@ -83,21 +90,28 @@ pub async fn bind_and_serve(
     let outer = Router::new().fallback_service(SwapService {
         swap: Arc::clone(&swap),
     });
+    let readiness = Arc::new(ReadinessState::new());
 
-    let join = OwnedTask::spawn("api_serve", async move {
-        axum::serve(
-            listener,
-            outer.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .with_graceful_shutdown(super::shutdown::shutdown_signal(shutdown, timings))
-        .await
-        .map_err(Into::into)
+    let join = OwnedTask::spawn("api_serve", {
+        let readiness = Arc::clone(&readiness);
+        async move {
+            axum::serve(
+                listener,
+                outer.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .with_graceful_shutdown(super::shutdown::shutdown_signal(
+                shutdown, timings, readiness,
+            ))
+            .await
+            .map_err(Into::into)
+        }
     });
 
     Ok(EarlyServer {
         swap,
         join,
         local_addr,
+        readiness,
     })
 }
 

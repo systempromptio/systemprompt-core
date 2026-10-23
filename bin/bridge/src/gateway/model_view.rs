@@ -19,7 +19,11 @@ use crate::gateway::types::ProviderHealth;
 pub const fn host_client(host: HostKind) -> ClientFamily {
     match host {
         HostKind::ClaudeCode | HostKind::ClaudeDesktop => ClientFamily::Claude,
-        HostKind::CodexCli | HostKind::OpenCode | HostKind::Hermes => ClientFamily::OpenAi,
+        HostKind::Codex
+        | HostKind::CodexCli
+        | HostKind::OpenCode
+        | HostKind::OpenCodeCli
+        | HostKind::Hermes => ClientFamily::OpenAi,
     }
 }
 
@@ -33,8 +37,8 @@ pub struct HostClients {
 
 impl HostClients {
     #[must_use]
-    pub fn for_host(host: HostKind, server_filters: &BTreeMap<String, Vec<String>>) -> Self {
-        server_filters.get(host.as_str()).map_or_else(
+    pub fn for_host(host: HostKind, server_filters: &BTreeMap<HostKind, Vec<String>>) -> Self {
+        server_filters.get(&host).map_or_else(
             || Self {
                 families: vec![host_client(host)],
                 filtered: false,

@@ -14,6 +14,7 @@ pub mod artifacts;
 pub mod bridge_policy;
 pub mod bundle;
 pub mod catalog;
+pub mod enforcement;
 pub mod external_agent;
 pub mod frontmatter;
 pub mod gateway;
@@ -68,6 +69,7 @@ pub use catalog::{
     CatalogContext, CatalogError, CatalogInput, CredentialRegistry, DeploymentRegistry,
     ModelRegistry, ModelRequest, ProviderRegistry, ResolvedCatalog,
 };
+pub use enforcement::{EnforcementMode, UnknownEnforcementMode};
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
@@ -92,7 +94,7 @@ pub use plugin::{
 };
 pub use registry::{ServiceModule, ServiceStatus, UnknownServiceModule, UnknownServiceStatus};
 pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};
-pub use runtime::{RuntimeStatus, ServiceType};
+pub use runtime::ServiceType;
 pub use scheduler::*;
 pub use settings::*;
 pub use skills::{

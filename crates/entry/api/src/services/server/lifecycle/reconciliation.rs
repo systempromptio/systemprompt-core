@@ -11,8 +11,8 @@
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind};
-use systemprompt_manifest::services::ServiceStatus;
+use systemprompt_loader::subprocess::SubprocessLiveness;
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEventExt, StartupEventSender};
 
@@ -220,64 +220,16 @@ pub async fn cleanup_stale_service_entries(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<u64> {
-    let repo = ctx.service_repository();
-    let mut deleted_count = 0u64;
-
-    let mcp_services = repo.list_mcp_services().await?;
-    for service in mcp_services {
-        if !service_row_is_stale(service.status, service.pid, ChildKind::Mcp, &service.name).await {
-            continue;
-        }
-        if repo.delete_service(&service.name).await.is_ok() {
-            deleted_count += 1;
-            events.mcp_service_cleanup(
-                service.name.as_str(),
-                format!(
-                    "Stale entry (status: {}, pid: {:?})",
-                    service.status, service.pid
-                ),
-            );
+    let reaped = ctx
+        .service_repository()
+        .reap_stale(&SubprocessLiveness)
+        .await?;
+    for dead in &reaped.dead {
+        let reason = format!("Stale entry (status: running, pid: {})", dead.pid);
+        match dead.module_name {
+            ServiceModule::Mcp => events.mcp_service_cleanup(dead.name.as_str(), reason),
+            ServiceModule::Agent => events.agent_cleanup(dead.name.as_str(), reason),
         }
     }
-
-    let agent_service_names = repo.list_all_agent_service_names().await?;
-    for service_name in agent_service_names {
-        if let Ok(Some(service)) = repo.find_service_by_name(&service_name).await {
-            if !service_row_is_stale(service.status, service.pid, ChildKind::Agent, &service_name)
-                .await
-            {
-                continue;
-            }
-            if repo.delete_service(&service_name).await.is_ok() {
-                deleted_count += 1;
-                events.agent_cleanup(
-                    service_name.as_str(),
-                    format!(
-                        "Stale entry (status: {}, pid: {:?})",
-                        service.status, service.pid
-                    ),
-                );
-            }
-        }
-    }
-
-    Ok(deleted_count)
-}
-
-pub async fn service_row_is_stale(
-    status: ServiceStatus,
-    pid: Option<i32>,
-    kind: ChildKind,
-    name: &ServiceName,
-) -> bool {
-    match status {
-        ServiceStatus::Running => {
-            let Some(pid) = pid.and_then(|p| u32::try_from(p).ok()) else {
-                return true;
-            };
-            !subprocess::owns(pid, kind, name).await
-        },
-        ServiceStatus::Error | ServiceStatus::Stopped => true,
-        ServiceStatus::Starting | ServiceStatus::Stopping => false,
-    }
+    Ok(reaped.total())
 }

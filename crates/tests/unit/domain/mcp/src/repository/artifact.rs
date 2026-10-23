@@ -8,7 +8,7 @@ use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ArtifactId, ContextId, McpExecutionId, McpServerId,
     McpToolName, SessionId, TraceId, UserId,
 };
-use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+use systemprompt_mcp::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_mcp::repository::{
     ArtifactCorrelation, ArtifactShape, CreateMcpArtifact, McpArtifactRepository,
     ToolUsageRepository,
@@ -44,7 +44,7 @@ pub async fn seed_execution(db: &systemprompt_database::DbPool, server: &str) ->
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: ExecutionStatus::Success.as_str().to_owned(),
+        status: McpToolExecutionStatus::Success.as_str().to_owned(),
         error_message: None,
         started_at,
         completed_at: Some(Utc::now()),

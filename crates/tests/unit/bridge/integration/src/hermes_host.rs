@@ -208,11 +208,11 @@ fn structured_owned_values_are_reported_without_panicking_and_repair_becomes_ins
 }
 
 #[test]
-fn the_hermes_host_describes_itself_as_a_yaml_desktop_app() {
+fn the_hermes_host_describes_itself_as_a_yaml_cli_tool() {
     assert_eq!(HERMES_HOST.id(), HostKind::Hermes);
     assert_eq!(HERMES_HOST.display_name(), "Hermes");
     assert_eq!(HERMES_HOST.icon_id(), "hermes");
-    assert_eq!(HERMES_HOST.kind(), HostAppKind::DesktopApp);
+    assert_eq!(HERMES_HOST.kind(), HostAppKind::CliTool);
     assert_eq!(HERMES_HOST.config_format(), ConfigFormat::Yaml);
     assert!(
         HERMES_HOST.download_url().starts_with("https://"),

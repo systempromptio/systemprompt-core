@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT traffic_class, COALESCE(SUM(sessions), 0)::bigint AS \"sessions!\"\n            FROM session_traffic_rollup_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz) AND bucket < $2\n            GROUP BY traffic_class\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "traffic_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_traffic_rollup_hourly",
+            "name": "traffic_class"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "sessions!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "4fd594d17290cebb94816b029023ac9d856c526f73ae9de787bc6dcbf33547b7"
+}

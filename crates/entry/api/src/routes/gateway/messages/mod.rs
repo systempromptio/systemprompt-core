@@ -14,6 +14,7 @@ pub mod dispatch;
 pub mod error;
 pub mod extract;
 pub mod rejection;
+pub mod session_binding;
 
 pub use dispatch::map_upstream_error;
 pub use extract::{GatewayAuthzRequestInput, build_gateway_authz_request, extract_credential};
@@ -23,6 +24,7 @@ use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::Response;
 use std::sync::Arc;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::services::ServicesConfig;
@@ -38,10 +40,19 @@ use dispatch::{RejectionError, build_error_response, dispatch_to_provider};
 use extract::{RejectionPartial, extract_request_context};
 use rejection::persist_rejection;
 
+/// The gateway-owned handles every inference route shares: the repositories
+/// and the engine set, built once per router.
+#[derive(Debug, Clone)]
+pub struct GatewayHandles {
+    pub repos: Arc<systemprompt_gateway::GatewayRepositories>,
+    pub engines: Arc<GatewayEngines>,
+}
+
 pub(super) struct RequestContext<'a> {
     pub jwt_extractor: &'a JwtContextExtractor,
     pub ctx: &'a AppContext,
     pub repos: &'a systemprompt_gateway::GatewayRepositories,
+    pub engines: &'a Arc<GatewayEngines>,
     pub services: &'static ServicesConfig,
     pub catalog: &'static ResolvedCatalog,
     pub ai_request_id: &'a AiRequestId,
@@ -52,9 +63,10 @@ pub async fn handle(
     inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
-    repos: Arc<systemprompt_gateway::GatewayRepositories>,
+    handles: GatewayHandles,
     request: Request<Body>,
 ) -> Response<Body> {
+    let GatewayHandles { repos, engines } = handles;
     let ai_request_id = AiRequestId::generate();
     let (client, attestation) = extract::attribution::entry_origin(request.headers());
     let mut partial =
@@ -64,6 +76,7 @@ pub async fn handle(
         jwt_extractor: &jwt_extractor,
         ctx: &ctx,
         repos: &repos,
+        engines: &engines,
         ai_request_id: &ai_request_id,
         partial: &mut partial,
     };
@@ -140,6 +153,7 @@ struct HandleInner<'a> {
     jwt_extractor: &'a JwtContextExtractor,
     ctx: &'a AppContext,
     repos: &'a systemprompt_gateway::GatewayRepositories,
+    engines: &'a Arc<GatewayEngines>,
     ai_request_id: &'a AiRequestId,
     partial: &'a mut RejectionPartial,
 }
@@ -159,6 +173,7 @@ impl HandleInner<'_> {
             jwt_extractor: self.jwt_extractor,
             ctx: self.ctx,
             repos: self.repos,
+            engines: self.engines,
             services,
             catalog,
             ai_request_id: self.ai_request_id,

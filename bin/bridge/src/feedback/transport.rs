@@ -8,6 +8,7 @@ use super::{FeedbackError, ReadbackFault, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DeviceId, UserId};
+use systemprompt_models::ApiPaths;
 use systemprompt_models::feedback::receipts::{
     ConsumerInstallationPlan, ConsumerReceiptRequest, ConsumerReceiptResponse,
     SessionBindingRequest,
@@ -48,13 +49,13 @@ pub async fn receipt(
     enrollment: &Enrollment,
     request: &ConsumerReceiptRequest,
 ) -> Result<ConsumerReceiptResponse> {
-    post(enrollment, "/api/v1/consumer/receipts", request).await
+    post(enrollment, ApiPaths::CONSUMER_RECEIPTS, request).await
 }
 
 pub async fn bind(enrollment: &Enrollment, request: &SessionBindingRequest) -> Result<()> {
     // JSON: protocol boundary — the binding acknowledgement body is not consumed.
     let _: serde_json::Value =
-        post(enrollment, "/api/v1/consumer/session-bindings", request).await?;
+        post(enrollment, ApiPaths::CONSUMER_SESSION_BINDINGS, request).await?;
     Ok(())
 }
 

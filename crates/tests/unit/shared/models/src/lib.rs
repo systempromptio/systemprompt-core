@@ -17,16 +17,27 @@
 mod a2a;
 
 #[cfg(test)]
+mod enforcement_mode;
+
+#[cfg(test)]
 mod a2a_artifact_metadata;
 
 #[cfg(test)]
 mod a2a_task_metadata;
 
 #[cfg(test)]
+mod task_state_short_names;
+
+#[cfg(test)]
+mod plugin_manifest_no_alias;
+
+#[cfg(test)]
 mod ai;
 
 #[cfg(test)]
 mod api;
+#[cfg(test)]
+mod api_paths_bridge;
 #[cfg(test)]
 mod api_responses_specialized;
 

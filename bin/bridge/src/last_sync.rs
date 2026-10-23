@@ -10,6 +10,7 @@
 
 use std::fs;
 use std::path::Path;
+use systemprompt_models::bridge::host::HostKind;
 
 use serde::{Deserialize, Serialize};
 
@@ -51,7 +52,7 @@ pub struct LastSyncState {
     #[serde(default)]
     pub user: Option<String>,
     #[serde(default)]
-    pub enabled_hosts: Vec<String>,
+    pub enabled_hosts: Vec<HostKind>,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
     #[serde(default)]
@@ -179,7 +180,7 @@ pub fn delivered_state() -> Result<Option<LastSyncState>, ReplayStateError> {
         .then_some(state))
 }
 
-pub fn last_synced_enabled_hosts() -> Result<Option<Vec<String>>, ReplayStateError> {
+pub fn last_synced_enabled_hosts() -> Result<Option<Vec<HostKind>>, ReplayStateError> {
     Ok(delivered_state()?.map(|state| state.enabled_hosts))
 }
 

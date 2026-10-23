@@ -16,6 +16,7 @@ use systemprompt_bridge::ids::{LoopbackSecret, McpServerId};
 use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::mcp_sidecar;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_test_fixtures::fixture_user_id;
 
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
@@ -74,7 +75,7 @@ fn manifest() -> SignedManifest {
             tool_policy: None,
         }],
         revocations: vec![],
-        enabled_hosts: vec!["hermes".into()],
+        enabled_hosts: vec![HostKind::Hermes],
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,

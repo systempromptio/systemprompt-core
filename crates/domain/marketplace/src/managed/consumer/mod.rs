@@ -15,13 +15,8 @@ pub use receipts::verify_readback;
 pub use sessions::ConsumerSessionBinding;
 
 use systemprompt_models::feedback::EvaluatorClient;
+use systemprompt_models::origin::ClientKind;
 
-pub const fn host_key(host: EvaluatorClient) -> &'static str {
-    match host {
-        EvaluatorClient::ClaudeCode => "claude-code",
-        EvaluatorClient::OpenCode => "opencode",
-        EvaluatorClient::Codex => "codex",
-        EvaluatorClient::Hermes => "hermes",
-        EvaluatorClient::ClaudeDesktop => "claude-desktop",
-    }
+pub fn host_key(host: EvaluatorClient) -> &'static str {
+    ClientKind::from(host).as_str()
 }

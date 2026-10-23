@@ -15,7 +15,6 @@ use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::serve_homepage;
 use systemprompt_api::services::static_content::session::ensure_session;
 use systemprompt_api::services::static_content::static_files::{StaticContentState, compute_etag};
-use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::JwtToken;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
@@ -43,7 +42,6 @@ async fn state_with_dist() -> anyhow::Result<(TempDir, StaticContentState)> {
         data: None,
     };
     let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
-    let _ = FilesConfig::init(ctx.app_paths());
     let state = StaticContentState {
         ctx,
         matcher: Arc::new(StaticContentMatcher::empty()),

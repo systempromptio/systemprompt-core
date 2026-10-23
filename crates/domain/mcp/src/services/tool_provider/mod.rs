@@ -20,6 +20,7 @@ use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_manifest::services::ResilienceSettings;
+use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{
     BoxedSource, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext, ToolInventory,
     ToolProvider, ToolProviderError, ToolProviderResult,
@@ -65,6 +66,7 @@ pub struct McpToolProvider {
     registry: RegistryService,
     resilience: ResilienceSettings,
     guards: GuardMap,
+    client: Arc<McpClient>,
 }
 
 impl McpToolProvider {
@@ -72,12 +74,14 @@ impl McpToolProvider {
         db_pool: DbPool,
         registry: RegistryService,
         resilience: &ResilienceSettings,
+        connector_tokens: Arc<TokenCache>,
     ) -> Self {
         Self {
             db_pool,
             registry,
             resilience: *resilience,
             guards: Arc::new(Mutex::new(HashMap::new())),
+            client: Arc::new(McpClient::new(connector_tokens)),
         }
     }
 
@@ -122,7 +126,7 @@ impl ToolProvider for McpToolProvider {
                 configuration_error(format!("Failed to resolve MCP server {server_name}"), e)
             })?;
             let request_ctx = create_request_context(context, &server_config)?;
-            match McpClient::list_tools(&server_config, &request_ctx).await {
+            match self.client.list_tools(&server_config, &request_ctx).await {
                 Ok(tools) => {
                     info!(
                         server = server_name,
@@ -179,9 +183,10 @@ impl ToolProvider for McpToolProvider {
         );
 
         let guard = self.guard_for(service_id.as_str());
+        let client = Arc::clone(&self.client);
         let result = guard
             .execute(McpDomainError::classify, || {
-                McpClient::call_tool(
+                client.call_tool(
                     &server_config,
                     request.name.clone(),
                     Some(request.arguments.clone()),

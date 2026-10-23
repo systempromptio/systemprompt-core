@@ -12,14 +12,14 @@ use std::io::Write;
 use std::time::Duration;
 
 use crate::services::cli::sink::{report_write_failure, stdout_write, stdout_writeln};
-use crate::services::cli::theme::{BrandColors, ServiceStatus};
+use crate::services::cli::theme::{BrandColors, StatusGlyph};
 
 #[derive(Debug, Clone)]
 pub struct ServiceTableEntry {
     pub name: String,
     pub service_type: String,
     pub port: Option<u16>,
-    pub status: ServiceStatus,
+    pub status: StatusGlyph,
 }
 
 impl ServiceTableEntry {
@@ -27,7 +27,7 @@ impl ServiceTableEntry {
         name: impl Into<String>,
         service_type: impl Into<String>,
         port: Option<u16>,
-        status: ServiceStatus,
+        status: StatusGlyph,
     ) -> Self {
         Self {
             name: name.into(),
@@ -225,10 +225,10 @@ fn render_service_row(
     // Why: Rust string formatting counts ANSI escape characters toward field width.
     let padded_status = format!("{status_display:<width$}", width = cols.status);
     let colored_status = match service.status {
-        ServiceStatus::Running => BrandColors::running(padded_status),
-        ServiceStatus::Starting => BrandColors::starting(padded_status),
-        ServiceStatus::Stopped | ServiceStatus::Failed => BrandColors::stopped(padded_status),
-        ServiceStatus::Unknown => BrandColors::dim(padded_status),
+        StatusGlyph::Running => BrandColors::running(padded_status),
+        StatusGlyph::Starting => BrandColors::starting(padded_status),
+        StatusGlyph::Stopped | StatusGlyph::Failed => BrandColors::stopped(padded_status),
+        StatusGlyph::Unknown => BrandColors::dim(padded_status),
     };
 
     writeln!(

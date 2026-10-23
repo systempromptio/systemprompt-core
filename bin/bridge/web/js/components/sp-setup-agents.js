@@ -6,6 +6,7 @@ import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
 import { repairHost, hostInstallMessage } from "/assets/js/utils/host-actions.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
+import { HOST_ID } from "/assets/js/utils/host-ids.js";
 
 // A card is one of three things: still being probed (no control — a button
 // that offers to install what may already be there is the wrong answer),
@@ -30,7 +31,7 @@ function cardControl(host, state) {
   };
   const installed = state === "installed";
   const cls = installed ? "sp-btn-ghost" : "sp-btn-primary";
-  return `${host.id === "claude-desktop" && !installed ? '<p role="note">On macOS, approve the downloaded profile in System Settings → General → Device Management, then quit and relaunch Claude Desktop.</p>' : ""}<button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}" data-host-name="${escapeHtml(host.display_name)}">${escapeHtml(labels[state])}</button>`;
+  return `${host.id === HOST_ID.claudeDesktop && !installed ? '<p role="note">On macOS, approve the downloaded profile in System Settings → General → Device Management, then quit and relaunch Claude Desktop.</p>' : ""}<button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}" data-host-name="${escapeHtml(host.display_name)}">${escapeHtml(labels[state])}</button>`;
 }
 
 export class SpSetupAgents extends SpElement {
@@ -124,9 +125,8 @@ export class SpSetupAgents extends SpElement {
       return this._renderFirstRun();
     }
     const all = (this.snapshot && this.snapshot.host_apps) || [];
-    // The last-sync manifest gates hosts: once any host is enabled, hide the
-    // instance-disabled ones (host.changed merges can re-add them).
-    const hosts = all.some((h) => h.enabled) ? all.filter((h) => h.enabled) : all;
+    // Only hosts the last-sync manifest enabled are offered; a host.changed merge can re-add a disabled one.
+    const hosts = all.filter((h) => h.enabled);
     if (hosts.length === 0) {
       return `<div class="sp-u-muted">${escapeHtml(t("setup-agents-empty") || "No agents detected on this device.")}</div>`;
     }

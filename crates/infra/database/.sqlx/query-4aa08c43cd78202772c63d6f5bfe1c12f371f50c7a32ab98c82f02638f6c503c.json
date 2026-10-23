@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM services\n            WHERE instance_id = $1\n              AND (status = $2 OR (status = $3 AND pid IS NULL))\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4aa08c43cd78202772c63d6f5bfe1c12f371f50c7a32ab98c82f02638f6c503c"
+}

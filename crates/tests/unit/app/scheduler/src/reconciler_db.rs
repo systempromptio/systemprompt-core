@@ -335,10 +335,11 @@ mod state_verifier_db {
             .expect("get_running_services must succeed");
 
         for state in &running {
-            use systemprompt_manifest::RuntimeStatus;
+            use systemprompt_manifest::ServiceStatus;
+            use systemprompt_scheduler::VerifiedService;
             assert_eq!(
-                state.runtime_status,
-                RuntimeStatus::Running,
+                state.runtime,
+                VerifiedService::observed(ServiceStatus::Running),
                 "get_running_services must only return services in Running state"
             );
         }
@@ -362,10 +363,11 @@ mod state_verifier_db {
             .expect("get_crashed_services must succeed");
 
         for state in &crashed {
-            use systemprompt_manifest::RuntimeStatus;
+            use systemprompt_manifest::ServiceStatus;
+            use systemprompt_scheduler::VerifiedService;
             assert_eq!(
-                state.runtime_status,
-                RuntimeStatus::Crashed,
+                state.runtime,
+                VerifiedService::observed(ServiceStatus::Error),
                 "get_crashed_services must only return services in Crashed state"
             );
         }

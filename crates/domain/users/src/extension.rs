@@ -37,6 +37,15 @@ impl Extension for UsersExtension {
                     "bot_type".into(),
                 ]),
             SchemaDefinition::sql_only(include_str!("../schema/session_bot_type.sql")),
+            SchemaDefinition::new(
+                "session_traffic_rollup_hourly",
+                include_str!("../schema/session_traffic_rollup_hourly.sql"),
+            )
+            .with_required_columns(vec![
+                "bucket".into(),
+                "traffic_class".into(),
+                "sessions".into(),
+            ]),
             SchemaDefinition::new("banned_ips", include_str!("../schema/banned_ips.sql"))
                 .with_required_columns(vec![
                     "ip_address".into(),
@@ -83,6 +92,7 @@ impl Extension for UsersExtension {
             ]),
         ]
         .into_iter()
+        .chain(std::iter::once(api_key_session_schema()))
         .chain(federation_schemas())
         .collect()
     }
@@ -119,4 +129,12 @@ fn federation_schemas() -> [SchemaDefinition; 2] {
             "occurred_at".into(),
         ]),
     ]
+}
+
+fn api_key_session_schema() -> SchemaDefinition {
+    SchemaDefinition::new(
+        "api_key_sessions",
+        include_str!("../schema/api_key_sessions.sql"),
+    )
+    .with_required_columns(vec!["api_key_id".into(), "session_id".into()])
 }

@@ -15,7 +15,7 @@ use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop, Res
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::{DispatchError, PolicyDenied};
-use crate::policies::RouteSelectorEngine;
+use crate::registry::GatewayEngines;
 
 pub fn describe_route_match(
     route_id: &RouteId,
@@ -37,12 +37,13 @@ pub fn describe_route_match(
 }
 
 pub(super) async fn refine_chain(
+    engines: &GatewayEngines,
     catalog: &ResolvedCatalog,
     target: &mut ResolvedTarget,
     route: Option<&GatewayRoute>,
     request: &CanonicalRequest,
 ) -> Option<String> {
-    let engine = RouteSelectorEngine::global();
+    let engine = &engines.route_selector;
     if !engine.has_selectors() {
         return None;
     }

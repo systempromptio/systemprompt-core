@@ -155,7 +155,11 @@ async fn attribute(repos: &GatewayRepositories, header: Option<&str>) -> Request
     resolve_scope_attribution(
         ScopeResolution {
             providers: &repos.subject_providers,
-            user_id: &user,
+            subject: &repos
+                .subject_providers
+                .gather(&user)
+                .await
+                .expect("subject attributes"),
             headers: &scope_headers,
             key_bindings: &[],
             api_key_id: Some(&api_key_id),
@@ -163,7 +167,6 @@ async fn attribute(repos: &GatewayRepositories, header: Option<&str>) -> Request
         },
         &mut partial,
     )
-    .await
     .expect("attribution resolves through the registered project provider")
 }
 

@@ -148,7 +148,7 @@ fn cowork_capture_keeps_failed_generation_pending_when_its_required_plugin_root_
 
 fn manifest_for(host: &str, publication: SkillPublication) -> SignedManifest {
     let mut manifest = manifest();
-    manifest.enabled_hosts = vec![host.to_owned()];
+    manifest.enabled_hosts = vec![host.parse::<HostKind>().expect("a bridge host id")];
     manifest.skills[0].hosts = vec![host.to_owned()];
     manifest.skills[0].publication = Some(publication);
     manifest
@@ -464,7 +464,7 @@ fn claude_native_cache_rejects_mismatched_evidence_then_acknowledges_repaired_ge
 #[test]
 fn codex_emitter_roots_require_both_source_and_versioned_cache_before_capture() {
     use systemprompt_bridge::host_sync::HostSync as _;
-    use systemprompt_bridge::integration::codex_cli::CodexCliSync;
+    use systemprompt_bridge::integration::codex::CodexSync;
 
     with_capture_sandbox(|root| {
         tokio::runtime::Builder::new_current_thread()
@@ -476,7 +476,7 @@ fn codex_emitter_roots_require_both_source_and_versioned_cache_before_capture() 
                 let manifest = manifest_for("codex-cli", publication);
                 let bearer = BearerToken::default();
                 let ctx = context(&manifest, "http://127.0.0.1:9", &bearer, root);
-                CodexCliSync.apply(&ctx).await.expect("real Codex host emitter applies");
+                CodexSync.apply(&ctx).await.expect("real Codex host emitter applies");
                 let source = root.join(
                     ".codex/.systemprompt/marketplace/plugins/systemprompt-managed/skills/capture_skill",
                 );
@@ -551,7 +551,7 @@ fn manifest() -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
-        enabled_hosts: vec!["opencode".into()],
+        enabled_hosts: vec![HostKind::OpenCode],
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
@@ -714,7 +714,7 @@ fn hermes_missing_native_skill_is_rejected_before_reservation_or_networking() {
             .unwrap()
             .block_on(async {
                 let mut m = manifest();
-                m.enabled_hosts = vec!["hermes".into()];
+                m.enabled_hosts = vec![HostKind::Hermes];
                 m.skills[0].hosts = vec!["hermes".into()];
                 let hermes_skill = root.join(".hermes/skills/capture_skill");
                 assert!(

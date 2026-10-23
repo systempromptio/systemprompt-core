@@ -22,7 +22,7 @@ pub struct IdentitySourceRegistration {
 
 inventory::collect!(IdentitySourceRegistration);
 
-pub const DEFAULT_WHOAMI_PATH: &str = "/v1/bridge/whoami";
+pub const DEFAULT_WHOAMI_PATH: &str = systemprompt_models::ApiPaths::BRIDGE_WHOAMI;
 
 #[must_use]
 pub fn whoami_path() -> &'static str {

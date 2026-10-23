@@ -12,6 +12,22 @@
 - **Cowork:** the explicit pin (`cowork.session_org_dir`) wins, then the session naming the gateway profile's `organization_uuid`, then the personal or only session; anything else is ambiguous and names the fix. The Claude Desktop row shows the chosen session and which rule chose it (`cowork_plugins::{resolve_target_with_source, choose_target, TargetSource}`). `deployment_organization_uuid` is removed from the config and is ignored if present; the organization id comes from the gateway. `pick_target_for_org` is removed.
 - **Personal keys:** keyed by credential id (`set_personal_key` / `delete_personal_key` take a `CredentialId`; the GUI commands take `credential`). Settings lists one row per personal credential with the provider endpoints it serves (`gateway::personal_keys::personal_key_rows`).
 - **Headers:** the proxy never injects or rewrites `x-session-id`. A client-supplied value reaches the gateway unchanged and none is added when absent; the gateway binds the session to the credential. `UpstreamHeaderInputs::session_id` is removed.
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- Host ids are `claude-code`, `claude-desktop`, `codex`, `codex-cli`, `opencode`, `opencode-cli` and `hermes`: `codex` and `opencode` name the desktop apps, `codex-cli` and `opencode-cli` the command-line tools. `install --host opencode` now enrols the desktop app; use `opencode-cli` for the terminal agent. A manifest naming an unknown host id is refused, and an empty enabled-host list enables no host.
+- The loopback proxy's rejection response carries `x-systemprompt-bridge-reason` only; `x-systemprompt-bridge-install` and `x-systemprompt-bridge-config-dir` are no longer sent.
+- A loopback request to `/mcp` with no server slug is answered as an unknown MCP server rather than forwarded to the gateway.
+
+### Added
+
+- Codex and OpenCode each appear as two agents, the desktop app and the CLI, over one shared configuration written once. The app is detected by its bundle or installer folder and can be launched; the CLI by its binary on `PATH`. Removing one keeps the shared configuration while the other is enabled.
+
+### Changed
+
+- The Agents list and the setup page show only the hosts the last synced manifest enabled.
+- Hermes is listed as a command-line tool.
 
 ## [0.72.1] - 2026-10-22
 

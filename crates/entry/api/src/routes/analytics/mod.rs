@@ -35,6 +35,7 @@ fn state(ctx: &AppContext, content_routing: Option<Arc<dyn ContentRouting>>) -> 
         content: Arc::new(ctx.content_repositories().content.clone()),
         engagement: Arc::new(analytics.engagement.clone()),
         content_routing,
+        broadcasters: Arc::clone(ctx.event_broadcasters()),
     }
 }
 

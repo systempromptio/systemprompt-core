@@ -261,14 +261,14 @@ mod mcp_validator {
 
     fn internal(name: &str, port: u16) -> String {
         format!(
-            "  {name}:\n    type: internal\n    binary: {name}-bin\n    port: {port}\n    \
+            "  {name}:\n    server_type: internal\n    binary: {name}-bin\n    port: {port}\n    \
              enabled: true\n    display_in_web: false\n{OAUTH}"
         )
     }
 
     fn external(name: &str) -> String {
         format!(
-            "  {name}:\n    type: external\n    endpoint: https://{name}.example.com/mcp\n    \
+            "  {name}:\n    server_type: external\n    endpoint: https://{name}.example.com/mcp\n    \
              enabled: true\n    display_in_web: false\n{OAUTH}"
         )
     }

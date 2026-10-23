@@ -5,11 +5,11 @@
 //! wiremock backend, a bound listener, a spawned child.
 //!
 //! Reach for it instead of writing the row directly.
-//! `ServiceRepository::cleanup_stale_entries` deletes every
-//! `status = 'running' AND pid IS NULL` row across the whole table. That is
-//! correct in production, where one instance owns the database, but every test
-//! shares one database, so a pid-less registration is deleted by whichever
-//! concurrent test next boots an orchestrator. Recording the pid of the process
+//! `ServiceRepository::reap_stale` deletes every `status = 'running' AND pid
+//! IS NULL` row of its instance and every running row whose pid is not a child
+//! this process owns. Every test shares one database, so a pid-less
+//! registration is deleted by whichever concurrent test next boots an
+//! orchestrator. Recording the pid of the process
 //! that hosts the service keeps the sweep from claiming the row, and is honest
 //! about who owns it.
 //!

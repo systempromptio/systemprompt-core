@@ -183,7 +183,7 @@ pub struct AgentMetadataConfig {
     // JSON: an agent-runs `RunRequest` template, opaque here. When set, the
     // A2A server queues each message as a headless agent run instead of
     // answering inline; the message becomes the template's `prompt`.
-    #[serde(default, alias = "agent_run", skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_run: Option<serde_json::Value>,
 }
 

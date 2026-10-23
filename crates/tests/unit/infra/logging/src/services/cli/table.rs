@@ -6,7 +6,7 @@ use systemprompt_logging::services::cli::table::{
     ServiceTableEntry, render_service_table, render_service_table_into, render_startup_complete,
     render_table, truncate_to_width,
 };
-use systemprompt_logging::services::cli::theme::ServiceStatus;
+use systemprompt_logging::services::cli::theme::StatusGlyph;
 
 fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -95,11 +95,11 @@ fn render_table_handles_extra_cells() {
 
 #[test]
 fn service_table_entry_builder() {
-    let e = ServiceTableEntry::new("svc", "type", Some(1234), ServiceStatus::Running);
+    let e = ServiceTableEntry::new("svc", "type", Some(1234), StatusGlyph::Running);
     assert_eq!(e.name, "svc");
     assert_eq!(e.service_type, "type");
     assert_eq!(e.port, Some(1234));
-    assert!(matches!(e.status, ServiceStatus::Running));
+    assert!(matches!(e.status, StatusGlyph::Running));
 }
 
 #[test]
@@ -110,11 +110,11 @@ fn render_service_table_empty_no_panic() {
 #[test]
 fn render_service_table_all_status_variants() {
     let services = vec![
-        ServiceTableEntry::new("r", "t", Some(80), ServiceStatus::Running),
-        ServiceTableEntry::new("s", "t", Some(81), ServiceStatus::Starting),
-        ServiceTableEntry::new("o", "t", None, ServiceStatus::Stopped),
-        ServiceTableEntry::new("f", "t", Some(83), ServiceStatus::Failed),
-        ServiceTableEntry::new("u", "t", Some(84), ServiceStatus::Unknown),
+        ServiceTableEntry::new("r", "t", Some(80), StatusGlyph::Running),
+        ServiceTableEntry::new("s", "t", Some(81), StatusGlyph::Starting),
+        ServiceTableEntry::new("o", "t", None, StatusGlyph::Stopped),
+        ServiceTableEntry::new("f", "t", Some(83), StatusGlyph::Failed),
+        ServiceTableEntry::new("u", "t", Some(84), StatusGlyph::Unknown),
     ];
     render_service_table("All Services", &services);
 }
@@ -122,12 +122,12 @@ fn render_service_table_all_status_variants() {
 #[test]
 fn render_service_table_every_line_is_the_same_width() {
     let services = vec![
-        ServiceTableEntry::new("api", "http", Some(8080), ServiceStatus::Running),
+        ServiceTableEntry::new("api", "http", Some(8080), StatusGlyph::Running),
         ServiceTableEntry::new(
             "a-considerably-longer-name",
             "subprocess",
             None,
-            ServiceStatus::Stopped,
+            StatusGlyph::Stopped,
         ),
     ];
 
@@ -152,7 +152,7 @@ fn render_service_table_rows_are_framed_by_box_glyphs() {
         "api",
         "http",
         Some(8080),
-        ServiceStatus::Running,
+        StatusGlyph::Running,
     )];
 
     let lines = render_service_lines("Services", &services);
@@ -173,8 +173,8 @@ fn render_service_table_rows_are_framed_by_box_glyphs() {
 #[test]
 fn render_service_table_status_column_is_padded_not_collapsed() {
     let services = vec![
-        ServiceTableEntry::new("a", "t", Some(80), ServiceStatus::Running),
-        ServiceTableEntry::new("b", "t", Some(81), ServiceStatus::Starting),
+        ServiceTableEntry::new("a", "t", Some(80), StatusGlyph::Running),
+        ServiceTableEntry::new("b", "t", Some(81), StatusGlyph::Starting),
     ];
 
     let lines = render_service_lines("Services", &services);

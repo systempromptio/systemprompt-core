@@ -16,6 +16,7 @@ use systemprompt_traits::{AuthUser, SessionProvider, UserProvider};
 use crate::services::middleware::session::{SessionAttestationError, attest_session};
 
 const USER_CACHE_TTL: Duration = Duration::from_secs(30);
+const USER_CACHE_CAPACITY: usize = 4096;
 
 #[derive(Debug)]
 pub struct ValidatedUser {
@@ -57,6 +58,13 @@ impl UserCache {
 
     pub fn put(&self, user_id: UserId, user: AuthUser) {
         if let Ok(mut guard) = self.entries.lock() {
+            if guard.len() >= USER_CACHE_CAPACITY && !guard.contains_key(&user_id) {
+                let ttl = self.ttl;
+                guard.retain(|_, (_, fetched_at)| fetched_at.elapsed() < ttl);
+                if guard.len() >= USER_CACHE_CAPACITY {
+                    guard.clear();
+                }
+            }
             guard.insert(user_id, (user, Instant::now()));
         }
     }
@@ -65,15 +73,15 @@ impl UserCache {
 pub async fn validate_user_exists(
     user_provider: &Arc<dyn UserProvider>,
     cache: &Arc<UserCache>,
-    jwt_context: &JwtUserContext,
+    user_id: &UserId,
     route_context: &str,
 ) -> Result<ValidatedUser, ContextExtractionError> {
-    if let Some(user) = cache.get_fresh(&jwt_context.user_id) {
-        return require_active(user, jwt_context, route_context);
+    if let Some(user) = cache.get_fresh(user_id) {
+        return require_active(user, user_id, route_context);
     }
 
     let user = user_provider
-        .find_by_id(&jwt_context.user_id)
+        .find_by_id(user_id)
         .await
         .map_err(|e| ContextExtractionError::DatabaseError {
             context: "Failed to check user existence".to_owned(),
@@ -81,36 +89,34 @@ pub async fn validate_user_exists(
         })?
         .ok_or_else(|| {
             tracing::info!(
-                session_id = %jwt_context.session_id.as_str(),
-                user_id = %jwt_context.user_id.as_str(),
+                user_id = %user_id.as_str(),
                 route = %route_context,
-                "JWT validation failed: user no longer exists in database"
+                "credential validation failed: user no longer exists in database"
             );
             ContextExtractionError::UserNotFound(format!(
                 "User {} no longer exists",
-                jwt_context.user_id.as_str()
+                user_id.as_str()
             ))
         })?;
 
-    cache.put(jwt_context.user_id.clone(), user.clone());
-    require_active(user, jwt_context, route_context)
+    cache.put(user_id.clone(), user.clone());
+    require_active(user, user_id, route_context)
 }
 
 fn require_active(
     user: AuthUser,
-    jwt_context: &JwtUserContext,
+    user_id: &UserId,
     route_context: &str,
 ) -> Result<ValidatedUser, ContextExtractionError> {
     if !user.is_active {
         tracing::info!(
-            session_id = %jwt_context.session_id.as_str(),
-            user_id = %jwt_context.user_id.as_str(),
+            user_id = %user_id.as_str(),
             route = %route_context,
-            "JWT validation failed: user is not active"
+            "credential validation failed: user is not active"
         );
         return Err(ContextExtractionError::UserNotFound(format!(
             "User {} is not active",
-            jwt_context.user_id.as_str()
+            user_id.as_str()
         )));
     }
     Ok(ValidatedUser { user })

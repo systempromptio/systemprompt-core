@@ -401,7 +401,7 @@ agents:
       audience: a2a
 mcp_servers:
   @MCP_NAME@:
-    type: external
+    server_type: external
     endpoint: http://127.0.0.1:@MCP_PORT@/mcp
     enabled: true
     tool_policy: allow

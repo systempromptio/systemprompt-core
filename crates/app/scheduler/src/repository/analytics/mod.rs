@@ -1,12 +1,14 @@
 //! Analytics maintenance queries used by scheduled cleanup jobs: empty
-//! contexts and the behavioural-bot session flags.
+//! contexts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
 use std::sync::Arc;
+use systemprompt_agent::repository::ContextRepository;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::ContextId;
 use systemprompt_models::ContextKind;
 
 use crate::error::SchedulerResult;
@@ -14,40 +16,62 @@ use crate::error::SchedulerResult;
 #[derive(Debug, Clone)]
 pub struct AnalyticsRepository {
     write_pool: Arc<PgPool>,
+    contexts: ContextRepository,
 }
 
 impl AnalyticsRepository {
     pub fn new(db: &DbPool) -> Self {
-        let write_pool = db.write_pool();
-        Self { write_pool }
+        Self {
+            write_pool: db.write_pool(),
+            contexts: ContextRepository::new(db),
+        }
     }
 
+    // Why: the candidate set spans four owners (contexts, messages, tool
+    // executions, decisions) and is only read here; the delete runs in the
+    // agent repository, which owns `user_contexts`.
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {
-        let result = sqlx::query!(
+        let candidates = self.empty_context_ids(hours_old).await?;
+        let deleted = self
+            .contexts
+            .delete_empty_contexts(&candidates, hours_old, ContextKind::CliSession)
+            .await?;
+        Ok(deleted)
+    }
+
+    async fn empty_context_ids(&self, hours_old: i64) -> SchedulerResult<Vec<ContextId>> {
+        let ids = sqlx::query_scalar!(
             r#"
-            DELETE FROM user_contexts
-            WHERE context_id IN (
-                SELECT uc.context_id
-                FROM user_contexts uc
-                LEFT JOIN task_messages tm ON uc.context_id = tm.context_id
-                WHERE tm.id IS NULL
-                AND NOT EXISTS (
-                    SELECT 1 FROM mcp_tool_executions mte WHERE mte.context_id = uc.context_id
-                )
-                AND NOT EXISTS (
-                    SELECT 1 FROM governance_decisions gd WHERE gd.context_id = uc.context_id
-                )
-                AND uc.created_at < NOW() - ($1 || ' hours')::interval
-                AND (uc.kind != $2 OR uc.session_id IS NULL)
+            SELECT uc.context_id as "context_id!"
+            FROM user_contexts uc
+            LEFT JOIN task_messages tm ON uc.context_id = tm.context_id
+            WHERE tm.id IS NULL
+            AND NOT EXISTS (
+                SELECT 1 FROM mcp_tool_executions mte WHERE mte.context_id = uc.context_id
             )
+            AND NOT EXISTS (
+                SELECT 1 FROM governance_decisions gd WHERE gd.context_id = uc.context_id
+            )
+            AND uc.created_at < NOW() - ($1 || ' hours')::interval
+            AND (uc.kind != $2 OR uc.session_id IS NULL)
             "#,
             hours_old.to_string(),
             ContextKind::CliSession.as_str()
         )
-        .execute(&*self.write_pool)
+        .fetch_all(&*self.write_pool)
         .await?;
-
-        Ok(result.rows_affected())
+        // Why: a context row whose id is not a valid ContextId cannot be
+        // addressed through the agent repository; it is reported and left.
+        Ok(ids
+            .into_iter()
+            .filter_map(|raw| match ContextId::try_new(raw) {
+                Ok(id) => Some(id),
+                Err(error) => {
+                    tracing::warn!(error = %error, "empty-context sweep skipped a context with an invalid id");
+                    None
+                },
+            })
+            .collect())
     }
 
     pub async fn count_empty_contexts(&self, hours_old: i64) -> SchedulerResult<i64> {
@@ -73,76 +97,5 @@ impl AnalyticsRepository {
         .await?;
 
         Ok(count)
-    }
-
-    // Why: both heuristics judge a session in its first day only. The job
-    // runs every 15 minutes, and without a lower bound every unflagged web
-    // session ever recorded was re-judged on every tick; `NOT EXISTS` replaces
-    // a `NOT IN` that read all of engagement_events (and matched nothing at
-    // all had one session_id been NULL).
-    pub async fn mark_ghost_sessions_as_bots(&self) -> SchedulerResult<i64> {
-        // Why: a browser heuristic. Bridge, OAuth and API sessions never load
-        // a landing page or run JavaScript, so without the source filter every
-        // desktop-client session was marked a bot (1,203 of them in production).
-        let marked = sqlx::query_scalar!(
-            r#"
-            WITH cleaned AS (
-                UPDATE user_sessions
-                SET is_behavioral_bot = true,
-                    behavioral_bot_reason = 'ghost_session',
-                    behavioral_bot_score = 35
-                WHERE is_bot = false
-                  AND is_ai_crawler = false
-                  AND is_scanner = false
-                  AND is_behavioral_bot = false
-                  AND session_source = 'web'
-                  AND request_count = 0
-                  AND landing_page IS NULL
-                  AND entry_url IS NULL
-                  AND started_at < NOW() - INTERVAL '5 minutes'
-                  AND started_at >= NOW() - INTERVAL '1 day'
-                RETURNING 1
-            )
-            SELECT COUNT(*)::BIGINT as "count!" FROM cleaned
-            "#
-        )
-        .fetch_one(&*self.write_pool)
-        .await?;
-
-        Ok(marked)
-    }
-
-    pub async fn mark_no_js_sessions_as_bots(&self) -> SchedulerResult<i64> {
-        // Why: a browser heuristic. Bridge, OAuth and API sessions never load
-        // a landing page or run JavaScript, so without the source filter every
-        // desktop-client session was marked a bot (1,203 of them in production).
-        let marked = sqlx::query_scalar!(
-            r#"
-            WITH cleaned AS (
-                UPDATE user_sessions
-                SET is_behavioral_bot = true,
-                    behavioral_bot_reason = 'no_javascript',
-                    behavioral_bot_score = 20
-                WHERE is_bot = false
-                  AND is_ai_crawler = false
-                  AND is_scanner = false
-                  AND is_behavioral_bot = false
-                  AND session_source = 'web'
-                  AND request_count > 0
-                  AND started_at < NOW() - INTERVAL '10 minutes'
-                  AND started_at >= NOW() - INTERVAL '1 day'
-                  AND NOT EXISTS (
-                    SELECT 1 FROM engagement_events e
-                    WHERE e.session_id = user_sessions.session_id AND e.time_on_page_ms > 0
-                  )
-                RETURNING 1
-            )
-            SELECT COUNT(*)::BIGINT as "count!" FROM cleaned
-            "#
-        )
-        .fetch_one(&*self.write_pool)
-        .await?;
-
-        Ok(marked)
     }
 }

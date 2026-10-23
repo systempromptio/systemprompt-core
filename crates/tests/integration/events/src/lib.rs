@@ -9,6 +9,9 @@ mod cross_replica;
 #[cfg(test)]
 mod durable_batch;
 
+#[cfg(test)]
+mod config_watch_notify;
+
 use sqlx::PgPool;
 use std::sync::Arc;
 

@@ -18,6 +18,7 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
 use systemprompt_bridge::integration::claude_code_cli::sidecar;
 use systemprompt_bridge::sync::{SyncOptions, run_once};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::{
     ManifestExternalMarketplace, ManifestExternalMarketplaceSource, ManifestExternalPlugin,
     ManifestExternalPluginSource,
@@ -198,7 +199,7 @@ fn org_provisioned_marketplace() -> ManifestMarketplace {
     }
 }
 
-fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> SignedManifest {
+fn manifest(enabled_hosts: Vec<HostKind>, populated: bool, suffix: &str) -> SignedManifest {
     let marketplaces = if populated {
         vec![org_provisioned_marketplace()]
     } else {
@@ -376,7 +377,7 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
         .unwrap();
 
     let m = manifest(
-        vec!["claude-code".into(), "claude-desktop".into()],
+        vec![HostKind::ClaudeCode, HostKind::ClaudeDesktop],
         true,
         "aaaa0001",
     );
@@ -449,7 +450,7 @@ fn each_host_copy_of_hooks_json_is_stamped_with_the_host_that_runs_it() {
         .unwrap();
 
     let mut m = manifest(
-        vec!["claude-code".into(), "claude-desktop".into()],
+        vec![HostKind::ClaudeCode, HostKind::ClaudeDesktop],
         true,
         "dddd0001",
     );
@@ -535,7 +536,7 @@ fn a_sync_with_no_cowork_session_dir_still_stages_the_workspace_bundle() {
         .unwrap();
 
     let m = manifest(
-        vec!["claude-code".into(), "claude-desktop".into()],
+        vec![HostKind::ClaudeCode, HostKind::ClaudeDesktop],
         true,
         "cccc0001",
     );
@@ -598,7 +599,7 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
         .unwrap();
 
     let enabled = manifest(
-        vec!["claude-code".into(), "claude-desktop".into()],
+        vec![HostKind::ClaudeCode, HostKind::ClaudeDesktop],
         true,
         "bbbb0001",
     );
@@ -732,7 +733,7 @@ fn a_manifest_naming_marketplaces_mirrors_each_and_spares_every_marketplace_it_d
         .build()
         .unwrap();
 
-    let mut m = manifest(vec!["claude-code".into()], true, "bbbb0002");
+    let mut m = manifest(vec![HostKind::ClaudeCode], true, "bbbb0002");
     m.marketplaces = ["core", "commerce"]
         .into_iter()
         .map(|id| ManifestMarketplace {
@@ -843,7 +844,7 @@ fn claude_cli_mcp_projection_follows_the_user_manifest() {
         .enable_all()
         .build()
         .unwrap();
-    let mut m = manifest(vec!["claude-code".into()], true, "dddd0001");
+    let mut m = manifest(vec![HostKind::ClaudeCode], true, "dddd0001");
     m.managed_mcp_servers = vec![
         serde_json::from_value(serde_json::json!({
             "name": "knowledge-bank", "url": "https://gateway.example/mcp/knowledge-bank"
@@ -893,7 +894,7 @@ fn a_clean_install_routes_claude_code_and_carries_its_permission_rules() {
         .enable_all()
         .build()
         .unwrap();
-    let mut m = manifest(vec!["claude-code".into()], true, "eeee0001");
+    let mut m = manifest(vec![HostKind::ClaudeCode], true, "eeee0001");
     m.managed_mcp_servers = vec![
         serde_json::from_value(serde_json::json!({
             "name": "knowledge-bank",
@@ -980,7 +981,7 @@ fn permission_ownership_withdrawal_preserves_foreign_rules_and_recovers_after_si
         .enable_all()
         .build()
         .unwrap();
-    let mut granted = manifest(vec!["claude-code".into()], true, "ffff0001");
+    let mut granted = manifest(vec![HostKind::ClaudeCode], true, "ffff0001");
     granted.managed_mcp_servers = vec![
         serde_json::from_value(serde_json::json!({
             "name": "knowledge-bank",
@@ -1029,7 +1030,7 @@ fn permission_ownership_withdrawal_preserves_foreign_rules_and_recovers_after_si
     );
     assert_eq!(installed["permissions"]["defaultMode"], "plan");
 
-    let mut withdrawn = manifest(vec!["claude-code".into()], true, "ffff0002");
+    let mut withdrawn = manifest(vec![HostKind::ClaudeCode], true, "ffff0002");
     withdrawn.managed_mcp_servers.clear();
     rt.block_on(async {
         server.reset().await;
@@ -1078,7 +1079,7 @@ fn enabled_host_without_a_marketplace_clears_only_owned_cli_state() {
         .enable_all()
         .build()
         .unwrap();
-    let initial = manifest(vec!["claude-code".into()], true, "11110001");
+    let initial = manifest(vec![HostKind::ClaudeCode], true, "11110001");
     let (server, dirs) = rt.block_on(async {
         let server = MockServer::start().await;
         crate::mount_profile(&server).await;
@@ -1088,7 +1089,7 @@ fn enabled_host_without_a_marketplace_clears_only_owned_cli_state() {
     });
     seed_unowned_and_foreign_marketplaces(&dirs.claude_home);
     run_sync(&dirs).expect("initial marketplace applies");
-    let mut withdrawn = manifest(vec!["claude-code".into()], true, "11110002");
+    let mut withdrawn = manifest(vec![HostKind::ClaudeCode], true, "11110002");
     withdrawn.marketplaces.clear();
     rt.block_on(async {
         server.reset().await;
@@ -1128,7 +1129,7 @@ fn absent_marketplace_plugin_warns_and_withdraws_its_stale_bundle() {
         .enable_all()
         .build()
         .unwrap();
-    let initial = manifest(vec!["claude-code".into()], true, "22220001");
+    let initial = manifest(vec![HostKind::ClaudeCode], true, "22220001");
     let (server, dirs) = rt.block_on(async {
         let server = MockServer::start().await;
         crate::mount_profile(&server).await;
@@ -1137,7 +1138,7 @@ fn absent_marketplace_plugin_warns_and_withdraws_its_stale_bundle() {
         (server, dirs)
     });
     run_sync(&dirs).expect("initial marketplace applies");
-    let mut inconsistent = manifest(vec!["claude-code".into()], true, "22220002");
+    let mut inconsistent = manifest(vec![HostKind::ClaudeCode], true, "22220002");
     inconsistent.marketplaces[0].plugin_ids = vec![PluginId::try_new("missing-plugin").unwrap()];
     rt.block_on(async {
         server.reset().await;
@@ -1177,7 +1178,7 @@ fn minimal_plugin_without_skills_or_authored_hooks_mirrors_through_run_once() {
         .enable_all()
         .build()
         .unwrap();
-    let mut minimal = manifest(vec!["claude-code".into()], true, "33330001");
+    let mut minimal = manifest(vec![HostKind::ClaudeCode], true, "33330001");
     minimal.plugins[0]
         .files
         .retain(|file| file.path == ".claude-plugin/plugin.json");
@@ -1207,7 +1208,7 @@ fn minimal_plugin_without_skills_or_authored_hooks_mirrors_through_run_once() {
     }
 }
 fn manifest_with_plugin_json(body: &[u8], suffix: &str) -> SignedManifest {
-    let mut manifest = manifest(vec!["claude-code".into()], true, suffix);
+    let mut manifest = manifest(vec![HostKind::ClaudeCode], true, suffix);
     let file = manifest.plugins[0]
         .files
         .iter_mut()
@@ -1435,7 +1436,7 @@ fn claude_code_sync_aggregates_shared_foreign_marketplaces_once() {
         .unwrap();
     let first_files = foreign_plugin_files("research-plugin", "search");
     let second_files = foreign_plugin_files("commerce-plugin", "billing");
-    let mut m = manifest(vec!["claude-code".into()], false, "face0001");
+    let mut m = manifest(vec![HostKind::ClaudeCode], false, "face0001");
     m.plugins = vec![
         foreign_plugin_entry("research-plugin", &first_files),
         foreign_plugin_entry("commerce-plugin", &second_files),
@@ -1528,7 +1529,7 @@ fn claude_code_sync_lists_and_enables_a_pass_through_dependency_and_spares_its_i
         ("SKILL.md".to_owned(), b"# managed\n".to_vec()),
     ];
     let sha = "74354ecc7a43da16d91a9bc54fa8db8283a3fcf5";
-    let mut m = manifest(vec!["claude-code".into()], false, "face0002");
+    let mut m = manifest(vec![HostKind::ClaudeCode], false, "face0002");
     m.plugins = vec![foreign_plugin_entry("app", &files)];
     m.marketplaces = vec![ManifestMarketplace {
         id: systemprompt_identifiers::MarketplaceId::new("org"),

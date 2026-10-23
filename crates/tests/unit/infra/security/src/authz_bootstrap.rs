@@ -276,6 +276,10 @@ mod extension_mode {
         async fn evaluate(&self, _req: AuthzRequest) -> AuthzDecision {
             AuthzDecision::Allow
         }
+
+        async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+            self.evaluate(req).await
+        }
     }
 
     #[derive(Debug)]
@@ -291,6 +295,10 @@ mod extension_mode {
                 },
                 policy: self.0.to_owned(),
             }
+        }
+
+        async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+            self.evaluate(req).await
         }
     }
 
@@ -495,6 +503,10 @@ mod extension_mode {
     impl AuthzDecisionHook for RecordingHook {
         async fn evaluate(&self, _req: AuthzRequest) -> AuthzDecision {
             self.recorder.lock().unwrap().push(self.label);
+            self.decision.clone()
+        }
+
+        async fn probe(&self, _req: AuthzRequest) -> AuthzDecision {
             self.decision.clone()
         }
     }

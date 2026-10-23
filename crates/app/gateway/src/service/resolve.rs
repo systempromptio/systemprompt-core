@@ -25,7 +25,7 @@ use systemprompt_models::attribution::RequestAttribution;
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
-use super::super::registry::GatewayUpstreamRegistry;
+use super::super::registry::GatewayEngines;
 use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
 use super::credentials::KeyOwner;
 use super::route_match::{describe_route_match, enforce_route_requirements, refine_chain};
@@ -39,7 +39,7 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) route: Option<GatewayRoute>,
     pub(super) route_id: RouteId,
     pub(super) call: UpstreamCall,
-    pub(super) adapter: &'static Arc<dyn OutboundAdapter>,
+    pub(super) adapter: Arc<dyn OutboundAdapter>,
     pub(super) route_match_descriptor: Option<String>,
     pub(super) deployments: Vec<ResolvedHop>,
     pub(super) billing: BillingSource,
@@ -63,6 +63,7 @@ pub(super) struct UpstreamQuery<'r> {
 
 pub(super) async fn resolve_upstream<'a>(
     catalog: &'a ResolvedCatalog,
+    engines: &GatewayEngines,
     query: UpstreamQuery<'_>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
     let UpstreamQuery {
@@ -83,7 +84,7 @@ pub(super) async fn resolve_upstream<'a>(
         let predicates = w.matched_predicates();
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
-    let selector = refine_chain(catalog, &mut target, route.as_ref(), request).await;
+    let selector = refine_chain(engines, catalog, &mut target, route.as_ref(), request).await;
     let planned = plan_chain(catalog, request, &target.chain, &target, ai_request_id)?;
     let route_match_descriptor = join_segments(
         Some(describe_route_match(
@@ -102,6 +103,7 @@ pub(super) async fn resolve_upstream<'a>(
     };
     let mut bound = bind_hop(
         catalog,
+        engines,
         primary,
         BindTarget {
             model: target.model,
@@ -183,6 +185,7 @@ fn join_segments(first: Option<String>, second: Option<String>) -> Option<String
 pub(super) struct DeploymentHop<'h> {
     pub(super) index: usize,
     pub(super) hops: &'h [String],
+    pub(super) engines: &'h GatewayEngines,
 }
 
 pub(super) async fn resolve_deployment_upstream<'a>(
@@ -208,6 +211,7 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     });
     bind_hop(
         primary.catalog,
+        hop.engines,
         next,
         BindTarget {
             model: primary.model.clone(),
@@ -245,6 +249,7 @@ struct BindTarget<'r> {
 
 async fn bind_hop<'a>(
     catalog: &'a ResolvedCatalog,
+    engines: &GatewayEngines,
     hop: ResolvedHop,
     target: BindTarget<'_>,
     route_match_descriptor: Option<String>,
@@ -260,8 +265,10 @@ async fn bind_hop<'a>(
 
     let (call, billing) = super::credentials::resolve(catalog, &hop, &owner).await?;
 
-    let adapter = GatewayUpstreamRegistry::global()
+    let adapter = engines
+        .upstream_registry
         .get(hop.wire.as_tag())
+        .map(Arc::clone)
         .ok_or_else(|| {
             DispatchError::pre_audit(GatewayError::NoAdapter {
                 wire: hop.wire.as_tag().to_owned(),

@@ -12,7 +12,7 @@ use systemprompt_gateway::quota::{
     AccountingOutcome, QuotaEstimate, QuotaReservation, QuotaSubjects, QuotaUsage, ReserveOutcome,
     ReserveParams, precheck_and_reserve, release, settle,
 };
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{QuotaSubjectKind, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
 
@@ -26,7 +26,8 @@ fn repos(db: &DbPool) -> GatewayRepositories {
                 .app_paths
                 .storage()
                 .data(),
-            systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+            systemprompt_config::SecretsBootstrap::encryption_master_key()
+                .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
@@ -184,7 +185,7 @@ async fn an_unresolvable_subject_is_skipped_when_open() {
     let windows = [window("api_key", 1800, Some(1)), window("user", 1800, None)];
     let reservation = admitted(reserve(&repos(&db), &user, &windows, QuotaFaultMode::Open).await);
     assert_eq!(reservation.windows.len(), 1);
-    assert_eq!(reservation.windows[0].subject_kind, "user");
+    assert_eq!(reservation.windows[0].subject_kind, QuotaSubjectKind::User);
 }
 
 #[tokio::test]

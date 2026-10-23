@@ -15,7 +15,9 @@
 
 use std::time::Duration;
 
+use async_trait::async_trait;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_traits::ProcessLiveness;
 
 use super::{ChildKind, SupervisionError};
 
@@ -62,6 +64,18 @@ pub async fn owns(pid: u32, kind: ChildKind, service: &ServiceName) -> bool {
             tracing::warn!(pid, error = %e, "Child identity check did not complete; treating as not ours");
             false
         },
+    }
+}
+
+/// [`ProcessLiveness`] over this module's spawn markers: a pid is ours when it
+/// is alive and identifies as a supervised agent or MCP child named `service`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SubprocessLiveness;
+
+#[async_trait]
+impl ProcessLiveness for SubprocessLiveness {
+    async fn owns(&self, pid: u32, service: &ServiceName) -> bool {
+        owns(pid, ChildKind::Agent, service).await || owns(pid, ChildKind::Mcp, service).await
     }
 }
 

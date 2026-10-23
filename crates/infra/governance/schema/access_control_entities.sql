@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS access_control_entities (
     -- "roles.yaml" (access-control loader), or "bootstrap:*" for rows
     -- promoted from older schemas by a migration.
     source TEXT NOT NULL,
+    -- Last writer, from the transaction's change context (sp_stamp_change).
+    changed_by TEXT,
+    changed_at TIMESTAMPTZ,
+    reason TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (entity_type, entity_id)

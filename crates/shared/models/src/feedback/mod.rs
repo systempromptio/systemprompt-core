@@ -10,13 +10,14 @@ pub mod receipts;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::bridge::host::{HostAppKind, HostKind, HostProduct};
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum EvaluatorClient {
     ClaudeCode,
-    #[serde(alias = "opencode")]
     OpenCode,
     Codex,
     Hermes,
@@ -24,13 +25,22 @@ pub enum EvaluatorClient {
 }
 
 impl EvaluatorClient {
-    pub fn accepts_host_name(self, name: &str) -> bool {
-        match self {
-            Self::ClaudeCode => name == "claude-code",
-            Self::ClaudeDesktop => name == "claude-desktop",
-            Self::Codex => matches!(name, "codex" | "codex-cli"),
-            Self::OpenCode => matches!(name, "opencode" | "open-code"),
-            Self::Hermes => name == "hermes",
+    #[must_use]
+    pub fn accepts(self, host: HostKind) -> bool {
+        Self::from(host) == self
+    }
+}
+
+impl From<HostKind> for EvaluatorClient {
+    fn from(host: HostKind) -> Self {
+        match host.product() {
+            HostProduct::Claude => match host.kind() {
+                HostAppKind::DesktopApp => Self::ClaudeDesktop,
+                HostAppKind::CliTool => Self::ClaudeCode,
+            },
+            HostProduct::Codex => Self::Codex,
+            HostProduct::OpenCode => Self::OpenCode,
+            HostProduct::Hermes => Self::Hermes,
         }
     }
 }

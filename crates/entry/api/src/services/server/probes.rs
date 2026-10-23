@@ -31,6 +31,7 @@ use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
+use super::readiness::ReadinessState;
 use crate::services::middleware::LoadShed;
 
 pub(crate) async fn handle_livez(
@@ -48,6 +49,7 @@ pub(crate) async fn handle_readyz(
     shed: Option<axum::Extension<Arc<LoadShed>>>,
     planes: Option<axum::Extension<Arc<ConfigReconcileRepository>>>,
     readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
+    axum::Extension(api_ready): axum::Extension<Arc<ReadinessState>>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
@@ -64,7 +66,7 @@ pub(crate) async fn handle_readyz(
     };
     let bare = json!({ "fingerprint": fingerprint });
 
-    if !super::readiness::is_ready() {
+    if !api_ready.is_ready() {
         return respond(
             StatusCode::SERVICE_UNAVAILABLE,
             json!({ "status": "draining" }),

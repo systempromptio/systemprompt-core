@@ -11,6 +11,9 @@ mod auth;
 mod cache_epoch;
 
 #[cfg(test)]
+mod config_watch;
+
+#[cfg(test)]
 mod db_value;
 
 #[cfg(test)]
@@ -53,6 +56,9 @@ mod content_filter;
 
 #[cfg(test)]
 mod ai_providers;
+
+#[cfg(test)]
+mod request_status;
 
 #[cfg(test)]
 mod agent_run_launcher;

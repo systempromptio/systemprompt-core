@@ -104,13 +104,13 @@
       }
     },
     {
-      "id": "codex-cli",
-      "display_name": "Codex CLI",
-      "kind": "cli-tool",
-      "description": "OpenAI's terminal coding agent",
+      "id": "codex",
+      "display_name": "Codex",
+      "kind": "desktop-app",
+      "description": "OpenAI's Codex desktop app",
       "icon": "codex-cli",
       "config_format": "toml",
-      "download_url": "https://github.com/openai/codex",
+      "download_url": "https://developers.openai.com/codex/app",
       "install_action_label": "written to config file",
       "can_open": true,
       "can_verify": true,
@@ -165,9 +165,69 @@
       }
     },
     {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli-tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "health": {
+        "profile": {
+          "tone": "err",
+          "code": "absent"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "codex"
+        ],
+        "inference_models": [],
+        "inference_models_error": null,
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "not-set-up",
+        "tone": "warn",
+        "reason": {
+          "code": "absent"
+        },
+        "action": {
+          "code": "connect"
+        },
+        "secondary_action": null,
+        "is_set_up": false,
+        "is_listed": true,
+        "is_installed": false,
+        "is_running": true
+      }
+    },
+    {
       "id": "hermes",
       "display_name": "Hermes",
-      "kind": "desktop-app",
+      "kind": "cli-tool",
       "description": "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
       "icon": "hermes",
       "config_format": "yaml",
@@ -228,7 +288,7 @@
     {
       "id": "opencode",
       "display_name": "OpenCode",
-      "kind": "cli-tool",
+      "kind": "desktop-app",
       "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
       "icon": "opencode",
       "config_format": "json",
@@ -269,6 +329,66 @@
       ],
       "model_protocols_overridden": false,
       "cowork_session": null,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "not-set-up",
+        "tone": "warn",
+        "reason": {
+          "code": "absent"
+        },
+        "action": {
+          "code": "connect"
+        },
+        "secondary_action": null,
+        "is_set_up": false,
+        "is_listed": true,
+        "is_installed": false,
+        "is_running": true
+      }
+    },
+    {
+      "id": "opencode-cli",
+      "display_name": "OpenCode CLI",
+      "kind": "cli-tool",
+      "description": "The open-source OpenCode terminal agent",
+      "icon": "opencode",
+      "config_format": "json",
+      "download_url": "https://opencode.ai/",
+      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
+      "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "health": {
+        "profile": {
+          "tone": "err",
+          "code": "absent"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "opencode"
+        ],
+        "inference_models": [],
+        "inference_models_error": null,
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
       "surface": "local-profile",
       "verdict": {
         "state": "not-set-up",
@@ -402,28 +522,28 @@
   "last_sync_report": null,
   "agent_fleet": {
     "all": {
-      "total": 5,
+      "total": 7,
       "working": 0,
       "ready": 0,
       "attention": 0,
-      "not_set_up": 4,
+      "not_set_up": 6,
       "not_installed": 0,
       "down": 0,
       "checking": 1,
-      "running": 4,
+      "running": 6,
       "state": "warn",
       "headline": "needs-attention"
     },
     "set_up": {
-      "total": 4,
+      "total": 6,
       "working": 0,
       "ready": 0,
       "attention": 0,
-      "not_set_up": 4,
+      "not_set_up": 6,
       "not_installed": 0,
       "down": 0,
       "checking": 0,
-      "running": 4,
+      "running": 6,
       "state": "warn",
       "headline": "needs-attention"
     }

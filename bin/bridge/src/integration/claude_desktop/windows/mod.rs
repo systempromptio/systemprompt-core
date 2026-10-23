@@ -65,21 +65,25 @@ pub(super) fn update_needs_approval(
         && !env.policy_writer_ready
 }
 
-pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::SysprocError> {
-    let mut hits: Vec<String> = crate::sysproc::list_processes()?
+pub(super) fn list_claude_processes()
+-> Result<Vec<crate::sysproc::ProcessHit>, crate::sysproc::SysprocError> {
+    let mut hits: Vec<crate::sysproc::ProcessHit> = crate::sysproc::list_processes()?
         .into_iter()
         .filter_map(|p| {
             let lower = p.name.to_ascii_lowercase();
             let is_claude = lower == "claude.exe" || lower.starts_with("claude helper");
             let is_code = lower.contains("claude code") || lower == "claude-code.exe";
             if is_claude && !is_code && !is_cli_image(p.path.as_deref()) {
-                Some(p.name)
+                Some(crate::sysproc::ProcessHit {
+                    path: p.name,
+                    packaging: systemprompt_models::bridge::host::HostAppKind::DesktopApp,
+                })
             } else {
                 None
             }
         })
         .collect();
-    hits.sort();
+    hits.sort_by(|a, b| a.path.cmp(&b.path));
     hits.dedup();
     Ok(hits)
 }

@@ -112,7 +112,11 @@ async fn resolve(
     resolve_scope_attribution(
         ScopeResolution {
             providers: case.providers,
-            user_id: case.user,
+            subject: &case
+                .providers
+                .gather(case.user)
+                .await
+                .expect("subject attributes"),
             headers: &scope_headers,
             key_bindings: case.bindings,
             api_key_id: Some(&api_key_id),
@@ -120,7 +124,6 @@ async fn resolve(
         },
         partial,
     )
-    .await
 }
 
 fn project_entry(attribution: &RequestAttribution) -> (&str, AttributionSource) {

@@ -114,17 +114,23 @@ pub struct HostSyncCtx<'a> {
     pub start_menu: &'a crate::probe_cache::StartMenuCache,
 }
 
-/// One emitter per host integration.
+/// One emitter per host configuration tree.
 ///
 /// `#[async_trait]` because emitters are collected through `inventory` as
 /// `&'static dyn HostSync`. Several emitters may share a `host_id` (the
 /// enable gate); `emitter_id` names the emitter itself so failures from
-/// siblings stay distinguishable.
+/// siblings stay distinguishable. An emitter whose tree is read by more than
+/// one packaging of a product (Codex, `OpenCode`) overrides `serves` so any
+/// enabled packaging keeps the tree written; `host_id` is then the packaging
+/// whose loopback credential the tree carries.
 #[async_trait]
 pub trait HostSync: std::any::Any + Send + Sync + 'static {
     fn host_id(&self) -> HostKind;
     fn emitter_id(&self) -> &'static str {
         self.host_id().as_str()
+    }
+    fn serves(&self, host: HostKind) -> bool {
+        host == self.host_id()
     }
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError>;
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
@@ -177,6 +183,14 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
     v.sort_by_key(|s| s.host_id());
     v
 });
+
+#[must_use]
+pub fn enabled_for(emitter: &dyn HostSync, manifest: &SignedManifest) -> bool {
+    manifest
+        .enabled_hosts
+        .iter()
+        .any(|host| emitter.serves(*host))
+}
 
 pub fn registry() -> &'static [&'static dyn HostSync] {
     REGISTRY.as_slice()

@@ -18,6 +18,11 @@
 - Migration `051_catalog_credentials.sql`: renames `user_provider_credentials.provider` and its unique constraint, adds nullable `ai_requests.credential` and `endpoint`, creates `ai_catalog_legacy_map`. Locks on a 100M-row `ai_requests`: each ADD COLUMN is catalog-only (nullable, no default), ACCESS EXCLUSIVE for milliseconds, no rewrite, no scan; the rename is catalog-only on a small table. Existing rows are backfilled by `config migrate --data` in bounded batches, never in the migration.
 - `AiRequestRecord.hop: Option<CatalogHop>` (written to `credential`/`endpoint` on insert); `AiRequestRepository::update_served_hop(ServedHop)` replaces `update_served_provider`; `AdmissionWrite.served_hop` replaces `served_provider`.
 - `CatalogMigrationRepository` (`upsert_legacy_map`, `update_personal_keys`, `update_audit_batch`, `update_served_audit_batch`) for `config migrate --data`.
+## [Unreleased]
+
+### Added
+
+- `ai_gateway_policies` carries `source` (closed vocabulary, CHECK), `changed_by`, `changed_at` and `reason`, stamped by `sp_stamp_change()`, and bumps `config_version` (`config:gateway_policies`). Migration `050_ai_gateway_policies_change_provenance` (with down): catalog-only `ADD COLUMN`s; the CHECK is added `NOT VALID` and validated under SHARE UPDATE EXCLUSIVE. `ai_requests` is untouched.
 
 ### Fixed
 

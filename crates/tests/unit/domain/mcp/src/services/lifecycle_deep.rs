@@ -12,9 +12,7 @@ use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::database::DatabaseService;
-use systemprompt_mcp::services::database::sync::{
-    cleanup_stale_services, delete_crashed_services, sync_database_state,
-};
+use systemprompt_mcp::services::database::sync::{reap_stale_services, sync_database_state};
 use systemprompt_mcp::services::lifecycle::LifecycleService;
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::network::NetworkService;
@@ -155,8 +153,9 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
     .await
     .unwrap();
 
-    cleanup_stale_services(&repo).await.unwrap();
-    repo.delete_service(&name_id).await.unwrap();
+    let reaped = reap_stale_services(&repo).await.unwrap();
+    assert_eq!(reaped.stale_rows, 1, "a running row with no pid is reaped");
+    assert!(repo.find_service_by_name(&name_id).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -181,7 +180,7 @@ async fn sync_database_state_marks_unhealthy_crashed() {
 }
 
 #[tokio::test]
-async fn delete_crashed_services_runs() {
+async fn reap_stale_services_deletes_error_rows() {
     let (_, repo) = make_lifecycle().await;
     let name = format!("crash-{}", uuid::Uuid::new_v4().simple());
     let name_id = ServiceName::new(name.as_str());
@@ -195,7 +194,9 @@ async fn delete_crashed_services_runs() {
     })
     .await
     .unwrap();
-    delete_crashed_services(&repo).await.unwrap();
+    let reaped = reap_stale_services(&repo).await.unwrap();
+    assert_eq!(reaped.stale_rows, 1);
+    assert!(repo.find_service_by_name(&name_id).await.unwrap().is_none());
 }
 
 #[tokio::test]

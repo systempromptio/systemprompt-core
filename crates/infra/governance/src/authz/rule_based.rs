@@ -109,48 +109,26 @@ impl RuleBasedHook {
     }
 
     async fn fault(&self, req: &AuthzRequest, error: &AuthzError) -> AuthzDecision {
-        let policy = AuthzSource::RuleBased.policy().to_owned();
-        let detail = error.to_string();
-        let decision = AuthzDecision::Deny {
-            reason: DenyReason::HookUnavailable {
-                policy: policy.clone(),
-                detail: detail.clone(),
-            },
-            policy,
-        };
         tracing::warn!(
             entity = %req.entity,
             user_id = %req.user_id,
-            error = %detail,
+            error = %error,
             "rule-based authz hook fault",
         );
+        let decision = fault_decision(error);
         self.sink
             .record(req, &decision, AuthzSource::RuleBased)
             .await;
         decision
     }
-}
 
-#[async_trait]
-impl AuthzDecisionHook for RuleBasedHook {
-    async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
+    async fn decide(&self, req: &AuthzRequest) -> AuthzResult<AuthzDecision> {
         let kind = req.entity.kind();
         let id = req.entity.id_str();
-
-        let index = match self.chain_index().await {
-            Ok(index) => index,
-            Err(err) => return self.fault(&req, &err).await,
-        };
-        let cached = match self.entity_rules(&index, kind, id).await {
-            Ok(cached) => cached,
-            Err(err) => return self.fault(&req, &err).await,
-        };
+        let index = self.chain_index().await?;
+        let cached = self.entity_rules(&index, kind, id).await?;
         let EntityRules { entity, rules } = cached.as_ref();
-
-        let attributes = match gather_subject_attributes(&self.providers, &req.user_id).await {
-            Ok(attributes) => attributes,
-            Err(error) => return self.fault(&req, &error).await,
-        };
+        let attributes = gather_subject_attributes(&self.providers, &req.user_id).await?;
         let decision = index.resolve(
             kind,
             id,
@@ -163,40 +141,71 @@ impl AuthzDecisionHook for RuleBasedHook {
                 dimensions: &self.dimensions,
             },
         );
+        Ok(to_authz_decision(req, decision))
+    }
+}
 
-        let policy = AuthzSource::RuleBased.policy().to_owned();
-        let authz_decision = match decision {
-            Decision::Allow { .. } => AuthzDecision::Allow,
-            Decision::Warn { reason } => {
-                tracing::warn!(
-                    entity = %req.entity,
-                    user_id = %req.user_id,
-                    %reason,
-                    "access rule evaluated to warn; allowing the request"
-                );
-                AuthzDecision::Allow
+fn fault_decision(error: &AuthzError) -> AuthzDecision {
+    let policy = AuthzSource::RuleBased.policy().to_owned();
+    AuthzDecision::Deny {
+        reason: DenyReason::HookUnavailable {
+            policy: policy.clone(),
+            detail: error.to_string(),
+        },
+        policy,
+    }
+}
+
+fn to_authz_decision(req: &AuthzRequest, decision: Decision) -> AuthzDecision {
+    let policy = AuthzSource::RuleBased.policy().to_owned();
+    match decision {
+        Decision::Allow { .. } => AuthzDecision::Allow,
+        Decision::Warn { reason } => {
+            tracing::warn!(
+                entity = %req.entity,
+                user_id = %req.user_id,
+                %reason,
+                "access rule evaluated to warn; allowing the request"
+            );
+            AuthzDecision::Allow
+        },
+        Decision::Deny { reason } => AuthzDecision::Deny { reason, policy },
+        Decision::Pending { reason } => {
+            tracing::error!(
+                %reason,
+                "a governance hold reached the rule-based resolver, which cannot park a \
+                 request; refusing it"
+            );
+            AuthzDecision::Deny {
+                reason: DenyReason::PolicyViolation {
+                    policy: "require_approval".to_owned(),
+                    detail: std::borrow::Cow::Borrowed(
+                        "approval required, but this enforcement point cannot hold a request",
+                    ),
+                },
+                policy,
+            }
+        },
+    }
+}
+
+#[async_trait]
+impl AuthzDecisionHook for RuleBasedHook {
+    async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
+        match self.decide(&req).await {
+            Ok(decision) => {
+                self.sink
+                    .record(&req, &decision, AuthzSource::RuleBased)
+                    .await;
+                decision
             },
-            Decision::Deny { reason } => AuthzDecision::Deny { reason, policy },
-            Decision::Pending { reason } => {
-                tracing::error!(
-                    %reason,
-                    "a governance hold reached the rule-based resolver, which cannot park a \
-                     request; refusing it"
-                );
-                AuthzDecision::Deny {
-                    reason: DenyReason::PolicyViolation {
-                        policy: "require_approval".to_owned(),
-                        detail: std::borrow::Cow::Borrowed(
-                            "approval required, but this enforcement point cannot hold a request",
-                        ),
-                    },
-                    policy,
-                }
-            },
-        };
-        self.sink
-            .record(&req, &authz_decision, AuthzSource::RuleBased)
-            .await;
-        authz_decision
+            Err(error) => self.fault(&req, &error).await,
+        }
+    }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.decide(&req)
+            .await
+            .unwrap_or_else(|error| fault_decision(&error))
     }
 }

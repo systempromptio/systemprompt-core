@@ -45,6 +45,7 @@ use super::super::{parse, stream_tap};
 use super::REQUEST_ID_HEADER;
 use crate::audit::phases::{self, GatewayPhase};
 use crate::policies::GatewayPolicySpec;
+use crate::registry::SafetyScannerRegistry;
 
 pub(super) struct FinalizeCtx {
     pub(super) audit: Arc<GatewayAudit>,
@@ -56,15 +57,16 @@ pub(super) struct FinalizeCtx {
     pub(super) inbound: Arc<dyn InboundAdapter>,
     pub(super) request_model: String,
     pub(super) stream_usage: bool,
+    pub(super) scanners: Arc<SafetyScannerRegistry>,
 }
 
 pub async fn apply_system_prompt_override(
+    engine: &OverrideEngine,
     config: &GatewayConfig,
     provider: &ProviderId,
     upstream_model: &str,
     request: &mut CanonicalRequest,
 ) -> Option<String> {
-    let engine = OverrideEngine::global();
     if config.system_prompt_overrides.is_empty() && !engine.has_extensions() {
         return None;
     }
@@ -93,6 +95,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
         inbound,
         request_model,
         stream_usage,
+        scanners,
     } = fctx;
     let tap_ctx = stream_tap::TapFinalizeCtx {
         db,
@@ -100,6 +103,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
         policy,
         quota_fault_mode,
         ai_request_id,
+        scanners,
     };
     match outcome {
         OutboundOutcome::Buffered(canonical) => {
@@ -155,6 +159,7 @@ async fn finalize_buffered(
     }
     let safety = tap_ctx.policy.safety.clone();
     let findings = run_response_safety_scan(
+        &tap_ctx.scanners,
         &tap_ctx.repos.safety_findings,
         &tap_ctx.ai_request_id,
         &canonical,
@@ -262,6 +267,7 @@ async fn buffered_completion(
     record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
     if !response_scanned {
         run_response_safety_scan(
+            &ctx.scanners,
             &ctx.repos.safety_findings,
             &ctx.ai_request_id,
             &canonical,

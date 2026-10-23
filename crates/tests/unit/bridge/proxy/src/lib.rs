@@ -27,6 +27,8 @@ mod peer_probe_body_complete;
 #[cfg(test)]
 mod portfile;
 #[cfg(test)]
+mod route_class_parity;
+#[cfg(test)]
 mod secret;
 #[cfg(test)]
 mod token_cache;

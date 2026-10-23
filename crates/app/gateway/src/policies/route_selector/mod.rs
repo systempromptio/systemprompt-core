@@ -19,7 +19,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_manifest::services::GatewayRoute;
@@ -71,6 +71,12 @@ pub struct RouteSelectorEngine {
     selectors: Vec<Arc<dyn RouteSelector>>,
 }
 
+impl Default for RouteSelectorEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl std::fmt::Debug for RouteSelectorEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RouteSelectorEngine")
@@ -81,13 +87,12 @@ impl std::fmt::Debug for RouteSelectorEngine {
 
 impl RouteSelectorEngine {
     #[must_use]
-    pub fn global() -> &'static Self {
-        static ENGINE: OnceLock<RouteSelectorEngine> = OnceLock::new();
-        ENGINE.get_or_init(|| Self {
+    pub fn new() -> Self {
+        Self {
             selectors: inventory::iter::<RouteSelectorRegistration>()
                 .map(|reg| (reg.factory)())
                 .collect(),
-        })
+        }
     }
 
     #[must_use]

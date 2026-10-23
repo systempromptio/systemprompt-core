@@ -15,16 +15,26 @@ use systemprompt_models::feedback::receipts::{ConsumerReceiptRequest, SessionBin
 use systemprompt_runtime::AppContext;
 
 use error::ConsumerHttpError;
+use systemprompt_models::ApiPaths;
 
 pub fn router() -> Router<AppContext> {
     Router::new()
         .route(
-            "/consumer/resources/{resource}/publications/{publication}/bundle",
+            ApiPaths::api_v1_relative(ApiPaths::CONSUMER_BUNDLE_ROUTE),
             get(bundle),
         )
-        .route("/consumer-devices/enrollment", post(enroll))
-        .route("/consumer/receipts", post(receipt))
-        .route("/consumer/session-bindings", post(bind_session))
+        .route(
+            ApiPaths::api_v1_relative(ApiPaths::CONSUMER_DEVICE_ENROLLMENT),
+            post(enroll),
+        )
+        .route(
+            ApiPaths::api_v1_relative(ApiPaths::CONSUMER_RECEIPTS),
+            post(receipt),
+        )
+        .route(
+            ApiPaths::api_v1_relative(ApiPaths::CONSUMER_SESSION_BINDINGS),
+            post(bind_session),
+        )
         .layer(DefaultBodyLimit::max(1024 * 1024))
 }
 

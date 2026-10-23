@@ -58,6 +58,7 @@ impl std::fmt::Debug for ConfigPlane {
         f.debug_struct("ConfigPlane")
             .field("config", &"Config")
             .field("app_paths", &"AppPaths")
+            .field("files_config", &self.files_config)
             .field("content_config", &self.content_config.is_some())
             .field("route_classifier", &"RouteClassifier")
             .finish()
@@ -98,6 +99,7 @@ impl std::fmt::Debug for Subsystems {
                 &self.background_tasks.in_flight(),
             )
             .field("publish_guard", &"Mutex<PublishGuard>")
+            .field("connector_tokens", &"TokenCache")
             .finish()
     }
 }

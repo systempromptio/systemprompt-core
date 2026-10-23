@@ -31,7 +31,7 @@ Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). The
 | [`sync/`](src/sync/) | Manifest apply, replay protection (monotonic version + skew) |
 | [`wire/`](src/wire/) | Every payload the webview is written against (`StatePayload`, hosts, verdict codes, IPC envelope). Builds on every target and is exported to TypeScript under [`bindings/web/js/types/`](bindings/web/js/types/) by `just bridge-bindings` |
 | [`gui/`](src/gui/) | Native settings window (winit + wry), Windows + macOS only |
-| [`integration/`](src/integration/) | Host integration registry: Claude Desktop, Codex CLI, Hermes, OpenCode, the Claude Desktop facets (Cowork plugins + artifacts), and the sync-only Claude Code agent |
+| [`integration/`](src/integration/) | Host integration registry: Claude Desktop, Codex (desktop app and CLI), Hermes, OpenCode (desktop app and CLI), the Claude Desktop facets (Cowork plugins + artifacts), and the sync-only Claude Code agent |
 | [`install/`](src/install/) | Install and uninstall, pubkey pinning, MDM snippet emission |
 | [`mcp_registry.rs`](src/mcp_registry.rs) | On-disk MCP snapshot, rehydrated at startup |
 | [`schedule/`](src/schedule/) | OS scheduler templates for periodic sync |

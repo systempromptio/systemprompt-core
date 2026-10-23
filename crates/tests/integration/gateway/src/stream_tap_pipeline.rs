@@ -31,7 +31,8 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_config::SecretsBootstrap::encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("gateway journal opens")
 }
@@ -156,6 +157,7 @@ pub(super) fn tap_ctx(
         policy,
         quota_fault_mode: systemprompt_manifest::services::QuotaFaultMode::Open,
         ai_request_id: ai_request_id.clone(),
+        scanners: std::sync::Arc::new(systemprompt_gateway::SafetyScannerRegistry::new()),
     }
 }
 

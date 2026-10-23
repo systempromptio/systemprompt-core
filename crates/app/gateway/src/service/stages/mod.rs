@@ -22,6 +22,7 @@ pub(in crate::service) use self::outbound::audit_upstream_failure;
 use self::outbound::{
     CtxParts, outbound_ctx, resolve_url_images, send_bracketed, strip_caller_identity,
 };
+pub(in crate::service) use self::scanned::SafetyScan;
 use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::inbound::InboundAdapter;
@@ -29,6 +30,7 @@ use super::super::protocol::outbound::{OutboundOutcome, PreparedBody};
 use super::finalize::apply_system_prompt_override;
 use super::resolve::ResolvedUpstream;
 use super::{DispatchError, GatewayError, GovernanceDenied, PromptRepairRequired};
+use crate::policies::OverrideEngine;
 
 const UNSANITIZABLE_SECRET_MESSAGE: &str = "Secret content could not be safely sanitized; remove \
                                             the affected content or restart with a corrected \
@@ -38,6 +40,7 @@ const FALLBACK_REPAIR_LOCATION: &str = "provider_payload";
 pub(super) struct UpstreamRelay<'a> {
     pub raw_body: &'a Bytes,
     pub inbound: &'a dyn InboundAdapter,
+    pub overrides: &'a OverrideEngine,
 }
 
 pub(super) struct PreparedDispatch {
@@ -63,6 +66,7 @@ impl PreparedDispatch {
     ) -> Result<Self, DispatchError> {
         let upstream_model = upstream.hop.upstream_model.clone();
         let override_descriptor = apply_system_prompt_override(
+            relay.overrides,
             config,
             &upstream.hop.provider,
             &upstream_model,

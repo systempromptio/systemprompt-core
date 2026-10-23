@@ -21,6 +21,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod authz;
+pub mod decision_retention;
 pub mod policy;
 
 pub use authz::CompositeAuthzHook;
+pub use decision_retention::GovernanceDecisionRetention;

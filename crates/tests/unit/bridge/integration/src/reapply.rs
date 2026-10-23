@@ -1,5 +1,6 @@
 use systemprompt_bridge::integration::HostAppError;
 use systemprompt_bridge::integration::reapply::{Outcome, ProfileFailure, Report, render};
+use systemprompt_models::bridge::host::HostKind;
 
 fn failure(message: &str) -> std::sync::Arc<ProfileFailure> {
     std::sync::Arc::new(ProfileFailure::Host(HostAppError::Io(
@@ -96,8 +97,8 @@ fn a_per_user_filter_narrows_a_host_to_the_families_it_names() {
     use systemprompt_bridge::gateway::model_view::HostClients;
     use systemprompt_models::providers::ClientFamily;
 
-    let mut filters: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    filters.insert("opencode".to_owned(), vec!["claude".to_owned()]);
+    let mut filters: BTreeMap<HostKind, Vec<String>> = BTreeMap::new();
+    filters.insert(HostKind::OpenCode, vec!["claude".to_owned()]);
 
     assert_eq!(
         HostClients::for_host(

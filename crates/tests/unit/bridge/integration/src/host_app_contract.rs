@@ -76,15 +76,10 @@ impl HostApp for BareHost {
     }
 }
 
-fn surface_overrides(pairs: &[(&str, &[&str])]) -> BTreeMap<String, Vec<String>> {
+fn surface_overrides(pairs: &[(HostKind, &[&str])]) -> BTreeMap<HostKind, Vec<String>> {
     pairs
         .iter()
-        .map(|(host, tags)| {
-            (
-                (*host).to_owned(),
-                tags.iter().map(|t| (*t).to_owned()).collect(),
-            )
-        })
+        .map(|(host, tags)| (*host, tags.iter().map(|t| (*t).to_owned()).collect()))
         .collect()
 }
 
@@ -93,9 +88,14 @@ fn a_host_that_implements_only_the_required_methods_gets_the_default_contract() 
     let host = BareHost;
     assert!(
         host.can_open(),
-        "a desktop host is openable unless it says otherwise"
+        "a host is openable unless it says otherwise"
     );
-    assert_eq!(host.kind(), HostAppKind::DesktopApp);
+    assert_eq!(
+        host.kind(),
+        HostAppKind::CliTool,
+        "the packaging is the host id's, never restated by the host"
+    );
+    assert_eq!(host.profile_identity(), host.id());
     assert_eq!(host.description(), "");
     assert_eq!(host.icon_id(), "hermes", "the icon defaults to the host id");
     assert_eq!(host.config_format(), ConfigFormat::Json);
@@ -167,7 +167,7 @@ fn by_default_no_sync_failure_is_observed_by_the_probe() {
 
 #[test]
 fn a_host_without_a_filter_keeps_its_own_family() {
-    let filters = surface_overrides(&[("hermes", &["claude"])]);
+    let filters = surface_overrides(&[(HostKind::Hermes, &["claude"])]);
     let codex = HostClients::for_host(HostKind::CodexCli, &filters);
     assert_eq!(codex.families, vec![ClientFamily::OpenAi]);
     assert!(!codex.filtered);
@@ -176,7 +176,7 @@ fn a_host_without_a_filter_keeps_its_own_family() {
 
 #[test]
 fn a_filter_replaces_the_host_family_entirely() {
-    let filters = surface_overrides(&[("codex-cli", &["claude", "gemini"])]);
+    let filters = surface_overrides(&[(HostKind::CodexCli, &["claude", "gemini"])]);
     assert_eq!(
         HostClients::for_host(HostKind::CodexCli, &filters).families,
         vec![ClientFamily::Claude, ClientFamily::Gemini],
@@ -186,7 +186,7 @@ fn a_filter_replaces_the_host_family_entirely() {
 
 #[test]
 fn an_unknown_tag_in_a_filter_is_dropped_not_defaulted() {
-    let filters = surface_overrides(&[("codex-cli", &["anthropic", "openai"])]);
+    let filters = surface_overrides(&[(HostKind::CodexCli, &["anthropic", "openai"])]);
     assert_eq!(
         HostClients::for_host(HostKind::CodexCli, &filters).families,
         vec![ClientFamily::OpenAi],
@@ -196,7 +196,7 @@ fn an_unknown_tag_in_a_filter_is_dropped_not_defaulted() {
 
 #[test]
 fn a_filter_of_only_unknown_tags_yields_no_families_at_all() {
-    let filters = surface_overrides(&[("codex-cli", &["nonsense"])]);
+    let filters = surface_overrides(&[(HostKind::CodexCli, &["nonsense"])]);
     assert!(
         HostClients::for_host(HostKind::CodexCli, &filters)
             .families

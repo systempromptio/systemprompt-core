@@ -4,7 +4,7 @@
 use serde_json::json;
 use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_identifiers::ContextId;
-use systemprompt_traits::{AiRequestTrace, TraceRequestStatus, TraceSampleFilter, TraceSampleMode};
+use systemprompt_traits::{AiRequestTrace, RequestStatus, TraceSampleFilter, TraceSampleMode};
 
 use super::{bootstrapped_pool, completed_record, seed_request, user};
 
@@ -28,7 +28,7 @@ async fn usage_reads_are_scoped_to_the_owner() {
         .await
         .expect("find")
         .expect("owner sees the request");
-    assert_eq!(usage.status, TraceRequestStatus::Completed);
+    assert_eq!(usage.status, RequestStatus::Completed);
     assert!(usage.is_settled());
     assert_eq!(usage.cost_microdollars, 1_500);
     assert_eq!(usage.tool_calls, 0);

@@ -1,11 +1,23 @@
 //! Error and configuration arms of `FilesAiPersistenceProvider`: invalid
 //! metadata rejection, closed-pool error mapping on every trait method, and
-//! `storage_config` with and without the global `FilesConfig`.
+//! `storage_config` derived from the injected `FilesConfig`.
 
-use systemprompt_files::FilesAiPersistenceProvider;
+use std::sync::Arc;
+
+use systemprompt_files::{FilesAiPersistenceProvider, FilesConfig, FilesConfigYaml};
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap};
 use systemprompt_traits::{AiFilePersistenceProvider, AiProviderError, InsertAiFileParams};
+
+fn provider(repository: systemprompt_files::FileRepository) -> FilesAiPersistenceProvider {
+    FilesAiPersistenceProvider::new(
+        repository,
+        Arc::new(FilesConfig::new(
+            std::env::temp_dir(),
+            FilesConfigYaml::default(),
+        )),
+    )
+}
 
 fn params(metadata: serde_json::Value) -> InsertAiFileParams {
     let id = uuid::Uuid::new_v4();
@@ -25,9 +37,9 @@ fn params(metadata: serde_json::Value) -> InsertAiFileParams {
 
 #[tokio::test]
 async fn insert_file_rejects_non_object_metadata() {
-    let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&closed_db_pool().await),
-    );
+    let provider = provider(systemprompt_files::FileRepository::new(
+        &closed_db_pool().await,
+    ));
 
     let err = provider
         .insert_file(params(serde_json::json!("not-an-object")))
@@ -47,9 +59,9 @@ async fn insert_file_rejects_non_object_metadata() {
 
 #[tokio::test]
 async fn closed_pool_maps_every_method_to_internal() {
-    let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&closed_db_pool().await),
-    );
+    let provider = provider(systemprompt_files::FileRepository::new(
+        &closed_db_pool().await,
+    ));
     let file_id = FileId::generate();
     let user = UserId::new("ai-closed-pool-user");
 
@@ -79,16 +91,17 @@ async fn closed_pool_maps_every_method_to_internal() {
 }
 
 #[tokio::test]
-async fn storage_config_reflects_initialised_files_config() {
+async fn storage_config_reflects_the_injected_files_config() {
     let b = ensure_test_bootstrap();
-    let provider = FilesAiPersistenceProvider::from_repository(
+    let provider = FilesAiPersistenceProvider::new(
         systemprompt_files::FileRepository::new(&closed_db_pool().await),
+        Arc::new(b.files_config()),
     );
 
     let config = provider.storage_config().expect("storage config");
     assert_eq!(
         config.base_path,
-        systemprompt_files::FilesConfig::generated_images_relative(),
+        FilesConfig::generated_images_relative(),
         "generated images are addressed relative to paths.storage ({})",
         b.storage_path.display()
     );
@@ -96,20 +109,14 @@ async fn storage_config_reflects_initialised_files_config() {
 }
 
 #[tokio::test]
-async fn storage_config_without_global_config_is_configuration_error() {
-    // No bootstrap: the process-global FilesConfig is uninitialised.
-    let provider = FilesAiPersistenceProvider::from_repository(
+async fn storage_config_follows_a_custom_url_prefix() {
+    let yaml: FilesConfigYaml =
+        serde_yaml::from_str("urlPrefix: /assets").expect("files yaml parses");
+    let provider = FilesAiPersistenceProvider::new(
         systemprompt_files::FileRepository::new(&closed_db_pool().await),
+        Arc::new(FilesConfig::new(std::env::temp_dir(), yaml)),
     );
 
-    let err = provider.storage_config().expect_err("config missing");
-    match err {
-        AiProviderError::ConfigurationError { message } => {
-            assert!(
-                message.contains("FilesConfig::init() not called"),
-                "unexpected message: {message}"
-            );
-        },
-        other => panic!("expected ConfigurationError, got {other:?}"),
-    }
+    let config = provider.storage_config().expect("storage config");
+    assert_eq!(config.url_prefix, "/assets/images/generated");
 }

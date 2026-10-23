@@ -24,7 +24,7 @@ fn bootstrap_initialises_all_globals() {
     assert_eq!(cfg.system_admin_username, "testadmin");
     assert_eq!(cfg.sitename, "testsite");
 
-    assert!(systemprompt_files::FilesConfig::get_optional().is_some());
+    assert!(systemprompt_files::FilesConfig::from_profile(&env.app_paths).is_ok());
 }
 
 #[test]
