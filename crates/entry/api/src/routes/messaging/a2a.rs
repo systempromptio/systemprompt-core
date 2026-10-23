@@ -1,7 +1,7 @@
 //! The A2A backend leg of the messaging pipeline.
 //!
 //! Mints a per-user bearer, builds the blocking `SendMessage` request the
-//! proxy forwards to the agent service, runs it through [`ProxyEngine`], and
+//! proxy forwards to the agent service, runs it through [`ProxyService`], and
 //! extracts the agent's reply text.
 //!
 //! This is the only part of dispatch that speaks the A2A wire protocol; the
@@ -30,7 +30,7 @@ use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::User;
 
-use crate::services::proxy::{ProxyEngine, ProxyKind, ProxyTarget};
+use crate::services::proxy::{ProxyKind, ProxyService, ProxyTarget};
 
 use super::{MessagingError, MessagingInbound};
 
@@ -153,7 +153,7 @@ pub(super) async fn run_agent(
         kind: ProxyKind::Agent,
     };
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let response = ProxyEngine::new(identities, Arc::clone(ctx.connector_tokens()))
+    let response = ProxyService::new(identities, Arc::clone(ctx.connector_tokens()))
         .proxy_request(target, request, ctx.clone())
         .await
         .map_err(MessagingError::Dispatch)?;

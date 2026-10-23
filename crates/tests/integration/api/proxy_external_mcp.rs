@@ -1,4 +1,4 @@
-//! External-MCP proxying through `ProxyEngine::proxy_request` — the registry
+//! External-MCP proxying through `ProxyService::proxy_request` — the registry
 //! diverts external servers to `proxy_external_mcp`, which mints a per-user
 //! provider bearer via the `external_auth` accessor, forwards the MCP frame to
 //! the provider, audits client-mediated `tools/call`s, and maps resolver

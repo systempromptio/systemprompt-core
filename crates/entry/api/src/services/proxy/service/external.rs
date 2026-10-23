@@ -23,7 +23,7 @@ use systemprompt_runtime::AppContext;
 use super::super::audit::{self, AuditSinks, McpAudit, parse_tool_call};
 use super::super::auth::{AccessValidator, mcp_oauth_requirement};
 use super::super::backend::{ProxyError, RequestBuilder, ResponseHandler};
-use super::ProxyEngine;
+use super::ProxyService;
 
 const MCP_PASSTHROUGH_HEADERS: [&str; 4] = [
     "content-type",
@@ -55,7 +55,7 @@ async fn authorised_context(
     Ok(req_ctx)
 }
 
-impl ProxyEngine {
+impl ProxyService {
     pub(super) async fn proxy_external_mcp(
         &self,
         service_name: &ServiceName,

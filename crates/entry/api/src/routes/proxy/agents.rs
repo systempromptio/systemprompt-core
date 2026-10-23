@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::services::proxy::ProxyEngine;
+use crate::services::proxy::ProxyService;
 use axum::Router;
 use axum::extract::Path;
 use axum::routing::any;
@@ -13,7 +13,7 @@ use systemprompt_runtime::AppContext;
 
 pub fn router(ctx: &AppContext) -> Router {
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let engine = ProxyEngine::new(identities, Arc::clone(ctx.connector_tokens()));
+    let engine = ProxyService::new(identities, Arc::clone(ctx.connector_tokens()));
     let engine_with_path = engine.clone();
 
     Router::new()

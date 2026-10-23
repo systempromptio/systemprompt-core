@@ -12,7 +12,7 @@ mod executions;
 
 pub use executions::{ExecutionsState, ToolExecutionResponse, executions_router};
 
-use crate::services::proxy::ProxyEngine;
+use crate::services::proxy::ProxyService;
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::routing::{any, get};
@@ -64,7 +64,7 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
 pub fn router(ctx: &AppContext) -> Router {
     let repo = crate::repository::tool_usage(ctx.db_pool());
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let engine = ProxyEngine::new(identities, Arc::clone(ctx.connector_tokens()))
+    let engine = ProxyService::new(identities, Arc::clone(ctx.connector_tokens()))
         .with_tool_usage_repo(repo, ctx.tool_call_intents())
         .with_artifact_ingest(ctx.artifact_ingest_arc());
 

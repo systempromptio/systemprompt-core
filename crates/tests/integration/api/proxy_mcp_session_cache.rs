@@ -4,7 +4,7 @@
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use systemprompt_api::services::proxy::ProxyError;
-use systemprompt_api::services::proxy::engine::external::{map_resolve_error, outbound_headers};
+use systemprompt_api::services::proxy::service::external::{map_resolve_error, outbound_headers};
 use systemprompt_identifiers::{JwtToken, ServiceName, SessionId};
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;

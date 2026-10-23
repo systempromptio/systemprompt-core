@@ -1,5 +1,5 @@
 //! Axum handler adapters for the MCP and agent proxy routes, each delegating
-//! to [`ProxyEngine::proxy_request`]. The service-name path segment is parsed
+//! to [`ProxyService::proxy_request`]. The service-name path segment is parsed
 //! once here; a malformed one answers 400 `invalid_identifier`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -11,10 +11,10 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_runtime::AppContext;
 
-use super::{ProxyEngine, ProxyKind, ProxyTarget};
+use super::{ProxyKind, ProxyService, ProxyTarget};
 use crate::services::proxy::backend::ProxyError;
 
-impl ProxyEngine {
+impl ProxyService {
     pub async fn handle_mcp_request_with_path(
         &self,
         path_params: Path<(String, String)>,

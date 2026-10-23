@@ -1,6 +1,6 @@
-//! Reverse-proxy engine for MCP and agent backends.
+//! Reverse-proxy service for MCP and agent backends.
 //!
-//! [`ProxyEngine`] resolves a service by name, enforces access via the proxy
+//! [`ProxyService`] resolves a service by name, enforces access via the proxy
 //! auth boundary, forwards the request to the local backend port, and streams
 //! the response back (with SSE keep-alive). For MCP it also maintains the
 //! persisted session identity so a session-only follow-up request can be
@@ -50,7 +50,7 @@ pub struct ProxyTarget<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProxyEngine {
+pub struct ProxyService {
     client_pool: ClientPool,
     identities: Arc<McpProxyIdentityRepository>,
     intent_claims: Option<systemprompt_mcp::IntentClaimService>,
@@ -58,7 +58,7 @@ pub struct ProxyEngine {
     mcp_client: Arc<McpClient>,
 }
 
-impl ProxyEngine {
+impl ProxyService {
     pub fn new(
         identities: Arc<McpProxyIdentityRepository>,
         connector_tokens: Arc<TokenCache>,
