@@ -179,9 +179,21 @@ impl AiService {
                     || crate::error::RoutingError::NoProviderForModel {
                         model: model.clone(),
                     },
-                    |provider| crate::error::RoutingError::UnknownModel {
-                        provider: ProviderId::new(provider),
-                        model: model.clone(),
+                    |provider| {
+                        let configured = self
+                            .clients
+                            .iter()
+                            .any(|(endpoint, _)| endpoint.provider.as_str() == provider);
+                        if configured {
+                            crate::error::RoutingError::UnknownModel {
+                                provider: ProviderId::new(provider),
+                                model: model.clone(),
+                            }
+                        } else {
+                            crate::error::RoutingError::ProviderNotFound {
+                                provider: ProviderId::new(provider),
+                            }
+                        }
                     },
                 );
                 crate::error::AiError::Routing(routing)
