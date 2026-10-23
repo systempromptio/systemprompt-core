@@ -171,7 +171,7 @@ single_use_lifetimes = "warn"
 [workspace.dependencies]
 chacha20poly1305 = "0.11"
 # Core dependencies
-tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-test = "0.4"
 anyhow = "1.0"
 semver = "1"
@@ -179,7 +179,7 @@ thiserror = "2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
 async-trait = "0.1"
-arc-swap = "1.7"
+arc-swap = "1.9"
 
 # Database
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "macros", "postgres", "migrate", "chrono", "rust_decimal", "json"] }
@@ -253,7 +253,7 @@ async-stream = "0.3"
 wiremock = "0.6"
 
 # Markdown and templating
-comrak = { version = "0.56", default-features = false }
+comrak = { version = "0.57", default-features = false }
 handlebars = "6"
 # Static-site generation (app/generator)
 quick-xml = { version = "0.42", features = ["serialize"] }
@@ -289,7 +289,7 @@ webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"]
 rsa = { version = "0.9", features = ["pem", "sha2"] }
 # Why: `pkcs8` is consumed only through `rsa::pkcs8` so the two can never diverge;
 # `rsa` 0.10 (still a release candidate) retires the RUSTSEC-2023-0071 ignore in deny.toml.
-lru = "0.18"
+lru = "0.19"
 
 # Ed25519 manifest signing. Core signs (`infra/security/src/manifest_signing.rs`)
 # and the bridge verifies (`bin/bridge/src/gateway/manifest.rs`), so both the
