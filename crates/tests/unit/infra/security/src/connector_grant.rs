@@ -169,17 +169,14 @@ fn missing_or_blank_fields_name_the_field() {
             ..
         }
     ));
-    let blank_app = connector(
+    let blank_app = serde_yaml::from_str::<ConnectorConfig>(
         "grant: app_installation\ntoken_url: https://x/{installation_id}\n\
          private_key_secret: gh_key\napp_id: \"  \"\ninstallation_id: \"1\"\n",
     );
-    assert!(matches!(
-        MachineGrant::resolve("github", &blank_app, secrets).unwrap_err(),
-        ConnectorGrantError::MissingField {
-            field: "app_id",
-            ..
-        }
-    ));
+    assert!(
+        blank_app.is_err(),
+        "a blank app id is rejected when the connector config is parsed"
+    );
     let no_installation = connector(
         "grant: app_installation\ntoken_url: https://x/{installation_id}\n\
          private_key_secret: gh_key\napp_id: \"1\"\n",

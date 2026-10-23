@@ -18,6 +18,17 @@ use super::gateway_pipeline::{
     provider_registry,
 };
 
+fn shared_inputs(
+    engines: &std::sync::Arc<systemprompt_gateway::GatewayEngines>,
+    credential: &systemprompt_test_fixtures::AuthedFixture,
+    request: systemprompt_wire::canonical::CanonicalRequest,
+    stream: bool,
+) -> systemprompt_gateway::DispatchInputs {
+    let mut dispatch = inputs(credential, request, stream);
+    dispatch.engines = std::sync::Arc::clone(engines);
+    dispatch
+}
+
 fn upstream_response(text: &str) -> serde_json::Value {
     serde_json::json!({
         "id": "msg_failover",
@@ -391,6 +402,7 @@ async fn gateway_without_a_fallback_returns_and_attributes_primary_success() -> 
 #[tokio::test]
 async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served_provider()
 -> anyhow::Result<()> {
+    let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()?);
     install_provider_api_key();
     let (pool, _) = setup_ctx().await?;
     let credential = seed_admin_credential(&pool, "primary-circuit@example.invalid").await?;
@@ -431,7 +443,12 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
             &registry,
             &pool,
             &gw_repos(&pool),
-            inputs(&credential, canonical_request(MODEL, false), false),
+            shared_inputs(
+                &engines,
+                &credential,
+                canonical_request(MODEL, false),
+                false,
+            ),
         )
         .await?;
         to_bytes(response.into_body(), 1024 * 1024).await?;
@@ -441,7 +458,12 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
         .await
         .expect("primary history")
         .len();
-    let direct = inputs(&credential, canonical_request(MODEL, false), false);
+    let direct = shared_inputs(
+        &engines,
+        &credential,
+        canonical_request(MODEL, false),
+        false,
+    );
     let request_id = direct.ctx.ai_request_id.clone();
     let response =
         GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), direct).await?;
@@ -477,6 +499,7 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
 #[tokio::test]
 async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path()
 -> anyhow::Result<()> {
+    let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()?);
     install_provider_api_key();
     let (pool, _) = setup_ctx().await?;
     let credential = seed_admin_credential(&pool, "fallback-circuit@example.invalid").await?;
@@ -522,7 +545,12 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
             &training_registry,
             &pool,
             &gw_repos(&pool),
-            inputs(&credential, canonical_request(MODEL, false), false),
+            shared_inputs(
+                &engines,
+                &credential,
+                canonical_request(MODEL, false),
+                false,
+            ),
         )
         .await?;
         to_bytes(response.into_body(), 1024 * 1024).await?;
@@ -558,7 +586,12 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
         .await
         .expect("failure history")
         .len();
-    let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
+    let dispatch = shared_inputs(
+        &engines,
+        &credential,
+        canonical_request(MODEL, false),
+        false,
+    );
     let request_id = dispatch.ctx.ai_request_id.clone();
     let response =
         GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch).await?;
@@ -590,7 +623,12 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
         .respond_with(ResponseTemplate::new(500).set_body_string("healthy primary now failed"))
         .mount(&healthy_primary)
         .await;
-    let failed_dispatch = inputs(&credential, canonical_request(MODEL, false), false);
+    let failed_dispatch = shared_inputs(
+        &engines,
+        &credential,
+        canonical_request(MODEL, false),
+        false,
+    );
     let failed_id = failed_dispatch.ctx.ai_request_id.clone();
     let error =
         GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), failed_dispatch)
@@ -729,6 +767,7 @@ async fn three_deployments_fail_over_in_order_and_record_the_server() -> anyhow:
 
 #[tokio::test]
 async fn a_tripped_primary_is_skipped_while_a_later_deployment_is_healthy() -> anyhow::Result<()> {
+    let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()?);
     install_provider_api_key();
     let (pool, _) = setup_ctx().await?;
     let credential = seed_admin_credential(&pool, "failover-tripped@example.invalid").await?;
@@ -752,13 +791,23 @@ async fn a_tripped_primary_is_skipped_while_a_later_deployment_is_healthy() -> a
             &registry,
             &pool,
             &gw_repos(&pool),
-            inputs(&credential, canonical_request(MODEL, false), false),
+            shared_inputs(
+                &engines,
+                &credential,
+                canonical_request(MODEL, false),
+                false,
+            ),
         )
         .await?;
         to_bytes(response.into_body(), 1024 * 1024).await?;
     }
     let first_before = hits(&first).await;
-    let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
+    let dispatch = shared_inputs(
+        &engines,
+        &credential,
+        canonical_request(MODEL, false),
+        false,
+    );
     let request_id = dispatch.ctx.ai_request_id.clone();
     let response =
         GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch).await?;
