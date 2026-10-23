@@ -13,7 +13,7 @@
 use bytes::Bytes;
 use http_body_util::BodyExt;
 use hyper::body::Incoming;
-use systemprompt_identifiers::{ClientSessionId, GatewayConversationId};
+use systemprompt_identifiers::GatewayConversationId;
 
 
 use super::error::{ForwardError, ForwardResult};
@@ -68,7 +68,7 @@ pub fn stamp_opencode_session(
     let Some(session) = request_headers
         .get(OPENCODE_SESSION_HEADER)
         .and_then(|value| value.to_str().ok())
-        .and_then(|raw| ClientSessionId::try_new(raw).ok())
+        .and_then(crate::feedback::opencode_session::canonical_session_uuid)
     else {
         return buffered;
     };
@@ -87,7 +87,7 @@ pub fn stamp_opencode_session(
     if metadata.contains_key("user_id") {
         return buffered;
     }
-    let user_id = serde_json::json!({ "session_id": session.as_str() }).to_string();
+    let user_id = serde_json::json!({ "session_id": session.hyphenated().to_string() }).to_string();
     metadata.insert("user_id".to_owned(), serde_json::Value::String(user_id));
     serde_json::to_vec(&body).map_or(buffered, Bytes::from)
 }

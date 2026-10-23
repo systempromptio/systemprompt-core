@@ -72,9 +72,9 @@ pub fn native_session(
                 .ok()?;
             // Why: the current plugin sends the v5 UUID; a plugin from before
             // the mapping sends the raw `ses_…` id, which maps to the same UUID.
-            match ClientSessionId::try_new(raw) {
-                Ok(id) => id.as_str().to_owned(),
-                Err(_) => super::opencode_session::session_uuid(raw)
+            match super::opencode_session::canonical_session_uuid(raw) {
+                Some(id) => id.hyphenated().to_string(),
+                None => super::opencode_session::session_uuid(raw)
                     .ok()?
                     .as_str()
                     .to_owned(),
