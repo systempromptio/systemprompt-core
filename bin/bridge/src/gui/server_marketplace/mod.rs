@@ -192,7 +192,7 @@ fn merge_external(
     merged
 }
 
-fn read_dir_optional(path: &std::path::Path) -> std::io::Result<Vec<std::fs::DirEntry>> {
+fn read_dir_optional(path: &Path) -> std::io::Result<Vec<std::fs::DirEntry>> {
     match std::fs::read_dir(path) {
         Ok(entries) => entries.collect(),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
@@ -203,12 +203,12 @@ fn read_dir_optional(path: &std::path::Path) -> std::io::Result<Vec<std::fs::Dir
     }
 }
 
-fn read_text(path: &std::path::Path) -> std::io::Result<String> {
+fn read_text(path: &Path) -> std::io::Result<String> {
     std::fs::read_to_string(path)
         .map_err(|e| crate::fsutil::io_context(format!("read {}", path.display()), e))
 }
 
-fn read_optional_text(path: &std::path::Path) -> std::io::Result<Option<String>> {
+fn read_optional_text(path: &Path) -> std::io::Result<Option<String>> {
     match read_text(path) {
         Ok(body) => Ok(Some(body)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),

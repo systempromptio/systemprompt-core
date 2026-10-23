@@ -51,10 +51,13 @@ fn parse_install_args(args: &[String]) -> Result<InstallArgs, ExitCode> {
             },
         },
     };
-    let host_selection = parse_host_selection(args).map_err(|e| {
-        diag(&e.to_string());
-        ExitCode::from(64)
-    })?;
+    let host_selection = match parse_host_selection(args) {
+        Ok(selection) => selection,
+        Err(e) => {
+            diag(&e.to_string());
+            return Err(ExitCode::from(64));
+        },
+    };
     Ok(InstallArgs {
         print_mdm,
         emit_sched,
@@ -72,25 +75,29 @@ fn refresh_model_catalog(
     ctx: &BridgeContext,
     gateway: Option<&ValidatedUrl>,
 ) -> Result<(), ExitCode> {
-    let cfg = crate::config::load().map_err(|e| {
-        diag(&e.to_string());
-        ExitCode::from(1)
-    })?;
+    let cfg = match crate::config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            diag(&e.to_string());
+            return Err(ExitCode::from(1));
+        },
+    };
     let gateway_url = gateway
         .cloned()
         .unwrap_or_else(|| crate::config::gateway_url_or_default(&cfg));
     let bearer = crate::auth::cache::cached_bearer(&gateway_url);
-    ctx.block_on(
+    match ctx.block_on(
         ctx.gateway_client(gateway_url)
             .fetch_bridge_profile(bearer.as_ref()),
-    )
-    .map(|_| ())
-    .map_err(|e| {
-        diag(&format!(
-            "Cannot refresh the Desktop model catalog: {e}. Install was not applied."
-        ));
-        ExitCode::from(1)
-    })
+    ) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            diag(&format!(
+                "Cannot refresh the Desktop model catalog: {e}. Install was not applied."
+            ));
+            Err(ExitCode::from(1))
+        },
+    }
 }
 
 pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {

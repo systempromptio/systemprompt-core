@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use muda::{CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
+use muda::{CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem};
 use tray_icon::{Icon, MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 mod icon;
@@ -19,7 +19,6 @@ use super::events::UiEvent;
 use super::state::{AppStateSnapshot, GatewayStatus};
 use crate::i18n;
 use crate::install::ScheduleStatus;
-use crate::update::UpdateUiState;
 
 pub struct TrayHandles {
     pub tray: TrayIcon,

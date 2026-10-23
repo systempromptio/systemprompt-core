@@ -103,21 +103,22 @@ struct ProbeFailure {
 }
 
 impl ProbeFailure {
-    fn http_error(error: String, started: Instant) -> Self {
+    fn from_error(
+        state: ProxyProbeState,
+        error: &dyn std::fmt::Display,
+        latency_ms: Option<u64>,
+    ) -> Self {
         Self {
-            state: ProxyProbeState::HttpError,
-            error,
-            latency_ms: Some(elapsed_ms(started)),
+            state,
+            error: error.to_string(),
+            latency_ms,
         }
     }
 }
 
 fn attempt(url: &str, started: Instant) -> Result<(u16, u64), ProbeFailure> {
-    let (host, port) = parse_host_port(url).map_err(|e| ProbeFailure {
-        state: ProxyProbeState::HttpError,
-        error: e.to_string(),
-        latency_ms: None,
-    })?;
+    let (host, port) = parse_host_port(url)
+        .map_err(|e| ProbeFailure::from_error(ProxyProbeState::HttpError, &e, None))?;
 
     let addr = format!("{host}:{port}");
     let resolved = resolve_first(&addr).ok_or_else(|| ProbeFailure {
@@ -134,15 +135,12 @@ fn attempt(url: &str, started: Instant) -> Result<(u16, u64), ProbeFailure> {
                     std::io::ErrorKind::TimedOut => ProxyProbeState::Timeout,
                     _ => ProxyProbeState::HttpError,
                 };
-                ProbeFailure {
-                    state,
-                    error: e.to_string(),
-                    latency_ms: Some(elapsed_ms(started)),
-                }
+                ProbeFailure::from_error(state, &e, Some(elapsed_ms(started)))
             })?;
 
-    let http_status = http_head_status(&mut stream, &host)
-        .map_err(|e| ProbeFailure::http_error(e.to_string(), started))?;
+    let http_status = http_head_status(&mut stream, &host).map_err(|e| {
+        ProbeFailure::from_error(ProxyProbeState::HttpError, &e, Some(elapsed_ms(started)))
+    })?;
     Ok((http_status, elapsed_ms(started)))
 }
 

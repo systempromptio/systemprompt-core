@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use winit::dpi::{LogicalPosition, LogicalSize};
+use winit::dpi::{LogicalPosition, LogicalSize, PhysicalSize};
 use winit::event_loop::ActiveEventLoop;
 use winit::icon::{Icon, RgbaIcon};
 use winit::window::{Window, WindowAttributes, WindowId};
-use wry::WebView;
+use wry::{Rect, WebView};
 
 use super::native_webview::build_webview;
 use crate::gui::UiEventProxy;
