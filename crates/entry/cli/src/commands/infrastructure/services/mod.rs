@@ -11,6 +11,7 @@
 pub mod cleanup;
 mod dispatch;
 mod lifecycle;
+mod port_conflict;
 pub mod restart;
 pub mod serve;
 pub mod start;
