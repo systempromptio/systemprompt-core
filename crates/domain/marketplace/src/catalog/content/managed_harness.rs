@@ -2,23 +2,29 @@
 //!
 //! A plugin or rule whose key is a managed resource of that kind is withheld
 //! unless the consumer resolves it (cohorts included) to a published
-//! generation; a published one carries its [`ManagedPublicationRef`] into the
-//! signed manifest so installation receipts cover the whole harness, not only
-//! skills. An unmanaged key is untouched.
+//! generation. A published one is served from its verified revision — a rule's
+//! `config.yaml` and content file, a plugin's own files (scripts, Node package
+//! files, `hosts/`) — and carries its [`ManagedPublicationRef`] into the
+//! signed manifest, so an installation receipt names exactly what ran. An
+//! unmanaged key is untouched.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::{ManagedPublicationRef, PluginEntry};
 
 use super::CatalogContent;
-use super::managed::{admit_published, revoked_keys};
+use super::managed::{admit_published, revoked_keys, verified_bundles};
 use crate::error::MarketplaceError;
-use crate::managed::{ManagedRepository, ManagedResolution, ResourceKind};
+use crate::managed::{
+    ManagedError, ManagedRepository, ManagedResolution, ResourceKind, RevisionBundle,
+};
+use systemprompt_manifest::services::DiskRuleConfig;
 
 fn publication_ref(
     resolution: &ManagedResolution,
@@ -57,37 +63,65 @@ impl CatalogContent {
                 .await
                 .map_err(MarketplaceError::Managed)?;
             let admitted = admit_published(rows, &revoked, kind)?;
+            let bundles = if admitted.published.is_empty() {
+                BTreeMap::new()
+            } else {
+                verified_bundles(repository, owner, &admitted.published).await?
+            };
             let mut published = BTreeMap::new();
             for (key, resolution) in &admitted.published {
-                if let Some(reference) = publication_ref(resolution)? {
-                    published.insert(key.clone(), reference);
-                }
+                let (Some(reference), ManagedResolution::Published { revision_id, .. }) =
+                    (publication_ref(resolution)?, resolution)
+                else {
+                    continue;
+                };
+                let bundle = bundles
+                    .get(revision_id)
+                    .ok_or(MarketplaceError::Managed(ManagedError::Integrity))?;
+                published.insert(key.clone(), (reference, Arc::clone(bundle)));
             }
             match kind {
-                ResourceKind::Rule => {
-                    self.rules.retain_mut(|rule| {
-                        let key = rule.id.as_str();
-                        if let Some(reference) = published.get(key) {
-                            rule.publication = Some(reference.clone());
-                            return true;
-                        }
-                        !admitted.managed.contains(key)
-                    });
+                ResourceKind::Rule => self.overlay_rules(&admitted.managed, published)?,
+                _ => self.overlay_plugins(&admitted.managed, published)?,
+            }
+        }
+        Ok(())
+    }
+
+    fn overlay_rules(
+        &mut self,
+        managed: &BTreeSet<String>,
+        published: BTreeMap<String, (ManagedPublicationRef, Arc<RevisionBundle>)>,
+    ) -> Result<(), MarketplaceError> {
+        self.rules
+            .retain(|rule| !managed.contains(rule.id.as_str()));
+        for (key, (reference, bundle)) in published {
+            let mut entry = managed_rule(&key, &reference, &bundle)?;
+            entry.publication = Some(reference);
+            self.rules.push(entry);
+        }
+        self.rules.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+        Ok(())
+    }
+
+    fn overlay_plugins(
+        &mut self,
+        managed: &BTreeSet<String>,
+        mut published: BTreeMap<String, (ManagedPublicationRef, Arc<RevisionBundle>)>,
+    ) -> Result<(), MarketplaceError> {
+        for key in managed {
+            let id = PluginId::try_new(key.as_str())
+                .map_err(|error| MarketplaceError::catalog("managed plugin id", error))?;
+            match published.remove(key) {
+                Some((reference, bundle)) => {
+                    let files = bundle
+                        .revision_files(&bundle.root)
+                        .map_err(|e| MarketplaceError::Managed(ManagedError::from(e)))?;
+                    self.managed_plugin_files.insert(id.clone(), files);
+                    self.plugin_publications.insert(id, reference);
                 },
-                _ => {
-                    for key in &admitted.managed {
-                        let id = PluginId::try_new(key.as_str()).map_err(|error| {
-                            MarketplaceError::catalog("managed plugin id", error)
-                        })?;
-                        match published.remove(key) {
-                            Some(reference) => {
-                                self.plugin_publications.insert(id, reference);
-                            },
-                            None => {
-                                self.withheld_plugins.insert(id);
-                            },
-                        }
-                    }
+                None => {
+                    self.withheld_plugins.insert(id);
                 },
             }
         }
@@ -128,4 +162,29 @@ impl CatalogContent {
             })
             .collect()
     }
+}
+
+fn managed_rule(
+    key: &str,
+    reference: &ManagedPublicationRef,
+    bundle: &RevisionBundle,
+) -> Result<systemprompt_models::bridge::manifest::RuleEntry, MarketplaceError> {
+    let integrity = || MarketplaceError::Managed(ManagedError::Integrity);
+    let files = bundle
+        .revision_files(&bundle.root)
+        .map_err(|e| MarketplaceError::Managed(ManagedError::from(e)))?;
+    let config_file = files.0.get("config.yaml").ok_or_else(integrity)?;
+    let config: DiskRuleConfig =
+        serde_yaml::from_slice(&config_file.bytes).map_err(|_corrupt| integrity())?;
+    if !config.enabled {
+        return Err(integrity());
+    }
+    let content = files.0.get(config.content_file()).ok_or_else(integrity)?;
+    let raw = std::str::from_utf8(&content.bytes).map_err(|_corrupt| integrity())?;
+    crate::catalog::rule_entry(
+        key,
+        config,
+        raw,
+        format!("managed://{key}@{}", reference.bundle_digest.as_str()),
+    )
 }

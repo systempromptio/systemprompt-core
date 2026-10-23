@@ -34,5 +34,6 @@ pub(crate) use plugins::selected_configs;
 pub use plugins::{
     artifact_owners, load_plugins, plugin_bundles, rule_owners, selects_artifact, skill_owners,
 };
+pub(crate) use rules::rule_entry;
 pub use rules::{load_rules, load_rules_traced};
 pub use skills::{load_skills, load_skills_traced};

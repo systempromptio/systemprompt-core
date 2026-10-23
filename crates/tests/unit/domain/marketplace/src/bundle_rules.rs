@@ -65,6 +65,7 @@ fn build(rules: PluginComponentRef, available: &[RuleEntry]) -> PluginBundle {
         rules: available,
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     build_plugin_bundle(&plugin_with_rules(rules), &content).expect("bundle builds")
 }

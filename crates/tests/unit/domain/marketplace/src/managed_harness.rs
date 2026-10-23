@@ -8,8 +8,9 @@ use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::CatalogContent;
 use systemprompt_marketplace::managed::{
-    AssetDigest, ComparisonEvidence, ManagedRepository, NewResource, NewRevision,
-    PublicationAction, PublicationRequest, ResourceKind, SnapshotProvenance, SourceSpec,
+    AssetDigest, AssetFile, ComparisonEvidence, ManagedRepository, NewResource, NewRevision,
+    PublicationAction, PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance,
+    SourceSpec,
 };
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::PluginEntry;
@@ -34,6 +35,25 @@ async fn managed(
     kind: ResourceKind,
     key: &str,
     publish: bool,
+) {
+    managed_files(
+        repository,
+        owner,
+        kind,
+        key,
+        publish,
+        skill_files(key, "# managed\n"),
+    )
+    .await;
+}
+
+async fn managed_files(
+    repository: &ManagedRepository,
+    owner: &UserId,
+    kind: ResourceKind,
+    key: &str,
+    publish: bool,
+    files: RevisionFiles,
 ) {
     let source = repository
         .register_source(owner, &format!("harness-{key}"), &SourceSpec::Managed)
@@ -71,7 +91,7 @@ async fn managed(
                 resource_id: resource.clone(),
                 snapshot_id: snapshot,
                 parent_id: None,
-                files: skill_files(key, "# managed\n"),
+                files,
                 dependencies: BTreeMap::new(),
                 rationale: "first".to_owned(),
             },
@@ -180,4 +200,114 @@ async fn published_plugins_are_stamped_and_unpublished_ones_withheld() {
     let reference = stamped[0].publication.as_ref().expect("publication");
     assert_eq!(reference.generation, 1);
     assert!(stamped[1].publication.is_none());
+}
+
+fn files(entries: &[(&str, &str)]) -> RevisionFiles {
+    RevisionFiles(
+        entries
+            .iter()
+            .map(|(path, body)| {
+                (
+                    (*path).to_owned(),
+                    AssetFile {
+                        bytes: body.as_bytes().to_vec(),
+                        media_type: "text/plain".to_owned(),
+                        executable: false,
+                    },
+                )
+            })
+            .collect(),
+    )
+}
+
+#[tokio::test]
+async fn a_published_rule_is_served_from_its_revision_not_from_disk() {
+    let (repository, owner) = owner_repository().await;
+    let key = format!("rule_{}", Uuid::new_v4().simple());
+    managed_files(
+        &repository,
+        &owner,
+        ResourceKind::Rule,
+        &key,
+        true,
+        files(&[
+            (
+                "config.yaml",
+                &format!("id: {key}\nname: {key}\ndescription: d\nenabled: true\nfile: index.md\n"),
+            ),
+            ("index.md", "Follow the published rule.\n"),
+        ]),
+    )
+    .await;
+    let root = tempfile::tempdir().expect("services root");
+    write_rule(root.path(), &key);
+    let catalog = CatalogContent::load(
+        &ServicesConfig::default(),
+        root.path(),
+        "https://api.example.invalid",
+    )
+    .expect("catalog")
+    .with_organization_resources(repository, &owner, &owner)
+    .await
+    .expect("overlay");
+    let (_, rules, ..) = catalog.into_parts();
+    let rule = rules.iter().find(|r| r.id.as_str() == key).expect("rule");
+    assert_eq!(rule.instructions, "Follow the published rule.");
+    assert!(
+        rule.file_path.starts_with("managed://"),
+        "{}",
+        rule.file_path
+    );
+    assert!(rule.publication.is_some());
+}
+
+#[tokio::test]
+async fn a_published_plugin_bundle_carries_its_revision_files() {
+    let (repository, owner) = owner_repository().await;
+    let id = format!("plugin-{}", Uuid::new_v4().simple());
+    managed_files(
+        &repository,
+        &owner,
+        ResourceKind::Plugin,
+        &id,
+        true,
+        files(&[(
+            "hosts/opencode/plugins/audit.js",
+            "export default 'managed';\n",
+        )]),
+    )
+    .await;
+    let root = tempfile::tempdir().expect("services root");
+    crate::helpers::write_skill_on_disk(root.path(), "shipped_skill");
+    let disk_plugin = root
+        .path()
+        .join("plugins")
+        .join(&id)
+        .join("hosts/opencode/plugins");
+    std::fs::create_dir_all(&disk_plugin).expect("plugin dir");
+    std::fs::write(disk_plugin.join("audit.js"), "export default 'disk';\n").expect("disk file");
+    std::fs::write(disk_plugin.join("extra.js"), "export default 'extra';\n").expect("disk file");
+    let mut market = crate::helpers::marketplace("acme");
+    market.plugins = crate::helpers::include(&[id.as_str()]);
+    let mut services = crate::helpers::config_with(vec![market]);
+    let mut plugin = crate::helpers::plugin_shipping_artifacts(&id, "shipped_skill", &[]);
+    plugin.artifacts = Default::default();
+    services.plugins.insert(id.clone(), plugin);
+    let catalog = CatalogContent::load(&services, root.path(), "https://api.example.invalid")
+        .expect("catalog")
+        .with_organization_resources(repository, &owner, &owner)
+        .await
+        .expect("overlay");
+    let bundles =
+        systemprompt_marketplace::catalog::plugin_bundles(&services, &catalog.as_content())
+            .expect("bundles");
+    let bundle = bundles.get(&PluginId::new(&id)).expect("plugin bundle");
+    assert_eq!(
+        bundle["hosts/opencode/plugins/audit.js"].bytes,
+        b"export default 'managed';\n".to_vec()
+    );
+    assert!(
+        !bundle.contains_key("hosts/opencode/plugins/extra.js"),
+        "a managed plugin serves only its revision's own files"
+    );
 }

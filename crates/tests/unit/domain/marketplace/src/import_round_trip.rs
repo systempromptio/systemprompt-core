@@ -151,6 +151,7 @@ fn write_anthropic_tree(root: &Path, plugin: &PluginConfig, marketplace: &Market
         rules: &rules,
         plugins_root: root,
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let bundle = build_plugin_bundle(plugin, &content).expect("bundle builds");
 

@@ -54,6 +54,7 @@ pub struct CatalogContent {
     artifacts: Vec<ArtifactEntry>,
     plugins_root: PathBuf,
     managed_files: BTreeMap<SkillId, RevisionFiles>,
+    managed_plugin_files: BTreeMap<PluginId, RevisionFiles>,
     plugin_publications: BTreeMap<PluginId, ManagedPublicationRef>,
     withheld_plugins: BTreeSet<PluginId>,
 }
@@ -91,6 +92,7 @@ impl CatalogContent {
             },
             plugins_root: services_root.join("plugins"),
             managed_files: BTreeMap::new(),
+            managed_plugin_files: BTreeMap::new(),
             plugin_publications: BTreeMap::new(),
             withheld_plugins: BTreeSet::new(),
         })
@@ -107,6 +109,7 @@ impl CatalogContent {
             artifacts: &self.artifacts,
             plugins_root: &self.plugins_root,
             managed_files: &self.managed_files,
+            managed_plugin_files: &self.managed_plugin_files,
         }
     }
 

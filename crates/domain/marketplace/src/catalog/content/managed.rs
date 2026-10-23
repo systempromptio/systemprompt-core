@@ -189,7 +189,7 @@ pub(super) fn admit_published(
 
 // Why: a published revision never changes, so only revisions this repository
 // has not yet verified are pulled from Postgres; the rest come from the memo.
-async fn verified_bundles(
+pub(super) async fn verified_bundles(
     repository: &ManagedRepository,
     principal: &UserId,
     published: &[(String, ManagedResolution)],

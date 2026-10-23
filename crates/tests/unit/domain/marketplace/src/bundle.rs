@@ -138,6 +138,7 @@ fn build_plugin_bundle_generates_manifest_and_layout() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config(
         "demo-plugin",
@@ -178,6 +179,7 @@ fn build_plugin_bundle_instance_source_includes_all_minus_exclude() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut config = plugin_config(
         "p",
@@ -204,6 +206,7 @@ fn build_plugin_bundle_is_deterministic() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
 
@@ -226,6 +229,7 @@ fn load_plugins_builds_entry_from_spec_without_prebuilt_dir() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut services = ServicesConfig::default();
     services.plugins.insert(
@@ -261,6 +265,7 @@ fn load_plugins_skips_spec_with_no_resolvable_content() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut services = ServicesConfig::default();
     services.plugins.insert(
@@ -300,6 +305,7 @@ fn plugin_bundles_skips_content_less_plugin() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut services = ServicesConfig::default();
     services.plugins.insert(
@@ -333,6 +339,7 @@ fn plugin_bundles_scopes_to_the_marketplace_include_list() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut mp = marketplace("only-a");
     mp.plugins = include(&["plugin-a"]);
@@ -382,6 +389,7 @@ fn plugin_bundles_unions_enabled_marketplaces() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut alpha = marketplace("alpha");
     alpha.plugins = include(&["plugin-a"]);
@@ -430,6 +438,7 @@ fn manifest_entries_hash_the_served_bytes() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut services = ServicesConfig::default();
     services.plugins.insert(
@@ -487,6 +496,7 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut services = ServicesConfig::default();
     services.plugins.insert(
@@ -577,6 +587,7 @@ fn skill_md_emits_owned_keys_then_authored_frontmatter_and_escapes_quotes() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config(
         "p",
@@ -613,6 +624,7 @@ fn agent_referenced_skills_are_pulled_into_bundle() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config("p", explicit(&["base_skill"]), explicit(&["dev"]));
 
@@ -639,6 +651,7 @@ fn invalid_explicit_skill_id_is_ignored() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config(
         "p",
@@ -688,6 +701,7 @@ fn aux_files_are_collected_and_executable_bit_set() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config("p", explicit(&["aux_skill"]), PluginComponentRef::default());
 
@@ -739,6 +753,7 @@ fn mcp_file_assembles_referenced_servers_only() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
     config.mcp_servers = PluginComponentRef {
@@ -781,6 +796,7 @@ fn mcp_file_absent_when_no_servers_resolve() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
     config.mcp_servers = PluginComponentRef {
@@ -810,6 +826,7 @@ fn mcp_file_omits_defined_but_disabled_server_without_error() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
     config.mcp_servers = PluginComponentRef {
@@ -850,6 +867,7 @@ fn mcp_file_absent_when_only_referenced_server_is_disabled() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
     config.mcp_servers = PluginComponentRef {
@@ -879,6 +897,7 @@ fn agent_md_carries_model_when_set() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config("p", PluginComponentRef::default(), explicit(&["modelled"]));
 
@@ -904,6 +923,7 @@ fn agent_with_empty_model_omits_model_line() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config(
         "p",
@@ -932,6 +952,7 @@ fn skill_with_pathless_file_path_still_bundles_without_aux() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config(
         "p",
@@ -986,6 +1007,7 @@ fn an_unreadable_aux_file_fails_the_bundle_instead_of_silently_omitting_it() {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config(
         "p",
@@ -1030,6 +1052,7 @@ fn a_plugin_whose_script_cannot_be_read_fails_the_catalogue() {
         artifacts: &[],
         plugins_root: dir.path(),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut services = ServicesConfig::default();
     let mut broken = plugin_config(
@@ -1082,6 +1105,7 @@ fn fingerprint_tolerates_a_dangling_symlink_under_plugins_root() {
         artifacts: &[],
         plugins_root: dir.path(),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut services = ServicesConfig::default();
     services.plugins.insert(
@@ -1121,6 +1145,7 @@ fn script_files_are_collected_and_generated_tracking_skipped() {
         artifacts: &[],
         plugins_root: dir.path(),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut config = plugin_config(
         "scripted-plugin",
@@ -1198,6 +1223,7 @@ fn editing_an_artifact_body_reships_the_bundle() {
             artifacts,
             plugins_root: Path::new("/nonexistent/plugins"),
             managed_files: &BTreeMap::new(),
+            managed_plugin_files: &std::collections::BTreeMap::new(),
         };
         let bundles = cache.bundles(&services, &content).expect("bundles");
         bundles
@@ -1231,6 +1257,7 @@ fn bundle_with_artifacts(
         artifacts,
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let mut config = plugin_config(
         "demo-plugin",
@@ -1362,6 +1389,7 @@ fn bundle_with_rules(rules: &[RuleEntry], config: &PluginConfig) -> PluginBundle
         artifacts: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     build_plugin_bundle(config, &content).expect("build bundle")
 }

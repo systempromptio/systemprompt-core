@@ -57,6 +57,7 @@ fn build(root: &TempDir, config: &PluginConfig) -> BTreeMap<String, Vec<u8>> {
         artifacts: &[],
         plugins_root: root.path(),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     build_plugin_bundle(config, &content)
         .expect("bundle")
