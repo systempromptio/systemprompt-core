@@ -14,9 +14,6 @@ use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{EndpointSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
-use systemprompt_manifest::services::catalog::{
-    CatalogContext, CatalogDocument, EndpointConfig, ProviderConfig,
-};
 
 use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, render_list};
 use crate::CliConfig;
@@ -80,37 +77,6 @@ fn first_endpoint(args: &ProviderAddArgs) -> Result<Option<EndpointSpec>> {
     }
 }
 
-fn add_provider(
-    document: &mut CatalogDocument,
-    context: &CatalogContext,
-    spec: ProviderSpec,
-    endpoint: Option<EndpointSpec>,
-) -> Result<()> {
-    if document.providers.get(spec.id.as_str()).is_some() {
-        ProviderCatalogService::upsert_provider(document, context, spec)?;
-        if let Some(endpoint) = endpoint {
-            ProviderCatalogService::upsert_endpoint(document, context, endpoint)?;
-        }
-        return Ok(());
-    }
-    let Some(endpoint) = endpoint else {
-        bail!("a new provider needs its first endpoint: pass --wire and --url");
-    };
-    let mut next = document.clone();
-    let mut provider = ProviderConfig::new(spec.credential.as_str());
-    provider.display_name = spec.display_name;
-    provider.user_agent = spec.user_agent;
-    provider.extra_headers = spec.extra_headers;
-    provider.endpoints.insert(
-        endpoint.id,
-        EndpointConfig::new(endpoint.wire, endpoint.url),
-    );
-    next.providers.providers.insert(spec.id, provider);
-    next.resolve(context)
-        .map_err(|e| anyhow::anyhow!("the provider does not resolve: {e}"))?;
-    *document = next;
-    Ok(())
-}
 
 pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<()> {
     match command {
@@ -144,10 +110,15 @@ pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<(
                 user_agent: args.user_agent.clone(),
                 extra_headers: parse_headers(&args.headers)?,
                 enabled: None,
+                first_endpoint: first_endpoint(args)?,
             };
-            let endpoint = first_endpoint(args)?;
             apply(config, "Provider Updated", |document, context| {
-                add_provider(document, context, spec, endpoint)?;
+                if document.providers.get(spec.id.as_str()).is_none()
+                    && spec.first_endpoint.is_none()
+                {
+                    bail!("a new provider needs its first endpoint: pass --wire and --url");
+                }
+                ProviderCatalogService::upsert_provider(document, context, spec)?;
                 Ok(format!("Provider {} saved", args.id))
             })
             .await
@@ -181,6 +152,7 @@ async fn set_enabled(config: &CliConfig, id: &str, enabled: bool) -> Result<()> 
                 user_agent: None,
                 extra_headers: std::collections::HashMap::new(),
                 enabled: Some(enabled),
+                first_endpoint: None,
             },
         )?;
         Ok(format!("Provider {id} enabled = {enabled}"))

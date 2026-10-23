@@ -3,7 +3,9 @@
 //! A spec carries only the fields the operator states. Every `Option` that is
 //! `None` keeps the stored value, so re-declaring a provider or endpoint never
 //! drops its credential, user agent, headers, betas, region, price multiplier
-//! or resilience.
+//! or resilience. A new provider carries its first endpoint
+//! (`ProviderSpec::first_endpoint`), since a provider without one does not
+//! resolve.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,6 +32,7 @@ pub struct ProviderSpec {
     pub user_agent: Option<String>,
     pub extra_headers: HashMap<String, String>,
     pub enabled: Option<bool>,
+    pub first_endpoint: Option<EndpointSpec>,
 }
 
 #[derive(Debug, Clone)]

@@ -89,6 +89,12 @@ fn catalog_credential_provider_endpoint_add_list_remove() {
         "minimax",
         "--header",
         "x-extra=1",
+        "--endpoint",
+        "messages",
+        "--wire",
+        "anthropic",
+        "--url",
+        "https://api.minimax.example.com/anthropic/v1",
     ]);
     run_err(&[
         "admin",

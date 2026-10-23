@@ -35,6 +35,7 @@ fn provider_spec(id: &str, credential: &str) -> ProviderSpec {
         user_agent: None,
         extra_headers: HashMap::new(),
         enabled: None,
+        first_endpoint: None,
     }
 }
 
@@ -67,16 +68,27 @@ fn a_credential_provider_endpoint_and_model_are_added_together() {
         },
     )
     .unwrap();
-    ProviderCatalogService::upsert_provider(&mut doc, &ctx(), provider_spec("minimax", "minimax"))
-        .unwrap();
-    ProviderCatalogService::upsert_endpoint(
+    let bare = ProviderCatalogService::upsert_provider(
         &mut doc,
         &ctx(),
-        EndpointSpec {
-            provider: ProviderId::new("minimax"),
-            id: EndpointId::new("messages"),
-            wire: WireProtocol::Anthropic,
-            url: "https://a.example".to_owned(),
+        provider_spec("minimax", "minimax"),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(bare, ConfigError::CatalogRefused(_)),
+        "a provider without an endpoint does not resolve"
+    );
+    ProviderCatalogService::upsert_provider(
+        &mut doc,
+        &ctx(),
+        ProviderSpec {
+            first_endpoint: Some(EndpointSpec {
+                provider: ProviderId::new("minimax"),
+                id: EndpointId::new("messages"),
+                wire: WireProtocol::Anthropic,
+                url: "https://a.example".to_owned(),
+            }),
+            ..provider_spec("minimax", "minimax")
         },
     )
     .unwrap();

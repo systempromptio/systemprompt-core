@@ -87,6 +87,14 @@ impl ProviderCatalogService {
                 provider.enabled = enabled;
             }
             provider.extra_headers.extend(spec.extra_headers);
+            if let Some(endpoint) = spec.first_endpoint {
+                let config = provider
+                    .endpoints
+                    .entry(endpoint.id)
+                    .or_insert_with(|| EndpointConfig::new(endpoint.wire, endpoint.url.clone()));
+                config.wire = endpoint.wire;
+                config.url = endpoint.url;
+            }
             Ok(())
         })
     }
