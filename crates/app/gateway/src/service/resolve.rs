@@ -1,12 +1,12 @@
 //! Pre-dispatch upstream resolution: the catalog resolution, the planned
 //! chain, the credential and the outbound wire adapter.
 //!
-//! [`resolve_upstream`] resolves the request through the catalog
-//! ([`crate::routing::resolve_route`]): an unknown model is refused as not
+//! `resolve_upstream` resolves the request through the catalog
+//! (`crate::routing::resolve_route`): an unknown model is refused as not
 //! permitted, a model with no enabled deployment has no route. Route
 //! selectors may then narrow the chain, which is planned (`chain_plan`):
 //! reordered by its selection strategy and checked against the leading
-//! deployment's context window. [`resolve_deployment_upstream`] binds the
+//! deployment's context window. `resolve_deployment_upstream` binds the
 //! same request to a later hop of that chain when an earlier one has failed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

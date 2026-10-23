@@ -5,11 +5,11 @@
 //! [`legacy`]), replays 0.72.1 dispatch over it ([`replay`]) and writes
 //! `services/ai/{credentials,providers,models,deployments,gateway}.yaml`, the
 //! rewritten `ai/config.yaml` and root `includes:`, and `ai/legacy_map.yaml`
-//! — only after the result has loaded through the real loader ([`write`]).
-//! Anything it cannot decide aborts with the file and keys ([`abort`]); a
-//! second run finds no legacy shape and writes nothing. `--check` reports
-//! what would change and fails while a migration is pending. `--data` then
-//! moves stored data through the legacy map ([`data`]).
+//! — only after the result has loaded through the real loader
+//! ([`write`](mod@write)). Anything it cannot decide aborts with the file and
+//! keys ([`abort`]); a second run finds no legacy shape and writes nothing.
+//! `--check` reports what would change and fails while a migration is pending.
+//! `--data` then moves stored data through the legacy map ([`data`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

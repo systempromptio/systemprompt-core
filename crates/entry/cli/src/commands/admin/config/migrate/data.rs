@@ -3,7 +3,7 @@
 //! Reads `services/ai/legacy_map.yaml` (written by the config half), records
 //! it in `ai_catalog_legacy_map`, moves personal keys stored under a legacy
 //! entry name onto its credential id, backfills `ai_requests.credential` and
-//! `endpoint` in batches of [`BATCH`] rows until none is left, and rewrites
+//! `endpoint` in batches of `BATCH` rows until none is left, and rewrites
 //! the 0.72 `anthropic` host-filter tag to the `claude` client family. Every
 //! step is idempotent; `ai_requests.provider` keeps its historical values.
 //!

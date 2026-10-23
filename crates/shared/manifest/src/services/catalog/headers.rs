@@ -9,7 +9,7 @@
 
 const RESERVED: [&str; 7] = [
     "authorization",
-    "x-api-key",
+    systemprompt_identifiers::headers::API_KEY,
     "x-goog-api-key",
     "anthropic-version",
     "content-type",

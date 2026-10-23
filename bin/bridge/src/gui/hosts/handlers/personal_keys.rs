@@ -117,7 +117,7 @@ async fn run(op: PersonalKeyOp, http: reqwest::Client) -> GuiResult<Value> {
             let stored = client.set_personal_key(token, &credential, &body).await?;
             rows(vec![stored])
                 .as_array_mut()
-                .and_then(|r| r.pop())
+                .and_then(Vec::pop)
                 .unwrap_or(Value::Null)
         },
         PersonalKeyOp::Remove { credential } => {

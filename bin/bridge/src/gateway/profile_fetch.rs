@@ -68,7 +68,7 @@ impl GatewayClient {
         let started = Instant::now();
         let resp = self
             .http()
-            .get(self.url("/v1/bridge/profile"))
+            .get(self.url(systemprompt_models::ApiPaths::BRIDGE_PROFILE))
             .bearer_auth(bearer.expose())
             .send()
             .await
