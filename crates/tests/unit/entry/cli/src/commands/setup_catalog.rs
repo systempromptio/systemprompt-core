@@ -1,66 +1,80 @@
-//! Tests for `admin::setup::catalog` — the provider registry and gateway route
-//! generation the setup wizard emits from the supplied AI keys.
+//! Tests for `admin::setup::catalog` — the catalog the setup wizard and
+//! cloud-init seed from the supplied AI keys.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::setup::SecretsData;
-use systemprompt_cli::admin::setup::catalog::{build_registry, build_routes};
-use systemprompt_manifest::services::{GatewayConfig, GatewayRoute};
+use systemprompt_cli::admin::setup::catalog::{SeedRequest, first_model_on, seed_document};
+use systemprompt_manifest::services::catalog::CatalogContext;
 
-fn secrets_with(openai: bool, anthropic: bool, gemini: bool) -> SecretsData {
-    SecretsData {
-        openai: openai.then(|| "sk-openai".to_owned()),
-        anthropic: anthropic.then(|| "sk-anthropic".to_owned()),
-        gemini: gemini.then(|| "sk-gemini".to_owned()),
-        ..SecretsData::default()
-    }
-}
-
-fn route_for<'a>(routes: &'a [GatewayRoute], provider: &str) -> &'a GatewayRoute {
-    routes
-        .iter()
-        .find(|r| r.provider.as_str() == provider)
-        .unwrap_or_else(|| panic!("no route for provider {provider}"))
+fn seed(
+    present: &[&str],
+    primary: Option<&str>,
+) -> systemprompt_manifest::services::catalog::CatalogDocument {
+    seed_document(SeedRequest {
+        present,
+        primary,
+        gateway_enabled: true,
+    })
+    .expect("seed resolves")
 }
 
 #[test]
-fn openai_route_pins_a_concrete_upstream_model() {
-    let routes = build_routes(&secrets_with(true, false, false));
-    let openai = route_for(&routes, "openai");
-    assert_eq!(openai.model_pattern, "gpt-*");
+fn only_supplied_vendors_are_kept() {
+    let doc = seed(&["openai"], Some("openai"));
+    let providers: Vec<&str> = doc.providers.iter().map(|(id, _)| id.as_str()).collect();
+    assert_eq!(providers, ["openai"]);
+    assert!(doc.credentials.get("openai").is_some());
+    assert!(doc.credentials.get("anthropic").is_none());
+    assert!(doc.deployments.iter().all(|(_, targets)| {
+        targets
+            .iter()
+            .all(|t| t.endpoint().provider.as_str() == "openai")
+    }));
+}
+
+#[test]
+fn default_model_is_served_by_the_primary_vendor() {
+    let doc = seed(&["anthropic", "openai", "gemini"], Some("gemini"));
+    let model = doc
+        .gateway
+        .as_ref()
+        .and_then(|g| g.default_model.clone())
+        .expect("default model");
+    assert_eq!(first_model_on(&doc, "gemini"), Some(model.clone()));
+    let catalog = doc.resolve(&CatalogContext::default()).expect("resolves");
     assert_eq!(
-        openai.upstream_model.as_deref(),
-        Some("gpt-5-mini"),
-        "the openai default must rewrite Codex aliases to a concrete model, not pass through"
+        catalog
+            .enabled_hops(model.as_str())
+            .next()
+            .unwrap()
+            .provider
+            .as_str(),
+        "gemini"
     );
 }
 
 #[test]
-fn passthrough_providers_keep_none_upstream() {
-    let routes = build_routes(&secrets_with(false, true, true));
-    assert_eq!(route_for(&routes, "anthropic").upstream_model, None);
-    assert_eq!(route_for(&routes, "gemini").upstream_model, None);
+fn aliases_whose_target_is_gone_are_dropped() {
+    let doc = seed(&["openai"], Some("openai"));
+    let routes = &doc.gateway.as_ref().unwrap().routes;
+    assert!(routes.iter().all(|r| r.alias.is_none()), "{routes:?}");
+    let with_anthropic = seed(&["anthropic"], Some("anthropic"));
+    assert!(
+        with_anthropic
+            .gateway
+            .unwrap()
+            .routes
+            .iter()
+            .any(|r| r.alias.is_some())
+    );
 }
 
 #[test]
-fn routes_are_only_emitted_for_present_keys() {
-    let routes = build_routes(&secrets_with(true, false, false));
-    assert_eq!(routes.len(), 1);
-    assert_eq!(routes[0].provider.as_str(), "openai");
-}
-
-#[test]
-fn generated_registry_and_gateway_validate_together() {
-    let secrets = secrets_with(true, true, true);
-    let registry = build_registry(&secrets);
-    registry.validate().expect("seeded registry must validate");
-
-    let config = GatewayConfig {
-        enabled: true,
-        routes: build_routes(&secrets),
-        ..GatewayConfig::default()
-    };
-    config
-        .validate(&registry)
-        .expect("every generated route must reference a provider in the registry");
+fn seeded_gateway_is_enabled_and_priced() {
+    let doc = seed(&["anthropic", "openai", "gemini"], Some("anthropic"));
+    assert!(doc.gateway.as_ref().unwrap().enabled);
+    let catalog = doc
+        .resolve(&CatalogContext::default())
+        .expect("every hop is priced");
+    assert!(catalog.gateway_enabled());
 }

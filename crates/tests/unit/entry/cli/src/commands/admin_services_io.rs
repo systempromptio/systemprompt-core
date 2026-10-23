@@ -1,168 +1,99 @@
-//! Tests for the services-file plumbing behind `admin config catalog` and
-//! `admin config gateway`: splicing an include into the operator-authored root
-//! aggregator, and the typed file shapes the setters load and write back.
+//! Tests for the catalog-file plumbing behind the `admin config` catalog
+//! editors: locating `services/ai/`, committing an edit only when the whole
+//! tree still loads, and writing `gateway.yaml`.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::config::services_io::{GatewayFile, ProvidersFile, append_include};
+use systemprompt_cli::admin::config::services_io::{
+    CatalogLocation, commit_catalog, write_gateway,
+};
+use systemprompt_identifiers::{EndpointId, ModelId, ProviderId};
+use systemprompt_manifest::services::GatewayConfigSpec;
+use systemprompt_manifest::services::catalog::{DefaultCatalog, DeploymentTarget, EndpointRef};
 
-fn root_with(body: &str) -> (tempfile::TempDir, std::path::PathBuf) {
+fn tree() -> (tempfile::TempDir, CatalogLocation) {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().join("config.yaml");
-    std::fs::write(&root, body).unwrap();
-    (dir, root)
-}
-
-#[test]
-fn an_includes_key_on_the_very_first_line_is_extended_not_duplicated() {
-    let (_dir, root) = root_with("includes:\n  - ../agents/a.yaml\nsettings:\n  x: 1\n");
-
-    append_include(&root, "ai/providers.yaml").unwrap();
-
-    let text = std::fs::read_to_string(&root).unwrap();
-    assert_eq!(
-        text,
-        "includes:\n  - ai/providers.yaml\n  - ../agents/a.yaml\nsettings:\n  x: 1\n"
-    );
-    assert_eq!(
-        text.matches("includes:").count(),
-        1,
-        "a second includes: key would shadow the first and drop every existing include"
-    );
-}
-
-#[test]
-fn a_root_that_does_not_exist_yet_is_created_with_the_include() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().join("config.yaml");
-
-    append_include(&root, "ai/gateway.yaml").unwrap();
-
-    assert_eq!(
-        std::fs::read_to_string(&root).unwrap(),
-        "includes:\n  - ai/gateway.yaml\n"
-    );
-}
-
-#[test]
-fn a_root_without_a_trailing_newline_keeps_its_last_line_intact() {
-    let (_dir, root) = root_with("settings:\n  x: 1");
-
-    append_include(&root, "ai/gateway.yaml").unwrap();
-
-    let text = std::fs::read_to_string(&root).unwrap();
-    assert_eq!(text, "settings:\n  x: 1\nincludes:\n  - ai/gateway.yaml\n");
-    let parsed: serde_yaml::Value = serde_yaml::from_str(&text).unwrap();
-    assert_eq!(parsed["settings"]["x"], serde_yaml::Value::from(1));
-}
-
-#[test]
-fn an_empty_includes_key_gains_its_first_entry() {
-    let (_dir, root) = root_with("settings:\n  x: 1\nincludes:\n");
-
-    append_include(&root, "ai/providers.yaml").unwrap();
-
-    let text = std::fs::read_to_string(&root).unwrap();
-    assert_eq!(
-        text,
-        "settings:\n  x: 1\nincludes:\n  - ai/providers.yaml\n"
-    );
-}
-
-#[test]
-fn a_quoted_existing_entry_counts_as_present() {
-    for quoted in ["  - \"ai/providers.yaml\"\n", "  - 'ai/providers.yaml'\n"] {
-        let (_dir, root) = root_with(&format!("includes:\n{quoted}"));
-
-        append_include(&root, "ai/providers.yaml").unwrap();
-
-        let text = std::fs::read_to_string(&root).unwrap();
-        assert_eq!(
-            text.matches("ai/providers.yaml").count(),
-            1,
-            "a quoted include must not be re-added unquoted: {text}"
-        );
+    let services = dir.path().join("services");
+    std::fs::create_dir_all(services.join("config")).unwrap();
+    std::fs::create_dir_all(services.join("ai")).unwrap();
+    std::fs::write(services.join("config/config.yaml"), "{}\n").unwrap();
+    for (name, body) in DefaultCatalog::FILES {
+        std::fs::write(services.join("ai").join(name), body).unwrap();
     }
+    let location = CatalogLocation::for_root(services.join("config/config.yaml"));
+    (dir, location)
+}
+
+fn snapshot(location: &CatalogLocation) -> Vec<String> {
+    let mut names: Vec<_> = std::fs::read_dir(&location.dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
+    names.sort();
+    names
+        .iter()
+        .map(|p| std::fs::read_to_string(p).unwrap())
+        .collect()
 }
 
 #[test]
-fn a_padded_existing_entry_is_matched_after_trimming() {
-    let (_dir, root) = root_with("includes:\n  -    ai/gateway.yaml   \n");
-
-    append_include(&root, "ai/gateway.yaml").unwrap();
-
-    let text = std::fs::read_to_string(&root).unwrap();
-    assert_eq!(text.matches("ai/gateway.yaml").count(), 1, "{text}");
-}
-
-#[test]
-fn splicing_preserves_the_operator_comments_around_the_includes_list() {
-    let (_dir, root) = root_with(
-        "# root aggregator, hand written\nincludes:\n  # agents first\n  - ../agents/a.yaml\n\n# \
-         tail note\nsettings:\n  x: 1\n",
-    );
-
-    append_include(&root, "ai/providers.yaml").unwrap();
-
-    let text = std::fs::read_to_string(&root).unwrap();
-    assert!(text.contains("# root aggregator, hand written"), "{text}");
-    assert!(text.contains("  # agents first"), "{text}");
-    assert!(text.contains("# tail note"), "{text}");
-}
-
-#[test]
-fn an_unmodelled_key_in_the_providers_file_is_rejected_rather_than_silently_dropped() {
-    let err = serde_yaml::from_str::<ProvidersFile>("providers: []\nprovider: []\n").unwrap_err();
+fn the_catalog_lives_beside_the_config_directory() {
+    let (_dir, location) = tree();
     assert!(
-        err.to_string().contains("provider"),
-        "a typo'd top-level key must fail the load, not round-trip away the operator's data: {err}"
+        location.dir.ends_with("services/ai"),
+        "{}",
+        location.dir.display()
+    );
+    assert!(location.read().unwrap().models.get("gpt-5").is_some());
+}
+
+#[test]
+fn a_committed_edit_is_written_and_reloaded() {
+    let (_dir, location) = tree();
+    let before = location.read().unwrap();
+    let mut after = before.clone();
+    after.models.models.remove(&ModelId::new("gpt-5"));
+    after.deployments.deployments.remove(&ModelId::new("gpt-5"));
+
+    let services = commit_catalog(&location, &after).unwrap();
+
+    assert!(services.models.get("gpt-5").is_none());
+    assert!(location.read().unwrap().models.get("gpt-5").is_none());
+}
+
+#[test]
+fn an_edit_the_loader_refuses_is_rolled_back() {
+    let (_dir, location) = tree();
+    let before = location.read().unwrap();
+    let files = snapshot(&location);
+    let mut after = before.clone();
+    after.deployments.deployments.insert(
+        ModelId::new("gpt-5"),
+        vec![DeploymentTarget::Endpoint(EndpointRef {
+            provider: ProviderId::new("ghost"),
+            endpoint: EndpointId::new("api"),
+        })],
     );
 
-    let ok: ProvidersFile = serde_yaml::from_str("providers: []\n").unwrap();
-    assert!(ok.providers.providers.is_empty());
+    let err = commit_catalog(&location, &after).unwrap_err();
+
+    assert!(err.to_string().contains("no longer loads"), "{err:#}");
+    assert_eq!(snapshot(&location), files);
 }
 
 #[test]
-fn an_unmodelled_key_in_the_gateway_file_is_rejected_and_an_empty_file_defaults() {
-    let err = serde_yaml::from_str::<GatewayFile>("gateways:\n  enabled: true\n").unwrap_err();
-    assert!(err.to_string().contains("gateways"), "{err}");
-
-    let empty: GatewayFile = serde_yaml::from_str("{}\n").unwrap();
-    assert!(empty.gateway.is_none());
-}
-
-// Why: the root aggregator is operator-authored. Treating *any* read failure
-// as "empty" and then writing back replaced the whole file with a bare
-// `includes:` block — a permissions hiccup or one stray byte lost the config.
-#[test]
-fn a_root_that_cannot_be_read_is_left_untouched_and_the_error_surfaces() {
+fn write_gateway_writes_one_gateway_section_and_skips_none() {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().join("config.yaml");
-    let original: &[u8] = b"includes:\n  - ../ai/agents.yaml\n\xff\xfe not utf-8\n";
-    std::fs::write(&root, original).unwrap();
+    write_gateway(dir.path(), None).unwrap();
+    assert!(!dir.path().join("gateway.yaml").exists());
 
-    let err = append_include(&root, "../ai/providers.yaml")
-        .expect_err("an unreadable root must not be rewritten");
-
-    assert!(
-        format!("{err:#}").contains("Failed to read"),
-        "the failure must name the read, got: {err:#}"
-    );
-    assert_eq!(
-        std::fs::read(&root).unwrap(),
-        original,
-        "the operator's file must be byte-for-byte untouched"
-    );
-}
-
-#[test]
-fn a_root_that_is_a_directory_is_reported_not_replaced() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().join("config.yaml");
-    std::fs::create_dir(&root).unwrap();
-
-    append_include(&root, "../ai/providers.yaml")
-        .expect_err("a directory in place of the root cannot be spliced into");
-
-    assert!(root.is_dir(), "the directory must still be there");
+    let spec = GatewayConfigSpec {
+        enabled: true,
+        default_model: Some(ModelId::new("gpt-5")),
+        ..GatewayConfigSpec::default()
+    };
+    write_gateway(dir.path(), Some(&spec)).unwrap();
+    let text = std::fs::read_to_string(dir.path().join("gateway.yaml")).unwrap();
+    assert!(text.starts_with("gateway:"), "{text}");
+    assert!(text.contains("default_model: gpt-5"), "{text}");
 }

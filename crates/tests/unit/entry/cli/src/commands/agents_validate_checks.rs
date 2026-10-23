@@ -8,9 +8,9 @@ use systemprompt_cli::admin::agents::validate::{
 };
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::secrets::Secrets;
+use systemprompt_manifest::services::catalog::{CatalogContext, DefaultCatalog, ResolvedCatalog};
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
-    ProviderRegistry,
 };
 
 fn card(display_name: &str, description: &str) -> AgentCardConfig {
@@ -113,13 +113,20 @@ fn check_basics_accepts_well_formed_agent_with_provider() {
     assert!(warnings.is_empty());
 }
 
+fn default_catalog() -> ResolvedCatalog {
+    DefaultCatalog::document()
+        .unwrap()
+        .resolve(&CatalogContext::default())
+        .unwrap()
+}
+
 #[test]
 fn check_provider_skips_disabled_and_providerless_agents() {
     let services = services_yaml("agents: {}\n");
-    let registry = ProviderRegistry::default_seed().unwrap();
+    let catalog = default_catalog();
     let sources = ValidationSources {
         services_config: &services,
-        registry: &registry,
+        catalog: &catalog,
         secrets: None,
     };
     let mut errors = Vec::new();
@@ -136,49 +143,26 @@ fn check_provider_skips_disabled_and_providerless_agents() {
 }
 
 #[test]
-fn check_provider_reports_unconfigured_provider() {
+fn check_provider_reports_undeclared_provider_and_missing_key() {
     let services = services_yaml("agents: {}\n");
-    let registry = ProviderRegistry::default_seed().unwrap();
+    let catalog = default_catalog();
     let sources = ValidationSources {
         services_config: &services,
-        registry: &registry,
+        catalog: &catalog,
         secrets: None,
     };
+
     let mut a = agent("agent_one");
     a.metadata.provider = Some("anthropic".to_owned());
     let mut errors = Vec::new();
-
     check_provider("agent_one", &a, &sources, &mut errors);
-
     assert_eq!(errors.len(), 1);
     assert!(
         errors[0]
             .message
-            .contains("'anthropic' is not configured in ai.providers")
-    );
-}
-
-#[test]
-fn check_provider_reports_disabled_provider_missing_registry_entry_and_missing_key() {
-    let services = services_yaml(
-        "ai:\n  providers:\n    anthropic:\n      enabled: false\n    mystery:\n      enabled: true\n",
-    );
-    let registry = ProviderRegistry::default_seed().unwrap();
-    let sources = ValidationSources {
-        services_config: &services,
-        registry: &registry,
-        secrets: None,
-    };
-
-    let mut a = agent("agent_one");
-    a.metadata.provider = Some("anthropic".to_owned());
-    let mut errors = Vec::new();
-    check_provider("agent_one", &a, &sources, &mut errors);
-    let msgs = messages(&errors);
-    assert!(msgs.iter().any(|m| m.contains("disabled in AI config")));
-    assert!(
-        msgs.iter()
-            .any(|m| m.contains("No API key configured for provider 'anthropic'"))
+            .contains("No API key configured for provider 'anthropic'"),
+        "{}",
+        errors[0].message
     );
 
     let mut b = agent("agent_two");
@@ -189,18 +173,43 @@ fn check_provider_reports_disabled_provider_missing_registry_entry_and_missing_k
     assert!(
         errors[0]
             .message
-            .contains("no connectivity entry in the services provider registry")
+            .contains("'mystery' is not declared in services/ai/providers.yaml")
     );
 }
 
 #[test]
-fn check_provider_passes_when_key_present_in_secrets() {
-    let services = services_yaml("ai:\n  providers:\n    anthropic:\n      enabled: true\n");
-    let registry = ProviderRegistry::default_seed().unwrap();
+fn check_provider_reports_a_disabled_provider() {
+    let services = services_yaml("agents: {}\n");
+    let mut document = DefaultCatalog::document().unwrap();
+    document
+        .providers
+        .providers
+        .get_mut("anthropic")
+        .unwrap()
+        .enabled = false;
+    document.gateway = None;
+    let catalog = document.resolve(&CatalogContext::default()).unwrap();
     let secrets = secrets(Some("sk-test"));
     let sources = ValidationSources {
         services_config: &services,
-        registry: &registry,
+        catalog: &catalog,
+        secrets: Some(&secrets),
+    };
+    let mut a = agent("agent_one");
+    a.metadata.provider = Some("anthropic".to_owned());
+    let mut errors = Vec::new();
+    check_provider("agent_one", &a, &sources, &mut errors);
+    assert!(messages(&errors).iter().any(|m| m.contains("is disabled")));
+}
+
+#[test]
+fn check_provider_passes_when_key_present_in_secrets() {
+    let services = services_yaml("agents: {}\n");
+    let catalog = default_catalog();
+    let secrets = secrets(Some("sk-test"));
+    let sources = ValidationSources {
+        services_config: &services,
+        catalog: &catalog,
         secrets: Some(&secrets),
     };
     let mut a = agent("agent_one");

@@ -44,19 +44,30 @@ fn admin_mcp_config_requires_oauth_admin_scope() {
 }
 
 #[test]
-fn ai_config_sets_default_provider_and_provider_block() {
-    let out = templates::ai_config("anthropic").expect("embedded catalog");
-    assert!(out.contains("default_provider: \"anthropic\""));
-    assert!(out.contains("anthropic:"));
-    assert!(out.contains("openai:"));
-    assert!(out.contains("gemini:"));
-    assert!(out.contains("default_model:"));
+fn ai_config_is_policy_only() {
+    let out = templates::ai_config();
+    assert!(out.contains("ai: {}"));
+    assert!(!out.contains("default_provider"));
+    assert!(!out.contains("providers:"));
 }
 
 #[test]
-fn ai_config_honours_a_non_default_provider() {
-    let out = templates::ai_config("gemini").expect("embedded catalog");
-    assert!(out.contains("default_provider: \"gemini\""));
+fn catalog_files_seed_the_default_model_on_the_chosen_vendor() {
+    let files = templates::catalog_files("gemini").expect("embedded catalog");
+    let names: Vec<&str> = files.iter().map(|(name, _)| *name).collect();
+    assert_eq!(
+        names,
+        [
+            "credentials.yaml",
+            "providers.yaml",
+            "models.yaml",
+            "deployments.yaml",
+            "gateway.yaml"
+        ]
+    );
+    let gateway = &files.iter().find(|(n, _)| *n == "gateway.yaml").unwrap().1;
+    assert!(gateway.contains("default_model: gemini"), "{gateway}");
+    assert!(gateway.contains("enabled: false"), "{gateway}");
 }
 
 #[test]
