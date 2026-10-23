@@ -14,7 +14,7 @@
 //! test `unit/entry/api/src/middleware/authz_policy.rs` (gate-level coverage).
 
 use std::net::SocketAddr;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::extract::ConnectInfo;
@@ -144,7 +144,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
-            event_bridge: Arc::new(OnceLock::new()),
+            event_bridge: systemprompt_test_fixtures::fixture_event_bridge(&pool),
             event_router: systemprompt_events::EventRouter::local_only(Arc::new(
                 systemprompt_events::EventBroadcasters::new(),
             )),

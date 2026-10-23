@@ -3,7 +3,7 @@
 //! frame-options override stamp.
 
 use std::net::SocketAddr;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use axum::Router;
 use axum::body::Body;
@@ -225,7 +225,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
-            event_bridge: Arc::new(OnceLock::new()),
+            event_bridge: systemprompt_test_fixtures::fixture_event_bridge(&pool),
             event_router: systemprompt_events::EventRouter::local_only(Arc::new(
                 systemprompt_events::EventBroadcasters::new(),
             )),

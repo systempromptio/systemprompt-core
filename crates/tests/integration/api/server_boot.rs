@@ -8,7 +8,7 @@
 //! The prometheus recorder is process-global, so this entire file builds a
 //! single API router.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
@@ -134,7 +134,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
-            event_bridge: Arc::new(OnceLock::new()),
+            event_bridge: systemprompt_test_fixtures::fixture_event_bridge(&pool),
             event_router: systemprompt_events::EventRouter::local_only(Arc::new(
                 systemprompt_events::EventBroadcasters::new(),
             )),

@@ -8,8 +8,8 @@
 
 use axum::http::{HeaderName, HeaderValue};
 use axum::response::IntoResponse;
-use systemprompt_api::services::proxy::service::external::{map_resolve_error, outbound_headers};
 use systemprompt_api::services::proxy::resolver::ServiceResolver;
+use systemprompt_api::services::proxy::service::external::{map_resolve_error, outbound_headers};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::McpDomainError;

@@ -283,7 +283,10 @@ async fn handle_health_is_degraded_until_the_event_relay_listens() -> anyhow::Re
 #[tokio::test]
 async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    assert!(ctx.event_bridge().start(), "a fresh fixture context has no relay");
+    assert!(
+        ctx.event_bridge().start(),
+        "a fresh fixture context has no relay"
+    );
     let listening = tokio::time::timeout(Duration::from_secs(10), ctx.event_bridge().listening())
         .await
         .expect("the relay starts listening within 10s");

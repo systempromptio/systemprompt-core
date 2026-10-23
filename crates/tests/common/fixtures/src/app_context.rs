@@ -9,7 +9,7 @@
 //! [`test_app_context`] panics when the context cannot be assembled: a test
 //! whose context is missing fails rather than skips (see [`crate::db`]).
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
@@ -349,7 +349,7 @@ fn fixture_app_context_assembled(
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
-            event_bridge: Arc::new(OnceLock::new()),
+            event_bridge: fixture_event_bridge(pool),
             event_router: systemprompt_events::EventRouter::local_only(Arc::new(
                 systemprompt_events::EventBroadcasters::new(),
             )),
@@ -369,6 +369,18 @@ fn fixture_app_context_assembled(
 
 // An ingest over the fixture pool with no scanners: the narrow waist itself,
 // not the installation's policy.
+pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBridgeHandle> {
+    Arc::new(
+        systemprompt_events::PostgresEventBridge::new(
+            pool.write_pool().as_ref().clone(),
+            crate::unique_instance(),
+            systemprompt_traits::CacheEpochs::new(),
+            Arc::new(systemprompt_events::EventBroadcasters::new()),
+        )
+        .into_idle_handle(),
+    )
+}
+
 pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
     Ok(Arc::new(systemprompt_mcp::ArtifactIngest::from_db(
         db, None,

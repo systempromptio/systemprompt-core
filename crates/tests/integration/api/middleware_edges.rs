@@ -138,7 +138,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
-            event_bridge: Arc::new(OnceLock::new()),
+            event_bridge: systemprompt_test_fixtures::fixture_event_bridge(&pool),
             event_router: systemprompt_events::EventRouter::local_only(Arc::new(
                 systemprompt_events::EventBroadcasters::new(),
             )),

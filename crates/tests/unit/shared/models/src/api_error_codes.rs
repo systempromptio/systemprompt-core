@@ -23,7 +23,10 @@ fn constructors_carry_their_error_codes() {
             ApiError::service_unavailable("storage"),
             ErrorCode::ServiceUnavailable,
         ),
-        (ApiError::internal("boom", "cause"), ErrorCode::InternalError),
+        (
+            ApiError::internal("boom", "cause"),
+            ErrorCode::InternalError,
+        ),
     ] {
         assert_eq!(error.code, code, "{}", error.message);
     }
