@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS ai_request_tool_calls (
     ai_tool_call_id VARCHAR(255),
     sequence_number INTEGER NOT NULL,
     tool_result_payload JSONB,
+    args_validity TEXT CONSTRAINT ai_request_tool_calls_args_validity_check
+        CHECK (args_validity IN ('valid', 'invalid', 'unknown_tool', 'unparseable', 'schema_unusable')),
+    args_error_path TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (request_id) REFERENCES ai_requests(id) ON DELETE CASCADE,

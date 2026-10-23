@@ -113,6 +113,8 @@ mod stream_tap_accumulator;
 #[cfg(test)]
 mod support;
 #[cfg(test)]
+mod tool_validity;
+#[cfg(test)]
 mod upstream_error;
 
 #[cfg(test)]

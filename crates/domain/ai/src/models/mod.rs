@@ -31,6 +31,7 @@ pub mod tools {
 
 pub mod ai_request_record;
 mod ai_request_usage;
+pub mod args_validity;
 mod billing_source;
 pub mod image_generation;
 pub mod request_kind;
@@ -38,6 +39,7 @@ pub(crate) mod rows;
 mod served_hop;
 
 pub use ai_request_record::{AiRequestRecord, AiRequestRecordBuilder, CacheInfo, TokenInfo};
+pub use args_validity::{ArgsCheck, ArgsValidity};
 pub use billing_source::BillingSource;
 pub use request_kind::{RequestKind, RequestStatus};
 pub use served_hop::{CatalogHop, ServedHop};

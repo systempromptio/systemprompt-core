@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::rows::AiRequestToolCallRow;
-use crate::models::{AiRequestMessage, AiRequestToolCall};
+use crate::models::{AiRequestMessage, AiRequestToolCall, ArgsCheck};
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId, McpToolName};
 use systemprompt_traits::RepositoryError;
@@ -26,6 +26,7 @@ pub struct InsertToolCallParams<'a> {
     pub tool_name: &'a McpToolName,
     pub tool_input: &'a str,
     pub sequence_number: i32,
+    pub args: Option<&'a ArgsCheck>,
 }
 
 impl AiRequestRepository {
@@ -112,8 +113,8 @@ impl AiRequestRepository {
         sqlx::query_as!(
             AiRequestToolCallRow,
             r#"
-            INSERT INTO ai_request_tool_calls (id, request_id, ai_tool_call_id, tool_name, tool_input, sequence_number, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO ai_request_tool_calls (id, request_id, ai_tool_call_id, tool_name, tool_input, sequence_number, args_validity, args_error_path, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id, request_id as "request_id!: AiRequestId", tool_name, tool_input, mcp_execution_id as "mcp_execution_id: McpExecutionId", sequence_number, ai_tool_call_id as "ai_tool_call_id: AiToolCallId", created_at, updated_at
             "#,
             id,
@@ -121,7 +122,9 @@ impl AiRequestRepository {
             params.ai_tool_call_id.as_str(),
             params.tool_name.as_str(),
             params.tool_input,
-            params.sequence_number
+            params.sequence_number,
+            params.args.map(|args| args.validity.as_str()),
+            params.args.and_then(|args| args.error_path.as_deref())
         )
         .fetch_one(self.write_pool())
         .await

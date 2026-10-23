@@ -81,6 +81,7 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
             tool_name: &known_tool_name,
             tool_input: &known_input_json,
             sequence_number: 0,
+            args: None,
         })
         .await?;
 

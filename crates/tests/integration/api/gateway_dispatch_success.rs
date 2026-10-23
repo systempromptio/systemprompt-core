@@ -151,6 +151,17 @@ async fn credential(pool: &DbPool) -> Result<AuthedFixture> {
 }
 
 fn messages_post(cred: &AuthedFixture) -> Request<Body> {
+    messages_post_offering(
+        cred,
+        json!({
+            "model": MODEL,
+            "max_tokens": 64,
+            "messages": [{"role": "user", "content": "what is in /srv?"}],
+        }),
+    )
+}
+
+fn messages_post_offering(cred: &AuthedFixture, body: serde_json::Value) -> Request<Body> {
     Request::builder()
         .method(http::Method::POST)
         .uri("/messages")
@@ -160,14 +171,7 @@ fn messages_post(cred: &AuthedFixture) -> Request<Body> {
             format!("Bearer {}", cred.jwt.as_str()),
         )
         .header(SESSION_ID, cred.session_id.as_str())
-        .body(Body::from(
-            json!({
-                "model": MODEL,
-                "max_tokens": 64,
-                "messages": [{"role": "user", "content": "what is in /srv?"}],
-            })
-            .to_string(),
-        ))
+        .body(Body::from(body.to_string()))
         .expect("request must build")
 }
 
@@ -293,6 +297,67 @@ async fn the_tool_calls_are_persisted_against_the_request() -> Result<()> {
     let (tool_name, sequence) = recorded.expect("a completion with a tool use must record it");
     assert_eq!(tool_name, "list_files");
     assert_eq!(sequence, 1, "tool calls are numbered from one, in order");
+    Ok(())
+}
+
+async fn recorded_validity(
+    pool: &DbPool,
+    cred: &AuthedFixture,
+) -> Result<Option<(Option<String>, Option<String>)>> {
+    Ok(sqlx::query_as(
+        "SELECT t.args_validity, t.args_error_path FROM ai_request_tool_calls t \
+         JOIN ai_requests r ON r.id = t.request_id \
+         WHERE r.user_id = $1 ORDER BY r.created_at DESC, t.sequence_number ASC LIMIT 1",
+    )
+    .bind(cred.user_id.as_str())
+    .fetch_optional(pool.pool().as_ref())
+    .await?)
+}
+
+#[tokio::test]
+async fn a_tool_call_the_request_never_offered_is_recorded_as_unknown() -> Result<()> {
+    let (app, pool, ctx) = app().await?;
+    let cred = credential(&pool).await?;
+
+    let (status, _body) =
+        super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
+    assert_eq!(status.as_u16(), 200);
+
+    drain_background(&ctx).await;
+    let recorded = recorded_validity(&pool, &cred).await?;
+    assert_eq!(recorded, Some((Some("unknown_tool".to_owned()), None)));
+    Ok(())
+}
+
+#[tokio::test]
+async fn tool_arguments_that_break_the_offered_schema_are_recorded_invalid() -> Result<()> {
+    let (app, pool, ctx) = app().await?;
+    let cred = credential(&pool).await?;
+    let body = json!({
+        "model": MODEL,
+        "max_tokens": 64,
+        "messages": [{"role": "user", "content": "what is in /srv?"}],
+        "tools": [{
+            "name": "list_files",
+            "input_schema": {
+                "type": "object",
+                "properties": {"path": {"type": "integer"}},
+                "required": ["path"]
+            }
+        }],
+    });
+
+    let (status, _body) =
+        super::common::body_to_string(app.oneshot(messages_post_offering(&cred, body)).await?)
+            .await?;
+    assert_eq!(status.as_u16(), 200);
+
+    drain_background(&ctx).await;
+    let recorded = recorded_validity(&pool, &cred).await?;
+    assert_eq!(
+        recorded,
+        Some((Some("invalid".to_owned()), Some("/path".to_owned())))
+    );
     Ok(())
 }
 

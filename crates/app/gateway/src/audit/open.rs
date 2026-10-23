@@ -68,6 +68,13 @@ impl GatewayAudit {
             "Gateway identity requires an authenticated session and trace",
         )?;
         let record = self.build_record();
+        if self
+            .tool_validators
+            .set(self.tool_validity.validators_for(&request.tools))
+            .is_err()
+        {
+            tracing::debug!(request_id = %self.ctx.ai_request_id, "tool validators already bound");
+        }
 
         if !self.ctx.context_bound {
             self.context_materializer

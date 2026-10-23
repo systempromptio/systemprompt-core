@@ -30,6 +30,7 @@ pub mod payload;
 pub mod phases;
 mod quota_settlement;
 mod tool_results;
+pub mod tool_validity;
 
 pub(crate) use admission::PendingFinding;
 
@@ -111,6 +112,8 @@ pub struct GatewayAudit {
     quota_reservation: Mutex<Option<crate::quota::QuotaReservation>>,
     admission: Mutex<Option<admission::PendingAdmission>>,
     user_key_billing: std::sync::atomic::AtomicBool,
+    tool_validity: Arc<tool_validity::ToolValidityCache>,
+    tool_validators: std::sync::OnceLock<Arc<systemprompt_ai::services::tools::ToolArgsValidator>>,
 }
 
 #[derive(Debug, Default)]
@@ -142,6 +145,8 @@ impl GatewayAudit {
             quota_reservation: Mutex::new(None),
             admission: Mutex::new(None),
             user_key_billing: std::sync::atomic::AtomicBool::new(false),
+            tool_validity: Arc::clone(&repos.tool_validity),
+            tool_validators: std::sync::OnceLock::new(),
         }
     }
 

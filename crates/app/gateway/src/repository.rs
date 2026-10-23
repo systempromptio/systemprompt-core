@@ -19,6 +19,7 @@ use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
+use crate::audit::tool_validity::ToolValidityCache;
 use crate::policies::PolicyResolver;
 use crate::signature_cache::{TTL, ThoughtSignatureCache};
 
@@ -51,6 +52,7 @@ pub struct GatewayRepositories {
     pub subject_providers: SubjectProviderSet,
     pub rate_windows: RateWindowRepository,
     pub user_provider_credentials: UserProviderCredentialRepository,
+    pub tool_validity: Arc<ToolValidityCache>,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -102,6 +104,7 @@ impl GatewayRepositories {
             }),
             rate_windows: RateWindowRepository::new(db.write_pool().as_ref().clone()),
             user_provider_credentials: UserProviderCredentialRepository::new(db),
+            tool_validity: Arc::new(ToolValidityCache::default()),
         }
     }
 

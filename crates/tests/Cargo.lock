@@ -6984,6 +6984,7 @@ dependencies = [
  "chrono",
  "futures",
  "inventory",
+ "jsonschema",
  "regex",
  "reqwest",
  "rmcp",

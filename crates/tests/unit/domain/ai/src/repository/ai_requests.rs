@@ -2,7 +2,7 @@
 // aggregates, and per-turn message / tool-call writes.
 use systemprompt_models::origin::RequestOrigin;
 
-use systemprompt_ai::models::{AiRequestRecord, RequestStatus};
+use systemprompt_ai::models::{AiRequestRecord, ArgsCheck, ArgsValidity, RequestStatus};
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, ContextId, McpToolName};
 use uuid::Uuid;
@@ -305,11 +305,26 @@ async fn insert_and_get_tool_calls() {
             tool_name: &McpToolName::new("search"),
             tool_input: r#"{"q":"rust"}"#,
             sequence_number: 0,
+            args: Some(&ArgsCheck {
+                validity: ArgsValidity::Invalid,
+                error_path: Some("/q".to_owned()),
+            }),
         })
         .await
         .expect("insert tool call");
     assert_eq!(inserted.tool_name, "search");
     assert_eq!(inserted.sequence_number, 0);
+    let recorded: (Option<String>, Option<String>) = sqlx::query_as(
+        "SELECT args_validity, args_error_path FROM ai_request_tool_calls WHERE id = $1",
+    )
+    .bind(&inserted.id)
+    .fetch_one(pool.pool().as_ref())
+    .await
+    .expect("read args validity");
+    assert_eq!(
+        recorded,
+        (Some("invalid".to_owned()), Some("/q".to_owned()))
+    );
 
     let calls = repo.list_tool_calls(&id).await.expect("tool calls");
     assert_eq!(calls.len(), 1);

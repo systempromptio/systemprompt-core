@@ -53,6 +53,7 @@ pub(super) async fn store_tool_calls(
                 tool_name: &tool_call.tool_name,
                 tool_input: &tool_call.tool_input,
                 sequence_number: tool_call.sequence,
+                args: Some(&tool_call.args),
             })
             .await
         {

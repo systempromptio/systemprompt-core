@@ -210,15 +210,20 @@ async fn insert_turn(
         sqlx::query!(
             r#"
             INSERT INTO ai_request_tool_calls (
-                request_id, ai_tool_call_id, tool_name, tool_input, sequence_number
+                request_id, ai_tool_call_id, tool_name, tool_input, sequence_number,
+                args_validity, args_error_path
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
             request_id.as_str(),
             tool.id.as_str(),
             tool.name,
             tool.input,
-            tokens(u32::try_from(index + 1).unwrap_or(u32::MAX))?
+            tokens(u32::try_from(index + 1).unwrap_or(u32::MAX))?,
+            tool.args.as_ref().map(|args| args.validity.as_str()),
+            tool.args
+                .as_ref()
+                .and_then(|args| args.error_path.as_deref())
         )
         .execute(&mut **tx)
         .await?;

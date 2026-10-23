@@ -62,6 +62,10 @@ impl GatewayAudit {
                 .map(|tool| super::journal::CapturedToolCall {
                     id: tool.ai_tool_call_id.clone(),
                     name: tool.tool_name.clone(),
+                    args: self
+                        .tool_validators
+                        .get()
+                        .map(|validators| validators.check_raw(&tool.tool_name, &tool.tool_input)),
                     input: truncate_for_tool_input(&tool.tool_input),
                 })
                 .collect(),

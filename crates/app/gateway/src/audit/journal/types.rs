@@ -13,6 +13,7 @@
 
 use crate::audit::payload::PayloadCapture;
 use serde::{Deserialize, Serialize};
+use systemprompt_ai::models::ArgsCheck;
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, SessionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,6 +21,8 @@ pub(crate) struct CapturedToolCall {
     pub id: AiToolCallId,
     pub name: String,
     pub input: String,
+    #[serde(default)]
+    pub args: Option<ArgsCheck>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

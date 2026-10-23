@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** **AI:** `SettledToolCall` gains `args: Option<ArgsCheck>` and `InsertToolCallParams` gains `args: Option<&ArgsCheck>`; `GatewayRepositories` gains `tool_validity`. Migrate struct literals by adding `args: None` (or the computed check).
 - **Breaking:** **Agent runs:** `HostKind::OpenCodeCli` runs headless on `OpenCode` V2 (`@opencode/cli` >= 2.0.30) through `host::opencode::OpenCodeCli`: `opencode run --standalone --format json --auto` in an isolated run home, a V2 `opencode.json` whose tool, provider and MCP limits are `policies`, and an outcome classified from events. `host::opencode::execution` returning `Unsupported` is removed. A client below 2.0.30 fails the run as `connector_unavailable` before spawn.
 - **Breaking:** **Agent runs:** `HeadlessHost` gains `version_requirement(&self) -> Option<VersionRequirement>` (default `None`); the executor probes the host program and refuses an older client.
 - **Breaking:** **Agent runs:** `RunRequest` gains `harness: Option<HarnessRef>` and `traffic: TrafficClass` (both serde-defaulted), `ExecuteParams` gains `harness`, `RunReport` gains `outputs`, `RunLayout` gains `outputs`, and `HeadlessHost` gains `harness_targets()` (default `Workspace`; Claude Code `~/.claude`, OpenCode `~/.config/opencode`). Migrate struct literals by adding `harness: None` (and `traffic: TrafficClass::Production` for `RunRequest`).
@@ -18,6 +19,7 @@
 - **Breaking:** **Marketplace:** `list_skill_resolutions`, `list_skill_resolutions_for` and `revoked_skill_keys` are `list_resolutions(owner, kind)`, `list_resolutions_for(owner, consumer, kind)` and `revoked_keys(owner, consumer, kind)`, `SkillResolutionRow` is `ResourceResolutionRow`, and `CatalogContent::{with,without}_organization_skills` are `{with,without}_organization_resources`. Migrate by passing `ResourceKind::Skill` for the previous behaviour.
 - **Breaking:** **Marketplace:** a managed plugin or rule (new `ResourceKind::Rule`, migration `marketplace/020_managed_rule_kind`) is withheld from the catalogue unless the consumer resolves it to a published generation; a published one whose revision cannot be resolved is withheld, never served from disk; a resolved one is served from its verified revision (a rule's `config.yaml` and content file, a plugin's scripts, Node package files and `hosts/` tree, replacing the on-disk copy) and carries its `ManagedPublicationRef`; unmanaged keys are unchanged. Plugin bundles now carry the plugin directory's `hosts/` tree.
 - **Breaking:** **Bridge:** `OpenCode` is written in the V2 config shape only (`@opencode/cli` >= 2.0.30): `providers.systemprompt` with a `{file:}` `apiKey` naming a 0600 `~/.config/opencode/systemprompt.token`, provider-pinning `policies`, and `mcp.servers` connectors; every install and sync strips the V1 keys (`provider.systemprompt`, `enabled_providers`, flat `mcp.<slug>`, `plugin/systemprompt-hooks.js`, the `auth.json` key). `integration::opencode::retired_admin_tier` and the `opencode admin config` doctor check are removed. Migrate by upgrading `OpenCode` to 2.0.30 or later.
+
 
 ### Added
 
@@ -36,6 +38,8 @@
 - **Bridge:** with an admin-managed `OpenCode` tier (`/etc/opencode`, `/Library/Application Support/opencode`, `%ProgramData%\opencode` or the `ai.opencode.managed` managed-preferences plist) carrying the `systemprompt` provider, the bridge writes only the token file and content, and doctor reports the provider as managed by MDM. Doctor fails an `opencode --version` below 2.0.30.
 - **Models:** `bridge::opencode::McpServer::Remote` gains `oauth: Option<McpOAuth>` (`McpOAuth::Disabled` serialises as `oauth: false`); the bridge's loopback connectors and headless runs set it, so `OpenCode` never attempts OAuth client registration against the proxy.
 - **Bridge:** `OpenCode` sync projects rules whose `hosts` name an `OpenCode` packaging into a delimited block of `~/.config/opencode/AGENTS.md` (ordered by id), plugin-bundle `agents/<name>.md` as `mode: subagent` agents, `hosts/opencode/plugins/*.{js,ts}` into `plugins/`, a marketplace's digest-pinned `opencode.theme`, and its `cli_defaults` where the user has not set them; bundle files are checked against their manifest digests, and projected files are tracked in a ledger so dropped ones are removed.
+- **AI:** `ai_request_tool_calls` records `args_validity` (`valid`, `invalid`, `unknown_tool`, `unparseable`, `schema_unusable`) and `args_error_path`, the JSON pointer of the first failing argument, for each tool call measured against the input schema it was offered with; `tool_call_ledger` exposes both. The verdict never blocks a request.
+- **AI:** `ToolArgsValidator` compiles an offered tool catalog's input schemas and returns an `ArgsCheck` per call; the gateway caches compiled catalogs in `ToolValidityCache`, bounded and keyed by a SHA-256 of the offered names and schemas.
 
 ## [0.73.0] - Unreleased
 
