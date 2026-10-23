@@ -259,7 +259,7 @@ fn the_opencode_cli_host_describes_itself_as_a_json_cli_tool_that_cannot_be_open
         OPENCODE_CLI_HOST.description()
     );
     assert_eq!(
-        systemprompt_bridge::gateway::model_view::host_client(OPENCODE_HOST.id()),
+        systemprompt_bridge::gateway::model_view::host_client(OPENCODE_CLI_HOST.id()),
         systemprompt_models::providers::ClientFamily::OpenAi,
         "OpenCode lists the models the catalog advertises to openai clients"
     );

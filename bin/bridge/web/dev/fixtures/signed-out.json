@@ -207,6 +207,7 @@
         "anthropic"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "not-set-up",
@@ -389,6 +390,7 @@
         "openai"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "not-set-up",

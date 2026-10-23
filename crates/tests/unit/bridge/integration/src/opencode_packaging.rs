@@ -2,6 +2,8 @@
 //! user config. The two hosts must tell their own packaging apart and share
 //! `opencode.json` without either overwriting the other.
 
+use systemprompt_bridge::gateway::model_view::host_client;
+use systemprompt_models::providers::ClientFamily;
 use std::path::Path;
 
 use systemprompt_bridge::integration::enrol::retained_for_sibling;
@@ -68,8 +70,8 @@ fn the_two_hosts_are_one_product_in_two_packagings() {
         OPENCODE_CLI_HOST.install_action_label()
     );
     assert!(!OPENCODE_CLI_HOST.can_open());
-    assert!(OPENCODE_APP_HOST.accepted_surfaces().is_empty());
-    assert!(OPENCODE_CLI_HOST.accepted_surfaces().is_empty());
+    assert_eq!(host_client(OPENCODE_APP_HOST.id()), ClientFamily::OpenAi);
+    assert_eq!(host_client(OPENCODE_CLI_HOST.id()), ClientFamily::OpenAi);
 }
 
 #[test]

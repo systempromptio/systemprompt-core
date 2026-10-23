@@ -93,7 +93,7 @@ fn a_model_with_no_clients_is_hidden_everywhere() {
 #[test]
 fn a_server_filter_replaces_the_host_family() {
     let filters = BTreeMap::from([(
-        "opencode".to_owned(),
+        HostKind::OpenCode,
         vec!["gemini".to_owned(), "not-a-family".to_owned()],
     )]);
     let clients = HostClients::for_host(HostKind::OpenCode, &filters);

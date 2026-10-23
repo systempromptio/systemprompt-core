@@ -210,7 +210,11 @@ fn every_registered_host_has_a_client_family() {
     for host in systemprompt_bridge::integration::host_apps() {
         let expected = match host.id() {
             HostKind::ClaudeCode | HostKind::ClaudeDesktop => ClientFamily::Claude,
-            HostKind::CodexCli | HostKind::OpenCode | HostKind::Hermes => ClientFamily::OpenAi,
+            HostKind::Codex
+            | HostKind::CodexCli
+            | HostKind::OpenCode
+            | HostKind::OpenCodeCli
+            | HostKind::Hermes => ClientFamily::OpenAi,
         };
         assert_eq!(host_client(host.id()), expected, "{:?}", host.id());
     }
