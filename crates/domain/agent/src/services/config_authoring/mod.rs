@@ -4,10 +4,11 @@
 //! `services/agents/<name>.yaml`: input validation, shaping a full
 //! [`AgentConfig`] from an [`AgentCreateRequest`], applying
 //! [`AgentEditRequest`] mutations to an in-memory config, and deleting agent
-//! files through [`ConfigWriter`]. An agent created without a model takes the
-//! catalog's `gateway.default_model` (or the first model deployed on the
-//! given provider), and its provider is the one that model's first enabled
-//! deployment is served by. Interactive prompting, profile resolution,
+//! files through [`ConfigWriter`]. An agent created without a model takes,
+//! for a given provider, the first model core's default catalog deploys on it
+//! ([`DefaultCatalog`]), else the install catalog's `gateway.default_model`;
+//! without a provider it takes the provider serving that model's first
+//! enabled deployment. Interactive prompting, profile resolution,
 //! and post-write configuration reloads stay with the caller. All failures
 //! surface as [`ConfigAuthoringError`].
 //!
@@ -22,7 +23,7 @@ use std::path::PathBuf;
 
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::{ConfigWriteError, ConfigWriter};
-use systemprompt_manifest::services::catalog::{CatalogContext, ResolvedCatalog};
+use systemprompt_manifest::services::catalog::{CatalogContext, DefaultCatalog};
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
@@ -74,7 +75,7 @@ pub enum ConfigAuthoringError {
     #[error("No model given and the catalog declares no gateway.default_model")]
     NoDefaultModel,
 
-    #[error("No model given and the catalog deploys no model on provider '{0}'")]
+    #[error("No model given and core's default catalog deploys no model on provider '{0}'")]
     NoModelForProvider(String),
 
     #[error("Model '{0}' has no deployment on an enabled provider")]
@@ -85,6 +86,9 @@ pub enum ConfigAuthoringError {
 
     #[error("The catalog does not resolve: {0}")]
     Catalog(#[from] systemprompt_manifest::services::catalog::CatalogError),
+
+    #[error("Core's default catalog is unreadable: {0}")]
+    DefaultCatalog(#[from] systemprompt_manifest::services::catalog::CatalogDocumentError),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -245,49 +249,42 @@ fn agent_defaults(
     provider: Option<String>,
     model: Option<String>,
 ) -> Result<(String, String), ConfigAuthoringError> {
-    if let (Some(provider), Some(model)) = (provider.as_ref(), model.as_ref()) {
-        return Ok((provider.clone(), model.clone()));
+    match (provider, model) {
+        (Some(provider), Some(model)) => Ok((provider, model)),
+        (Some(provider), None) => {
+            let model = default_model_for(&provider)?;
+            Ok((provider, model))
+        },
+        (None, model) => {
+            let services = systemprompt_loader::ConfigLoader::load()?;
+            let catalog = services.resolve_catalog(&CatalogContext::default())?;
+            let model = match model {
+                Some(model) => model,
+                None => catalog
+                    .default_model()
+                    .map(|m| m.as_str().to_owned())
+                    .ok_or(ConfigAuthoringError::NoDefaultModel)?,
+            };
+            let provider = catalog
+                .enabled_hops(&model)
+                .next()
+                .map(|hop| hop.provider.as_str().to_owned())
+                .ok_or_else(|| ConfigAuthoringError::ModelNotServable(model.clone()))?;
+            Ok((provider, model))
+        },
     }
-    let services = systemprompt_loader::ConfigLoader::load()?;
-    let catalog = services.resolve_catalog(&CatalogContext::default())?;
-    let model = match (model, provider.as_deref()) {
-        (Some(model), _) => model,
-        (None, Some(provider)) => model_on_provider(&catalog, provider)?,
-        (None, None) => catalog
-            .default_model()
-            .map(|m| m.as_str().to_owned())
-            .ok_or(ConfigAuthoringError::NoDefaultModel)?,
-    };
-    let provider = match provider {
-        Some(provider) => provider,
-        None => catalog
-            .enabled_hops(&model)
-            .next()
-            .map(|hop| hop.provider.as_str().to_owned())
-            .ok_or_else(|| ConfigAuthoringError::ModelNotServable(model.clone()))?,
-    };
-    Ok((provider, model))
 }
 
-fn model_on_provider(
-    catalog: &ResolvedCatalog,
-    provider: &str,
-) -> Result<String, ConfigAuthoringError> {
-    let primary_on = |model: &str| {
-        catalog
-            .enabled_hops(model)
-            .next()
-            .is_some_and(|hop| hop.provider.as_str() == provider)
-    };
-    catalog
-        .default_model()
-        .map(|m| m.as_str().to_owned())
-        .filter(|m| primary_on(m))
-        .or_else(|| {
-            catalog
-                .models()
-                .map(|m| m.id.as_str().to_owned())
-                .find(|m| primary_on(m))
+fn default_model_for(provider: &str) -> Result<String, ConfigAuthoringError> {
+    let document = DefaultCatalog::document()?;
+    document
+        .deployments
+        .iter()
+        .find(|(_, targets)| {
+            targets
+                .first()
+                .is_some_and(|t| t.endpoint().provider.as_str() == provider)
         })
+        .map(|(model, _)| model.as_str().to_owned())
         .ok_or_else(|| ConfigAuthoringError::NoModelForProvider(provider.to_owned()))
 }
