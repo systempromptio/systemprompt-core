@@ -32,7 +32,7 @@ pub async fn apply(
     let before = location.read()?;
     let mut after = before.clone();
     let message = edit(&mut after, &catalog_context())?;
-    let services = commit_catalog(&location, &before, &after)?;
+    let services = commit_catalog(&location, &after)?;
     let outcome =
         super::reconcile::reconcile_authz(&services, &location.dir.display().to_string()).await;
     render_result(

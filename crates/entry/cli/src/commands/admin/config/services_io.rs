@@ -8,8 +8,8 @@
 //! its edit through `ProviderCatalogService` (which refuses an edit whose
 //! result does not resolve), writes the files back and re-loads the whole
 //! services tree through the real loader; if that load fails the previous
-//! files are restored and the edit is refused, so a setter never leaves a tree
-//! the server would refuse to boot from.
+//! files are restored byte for byte and the edit is refused, so a setter never
+//! leaves a tree the server would refuse to boot from.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +21,7 @@ use anyhow::{Context, Result};
 use systemprompt_config::{read_catalog, write_catalog, write_private_atomic};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_loader::config_loader::catalog::catalog_dir;
-use systemprompt_manifest::services::catalog::{CatalogContext, CatalogDocument};
+use systemprompt_manifest::services::catalog::{CATALOG_FILES, CatalogContext, CatalogDocument};
 use systemprompt_manifest::services::{GatewayConfigSpec, ServicesConfig};
 
 use super::config_section::ConfigSection;
@@ -78,18 +78,42 @@ fn write_document(location: &CatalogLocation, document: &CatalogDocument) -> Res
     write_gateway(&location.dir, document.gateway.as_ref())
 }
 
-/// Writes `after`, re-loads the services tree, and restores `before` if the
-/// tree no longer loads.
+fn snapshot(location: &CatalogLocation) -> Vec<(PathBuf, Option<Vec<u8>>)> {
+    CATALOG_FILES
+        .iter()
+        .map(|name| {
+            let path = location.dir.join(name);
+            let bytes = std::fs::read(&path).ok();
+            (path, bytes)
+        })
+        .collect()
+}
+
+fn restore(files: &[(PathBuf, Option<Vec<u8>>)]) -> Result<()> {
+    for (path, bytes) in files {
+        match bytes {
+            Some(bytes) => write_private_atomic(path, bytes)
+                .with_context(|| format!("Failed to restore {}", path.display()))?,
+            None if path.exists() => std::fs::remove_file(path)
+                .with_context(|| format!("Failed to remove {}", path.display()))?,
+            None => {},
+        }
+    }
+    Ok(())
+}
+
+/// Writes `after` and re-loads the services tree; if the tree no longer
+/// loads, every catalog file is put back byte for byte.
 pub fn commit_catalog(
     location: &CatalogLocation,
-    before: &CatalogDocument,
     after: &CatalogDocument,
 ) -> Result<ServicesConfig> {
+    let previous = snapshot(location);
     write_document(location, after)?;
     match ConfigLoader::reload_from_path(&location.root) {
         Ok(services) => Ok(services),
         Err(error) => {
-            write_document(location, before)?;
+            restore(&previous)?;
             Err(anyhow::anyhow!(
                 "the services tree no longer loads after this edit, so it was not saved: {error}"
             ))

@@ -2,18 +2,23 @@
 //! (`services/ai/providers.yaml`): credential, headers, user agent and
 //! whether the provider serves at all.
 //!
-//! `disable` takes every endpoint of the provider out of every chain,
-//! everywhere; endpoints are edited with `admin config endpoint`.
+//! A new provider is added with its first endpoint (`--wire`, `--url`), since
+//! a provider without one does not resolve; further endpoints are edited with
+//! `admin config endpoint`. `disable` takes every endpoint of the provider
+//! out of every chain, everywhere.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_config::{ProviderCatalogService, ProviderSpec};
-use systemprompt_identifiers::{CredentialId, ProviderId};
+use systemprompt_config::{EndpointSpec, ProviderCatalogService, ProviderSpec};
+use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
+use systemprompt_manifest::services::catalog::{
+    CatalogContext, CatalogDocument, EndpointConfig, ProviderConfig,
+};
 
-use super::catalog_edit::{apply, parse_headers, read_active, render_list};
+use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, render_list};
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -51,6 +56,60 @@ pub struct ProviderAddArgs {
     pub user_agent: Option<String>,
     #[arg(long = "header", help = "Extra header as KEY=VALUE (repeatable)")]
     pub headers: Vec<String>,
+    #[arg(long, help = "Endpoint id of the first endpoint (default `api`)")]
+    pub endpoint: Option<String>,
+    #[arg(
+        long,
+        help = "Wire of the first endpoint (required for a new provider)"
+    )]
+    pub wire: Option<String>,
+    #[arg(long, help = "URL of the first endpoint (required for a new provider)")]
+    pub url: Option<String>,
+}
+
+fn first_endpoint(args: &ProviderAddArgs) -> Result<Option<EndpointSpec>> {
+    match (args.wire.as_deref(), args.url.as_deref()) {
+        (Some(wire), Some(url)) => Ok(Some(EndpointSpec {
+            provider: ProviderId::new(&args.id),
+            id: EndpointId::new(args.endpoint.as_deref().unwrap_or("api")),
+            wire: parse_wire(wire)?,
+            url: url.to_owned(),
+        })),
+        (None, None) => Ok(None),
+        _ => bail!("--wire and --url go together"),
+    }
+}
+
+fn add_provider(
+    document: &mut CatalogDocument,
+    context: &CatalogContext,
+    spec: ProviderSpec,
+    endpoint: Option<EndpointSpec>,
+) -> Result<()> {
+    if document.providers.get(spec.id.as_str()).is_some() {
+        ProviderCatalogService::upsert_provider(document, context, spec)?;
+        if let Some(endpoint) = endpoint {
+            ProviderCatalogService::upsert_endpoint(document, context, endpoint)?;
+        }
+        return Ok(());
+    }
+    let Some(endpoint) = endpoint else {
+        bail!("a new provider needs its first endpoint: pass --wire and --url");
+    };
+    let mut next = document.clone();
+    let mut provider = ProviderConfig::new(spec.credential.as_str());
+    provider.display_name = spec.display_name;
+    provider.user_agent = spec.user_agent;
+    provider.extra_headers = spec.extra_headers;
+    provider.endpoints.insert(
+        endpoint.id,
+        EndpointConfig::new(endpoint.wire, endpoint.url),
+    );
+    next.providers.providers.insert(spec.id, provider);
+    next.resolve(context)
+        .map_err(|e| anyhow::anyhow!("the provider does not resolve: {e}"))?;
+    *document = next;
+    Ok(())
 }
 
 pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<()> {
@@ -86,8 +145,9 @@ pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<(
                 extra_headers: parse_headers(&args.headers)?,
                 enabled: None,
             };
+            let endpoint = first_endpoint(args)?;
             apply(config, "Provider Updated", |document, context| {
-                ProviderCatalogService::upsert_provider(document, context, spec)?;
+                add_provider(document, context, spec, endpoint)?;
                 Ok(format!("Provider {} saved", args.id))
             })
             .await
