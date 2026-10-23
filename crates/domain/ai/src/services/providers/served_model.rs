@@ -5,7 +5,10 @@
 //! upstream name the endpoint is sent, and the final price of that
 //! deployment ([`ResolvedHop::pricing`], with every override and the
 //! endpoint's price multiplier already applied). Nothing here re-derives a
-//! price or a name from the model entry.
+//! price or a name from the model entry. The list is ordered by model id
+//! (catalog registries are keyed maps, so YAML order is not kept): a client's
+//! default model is `gateway.default_model` when its endpoint serves it, else
+//! the first model by id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -92,7 +92,10 @@ impl ProviderClients {
                 google_search_enabled: provider.google_search_enabled,
                 resilience: &endpoint.resilience,
                 models: &models,
-                default_model: None,
+                default_model: catalog
+                    .default_model()
+                    .filter(|id| models.iter().any(|m| m.id == **id))
+                    .map(systemprompt_identifiers::ModelId::as_str),
             };
             let client = ProviderFactory::create(&params)?;
             clients.by_endpoint.insert(endpoint_ref, client);
