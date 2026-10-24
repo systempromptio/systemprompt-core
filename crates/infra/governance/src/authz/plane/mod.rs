@@ -21,9 +21,8 @@ use std::path::Path;
 
 use async_trait::async_trait;
 use systemprompt_extension::prelude::{
-    ApplyMode, ApplyOutcome, ApplyRequest, ChangeSource, ConfigPlane, ConfigPlaneError,
-    ConfigPlaneResult, DeclaredEntities, DeclaredEntity, DeclaredState, PlaneContext,
-    PlaneSnapshot, PlaneTx, ResolvedEntities, ResolvedEntity,
+    ApplyOutcome, ChangeSource, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, DeclaredEntities,
+    DeclaredEntity, DeclaredState, PlaneContext, PlaneSnapshot, PlaneTx, ResolvedEntities,
 };
 
 use systemprompt_database::DbPool;
@@ -168,44 +167,6 @@ impl ConfigPlane for AccessControlPlane {
             }
         }
         Ok(outcome)
-    }
-
-    async fn apply(
-        &self,
-        ctx: &PlaneContext<'_>,
-        tx: &mut PlaneTx<'_>,
-        request: &ApplyRequest<'_>,
-    ) -> ConfigPlaneResult<ApplyOutcome> {
-        let current = self.read_current(ctx, tx).await?;
-        let origin = ChangeSource::Code(RULES_FILE.to_owned());
-        let mut resolved = ResolvedEntities::new();
-        for (key, value) in &request.declared.entries {
-            let unchanged = current.get(key) == Some(value);
-            let kept = request.mode == ApplyMode::InsertOnly && current.contains_key(key);
-            if request.scope.admits(key) && !unchanged && !kept {
-                resolved.insert(
-                    key.clone(),
-                    ResolvedEntity {
-                        value: Some(value.clone()),
-                        source: origin.clone(),
-                    },
-                );
-            }
-        }
-        if request.mode != ApplyMode::InsertOnly {
-            for key in current.keys() {
-                if request.scope.admits(key) && !request.declared.entries.contains_key(key) {
-                    resolved.insert(
-                        key.clone(),
-                        ResolvedEntity {
-                            value: None,
-                            source: origin.clone(),
-                        },
-                    );
-                }
-            }
-        }
-        self.write(ctx, tx, &resolved).await
     }
 
     async fn export(

@@ -17,10 +17,10 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_manifest::Config;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
@@ -253,9 +253,9 @@ fn fixture_app_context_assembled(
         user_repository,
         extension_registry,
     } = seams;
-    let governance = Arc::new(
-        systemprompt_governance::policy::GovernanceEngine::from_services_root(
-            std::path::Path::new(&paths.services),
+    let governance = systemprompt_traits::ConfigWatch::new(
+        systemprompt_governance::policy::GovernanceEngine::from_config(
+            &systemprompt_governance::policy::GovernanceConfig::defaults(),
             Some(systemprompt_governance::policy::RateWindowRepository::new(
                 pool.write_pool().as_ref().clone(),
             )),
@@ -390,6 +390,17 @@ pub fn offline_rate_windows() -> systemprompt_governance::policy::RateWindowRepo
 // `<services>/governance/config.yaml` boots with.
 pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::GovernanceEngine> {
     Arc::new(
+        systemprompt_governance::policy::GovernanceEngine::from_config(
+            &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            Some(offline_rate_windows()),
+        )
+        .expect("the default governance chain always builds"),
+    )
+}
+
+pub fn default_governance_watch()
+-> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
+    systemprompt_traits::ConfigWatch::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),
             Some(offline_rate_windows()),

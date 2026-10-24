@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- The `governance` config plane (`policy::plane`, table `governance_config`); `GovernanceEngine::load` replaces `from_services_root`; `GovernanceConfig::load` and `GovernanceConfigError::Unreadable` are removed and `DuplicatePolicyId`/`Canonical` are new.
 - `rules.yaml` is the one access-control dialect and the `access_control` config plane (`AccessControlPlane`, `rules_file`, `render_current_rules`); roles.yaml ingestion is deleted; `EntityKind::{Model, Provider}` and decision-time pattern levels (`DecisionFacts`, `ParentChainIndex::pattern_parents`); `AuthzContext::gateway_invocation` takes the provider; closed `source` vocabulary (`SERVICES_SOURCE`, `CONSOLE_SOURCE_PREFIX`) and migration `027_entitlement_kinds_closed_source`; `AccessControlRepository::{list_pattern_entities, update_route_ids}`.
 
 ### Fixed

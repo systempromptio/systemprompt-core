@@ -7,10 +7,10 @@
 
 use std::sync::Arc;
 
-use systemprompt_governance::policy::GovernanceEngine;
+use systemprompt_governance::policy::{GovernanceEngine, GovernanceEngineError};
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::services::SystemAdmin;
-use systemprompt_traits::{BackgroundTasks, CacheEpochs};
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch};
 
 use super::{AppContext, ShutdownRequest};
 
@@ -46,13 +46,17 @@ impl AppContext {
     }
 
     #[must_use]
-    pub fn governance(&self) -> &GovernanceEngine {
-        &self.subsystems.governance
+    pub fn governance(&self) -> Arc<GovernanceEngine> {
+        self.subsystems.governance.get()
     }
 
     #[must_use]
-    pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
-        Arc::clone(&self.subsystems.governance)
+    pub const fn governance_watch(&self) -> &ConfigWatch<GovernanceEngine> {
+        &self.subsystems.governance
+    }
+
+    pub async fn load_governance(&self) -> Result<GovernanceEngine, GovernanceEngineError> {
+        crate::builder::load_governance(self.db_pool()).await
     }
 
     #[must_use]

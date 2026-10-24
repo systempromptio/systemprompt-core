@@ -25,7 +25,7 @@ use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_traits::BackgroundTasks;
+use systemprompt_traits::{BackgroundTasks, ConfigWatch};
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
@@ -153,7 +153,6 @@ impl AppContextBuilder {
             files_config,
             database,
             authz_hook,
-            governance,
             file_storage,
             cache_epochs,
             log_sink,
@@ -167,6 +166,7 @@ impl AppContextBuilder {
             &database,
         )
         .await?;
+        let governance = ConfigWatch::new(load_governance(&database).await?);
 
         let content = assembly::assemble_content_analytics(
             &config,
@@ -186,7 +186,7 @@ impl AppContextBuilder {
             ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
         let subsystems = Subsystems {
             ai_service,
-            artifact_ingest: build_artifact_ingest(&database, &governance),
+            artifact_ingest: build_artifact_ingest(&database, &governance.get()),
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
             authz_hook,
@@ -241,6 +241,21 @@ fn event_router_or_outbox(
             Arc::new(systemprompt_events::EventBroadcasters::new()),
         )
     })
+}
+
+pub(crate) async fn load_governance(
+    database: &systemprompt_database::DbPool,
+) -> Result<
+    systemprompt_governance::policy::GovernanceEngine,
+    systemprompt_governance::policy::GovernanceEngineError,
+> {
+    systemprompt_governance::policy::GovernanceEngine::load(
+        database.pool().as_ref(),
+        Some(systemprompt_governance::policy::RateWindowRepository::new(
+            database.write_pool().as_ref().clone(),
+        )),
+    )
+    .await
 }
 
 fn build_artifact_ingest(

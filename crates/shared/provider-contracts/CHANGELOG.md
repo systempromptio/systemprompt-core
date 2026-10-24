@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `ConfigPlane::apply` has a default built on `resolve_apply`, `read_current` and `write`.
 - `ConfigPlane` gains `sources`, `read`, `write` and `render_declarations` (defaulted), so an exhaustive implementor list or a wrapper that forwards every method must add them.
 
 ### Added

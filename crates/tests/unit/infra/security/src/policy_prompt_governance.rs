@@ -12,7 +12,7 @@ use systemprompt_governance::authz::types::{Decision, DenyReason};
 use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
 use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
 use systemprompt_governance::policy::{
-    ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernanceEngineError, PROMPT_TARGET_NAME,
+    ChainEntryResult, GovernanceConfig, GovernanceEngine, PROMPT_TARGET_NAME,
 };
 use systemprompt_identifiers::{CallId, SessionId, UserId};
 
@@ -123,32 +123,15 @@ fn a_prompt_target_names_itself_in_the_audit_row() {
 }
 
 #[test]
-fn a_missing_services_governance_config_builds_the_warn_only_defaults() {
-    let root = tempfile::tempdir().unwrap();
-    let engine =
-        GovernanceEngine::from_services_root(root.path(), Some(crate::offline_rate_windows()))
-            .expect("defaults");
+fn the_default_chain_does_not_enforce_prompt_secrets() {
+    let engine = GovernanceEngine::from_config(
+        &systemprompt_governance::policy::GovernanceConfig::defaults(),
+        Some(crate::offline_rate_windows()),
+    )
+    .expect("defaults");
     assert!(
         !engine.enforces_prompt_secrets(),
         "the default chain is warn-only, so prompt secrets are not enforced"
-    );
-}
-
-#[test]
-fn a_rejected_services_governance_config_refuses_the_engine() {
-    let root = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(root.path().join("governance")).unwrap();
-    std::fs::write(
-        root.path().join("governance/config.yaml"),
-        "enabled: [not, a, bool]",
-    )
-    .unwrap();
-    let err =
-        GovernanceEngine::from_services_root(root.path(), Some(crate::offline_rate_windows()))
-            .expect_err("rejected");
-    assert!(
-        matches!(err, GovernanceEngineError::ConfigRejected { .. }),
-        "{err}"
     );
 }
 

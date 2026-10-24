@@ -9,6 +9,7 @@
 
 pub mod agents;
 mod event_bridge;
+mod governance_watch;
 mod heartbeat;
 pub mod reconciliation;
 mod scheduler;
@@ -17,6 +18,7 @@ mod secrets_refresh;
 
 pub(super) use agents::reconcile_agents;
 pub(super) use event_bridge::start_event_bridge;
+pub(super) use governance_watch::start_governance_watch;
 pub(super) use heartbeat::start_registry_heartbeat;
 pub(super) use reconciliation::reconcile_system_services;
 pub(super) use scheduler::initialize_scheduler;

@@ -31,7 +31,6 @@ use systemprompt_database::{
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
-use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_traits::{CacheEpochs, FileStorage};
 
@@ -43,7 +42,6 @@ pub(super) struct CoreLayer {
     pub(super) files_config: Arc<FilesConfig>,
     pub(super) database: Arc<Database>,
     pub(super) authz_hook: SharedAuthzHook,
-    pub(super) governance: Arc<GovernanceEngine>,
     pub(super) file_storage: Arc<dyn FileStorage>,
     pub(super) cache_epochs: CacheEpochs,
     pub(super) log_sink: systemprompt_logging::LogSink,
@@ -140,13 +138,6 @@ pub(super) async fn init_core(
         cache_epochs.clone(),
     )?;
 
-    let governance = Arc::new(GovernanceEngine::from_services_root(
-        active_root.path.as_path(),
-        Some(systemprompt_governance::policy::RateWindowRepository::new(
-            database.write_pool().as_ref().clone(),
-        )),
-    )?);
-
     systemprompt_logging::set_console_format(profile.observability.log_format);
     let log_sink = systemprompt_logging::init_logging(&database, Some(instance_id.clone()));
 
@@ -162,7 +153,6 @@ pub(super) async fn init_core(
         files_config,
         database,
         authz_hook,
-        governance,
         file_storage,
         cache_epochs,
         log_sink,

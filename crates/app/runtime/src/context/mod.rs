@@ -35,7 +35,7 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
-use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
 mod accessors;
@@ -95,7 +95,7 @@ pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub logging: LoggingRuntime,
     pub authz_hook: SharedAuthzHook,
-    pub governance: Arc<GovernanceEngine>,
+    pub governance: ConfigWatch<GovernanceEngine>,
     pub cache_epochs: CacheEpochs,
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,

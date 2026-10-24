@@ -23,7 +23,7 @@ use crate::error::SchedulerResult;
 
 const RECONCILE_LOCK: &str = "config_reconcile";
 
-pub type PlaneTransaction = sqlx::Transaction<'static, sqlx::Postgres>;
+pub use systemprompt_database::PlaneTransaction;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PlaneStateRow {

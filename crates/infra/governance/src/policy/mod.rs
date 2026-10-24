@@ -32,6 +32,7 @@ pub mod builtin;
 pub mod config;
 pub mod engine;
 pub mod governed;
+pub mod plane;
 pub mod rate_window;
 pub mod registry;
 pub mod secrets;
@@ -52,6 +53,7 @@ pub use governed::{
     GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,
     UNKNOWN_TARGET_NAME,
 };
+pub use plane::{GOVERNANCE_FILE, GOVERNANCE_PLANE, GovernancePlane};
 pub use rate_window::{RateCharge, RateCounts, RateWindowRepository};
 pub use registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 pub use secrets::{

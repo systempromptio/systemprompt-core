@@ -2,6 +2,10 @@
 
 ## [0.73.0] - Unreleased
 
+### Breaking
+
+- `PlaneTransaction`, the transaction a config plane recovers from `PlaneTx`.
+
 ### Added
 
 - `config_version` (one row) and the trigger functions `sp_stamp_change()` (copies the transaction-local `systemprompt.actor`/`reason`/`source` into `changed_by`/`reason`/`source`, stamps `changed_at`) and `sp_bump_config_version(<plane>)` (bumps the row, notifies `config:<plane>` on `systemprompt_cache`). Declarative schema only; no migration.

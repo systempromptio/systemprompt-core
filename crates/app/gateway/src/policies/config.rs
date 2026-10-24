@@ -1,13 +1,10 @@
 //! YAML schema for the declarative gateway-policy baseline.
 //!
 //! A deployment commits a [`GatewayPolicyConfig`] at
-//! `services/gateway/policies.yaml` declaring the gateway policies every
-//! instance should boot with. The bootstrap loader parses this struct, hands
-//! it to [`super::ingestion::GatewayPolicyIngestionService`], and the service
-//! projects it into `ai_gateway_policies`.
-//!
-//! The contract is one-way (YAML → DB), mirroring the access-control
-//! ingestion path.
+//! `services/gateway/policies.yaml` declaring its gateway policies. The
+//! `gateway_policies` config plane ([`super::GatewayPoliciesPlane`]) parses
+//! and validates it and `config apply` merges it into `ai_gateway_policies`;
+//! the plane also renders the rows back into this shape for export.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

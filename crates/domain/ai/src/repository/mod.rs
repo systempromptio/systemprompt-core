@@ -26,7 +26,7 @@ pub mod user_provider_credentials;
 
 use systemprompt_database::DbPool;
 
-pub use ai_gateway_policies::{AiGatewayPolicyRepository, GatewayPolicyRow};
+pub use ai_gateway_policies::{AiGatewayPolicyRepository, GatewayPolicyRow, GatewayPolicyWrite};
 pub use ai_quota_buckets::{
     AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta, QuotaBucketState,
     QuotaSubjectUsage, QuotaUsageRepository, QuotaWindowKey,

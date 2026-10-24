@@ -13,13 +13,12 @@
 
 use std::collections::BTreeMap;
 
-use sqlx::{Postgres, Transaction};
 
 use crate::authz::error::AuthzResult;
 use crate::authz::rules_file::{CanonicalEntity, CanonicalRule, EntityTarget};
 use crate::authz::types::{Access, EntityKind};
 
-pub(super) type PlaneTransaction = Transaction<'static, Postgres>;
+pub(super) use systemprompt_database::PlaneTransaction;
 
 pub(super) async fn list_declared_access(
     tx: &mut PlaneTransaction,

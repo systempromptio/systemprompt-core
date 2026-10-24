@@ -12,10 +12,11 @@
 //! [`super::PolicyRequest`] to [`GovernanceEngine::charge_and_evaluate`] (or
 //! [`GovernanceEngine::charge`] when it evaluates the charged call itself),
 //! so every replica charges the same counter and no caller can evaluate an
-//! uncharged call by forgetting a step. The engine is built once at the
-//! composition root ([`GovernanceEngine::from_services_root`]) and injected
-//! into every enforcement point. A chain that arms a rate window without a
-//! [`super::RateWindowRepository`] is a construction error.
+//! uncharged call by forgetting a step. The engine is built from the
+//! `governance` config plane's rows ([`GovernanceEngine::load`]) at the
+//! composition root and rebuilt whenever another node changes them. A chain
+//! that arms a rate window without a [`super::RateWindowRepository`] is a
+//! construction error.
 //!
 //! [`GovernanceEngine::evaluate_with_prompt_recovery`] is the opt-in variant
 //! for prompt targets: when a policy denies with a located secret leak, the
@@ -32,7 +33,8 @@ mod charge;
 pub use charge::ChargedCall;
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+
+use sqlx::PgPool;
 
 use systemprompt_identifiers::PolicyId;
 use thiserror::Error;
@@ -41,6 +43,7 @@ use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
 use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
 use super::governed::GovernedInput;
+use super::plane::{config_from_entities, list_governance_config};
 use super::rate_window::RateWindowRepository;
 use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 use super::secrets::{SecretFinding, SecretScanner};
@@ -68,12 +71,10 @@ pub enum GovernanceEngineError {
         #[source]
         source: PolicyConfigurationError,
     },
-    #[error("governance config at {path} was rejected: {source}")]
-    ConfigRejected {
-        path: String,
-        #[source]
-        source: GovernanceConfigError,
-    },
+    #[error("the governance config in governance_config was rejected: {0}")]
+    ConfigRejected(#[source] GovernanceConfigError),
+    #[error("governance_config could not be read: {0}")]
+    ConfigUnreadable(#[source] systemprompt_traits::RepositoryError),
     #[error(
         "governance policy `{id}` counts a rate window, but the engine was built without a \
          rate-window repository"
@@ -110,17 +111,21 @@ impl std::fmt::Debug for GovernanceEngine {
 }
 
 impl GovernanceEngine {
-    pub fn from_services_root(
-        services_root: &Path,
+    pub async fn load(
+        pool: &PgPool,
         rate_windows: Option<RateWindowRepository>,
     ) -> Result<Self, GovernanceEngineError> {
-        let path = services_root.join("governance/config.yaml");
-        let config = GovernanceConfig::load(&path).map_err(|source| {
-            GovernanceEngineError::ConfigRejected {
-                path: path.display().to_string(),
-                source,
-            }
-        })?;
+        let rows = list_governance_config(pool)
+            .await
+            .map_err(GovernanceEngineError::ConfigUnreadable)?;
+        let config = config_from_entities(&rows)
+            .map_err(GovernanceEngineError::ConfigRejected)?
+            .unwrap_or_else(|| {
+                tracing::warn!(
+                    "governance_config is empty; running the vendor-neutral warn-only chain until                      `config apply` writes the governance plane"
+                );
+                GovernanceConfig::defaults()
+            });
         Self::from_config(&config, rate_windows)
     }
 

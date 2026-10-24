@@ -31,6 +31,12 @@
 //! The default `sources` attributes every declared entry to
 //! `code:<declared_path>`; a plane fed by bundles overrides it.
 //!
+//! [`resolve_apply`] turns a whole-declaration [`ApplyRequest`] into entity
+//! writes against the current rows: every admitted declared entity that
+//! differs (and, under [`ApplyMode::InsertOnly`], is absent), and every
+//! admitted row the declaration no longer names as a deletion, each with the
+//! declaration file as its origin. It is the default [`ConfigPlane::apply`].
+//!
 //! [`ConfigPlane::export`] renders the current database state as declaration
 //! text, which is how an operator captures console-only rows before switching
 //! a plane to `file` authority.
@@ -131,7 +137,10 @@ impl<'a> PlaneContext<'a> {
 /// host re-reads after every apply and rolls back an apply that did not
 /// converge. The host inserts `DbPool` into the context's dependencies.
 ///
-/// The defaulted methods refuse: [`ConfigPlane::export`] answers
+/// [`ConfigPlane::apply`] defaults to [`resolve_apply`] over
+/// [`ConfigPlane::read_current`] and [`ConfigPlane::write`], so a plane that
+/// implements the per-entity contract gets the whole-plane apply for free.
+/// The other defaulted methods refuse: [`ConfigPlane::export`] answers
 /// [`ConfigPlaneError::Unsupported`], and a scoped apply reaches a plane only
 /// when [`ConfigPlane::supports_scoped_apply`] is true. Planes are held as
 /// `Arc<dyn ConfigPlane>`, and native `async fn` in traits is not
@@ -171,7 +180,11 @@ pub trait ConfigPlane: Send + Sync {
         ctx: &PlaneContext<'_>,
         tx: &mut PlaneTx<'_>,
         request: &ApplyRequest<'_>,
-    ) -> ConfigPlaneResult<ApplyOutcome>;
+    ) -> ConfigPlaneResult<ApplyOutcome> {
+        let current = self.read_current(ctx, tx).await?;
+        let resolved = resolve_apply(request, &current, self.declared_path());
+        self.write(ctx, tx, &resolved).await
+    }
 
     async fn export(
         &self,
@@ -215,6 +228,42 @@ pub trait ConfigPlane: Send + Sync {
     fn render_declarations(&self, _entities: &PlaneSnapshot) -> ConfigPlaneResult<String> {
         Err(unsupported(self.name(), "render_declarations"))
     }
+}
+
+#[must_use]
+pub fn resolve_apply(
+    request: &ApplyRequest<'_>,
+    current: &PlaneSnapshot,
+    declared_path: &str,
+) -> ResolvedEntities {
+    let origin = ChangeSource::Code(declared_path.to_owned());
+    let mut resolved = ResolvedEntities::new();
+    for (key, value) in &request.declared.entries {
+        let kept = request.mode == ApplyMode::InsertOnly && current.contains_key(key);
+        if request.scope.admits(key) && current.get(key) != Some(value) && !kept {
+            resolved.insert(
+                key.clone(),
+                ResolvedEntity {
+                    value: Some(value.clone()),
+                    source: origin.clone(),
+                },
+            );
+        }
+    }
+    if request.mode != ApplyMode::InsertOnly {
+        for key in current.keys() {
+            if request.scope.admits(key) && !request.declared.entries.contains_key(key) {
+                resolved.insert(
+                    key.clone(),
+                    ResolvedEntity {
+                        value: None,
+                        source: origin.clone(),
+                    },
+                );
+            }
+        }
+    }
+    resolved
 }
 
 fn unsupported(plane: &str, operation: &'static str) -> ConfigPlaneError {

@@ -64,7 +64,7 @@ pub(super) fn mount_extension_routes(
         } else {
             ext_router_config.router
         }
-        .layer(Extension(ctx.governance_arc()))
+        .layer(Extension(ctx.governance_watch().clone()))
         .layer(Extension(ctx.ai_service_arc()))
         .layer(Extension(ctx.artifact_ingest_arc()))
         .layer(Extension(ServicesRefresh::new(ctx, refresh_lock.clone())));

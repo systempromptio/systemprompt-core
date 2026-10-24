@@ -9,11 +9,11 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{try_init_config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap, try_init_config};
 use systemprompt_files::FilesConfig;
 use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
-use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use tempfile::TempDir;
 
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
