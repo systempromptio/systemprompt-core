@@ -16,8 +16,7 @@ use systemprompt_models::ai::{
 };
 use systemprompt_models::errors::{AiInferenceError, AiInferenceResult as ProviderResult};
 
-use super::service::AiService;
-
+use super::AiService;
 
 #[async_trait]
 impl AiProvider for AiService {
