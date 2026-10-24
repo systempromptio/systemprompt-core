@@ -100,7 +100,6 @@ fn render_error(error: &GatewayError) -> Option<Response<Body>> {
         | GatewayError::MissingPricing(_)
         | GatewayError::UpstreamTarget(_)
         | GatewayError::NoRoute { .. }
-        | GatewayError::UndeclaredProvider { .. }
         | GatewayError::NoAdapter { .. }
         | GatewayError::MissingSession
         | GatewayError::Internal { .. } => None,
@@ -150,7 +149,6 @@ fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
         GatewayError::Upstream(upstream) => map_upstream_error(upstream),
         GatewayError::MissingPricing(_)
         | GatewayError::NoRoute { .. }
-        | GatewayError::UndeclaredProvider { .. }
         | GatewayError::NoAdapter { .. } => {
             RejectionError::client(status, UNSERVABLE_MODEL_MESSAGE)
         },

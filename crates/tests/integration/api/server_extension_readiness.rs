@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use axum::body::{Body, to_bytes};
 use axum::http::Request;
 use systemprompt_api::services::server::builder::discovery_router;
-use systemprompt_api::services::server::readiness::{signal_ready, signal_shutdown};
+use systemprompt_api::services::server::readiness::ReadinessState;
 use systemprompt_extension::{
     Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ReadinessCheck,
     ReadinessFailure,
@@ -80,14 +80,15 @@ async fn readyz(outcome: Outcome) -> Result<(u16, serde_json::Value)> {
         fixture_config(&bootstrap.database_url),
         registry,
     )?;
-    let app = discovery_router(&ctx);
-    signal_ready();
+    let readiness = std::sync::Arc::new(ReadinessState::new());
+    readiness.signal_ready();
+    let app = discovery_router(&ctx).layer(axum::Extension(std::sync::Arc::clone(&readiness)));
     let response = app
         .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
         .await?;
     let status = response.status().as_u16();
     let body = to_bytes(response.into_body(), 1 << 20).await?;
-    signal_shutdown();
+    readiness.signal_shutdown();
     Ok((status, serde_json::from_slice(&body)?))
 }
 

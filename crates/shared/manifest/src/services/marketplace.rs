@@ -12,6 +12,7 @@ pub use super::marketplace_access::MarketplaceAccess;
 pub use super::marketplace_claude_code::ClaudeCodeMarketplaceConfig;
 pub use super::marketplace_external::{ExternalMarketplace, ExternalMarketplaceSource};
 use super::marketplace_external_plugin::{ExternalPluginEntry, validate_external_plugins};
+pub use super::marketplace_opencode::{OpenCodeMarketplaceConfig, OpenCodeThemeConfig};
 use super::plugin::PluginAuthor;
 use systemprompt_models::errors::ServicesValidationError;
 use systemprompt_models::plugin::PluginComponentRef;
@@ -127,6 +128,8 @@ pub struct MarketplaceConfig {
     pub external_plugins: Vec<ExternalPluginEntry>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_code: Option<ClaudeCodeMarketplaceConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opencode: Option<OpenCodeMarketplaceConfig>,
 }
 
 impl MarketplaceConfig {
@@ -167,6 +170,9 @@ impl MarketplaceConfig {
         self.access.validate(key)?;
         self.validate_external_marketplaces(key)?;
         validate_external_plugins(&self.external_plugins, &self.plugins.include, key)?;
+        if let Some(opencode) = &self.opencode {
+            opencode.validate(key)?;
+        }
         if let Some(claude_code) = &self.claude_code {
             claude_code.validate(key)?;
         }

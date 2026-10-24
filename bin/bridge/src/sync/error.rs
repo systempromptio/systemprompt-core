@@ -44,6 +44,8 @@ pub enum SyncError {
     GatewayUnauthorized(Box<CredentialRejection>),
     #[error("gateway: {0}")]
     Gateway(#[source] crate::gateway::GatewayError),
+    #[error("bridge profile: {0}")]
+    Profile(#[source] crate::auth::profile::ProfileFetchError),
     #[error("claude code {what}: {source}")]
     ClaudeCodeSettings {
         what: &'static str,
@@ -178,7 +180,7 @@ impl SyncError {
             Self::NoCredential { .. } => ExitCode::from(5),
             Self::Authentication(e) => e.exit_report().0,
             Self::GatewayUnauthorized(_) => ExitCode::from(10),
-            Self::Gateway(_) => ExitCode::from(3),
+            Self::Gateway(_) | Self::Profile(_) => ExitCode::from(3),
             Self::SignatureFailed { .. } | Self::UnsignedRefusedPinned { .. } => ExitCode::from(4),
             Self::PathUnresolvable | Self::PathMissing { .. } | Self::ApplyFailed(_) => {
                 ExitCode::from(1)

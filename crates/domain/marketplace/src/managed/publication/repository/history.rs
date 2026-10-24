@@ -45,4 +45,18 @@ impl ManagedRepository {
             })
             .collect()
     }
+
+    pub async fn publication_head_generation(
+        &self,
+        owner: &UserId,
+        resource_id: &ManagedResourceId,
+    ) -> Result<i64> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT coalesce(max(generation), 0) AS "generation!" FROM managed_publications WHERE owner_id=$1 AND resource_id=$2"#,
+            owner.as_str(),
+            resource_id.as_str()
+        )
+        .fetch_one(&self.pool)
+        .await?)
+    }
 }

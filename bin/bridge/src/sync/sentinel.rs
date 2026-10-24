@@ -79,7 +79,6 @@ fn last_sync_state(
         hook_count: manifest.hooks.len(),
         user: manifest.user.as_ref().map(|u| u.email.as_str().to_owned()),
         enabled_hosts: manifest.enabled_hosts.clone(),
-        host_model_protocols: manifest.host_model_protocols.clone(),
         auto_update: manifest.auto_update,
         host_failures: report
             .host_failures

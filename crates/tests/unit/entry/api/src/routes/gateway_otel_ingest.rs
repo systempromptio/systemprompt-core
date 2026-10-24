@@ -1,9 +1,8 @@
 //! OTLP ingest persistence paths (`routes::gateway::otel::ingest`). Builds
 //! protobuf envelopes for traces, logs, and metrics and drives the ingest
-//! functions directly. Without a bootstrapped
-//! system admin the per-record `LogActor::platform` call fails closed and the
-//! record is skipped, but the decode/flatten/metadata assembly still runs — the
-//! functions must never panic on any well-formed envelope.
+//! functions directly against an unattached sink, so every record runs the
+//! decode/flatten/metadata assembly and is counted as dropped — the functions
+//! must never panic on any well-formed envelope.
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
@@ -78,7 +77,7 @@ fn ingest_traces_handles_error_and_unnamed_and_rootless_spans() {
             schema_url: String::new(),
         }],
     };
-    ingest_traces(req);
+    ingest_traces(&systemprompt_test_fixtures::fixture_logging_runtime(), req);
 }
 
 #[test]
@@ -113,7 +112,7 @@ fn ingest_logs_handles_bodied_and_empty_records() {
             schema_url: String::new(),
         }],
     };
-    ingest_logs(req);
+    ingest_logs(&systemprompt_test_fixtures::fixture_logging_runtime(), req);
 }
 
 #[test]
@@ -140,12 +139,18 @@ fn ingest_metrics_summarises_names() {
 
 #[test]
 fn ingest_functions_tolerate_empty_envelopes() {
-    ingest_traces(ExportTraceServiceRequest {
-        resource_spans: Vec::new(),
-    });
-    ingest_logs(ExportLogsServiceRequest {
-        resource_logs: Vec::new(),
-    });
+    ingest_traces(
+        &systemprompt_test_fixtures::fixture_logging_runtime(),
+        ExportTraceServiceRequest {
+            resource_spans: Vec::new(),
+        },
+    );
+    ingest_logs(
+        &systemprompt_test_fixtures::fixture_logging_runtime(),
+        ExportLogsServiceRequest {
+            resource_logs: Vec::new(),
+        },
+    );
     ingest_metrics(&ExportMetricsServiceRequest {
         resource_metrics: Vec::new(),
     });

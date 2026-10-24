@@ -397,11 +397,8 @@ fn hop_by_hop_headers_are_stripped_and_bridge_headers_injected() {
             "unrelated client headers are passed through"
         );
         assert!(
-            req.headers
-                .get("x-session-id")
-                .and_then(|v| v.to_str().ok())
-                .is_some_and(|s| !s.is_empty()),
-            "the proxy stamps its session id"
+            req.headers.get("x-session-id").is_none(),
+            "the proxy never synthesizes a session id the client did not send"
         );
         assert!(
             req.headers
@@ -409,6 +406,43 @@ fn hop_by_hop_headers_are_stripped_and_bridge_headers_injected() {
                 .and_then(|v| v.to_str().ok())
                 .is_some_and(|s| !s.is_empty()),
             "a messages body derives a gateway conversation id"
+        );
+    });
+}
+
+#[test]
+fn headers_a_client_session_id_reaches_the_gateway_unchanged() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_raw(b"{}".to_vec(), "application/json"),
+            )
+            .mount(&h.gateway)
+            .await;
+
+        Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .header("x-session-id", "ses_ClientOwned123")
+            .header("content-type", "application/json")
+            .body(r#"{"messages":[{"role":"user","content":"hi"}]}"#)
+            .send()
+            .await
+            .expect("request to proxy");
+
+        let requests = h.upstream_requests().await;
+        let values: Vec<&str> = requests[0]
+            .headers
+            .get_all("x-session-id")
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .collect();
+        assert_eq!(
+            values,
+            vec!["ses_ClientOwned123"],
+            "the client's session id is forwarded once, byte-for-byte"
         );
     });
 }
@@ -541,7 +575,7 @@ fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
         assert_eq!(
             wrong
                 .headers()
-                .get("x-systemprompt-bridge-reason")
+                .get(systemprompt_bridge::headers::REJECTION_REASON)
                 .and_then(|v| v.to_str().ok()),
             Some("secret-mismatch"),
             "a host UI must be able to classify this without parsing prose"
@@ -565,7 +599,7 @@ fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
         assert_eq!(none.status().as_u16(), 403);
         assert_eq!(
             none.headers()
-                .get("x-systemprompt-bridge-reason")
+                .get(systemprompt_bridge::headers::REJECTION_REASON)
                 .and_then(|v| v.to_str().ok()),
             Some("no-credential")
         );
@@ -1230,7 +1264,9 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         activity: systemprompt_bridge::activity::ActivityLog::new(),
         http: reqwest::Client::new(),
         plugin_tokens: Arc::new(
-            systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
+            systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::new(
+                systemprompt_bridge::auth::plugin_oauth::SecretStore::resolve(),
+            ),
         ),
         update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
     }

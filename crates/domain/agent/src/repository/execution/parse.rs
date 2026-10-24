@@ -9,7 +9,7 @@ use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
 use systemprompt_traits::RepositoryError;
 
 pub(super) struct ParseStepParams {
-    pub step_id: String,
+    pub step_id: StepId,
     pub task_id: TaskId,
     pub status: String,
     // JSON: JSONB `content` column — decoded into `StepContent` here.
@@ -37,7 +37,7 @@ pub(super) fn parse_step(params: ParseStepParams) -> Result<ExecutionStep, Repos
     let content: StepContent = serde_json::from_value(content)
         .map_err(|e| RepositoryError::decode("execution step content", e))?;
     Ok(ExecutionStep {
-        step_id: StepId(step_id),
+        step_id,
         task_id,
         status,
         started_at,

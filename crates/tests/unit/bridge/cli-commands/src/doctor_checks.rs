@@ -6,6 +6,7 @@
 
 use std::path::Path;
 
+use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::cli::doctor::auth::{
     check_gateway_reachable, check_hook_token_mint, check_mint_jwt, check_whoami,
 };
@@ -123,22 +124,26 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
             .expect("opencode config directory");
         let host = HostKind::OpenCode;
         let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), host);
+        let token_file = profile.with_file_name("systemprompt.token");
+        let doc = serde_json::json!({
+            "providers": { "systemprompt": {
+                "package": "aisdk:@ai-sdk/openai-compatible",
+                "name": "systemprompt",
+                "settings": {
+                    "baseURL": "http://127.0.0.1:1/v1",
+                    "apiKey": format!("{{file:{}}}", token_file.display()),
+                    "headers": { "x-inference-protocol": "openai" }
+                },
+                "models": {}
+            } },
+            "policies": [
+                { "effect": "deny", "action": "provider.use", "resource": "*" },
+                { "effect": "allow", "action": "provider.use", "resource": "systemprompt" }
+            ]
+        });
+        std::fs::write(&profile, doc.to_string()).expect("write profile");
         let write_profile = |key: &str| {
-            let mut doc = serde_json::json!({
-                "provider": { "systemprompt": {
-                    "npm": "@ai-sdk/openai-compatible",
-                    "name": "systemprompt.io gateway",
-                    "options": { "baseURL": "http://127.0.0.1:1/v1", "apiKey": key },
-                    "models": {}
-                } },
-                "enabled_providers": ["systemprompt"]
-            });
-            if let Ok(existing) = std::fs::read_to_string(&profile) {
-                doc = serde_json::from_str(&existing).expect("profile is JSON");
-                doc["provider"]["systemprompt"]["options"]["apiKey"] =
-                    serde_json::Value::String(key.to_owned());
-            }
-            std::fs::write(&profile, doc.to_string()).expect("write profile");
+            std::fs::write(&token_file, key).expect("write token");
         };
         write_profile(stale_token.as_str());
 
@@ -152,7 +157,6 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
                 profile: None,
                 mcp_servers: None,
                 overrides: ModelProtocolOverrides::new(),
-                operator_org_uuid: None,
             }),
             policy_writer_ready: false,
         };
@@ -191,15 +195,12 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
 
         let drifted = std::fs::read_to_string(&profile)
             .expect("read healthy profile")
-            .replace(
-                r#""enabled_providers":["systemprompt"]"#,
-                r#""enabled_providers":["systemprompt","opencode"]"#,
-            );
+            .replace(r#""resource":"*""#, r#""resource":"anthropic""#);
         std::fs::write(&profile, drifted).expect("drift profile");
         let behind = check_host_profile_secrets(&env).expect("drifted profile is diagnosed");
         assert_eq!(behind.status, Status::Warn, "{}", behind.detail);
         assert!(
-            behind.detail.contains("OpenCode (enabled_providers)"),
+            behind.detail.contains("OpenCode (policies)"),
             "{}",
             behind.detail
         );
@@ -327,7 +328,7 @@ fn whoami_check_passes_on_identity_and_fails_generically_on_a_500() {
 fn hook_token_check_warns_when_no_oauth_client_is_provisioned() {
     sandbox(|_| {
         let client = client_for("http://127.0.0.1:1");
-        let check = block_on(check_hook_token_mint(&client));
+        let check = block_on(check_hook_token_mint(&SecretStore::resolve(), &client));
         assert_eq!(check.status, Status::Warn, "{}", check.detail);
         assert!(
             check.detail.contains("first plugin hook request"),
@@ -350,7 +351,7 @@ fn hook_token_check_fails_when_the_stored_creds_are_unreadable() {
         std::fs::create_dir_all(creds.parent().unwrap()).expect("cache dir");
         std::fs::write(&creds, "not json at all").expect("garbage creds");
         let client = client_for("http://127.0.0.1:1");
-        let check = block_on(check_hook_token_mint(&client));
+        let check = block_on(check_hook_token_mint(&SecretStore::resolve(), &client));
         assert_eq!(check.status, Status::Fail, "{}", check.detail);
         assert!(
             check.detail.contains("load OAuth client creds"),

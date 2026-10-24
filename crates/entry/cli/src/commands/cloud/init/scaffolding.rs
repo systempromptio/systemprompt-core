@@ -14,8 +14,9 @@ use systemprompt_logging::CliService;
 
 use super::templates::{
     admin_agent_config, admin_mcp_config, agent_config, ai_config, blog_list_template,
-    blog_post_template, content_config, cookie_policy, page_list_template, page_template,
-    privacy_policy, root_config, scheduler_config, web_config, web_metadata, welcome_blog_post,
+    blog_post_template, catalog_files, content_config, cookie_policy, page_list_template,
+    page_template, privacy_policy, root_config, scheduler_config, web_config, web_metadata,
+    welcome_blog_post,
 };
 
 const ADMIN_MCP_REPO: &str = "https://github.com/systempromptio/systemprompt-mcp-admin.git";
@@ -79,10 +80,10 @@ fn write_config_files(services_dir: &Path, project_name: &str) -> Result<()> {
         &services_dir.join("mcp/systemprompt-admin.yaml"),
         &admin_mcp_config(),
     )?;
-    write_file(
-        &services_dir.join("ai/config.yaml"),
-        &ai_config("anthropic")?,
-    )?;
+    write_file(&services_dir.join("ai/config.yaml"), &ai_config())?;
+    for (name, body) in catalog_files("anthropic")? {
+        write_file(&services_dir.join("ai").join(name), &body)?;
+    }
     write_file(&services_dir.join("content/config.yaml"), &content_config())?;
     write_file(
         &services_dir.join("web/config.yaml"),

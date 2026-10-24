@@ -13,7 +13,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{SsoProviderId, UserId};
 
 use crate::error::Result;
 
@@ -36,7 +36,7 @@ pub struct NewSsoLoginEvent<'a> {
 pub struct SsoLoginEvent {
     pub id: i64,
     pub occurred_at: DateTime<Utc>,
-    pub provider_id: String,
+    pub provider_id: SsoProviderId,
     pub issuer: String,
     pub outcome: String,
     pub reason: Option<String>,
@@ -99,7 +99,7 @@ impl SsoLoginEventRepository {
             .map(|r| SsoLoginEvent {
                 id: r.id,
                 occurred_at: r.occurred_at,
-                provider_id: r.provider_id,
+                provider_id: SsoProviderId::new(r.provider_id),
                 issuer: r.issuer,
                 outcome: r.outcome,
                 reason: r.reason,

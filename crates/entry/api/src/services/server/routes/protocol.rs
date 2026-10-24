@@ -13,9 +13,11 @@ use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
 use super::RouteMountError;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::WebAuthnService;
+use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as AppContextTrait;
 
@@ -56,6 +58,7 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
 
 pub(super) struct MountCtx<'a> {
     pub ctx: &'a AppContext,
+    pub engines: &'a Arc<GatewayEngines>,
     pub limits: &'a RateLimitState,
     pub public_middleware: &'a PublicContextMiddleware,
     pub user_middleware: &'a UserOnlyContextMiddleware,
@@ -74,7 +77,7 @@ pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
     let sso = crate::routes::sso::router(sso_state)
         .with_rate_limit(limits, rate_config.oauth_public_per_second, "sso")?
         .with_auth(*public_middleware, AuthzPolicy::public());
-    let oauth = crate::routes::oauth::public_router()
+    let oauth = crate::routes::oauth::public_router(Arc::new(JwksCache::new()))
         .with_state(oauth_state.clone())
         .with_rate_limit(limits, rate_config.oauth_public_per_second, "oauth_public")?
         .with_auth(*public_middleware, AuthzPolicy::public())
@@ -161,9 +164,11 @@ pub(super) fn mount_messaging(
     let (ctx, limits) = (mount.ctx, mount.limits);
     let rate_config = &ctx.config().rate_limits;
 
+    let messaging = crate::routes::messaging::MessagingState::guarded()
+        .map_err(|source| RouteMountError::initialization("slack_reply_client", source))?;
     router = router.nest(
         ApiPaths::SLACK_BASE,
-        crate::routes::slack::slack_router()
+        crate::routes::slack::slack_router(messaging)
             .with_state(ctx.clone())
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
     );

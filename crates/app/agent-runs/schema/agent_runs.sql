@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS agent_runs (
     origin_id TEXT NOT NULL,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     host TEXT NOT NULL
-        CHECK (host IN ('claude-code', 'codex-cli', 'opencode', 'hermes')),
+        CONSTRAINT agent_runs_host_check
+        CHECK (host IN ('claude-code', 'codex-cli', 'opencode-cli', 'hermes')),
     status TEXT NOT NULL DEFAULT 'queued'
         CHECK (status IN ('queued', 'preparing', 'running', 'succeeded', 'failed', 'cancelled', 'timed_out')),
     request JSONB NOT NULL,
@@ -22,7 +23,11 @@ CREATE TABLE IF NOT EXISTS agent_runs (
     finished_at TIMESTAMPTZ,
     duration_ms BIGINT,
     error_class TEXT
-        CHECK (error_class IN ('ok', 'budget_exceeded', 'timeout', 'output_invalid', 'hook_denied', 'host_crashed', 'connector_unavailable')),
+        CONSTRAINT agent_runs_error_class_check
+        CHECK (error_class IN ('ok', 'budget_exceeded', 'timeout', 'output_invalid', 'hook_denied', 'host_crashed', 'connector_unavailable', 'harness_unavailable')),
+    harness_digest TEXT,
+    idempotency_key TEXT,
+    request_digest TEXT,
     turns INTEGER,
     input_tokens BIGINT,
     output_tokens BIGINT,
@@ -44,6 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_agent_runs_lease ON agent_runs(lease_until)
 CREATE INDEX IF NOT EXISTS idx_agent_runs_origin ON agent_runs(origin_kind, origin_id);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_user_created ON agent_runs(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_gateway_session ON agent_runs(gateway_session_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_runs_idempotency
+    ON agent_runs(origin_kind, idempotency_key)
+    WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id) WHERE task_id IS NOT NULL;
 
 CREATE OR REPLACE TRIGGER update_agent_runs_updated_at

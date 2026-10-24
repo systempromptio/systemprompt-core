@@ -48,6 +48,7 @@ impl Extension for AuthzExtension {
             SchemaDefinition::sql_only(include_str!(
                 "../../schema/access_control_cache_notify.sql"
             )),
+            SchemaDefinition::sql_only(include_str!("../../schema/access_control_provenance.sql")),
             SchemaDefinition::new(
                 "governance_decisions",
                 include_str!("../../schema/governance_decisions.sql"),

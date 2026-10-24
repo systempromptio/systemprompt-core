@@ -1,5 +1,6 @@
 use systemprompt_bridge::integration::HostAppError;
 use systemprompt_bridge::integration::reapply::{Outcome, ProfileFailure, Report, render};
+use systemprompt_models::bridge::host::HostKind;
 
 fn failure(message: &str) -> std::sync::Arc<ProfileFailure> {
     std::sync::Arc::new(ProfileFailure::Host(HostAppError::Io(
@@ -90,22 +91,22 @@ fn every_report_gets_its_own_line_under_one_header() {
 }
 
 #[test]
-fn a_per_user_override_still_narrows_a_host_that_declares_no_surfaces() {
+fn a_per_user_filter_narrows_a_host_to_the_families_it_names() {
     use std::collections::BTreeMap;
 
-    use systemprompt_bridge::gateway::model_view::effective_surfaces;
-    use systemprompt_models::providers::ApiSurface;
+    use systemprompt_bridge::gateway::model_view::HostClients;
+    use systemprompt_models::providers::ClientFamily;
 
-    let mut overrides: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    overrides.insert("opencode".to_owned(), vec!["anthropic".to_owned()]);
+    let mut filters: BTreeMap<HostKind, Vec<String>> = BTreeMap::new();
+    filters.insert(HostKind::OpenCode, vec!["claude".to_owned()]);
 
     assert_eq!(
-        effective_surfaces(
+        HostClients::for_host(
             systemprompt_models::bridge::host::HostKind::OpenCode,
-            &[],
-            &overrides
-        ),
-        vec![ApiSurface::Anthropic],
-        "an empty host default means 'everything', and an override still narrows it"
+            &filters
+        )
+        .families,
+        vec![ClientFamily::Claude],
+        "the server-stored filter replaces the host's own family"
     );
 }

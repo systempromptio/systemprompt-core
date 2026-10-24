@@ -17,6 +17,8 @@ mod canonical_response;
 #[cfg(test)]
 mod chain_plan;
 #[cfg(test)]
+mod engines_injected;
+#[cfg(test)]
 mod failover;
 #[cfg(test)]
 mod google_credentials;
@@ -89,6 +91,8 @@ mod quota_calendar;
 #[cfg(test)]
 mod quota_estimate;
 #[cfg(test)]
+mod quota_subject_kind;
+#[cfg(test)]
 mod registry;
 #[cfg(test)]
 mod route_match_descriptor;
@@ -108,6 +112,8 @@ mod stream_tap;
 mod stream_tap_accumulator;
 #[cfg(test)]
 mod support;
+#[cfg(test)]
+mod tool_validity;
 #[cfg(test)]
 mod upstream_error;
 

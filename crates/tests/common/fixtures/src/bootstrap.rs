@@ -67,6 +67,12 @@ pub struct TestBootstrap {
     pub database_url: String,
 }
 
+impl TestBootstrap {
+    pub fn files_config(&self) -> FilesConfig {
+        FilesConfig::from_profile(&self.app_paths).expect("files config from the fixture profile")
+    }
+}
+
 static BOOTSTRAP: OnceLock<TestBootstrap> = OnceLock::new();
 
 pub fn ensure_test_bootstrap() -> &'static TestBootstrap {
@@ -95,11 +101,13 @@ pub fn init_isolated_bootstrap(api_base_url: &str, services_config_yaml: &str) -
     init_bootstrap_inner(Some(api_base_url), Some(services_config_yaml))
 }
 
-// Bootstrap whose services `config.yaml` is caller-supplied — the one place a
-// test declares a provider registry (`providers:`), an enabled `gateway:`, and
-// the `ai.providers` policy that says which providers are enabled. The shared
-// fixture config has none of them, so every gateway route answers 404 "Gateway
-// not enabled" and `AiService::new` yields "No AI providers are enabled".
+// Bootstrap whose services tree is caller-supplied — the one place a test
+// declares a model catalog (`credentials:`, `providers:`, `models:`,
+// `deployments:`) and an enabled `gateway:`. The caller writes them in one
+// YAML document for brevity; `write_services_tree` puts each catalog section
+// in its `services/ai/` file, where the loader reads it by convention, and the
+// rest in `config/config.yaml`. The shared fixture config has none of them, so
+// every gateway route answers 404 "Gateway not enabled".
 // Anything constructing an `AiService` or exercising the dispatch/extract path
 // needs this. Callers own the process-global one-shot inits, so this must be
 // the first bootstrap call in the process (true under nextest) and must not be
@@ -134,6 +142,40 @@ pub fn refresh_services_config() {
     if let Err(e) = ConfigLoader::reload() {
         panic!("ConfigLoader::reload failed: {e}");
     }
+}
+
+const CATALOG_SECTIONS: [(&str, &str); 5] = [
+    ("credentials", "credentials.yaml"),
+    ("providers", "providers.yaml"),
+    ("models", "models.yaml"),
+    ("deployments", "deployments.yaml"),
+    ("gateway", "gateway.yaml"),
+];
+
+// Splits one caller-supplied services document into `config/config.yaml` and
+// the catalog files of `services/ai/`. A document that does not parse is
+// written verbatim, so unloadable-config fixtures still fail in the loader.
+fn write_services_tree(services_path: &std::path::Path, yaml: &str) {
+    let config = services_path.join("config/config.yaml");
+    let Ok(serde_yaml::Value::Mapping(mut root)) = serde_yaml::from_str::<serde_yaml::Value>(yaml)
+    else {
+        std::fs::write(&config, yaml).expect("write services config.yaml");
+        return;
+    };
+    let ai = services_path.join("ai");
+    std::fs::create_dir_all(&ai).expect("create services/ai");
+    for (section, file) in CATALOG_SECTIONS {
+        let key = serde_yaml::Value::String(section.to_owned());
+        let Some(value) = root.remove(&key) else {
+            continue;
+        };
+        let mut doc = serde_yaml::Mapping::new();
+        doc.insert(key, value);
+        let body = serde_yaml::to_string(&doc).expect("catalog section serializes");
+        std::fs::write(ai.join(file), body).expect("write catalog file");
+    }
+    let body = serde_yaml::to_string(&serde_yaml::Value::Mapping(root)).expect("config serializes");
+    std::fs::write(&config, body).expect("write services config.yaml");
 }
 
 fn init_bootstrap() -> TestBootstrap {
@@ -212,8 +254,7 @@ fn init_bootstrap_inner_expecting(
     // empty config (each nextest test is its own process, so the env gate is
     // local to messaging-test processes).
     if let Some(yaml) = services_config_yaml {
-        std::fs::write(services_path.join("config/config.yaml"), yaml)
-            .expect("write services config.yaml");
+        write_services_tree(&services_path, yaml);
     } else if env::var("SYSTEMPROMPT_TEST_MESSAGING").is_ok() {
         std::fs::write(
             services_path.join("config/config.yaml"),
@@ -271,10 +312,6 @@ fn init_bootstrap_inner_expecting(
         None,
     )
     .expect("app paths");
-    if FilesConfig::get_optional().is_none() {
-        let _ = FilesConfig::init(&app_paths);
-    }
-
     TestBootstrap {
         _tmp: tmp,
         profile_path,

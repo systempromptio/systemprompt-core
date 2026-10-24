@@ -11,6 +11,7 @@
 
 pub mod admin;
 pub mod agent;
+pub mod agent_runs;
 pub mod analytics;
 pub mod content;
 pub mod engagement;

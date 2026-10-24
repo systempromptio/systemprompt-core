@@ -5,6 +5,7 @@
 //! so concurrent suites sharing the database cannot pollute the counts.
 
 use chrono::{Duration, Utc};
+use std::sync::Arc;
 use systemprompt_analytics::{
     AnalyticsEventType, AnalyticsEventsRepository, CreateAnalyticsEventInput, LinkClickEventData,
     NavigationQuery, PageQuery, TrafficAnalyticsRepository,
@@ -12,7 +13,9 @@ use systemprompt_analytics::{
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
-use systemprompt_traits::session_store::CreateSessionParams;
+use systemprompt_traits::session_store::{
+    CreateSessionParams, SessionAttribution, SessionIdentity, SessionNetwork,
+};
 use uuid::Uuid;
 
 struct SeededSession<'a> {
@@ -37,28 +40,18 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
         .map(|repositories| repositories.session_store)
         .expect("session store");
     let params = CreateSessionParams {
-        session_id: &sid,
-        user_id: None,
-        session_source: SessionSource::Web,
-        fingerprint_hash: Some("fp"),
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: spec.referrer_source,
-        referrer_url: None,
-        landing_page: Some(spec.landing_page),
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        utm_content: None,
-        utm_term: None,
+        identity: SessionIdentity {
+            session_id: &sid,
+            user_id: None,
+            session_source: SessionSource::Web,
+            fingerprint_hash: Some("fp"),
+        },
+        network: SessionNetwork::default(),
+        attribution: SessionAttribution {
+            referrer_source: spec.referrer_source,
+            landing_page: Some(spec.landing_page),
+            ..SessionAttribution::default()
+        },
         is_bot: spec.is_bot,
         is_ai_crawler: false,
         expires_at: Utc::now() + Duration::hours(1),
@@ -106,7 +99,12 @@ fn window() -> (chrono::DateTime<Utc>, chrono::DateTime<Utc>) {
 async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool);
+    let repo = TrafficAnalyticsRepository::new(
+        &pool,
+        Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &pool,
+        )),
+    );
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
     let guide = format!("{prefix}/guides/a");
@@ -228,7 +226,12 @@ async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
 async fn get_pages_engaged_only_excludes_zero_request_sessions() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool);
+    let repo = TrafficAnalyticsRepository::new(
+        &pool,
+        Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &pool,
+        )),
+    );
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
     let page = format!("{prefix}/landing");
@@ -311,7 +314,12 @@ async fn seed_link_click(
 async fn get_navigation_groups_internal_link_clicks_by_transition() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool);
+    let repo = TrafficAnalyticsRepository::new(
+        &pool,
+        Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &pool,
+        )),
+    );
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
         systemprompt_logging::AnalyticsRepository::new(&pool),
     ));
@@ -376,7 +384,12 @@ async fn get_navigation_groups_internal_link_clicks_by_transition() {
 async fn get_navigation_include_external_returns_external_clicks() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool);
+    let repo = TrafficAnalyticsRepository::new(
+        &pool,
+        Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &pool,
+        )),
+    );
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
         systemprompt_logging::AnalyticsRepository::new(&pool),
     ));

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Rustdoc links, bridge layer order and globals, row/model unification, JSON reasons.
+- One enforcement mode, request status, quota subject and service status.
+- Decode owner, user, SSO request and client message ids as typed ids.
+- Type the remaining raw-string identifier fields.
+- Replace glob re-exports with explicit lists.
+- Declare owner reassignments through one table-driven macro.
+- Log the missing GeoIP reader once when AnalyticsService is built.
+- Session traffic rollup counted at write time; bot totals read it.
+- One session-source default, one human-traffic predicate, one bot classifier.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

@@ -24,8 +24,8 @@ async fn create_session_then_find_by_id_round_trip() {
     let found = repo.find_by_id(&sid).await.expect("find").expect("present");
     assert_eq!(found.session_id.as_str(), sid.as_str());
     assert_eq!(found.fingerprint_hash.as_deref(), Some(fp.as_str()));
-    assert!(!found.is_bot);
-    assert_eq!(found.request_count, Some(0));
+    assert!(!found.classification.is_bot);
+    assert_eq!(found.activity.request_count, Some(0));
 
     delete_session(&pool, &sid).await;
 }
@@ -63,9 +63,9 @@ async fn increment_counters_accumulate() {
     repo.increment_message_count(&sid).await.expect("msg");
 
     let s = repo.find_by_id(&sid).await.expect("find").expect("present");
-    assert_eq!(s.request_count, Some(2));
-    assert_eq!(s.task_count, Some(1));
-    assert_eq!(s.message_count, Some(1));
+    assert_eq!(s.activity.request_count, Some(2));
+    assert_eq!(s.activity.task_count, Some(1));
+    assert_eq!(s.activity.message_count, Some(1));
 
     delete_session(&pool, &sid).await;
 }
@@ -91,7 +91,7 @@ async fn increment_ai_usage_accumulates_tokens_and_cost() {
     assert_eq!(velocity.0, Some(0));
 
     let s = repo.find_by_id(&sid).await.expect("find").expect("present");
-    assert_eq!(s.ai_request_count, Some(2));
+    assert_eq!(s.activity.ai_request_count, Some(2));
 
     delete_session(&pool, &sid).await;
 }
@@ -108,7 +108,7 @@ async fn end_session_marks_session_ended() {
     repo.end_session(&sid).await.expect("end");
 
     let s = repo.find_by_id(&sid).await.expect("find").expect("present");
-    assert!(s.ended_at.is_some());
+    assert!(s.timing.ended_at.is_some());
 
     delete_session(&pool, &sid).await;
 }
@@ -128,7 +128,7 @@ async fn mark_scanner_and_converted() {
     repo.mark_converted(&sid).await.expect("converted again");
 
     let s = repo.find_by_id(&sid).await.expect("find").expect("present");
-    assert_eq!(s.is_scanner, Some(true));
+    assert_eq!(s.classification.is_scanner, Some(true));
 
     delete_session(&pool, &sid).await;
 }
@@ -190,7 +190,7 @@ async fn cleanup_inactive_ends_stale_sessions() {
     assert!(cleaned >= 1);
 
     let s = repo.find_by_id(&sid).await.expect("find").expect("present");
-    assert!(s.ended_at.is_some());
+    assert!(s.timing.ended_at.is_some());
 
     delete_session(&pool, &sid).await;
 }

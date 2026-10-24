@@ -5,15 +5,19 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde_json::{Value, json};
 use systemprompt_gateway::service::credentials::fill_project;
 use systemprompt_gateway::service::credentials::google::access_token;
-use systemprompt_security::credential::ProviderCredential;
+use systemprompt_security::credential::{ProviderCredential, TokenCache};
 use systemprompt_test_fixtures::keys::test_key;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-async fn google_access_token(name: &str, secret: &str) -> anyhow::Result<Option<String>> {
+async fn google_access_token(
+    tokens: &TokenCache,
+    name: &str,
+    secret: &str,
+) -> anyhow::Result<Option<String>> {
     match ProviderCredential::parse(secret)? {
         ProviderCredential::GoogleServiceAccount(key) => {
-            Ok(access_token(name, &key).await.map(Some)?)
+            Ok(access_token(tokens, name, &key).await.map(Some)?)
         },
         ProviderCredential::ApiKey(_) => Ok(None),
     }
@@ -56,7 +60,12 @@ async fn ordinary_secrets_do_not_attempt_an_oauth_exchange() {
         "{}",
         r#"{"type":"user"}"#,
     ] {
-        assert_eq!(google_access_token("ordinary", input).await.unwrap(), None);
+        assert_eq!(
+            google_access_token(&TokenCache::new(), "ordinary", input)
+                .await
+                .unwrap(),
+            None
+        );
     }
 }
 
@@ -123,9 +132,10 @@ async fn exchange_signs_an_rs256_assertion_and_reuses_the_cached_token() {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
+    let tokens = TokenCache::new();
     for _ in 0..2 {
         assert_eq!(
-            google_access_token(&name, &secret)
+            google_access_token(&tokens, &name, &secret)
                 .await
                 .unwrap()
                 .as_deref(),
@@ -173,9 +183,10 @@ async fn missing_or_zero_expiry_uses_the_default_cache_lifetime() {
         let server = MockServer::start().await;
         token(&server, ResponseTemplate::new(200).set_body_json(body), 1).await;
         let name = uuid::Uuid::new_v4().to_string();
+        let tokens = TokenCache::new();
         for _ in 0..2 {
             assert_eq!(
-                google_access_token(&name, &secret(&format!("{}/token", server.uri())))
+                google_access_token(&tokens, &name, &secret(&format!("{}/token", server.uri())))
                     .await
                     .unwrap()
                     .as_deref(),
@@ -197,10 +208,14 @@ async fn tokens_inside_the_expiry_skew_are_refreshed_without_sleeping() {
     let name = uuid::Uuid::new_v4().to_string();
     for _ in 0..2 {
         assert_eq!(
-            google_access_token(&name, &secret(&format!("{}/token", server.uri())))
-                .await
-                .unwrap()
-                .as_deref(),
+            google_access_token(
+                &TokenCache::new(),
+                &name,
+                &secret(&format!("{}/token", server.uri()))
+            )
+            .await
+            .unwrap()
+            .as_deref(),
             Some("short")
         );
     }
@@ -227,7 +242,7 @@ async fn failed_exchanges_are_not_cached_and_can_recover() {
     ] {
         token(&server, response, 1).await;
         assert!(
-            google_access_token(&name, &secret)
+            google_access_token(&TokenCache::new(), &name, &secret)
                 .await
                 .unwrap_err()
                 .to_string()
@@ -243,7 +258,7 @@ async fn failed_exchanges_are_not_cached_and_can_recover() {
     )
     .await;
     assert_eq!(
-        google_access_token(&name, &secret)
+        google_access_token(&TokenCache::new(), &name, &secret)
             .await
             .unwrap()
             .as_deref(),
@@ -257,7 +272,7 @@ async fn invalid_rsa_keys_fail_before_contacting_the_token_endpoint() {
     let mut input: Value = serde_json::from_str(&secret(&server.uri())).unwrap();
     input["private_key"] = json!("not an RSA private key");
     assert!(
-        google_access_token("bad-key", &input.to_string())
+        google_access_token(&TokenCache::new(), "bad-key", &input.to_string())
             .await
             .unwrap_err()
             .to_string()
@@ -272,10 +287,14 @@ async fn unreachable_token_endpoint_returns_a_transport_error() {
     let endpoint = format!("http://{}/token", listener.local_addr().unwrap());
     drop(listener);
     assert!(
-        google_access_token(&uuid::Uuid::new_v4().to_string(), &secret(&endpoint))
-            .await
-            .unwrap_err()
-            .to_string()
-            .contains("unreachable")
+        google_access_token(
+            &TokenCache::new(),
+            &uuid::Uuid::new_v4().to_string(),
+            &secret(&endpoint)
+        )
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("unreachable")
     );
 }

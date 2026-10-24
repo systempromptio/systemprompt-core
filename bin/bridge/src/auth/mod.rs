@@ -7,6 +7,8 @@ pub mod cache;
 pub mod jwt;
 pub mod loopback;
 pub mod plugin_oauth;
+pub mod profile;
+pub mod profile_cache;
 pub mod providers;
 pub mod secret;
 pub mod session_identity;

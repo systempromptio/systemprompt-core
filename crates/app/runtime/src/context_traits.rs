@@ -82,6 +82,10 @@ impl ExtensionContext for AppContext {
         self.config().instance_id.clone()
     }
 
+    fn background_tasks(&self) -> systemprompt_traits::BackgroundTasks {
+        Self::background_tasks(self).clone()
+    }
+
     fn instances(&self) -> systemprompt_traits::DynInstanceRegistry {
         let concrete = Arc::clone(self.service_repository());
         let registry: systemprompt_traits::DynInstanceRegistry = concrete;

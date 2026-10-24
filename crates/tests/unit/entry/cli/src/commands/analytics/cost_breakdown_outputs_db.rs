@@ -56,12 +56,12 @@ async fn insert_request(
     context_id: &str,
     cost: i64,
     tokens: i64,
-    synthetic: bool,
+    traffic: &str,
 ) {
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, \
          tokens_used, input_tokens, output_tokens, cost_microdollars, latency_ms, status, \
-         actor_kind, actor_id, synthetic, created_at, completed_at) VALUES \
+         actor_kind, actor_id, traffic, created_at, completed_at) VALUES \
          ($1, $2, $3, $4, $5, $6, $7, $7, 0, $8, 1, 'completed', 'user', $3, $9, NOW(), NOW())",
     )
     .bind(Uuid::new_v4().to_string())
@@ -72,7 +72,7 @@ async fn insert_request(
     .bind(model)
     .bind(tokens)
     .bind(cost)
-    .bind(synthetic)
+    .bind(traffic)
     .execute(pool.pool().as_ref())
     .await
     .expect("seed AI request");
@@ -118,7 +118,7 @@ async fn seed(pool: &DbPool) -> Seed {
         &conversation_a,
         6_000,
         60,
-        false,
+        "production",
     )
     .await;
     insert_request(
@@ -129,7 +129,7 @@ async fn seed(pool: &DbPool) -> Seed {
         &conversation_b,
         3_000,
         30,
-        false,
+        "production",
     )
     .await;
     insert_request(
@@ -140,7 +140,7 @@ async fn seed(pool: &DbPool) -> Seed {
         &conversation_a,
         1_000,
         10,
-        false,
+        "production",
     )
     .await;
     insert_request(
@@ -151,7 +151,7 @@ async fn seed(pool: &DbPool) -> Seed {
         &conversation_a,
         90_000,
         900,
-        true,
+        "evaluation",
     )
     .await;
     seed
@@ -189,7 +189,7 @@ fn row<'a>(csv: &'a str, needle: &str) -> Vec<&'a str> {
 }
 
 #[tokio::test]
-async fn model_and_provider_breakdowns_report_aggregates_and_exclude_synthetic_spend() {
+async fn model_and_provider_breakdowns_report_aggregates_and_exclude_evaluation_spend() {
     let (database, pool) = database().await;
     let seed = seed(&pool).await;
     let ctx = ctx(&pool, database.url());
@@ -205,7 +205,7 @@ async fn model_and_provider_breakdowns_report_aggregates_and_exclude_synthetic_s
     );
     assert!(
         !models.contains("99000"),
-        "synthetic cost leaked into output: {models}"
+        "evaluation cost leaked into output: {models}"
     );
 
     let providers = export(&ctx, "provider", 200).await;

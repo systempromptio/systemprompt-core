@@ -67,8 +67,13 @@ impl A2aRunnerConfig {
                 track_url: format!("{base}{TRACK_PATH}"),
             },
             issuer: issuer.to_owned(),
-            runs_root: data_root.join(A2A_RUNS_DIR),
+            runs_root: Self::runs_root(data_root),
         }
+    }
+
+    #[must_use]
+    pub fn runs_root(data_root: &Path) -> PathBuf {
+        data_root.join(A2A_RUNS_DIR)
     }
 
     #[must_use]
@@ -87,7 +92,7 @@ pub fn credential_request(
         user_id: user_id.clone(),
         name: format!("a2a-run-{run_id}"),
         ttl: request.wall_clock + CREDENTIAL_GRACE,
-        scopes: Vec::new(),
+        scopes: request.traffic_binding().into_iter().collect(),
         plugin_id: request.plugin_id.clone(),
         limits: RunCredentialLimits {
             max_budget_usd: request.max_budget_usd,
@@ -135,7 +140,8 @@ impl RunnerService for A2aRunnerService {
                 ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
             ),
             runner,
-        );
+        )
+        .with_harness_source(Arc::new(repos.managed));
         let mut claim = ClaimLoop::new(
             repos.runs,
             AGENT_RUN_ORIGIN_KIND,

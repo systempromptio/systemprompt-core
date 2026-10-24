@@ -4,10 +4,10 @@ use anyhow::{Context, Result, ensure};
 use axum::body::to_bytes;
 use bytes::Bytes;
 use serde_json::{Value, json};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
@@ -18,13 +18,13 @@ use systemprompt_gateway::{
     DispatchInputs, GatewayAudit, GatewayRepositories, GatewayRequestContext,
 };
 use systemprompt_governance::policy::types::AccessScope;
-use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId, SecretName, TraceId};
-use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
-    QuotaFaultMode,
+use systemprompt_identifiers::{AiRequestId, ContextId, TraceId};
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,
 };
+use systemprompt_manifest::services::{GatewayConfig, ModelPricing, QuotaFaultMode};
 use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, RequestOrigin};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
 };
@@ -44,26 +44,26 @@ fn wire(
     route: &str,
 ) -> Result<(
     WireProtocol,
-    ApiSurface,
+    ClientFamily,
     Arc<dyn InboundAdapter>,
     &'static str,
 )> {
     Ok(match route {
         "/v1/messages" => (
             WireProtocol::Anthropic,
-            ApiSurface::Anthropic,
+            ClientFamily::Claude,
             Arc::new(AnthropicMessagesInbound),
             "/messages",
         ),
         "/v1/chat/completions" => (
             WireProtocol::OpenAiChat,
-            ApiSurface::OpenAi,
+            ClientFamily::OpenAi,
             Arc::new(OpenAiChatInbound),
             "/chat/completions",
         ),
         "/v1/responses" => (
             WireProtocol::OpenAiResponses,
-            ApiSurface::OpenAi,
+            ClientFamily::OpenAi,
             Arc::new(OpenAiResponsesInbound),
             "/responses",
         ),
@@ -71,27 +71,8 @@ fn wire(
     })
 }
 fn config() -> GatewayConfig {
-    let mut route = GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: "*".to_owned(),
-        provider: ProviderId::new("native-fixture"),
-        upstream_model: None,
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
     GatewayConfig {
         enabled: true,
-        routes: vec![route],
         ..GatewayConfig::default()
     }
 }
@@ -99,45 +80,25 @@ fn registry(
     endpoint: &str,
     model: &str,
     wire: WireProtocol,
-    surface: ApiSurface,
+    family: ClientFamily,
     priced: bool,
-) -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![ProviderEntry {
-            name: ProviderId::new("native-fixture"),
-            display_name: None,
-            description: None,
-            wire,
-            surface,
-            endpoint: endpoint.to_owned(),
-            api_key_secret: Some(SecretName::new("anthropic")),
-            credential: Default::default(),
-            credential_from: None,
-            user_agent: None,
-            forward_headers: Vec::new(),
-            governance: Default::default(),
-            extra_headers: HashMap::new(),
-            accepted_betas: None,
-            models: if priced {
-                vec![ProviderModel {
-                    id: ModelId::new(model),
-                    aliases: vec![],
-                    hidden: false,
-                    governance: None,
-                    upstream_model: None,
-                    pricing: ModelPricing {
-                        input_per_million: 1.0,
-                        output_per_million: 2.0,
-                        ..ModelPricing::default()
-                    },
-                    capabilities: Default::default(),
-                    limits: Default::default(),
-                }]
-            } else {
-                vec![]
-            },
-        }],
-    }
+) -> ResolvedCatalog {
+    let served = if priced { model } else { "native-placeholder" };
+    let entry = ModelEntry {
+        pricing: ModelPricing {
+            input_per_million: if priced { 1.0 } else { 0.0 },
+            output_per_million: if priced { 2.0 } else { 0.0 },
+            ..ModelPricing::default()
+        },
+        ..ModelEntry::new(vec![family])
+    };
+    CatalogFixture::new()
+        .credential("native-fixture", platform("anthropic"))
+        .provider("native-fixture", ProviderConfig::new("native-fixture"))
+        .endpoint("native-fixture", "api", EndpointConfig::new(wire, endpoint))
+        .model(served, entry)
+        .deploy(served, ["native-fixture/api"])
+        .build()
 }
 fn context(
     cred: &systemprompt_test_fixtures::AuthedFixture,
@@ -156,6 +117,7 @@ fn context(
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "native-fixture".to_owned(),
+        hop: None,
         requested_model: Some(model.to_owned()),
         model: model.to_owned(),
         max_tokens: Some(512),
@@ -241,7 +203,7 @@ async fn replay() -> Result<()> {
     let background = BackgroundTasks::new();
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),
-        systemprompt_config::SecretsBootstrap::get()?,
+        systemprompt_config::SecretsBootstrap::encryption_master_key()?,
     )?;
     let repos = GatewayRepositories::new(
         &db,
@@ -249,8 +211,11 @@ async fn replay() -> Result<()> {
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(&db),
         )),
-        background.clone(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: background.clone(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+        },
     );
     let cred = seed_admin_credential(
         &db,
@@ -342,7 +307,6 @@ async fn replay() -> Result<()> {
                 systemprompt_gateway::pricing::resolve(
                     "native-fixture",
                     &[request.model.as_str()],
-                    Some(&configured),
                     &unknown_registry
                 )
                 .is_err(),
@@ -371,6 +335,10 @@ async fn replay() -> Result<()> {
                         identity_headers: vec![],
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
+                        engines: std::sync::Arc::new(
+                            systemprompt_gateway::GatewayEngines::new()
+                                .expect("gateway engines build"),
+                        ),
                     },
                 ),
             )
@@ -429,6 +397,10 @@ async fn replay() -> Result<()> {
                         identity_headers: vec![],
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
+                        engines: std::sync::Arc::new(
+                            systemprompt_gateway::GatewayEngines::new()
+                                .expect("gateway engines build"),
+                        ),
                     },
                 ),
             )

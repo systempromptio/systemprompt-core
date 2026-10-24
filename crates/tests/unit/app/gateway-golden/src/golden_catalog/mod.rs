@@ -1,18 +1,24 @@
-//! Golden catalog recorder (C-WP1): loads each fixture's legacy `services/ai`
-//! tree through the production `ConfigLoader` and writes what every model id
-//! and alias resolves to as `golden/resolution.json`. No secret store is
-//! bootstrapped, so no real secret is read and no provider is demoted.
+//! Golden catalog recorder: reads a fixture's `services/ai` directory into a
+//! merged `CatalogDocument`, resolves it into a `ResolvedCatalog` and writes
+//! what every model id, alias and the default model resolve to, in exactly the
+//! schema `crates/tests/common/fixtures/catalog/README.md` describes, so the
+//! 0.73 resolution diffs against the committed 0.72.1 `golden/` snapshots.
+//! No secret store is involved: credentials appear by id and secret name.
 //!
-//! Run: `cargo test -p systemprompt-gateway-golden-tests -- --ignored
-//! record_golden_catalog` (`GOLDEN_OUT=<dir>` writes `<dir>/<fixture>.json`
-//! instead of the fixture).
+//! Run: `cargo nextest run -p systemprompt-gateway-golden-tests
+//! --run-ignored only`. `GOLDEN_INPUT=<dir>` picks the fixture subdirectory
+//! holding `ai/` (default `legacy`, which a 0.73 binary refuses with the
+//! `config migrate` hint); `GOLDEN_OUT=<dir>` writes `<dir>/<fixture>.json`,
+//! else `<fixture>/resolved/resolution.json`. The committed `golden/` files
+//! are never written.
 
 mod walk;
 
 use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value, json};
-use systemprompt_loader::ConfigLoader;
+use systemprompt_catalog_fixtures::read_ai_dir;
+use systemprompt_manifest::services::catalog::CatalogContext;
 
 const FIXTURES: [&str; 3] = ["core-default", "dynapps", "astound"];
 
@@ -20,55 +26,28 @@ fn fixtures_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../common/fixtures/catalog")
 }
 
-fn root_config(ai: &Path) -> String {
-    let mut includes = String::new();
-    for file in ["config.yaml", "providers.yaml", "gateway.yaml"] {
-        if ai.join(file).exists() {
-            includes.push_str(&format!("  - ../ai/{file}\n"));
-        }
-    }
-    format!(
-        "includes:\n{includes}agents: {{}}\nmcp_servers: {{}}\nsettings:\n  agent_port_range: [4000, 4999]\n  mcp_port_range: [5000, 5999]\n"
-    )
+fn input_dir() -> String {
+    std::env::var("GOLDEN_INPUT").unwrap_or_else(|_| "legacy".to_owned())
 }
 
-fn copy_dir(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).expect("create dir");
-    for entry in std::fs::read_dir(from).expect("read fixture dir") {
-        let entry = entry.expect("dir entry");
-        let target = to.join(entry.file_name());
-        if entry.file_type().expect("file type").is_dir() {
-            copy_dir(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), target).expect("copy fixture file");
-        }
-    }
-}
-
-fn record(fixture: &str) -> Value {
-    let legacy_ai = fixtures_root().join(fixture).join("legacy/ai");
-    let tmp = tempfile::TempDir::new().expect("tempdir");
-    let services = tmp.path().join("services");
-    copy_dir(&legacy_ai, &services.join("ai"));
-    std::fs::create_dir_all(services.join("config")).expect("config dir");
-    let config_path = services.join("config/config.yaml");
-    std::fs::write(&config_path, root_config(&legacy_ai)).expect("write root config");
-
-    let config = ConfigLoader::load_from_path(&config_path)
-        .unwrap_or_else(|e| panic!("{fixture}: loader refused the tree: {e}"));
-    let gateway = config.gateway_config().filter(|g| g.enabled);
+fn record(fixture: &str) -> Result<Value, String> {
+    let ai = fixtures_root().join(fixture).join(input_dir()).join("ai");
+    let document = read_ai_dir(&ai).map_err(|e| format!("{fixture}: {e}"))?;
+    let catalog = document
+        .resolve(&CatalogContext::default())
+        .map_err(|e| format!("{fixture}: {e}"))?;
     let mut models = Map::new();
-    for id in walk::requested_ids(&config.providers, gateway) {
-        let resolved = walk::resolve_id(&config.providers, gateway, &id);
+    for id in walk::requested_ids(&catalog) {
+        let resolved = walk::resolve_id(&catalog, &id);
         models.insert(id, resolved);
     }
-    canonical(json!({
-        "core_version": "0.72.1",
+    Ok(canonical(json!({
+        "core_version": "0.73.0",
         "fixture": fixture,
-        "gateway_enabled": gateway.is_some(),
-        "default_model": gateway.and_then(|g| g.default_model.clone()),
+        "gateway_enabled": catalog.gateway_enabled(),
+        "default_model": catalog.default_model().map(|m| m.as_str().to_owned()),
         "models": models,
-    }))
+    })))
 }
 
 fn canonical(value: Value) -> Value {
@@ -89,15 +68,26 @@ fn canonical(value: Value) -> Value {
 }
 
 #[test]
-#[ignore = "recorder: writes the golden catalog snapshots"]
+#[ignore = "recorder: writes catalog resolution snapshots"]
 fn record_golden_catalog() {
     let out_dir = std::env::var_os("GOLDEN_OUT").map(PathBuf::from);
+    let mut failures = Vec::new();
     for fixture in FIXTURES {
-        let snapshot = record(fixture);
+        let snapshot = match record(fixture) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                failures.push(error);
+                continue;
+            },
+        };
         let mut text = serde_json::to_string_pretty(&snapshot).expect("serialise snapshot");
         text.push('\n');
         let path = out_dir.as_ref().map_or_else(
-            || fixtures_root().join(fixture).join("golden/resolution.json"),
+            || {
+                fixtures_root()
+                    .join(fixture)
+                    .join("resolved/resolution.json")
+            },
             |dir| dir.join(format!("{fixture}.json")),
         );
         if let Some(parent) = path.parent() {
@@ -105,4 +95,9 @@ fn record_golden_catalog() {
         }
         std::fs::write(&path, text).expect("write snapshot");
     }
+    assert!(
+        failures.is_empty(),
+        "fixtures did not resolve:\n{}",
+        failures.join("\n")
+    );
 }

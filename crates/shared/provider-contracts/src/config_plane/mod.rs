@@ -21,6 +21,16 @@
 //! whose rows this one references; [`ConfigPlaneSet`] orders the set so they
 //! are reconciled first.
 //!
+//! The per-entity contract the explicit apply drives is
+//! [`ConfigPlane::sources`] (each declared entity with its hash and origin),
+//! [`ConfigPlane::read`] (the database state), [`ConfigPlane::write`] (a
+//! resolved entity set) and [`ConfigPlane::render_declarations`] (entities as
+//! declaration text, for export). Every write runs under the change context
+//! the host set on the transaction, so the plane never stamps provenance
+//! itself.
+//! The default `sources` attributes every declared entry to
+//! `code:<declared_path>`; a plane fed by bundles overrides it.
+//!
 //! [`ConfigPlane::export`] renders the current database state as declaration
 //! text, which is how an operator captures console-only rows before switching
 //! a plane to `file` authority.
@@ -29,9 +39,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod diff;
+mod entities;
 mod error;
 mod request;
 mod set;
+mod source;
 mod tx;
 
 use std::collections::BTreeMap;
@@ -43,11 +55,15 @@ use sha2::{Digest, Sha256};
 use crate::dependencies::{Dependencies, MissingDependency};
 
 pub use diff::{DriftKind, DriftRow, diff_snapshots};
+pub use entities::{
+    DeclaredEntities, DeclaredEntity, ResolvedEntities, ResolvedEntity, entity_hash,
+};
 pub use error::{ConfigPlaneError, ConfigPlaneResult};
 pub use request::{
     ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, EntityScope, PlaneEffect,
 };
 pub use set::{ConfigPlaneSet, EffectiveAuthority, PlaneAuthority, PlaneWriter};
+pub use source::{ChangeSource, ChangeSourceError};
 pub use tx::PlaneTx;
 
 pub type PlaneSnapshot = BTreeMap<String, String>;
@@ -162,9 +178,48 @@ pub trait ConfigPlane: Send + Sync {
         _ctx: &PlaneContext<'_>,
         _tx: &mut PlaneTx<'_>,
     ) -> ConfigPlaneResult<Option<String>> {
-        Err(ConfigPlaneError::Unsupported {
-            plane: self.name().to_owned(),
-            operation: "export",
-        })
+        Err(unsupported(self.name(), "export"))
+    }
+
+    fn sources(&self, services_root: &Path) -> ConfigPlaneResult<Option<DeclaredEntities>> {
+        let Some(declared) = self.load_declared(services_root)? else {
+            return Ok(None);
+        };
+        let origin = ChangeSource::Code(self.declared_path().to_owned());
+        Ok(Some(
+            declared
+                .entries
+                .into_iter()
+                .map(|(key, value)| (key, DeclaredEntity::new(value, origin.clone())))
+                .collect(),
+        ))
+    }
+
+    async fn read(
+        &self,
+        ctx: &PlaneContext<'_>,
+        tx: &mut PlaneTx<'_>,
+    ) -> ConfigPlaneResult<PlaneSnapshot> {
+        self.read_current(ctx, tx).await
+    }
+
+    async fn write(
+        &self,
+        _ctx: &PlaneContext<'_>,
+        _tx: &mut PlaneTx<'_>,
+        _entities: &ResolvedEntities,
+    ) -> ConfigPlaneResult<ApplyOutcome> {
+        Err(unsupported(self.name(), "write"))
+    }
+
+    fn render_declarations(&self, _entities: &PlaneSnapshot) -> ConfigPlaneResult<String> {
+        Err(unsupported(self.name(), "render_declarations"))
+    }
+}
+
+fn unsupported(plane: &str, operation: &'static str) -> ConfigPlaneError {
+    ConfigPlaneError::Unsupported {
+        plane: plane.to_owned(),
+        operation,
     }
 }

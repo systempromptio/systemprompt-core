@@ -21,6 +21,8 @@ mod host_sync_report;
 #[cfg(test)]
 mod mcp_sidecar_port_move;
 #[cfg(test)]
+mod opencode_harness_content;
+#[cfg(test)]
 mod opencode_managed_resources;
 #[cfg(test)]
 mod plugin_archive;

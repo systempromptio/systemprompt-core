@@ -21,7 +21,9 @@ use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
     start_registry_heartbeat, start_schema_watch, start_secrets_refresh,
 };
+use super::readiness::ReadinessState;
 use super::routes::role::LifecyclePlan;
+use super::scheduler_health::SchedulerHealth;
 
 pub async fn run_server(
     ctx: AppContext,
@@ -38,18 +40,21 @@ pub async fn run_server(
     let plan = super::routes::role::lifecycle_plan(ctx.config().role);
     tracing::info!(role = %ctx.config().role, "node role");
 
-    let scheduler_handle = start_role_phases(&ctx, plan, events.as_ref()).await?;
+    let scheduler_handle =
+        start_role_phases(&ctx, plan, events.as_ref(), early.scheduler_health()).await?;
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
     }
-    let router = crate::services::server::setup_api_server(&ctx, events.as_ref())?;
+    let router =
+        crate::services::server::setup_api_server(&ctx, events.as_ref(), early.readiness())?
+            .layer(axum::Extension(Arc::clone(early.scheduler_health())));
     start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
 
     early.activate(router);
-    let metrics_listener = start_metrics_listener(&ctx, plan.scheduler).await?;
-    super::readiness::signal_ready();
+    let metrics_listener = start_metrics_listener(&ctx, plan.scheduler, early.readiness()).await?;
+    early.readiness().signal_ready();
 
     if let Some(ref tx) = events {
         tx.phase_completed(Phase::ApiServer);
@@ -75,6 +80,7 @@ async fn start_role_phases(
     ctx: &AppContext,
     plan: LifecyclePlan,
     events: Option<&StartupEventSender>,
+    scheduler_health: &SchedulerHealth,
 ) -> Result<Option<SchedulerHandle>> {
     start_event_bridge(ctx);
     start_registry_heartbeat(ctx);
@@ -88,7 +94,7 @@ async fn start_role_phases(
         run_agents_phase(ctx, events).await?;
     }
     let scheduler_handle = if plan.scheduler {
-        run_scheduler_phase(ctx, events).await?
+        run_scheduler_phase(ctx, events, scheduler_health).await?
     } else {
         None
     };
@@ -114,11 +120,13 @@ async fn serve_until_shutdown(
         "Shutdown budget; the orchestrator's termination grace must cover the total"
     );
     let restart = ctx.shutdown_request().clone();
+    let readiness = Arc::clone(early.readiness());
     let serve_result = super::shutdown::join_within_drain_grace(
         early.join(),
         &restart,
         &timings,
         ctx.background_tasks().stream_drain(),
+        &readiness,
     )
     .await;
 
@@ -192,11 +200,12 @@ async fn run_agents_phase(ctx: &AppContext, events: Option<&StartupEventSender>)
 async fn run_scheduler_phase(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
+    scheduler_health: &SchedulerHealth,
 ) -> Result<Option<SchedulerHandle>> {
     if let Some(tx) = events {
         tx.phase_started(Phase::Scheduler);
     }
-    match initialize_scheduler(ctx, events).await {
+    match initialize_scheduler(ctx, events, scheduler_health).await {
         Ok(handle) => {
             if let Some(tx) = events {
                 tx.phase_completed(Phase::Scheduler);
@@ -252,6 +261,7 @@ fn create_mcp_orchestrator(
 async fn start_metrics_listener(
     ctx: &AppContext,
     runs_scheduler: bool,
+    readiness: &ReadinessState,
 ) -> Result<Option<OwnedTask<()>>> {
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
@@ -263,8 +273,12 @@ async fn start_metrics_listener(
     super::pool_metrics::spawn_sampler(ctx);
     super::ops_metrics::spawn_samplers(ctx, runs_scheduler);
     let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
+    let state = super::metrics::MetricsState {
+        handle,
+        broadcasters: Arc::clone(ctx.event_broadcasters()),
+    };
     Ok(Some(
-        super::metrics::serve_metrics_listener(addr, handle).await?,
+        super::metrics::serve_metrics_listener(addr, state, readiness).await?,
     ))
 }
 

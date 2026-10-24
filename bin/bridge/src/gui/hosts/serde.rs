@@ -10,7 +10,7 @@ use crate::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, ApplyFailure, HostCapabilities, HostHealthInputs,
     HostModelViewRef, PendingStep, SYNC_ONLY_AGENTS, SyncOnlyAgent,
 };
-use crate::integration::host_app::{ConfigFormat, HostAppKind};
+use crate::integration::host_app::ConfigFormat;
 pub(crate) use crate::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
 };
@@ -96,32 +96,45 @@ fn model_view(
     snap: &AppStateSnapshot,
     host: &'static dyn crate::integration::HostApp,
 ) -> (
-    Vec<systemprompt_models::providers::ApiSurface>,
+    crate::gateway::model_view::HostClients,
     crate::gateway::model_view::HostModelView,
 ) {
-    let effective = crate::gateway::model_view::effective_surfaces(
-        host.id(),
-        host.accepted_surfaces(),
-        &snap.host_model_protocols,
+    let clients =
+        crate::gateway::model_view::HostClients::for_host(host.id(), &snap.host_model_protocols);
+    let view = crate::gateway::model_view::host_model_view(
+        &snap.inference_catalog.providers,
+        &clients.families,
     );
-    let view =
-        crate::gateway::model_view::host_model_view(&snap.inference_catalog.providers, &effective);
-    (effective, view)
+    (clients, view)
+}
+
+fn cowork_session(id: HostKind) -> Option<crate::wire::hosts::CoworkSessionPayload> {
+    if id != HostKind::ClaudeDesktop {
+        return None;
+    }
+    let (target, source) = crate::integration::cowork_plugins::resolve_target_with_source()
+        .ok()
+        .flatten()?;
+    let path = target.session_org_dir;
+    Some(crate::wire::hosts::CoworkSessionPayload {
+        org: path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        path: path.display().to_string(),
+        source: source.as_str(),
+    })
 }
 
 fn is_enabled(snap: &AppStateSnapshot, id: HostKind) -> bool {
-    snap.enabled_hosts.iter().any(|h| h == id.as_str())
-}
-
-fn shown(snap: &AppStateSnapshot, id: HostKind) -> bool {
-    snap.enabled_hosts.is_empty() || is_enabled(snap, id)
+    snap.enabled_hosts.contains(&id)
 }
 
 pub fn host_verdicts(snap: &AppStateSnapshot) -> Vec<(HostKind, AgentVerdict)> {
     let mut out: Vec<(HostKind, AgentVerdict)> = crate::integration::host_apps()
         .iter()
         .copied()
-        .filter(|host| shown(snap, host.id()))
+        .filter(|host| is_enabled(snap, host.id()))
         .map(|host| {
             (
                 host.id(),
@@ -132,7 +145,7 @@ pub fn host_verdicts(snap: &AppStateSnapshot) -> Vec<(HostKind, AgentVerdict)> {
     out.extend(
         SYNC_ONLY_AGENTS
             .iter()
-            .filter(|agent| shown(snap, agent.id))
+            .filter(|agent| is_enabled(snap, agent.id))
             .map(|agent| (agent.id, sync_only_verdict(snap, agent))),
     );
     out
@@ -143,9 +156,7 @@ fn build_entry<'a>(
     host: &'static dyn crate::integration::HostApp,
 ) -> HostEntryPayload<'a> {
     let st = snap.hosts.get(host.id());
-    let (effective, view) = model_view(snap, host);
-    let overridden =
-        crate::gateway::model_view::has_surface_override(host.id(), &snap.host_model_protocols);
+    let (clients, view) = model_view(snap, host);
     let snapshot = st.and_then(|s| s.snapshot.as_ref());
     let verdict = host_verdict(snap, host, &view);
     let caps = HostCapabilities::for_surface(AgentSurface::LocalProfile, host.can_open());
@@ -171,8 +182,9 @@ fn build_entry<'a>(
         models_checked: view.checked,
         compatible_models_available: view.available,
         unconfigured_providers: view.unconfigured_providers,
-        model_protocols: effective.iter().map(|s| s.as_tag().to_owned()).collect(),
-        model_protocols_overridden: overridden,
+        model_protocols: clients.tags(),
+        model_protocols_overridden: clients.filtered,
+        cowork_session: cowork_session(host.id()),
         surface: AgentSurface::LocalProfile,
         verdict,
     }
@@ -187,7 +199,7 @@ fn build_sync_only_entry<'a>(
     HostEntryPayload {
         id: agent.id,
         display_name: agent.display_name,
-        kind: HostAppKind::CliTool,
+        kind: agent.id.kind(),
         description: agent.description,
         icon: agent.icon,
         config_format: ConfigFormat::Json,
@@ -208,6 +220,7 @@ fn build_sync_only_entry<'a>(
         unconfigured_providers: Vec::new(),
         model_protocols: Vec::new(),
         model_protocols_overridden: false,
+        cowork_session: None,
         surface: AgentSurface::SyncOnly,
         verdict,
     }
@@ -239,9 +252,7 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
             .iter()
             .map(|agent| build_sync_only_entry(snap, agent)),
     );
-    if !snap.enabled_hosts.is_empty() {
-        entries.retain(|e| e.enabled);
-    }
+    entries.retain(|e| e.enabled);
     let agent_fleet = AgentFleets::fold(
         &entries
             .iter()

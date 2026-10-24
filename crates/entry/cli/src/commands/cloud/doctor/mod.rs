@@ -150,7 +150,7 @@ pub(in crate::commands::cloud) async fn run(
     checks.push(check_signing_key(profile, profile_dir, &secrets));
     let services_root = resolve_services_config(profile);
     match ConfigLoader::load_from_path(&services_root) {
-        Ok(services) => checks.push(check_provider_secrets(&services.providers, &secrets)),
+        Ok(services) => checks.push(check_provider_secrets(&services.credentials, &secrets)),
         Err(err) => checks.push(CheckResult::warn(
             "providers",
             format!(

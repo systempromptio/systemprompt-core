@@ -3,8 +3,8 @@
 //!
 //! Each test writes an include file into a temp dir and references it from a
 //! root config, then asserts the merged `ServicesConfig` reflects the
-//! documented merge semantics (accumulate AI providers, root-priority for
-//! `web`/`scheduler`, hard error on duplicate keys).
+//! documented merge semantics (an include declaring `ai:` sets the AI policy,
+//! root-priority for `web`/`scheduler`, hard error on duplicate keys).
 
 use systemprompt_loader::ConfigLoader;
 use tempfile::TempDir;
@@ -24,7 +24,7 @@ fn write_include(temp: &TempDir, body: &str) {
 }
 
 #[test]
-fn ai_providers_taken_from_include_when_root_empty() {
+fn an_include_declaring_ai_sets_the_ai_policy() {
     let temp = TempDir::new().expect("tempdir");
     let config_path = temp.path().join("services.yaml");
 
@@ -34,61 +34,27 @@ fn ai_providers_taken_from_include_when_root_empty() {
 agents: {}
 mcp_servers: {}
 ai:
-  default_provider: anthropic
-  providers:
-    anthropic: {}
+  default_max_output_tokens: 1234
 "#,
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
-    let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
+    let config = ConfigLoader::load_from_content(ROOT_HEAD, &config_path).expect("should load");
 
-    assert!(
-        config.ai.providers.contains_key("anthropic"),
-        "include's provider must populate the empty root provider map"
-    );
-    assert_eq!(config.ai.default_provider, "anthropic");
+    assert_eq!(config.ai.default_max_output_tokens, Some(1234));
 }
 
 #[test]
-fn ai_providers_accumulate_across_root_and_include() {
+fn a_legacy_ai_block_in_an_include_is_refused_with_the_migrate_hint() {
     let temp = TempDir::new().expect("tempdir");
     let config_path = temp.path().join("services.yaml");
 
     write_include(
         &temp,
-        r#"
-agents: {}
-mcp_servers: {}
-ai:
-  default_provider: openai
-  providers:
-    openai: {}
-"#,
+        "agents: {}\nmcp_servers: {}\nai:\n  default_provider: anthropic\n",
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\n  providers:\n    anthropic: {{}}\n"
-    );
-    let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
-
-    assert!(
-        config.ai.providers.contains_key("anthropic"),
-        "root provider retained"
-    );
-    assert!(
-        config.ai.providers.contains_key("openai"),
-        "include provider folded into existing root map"
-    );
-    assert_eq!(
-        config.ai.providers.len(),
-        2,
-        "providers from both sides must accumulate"
-    );
-    assert_eq!(
-        config.ai.default_provider, "anthropic",
-        "root default_provider must not be overwritten when merging into a non-empty map"
-    );
+    let err = ConfigLoader::load_from_content(ROOT_HEAD, &config_path).expect_err("legacy");
+    assert!(err.to_string().contains("config migrate"), "{err}");
 }
 
 #[test]
@@ -109,7 +75,7 @@ scheduler:
 "#,
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
+    let root = ROOT_HEAD.to_owned();
     let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
 
     let scheduler = config.scheduler.expect("scheduler taken from include");
@@ -138,7 +104,7 @@ external_agents:
 "#,
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
+    let root = ROOT_HEAD.to_owned();
     let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
 
     let found = config
@@ -168,7 +134,7 @@ external_agents:
     );
 
     let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\nexternal_agents:\n  codex_cli:\n    id: codex_cli\n    display_name: Codex CLI (root)\n    kind: cli_tool\n    enabled: true\n"
+        "{ROOT_HEAD}\nexternal_agents:\n  codex_cli:\n    id: codex_cli\n    display_name: Codex CLI (root)\n    kind: cli_tool\n    enabled: true\n"
     );
     let err = ConfigLoader::load_from_content(&root, &config_path)
         .expect_err("duplicate external agent must error");
@@ -216,10 +182,7 @@ fn duplicate_plugin_in_include_errors() {
         ),
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\nplugins:{}",
-        plugin_block("Root Plugin")
-    );
+    let root = format!("{ROOT_HEAD}\nplugins:{}", plugin_block("Root Plugin"));
     let err = ConfigLoader::load_from_content(&root, &config_path)
         .expect_err("duplicate plugin must error");
     let msg = format!("{err:#}");
@@ -255,9 +218,8 @@ skills:
 "#,
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\nskills:\n  enabled: true\n  auto_discover: false\n  skills: {{}}\n"
-    );
+    let root =
+        format!("{ROOT_HEAD}\nskills:\n  enabled: true\n  auto_discover: false\n  skills: {{}}\n");
     let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
 
     assert!(
@@ -304,7 +266,7 @@ fn duplicate_skill_across_root_and_include_errors() {
     );
 
     let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\nskills:\n  enabled: true\n  auto_discover: false\n  skills:{}",
+        "{ROOT_HEAD}\nskills:\n  enabled: true\n  auto_discover: false\n  skills:{}",
         skill_block("from root")
     );
     let err = ConfigLoader::load_from_content(&root, &config_path)
@@ -340,8 +302,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err = ConfigLoader::load_from_content(root, &config_path)
@@ -369,9 +329,7 @@ fn nested_include_resolves_transitively() {
 agents: {}
 mcp_servers: {}
 ai:
-  default_provider: gemini
-  providers:
-    gemini: {}
+  default_max_output_tokens: 77
 "#,
     )
     .expect("write level2");
@@ -384,13 +342,12 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: gemini
 "#;
 
     let config = ConfigLoader::load_from_content(root, &config_path).expect("should load");
-    assert!(
-        config.ai.providers.contains_key("gemini"),
-        "transitively-included provider must reach the merged config"
+    assert_eq!(
+        config.ai.default_max_output_tokens,
+        Some(77),
+        "a transitively-included ai block must reach the merged config"
     );
 }

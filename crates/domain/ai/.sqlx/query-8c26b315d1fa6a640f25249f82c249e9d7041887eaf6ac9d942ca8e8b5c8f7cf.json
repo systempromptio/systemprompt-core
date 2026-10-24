@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO ai_request_tool_calls (\n                request_id, ai_tool_call_id, tool_name, tool_input, sequence_number,\n                args_validity, args_error_path\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Int4",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8c26b315d1fa6a640f25249f82c249e9d7041887eaf6ac9d942ca8e8b5c8f7cf"
+}

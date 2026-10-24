@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, Result, RoutingError};
 use crate::models::image_generation::{ImageGenerationRequest, ImageGenerationResponse};
 use crate::repository::AiRequestRepository;
 use crate::services::providers::image_provider_trait::{
@@ -12,7 +12,7 @@ use crate::services::providers::image_provider_trait::{
 use crate::services::storage::{ImageStorage, StorageConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{FileId, TraceId, UserId};
+use systemprompt_identifiers::{FileId, ModelId, ProviderId, TraceId, UserId};
 use systemprompt_traits::{AiGeneratedFile, DynAiFilePersistenceProvider, FileStorage};
 use tracing::error;
 
@@ -122,18 +122,14 @@ impl ImageService {
         } else if let Some(default) = &self.default_provider {
             default.clone()
         } else {
-            return Err(AiError::ConfigurationError {
-                message: "No model specified and no default provider configured".to_owned(),
-            });
+            return Err(AiError::Routing(RoutingError::NoDefaultProvider));
         };
 
-        let provider =
-            self.providers
-                .get(&provider_name)
-                .ok_or_else(|| AiError::ProviderError {
-                    provider: provider_name.clone(),
-                    message: "Provider not found".to_owned(),
-                })?;
+        let provider = self.providers.get(&provider_name).ok_or_else(|| {
+            AiError::Routing(RoutingError::ProviderNotFound {
+                provider: ProviderId::new(provider_name.clone()),
+            })
+        })?;
 
         if request.trace_id.is_none() {
             request.trace_id = Some(TraceId::generate());
@@ -230,8 +226,8 @@ impl ImageService {
             }
         }
 
-        Err(AiError::NoProviderForModel {
-            model: model.to_owned(),
-        })
+        Err(AiError::Routing(RoutingError::NoProviderForModel {
+            model: ModelId::new(model),
+        }))
     }
 }

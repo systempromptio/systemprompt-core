@@ -1,0 +1,27 @@
+# Paths where a runtime `sqlx::query*(` call is legitimate because the SQL text
+# is necessarily dynamic. A directory (trailing `/`) exempts the tree under it,
+# a file exempts that file. A stale carve-out fails the gate: an entry whose
+# path is gone, or that no longer holds a runtime query, is removed, not kept.
+crates/infra/database/src/admin/
+crates/infra/database/src/services/postgres/
+# The projection drainer calls the `refresh_*(keys TEXT[])` function the
+# caller names (validated as a bare identifier) and binds the keys; the
+# queue helpers beside it stay runtime so the crate carries no offline
+# cache for them.
+crates/infra/database/src/projection/
+# Test crates keep no `.sqlx` offline cache (they run live against a
+# freshly-migrated DB), so the compile-time macros are unavailable in test
+# seed/cleanup helpers. The gate's job is verifying production SQL; both test
+# trees are exempt.
+crates/tests/integration/
+crates/tests/unit/
+# Shared test fixtures create and drop the per-run databases themselves;
+# CREATE/DROP DATABASE cannot take a bind parameter, so the name is
+# interpolated under AssertSqlSafe. Same exemption as the two test trees.
+crates/tests/common/
+# The user purge walks the `user_purge_tables!` inventory: table and
+# column names come from each owning crate's registration at runtime,
+# pass SafeIdentifier and are interpolated under AssertSqlSafe. The user
+# id is always a bind.
+crates/domain/users/src/repository/user/purge.rs
+crates/entry/cli/src/commands/admin/setup/

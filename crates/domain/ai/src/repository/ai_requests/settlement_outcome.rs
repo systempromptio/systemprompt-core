@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::models::ArgsCheck;
 use crate::repository::ai_request_payloads::UpsertPayloadParams;
 use systemprompt_identifiers::AiToolCallId;
 
@@ -29,6 +30,7 @@ pub struct SettledToolCall {
     pub id: AiToolCallId,
     pub name: String,
     pub input: String,
+    pub args: Option<ArgsCheck>,
 }
 
 #[derive(Debug)]

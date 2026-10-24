@@ -12,6 +12,11 @@
 //! column and cancels the run token. [`A2aRunHandler::with_host`] pins the
 //! host adapter instead of resolving it from the request.
 //!
+//! A request naming a harness loads that revision for the row's user through
+//! the injected [`HarnessSource`]; a missing source or a failed load finishes
+//! the row as `harness_unavailable` without spawning, and a loaded harness
+//! records its digest on the row.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -24,14 +29,16 @@ use systemprompt_traits::OwnedTask;
 use super::{A2aRunnerConfig, credential_request};
 use crate::credentials::{RunCredentialService, RunCredentials};
 use crate::error::AgentRunsResult;
-use crate::execute::{ExecuteParams, execute, execute_with_host};
+use crate::execute::harness::{HarnessError, HarnessSource};
+use crate::execute::{ExecuteParams, error_chain, execute, execute_with_host};
 use crate::governance::hooks_file;
 use crate::host::HeadlessHost;
 use crate::layout::RunLayout;
 use crate::outcome::{ErrorClass, RunOutcome, RunStatus};
 use crate::repository::RunStarted;
-use crate::request::RunRequest;
+use crate::request::{HarnessRef, RunRequest};
 use crate::service::{ClaimedRun, DbEventSink, RunHandler};
+use systemprompt_models::managed::RevisionBundle;
 
 const CANCEL_POLL: Duration = Duration::from_secs(2);
 
@@ -40,6 +47,7 @@ pub struct A2aRunHandler {
     credentials: RunCredentialService,
     config: Arc<A2aRunnerConfig>,
     host: Option<Arc<dyn HeadlessHost>>,
+    harness: Option<Arc<dyn HarnessSource>>,
 }
 
 impl std::fmt::Debug for A2aRunHandler {
@@ -58,6 +66,7 @@ impl A2aRunHandler {
             credentials,
             config: Arc::new(config),
             host: None,
+            harness: None,
         }
     }
 
@@ -65,6 +74,25 @@ impl A2aRunHandler {
     pub fn with_host(mut self, host: Arc<dyn HeadlessHost>) -> Self {
         self.host = Some(host);
         self
+    }
+
+    #[must_use]
+    pub fn with_harness_source(mut self, source: Arc<dyn HarnessSource>) -> Self {
+        self.harness = Some(source);
+        self
+    }
+
+    async fn load_harness(
+        &self,
+        claimed: &ClaimedRun,
+        harness: &HarnessRef,
+    ) -> Result<RevisionBundle, HarnessError> {
+        let Some(source) = &self.harness else {
+            return Err(HarnessError::NoSource);
+        };
+        source
+            .revision_bundle(&claimed.row.user_id, &harness.revision_id)
+            .await
     }
 
     async fn drive(&self, claimed: &ClaimedRun) -> AgentRunsResult<()> {
@@ -115,6 +143,28 @@ impl A2aRunHandler {
             },
             _ => None,
         };
+        let bundle = match &request.harness {
+            None => None,
+            Some(harness) => match self.load_harness(claimed, harness).await {
+                Ok(bundle) => {
+                    claimed
+                        .repo
+                        .record_harness_digest(id, &harness.bundle_digest)
+                        .await?;
+                    Some(bundle)
+                },
+                Err(error) => {
+                    tracing::warn!(run_id = %id, %error, "harness unavailable");
+                    let outcome = unexecuted(
+                        RunStatus::Failed,
+                        ErrorClass::HarnessUnavailable,
+                        &error_chain(&error),
+                    );
+                    claimed.repo.finish(id, &outcome, None).await?;
+                    return Ok(());
+                },
+            },
+        };
         let sink = DbEventSink::new(claimed.repo.clone(), id.clone());
         let existing = claimed.repo.count_events(id).await?;
         let params = ExecuteParams {
@@ -126,6 +176,7 @@ impl A2aRunHandler {
             seq_after: (existing > 0).then(|| existing - 1),
             sink: &sink,
             cancel: claimed.run_token.clone(),
+            harness: request.harness.as_ref().zip(bundle.as_ref()),
         };
         let watcher = watch_cancel(claimed);
         let report = match &self.host {

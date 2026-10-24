@@ -56,13 +56,18 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         Arc::clone(&db_pool),
         ctx.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
+        Arc::clone(ctx.connector_tokens()),
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
         systemprompt_users::SessionRepository::new(&db_pool),
     ));
     let ai_service = Arc::new(
         AiService::new(
-            &services_config.providers,
+            Arc::new(
+                services_config
+                    .resolve_catalog(&systemprompt_loader::services_bootstrap::catalog_context())
+                    .context("The services catalog does not resolve")?,
+            ),
             &services_config.ai,
             AiServiceProviders {
                 tools: tool_provider,

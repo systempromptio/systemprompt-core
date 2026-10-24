@@ -1,9 +1,9 @@
 //! Re-materialise the authz catalog after a gateway or catalog edit.
 //!
-//! Gateway route ids are content-addressed, so changing a route's pattern or
-//! provider mints a new id with no `access_control_entities` row — the next
-//! request would fail closed with `UnknownEntity`. After a gateway/catalog edit
-//! we hand the freshly-saved services tree to
+//! A new policy route or catalog route id has no `access_control_entities`
+//! row until it is reconciled, so the next request would fail closed with
+//! `UnknownEntity`. After a gateway/catalog edit we hand the freshly-loaded
+//! services tree to
 //! [`reconcile_services_authz`], so the resolver reflects the edit without a
 //! restart or a wait for the boot-time governance pass.
 //!
@@ -25,7 +25,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_governance::authz::{YAML_SOURCE, reconcile_services_authz};
 use systemprompt_manifest::Config;
-use systemprompt_manifest::services::{GatewayState, ProviderRegistry};
+use systemprompt_manifest::services::ServicesConfig;
 
 pub(super) enum ReconcileOutcome {
     Reconciled,
@@ -33,11 +33,10 @@ pub(super) enum ReconcileOutcome {
 }
 
 pub(super) async fn reconcile_authz(
-    gateway: Option<&GatewayState>,
-    providers: &ProviderRegistry,
+    services: &ServicesConfig,
     source_path: &str,
 ) -> ReconcileOutcome {
-    match try_reconcile(gateway, providers, source_path).await {
+    match try_reconcile(services, source_path).await {
         Ok(()) => ReconcileOutcome::Reconciled,
         Err(err) => {
             tracing::warn!(
@@ -60,11 +59,7 @@ pub(super) fn append_reconcile_notice(message: String, outcome: &ReconcileOutcom
     }
 }
 
-async fn try_reconcile(
-    gateway: Option<&GatewayState>,
-    providers: &ProviderRegistry,
-    source_path: &str,
-) -> anyhow::Result<()> {
+async fn try_reconcile(services: &ServicesConfig, source_path: &str) -> anyhow::Result<()> {
     let cfg = Config::get()?;
     let database: DbPool = Arc::new(
         Database::connect(
@@ -75,17 +70,11 @@ async fn try_reconcile(
         .await?,
     );
 
-    let mut services = systemprompt_loader::ConfigLoader::load()?;
-    services.providers = providers.clone();
-    if let Some(gateway) = gateway {
-        services.gateway = Some(gateway.clone());
-    }
-
     let services_dir = ProfileBootstrap::get()?.paths.services.clone();
     let source = format!("services:{source_path}");
     reconcile_services_authz(
         &database,
-        &services,
+        services,
         Path::new(&services_dir),
         YAML_SOURCE,
         None,

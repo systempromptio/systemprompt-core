@@ -53,15 +53,10 @@ async fn get_service_by_name_missing_returns_none() {
 }
 
 #[tokio::test]
-async fn cleanup_stale_services_runs() {
+async fn reap_stale_services_on_a_fresh_instance_reaps_nothing() {
     let (svc, _db) = make_db_service().await;
-    svc.cleanup_stale_services().await.unwrap();
-}
-
-#[tokio::test]
-async fn delete_crashed_services_runs() {
-    let (svc, _db) = make_db_service().await;
-    svc.delete_crashed_services().await.unwrap();
+    let reaped = svc.reap_stale_services().await.unwrap();
+    assert_eq!(reaped.total(), 0);
 }
 
 #[tokio::test]

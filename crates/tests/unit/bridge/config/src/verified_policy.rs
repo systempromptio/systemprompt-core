@@ -33,7 +33,10 @@ impl ConfigStore for Fake {
     ) -> Result<bool, ConfigStoreError> {
         self.saw(target);
         if hive == PolicyHive::Machine && self.deny_machine_read {
-            return Err(ConfigStoreError::Backend("HKLM read denied".into()));
+            return Err(ConfigStoreError::AccessDenied {
+                hive: "HKLM".to_owned(),
+                subkey: "read".to_owned(),
+            });
         }
         Ok(hive == PolicyHive::User || self.machine.is_some())
     }

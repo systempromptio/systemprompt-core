@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use clap::Args;
-use systemprompt_files::{FilePersistenceMode, FilesConfig};
+use systemprompt_files::FilePersistenceMode;
 
 use super::types::{AllowedTypesOutput, FileConfigOutput, StoragePathsOutput};
 use crate::CliConfig;
@@ -15,7 +15,7 @@ use crate::shared::CommandOutput;
 pub struct ConfigArgs;
 
 pub(super) fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let files_config = FilesConfig::get()?;
+    let files_config = super::load_files_config()?;
     let upload_config = files_config.upload();
 
     let persistence_mode = match upload_config.persistence_mode {

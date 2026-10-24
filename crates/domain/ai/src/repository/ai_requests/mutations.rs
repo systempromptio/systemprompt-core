@@ -3,11 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::{AiRequest, AiRequestRecord, RequestStatus};
+use crate::models::rows::AiRequestRow;
+use crate::models::{AiRequest, AiRequestRecord, RequestStatus, ServedHop};
 use systemprompt_identifiers::{
     AiRequestId, ApiKeyId, ClientSessionId, ContextId, GatewayConversationId, InstanceId,
     McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
+use systemprompt_models::attribution::TrafficClass;
 use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
@@ -22,7 +24,7 @@ impl AiRequestRepository {
         error_message: &str,
     ) -> Result<AiRequest, RepositoryError> {
         sqlx::query_as!(
-            AiRequest,
+            AiRequestRow,
             r#"
             UPDATE ai_requests
             SET status = $1, error_message = $2, completed_at = CURRENT_TIMESTAMP,
@@ -53,6 +55,7 @@ impl AiRequestRepository {
         )
         .fetch_one(self.write_pool())
         .await
+        .map(AiRequest::from)
         .map_err(RepositoryError::from)
     }
 
@@ -78,12 +81,12 @@ impl AiRequestRepository {
     }
 
     #[must_use = "this returns a Result that should not be ignored"]
-    pub async fn update_served_provider(
+    pub async fn update_served_hop(
         &self,
         id: &AiRequestId,
-        provider: &str,
+        hop: ServedHop<'_>,
     ) -> Result<(), RepositoryError> {
-        update_served_provider_with(self.write_pool(), id, provider).await
+        update_served_hop_with(self.write_pool(), id, hop).await
     }
 
     #[must_use = "this returns a Result that should not be ignored"]
@@ -136,18 +139,29 @@ impl AiRequestRepository {
     }
 }
 
+fn traffic_of(record: &AiRequestRecord) -> Result<TrafficClass, RepositoryError> {
+    TrafficClass::of(&record.attribution).ok_or_else(|| {
+        RepositoryError::invalid_argument("attribution.traffic", "not a traffic class")
+    })
+}
+
+const fn is_terminal(status: RequestStatus) -> bool {
+    matches!(
+        status,
+        RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
+    )
+}
+
 pub(super) async fn insert_request_row(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     id: &AiRequestId,
     record: &AiRequestRecord,
     has_offered_tools: bool,
 ) -> Result<bool, RepositoryError> {
-    let use_completed_at = matches!(
-        record.status,
-        RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
-    );
+    let use_completed_at = is_terminal(record.status);
     let (actor_kind, actor_id) = record.actor.audit_columns();
     let api_key_id = record.attribution.api_key_id.as_ref().map(ApiKeyId::as_str);
+    let traffic = traffic_of(record)?;
 
     let inserted = sqlx::query!(
             r#"
@@ -159,13 +173,14 @@ pub(super) async fn insert_request_row(
                 cost_microdollars, latency_ms, status, error_message,
                 actor_kind, actor_id, requested_model, instance_id, reasoning_tokens,
                 client_session_id, request_kind, client_kind, wire_protocol,
-                client_attestation, api_key_id, has_offered_tools, created_at, updated_at,
-                completed_at
+                client_attestation, api_key_id, has_offered_tools, credential, endpoint,
+                traffic, created_at, updated_at, completed_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-                $25, $26, $27, $28, $29, $31, $32, $33, $34, $35, $36, $37,
+                $25, $26, $27, $28, $29, $31, $32, $33, $34, $35, $36, $37, $38, $39,
+                $40,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
                 CASE WHEN $30 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
@@ -208,28 +223,35 @@ pub(super) async fn insert_request_row(
             record.origin.wire.as_str(),
             record.origin.attestation.as_str(),
             api_key_id,
-            has_offered_tools
+            has_offered_tools,
+            record.hop.as_ref().map(|h| h.credential.as_str()),
+            record.hop.as_ref().map(|h| h.endpoint.as_str()),
+            traffic.as_str()
         )
         .fetch_optional(&mut **tx)
         .await?;
     Ok(inserted.is_some())
 }
 
-pub(crate) async fn update_served_provider_with<'e, E>(
+pub(crate) async fn update_served_hop_with<'e, E>(
     executor: E,
     id: &AiRequestId,
-    provider: &str,
+    hop: ServedHop<'_>,
 ) -> Result<(), RepositoryError>
 where
     E: sqlx::PgExecutor<'e>,
 {
     sqlx::query!(
-            r#"UPDATE ai_requests SET served_provider = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
-            provider,
-            id.as_str()
-        )
-        .execute(executor)
-        .await?;
+        r#"UPDATE ai_requests SET served_provider = $1, credential = $2, endpoint = $3,
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE id = $4"#,
+        hop.provider,
+        hop.credential,
+        hop.endpoint,
+        id.as_str()
+    )
+    .execute(executor)
+    .await?;
     Ok(())
 }
 

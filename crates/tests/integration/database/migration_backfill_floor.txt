@@ -16,6 +16,10 @@ governance=021
 logging=009
 marketplace=016
 mcp=017
-oauth=019
+oauth=021
 scheduler=003
-users=022
+users=028
+# users 028 recounts session_traffic_rollup_hourly from user_sessions once, after 027 creates the counter and its triggers.
+# agent-runs 001 rewrites headless `opencode` rows to `opencode-cli` before constraining `host` to the CLI ids.
+agent-runs=001
+# oauth 021 drops bridge host-preference rows naming an id outside the HostKind vocabulary before constraining host_id to it.

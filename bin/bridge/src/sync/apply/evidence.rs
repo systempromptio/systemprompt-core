@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{ApplyReport, HostFailure};
-use crate::gateway::manifest::{SignedManifest, enables_host};
+use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{HostSync, HostSyncCtx, HostWarning, HostWarningKind};
 use systemprompt_models::bridge::host::HostKind;
 
@@ -25,8 +25,9 @@ pub(super) async fn capture(
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .filter(|host_id| {
-            enables_host(manifest, *host_id)
-                && !skipped_absent.contains(host_id)
+            emitters.iter().any(|emitter| {
+                emitter.host_id() == *host_id && crate::host_sync::enabled_for(*emitter, manifest)
+            }) && !skipped_absent.contains(host_id)
                 && !report
                     .host_failures
                     .iter()

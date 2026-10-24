@@ -16,7 +16,7 @@ use systemprompt_agent::models::a2a::protocol::{
 use systemprompt_agent::models::a2a::{
     A2aRequestParams, Message, MessageRole, Part, TaskState, TaskStatus,
 };
-use systemprompt_agent::services::a2a_server::handlers::request::helpers::handle_streaming_path;
+use systemprompt_agent::services::a2a_server::handlers::request::routing::handle_streaming_path;
 use systemprompt_identifiers::{AgentRunId, ContextId, MessageId, TaskId};
 use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates};
 
@@ -205,7 +205,7 @@ async fn a_queued_run_streams_the_task_then_its_frames_then_the_final_status() {
     assert_eq!(launches[0].origin_kind, "a2a");
     assert_eq!(launches[0].request["agent"], "researcher");
     assert_eq!(launches[0].request["prompt"], "summarise the quarter");
-    assert_eq!(launches[0].origin_id, launches[0].task_id.to_string());
+    assert_eq!(launches[0].origin_id.as_str(), launches[0].task_id.as_str());
 }
 
 #[tokio::test]

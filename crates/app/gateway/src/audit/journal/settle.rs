@@ -37,6 +37,7 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
                 id: tool.id.clone(),
                 name: tool.name.clone(),
                 input: tool.input.clone(),
+                args: tool.args.clone(),
             })
             .collect();
         let usage = settlement_usage(completion.usage);

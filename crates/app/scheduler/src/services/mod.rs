@@ -26,8 +26,8 @@ pub use job_execution::{
     JobBatchReport, JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };
 pub use orchestration::{
-    ApiListenerStop, DbServiceRecord, DesiredStatus, ReconciliationResult, RuntimeStatus,
-    ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateVerifier, ServiceType,
+    ApiListenerStop, DbServiceRecord, DesiredStatus, ReconciliationResult, ServiceAction,
+    ServiceConfig, ServiceReconciler, ServiceStateVerifier, ServiceType, VerifiedService,
     VerifiedServiceState, child_kind, port_holders, stop_api_listeners, stop_owned_port_holders,
     wait_for_port_free,
 };

@@ -94,8 +94,7 @@ pub use systemprompt_models::mcp::{
 
 pub use services::monitoring::health::HealthStatus;
 pub use services::monitoring::status::McpServiceStatus;
-pub use services::registry::RegistryService;
-pub use services::registry::trait_impl::McpDeploymentProviderImpl;
+pub use services::registry::{McpDeploymentProviderImpl, RegistryService};
 pub use services::tool_provider::McpToolProvider;
 pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, McpRestartOutcome};
 
@@ -132,7 +131,6 @@ use axum::middleware::Next;
 use axum::response::Response;
 use rmcp::ServerHandler;
 pub use rmcp::model::ProtocolVersion;
-pub use rmcp::task_manager::{TaskContext, TaskManager, TaskOptions};
 use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 
@@ -196,7 +194,7 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
     let has_auth = req.headers().get("authorization").is_some();
     let proxy_verified = req
         .headers()
-        .get("x-proxy-verified")
+        .get(systemprompt_identifiers::headers::PROXY_VERIFIED)
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| v == "true");
     let accept = req

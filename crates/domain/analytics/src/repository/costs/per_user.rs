@@ -41,7 +41,7 @@ impl CostAnalyticsRepository {
                 SUM(cache_creation_tokens)::bigint as "cache_creation_tokens"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic AND user_id = $3
+              AND traffic = 'production' AND user_id = $3
             "#,
             start,
             end,
@@ -64,7 +64,7 @@ impl CostAnalyticsRepository {
             SELECT SUM(cost_microdollars)::bigint as "cost"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic AND user_id = $3
+              AND traffic = 'production' AND user_id = $3
             "#,
             start,
             end,
@@ -92,7 +92,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens), 0)::bigint as "tokens!"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic AND user_id = $4
+              AND traffic = 'production' AND user_id = $4
               AND model <> ''
             GROUP BY model
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -122,7 +122,7 @@ impl CostAnalyticsRepository {
                 COUNT(*)::bigint as "ai_requests!"
             FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
-              AND NOT synthetic
+              AND traffic = 'production'
               AND user_id = $3
               AND context_id IS NOT NULL
             "#,
@@ -151,7 +151,7 @@ impl CostAnalyticsRepository {
                 COUNT(*)::bigint as "ai_requests!"
             FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
-              AND NOT synthetic
+              AND traffic = 'production'
               AND user_id = $3
               AND context_id IS NOT NULL
               AND model IS NOT NULL
@@ -186,7 +186,7 @@ impl CostAnalyticsRepository {
             FROM report_ai_requests r
             LEFT JOIN report_agent_tasks at ON at.task_id = r.task_id
             WHERE r.created_at >= $1 AND r.created_at < $2
-                  AND NOT r.synthetic
+                  AND r.traffic = 'production'
               AND r.user_id = $3
               AND r.context_id IS NOT NULL
             GROUP BY COALESCE(at.agent_name, 'unattributed')
@@ -227,7 +227,7 @@ impl CostAnalyticsRepository {
                 FROM report_ai_requests r
                 WHERE r.user_id = $1
                   AND r.created_at < $2
-                  AND NOT r.synthetic
+                  AND r.traffic = 'production'
                   AND r.context_id IS NOT NULL
                 GROUP BY r.context_id
                 ORDER BY MAX(r.created_at) DESC

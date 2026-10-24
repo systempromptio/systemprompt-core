@@ -20,7 +20,7 @@ fn internal(binary: &str, enabled: bool) -> Deployment {
 
 fn external(enabled: bool) -> Deployment {
     deployment(&format!(
-        "type: external\nendpoint: https://mcp.example.com/mcp\nenabled: {enabled}\ndisplay_in_web: false\noauth:\n  required: false\n  scopes: []\n  audience: mcp\n  client_id: null\n"
+        "server_type: external\nendpoint: https://mcp.example.com/mcp\nenabled: {enabled}\ndisplay_in_web: false\noauth:\n  required: false\n  scopes: []\n  audience: mcp\n  client_id: null\n"
     ))
 }
 

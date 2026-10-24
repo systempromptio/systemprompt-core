@@ -21,12 +21,13 @@ pub mod openai_images;
 pub mod provider_factory;
 pub mod provider_trait;
 pub mod resilient_provider;
+pub mod served_model;
 
 pub use anthropic::AnthropicProvider;
 pub use canonical_bridge::CodeExecutionResponse;
 pub use gemini::GeminiProvider;
 pub use gemini_images::GeminiImageProvider;
-pub use image_provider_factory::{ImageProviderFactory, ImageProviderParams};
+pub use image_provider_factory::{DefaultImageProvider, ImageProviderFactory, ImageProviderParams};
 pub use image_provider_trait::{BoxedImageProvider, ImageProvider, ImageProviderCapabilities};
 pub use openai::OpenAiProvider;
 pub use openai_images::OpenAiImageProvider;
@@ -37,3 +38,4 @@ pub use provider_trait::{
     catalog_pricing, catalog_supports_model,
 };
 pub use resilient_provider::ResilientProvider;
+pub use served_model::{ServedModel, served_models_on, upstream_model_in};

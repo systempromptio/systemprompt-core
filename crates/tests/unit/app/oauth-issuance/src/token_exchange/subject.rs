@@ -11,10 +11,10 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
-use systemprompt_oauth_issuance::IssuanceError;
 use systemprompt_oauth_issuance::token_exchange::subject::{
     jwks_host_allowlist, validate_subject_token,
 };
+use systemprompt_oauth_issuance::{IssuanceError, JwksCache};
 use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, mint_admin_jwt};
 
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
@@ -53,6 +53,7 @@ async fn rejects_unsupported_subject_token_type() {
         &token,
         "urn:ietf:params:oauth:token-type:refresh_token",
         &config(),
+        &JwksCache::new(),
     )
     .await);
 
@@ -68,7 +69,8 @@ async fn accepts_the_three_declared_subject_token_types() {
     let config = config();
 
     for token_type in [ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE] {
-        let message = err(validate_subject_token(&token, token_type, &config).await);
+        let message =
+            err(validate_subject_token(&token, token_type, &config, &JwksCache::new()).await);
         assert!(
             !message.contains("subject_token_type"),
             "{token_type} must pass the type check and fail later: {message}"
@@ -78,7 +80,11 @@ async fn accepts_the_three_declared_subject_token_types() {
 
 #[tokio::test]
 async fn rejects_a_malformed_jwt_header() {
-    let message = err(validate_subject_token("not-a-jwt", ACCESS_TOKEN_TYPE, &config()).await);
+    let message =
+        err(
+            validate_subject_token("not-a-jwt", ACCESS_TOKEN_TYPE, &config(), &JwksCache::new())
+                .await,
+        );
 
     assert!(message.contains("malformed JWT header"), "{message}");
 }
@@ -90,7 +96,8 @@ async fn rejects_an_untrusted_issuer() {
         r#"{"iss":"https://attacker.test"}"#,
     );
 
-    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config()).await);
+    let message =
+        err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config(), &JwksCache::new()).await);
 
     assert!(
         message.contains("is not trusted") && message.contains("https://attacker.test"),
@@ -111,7 +118,8 @@ async fn rejects_a_trusted_issuer_token_with_no_kid() {
     }];
     let token = unsigned_jwt(r#"{"alg":"RS256"}"#, r#"{"iss":"https://idp.test"}"#);
 
-    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config).await);
+    let message =
+        err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config, &JwksCache::new()).await);
 
     assert!(message.contains("must carry a kid header"), "{message}");
 }
@@ -124,7 +132,8 @@ async fn rejects_a_self_issued_token_that_is_not_rs256() {
         &format!(r#"{{"iss":"{}"}}"#, config.jwt_issuer),
     );
 
-    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config).await);
+    let message =
+        err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config, &JwksCache::new()).await);
 
     assert!(message.contains("must be RS256-signed"), "{message}");
 }
@@ -138,7 +147,8 @@ async fn rejects_a_self_issued_token_with_an_unknown_kid() {
         &format!(r#"{{"iss":"{}"}}"#, config.jwt_issuer),
     );
 
-    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config).await);
+    let message =
+        err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config, &JwksCache::new()).await);
 
     assert!(message.contains("no-such-key"), "{message}");
 }
@@ -149,9 +159,14 @@ async fn accepts_a_self_issued_token_and_returns_its_scope() {
     let user = UserId::new("00000000-0000-4000-8000-0000000007e5");
     let token = mint_admin_jwt(&user, "subject@exchange.invalid", &config.jwt_issuer);
 
-    let identity = validate_subject_token(token.as_str(), ACCESS_TOKEN_TYPE, &config)
-        .await
-        .expect("a token this issuer signed must validate");
+    let identity = validate_subject_token(
+        token.as_str(),
+        ACCESS_TOKEN_TYPE,
+        &config,
+        &JwksCache::new(),
+    )
+    .await
+    .expect("a token this issuer signed must validate");
 
     assert!(
         !identity.scope.is_empty(),
@@ -181,7 +196,8 @@ async fn rejects_a_subject_token_whose_payload_is_not_base64url() {
         URL_SAFE_NO_PAD.encode(r#"{"alg":"RS256","kid":"k1"}"#)
     );
 
-    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config()).await);
+    let message =
+        err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config(), &JwksCache::new()).await);
 
     assert!(message.contains("not base64url"), "{message}");
 }
@@ -190,7 +206,8 @@ async fn rejects_a_subject_token_whose_payload_is_not_base64url() {
 async fn rejects_a_subject_token_whose_payload_carries_no_issuer() {
     let token = unsigned_jwt(r#"{"alg":"RS256","kid":"k1"}"#, r#"{"sub":"nobody"}"#);
 
-    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config()).await);
+    let message =
+        err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config(), &JwksCache::new()).await);
 
     assert!(message.contains("missing iss"), "{message}");
 }
@@ -204,7 +221,8 @@ async fn rejects_a_trusted_issuer_token_whose_jwks_cannot_be_resolved() {
         r#"{"iss":"https://idp.test"}"#,
     );
 
-    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config).await);
+    let message =
+        err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config, &JwksCache::new()).await);
 
     assert!(message.contains("JWKS resolution failed"), "{message}");
 }
@@ -243,7 +261,8 @@ async fn rejects_a_self_issued_token_with_no_kid() {
         &format!(r#"{{"iss":"{}"}}"#, config.jwt_issuer),
     );
 
-    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config).await);
+    let message =
+        err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config, &JwksCache::new()).await);
 
     assert!(
         message.contains("missing `kid` header"),

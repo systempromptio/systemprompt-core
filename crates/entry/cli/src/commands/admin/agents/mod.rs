@@ -105,7 +105,7 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
         AgentsCommands::Edit(args) => {
             edit::execute(&args, ctx.prompter(), &ctx.cli).context("Failed to edit agent")?
         },
-        AgentsCommands::Delete(args) => delete::execute(args, ctx)
+        AgentsCommands::Delete(args) => Box::pin(delete::execute(args, ctx))
             .await
             .context("Failed to delete agent")?,
         AgentsCommands::Status(args) => status::execute(args, ctx)

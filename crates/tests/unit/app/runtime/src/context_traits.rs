@@ -117,3 +117,27 @@ async fn the_extension_view_coordinates_through_the_shared_repositories() {
     assert!(view.leases().holder(&key).await.expect("holder").is_none());
     let _locks = view.advisory_locks();
 }
+
+#[tokio::test]
+async fn the_extension_view_hands_out_the_shared_background_tasks() {
+    let (ctx, _url) = context().await;
+    let view: &dyn ExtensionContext = ctx.as_ref();
+    let (release, released) = tokio::sync::oneshot::channel::<()>();
+
+    view.background_tasks()
+        .spawn("context-traits-test", async move {
+            released.await.ok();
+        });
+
+    assert_eq!(
+        ctx.background_tasks().in_flight(),
+        1,
+        "a task spawned through the extension view is tracked by the context's owner"
+    );
+    release.send(()).expect("task still waiting");
+    let outcome = ctx
+        .background_tasks()
+        .drain(std::time::Duration::from_secs(5))
+        .await;
+    assert!(outcome.is_drained());
+}

@@ -22,7 +22,7 @@ use super::wizard_prompts::{
     collect_secrets, detect_project_root, get_environment_name, print_summary, resolve_admin_email,
     setup_postgres, should_run_migrations,
 };
-use super::{SetupArgs, ai_config, common, profile, secrets, services_files};
+use super::{SetupArgs, common, profile, secrets, services_files};
 use crate::CliConfig;
 
 pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
@@ -196,10 +196,6 @@ fn write_configuration(
         primary_provider.as_ref(),
         args.force,
     )?;
-
-    if let Some(primary) = primary_provider.as_ref() {
-        ai_config::reconcile(project_root, primary, &secrets_data, config)?;
-    }
 
     Ok((secrets_data, profile_path))
 }

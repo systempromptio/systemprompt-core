@@ -66,6 +66,13 @@ pub(super) fn bundle_fingerprint(
     hash_part(&mut hasher, &to_json(content.mcp_servers)?);
     hash_part(&mut hasher, &to_json(content.disabled_mcp_servers)?);
     hash_part(&mut hasher, &to_json(content.artifacts)?);
+    for (id, files) in content.managed_plugin_files {
+        hash_part(&mut hasher, id.as_str().as_bytes());
+        for (path, file) in &files.0 {
+            hash_part(&mut hasher, path.as_bytes());
+            hash_part(&mut hasher, &file.bytes);
+        }
+    }
     hash_part(
         &mut hasher,
         content.plugins_root.as_os_str().as_encoded_bytes(),
@@ -223,6 +230,7 @@ fn hash_entry(
         sha256: aggregate,
         files,
         hooks: config.hooks.clone(),
+        publication: None,
     })
 }
 

@@ -21,10 +21,11 @@ use systemprompt_database::resilience::{
 };
 use systemprompt_manifest::services::ResilienceSettings;
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, ProviderError, Result};
 use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
 use crate::models::tools::ToolCall;
 use crate::services::schema::ProviderCapabilities;
+use systemprompt_identifiers::ProviderId;
 
 use super::provider_trait::{
     GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
@@ -67,16 +68,18 @@ impl ResilientProvider {
     fn map_err(&self, err: ResilienceError<AiError>) -> AiError {
         match err {
             ResilienceError::Inner(inner) => inner,
-            ResilienceError::CircuitOpen { .. } => AiError::CircuitOpen {
-                provider: self.provider.clone(),
+            ResilienceError::CircuitOpen { .. } => AiError::Provider(ProviderError::CircuitOpen {
+                provider: ProviderId::new(self.provider.clone()),
+            }),
+            ResilienceError::BulkheadFull { .. } => {
+                AiError::Provider(ProviderError::DependencyUnavailable {
+                    provider: ProviderId::new(self.provider.clone()),
+                })
             },
-            ResilienceError::BulkheadFull { .. } => AiError::DependencyUnavailable {
-                provider: self.provider.clone(),
-            },
-            ResilienceError::Timeout { after } => AiError::Timeout {
-                provider: self.provider.clone(),
+            ResilienceError::Timeout { after } => AiError::Provider(ProviderError::Timeout {
+                provider: ProviderId::new(self.provider.clone()),
                 after_ms: after.as_millis() as u64,
-            },
+            }),
         }
     }
 
@@ -90,9 +93,11 @@ impl ResilientProvider {
                 probe.success();
                 let provider = self.provider.clone();
                 let idle = self.guard.config().stream_idle_timeout;
-                let wrapped = guarded_stream(stream, idle, permit, move |after| AiError::Timeout {
-                    provider: provider.clone(),
-                    after_ms: after.as_millis() as u64,
+                let wrapped = guarded_stream(stream, idle, permit, move |after| {
+                    AiError::Provider(ProviderError::Timeout {
+                        provider: ProviderId::new(provider.clone()),
+                        after_ms: after.as_millis() as u64,
+                    })
                 });
                 Ok(Box::pin(wrapped))
             },

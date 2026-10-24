@@ -58,7 +58,10 @@ fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
 }
 
 fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::routes::slack::slack_router().with_state((**ctx).clone())
+    systemprompt_api::routes::slack::slack_router(
+        systemprompt_api::routes::messaging::MessagingState::guarded().expect("guarded client"),
+    )
+    .with_state((**ctx).clone())
 }
 
 #[tokio::test]

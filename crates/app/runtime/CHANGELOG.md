@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `builder::core_layer::discover_vertex_models(&mut CatalogDocument)` replaces the `ProviderRegistry` argument; the runtime's `AiService` is built from `ServicesBootstrap::catalog()`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

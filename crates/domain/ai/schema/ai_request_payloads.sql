@@ -18,3 +18,6 @@ CREATE TABLE IF NOT EXISTS ai_request_payloads (
     FOREIGN KEY (ai_request_id) REFERENCES ai_requests(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_ai_request_payloads_created_at ON ai_request_payloads(created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_request_payloads_bodies_created_at
+    ON ai_request_payloads(created_at)
+    WHERE request_body IS NOT NULL OR response_body IS NOT NULL;

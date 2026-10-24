@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{QuotaSubjectKind, UserId};
 use systemprompt_traits::{OwnerReassignment, ReassignedRows};
 
 
@@ -56,8 +56,9 @@ impl OwnerReassignment for AiOwnerReassignment {
         // renaming would collide with the target's own bucket for the same
         // window, and the target's consumption is the surviving record.
         let quota_buckets = sqlx::query!(
-            "DELETE FROM ai_quota_buckets WHERE subject_kind = 'user' AND subject_id = $1",
-            from.as_str()
+            "DELETE FROM ai_quota_buckets WHERE subject_kind = $2 AND subject_id = $1",
+            from.as_str(),
+            QuotaSubjectKind::User.as_str()
         )
         .execute(&mut *tx)
         .await

@@ -27,10 +27,10 @@ use super::super::super::registry::SafetyScannerRegistry;
 use super::super::stages::recovery::redaction_marker;
 
 pub(crate) async fn run_request_safety_scan(
+    registry: &SafetyScannerRegistry,
     request: &CanonicalRequest,
     safety: &SafetyConfig,
 ) -> Vec<Finding> {
-    let registry = SafetyScannerRegistry::global();
     let scan_history = safety.history != SafetyHistoryMode::Off;
     let mut findings = Vec::new();
     for name in &safety.scanners {
@@ -183,12 +183,12 @@ pub fn persisted_excerpt(finding: &Finding, safety: &SafetyConfig) -> Option<Str
 }
 
 pub(crate) async fn run_response_safety_scan(
+    registry: &SafetyScannerRegistry,
     safety_repo: &AiSafetyFindingRepository,
     ai_request_id: &AiRequestId,
     response: &CanonicalResponse,
     safety: &SafetyConfig,
 ) -> Vec<Finding> {
-    let registry = SafetyScannerRegistry::global();
     let mut findings = Vec::new();
     for name in &safety.scanners {
         if let Some(scanner) = registry.create(name, safety) {

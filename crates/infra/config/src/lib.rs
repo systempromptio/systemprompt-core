@@ -72,9 +72,9 @@ pub use paths::{
 };
 pub use private_file::write_private_atomic;
 pub use services::{
-    ConfigValidationError, ModelSpec, ProviderCatalogService, ProviderSpec, SecurityChange,
-    SecurityConfigService, SecurityUpdate, generate_schema, validate_config, validate_yaml_file,
-    validate_yaml_str,
+    ConfigValidationError, CredentialSpec, EndpointSpec, ModelSpec, ProviderCatalogService,
+    ProviderSpec, SecurityChange, SecurityConfigService, SecurityUpdate, generate_schema,
+    read_catalog, validate_config, validate_yaml_file, validate_yaml_str, write_catalog,
 };
 pub use skill_validator::SkillConfigValidator;
 pub use state_dir::{StateDirError, StateDirsError, create_state_dir, ensure_state_dirs_writable};

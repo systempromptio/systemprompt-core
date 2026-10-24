@@ -4,14 +4,20 @@
 //! `services/agents/<name>.yaml`: input validation, shaping a full
 //! [`AgentConfig`] from an [`AgentCreateRequest`], applying
 //! [`AgentEditRequest`] mutations to an in-memory config, and deleting agent
-//! files through [`ConfigWriter`]. Interactive prompting, profile resolution,
-//! and post-write configuration reloads stay with the caller. All failures
-//! surface as [`ConfigAuthoringError`].
+//! files through [`ConfigWriter`]. An agent created without a model takes,
+//! for a given provider, the first model core's default catalog deploys on it
+//! ([`DefaultCatalog`]), else the install catalog's `gateway.default_model`
+//! (core's default catalog when no services tree loads); without a provider
+//! it takes the provider serving that model's first enabled deployment.
+//! Interactive prompting, profile resolution, and post-write configuration
+//! reloads stay with the caller. All failures surface as
+//! [`ConfigAuthoringError`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod edit;
+mod request;
 mod set_value;
 
 use std::fs;
@@ -19,15 +25,18 @@ use std::path::PathBuf;
 
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::{ConfigWriteError, ConfigWriter};
+use systemprompt_manifest::services::catalog::{CatalogContext, DefaultCatalog};
 use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
-    ProviderRegistry,
 };
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::plugin::PluginComponentRef;
 use thiserror::Error;
 
-pub use edit::AgentEditRequest;
+pub use request::{
+    AgentCapabilityFlags, AgentCardEdit, AgentCardLinks, AgentCreateRequest, AgentEditRequest,
+    AgentModelChoice, AgentPlacement, MembershipEdit, SystemPromptSource,
+};
 
 #[derive(Debug, Error)]
 pub enum ConfigAuthoringError {
@@ -68,41 +77,23 @@ pub enum ConfigAuthoringError {
     #[error(transparent)]
     Write(#[from] ConfigWriteError),
 
-    #[error("No provider given and services config declares no ai.default_provider")]
-    NoDefaultProvider,
+    #[error("No model given and the catalog declares no gateway.default_model")]
+    NoDefaultModel,
 
-    #[error("No model given and the provider catalogue lists no model for provider '{0}'")]
-    NoDefaultModel(String),
+    #[error("No model given and core's default catalog deploys no model on provider '{0}'")]
+    NoModelForProvider(String),
+
+    #[error("Model '{0}' has no deployment on an enabled provider")]
+    ModelNotServable(String),
 
     #[error("Failed to load services config for defaults: {0}")]
     ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
 
-    #[error("Failed to load the provider catalogue for defaults: {0}")]
-    ProviderCatalog(#[from] systemprompt_manifest::services::ProviderRegistryError),
-}
+    #[error("The catalog does not resolve: {0}")]
+    Catalog(#[from] systemprompt_manifest::services::catalog::CatalogError),
 
-#[derive(Debug, Clone, Default)]
-pub struct AgentCreateRequest {
-    pub name: String,
-    pub port: u16,
-    pub display_name: String,
-    pub description: String,
-    pub system_prompt: String,
-    pub enabled: bool,
-    pub endpoint: Option<String>,
-    pub dev_only: bool,
-    pub is_primary: bool,
-    pub default: bool,
-    pub version: Option<String>,
-    pub icon_url: Option<String>,
-    pub documentation_url: Option<String>,
-    pub streaming: Option<bool>,
-    pub push_notifications: Option<bool>,
-    pub extended_agent_card: Option<bool>,
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub mcp_servers: Vec<String>,
-    pub skills: Vec<String>,
+    #[error("Core's default catalog is unreadable: {0}")]
+    DefaultCatalog(#[from] systemprompt_manifest::services::catalog::CatalogDocumentError),
 }
 
 #[derive(Debug, Clone)]
@@ -182,15 +173,9 @@ impl AgentConfigAuthoringService {
 fn build_agent_config(
     mut request: AgentCreateRequest,
 ) -> Result<AgentConfig, ConfigAuthoringError> {
-    let provider = match request.provider.take() {
-        Some(provider) => provider,
-        None => default_provider()?,
-    };
-    let model = match request.model.take() {
-        Some(model) => model,
-        None => default_model_for(&provider)?,
-    };
-    let endpoint = match request.endpoint.take() {
+    let (provider, model) =
+        agent_defaults(request.model.provider.take(), request.model.model.take())?;
+    let endpoint = match request.placement.endpoint.take() {
         Some(endpoint) => endpoint,
         None => ApiPaths::agent_endpoint(&AgentName::new(&request.name)),
     };
@@ -200,24 +185,27 @@ fn build_agent_config(
         port: request.port,
         endpoint,
         enabled: request.enabled,
-        dev_only: request.dev_only,
-        is_primary: request.is_primary,
-        default: request.default,
+        dev_only: request.placement.dev_only,
+        is_primary: request.placement.is_primary,
+        default: request.placement.default,
         tags: Vec::new(),
         card: AgentCardConfig {
             protocol_version: crate::A2A_PROTOCOL_VERSION.to_owned(),
             name: Some(request.name),
             display_name: request.display_name,
             description: request.description,
-            version: request.version.unwrap_or_else(|| "1.0.0".to_owned()),
+            version: request
+                .card_links
+                .version
+                .unwrap_or_else(|| "1.0.0".to_owned()),
             preferred_transport: "JSONRPC".to_owned(),
-            icon_url: request.icon_url,
-            documentation_url: request.documentation_url,
+            icon_url: request.card_links.icon_url,
+            documentation_url: request.card_links.documentation_url,
             provider: None,
             capabilities: CapabilitiesConfig {
-                streaming: request.streaming.unwrap_or(true),
-                push_notifications: request.push_notifications.unwrap_or(false),
-                extended_agent_card: request.extended_agent_card.unwrap_or(false),
+                streaming: request.capabilities.streaming.unwrap_or(true),
+                push_notifications: request.capabilities.push_notifications.unwrap_or(false),
+                extended_agent_card: request.capabilities.extended_agent_card.unwrap_or(false),
             },
             default_input_modes: vec!["text/plain".to_owned()],
             default_output_modes: vec!["text/plain".to_owned()],
@@ -242,18 +230,48 @@ fn build_agent_config(
     })
 }
 
-fn default_provider() -> Result<String, ConfigAuthoringError> {
-    let services = systemprompt_loader::ConfigLoader::load()?;
-    if services.ai.default_provider.is_empty() {
-        return Err(ConfigAuthoringError::NoDefaultProvider);
+fn agent_defaults(
+    provider: Option<String>,
+    model: Option<String>,
+) -> Result<(String, String), ConfigAuthoringError> {
+    match (provider, model) {
+        (Some(provider), Some(model)) => Ok((provider, model)),
+        (Some(provider), None) => {
+            let model = default_model_for(&provider)?;
+            Ok((provider, model))
+        },
+        (None, model) => {
+            let catalog = match systemprompt_loader::ConfigLoader::load() {
+                Ok(services) => services.resolve_catalog(&CatalogContext::default())?,
+                Err(_) => DefaultCatalog::document()?.resolve(&CatalogContext::default())?,
+            };
+            let model = match model {
+                Some(model) => model,
+                None => catalog
+                    .default_model()
+                    .map(|m| m.as_str().to_owned())
+                    .ok_or(ConfigAuthoringError::NoDefaultModel)?,
+            };
+            let provider = catalog
+                .enabled_hops(&model)
+                .next()
+                .map(|hop| hop.provider.as_str().to_owned())
+                .ok_or_else(|| ConfigAuthoringError::ModelNotServable(model.clone()))?;
+            Ok((provider, model))
+        },
     }
-    Ok(services.ai.default_provider)
 }
 
 fn default_model_for(provider: &str) -> Result<String, ConfigAuthoringError> {
-    let registry = ProviderRegistry::default_seed()?;
-    registry
-        .find_provider(provider)
-        .and_then(|entry| entry.models.first().map(|m| m.id.as_str().to_owned()))
-        .ok_or_else(|| ConfigAuthoringError::NoDefaultModel(provider.to_owned()))
+    let document = DefaultCatalog::document()?;
+    document
+        .deployments
+        .iter()
+        .find(|(_, targets)| {
+            targets
+                .first()
+                .is_some_and(|t| t.endpoint().provider.as_str() == provider)
+        })
+        .map(|(model, _)| model.as_str().to_owned())
+        .ok_or_else(|| ConfigAuthoringError::NoModelForProvider(provider.to_owned()))
 }

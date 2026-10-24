@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Own the base-tree hash memo on ManagedRepository.
+- Build the imported plugin config in its own step.
+- Replace glob re-exports with explicit lists.
+- Own the verified-revision memo on ManagedRepository.
+- One task-state parser, no serde aliases, shared port defaults.
+- One HostKind with seven ids, app distinct from CLI.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

@@ -142,6 +142,7 @@ pub(crate) fn read_string(
 }
 
 fn open_key_for_read(hive: HKEY, subkey: &str) -> Result<Option<OwnedKey>, ConfigStoreError> {
+    let target = subkey;
     let subkey: Vec<u16> = subkey.encode_utf16().chain(std::iter::once(0)).collect();
     let mut handle: HKEY = std::ptr::null_mut();
     // SAFETY: `hive` is a predefined HKEY, `subkey` is a NUL-terminated UTF-16
@@ -160,9 +161,11 @@ fn open_key_for_read(hive: HKEY, subkey: &str) -> Result<Option<OwnedKey>, Confi
     } else if status == ERROR_FILE_NOT_FOUND {
         Ok(None)
     } else {
-        Err(ConfigStoreError::Backend(format!(
-            "RegOpenKeyExW failed with status {status}"
-        )))
+        Err(ConfigStoreError::Win32 {
+            call: "RegOpenKeyExW",
+            target: target.to_owned(),
+            status,
+        })
     }
 }
 
@@ -186,14 +189,17 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
         return Ok(None);
     }
     if probe != ERROR_SUCCESS && probe != ERROR_MORE_DATA {
-        return Err(ConfigStoreError::Backend(format!(
-            "RegQueryValueExW probe failed with status {probe}"
-        )));
+        return Err(ConfigStoreError::Win32 {
+            call: "RegQueryValueExW",
+            target: name.to_owned(),
+            status: probe,
+        });
     }
     if value_type != REG_SZ {
-        return Err(ConfigStoreError::Backend(format!(
-            "registry value {name} has type {value_type}, expected REG_SZ"
-        )));
+        return Err(ConfigStoreError::InvalidValue {
+            location: format!("registry value {name} (type {value_type})"),
+            expected: "REG_SZ",
+        });
     }
     if byte_len == 0 {
         return Ok(Some(String::new()));
@@ -214,14 +220,17 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
         )
     };
     if status != ERROR_SUCCESS {
-        return Err(ConfigStoreError::Backend(format!(
-            "RegQueryValueExW read failed with status {status}"
-        )));
+        return Err(ConfigStoreError::Win32 {
+            call: "RegQueryValueExW",
+            target: name.to_owned(),
+            status,
+        });
     }
     if value_type != REG_SZ || !final_len.is_multiple_of(2) || final_len > byte_len {
-        return Err(ConfigStoreError::Backend(format!(
-            "registry value {name} changed type or has malformed UTF-16"
-        )));
+        return Err(ConfigStoreError::InvalidValue {
+            location: format!("registry value {name}"),
+            expected: "a stable REG_SZ with well-formed UTF-16",
+        });
     }
     let final_wide = (final_len as usize) / 2;
     let slice = &buffer[..final_wide.min(buffer.len())];

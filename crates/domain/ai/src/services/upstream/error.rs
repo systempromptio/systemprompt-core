@@ -1,4 +1,4 @@
-//! Failures resolving a catalog provider into a sendable upstream.
+//! Failures resolving a catalog endpoint into a sendable upstream.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,38 +12,46 @@ pub enum UpstreamTargetError {
     #[error("secrets are not available: {0}")]
     SecretsUnavailable(#[source] BoxedSource),
 
-    #[error("provider '{provider}' secret '{secret}' is not configured")]
-    MissingSecret { provider: String, secret: String },
+    #[error("endpoint '{endpoint}' is not in the resolved catalog")]
+    UnknownEndpoint { endpoint: String },
+
+    #[error("credential '{credential}' secret '{secret}' is not configured")]
+    MissingSecret { credential: String, secret: String },
 
     #[error(
-        "provider '{provider}' is served only from a personal key the caller stores for \
-         themselves; no deployment secret serves it"
+        "credential '{credential}' is personal: each member stores their own key, so no \
+         deployment secret serves it"
     )]
-    UserCredentialProvider { provider: String },
+    PersonalCredential { credential: String },
 
-    #[error("secret '{secret}' declares a Google service account but is malformed: {source}")]
+    #[error(
+        "credential '{credential}' declares a Google service account but is malformed: {source}"
+    )]
     MalformedCredential {
-        secret: String,
+        credential: String,
         #[source]
         source: CredentialError,
     },
 
     #[error(
-        "provider '{provider}' is hosted on Vertex AI, which accepts only a Google service-account \
-         key for this wire; secret '{secret}' holds an API key"
+        "endpoint '{endpoint}' is hosted on Vertex AI, which accepts only a Google \
+         service-account key for this wire; credential '{credential}' holds an API key"
     )]
-    ApiKeyOnVertex { provider: String, secret: String },
+    ApiKeyOnVertex {
+        endpoint: String,
+        credential: String,
+    },
 
-    #[error("provider '{provider}' endpoint cannot be resolved: {source}")]
+    #[error("endpoint '{endpoint}' URL cannot be resolved: {source}")]
     Endpoint {
-        provider: String,
+        endpoint: String,
         #[source]
         source: CredentialError,
     },
 
-    #[error("could not mint a Google access token from secret '{secret}': {source}")]
+    #[error("could not mint a Google access token for credential '{credential}': {source}")]
     Mint {
-        secret: String,
+        credential: String,
         #[source]
         source: CredentialError,
     },

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Added
+
+- `CredentialId` and `EndpointId`, the keys of `services/ai/credentials.yaml` and of a provider's `endpoints:`.
+## [Unreleased]
+
+### Breaking
+
+- `ClientSessionId` accepts any 1–128 character printable ASCII token with no whitespace; it no longer requires a lowercase hyphenated UUID. `from_metadata_user_id` still normalises the UUID it parses.
+
+### Added
+
+- `TenantId::organization_uuid` is the one derivation of the organisation UUID hosts are configured with (it replaces `systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid`).
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

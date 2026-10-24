@@ -80,18 +80,15 @@ pub(super) async fn create_new_session(
         .await;
     }
 
-    CredentialsBootstrap::try_init()
+    let creds = CredentialsBootstrap::load()
         .await
-        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
-
-    let creds = CredentialsBootstrap::require()
-        .map_err(|_e| {
+        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?
+        .ok_or_else(|| {
             anyhow::anyhow!(
                 "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
                  authenticate."
             )
-        })?
-        .clone();
+        })?;
 
     crate::session::creation::create_session_for_tenant(
         crate::session::creation::TenantSessionParams {

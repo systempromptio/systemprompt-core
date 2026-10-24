@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Load prerender assets per run and split prerender utils by responsibility.
+- Name temp files with a random suffix, not a process counter.
+
 ## [0.70.0] - 2026-10-18
 
 ### Changed

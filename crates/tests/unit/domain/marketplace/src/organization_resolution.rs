@@ -46,7 +46,7 @@ async fn organization_grants_preserve_exact_publication_and_revocation() {
     let (_dir, disk) = disk_catalog_with(&f.key);
     let granted = disk
         .clone()
-        .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
+        .with_organization_resources(f.repository.clone(), &f.owner, &consumer.owner)
         .await
         .expect("catalog");
     assert!(granted.as_content().skills.iter().any(|skill| {
@@ -71,7 +71,7 @@ async fn organization_grants_preserve_exact_publication_and_revocation() {
         SkillResolution::Withheld(WithheldReason::NotGranted)
     );
     let denied = disk
-        .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
+        .with_organization_resources(f.repository.clone(), &f.owner, &consumer.owner)
         .await
         .expect("catalog");
     assert!(denied.as_content().skills.is_empty());
@@ -132,7 +132,7 @@ async fn anonymous_catalog_withholds_managed_keys_but_preserves_public_disk() {
     )
     .expect("disk");
     let anonymous = disk
-        .without_organization_skills(f.repository, &f.owner)
+        .without_organization_resources(f.repository, &f.owner)
         .await
         .expect("anonymous");
     assert_eq!(anonymous.as_content().skills.len(), 1);
@@ -172,7 +172,7 @@ async fn organization_key_never_falls_through_to_personal_shadow() {
     );
     let (_dir, disk) = disk_catalog_with(&f.key);
     let catalog = disk
-        .with_organization_skills(f.repository, &f.owner, &personal.owner)
+        .with_organization_resources(f.repository, &f.owner, &personal.owner)
         .await
         .expect("catalog");
     assert!(catalog.as_content().skills.is_empty());
@@ -221,7 +221,7 @@ async fn catalog_includes_published_skill_without_grant() {
     let resolver = OrganizationSkillResolver::new(f.repository.clone(), f.owner.clone());
     let (_dir, disk) = disk_catalog_with(&f.key);
     let catalog = disk
-        .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
+        .with_organization_resources(f.repository.clone(), &f.owner, &consumer.owner)
         .await
         .expect("catalog");
     assert!(catalog.as_content().skills.iter().any(|skill| {
@@ -257,7 +257,7 @@ async fn explicit_revocation_withholds_from_catalog() {
     let (_dir, disk) = disk_catalog_with(&f.key);
     let denied = disk
         .clone()
-        .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
+        .with_organization_resources(f.repository.clone(), &f.owner, &consumer.owner)
         .await
         .expect("catalog");
     assert!(denied.as_content().skills.is_empty());
@@ -267,7 +267,7 @@ async fn explicit_revocation_withholds_from_catalog() {
         .await
         .expect("retention cannot regrant");
     let still_denied = disk
-        .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
+        .with_organization_resources(f.repository.clone(), &f.owner, &consumer.owner)
         .await
         .expect("catalog");
     assert!(still_denied.as_content().skills.is_empty());

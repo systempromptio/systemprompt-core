@@ -172,8 +172,8 @@ fn bearer_header(authorization: &str) -> BTreeMap<String, String> {
 }
 
 const WILDCARD_MATCHER: &str = "*";
-const HOST_HEADER: &str = "x-systemprompt-host";
-const DEVICE_CREDENTIAL_HEADER: &str = "x-systemprompt-device-credential";
+const HOST_HEADER: &str = crate::headers::HOST;
+const DEVICE_CREDENTIAL_HEADER: &str = crate::headers::DEVICE_CREDENTIAL;
 const DEFAULT_TIMEOUT_SECS: u32 = 10;
 
 const TRACK_EVENTS: &[&str] = &[

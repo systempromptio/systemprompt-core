@@ -1,9 +1,10 @@
 //! Config-section model and YAML helpers shared across the `admin config` tree.
 //!
 //! [`ConfigSection`] enumerates the profile and per-service config locations
-//! — including the provider catalog and gateway routes, which are services
-//! files (`ai/providers.yaml`, `ai/gateway.yaml`) rather than profile sections
-//! — and resolves them to filesystem paths, while [`read_yaml_file`] and
+//! — including the model catalog (`ai/{credentials,providers,models,
+//! deployments}.yaml`) and the gateway (`ai/gateway.yaml`), services files the
+//! loader reads by convention rather than profile sections — and resolves them
+//! to filesystem paths, while [`read_yaml_file`] and
 //! [`write_yaml_file`] back the editing commands. The remaining types are the
 //! serializable outputs rendered by the list, validate, and import/export
 //! flows.
@@ -22,8 +23,14 @@ use super::rate_limit_types::ResetChange;
 
 pub const PROVIDERS_FILE_RELATIVE: &str = "ai/providers.yaml";
 pub const GATEWAY_FILE_RELATIVE: &str = "ai/gateway.yaml";
-pub const PROVIDERS_INCLUDE_RELATIVE: &str = "../ai/providers.yaml";
-pub const GATEWAY_INCLUDE_RELATIVE: &str = "../ai/gateway.yaml";
+
+fn catalog_files(services_path: &Path) -> Vec<PathBuf> {
+    systemprompt_manifest::services::catalog::CATALOG_FILES
+        .iter()
+        .filter(|name| **name != "gateway.yaml")
+        .map(|name| services_path.join("ai").join(name))
+        .collect()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidateOutput {
@@ -147,14 +154,16 @@ impl ConfigSection {
         match self {
             Self::Profile => Ok(vec![profile_path.to_path_buf()]),
             Self::Services => Ok(vec![services_path.join("config/config.yaml")]),
-            Self::Ai => Ok(Self::collect_yaml_files(&services_path.join("ai"))?
-                .into_iter()
-                .filter(|p| {
-                    p != &services_path.join(PROVIDERS_FILE_RELATIVE)
-                        && p != &services_path.join(GATEWAY_FILE_RELATIVE)
-                })
-                .collect()),
-            Self::Providers => Ok(vec![services_path.join(PROVIDERS_FILE_RELATIVE)]),
+            Self::Ai => {
+                let catalog = catalog_files(services_path);
+                Ok(Self::collect_yaml_files(&services_path.join("ai"))?
+                    .into_iter()
+                    .filter(|p| {
+                        !catalog.contains(p) && p != &services_path.join(GATEWAY_FILE_RELATIVE)
+                    })
+                    .collect())
+            },
+            Self::Providers => Ok(catalog_files(services_path)),
             Self::Gateway => Ok(vec![services_path.join(GATEWAY_FILE_RELATIVE)]),
             Self::Content => Self::collect_yaml_files(&services_path.join("content")),
             Self::Web => Self::collect_yaml_files(&services_path.join("web")),

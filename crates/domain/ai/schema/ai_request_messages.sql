@@ -12,3 +12,4 @@ CREATE TABLE IF NOT EXISTS ai_request_messages (
     UNIQUE(request_id, sequence_number)
 );
 CREATE INDEX IF NOT EXISTS idx_ai_request_messages_role ON ai_request_messages(role);
+CREATE INDEX IF NOT EXISTS idx_ai_request_messages_created_at ON ai_request_messages(created_at);

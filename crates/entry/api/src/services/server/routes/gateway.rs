@@ -17,7 +17,7 @@ pub(super) fn mount_gateway(
     mount: &MountCtx<'_>,
 ) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
-    let gateway = crate::routes::gateway::gateway_mount_router(ctx, mount.limits)
+    let gateway = crate::routes::gateway::gateway_mount_router(ctx, mount.limits, mount.engines)
         .map_err(|source| RouteMountError::initialization("gateway", source))?;
     router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
     router = router.nest(

@@ -58,6 +58,7 @@ impl std::fmt::Debug for ConfigPlane {
         f.debug_struct("ConfigPlane")
             .field("config", &"Config")
             .field("app_paths", &"AppPaths")
+            .field("files_config", &self.files_config)
             .field("content_config", &self.content_config.is_some())
             .field("route_classifier", &"RouteClassifier")
             .finish()
@@ -79,6 +80,7 @@ impl std::fmt::Debug for Subsystems {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Subsystems")
             .field("system_admin", &self.system_admin.username())
+            .field("logging", &self.logging)
             .field("authz_hook", &"SharedAuthzHook")
             .field("governance", &self.governance)
             .field("cache_epochs", &self.cache_epochs)
@@ -98,6 +100,7 @@ impl std::fmt::Debug for Subsystems {
                 &self.background_tasks.in_flight(),
             )
             .field("publish_guard", &"Mutex<PublishGuard>")
+            .field("connector_tokens", &"TokenCache")
             .finish()
     }
 }

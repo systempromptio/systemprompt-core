@@ -124,19 +124,18 @@ fn mcp_section_marks_derived_endpoints() {
 }
 
 #[test]
-fn ai_section_skips_empty_provider_and_model_fields() {
-    let ai: AiConfig = serde_yaml::from_str(
-        "default_provider: anthropic\nproviders:\n  anthropic:\n    enabled: true\n    default_model: claude\n  bare:\n    enabled: false\n",
-    )
-    .unwrap();
+fn ai_section_shows_only_the_policy_fields_that_are_set() {
+    let ai: AiConfig =
+        serde_yaml::from_str("default_image_model: gpt-image-1\ndefault_max_output_tokens: 2048\n")
+            .unwrap();
 
     let lines = render_ai_section(&ai);
     let kvs = key_values(&lines);
-    assert!(kvs.contains(&("  default_provider".to_owned(), "anthropic".to_owned())));
-    assert!(kvs.contains(&("    default_model".to_owned(), "claude".to_owned())));
+    assert!(kvs.contains(&("  default_image_model".to_owned(), "gpt-image-1".to_owned())));
+    assert!(kvs.contains(&("  default_max_output_tokens".to_owned(), "2048".to_owned())));
     assert_eq!(kvs.len(), 2);
 
-    let empty: AiConfig = serde_yaml::from_str("providers: {}\n").unwrap();
+    let empty: AiConfig = serde_yaml::from_str("{}\n").unwrap();
     let lines = render_ai_section(&empty);
     assert_eq!(
         lines,
@@ -255,7 +254,7 @@ fn formatted_config_renders_every_section_when_all_are_present() {
     let agents: HashMap<String, AgentConfig> = HashMap::new();
     let mcp: HashMap<String, Deployment> = HashMap::new();
     let skills: SkillsConfig = serde_yaml::from_str("enabled: true\nskills: {}\n").unwrap();
-    let ai: AiConfig = serde_yaml::from_str("providers: {}\n").unwrap();
+    let ai: AiConfig = serde_yaml::from_str("{}\n").unwrap();
     let content: ContentConfigRaw = serde_yaml::from_str("content_sources: {}\n").unwrap();
 
     let config = FullConfig::empty()

@@ -78,7 +78,7 @@ impl UpstreamDialect {
     #[must_use]
     pub const fn api_key_header(self) -> Option<&'static str> {
         match self.wire {
-            WireProtocol::Anthropic => Some("x-api-key"),
+            WireProtocol::Anthropic => Some(systemprompt_identifiers::headers::API_KEY),
             WireProtocol::Gemini => Some(gemini::API_KEY_HEADER),
             WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => None,
         }

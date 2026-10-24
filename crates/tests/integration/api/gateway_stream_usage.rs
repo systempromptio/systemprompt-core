@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use systemprompt_gateway::protocol::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::service::GatewayService;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -79,7 +79,7 @@ async fn run(label: &str, include_usage: bool) -> anyhow::Result<String> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let di = inputs_with(&cred, request, true, adapter, raw);
 

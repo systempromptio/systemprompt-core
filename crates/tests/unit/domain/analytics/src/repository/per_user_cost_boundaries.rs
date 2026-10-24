@@ -5,7 +5,7 @@ use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
 use uuid::Uuid;
 
 #[tokio::test]
-async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_requests() {
+async fn per_user_cost_context_queries_exclude_other_users_and_evaluation_traffic() {
     let database = DisposableDb::with_schema("analytics_per_user_cost_boundaries").await;
     let pool = database.test_pool().await;
     let raw = pool.write_pool();
@@ -46,15 +46,23 @@ async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_request
         .expect("insert reporting context");
     }
 
-    for (index, user, context, model, cost, synthetic, created_at) in [
-        (1, &owner, &first_context, "model-a", 110_i64, false, base),
+    for (index, user, context, model, cost, traffic, created_at) in [
+        (
+            1,
+            &owner,
+            &first_context,
+            "model-a",
+            110_i64,
+            "production",
+            base,
+        ),
         (
             2,
             &owner,
             &recent_context,
             "model-b",
             220,
-            false,
+            "production",
             base + Duration::minutes(1),
         ),
         (
@@ -63,7 +71,7 @@ async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_request
             &recent_context,
             "model-b",
             9_000,
-            true,
+            "evaluation",
             base + Duration::minutes(2),
         ),
         (
@@ -72,7 +80,7 @@ async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_request
             &other_context,
             "model-private",
             8_000,
-            false,
+            "production",
             base + Duration::minutes(3),
         ),
         (
@@ -81,13 +89,13 @@ async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_request
             &boundary_context,
             "model-at-end",
             7_000,
-            false,
+            "production",
             window_end,
         ),
     ] {
         sqlx::query(
             "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, \
-             tokens_used, cost_microdollars, status, actor_kind, actor_id, synthetic, created_at) \
+             tokens_used, cost_microdollars, status, actor_kind, actor_id, traffic, created_at) \
              VALUES ($1, $2, $3, $4, 'fixture', $5, 10, $6, 'completed', 'user', $3, $7, $8)",
         )
         .bind(format!("cost-row-{suffix}-{index}"))
@@ -96,7 +104,7 @@ async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_request
         .bind(context.as_str())
         .bind(model)
         .bind(cost)
-        .bind(synthetic)
+        .bind(traffic)
         .bind(created_at)
         .execute(raw.as_ref())
         .await
@@ -138,6 +146,24 @@ async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_request
     assert_eq!(recent[0].ai_requests, 1);
     assert_eq!(recent[0].model.as_deref(), Some("model-b"));
     assert_eq!(recent[0].context_name.as_deref(), Some("owner recent"));
+
+    let rollup: Vec<(String, i64, i64)> = sqlx::query_as(
+        "SELECT traffic, request_count, cost_microdollars FROM ai_usage_rollup_hourly \
+         WHERE user_id = $1 AND bucket = $2 ORDER BY traffic, model",
+    )
+    .bind(owner.as_str())
+    .bind(window_end - Duration::hours(1))
+    .fetch_all(raw.as_ref())
+    .await
+    .expect("owner rollup rows");
+    assert_eq!(
+        rollup,
+        vec![
+            ("evaluation".to_owned(), 1, 9_000),
+            ("production".to_owned(), 1, 110),
+            ("production".to_owned(), 1, 220),
+        ]
+    );
 
     drop(repository);
     drop(raw);

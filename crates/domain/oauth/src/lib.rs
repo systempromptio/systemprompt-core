@@ -70,13 +70,18 @@ pub(crate) mod state;
 pub use error::{OauthError, OauthErrorKind, OauthResult};
 pub use extension::OauthExtension;
 
-pub use models::*;
+pub use models::{
+    ClientRelations, CreateOAuthClientRequest, DisplayMode, DynamicRegistrationRequest,
+    DynamicRegistrationResponse, GrantType, JwtClaims, OAuthClient, OAuthClientResponse,
+    OAuthClientRow, Pagination, PkceMethod, Prompt, ResponseMode, ResponseType, TokenAuthMethod,
+    UpdateOAuthClientRequest, cimd, clients, oauth,
+};
 pub use repository::OAuthRepository;
 pub use services::providers::JwtValidationProviderImpl;
 pub use services::validation::jwt::validate_jwt_token;
 pub use services::{
     AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError,
-    SessionCreationService, TemplateEngine, TokenValidator, extract_bearer_token,
+    SessionCreationService, TemplateService, TokenValidator, extract_bearer_token,
     extract_cookie_token, is_browser_request,
 };
 

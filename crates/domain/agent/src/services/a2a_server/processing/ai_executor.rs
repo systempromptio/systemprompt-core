@@ -66,10 +66,6 @@ pub fn resolve_provider_config(
     (provider, model, max_tokens)
 }
 
-#[expect(
-    missing_debug_implementations,
-    reason = "params struct holds non-Debug references"
-)]
 pub struct SynthesizeToolResultsParams<'a> {
     pub ai_service: DynAiProvider,
     pub agent_runtime: &'a AgentRuntimeInfo,
@@ -81,6 +77,17 @@ pub struct SynthesizeToolResultsParams<'a> {
     pub tx: mpsc::Sender<StreamEvent>,
     pub request_context: RequestContext,
     pub skill_service: Arc<SkillService>,
+}
+
+impl std::fmt::Debug for SynthesizeToolResultsParams<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SynthesizeToolResultsParams")
+            .field("agent_runtime", &self.agent_runtime)
+            .field("tool_calls", &self.tool_calls.len())
+            .field("tool_results", &self.tool_results.len())
+            .field("artifacts", &self.artifacts.len())
+            .finish_non_exhaustive()
+    }
 }
 
 pub async fn synthesize_tool_results_with_artifacts(

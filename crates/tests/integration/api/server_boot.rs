@@ -109,6 +109,10 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
         },
         ConfigPlane {
             config: Arc::new(config),
+            files_config: Arc::new(systemprompt_files::FilesConfig::new(
+                app_paths.storage().root().to_path_buf(),
+                systemprompt_files::FilesConfigYaml::default(),
+            )),
             app_paths,
             content_config: None,
             route_classifier: Arc::new(RouteClassifier::new(None)),
@@ -121,6 +125,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
             governance: systemprompt_test_fixtures::default_governance_engine(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
@@ -130,7 +135,9 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 systemprompt_database::SchemaInstallReport::default(),
             )),
             event_bridge: Arc::new(OnceLock::new()),
-            event_router: systemprompt_events::EventRouter::local_only(),
+            event_router: systemprompt_events::EventRouter::local_only(Arc::new(
+                systemprompt_events::EventBroadcasters::new(),
+            )),
             geoip_reader: None,
             file_storage: systemprompt_storage::build_file_storage(
                 systemprompt_storage::FileStorageBackend::Local {
@@ -139,14 +146,19 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             ),
             shutdown: Default::default(),
             background_tasks: Default::default(),
+            connector_tokens: Arc::default(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),
         },
     ));
 
-    let router = setup_api_server(&ctx, None)
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let router = setup_api_server(
+        &ctx,
+        None,
+        &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     drop(router);
     Ok(())
 }

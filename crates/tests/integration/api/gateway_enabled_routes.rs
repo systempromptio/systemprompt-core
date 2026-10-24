@@ -31,58 +31,75 @@ use tower::ServiceExt;
 use super::common::body_to_string;
 
 const GATEWAY_YAML: &str = r#"
+credentials:
+  anthropic:
+    kind: platform
+    secret: enabled_routes_anthropic_key
+  openai:
+    kind: platform
+    secret: enabled_routes_openai_key
+  unkeyed:
+    kind: platform
+    secret: enabled_routes_unset_key
 providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: http://127.0.0.1:1
-    api_key_secret: enabled_routes_anthropic_key
-    models:
-      - id: claude-fixture-1
-        pricing:
-          input_per_million: 3.0
-          output_per_million: 15.0
-          cache_read_per_million: 0.0
-      - id: claude-fixture-2
-        pricing:
-          input_per_million: 1.0
-          output_per_million: 5.0
-          cache_read_per_million: 0.0
-  - name: openai
-    wire: openai_chat
-    surface: openai
-    endpoint: http://127.0.0.1:1
-    api_key_secret: enabled_routes_openai_key
-    models:
-      - id: gpt-fixture-1
-        pricing:
-          input_per_million: 2.5
-          output_per_million: 10.0
-          cache_read_per_million: 0.0
-  - name: unkeyed
-    wire: openai_chat
-    surface: openai
-    endpoint: http://127.0.0.1:1
-    api_key_secret: enabled_routes_unset_key
-    models:
-      - id: unkeyed-fixture-1
-        pricing:
-          input_per_million: 1.0
-          output_per_million: 1.0
-          cache_read_per_million: 0.0
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api:
+        wire: anthropic
+        url: http://127.0.0.1:1
+  openai:
+    credential: openai
+    endpoints:
+      api:
+        wire: openai-chat
+        url: http://127.0.0.1:1
+  unkeyed:
+    credential: unkeyed
+    endpoints:
+      api:
+        wire: openai-chat
+        url: http://127.0.0.1:1
+models:
+  claude-fixture-1:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 3.0
+      output_per_million: 15.0
+      cache_read_per_million: 0.0
+  claude-fixture-2:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 5.0
+      cache_read_per_million: 0.0
+  gpt-fixture-1:
+    clients:
+    - openai
+    pricing:
+      input_per_million: 2.5
+      output_per_million: 10.0
+      cache_read_per_million: 0.0
+  unkeyed-fixture-1:
+    clients:
+    - openai
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 1.0
+      cache_read_per_million: 0.0
+deployments:
+  claude-fixture-1:
+  - anthropic/api
+  claude-fixture-2:
+  - anthropic/api
+  gpt-fixture-1:
+  - openai/api
+  unkeyed-fixture-1:
+  - unkeyed/api
 gateway:
   enabled: true
-  allow_unlisted_models: false
-  routes:
-    - id: claude
-      model_pattern: "claude-*"
-      provider: anthropic
-    - id: gpt
-      model_pattern: "gpt-*"
-      provider: openai
-    - id: unkeyed
-      model_pattern: "unkeyed-*"
-      provider: unkeyed
 "#;
 
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
@@ -126,7 +143,7 @@ async fn protocol_header_is_validated_but_does_not_hide_transcodable_models() ->
 {
     let request = Request::builder()
         .uri("/models")
-        .header("x-inference-protocol", "anthropic")
+        .header("x-inference-protocol", "claude")
         .body(Body::empty())?;
     let (status, body) = body_to_string(app().await?.oneshot(request).await?).await?;
     assert_eq!(status, http::StatusCode::OK, "{body}");
@@ -186,6 +203,20 @@ async fn app() -> anyhow::Result<Router> {
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
     Ok(gateway_router(&ctx).expect("gateway router builds"))
+}
+
+async fn authed_get(uri: &str, email: &str) -> anyhow::Result<Request<Body>> {
+    boot();
+    install_test_signing_key();
+    let pool = test_db_pool().await;
+    let cred = seed_admin_credential(&pool, email).await?;
+    Ok(Request::builder()
+        .uri(uri)
+        .header(
+            header::AUTHORIZATION,
+            format!("Bearer {}", cred.jwt.as_str()),
+        )
+        .body(Body::empty())?)
 }
 
 fn get(uri: &str) -> Request<Body> {
@@ -280,7 +311,7 @@ async fn a_request_with_no_credential_is_refused_before_anything_else() -> anyho
 }
 
 #[tokio::test]
-async fn a_request_with_no_session_header_is_refused() -> anyhow::Result<()> {
+async fn a_jwt_request_with_no_session_header_binds_to_its_claim() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
     install_test_signing_key();
@@ -298,8 +329,11 @@ async fn a_request_with_no_session_header_is_refused() -> anyhow::Result<()> {
     )
     .await?;
 
-    assert_eq!(status.as_u16(), 400, "{body}");
-    assert!(body.contains(SESSION_ID), "{body}");
+    assert!(
+        status.as_u16() != 400 && status.as_u16() != 401,
+        "the credential names the session; an absent header is not an error: {status} {body}"
+    );
+    assert!(!body.contains(SESSION_ID), "{body}");
     Ok(())
 }
 
@@ -474,6 +508,7 @@ async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result
             header::AUTHORIZATION,
             format!("Bearer {}", cred.jwt.as_str()),
         )
+        .header(SESSION_ID, "sess-belonging-to-nobody")
         .body(Body::from(message_body("gpt-fixture-1").to_string()))
         .expect("request must build");
 
@@ -481,10 +516,10 @@ async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result
 
     assert_eq!(
         status.as_u16(),
-        400,
-        "the session header is mandatory on every inference wire: {body}"
+        401,
+        "a session header that contradicts the token is refused on every inference wire: {body}"
     );
-    assert!(body.contains(SESSION_ID), "{body}");
+    assert!(body.contains("X-Session-ID"), "{body}");
     Ok(())
 }
 
@@ -544,9 +579,17 @@ async fn the_gateway_root_describes_itself() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()> {
+async fn an_anonymous_bridge_profile_request_is_refused() -> anyhow::Result<()> {
     let (status, body) =
         body_to_string(app().await?.oneshot(get("/bridge/profile")).await?).await?;
+    assert_eq!(status.as_u16(), 401, "{body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()> {
+    let request = authed_get("/bridge/profile", "gw-profile@example.invalid").await?;
+    let (status, body) = body_to_string(app().await?.oneshot(request).await?).await?;
 
     assert_eq!(status.as_u16(), 200, "{body}");
     let profile: serde_json::Value = serde_json::from_str(&body)?;
@@ -567,8 +610,8 @@ async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()
 
 #[tokio::test]
 async fn the_bridge_profile_reports_which_providers_have_a_usable_key() -> anyhow::Result<()> {
-    let (status, body) =
-        body_to_string(app().await?.oneshot(get("/bridge/profile")).await?).await?;
+    let request = authed_get("/bridge/profile", "gw-profile-keys@example.invalid").await?;
+    let (status, body) = body_to_string(app().await?.oneshot(request).await?).await?;
     assert_eq!(status.as_u16(), 200, "{body}");
 
     let profile: serde_json::Value = serde_json::from_str(&body)?;

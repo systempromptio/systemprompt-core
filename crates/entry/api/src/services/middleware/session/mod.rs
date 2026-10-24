@@ -29,6 +29,7 @@ mod skip;
 pub use attestation::{SessionAttestationError, attest_session};
 pub use skip::should_skip_session_tracking;
 
+use crate::error::ApiHttpError;
 use axum::extract::{ConnectInfo, Request};
 use axum::http::header;
 use axum::middleware::Next;
@@ -37,7 +38,6 @@ use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
-use systemprompt_models::api::ApiError;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::{CookieExtractor, HeaderExtractor};
@@ -87,7 +87,7 @@ impl SessionMiddleware {
         }
     }
 
-    pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiError> {
+    pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiHttpError> {
         let caller_ip = super::client_addr::resolve_client_ip(
             request.headers(),
             request.extensions().get::<ConnectInfo<SocketAddr>>(),

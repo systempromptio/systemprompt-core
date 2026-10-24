@@ -35,7 +35,7 @@ impl UserRepository {
                  model_allowlist, budget_microdollars, max_requests, request_window_seconds,
                  purpose)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING id, user_id, name, key_prefix, key_hash,
+            RETURNING id, user_id as "user_id: UserId", name, key_prefix, key_hash,
                       created_at, last_used_at, expires_at, revoked_at,
                       model_allowlist, budget_microdollars, max_requests, request_window_seconds,
                       purpose,
@@ -88,7 +88,7 @@ impl UserRepository {
         let row = sqlx::query_as!(
             UserApiKeyRow,
             r#"
-            SELECT k.id, k.user_id, k.name, k.key_prefix, k.key_hash,
+            SELECT k.id, k.user_id as "user_id: UserId", k.name, k.key_prefix, k.key_hash,
                    k.created_at, k.last_used_at, k.expires_at, k.revoked_at,
                    k.model_allowlist, k.budget_microdollars, k.max_requests,
                    k.request_window_seconds, k.purpose,
@@ -112,7 +112,7 @@ impl UserRepository {
         let rows = sqlx::query_as!(
             UserApiKeyRow,
             r#"
-            SELECT k.id, k.user_id, k.name, k.key_prefix, k.key_hash,
+            SELECT k.id, k.user_id as "user_id: UserId", k.name, k.key_prefix, k.key_hash,
                    k.created_at, k.last_used_at, k.expires_at, k.revoked_at,
                    k.model_allowlist, k.budget_microdollars, k.max_requests,
                    k.request_window_seconds, k.purpose,

@@ -1,56 +1,122 @@
 //! OS credential-store backend for the OAuth `client_secret`.
 //!
-//! Resolves a keystore once per process (Keychain / Credential Manager / Secret
-//! Service / keyutils) and falls back to an in-memory map when none is usable.
+//! A [`SecretStore`] is resolved at the bridge's composition root: the OS
+//! keystore (Keychain / Credential Manager / Secret Service / keyutils) when
+//! one is usable, otherwise a map held by that store for the life of the
+//! process.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::PluginOAuthError;
 use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex, OnceLock};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use systemprompt_identifiers::ClientId;
 
-/// Which backend `write_secret`/`read_secret`/`delete_secret` are using.
-///
-/// Resolved exactly once, because `keyring_core`'s default store is process
-/// global and set-once.
+/// Which backend a [`SecretStore`] resolved to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecretBackend {
     Keyring,
     Memory,
 }
 
-static BACKEND: OnceLock<SecretBackend> = OnceLock::new();
-static MEMORY_SECRETS: LazyLock<Mutex<HashMap<String, String>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-
-pub fn credential_backend() -> SecretBackend {
-    resolve_backend()
+/// Where the OAuth `client_secret` is kept for this process.
+///
+/// The memory backend is the runtime fallback for hosts with no usable OS
+/// credential store (headless Linux, containers whose seccomp profile denies
+/// keyutils): the secret lives only as long as the owning store and is
+/// re-provisioned from the gateway on restart.
+#[derive(Debug)]
+pub struct SecretStore {
+    backend: OnceLock<Backend>,
 }
 
-fn resolve_backend() -> SecretBackend {
-    if let Some(known) = BACKEND.get() {
-        return *known;
+#[derive(Debug)]
+enum Backend {
+    Keyring,
+    Memory(Mutex<HashMap<ClientId, String>>),
+}
+
+impl SecretStore {
+    #[must_use]
+    pub const fn resolve() -> Self {
+        Self {
+            backend: OnceLock::new(),
+        }
     }
-    let backend = match install_store() {
-        Ok(()) => SecretBackend::Keyring,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::auth::keystore",
-                error = %e,
-                "no OS credential store available; holding the OAuth client secret in memory for \
-                 this process only. It is re-provisioned from the gateway on restart, so hooks \
-                 keep working, but a second process (e.g. `doctor`) will report no client. \
-                 Install a Secret Service provider (gnome-keyring), or allow kernel keyrings \
-                 (docker: --security-opt seccomp=unconfined), to make it persistent."
-            );
-            SecretBackend::Memory
-        },
-    };
-    *BACKEND.get_or_init(|| backend)
+
+    fn backend_ref(&self) -> &Backend {
+        self.backend.get_or_init(|| match install_store() {
+            Ok(()) => Backend::Keyring,
+            Err(e) => {
+                tracing::warn!(
+                    target: "bridge::auth::keystore",
+                    error = %e,
+                    "no OS credential store available; holding the OAuth client secret in memory \
+                     for this process only. It is re-provisioned from the gateway on restart, so \
+                     hooks keep working, but a second process (e.g. `doctor`) will report no \
+                     client. Install a Secret Service provider (gnome-keyring), or allow kernel \
+                     keyrings (docker: --security-opt seccomp=unconfined), to make it persistent."
+                );
+                Backend::Memory(Mutex::new(HashMap::new()))
+            },
+        })
+    }
+
+    #[must_use]
+    pub fn backend(&self) -> SecretBackend {
+        match self.backend_ref() {
+            Backend::Keyring => SecretBackend::Keyring,
+            Backend::Memory(_) => SecretBackend::Memory,
+        }
+    }
+
+    pub(super) fn write(&self, client_id: &ClientId, secret: &str) -> Result<(), PluginOAuthError> {
+        match self.backend_ref() {
+            Backend::Keyring => keyring_entry(client_id)?
+                .set_password(secret)
+                .map_err(PluginOAuthError::Keyring),
+            Backend::Memory(map) => {
+                lock(map)?.insert(client_id.clone(), secret.to_owned());
+                Ok(())
+            },
+        }
+    }
+
+    pub(super) fn read(&self, client_id: &ClientId) -> Result<Option<String>, PluginOAuthError> {
+        match self.backend_ref() {
+            Backend::Keyring => match keyring_entry(client_id)?.get_password() {
+                Ok(s) => Ok(Some(s)),
+                Err(keyring_core::Error::NoEntry) => Ok(None),
+                Err(e) => Err(PluginOAuthError::Keyring(e)),
+            },
+            Backend::Memory(map) => Ok(lock(map)?.get(client_id).cloned()),
+        }
+    }
+
+    pub(super) fn delete(&self, client_id: &ClientId) -> Result<(), PluginOAuthError> {
+        match self.backend_ref() {
+            Backend::Keyring => match keyring_entry(client_id)?.delete_credential() {
+                Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+                Err(e) => Err(PluginOAuthError::Keyring(e)),
+            },
+            Backend::Memory(map) => {
+                lock(map)?.remove(client_id);
+                Ok(())
+            },
+        }
+    }
 }
 
+fn lock(
+    map: &Mutex<HashMap<ClientId, String>>,
+) -> Result<MutexGuard<'_, HashMap<ClientId, String>>, PluginOAuthError> {
+    map.lock()
+        .map_err(|_poisoned| PluginOAuthError::MemoryStorePoisoned)
+}
+
+// Why: `keyring_core`'s default store is process global and set-once, so a
+// store installed earlier in the process (by another `SecretStore`) is reused.
 fn install_store() -> Result<(), PluginOAuthError> {
     if keyring_core::get_default_store().is_some() {
         return Ok(());
@@ -118,47 +184,4 @@ fn probe_store(
 fn keyring_entry(client_id: &ClientId) -> Result<keyring_core::Entry, PluginOAuthError> {
     keyring_core::Entry::new(crate::brand::brand().keyring_service, client_id.as_str())
         .map_err(PluginOAuthError::Keyring)
-}
-
-pub(super) fn write_secret(client_id: &ClientId, secret: &str) -> Result<(), PluginOAuthError> {
-    match resolve_backend() {
-        SecretBackend::Keyring => keyring_entry(client_id)?
-            .set_password(secret)
-            .map_err(PluginOAuthError::Keyring),
-        SecretBackend::Memory => {
-            memory_secrets()?.insert(client_id.as_str().to_owned(), secret.to_owned());
-            Ok(())
-        },
-    }
-}
-
-pub(super) fn read_secret(client_id: &ClientId) -> Result<Option<String>, PluginOAuthError> {
-    match resolve_backend() {
-        SecretBackend::Keyring => match keyring_entry(client_id)?.get_password() {
-            Ok(s) => Ok(Some(s)),
-            Err(keyring_core::Error::NoEntry) => Ok(None),
-            Err(e) => Err(PluginOAuthError::Keyring(e)),
-        },
-        SecretBackend::Memory => Ok(memory_secrets()?.get(client_id.as_str()).cloned()),
-    }
-}
-
-pub(super) fn delete_secret(client_id: &ClientId) -> Result<(), PluginOAuthError> {
-    match resolve_backend() {
-        SecretBackend::Keyring => match keyring_entry(client_id)?.delete_credential() {
-            Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
-            Err(e) => Err(PluginOAuthError::Keyring(e)),
-        },
-        SecretBackend::Memory => {
-            memory_secrets()?.remove(client_id.as_str());
-            Ok(())
-        },
-    }
-}
-
-fn memory_secrets()
--> Result<std::sync::MutexGuard<'static, HashMap<String, String>>, PluginOAuthError> {
-    MEMORY_SECRETS
-        .lock()
-        .map_err(|_poisoned| PluginOAuthError::MemoryStorePoisoned)
 }

@@ -37,6 +37,7 @@ impl RunCredentialRepositories {
 pub struct AgentRunRepositories {
     pub runs: AgentRunRepository,
     pub credentials: RunCredentialRepositories,
+    pub managed: systemprompt_marketplace::managed::ManagedRepository,
 }
 
 impl AgentRunRepositories {
@@ -45,6 +46,7 @@ impl AgentRunRepositories {
         Self {
             runs: AgentRunRepository::new(db),
             credentials: RunCredentialRepositories::new(db),
+            managed: systemprompt_marketplace::managed::ManagedRepository::new(db),
         }
     }
 }

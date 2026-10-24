@@ -60,9 +60,6 @@ serde_jcs = { workspace = true }
 # Async streaming
 futures = { workspace = true }
 
-# Web framework (optional, for IntoResponse implementations)
-axum = { workspace = true, optional = true }
-
 # Shared traits, identifiers, and provider contracts
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
@@ -73,7 +70,6 @@ rmcp = { workspace = true }
 
 [features]
 default = []
-web = ["dep:axum"]
 sqlx = ["dep:sqlx"]
 
 [package.metadata.docs.rs]

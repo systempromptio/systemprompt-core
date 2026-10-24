@@ -1,8 +1,8 @@
 //! OTLP telemetry ingest endpoint.
 //!
 //! [`handle`] authenticates the caller with the same gateway credential the
-//! inference routes accept (bridge JWT or API key, plus
-//! the attested `x-session-id`) and then hands the body to
+//! inference routes accept (bridge JWT or API key, bound to the
+//! credential's session) and then hands the body to
 //! [`ingest_envelope`], which decodes a protobuf OTLP envelope (traces, logs,
 //! or metrics) and persists spans and log records to the logging repository
 //! (see the `ingest` submodule); metrics are only summarised. Once
@@ -28,7 +28,9 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use prost::Message;
 use std::sync::Arc;
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_logging::LoggingRuntime;
 use systemprompt_runtime::AppContext;
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
@@ -36,13 +38,16 @@ use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequ
 use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
 use super::bridge_error::BridgeError;
-use super::messages::auth::authenticate;
-use super::messages::extract::headers::{extract_credential, require_session_id};
+use super::messages::auth::{AuthInputs, authenticate};
+use super::messages::extract::headers::{extract_credential, optional_session_id};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
+
+static NO_SUBJECT_DIMENSIONS: std::sync::LazyLock<SubjectProviderSet> =
+    std::sync::LazyLock::new(SubjectProviderSet::default);
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
@@ -52,25 +57,32 @@ pub async fn handle(
     let Some(credential) = extract_credential(request.headers()) else {
         return ApiHttpError::from(BridgeError::MissingCredential).into_response();
     };
-    let session_id = match require_session_id(request.headers()) {
-        Ok(session_id) => session_id,
-        Err(rejection) => return rejection.into_response(),
-    };
-    let principal = match authenticate(&credential, &session_id, &jwt_extractor, &ctx).await {
+    let header_session = optional_session_id(request.headers());
+    let principal = match authenticate(
+        &credential,
+        AuthInputs {
+            header_session: header_session.as_ref(),
+            headers: request.headers(),
+            jwt_extractor: &jwt_extractor,
+            providers: &NO_SUBJECT_DIMENSIONS,
+            ctx: &ctx,
+        },
+    )
+    .await
+    {
         Ok(principal) => principal,
         Err(rejection) => return rejection.into_response(),
     };
-    if let Err(rejection) = principal.enforce_session_binding(&session_id) {
-        return rejection.into_response();
-    }
-    ingest_with_identity(request, Some((principal.user_id().clone(), session_id))).await
+    let identity = (principal.user_id().clone(), principal.session_id().clone());
+    ingest_with_identity(ctx.logging(), request, Some(identity)).await
 }
 
-pub async fn ingest_envelope(request: Request<Body>) -> Response<Body> {
-    ingest_with_identity(request, None).await
+pub async fn ingest_envelope(logging: &LoggingRuntime, request: Request<Body>) -> Response<Body> {
+    ingest_with_identity(logging, request, None).await
 }
 
 async fn ingest_with_identity(
+    logging: &LoggingRuntime,
     request: Request<Body>,
     identity: Option<(UserId, SessionId)>,
 ) -> Response<Body> {
@@ -104,26 +116,31 @@ async fn ingest_with_identity(
     }
 
     if is_json && signal != "metrics" && signal != "traces" {
-        ingest_json_logs(&body_bytes, identity.as_ref());
+        ingest_json_logs(logging, &body_bytes, identity.as_ref());
         return accepted();
     }
-    ingest_protobuf(&signal, &body_bytes, identity.as_ref())
+    ingest_protobuf(logging, &signal, &body_bytes, identity.as_ref())
 }
 
-fn ingest_json_logs(body_bytes: &[u8], identity: Option<&(UserId, SessionId)>) {
+fn ingest_json_logs(
+    logging: &LoggingRuntime,
+    body_bytes: &[u8],
+    identity: Option<&(UserId, SessionId)>,
+) {
     match json::decode_logs(body_bytes) {
         Ok(mut req) if !req.resource_logs.is_empty() => {
             for item in &mut req.resource_logs {
                 bind_identity(&mut item.resource, identity);
             }
             count_export("logs");
-            ingest_logs(req);
+            ingest_logs(logging, req);
         },
         _ => tracing::warn!(bytes = body_bytes.len(), "otel: invalid JSON log export"),
     }
 }
 
 fn ingest_protobuf(
+    logging: &LoggingRuntime,
     signal: &str,
     body_bytes: &[u8],
     identity: Option<&(UserId, SessionId)>,
@@ -136,7 +153,7 @@ fn ingest_protobuf(
             bind_identity(&mut item.resource, identity);
         }
         count_export("traces");
-        ingest_traces(req);
+        ingest_traces(logging, req);
         return accepted();
     }
     if !matches!(signal, "traces" | "metrics")
@@ -147,7 +164,7 @@ fn ingest_protobuf(
             bind_identity(&mut item.resource, identity);
         }
         count_export("logs");
-        ingest_logs(req);
+        ingest_logs(logging, req);
         return accepted();
     }
     if !matches!(signal, "traces" | "logs")

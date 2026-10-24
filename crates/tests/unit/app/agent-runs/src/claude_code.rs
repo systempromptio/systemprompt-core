@@ -37,6 +37,8 @@ fn request() -> RunRequest {
         attribution_scopes: Vec::new(),
         plugin_id: None,
         plugin_dirs: vec![PathBuf::from("/plug")],
+        harness: None,
+        traffic: systemprompt_agent_runs::TrafficClass::Production,
     }
 }
 

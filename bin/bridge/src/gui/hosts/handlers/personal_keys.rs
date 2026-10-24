@@ -9,7 +9,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
-use systemprompt_models::bridge::profile::SetProviderCredentialRequest;
+use systemprompt_identifiers::CredentialId;
+use systemprompt_models::bridge::profile::{
+    ProviderCredentialStatus, SetProviderCredentialRequest,
+};
 
 use crate::config;
 use crate::gateway::GatewayClient;
@@ -26,12 +29,12 @@ use super::finish;
 pub enum PersonalKeyOp {
     List,
     Set {
-        provider: String,
+        credential: CredentialId,
         api_key: String,
         label: Option<String>,
     },
     Remove {
-        provider: String,
+        credential: CredentialId,
     },
 }
 
@@ -40,13 +43,13 @@ impl std::fmt::Debug for PersonalKeyOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::List => f.write_str("List"),
-            Self::Set { provider, .. } => f
+            Self::Set { credential, .. } => f
                 .debug_struct("Set")
-                .field("provider", provider)
+                .field("credential", credential)
                 .finish_non_exhaustive(),
-            Self::Remove { provider } => f
+            Self::Remove { credential } => f
                 .debug_struct("Remove")
-                .field("provider", provider)
+                .field("credential", credential)
                 .finish(),
         }
     }
@@ -55,13 +58,13 @@ impl std::fmt::Debug for PersonalKeyOp {
 pub(crate) fn on_personal_key_requested(app: &GuiApp, op: PersonalKeyOp, reply_to: ReplyId) {
     match &op {
         PersonalKeyOp::List => {},
-        PersonalKeyOp::Set { provider, .. } => {
+        PersonalKeyOp::Set { credential, .. } => {
             app.append_log(format!(
-                "personal key: verifying and storing for {provider}"
+                "personal key: verifying and storing for {credential}"
             ));
         },
-        PersonalKeyOp::Remove { provider } => {
-            app.append_log(format!("personal key: removing for {provider}"));
+        PersonalKeyOp::Remove { credential } => {
+            app.append_log(format!("personal key: removing for {credential}"));
         },
     }
     let resync = !matches!(op, PersonalKeyOp::List);
@@ -77,7 +80,21 @@ pub(crate) fn on_personal_key_requested(app: &GuiApp, op: PersonalKeyOp, reply_t
     });
 }
 
-// JSON: webview IPC reply — the provider rows or the stored row.
+// JSON: webview IPC reply — one row per personal credential.
+fn rows(statuses: Vec<ProviderCredentialStatus>) -> Value {
+    let providers = match crate::auth::profile_cache::load() {
+        Ok(profile) => profile.map(|p| p.providers).unwrap_or_default(),
+        Err(error) => {
+            tracing::warn!(%error, "no cached bridge profile; personal keys list no endpoints");
+            Vec::new()
+        },
+    };
+    json!(crate::gateway::personal_keys::personal_key_rows(
+        statuses, &providers
+    ))
+}
+
+// JSON: webview IPC reply — the credential rows or the stored row.
 async fn run(op: PersonalKeyOp, http: reqwest::Client) -> GuiResult<Value> {
     let cfg = config::load()?;
     let gateway_base = config::gateway_url_or_default(&cfg);
@@ -90,18 +107,22 @@ async fn run(op: PersonalKeyOp, http: reqwest::Client) -> GuiResult<Value> {
     let client = GatewayClient::new(gateway_base, http);
     let token = &bearer.token;
     Ok(match op {
-        PersonalKeyOp::List => json!(client.list_personal_keys(token).await?),
+        PersonalKeyOp::List => rows(client.list_personal_keys(token).await?),
         PersonalKeyOp::Set {
-            provider,
+            credential,
             api_key,
             label,
         } => {
             let body = SetProviderCredentialRequest { api_key, label };
-            json!(client.set_personal_key(token, &provider, &body).await?)
+            let stored = client.set_personal_key(token, &credential, &body).await?;
+            rows(vec![stored])
+                .as_array_mut()
+                .and_then(Vec::pop)
+                .unwrap_or(Value::Null)
         },
-        PersonalKeyOp::Remove { provider } => {
-            client.delete_personal_key(token, &provider).await?;
-            json!({ "provider": provider })
+        PersonalKeyOp::Remove { credential } => {
+            client.delete_personal_key(token, &credential).await?;
+            json!({ "credential": credential.as_str() })
         },
     })
 }
@@ -138,7 +159,7 @@ fn to_bridge_error(error: &GuiError) -> BridgeError {
 
 pub(crate) fn on_personal_key_finished(
     app: &GuiApp,
-    // JSON: webview IPC reply — the provider rows or the stored row.
+    // JSON: webview IPC reply — the credential rows or the stored row.
     result: Result<Value, BridgeError>,
     resync: bool,
     reply_to: ReplyId,

@@ -60,7 +60,10 @@ impl InventoryService {
     ) -> Result<Vec<LatestPublication>> {
         let owner = scope.owner;
         let provenance = PassProvenance {
-            composed_hash: systemprompt_loader::bundle::sources_provenance().composed_hash,
+            composed_hash: systemprompt_loader::bundle::sources_provenance(
+                self.repository.base_tree_hash_memo(),
+            )
+            .composed_hash,
             inventory_generation: self.repository.inventory_status(owner).await?.generation,
             bundle_hashes: systemprompt_loader::bundle::owning_bundle_hashes(),
         };
@@ -202,12 +205,14 @@ impl InventoryService {
             }),
             ManagedResolution::Published {
                 resource_id,
-                generation,
                 revision_id,
                 ..
             } => Ok(Managed {
+                generation: self
+                    .repository
+                    .publication_head_generation(scope.owner, &resource_id)
+                    .await?,
                 resource_id,
-                generation,
                 published: Some(revision_id),
             }),
             _ => Err(crate::managed::ManagedError::Unavailable),

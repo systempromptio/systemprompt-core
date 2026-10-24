@@ -128,14 +128,14 @@ pub async fn fetch_admin_user(
 }
 
 async fn cloud_credentials_email() -> Result<String> {
-    CredentialsBootstrap::try_init()
+    let creds = CredentialsBootstrap::load()
         .await
-        .context("Failed to initialize credentials")?;
-    let creds = CredentialsBootstrap::require().map_err(|_e| {
-        anyhow::anyhow!(
-            "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
-        )
-    })?;
+        .context("Failed to initialize credentials")?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
+            )
+        })?;
     Ok(creds.user_email.as_str().to_owned())
 }
 

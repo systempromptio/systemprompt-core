@@ -1,5 +1,5 @@
 use systemprompt_files::FilesConfigValidator;
-use systemprompt_traits::DomainConfig;
+use systemprompt_manifest::validators::DomainConfig;
 
 #[test]
 fn domain_id_is_files() {

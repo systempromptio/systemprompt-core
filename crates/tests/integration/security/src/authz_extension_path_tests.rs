@@ -70,6 +70,10 @@ impl AuthzDecisionHook for RecordingHook {
             .await;
         decision
     }
+
+    async fn probe(&self, _req: AuthzRequest) -> AuthzDecision {
+        AuthzDecision::Allow
+    }
 }
 
 #[tokio::test]

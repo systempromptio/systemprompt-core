@@ -8,6 +8,7 @@ use crate::error::AiError;
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
 use crate::repository::{AiRequestPayloadRepository, AiRequestRepository};
+use crate::services::tools::ToolArgsValidator;
 use systemprompt_models::RequestContext;
 use systemprompt_traits::{DynAiSessionProvider, DynContextMaterializer, EnsureContextParams};
 
@@ -74,7 +75,15 @@ impl RequestStorage {
             cost_microdollars: params.cost_microdollars,
         });
         let messages = extract_messages(params.request, params.response, params.status);
-        let tool_calls = extract_tool_calls(params.response);
+        let validator = ToolArgsValidator::compile(
+            params
+                .request
+                .tools
+                .iter()
+                .flatten()
+                .map(|tool| (tool.name.as_str(), tool.input_schema.as_ref())),
+        );
+        let tool_calls = extract_tool_calls(params.response, &validator);
 
         let user_id = record.user_id.clone();
         let session_id = record.session_id.clone();

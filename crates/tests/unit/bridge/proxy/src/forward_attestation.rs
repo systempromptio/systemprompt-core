@@ -9,7 +9,6 @@ use systemprompt_bridge::proxy::credential::LoopbackCredential;
 use systemprompt_bridge::proxy::forward::headers::{
     UpstreamHeaderInputs, build_upstream_headers, copy_request_headers, stamp_attestation,
 };
-use systemprompt_identifiers::SessionId;
 use systemprompt_identifiers::headers::{CLIENT_ATTESTATION, CLIENT_KIND};
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::origin::ClientKind;
@@ -38,7 +37,7 @@ fn a_host_token_stamps_host_token_and_overwrites_the_declared_client() {
     let mut headers = HeaderMap::new();
     copy_request_headers(&inbound(Some("pi"), None), &mut headers);
     let credential = LoopbackCredential::Host(HostKind::OpenCode);
-    stamp_attestation(&mut headers, Some(&credential)).unwrap();
+    stamp_attestation(&mut headers, Some(&credential));
     assert_eq!(value(&headers, CLIENT_ATTESTATION), Some("host-token"));
     assert_eq!(value(&headers, CLIENT_KIND), Some("opencode"));
     assert_eq!(value(&headers, "user-agent"), Some("claude-cli/2.0"));
@@ -49,16 +48,14 @@ fn every_known_host_maps_onto_the_canonical_wire_vocabulary() {
     for host in HostKind::ALL {
         let mut headers = HeaderMap::new();
         let credential = LoopbackCredential::Host(host);
-        stamp_attestation(&mut headers, Some(&credential)).unwrap();
-        let expected = ClientKind::from_bridge_host_id(host.as_str())
-            .unwrap()
-            .as_str();
+        stamp_attestation(&mut headers, Some(&credential));
+        let expected = ClientKind::from(host).as_str();
         assert_eq!(value(&headers, CLIENT_KIND), Some(expected), "{host}");
         assert_eq!(value(&headers, CLIENT_ATTESTATION), Some("host-token"));
     }
     let mut headers = HeaderMap::new();
     let codex = LoopbackCredential::Host(HostKind::CodexCli);
-    stamp_attestation(&mut headers, Some(&codex)).unwrap();
+    stamp_attestation(&mut headers, Some(&codex));
     assert_eq!(
         value(&headers, CLIENT_KIND),
         Some("codex"),
@@ -70,13 +67,13 @@ fn every_known_host_maps_onto_the_canonical_wire_vocabulary() {
 fn the_secret_stamps_bridge_secret_and_passes_a_declaration_through() {
     let mut headers = HeaderMap::new();
     copy_request_headers(&inbound(Some("pi"), None), &mut headers);
-    stamp_attestation(&mut headers, Some(&LoopbackCredential::Secret)).unwrap();
+    stamp_attestation(&mut headers, Some(&LoopbackCredential::Secret));
     assert_eq!(value(&headers, CLIENT_ATTESTATION), Some("bridge-secret"));
     assert_eq!(value(&headers, CLIENT_KIND), Some("pi"));
 
     let mut bare = HeaderMap::new();
     copy_request_headers(&inbound(None, None), &mut bare);
-    stamp_attestation(&mut bare, Some(&LoopbackCredential::Secret)).unwrap();
+    stamp_attestation(&mut bare, Some(&LoopbackCredential::Secret));
     assert_eq!(value(&bare, CLIENT_ATTESTATION), Some("bridge-secret"));
     assert_eq!(value(&bare, CLIENT_KIND), None);
 }
@@ -96,7 +93,6 @@ fn an_inbound_attestation_header_is_always_removed() {
     let built = build_upstream_headers(&UpstreamHeaderInputs {
         src: &src,
         bearer: "jwt",
-        session_id: &SessionId::new("session"),
         gateway_conversation_id: None,
         extra: &BTreeMap::new(),
         attest: Some(&LoopbackCredential::Secret),
@@ -116,7 +112,6 @@ fn hook_and_mcp_routes_stamp_nothing_and_strip_the_declaration() {
     let built = build_upstream_headers(&UpstreamHeaderInputs {
         src: &src,
         bearer: "jwt",
-        session_id: &SessionId::new("session"),
         gateway_conversation_id: None,
         extra: &BTreeMap::new(),
         attest: None,
@@ -129,7 +124,7 @@ fn hook_and_mcp_routes_stamp_nothing_and_strip_the_declaration() {
     copy_request_headers(&src, &mut headers);
     let hook =
         LoopbackCredential::Hook(systemprompt_bridge::ids::PluginId::try_new("plugin").unwrap());
-    stamp_attestation(&mut headers, Some(&hook)).unwrap();
+    stamp_attestation(&mut headers, Some(&hook));
     assert_eq!(value(&headers, CLIENT_ATTESTATION), None);
     assert_eq!(value(&headers, CLIENT_KIND), None);
 }

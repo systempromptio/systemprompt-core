@@ -12,6 +12,11 @@
 //!    the provider's `default_attribution` is `false`, in which case the
 //!    dimension is header-only and the request carries no value for it.
 //!
+//! A provider's key-bound values are held by no user: a request carries one
+//! only when its API key is bound to that value, whether or not a header
+//! repeats it. A refused claim of one is not recorded on the attribution, so
+//! the rejected request keeps the class it actually holds.
+//!
 //! A header naming a dimension no provider registers is `400`, and a dimension
 //! listed in `gateway.require_scopes` that resolves to nothing is `400
 //! scope_required`.
@@ -20,9 +25,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
-use systemprompt_governance::authz::{SharedSubjectAttributeProvider, SubjectProviderSet};
+use systemprompt_governance::authz::{
+    SharedSubjectAttributeProvider, SubjectAttributes, SubjectProviderSet,
+};
 use systemprompt_identifiers::headers::SCOPE_PREFIX;
-use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
+use systemprompt_identifiers::{ApiKeyId, QuotaSubjectKind, ScopeDimension};
 use systemprompt_models::attribution::{
     AttributionEntry, AttributionSource, RequestAttribution, ScopeBinding,
 };
@@ -31,7 +38,7 @@ use super::RejectionPartial;
 use crate::routes::gateway::messages::RequestContext;
 use crate::routes::gateway::messages::auth::AuthedPrincipal;
 use crate::routes::gateway::messages::error::RejectionError;
-use systemprompt_gateway::policies::{API_KEY_QUOTA_SUBJECT, QuotaWindow};
+use systemprompt_gateway::policies::QuotaWindow;
 use systemprompt_manifest::services::gateway::GatewayConfig;
 
 /// The `x-systemprompt-scope-*` headers of one request, parsed before the
@@ -84,14 +91,14 @@ impl ScopeHeaders {
 #[derive(Debug, Clone, Copy)]
 pub struct ScopeResolution<'a> {
     pub providers: &'a SubjectProviderSet,
-    pub user_id: &'a UserId,
+    pub subject: &'a SubjectAttributes,
     pub headers: &'a ScopeHeaders,
     pub key_bindings: &'a [ScopeBinding],
     pub api_key_id: Option<&'a ApiKeyId>,
     pub require: &'a [ScopeDimension],
 }
 
-pub async fn resolve_scope_attribution(
+pub fn resolve_scope_attribution(
     input: ScopeResolution<'_>,
     partial: &mut RejectionPartial,
 ) -> Result<RequestAttribution, RejectionError> {
@@ -103,21 +110,22 @@ pub async fn resolve_scope_attribution(
         if claimed.is_none() && !provider.default_attribution() {
             continue;
         }
-        let held = provider.values_for(input.user_id).await.map_err(|error| {
-            RejectionError::server(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "scope attribution lookup failed",
-            )
-            .with_cause(error)
-        })?;
+        let held = input.subject.values(&provider.dimension().rule_type);
         match claimed {
             Some((value, source)) => {
-                let holds = held.iter().any(|h| h == value);
-                partial.attribution.entries.push(AttributionEntry {
-                    dimension: dimension.clone(),
-                    value: value.to_owned(),
-                    source,
-                });
+                let key_bound = provider.key_bound_values().contains(&value);
+                let holds = if key_bound {
+                    key_binds(&input, &dimension, value)
+                } else {
+                    held.iter().any(|h| h == value)
+                };
+                if holds || !key_bound {
+                    partial.attribution.entries.push(AttributionEntry {
+                        dimension: dimension.clone(),
+                        value: value.to_owned(),
+                        source,
+                    });
+                }
                 if !holds {
                     return Err(RejectionError::client(
                         StatusCode::FORBIDDEN,
@@ -126,10 +134,10 @@ pub async fn resolve_scope_attribution(
                 }
             },
             None => {
-                if let Some(value) = held.into_iter().next() {
+                if let Some(value) = held.first() {
                     partial.attribution.entries.push(AttributionEntry {
                         dimension,
-                        value,
+                        value: value.clone(),
                         source: AttributionSource::Default,
                     });
                 }
@@ -192,6 +200,13 @@ fn claimed_value<'a>(
         })
 }
 
+fn key_binds(input: &ScopeResolution<'_>, dimension: &ScopeDimension, value: &str) -> bool {
+    input
+        .key_bindings
+        .iter()
+        .any(|b| &b.dimension == dimension && b.value == value)
+}
+
 fn ensure_required(
     require: &[ScopeDimension],
     attribution: &RequestAttribution,
@@ -210,7 +225,7 @@ fn ensure_required(
     Ok(())
 }
 
-pub(super) async fn attribute_scopes(
+pub(super) fn attribute_scopes(
     rc: &RequestContext<'_>,
     gateway_config: &GatewayConfig,
     principal: &AuthedPrincipal,
@@ -219,13 +234,13 @@ pub(super) async fn attribute_scopes(
 ) -> Result<RequestAttribution, RejectionError> {
     let scope = ScopeResolution {
         providers: &rc.repos.subject_providers,
-        user_id: principal.user_id(),
+        subject: &principal.principal.subject,
         headers: scope_headers,
         key_bindings: principal.api_key().map_or(&[], |key| key.scopes.as_slice()),
         api_key_id: principal.api_key().map(|key| &key.api_key_id),
         require: &gateway_config.require_scopes,
     };
-    resolve_scope_attribution(scope, partial).await
+    resolve_scope_attribution(scope, partial)
 }
 
 pub fn enforce_key_model_allowlist(
@@ -254,7 +269,7 @@ pub fn api_key_windows(principal: &AuthedPrincipal) -> Vec<QuotaWindow> {
             vec![QuotaWindow {
                 window_seconds,
                 calendar: None,
-                subject: API_KEY_QUOTA_SUBJECT.to_owned(),
+                subject: QuotaSubjectKind::ApiKey.to_string(),
                 max_requests: limits.max_requests.map(i64::from),
                 max_input_tokens: None,
                 max_output_tokens: None,

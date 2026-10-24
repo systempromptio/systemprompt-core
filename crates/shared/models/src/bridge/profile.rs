@@ -4,7 +4,7 @@
 //! and to decide which provider models each host advertises. The server
 //! (`crates/entry/api`) produces it and the bridge consumes it through these
 //! exact types, so the two sides cannot drift. The builder that derives every
-//! field from the provider registry lives with the services manifest
+//! field from the resolved catalog lives with the services manifest
 //! (`systemprompt_manifest::bridge_profile`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::providers::ApiSurface;
+use crate::providers::ClientFamily;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeProfileResponse {
@@ -41,16 +41,20 @@ pub struct AdvertisedLimits {
     pub max_output_tokens: u32,
 }
 
-/// One advertised provider and whether it can serve requests.
+/// One provider with advertised models, and whether it can serve requests.
 ///
 /// A provider whose credential secret is absent is flagged
 /// (`configured = false`) rather than dropped silently. A `personal_key`
-/// provider is served only from a key the user stores for themselves (a
-/// personal subscription); `configured` then means this user has stored one.
+/// provider is served only from a key the user stores for themselves under
+/// `credential` (a personal subscription); `configured` then means this user
+/// has stored one. `clients` is the union of the client families its
+/// advertised models are listed to.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderHealth {
     pub name: String,
-    pub surface: ApiSurface,
+    pub credential: String,
+    #[serde(default)]
+    pub clients: Vec<ClientFamily>,
     pub configured: bool,
     #[serde(default)]
     pub models: Vec<String>,
@@ -62,12 +66,12 @@ pub struct ProviderHealth {
     pub personal_key: bool,
 }
 
-/// One row of `GET /v1/me/provider-credentials`: a provider that takes a
-/// personal key, and what is known about the caller's stored key without
-/// opening it. The key itself is never returned.
+/// One row of `GET /v1/me/provider-credentials`: a personal credential, and
+/// what is known about the caller's stored key without opening it. The key
+/// itself is never returned.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProviderCredentialStatus {
-    pub provider: String,
+    pub credential: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     pub configured: bool,
@@ -81,7 +85,7 @@ pub struct ProviderCredentialStatus {
     pub last_used_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-/// Body of `PUT /v1/me/provider-credentials/{provider}`.
+/// Body of `PUT /v1/me/provider-credentials/{credential}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetProviderCredentialRequest {
     pub api_key: String,

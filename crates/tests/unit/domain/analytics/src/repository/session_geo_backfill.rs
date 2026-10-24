@@ -20,7 +20,7 @@ async fn backfill_without_a_reader_updates_nothing_and_is_idempotent() {
     let sid = unique_session_id();
     let fp = format!("fp-{}", Uuid::new_v4());
     let mut params = base_params(&sid, Some(&fp), Utc::now() + Duration::hours(1));
-    params.ip_address = Some("8.8.8.8");
+    params.network.ip_address = Some("8.8.8.8");
     store.insert_session(&params).await.expect("seed session");
 
     let missing = signals
@@ -47,7 +47,7 @@ async fn backfill_without_a_reader_updates_nothing_and_is_idempotent() {
         .expect("find")
         .expect("present");
     assert!(
-        row.country.is_none(),
+        row.client.country.is_none(),
         "a skipped row must keep its NULL country so a later run can enrich it"
     );
 

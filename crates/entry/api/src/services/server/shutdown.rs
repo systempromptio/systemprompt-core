@@ -31,6 +31,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::convert::Infallible;
+use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_loader::subprocess::{ChildKind, StopOutcome};
 use systemprompt_manifest::profile::ShutdownConfig;
@@ -38,11 +39,17 @@ use systemprompt_runtime::{AppContext, ShutdownRequest};
 use systemprompt_scheduler::SchedulerHandle;
 use systemprompt_traits::{DrainOutcome, OwnedTask, StreamDrain};
 
+use super::readiness::ReadinessState;
+
 const FORCED_EXIT_CODE: i32 = 1;
 
-pub(super) async fn shutdown_signal(restart: ShutdownRequest, timings: ShutdownConfig) {
+pub(super) async fn shutdown_signal(
+    restart: ShutdownRequest,
+    timings: ShutdownConfig,
+    readiness: Arc<ReadinessState>,
+) {
     wait_for_signal(&restart).await;
-    super::readiness::signal_shutdown();
+    readiness.signal_shutdown();
     let delay = timings.pre_stop_delay();
     if delay.is_zero() {
         return;
@@ -124,12 +131,13 @@ pub async fn join_within_drain_grace(
     restart: &ShutdownRequest,
     timings: &ShutdownConfig,
     streams: &StreamDrain,
+    readiness: &ReadinessState,
 ) -> anyhow::Result<()> {
     use super::readiness::ReadinessEvent;
     use tokio::sync::broadcast::error::RecvError;
 
     let mut serve = std::pin::pin!(serve);
-    let mut readiness = super::readiness::get_readiness_receiver();
+    let mut readiness = readiness.subscribe();
 
     loop {
         tokio::select! {
@@ -185,7 +193,7 @@ pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
         );
     }
 
-    if let Err(e) = systemprompt_logging::shutdown_database_logging().await {
+    if let Err(e) = ctx.logging().sink().shutdown().await {
         tracing::warn!(error = %e, "Database log writer failed to flush on shutdown");
     }
 }

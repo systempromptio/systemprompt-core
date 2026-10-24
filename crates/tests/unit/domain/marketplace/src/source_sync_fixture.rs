@@ -138,6 +138,7 @@ impl Fixture {
                     comparison_evidence:
                         systemprompt_marketplace::managed::ComparisonEvidence::default(),
                     limitations: String::new(),
+                    cohort: None,
                 },
             )
             .await

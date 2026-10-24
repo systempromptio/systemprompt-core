@@ -15,7 +15,11 @@ pub mod section_types;
 
 pub use hints::{DashboardHints, LayoutMode};
 pub use section::DashboardSection;
-pub use section_data::*;
+pub use section_data::{
+    ChartSectionData, DatabaseStatus, ErrorCounts, ItemList, ListItem, ListSectionData, MetricCard,
+    MetricStatus, MetricsCardsData, ServiceStatus, SortConfig, StatusSectionData, TableSectionData,
+    TextSectionData, TimelineEvent, TimelineSectionData,
+};
 pub use section_types::{LayoutWidth, SectionLayout, SectionType};
 
 use crate::artifacts::metadata::ArtifactProvenance;

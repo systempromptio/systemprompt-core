@@ -20,7 +20,6 @@ use std::path::PathBuf;
 
 use systemprompt_identifiers::ValidatedUrl;
 
-use crate::ids::DeploymentOrganizationUuid;
 
 pub use self::profile::{ClaudeConfig, gateway_url_or_default};
 pub use self::trust::{
@@ -52,8 +51,6 @@ pub struct Config {
     pub cowork: Option<CoworkConfig>,
     #[serde(default)]
     pub opencode: Option<OpenCodeConfig>,
-    #[serde(default)]
-    pub deployment_organization_uuid: Option<DeploymentOrganizationUuid>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

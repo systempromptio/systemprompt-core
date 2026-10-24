@@ -31,7 +31,7 @@ Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). The
 | [`sync/`](src/sync/) | Manifest apply, replay protection (monotonic version + skew) |
 | [`wire/`](src/wire/) | Every payload the webview is written against (`StatePayload`, hosts, verdict codes, IPC envelope). Builds on every target and is exported to TypeScript under [`bindings/web/js/types/`](bindings/web/js/types/) by `just bridge-bindings` |
 | [`gui/`](src/gui/) | Native settings window (winit + wry), Windows + macOS only |
-| [`integration/`](src/integration/) | Host integration registry: Claude Desktop, Codex CLI, Hermes, OpenCode, the Claude Desktop facets (Cowork plugins + artifacts), and the sync-only Claude Code agent |
+| [`integration/`](src/integration/) | Host integration registry: Claude Desktop, Codex (desktop app and CLI), Hermes, OpenCode (desktop app and CLI), the Claude Desktop facets (Cowork plugins + artifacts), and the sync-only Claude Code agent |
 | [`install/`](src/install/) | Install and uninstall, pubkey pinning, MDM snippet emission |
 | [`mcp_registry.rs`](src/mcp_registry.rs) | On-disk MCP snapshot, rehydrated at startup |
 | [`schedule/`](src/schedule/) | OS scheduler templates for periodic sync |
@@ -80,7 +80,7 @@ A bare invocation with no subcommand is `run`; the GUI opens by default only whe
 
 ### Loopback credentials
 
-The loopback secret (`<config_dir>/<brand>/bridge-loopback.key`, mode 0600) is the root credential. The CLI hosts never receive it: the OpenCode `auth.json`, the Hermes `.env` and `config.yaml`, the Codex credential helper and the Linux `env.sh` carry that host's `host:<id>` token, and the OpenCode and Hermes files are written atomically as 0600 and read back. Every surface another local account can read carries a token derived from it with a domain-separated HMAC-SHA256 (`src/proxy/scoped_token.rs`), so a leaked file grants only what that surface needs and a secret reset invalidates every derived token at once:
+The loopback secret (`<config_dir>/<brand>/bridge-loopback.key`, mode 0600) is the root credential. The CLI hosts never receive it: the OpenCode `systemprompt.token` file, the Hermes `.env` and `config.yaml`, the Codex credential helper and the Linux `env.sh` carry that host's `host:<id>` token, and the OpenCode and Hermes files are written atomically as 0600 and read back. Every surface another local account can read carries a token derived from it with a domain-separated HMAC-SHA256 (`src/proxy/scoped_token.rs`), so a leaked file grants only what that surface needs and a secret reset invalidates every derived token at once:
 
 | Surface | Credential | Accepted on |
 |---|---|---|
@@ -179,7 +179,6 @@ Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 060
 
 ```toml
 gateway_url = "https://gateway.example.com"
-deployment_organization_uuid = "…"   # Cowork organization this deployment targets
 
 [pat]
 file = "…"                            # PAT path override (default: <config_dir>/systemprompt-bridge.pat)
@@ -196,7 +195,7 @@ source = "operator"
 # host-app integration overrides
 
 [cowork]
-session_org_dir = "…"                 # absolute path to the Cowork session/organization directory
+session_org_dir = "…"                 # absolute path to the Cowork session/organization directory; outranks the gateway's organization_uuid
 
 [opencode]
 managed_dir = "…"                     # where the OpenCode managed config is written (default: the OS-managed OpenCode config dir)

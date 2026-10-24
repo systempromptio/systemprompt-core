@@ -49,7 +49,7 @@ fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str, int_port: u
     format!(
         r#"mcp_servers:
   {ext_name}:
-    type: external
+    server_type: external
     endpoint: {provider_url}
     enabled: true
     tool_policy: allow
@@ -63,7 +63,7 @@ fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str, int_port: u
     headers:
       x-provider-static: static-val
   {int_name}:
-    type: internal
+    server_type: internal
     binary: {int_name}-bin
     port: {int_port}
     enabled: true

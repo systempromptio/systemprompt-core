@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `ProviderCredential::bearer` takes a `TokenCacheKey` (`TokenCacheKey::platform(&CredentialId)`, `TokenCacheKey::personal(&CredentialId, &UserId)`) instead of a string, so minted tokens are cached per catalog credential: every endpoint of one credential shares a token and two credentials never do.
+
 ## [0.71.0] - 2026-10-18
 
 ### Removed

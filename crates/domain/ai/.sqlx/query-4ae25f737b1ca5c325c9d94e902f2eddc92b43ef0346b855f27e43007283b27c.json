@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE ai_requests SET credential = $2, endpoint = $3\n               WHERE id IN (\n                   SELECT id FROM ai_requests\n                   WHERE provider = ANY($4) AND served_provider = $1 AND credential IS NULL\n                   LIMIT $5\n               )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ae25f737b1ca5c325c9d94e902f2eddc92b43ef0346b855f27e43007283b27c"
+}

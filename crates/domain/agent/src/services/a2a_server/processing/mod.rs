@@ -4,7 +4,7 @@
 //! persisted [`Task`](crate::models::a2a::Task): validation,
 //! conversation-history assembly, LLM execution (via [`ExecutionStrategy`]),
 //! artifact construction, response synthesis, and persistence. The entry point
-//! is [`MessageProcessor`]; [`StreamProcessor`] drives the streaming variant
+//! is [`MessageHandler`]; [`StreamService`] drives the streaming variant
 //! and emits [`StreamEvent`]s.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -17,7 +17,7 @@ pub mod strategies;
 pub mod task_builder;
 
 pub use artifact::ArtifactBuilder;
-pub use message::{MessageProcessor, StreamEvent, StreamProcessor};
+pub use message::{MessageHandler, StreamEvent, StreamService};
 pub use strategies::{
     ExecutionContext, ExecutionResult, ExecutionStrategy, ExecutionStrategySelector,
 };

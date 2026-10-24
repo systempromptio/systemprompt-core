@@ -2,7 +2,7 @@
 //! grant that authorizes the *synthesized* catch-all route.
 //!
 //! This is the end-to-end proof that the unit invariants
-//! (`dispatchable_route_ids_*`) cannot give: that
+//! (`ResolvedCatalog::route_ids`) cannot give: that
 //! `reconcile_gateway_entities_exact` actually materializes a content-addressed
 //! `star-*` id into `access_control_entities`, that a `entity_match: "*"` rule
 //! expands onto that code-synthesized id (closing the implicit YAML-vs-code
@@ -17,10 +17,10 @@
 //! test in its own process, so a `static Mutex` here would never contend and
 //! would only look like protection.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use sqlx::PgPool;
+use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::resolver::{ResolveInput, resolve};
 use systemprompt_governance::authz::{
@@ -28,11 +28,9 @@ use systemprompt_governance::authz::{
     DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, RuleEntry, RuleTarget,
     reconcile_gateway_entities_exact,
 };
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName, UserId};
-use systemprompt_manifest::services::{
-    GatewayConfig, ProviderEntry, ProviderModel, ProviderRegistry, synthesize_route_id,
-};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_identifiers::{RouteId, UserId};
+use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
+use systemprompt_manifest::services::synthesize_route_id;
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
@@ -77,43 +75,19 @@ async fn cleanup(pg: &PgPool, id: &RouteId) {
     .expect("cleanup entities");
 }
 
-fn registry(name: &str) -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![ProviderEntry {
-            name: ProviderId::new(name),
-            display_name: None,
-            description: None,
-            wire: WireProtocol::Anthropic,
-            surface: ApiSurface::Anthropic,
-            endpoint: "https://example.test/v1".to_owned(),
-            api_key_secret: Some(SecretName::new("test")),
-            credential: Default::default(),
-            credential_from: None,
-            user_agent: None,
-            forward_headers: Vec::new(),
-            governance: Default::default(),
-            extra_headers: HashMap::new(),
-            accepted_betas: None,
-            models: vec![ProviderModel {
-                id: ModelId::new("any"),
-                aliases: Vec::new(),
-                hidden: false,
-                governance: None,
-                upstream_model: None,
-                pricing: Default::default(),
-                capabilities: Default::default(),
-                limits: Default::default(),
-            }],
-        }],
-    }
-}
-
-fn gateway_with_default(provider: &str) -> GatewayConfig {
-    GatewayConfig {
-        enabled: true,
-        default_provider: Some(ProviderId::new(provider)),
-        ..GatewayConfig::default()
-    }
+fn catalog_with_default(provider: &str) -> ResolvedCatalog {
+    CatalogFixture::new()
+        .credential(provider, platform("test"))
+        .provider(provider, ProviderConfig::new(provider))
+        .endpoint(
+            provider,
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, "https://example.test/v1"),
+        )
+        .model("any", claude_model(0))
+        .deploy("any", [format!("{provider}/api").as_str()])
+        .default_model("any")
+        .build()
 }
 
 fn wildcard_gateway_rule(roles: &[&str]) -> AccessControlConfig {
@@ -147,9 +121,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
 
     // 1. Reconcile the profile's dispatchable routes (here: only the synthetic
     //    default catch-all) into the entity catalog.
-    let gateway = gateway_with_default(&f.provider);
-    let registry = registry(&f.provider);
-    let ids = gateway.dispatchable_route_ids(&registry);
+    let ids = catalog_with_default(&f.provider).route_ids();
     assert!(
         ids.contains(&f.default_route_id),
         "dispatchable ids must include the synthesized catch-all {}",
@@ -277,8 +249,7 @@ async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_w
     let f = setup().await;
     let repo = AccessControlRepository::new(&f.db);
 
-    let gateway = gateway_with_default(&f.provider);
-    let registry_ids = gateway.dispatchable_route_ids(&registry(&f.provider));
+    let registry_ids = catalog_with_default(&f.provider).route_ids();
     let real_id = registry_ids.first().expect("one route").clone();
     let id_refs: Vec<&str> = registry_ids.iter().map(RouteId::as_str).collect();
     reconcile_gateway_entities_exact(&repo, &id_refs, "profile:test")
@@ -306,7 +277,7 @@ async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_w
     let msg = err.to_string();
     assert!(msg.contains(&phantom), "error must name the id: {msg}");
     assert!(
-        msg.contains("entity_match"),
+        msg.contains("gateway.catalog_route_id"),
         "error must say what to do instead: {msg}"
     );
 
@@ -372,8 +343,7 @@ async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
     let f = setup().await;
     let repo = AccessControlRepository::new(&f.db);
 
-    let gateway = gateway_with_default(&f.provider);
-    let ids = gateway.dispatchable_route_ids(&registry(&f.provider));
+    let ids = catalog_with_default(&f.provider).route_ids();
     let id_refs: Vec<&str> = ids.iter().map(RouteId::as_str).collect();
 
     let stale = RouteId::new(format!("stale-{}", f.provider));

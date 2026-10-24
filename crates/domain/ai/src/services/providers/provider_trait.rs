@@ -12,7 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::Result;
+use crate::error::{AiError, ProviderCapability, Result};
 use crate::models::ai::{
     AiMessage, AiResponse, ResponseFormat, SamplingParams, SearchGroundedResponse, StreamChunk,
 };
@@ -23,24 +23,24 @@ use futures::stream::Stream;
 use rmcp::model::ContentBlock;
 use std::pin::Pin;
 
-use systemprompt_manifest::services::ProviderModel;
+use super::served_model::ServedModel;
 pub use systemprompt_manifest::services::ai::ModelPricing;
 
 #[must_use]
-pub fn catalog_supports_model(models: &[ProviderModel], model: &str) -> bool {
+pub fn catalog_supports_model(models: &[ServedModel], model: &str) -> bool {
     models.iter().any(|m| m.matches(model))
 }
 
 #[must_use]
 // Why: a model the catalogue does not price cannot be billed; `None` is
 // withheld so the caller refuses the request instead of settling it at zero.
-pub fn catalog_pricing(models: &[ProviderModel], model: &str) -> Option<ModelPricing> {
+pub fn catalog_pricing(models: &[ServedModel], model: &str) -> Option<ModelPricing> {
     models.iter().find(|m| m.matches(model)).map(|m| m.pricing)
 }
 
 #[must_use]
 pub fn catalog_default_model<'a>(
-    models: &'a [ProviderModel],
+    models: &'a [ServedModel],
     override_model: Option<&'a str>,
 ) -> &'a str {
     override_model
@@ -261,20 +261,20 @@ pub trait ProviderClient: Send + Sync {
         &self,
         _params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(crate::error::AiError::CapabilityUnsupported {
-            provider: self.name().to_owned(),
-            capability: crate::error::ProviderCapability::Streaming,
-        })
+        Err(AiError::capability_unsupported(
+            self.name(),
+            ProviderCapability::Streaming,
+        ))
     }
 
     async fn generate_with_tools_stream(
         &self,
         _params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(crate::error::AiError::CapabilityUnsupported {
-            provider: self.name().to_owned(),
-            capability: crate::error::ProviderCapability::ToolStreaming,
-        })
+        Err(AiError::capability_unsupported(
+            self.name(),
+            ProviderCapability::ToolStreaming,
+        ))
     }
 
     fn supports_streaming(&self) -> bool {
@@ -289,9 +289,9 @@ pub trait ProviderClient: Send + Sync {
         &self,
         _params: SearchGenerationParams<'_>,
     ) -> Result<SearchGroundedResponse> {
-        Err(crate::error::AiError::CapabilityUnsupported {
-            provider: self.name().to_owned(),
-            capability: crate::error::ProviderCapability::GoogleSearch,
-        })
+        Err(AiError::capability_unsupported(
+            self.name(),
+            ProviderCapability::GoogleSearch,
+        ))
     }
 }

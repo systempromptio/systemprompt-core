@@ -17,8 +17,6 @@ mod frame_options;
 #[cfg(test)]
 mod gateway_guard;
 #[cfg(test)]
-mod injected;
-#[cfg(test)]
 mod metadata;
 #[cfg(test)]
 mod migration;
@@ -31,12 +29,8 @@ mod registry_validation;
 #[cfg(test)]
 mod router;
 #[cfg(test)]
-mod runtime_config;
-#[cfg(test)]
 mod seed;
 
-#[cfg(test)]
-mod injected_lock;
 
 #[cfg(test)]
 mod migration_slots;

@@ -78,17 +78,14 @@ pub async fn list_tasks_by_user(
 
     let task_repo = app_context.a2a_repositories().tasks.clone();
 
-    let task_state = params.status.as_ref().and_then(|s| match s.as_str() {
-        "submitted" => Some(TaskState::Submitted),
-        "working" => Some(TaskState::Working),
-        "input-required" => Some(TaskState::InputRequired),
-        "completed" => Some(TaskState::Completed),
-        "canceled" | "cancelled" => Some(TaskState::Canceled),
-        "failed" => Some(TaskState::Failed),
-        "rejected" => Some(TaskState::Rejected),
-        "auth-required" => Some(TaskState::AuthRequired),
-        _ => None,
-    });
+    let task_state = match params.status.as_deref() {
+        // Why: the parse error repeats the rejected value and nothing else, so
+        // the 400 names it directly.
+        Some(status) => Some(status.parse::<TaskState>().map_err(|_unknown| {
+            ApiHttpError::bad_request(format!("unknown task status {status:?}"))
+        })?),
+        None => None,
+    };
 
     let limit = params.limit.map(|l| i32::try_from(l).unwrap_or(i32::MAX));
     let mut tasks = task_repo.get_tasks_by_user_id(user_id, limit, None).await?;

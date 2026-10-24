@@ -1,16 +1,10 @@
 use crate::services::providers::mock_http;
 use systemprompt_ai::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
-use systemprompt_manifest::services::{ProviderModel, ProviderRegistry, ResilienceSettings};
+use systemprompt_manifest::services::ResilienceSettings;
+
+use mock_http::seed_models;
 use systemprompt_wire::WireProtocol;
 
-fn seed_models(provider: &str) -> Vec<ProviderModel> {
-    ProviderRegistry::default_seed()
-        .expect("embedded default catalog parses")
-        .find_provider(provider)
-        .expect("provider present in default catalog")
-        .models
-        .clone()
-}
 
 fn create(
     name: &str,

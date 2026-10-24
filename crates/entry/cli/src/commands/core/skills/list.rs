@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 use systemprompt_identifiers::SkillId;
@@ -191,11 +191,7 @@ pub async fn show_resolved_skill(
 }
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(ServicesRootBootstrap::active_path_or(
-        &profile.paths.services,
-        "skills",
-    ))
+    Ok(ServicesRootBootstrap::require()?.path.join("skills"))
 }
 
 pub fn show_skill_detail(skill_id: &SkillId, skills_path: &Path) -> Result<CommandOutput> {

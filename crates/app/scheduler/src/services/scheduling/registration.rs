@@ -81,6 +81,10 @@ impl SchedulerService {
                 ),
                 actor,
             );
+            let entry = match self.app_context.logging().instance_id() {
+                Some(instance_id) => entry.with_instance_id(instance_id.clone()),
+                None => entry,
+            };
             if let Err(error) = repository.log(entry).await {
                 warn!(error = %error, job_name = %job.job_name, "failed to persist scheduler registration error to logs");
             }
@@ -157,6 +161,7 @@ impl SchedulerService {
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
+        let inventory_memo = Arc::clone(&self.inventory_memo);
         let claim_policy = dispatch::claim_policy(
             &self.config,
             Some(job_config),
@@ -171,6 +176,7 @@ impl SchedulerService {
             let repository = repository.clone();
             let app_context = Arc::clone(&app_context);
             let running_jobs = Arc::clone(&running_jobs);
+            let inventory_memo = Arc::clone(&inventory_memo);
             let parameters = parameters.clone();
             let claim_policy = claim_policy.clone();
 
@@ -186,6 +192,7 @@ impl SchedulerService {
                     claim_policy,
                     enforce,
                     parameters,
+                    inventory_memo,
                 })
                 .instrument(span.span().clone())
                 .await;

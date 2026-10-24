@@ -25,7 +25,7 @@
 use chrono::{DateTime, Utc};
 use systemprompt_ai::repository::{AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta};
 use systemprompt_governance::authz::SubjectProviderSet;
-use systemprompt_identifiers::{ApiKeyId, UserId};
+use systemprompt_identifiers::{ApiKeyId, QuotaSubjectKind, UserId};
 use systemprompt_manifest::profile::QuotaConfig;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
@@ -36,7 +36,7 @@ use super::decision::{QuotaDecision, ceiling_decision, fault_decision};
 use super::distinct::distinct_increments;
 use super::estimate::QuotaEstimate;
 use super::subject::{SubjectResolution, resolve_subject};
-use crate::policies::{API_KEY_QUOTA_SUBJECT, QuotaWindow, USER_QUOTA_SUBJECT, WindowSpan};
+use crate::policies::{QuotaWindow, WindowSpan};
 
 /// Who a request's quota windows can be keyed by.
 #[derive(Debug, Clone, Copy)]
@@ -49,7 +49,7 @@ pub struct QuotaSubjects<'a> {
 /// One bucket row a reservation incremented, and by how much.
 #[derive(Debug, Clone)]
 pub struct ReservedWindow {
-    pub subject_kind: String,
+    pub subject_kind: QuotaSubjectKind,
     pub subject_id: String,
     pub window_seconds: i32,
     pub window_start: DateTime<Utc>,
@@ -101,7 +101,7 @@ pub struct ReserveParams<'a> {
 
 struct ResolvedWindow<'w> {
     window: &'w QuotaWindow,
-    subject_kind: &'w str,
+    subject_kind: QuotaSubjectKind,
     subject_id: String,
     span: WindowSpan,
     shard: i16,
@@ -126,7 +126,7 @@ async fn resolve_windows<'w>(
         match resolve_subject(window, &params.subjects, params.providers).await {
             SubjectResolution::Resolved(subject) => resolved.push(ResolvedWindow {
                 window,
-                shard: pick_shard(&params.sharding, subject.kind, draw),
+                shard: pick_shard(&params.sharding, &subject.kind, draw),
                 subject_kind: subject.kind,
                 subject_id: subject.id,
                 span,
@@ -173,7 +173,7 @@ pub async fn precheck_and_reserve(
         resolved
             .iter()
             .map(|r| IncrementParams {
-                subject_kind: r.subject_kind,
+                subject_kind: r.subject_kind.as_str(),
                 subject_id: &r.subject_id,
                 window_seconds: r.span.bucket_seconds,
                 window_start: r.span.start,
@@ -188,7 +188,7 @@ pub async fn precheck_and_reserve(
         if slot == reservation.windows.len() {
             let charged = &increments[slot];
             reservation.windows.push(ReservedWindow {
-                subject_kind: charged.subject_kind.to_owned(),
+                subject_kind: r.subject_kind.clone(),
                 subject_id: charged.subject_id.to_owned(),
                 window_seconds: charged.window_seconds,
                 window_start: charged.window_start,
@@ -246,7 +246,7 @@ pub async fn settle(
         .windows
         .iter()
         .map(|window| IncrementParams {
-            subject_kind: &window.subject_kind,
+            subject_kind: window.subject_kind.as_str(),
             subject_id: &window.subject_id,
             window_seconds: window.window_seconds,
             window_start: window.window_start,
@@ -280,8 +280,8 @@ pub async fn release(
     settle(repo, reservation, QuotaUsage::default()).await
 }
 
-fn pick_shard(sharding: &QuotaConfig, subject_kind: &str, draw: u16) -> i16 {
-    let shards = if subject_kind == USER_QUOTA_SUBJECT || subject_kind == API_KEY_QUOTA_SUBJECT {
+fn pick_shard(sharding: &QuotaConfig, subject_kind: &QuotaSubjectKind, draw: u16) -> i16 {
+    let shards = if subject_kind.is_principal() {
         sharding.principal_subject_shards
     } else {
         sharding.shared_subject_shards

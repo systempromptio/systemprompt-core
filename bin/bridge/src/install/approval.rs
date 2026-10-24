@@ -26,8 +26,9 @@ pub enum ApprovalRefusal {
 /// The elevated step ran (or tried to) and its result cannot be accepted.
 #[derive(Debug, thiserror::Error)]
 pub enum ElevationFailure {
-    #[error("the elevated helper could not run: {0}")]
-    Helper(String),
+    #[cfg(target_os = "windows")]
+    #[error("the elevated helper could not run")]
+    Helper(#[source] crate::winproc::HelperLaunchError),
     #[error(transparent)]
     Protocol(#[from] ProtocolError),
     #[error("the elevated change did not land: {0}")]

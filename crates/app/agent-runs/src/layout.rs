@@ -20,6 +20,7 @@ pub struct RunLayout {
     pub workspace: PathBuf,
     pub logs: PathBuf,
     pub host: PathBuf,
+    pub outputs: PathBuf,
 }
 
 impl RunLayout {
@@ -31,6 +32,7 @@ impl RunLayout {
             workspace: root.join("workspace"),
             logs: root.join("logs"),
             host: root.join("host"),
+            outputs: root.join("outputs"),
             root,
         }
     }

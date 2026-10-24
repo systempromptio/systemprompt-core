@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs, ProfileRemoval};
-use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
+use systemprompt_bridge::integration::opencode::OPENCODE_CLI_HOST as OPENCODE_HOST;
 use tempfile::TempDir;
 
 struct Paths {
@@ -77,77 +77,110 @@ fn install(models: &[&str]) {
 fn read(path: &Path) -> serde_json::Value {
     serde_json::from_str(&std::fs::read_to_string(path).expect("readable")).expect("json")
 }
+fn token_file(p: &Paths) -> PathBuf {
+    p.user.with_file_name("systemprompt.token")
+}
 
 #[test]
-fn installing_merges_the_provider_block_into_the_user_config_and_preserves_foreign_keys() {
+fn installing_writes_the_v2_provider_block_and_preserves_foreign_keys() {
     sandbox(|p| {
         std::fs::write(
             &p.user,
-            r#"{ "$schema": "https://opencode.ai/config.json", "theme": "dark", "provider": { "ollama": { "npm": "@ai-sdk/openai-compatible" } }, "mcp": { "mine": { "type": "remote", "url": "https://example.com/mcp" } } }"#,
+            r#"{ "$schema": "https://opencode.ai/config.json", "theme": "dark", "providers": { "ollama": { "package": "x" } }, "mcp": { "servers": { "mine": { "type": "remote", "url": "https://example.com/mcp" } } } }"#,
         )
         .expect("seed");
         install(&["claude-sonnet-5", "gpt-4.1"]);
         let doc = read(&p.user);
         assert_eq!(doc["theme"], "dark", "{doc}");
-        assert_eq!(doc["$schema"], "https://opencode.ai/config.json");
+        assert_eq!(doc["providers"]["ollama"]["package"], "x");
         assert_eq!(
-            doc["provider"]["ollama"]["npm"],
-            "@ai-sdk/openai-compatible"
+            doc["mcp"]["servers"]["mine"]["url"],
+            "https://example.com/mcp"
         );
-        assert_eq!(doc["mcp"]["mine"]["url"], "https://example.com/mcp");
-        let ours = &doc["provider"]["systemprompt"];
-        assert_eq!(ours["options"]["baseURL"], "http://127.0.0.1:48217/v1");
+        let ours = &doc["providers"]["systemprompt"];
+        assert_eq!(ours["settings"]["baseURL"], "http://127.0.0.1:48217/v1");
         assert_eq!(
-            ours["options"]["apiKey"], "loopback-secret-value",
-            "OpenCode 2.x reads the key from the provider block: {doc}"
+            ours["settings"]["apiKey"],
+            format!("{{file:{}}}", token_file(p).display()),
+            "the key is named, never inlined: {doc}"
         );
-        assert_eq!(ours["models"]["gpt-4.1"]["name"], "gpt-4.1");
+        assert_eq!(ours["models"]["gpt-4.1"]["modelID"], "gpt-4.1");
         assert_eq!(doc["model"], "systemprompt/claude-sonnet-5");
         assert_eq!(
-            doc["enabled_providers"],
-            serde_json::json!(["systemprompt"]),
-            "only the gateway provider may load: {doc}"
+            doc["policies"],
+            serde_json::json!([
+                {"effect": "deny", "action": "provider.use", "resource": "*"},
+                {"effect": "allow", "action": "provider.use", "resource": "systemprompt"},
+            ])
         );
-        assert!(
-            !p.managed.exists(),
-            "the admin tier OpenCode 2.x ignores is never written"
+        assert!(doc.get("provider").is_none() && doc.get("enabled_providers").is_none());
+        assert_eq!(
+            std::fs::read_to_string(token_file(p)).expect("token"),
+            "loopback-secret-value"
         );
+        assert!(!p.managed.exists(), "the admin tier is never written");
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(&p.user)
+            let mode = std::fs::metadata(token_file(p))
                 .expect("meta")
                 .permissions()
                 .mode()
                 & 0o777;
-            assert_eq!(mode, 0o600, "the user config now holds the key");
+            assert_eq!(mode, 0o600, "the token file is private");
         }
     });
 }
 
 #[test]
-fn an_existing_allowlist_is_replaced_by_ours_and_only_ours_is_removed() {
+fn the_first_v2_install_strips_the_v1_keys_the_bridge_owned() {
     sandbox(|p| {
-        std::fs::write(&p.user, r#"{ "enabled_providers": ["anthropic"] }"#).expect("seed");
-        install(&["claude-sonnet-5"]);
-        let doc = read(&p.user);
-        assert_eq!(
-            doc["enabled_providers"],
-            serde_json::json!(["systemprompt"])
-        );
-
-        OPENCODE_HOST.remove_profile().expect("remove");
-        assert!(!p.user.exists(), "nothing but our keys was left");
-
         std::fs::write(
             &p.user,
-            r#"{ "enabled_providers": ["systemprompt", "anthropic"] }"#,
+            r#"{ "theme": "dark", "provider": { "systemprompt": { "npm": "@ai-sdk/openai-compatible" }, "ollama": {} }, "enabled_providers": ["systemprompt"], "mcp": { "gateway-tools": { "type": "remote" }, "mine": { "type": "remote" } } }"#,
         )
-        .expect("seed widened list");
-        let removal = OPENCODE_HOST.remove_profile().expect("remove");
+        .expect("seed v1");
+        std::fs::write(
+            p.user.with_file_name(".systemprompt-mcp.json"),
+            r#"{ "slugs": ["gateway-tools"] }"#,
+        )
+        .expect("seed sidecar");
+        let v1_plugin = p
+            .user
+            .with_file_name("plugin")
+            .join("systemprompt-hooks.js");
+        std::fs::create_dir_all(v1_plugin.parent().expect("parent")).expect("plugin dir");
+        std::fs::write(&v1_plugin, "export default {}").expect("seed v1 plugin");
+        install(&["claude-sonnet-5"]);
+        let doc = read(&p.user);
+        assert!(doc["provider"].get("systemprompt").is_none(), "{doc}");
+        assert!(doc["provider"].get("ollama").is_some(), "{doc}");
+        assert!(doc.get("enabled_providers").is_none(), "{doc}");
+        assert!(doc["mcp"].get("gateway-tools").is_none(), "{doc}");
+        assert!(doc["mcp"].get("mine").is_some(), "{doc}");
+        OPENCODE_HOST.remove_profile().expect("remove");
+        assert!(!v1_plugin.exists(), "the V1 hooks plugin is removed");
+    });
+}
+
+#[test]
+fn a_managed_tier_provider_leaves_provider_and_policy_config_to_the_admin() {
+    sandbox(|p| {
+        std::fs::write(
+            &p.managed,
+            r#"{ "providers": { "systemprompt": { "package": "aisdk:@ai-sdk/openai-compatible" } } }"#,
+        )
+        .expect("seed mdm");
+        std::fs::write(&p.user, r#"{ "theme": "dark" }"#).expect("seed user");
+        install(&["claude-sonnet-5"]);
+        assert_eq!(read(&p.user), serde_json::json!({ "theme": "dark" }));
+        assert_eq!(
+            std::fs::read_to_string(token_file(p)).expect("token"),
+            "loopback-secret-value"
+        );
         assert!(
-            matches!(removal, ProfileRemoval::NothingToRemove),
-            "a list a user widened is not ours to delete: {removal:?}"
+            systemprompt_bridge::integration::opencode::managed_provider_source().is_some(),
+            "doctor reports the MDM tier"
         );
     });
 }
@@ -194,7 +227,7 @@ fn a_shrunk_model_list_leaves_no_stale_entries() {
         install(&["gpt-4.1"]);
         let doc = read(&p.user);
         assert!(
-            doc["provider"]["systemprompt"]["models"]
+            doc["providers"]["systemprompt"]["models"]
                 .get("claude-sonnet-5")
                 .is_none(),
             "{doc}"
@@ -204,20 +237,22 @@ fn a_shrunk_model_list_leaves_no_stale_entries() {
 }
 
 #[test]
-fn an_empty_model_list_drops_our_default_but_keeps_a_foreign_one() {
+fn foreign_policies_survive_after_ours() {
     sandbox(|p| {
+        std::fs::write(
+            &p.user,
+            r#"{ "policies": [{ "effect": "deny", "action": "tool.use", "resource": "bash:*" }] }"#,
+        )
+        .expect("seed");
         install(&["claude-sonnet-5"]);
-        install(&[]);
-        let doc = read(&p.user);
-        assert!(doc.get("model").is_none(), "{doc}");
-
-        std::fs::write(&p.user, r#"{ "model": "anthropic/claude-opus-5" }"#)
-            .expect("seed foreign default");
-        install(&[]);
-        let doc = read(&p.user);
+        install(&["claude-sonnet-5"]);
+        let policies = read(&p.user)["policies"].clone();
+        assert_eq!(policies.as_array().map(Vec::len), Some(3), "{policies}");
+        assert_eq!(policies[2]["resource"], "bash:*");
+        OPENCODE_HOST.remove_profile().expect("remove");
         assert_eq!(
-            doc["model"], "anthropic/claude-opus-5",
-            "a default naming another provider is not ours to remove"
+            read(&p.user)["policies"],
+            serde_json::json!([{ "effect": "deny", "action": "tool.use", "resource": "bash:*" }])
         );
     });
 }
@@ -243,34 +278,14 @@ fn removing_strips_only_our_keys_and_reports_what_happened() {
             matches!(removal, ProfileRemoval::Removed { .. }),
             "{removal:?}"
         );
-        let doc = read(&p.user);
-        assert_eq!(doc, serde_json::json!({ "theme": "dark" }), "{doc}");
+        assert_eq!(read(&p.user), serde_json::json!({ "theme": "dark" }));
+        assert!(!token_file(p).exists());
 
         let again = OPENCODE_HOST.remove_profile().expect("second remove");
         assert!(
             matches!(again, ProfileRemoval::NothingToRemove),
             "{again:?}"
         );
-    });
-}
-
-#[test]
-fn removing_also_clears_a_retired_admin_tier_block() {
-    sandbox(|p| {
-        std::fs::write(
-            &p.managed,
-            r#"{ "theme": "dark", "provider": { "systemprompt": { "npm": "@ai-sdk/openai-compatible" } }, "model": "systemprompt/claude-sonnet-5" }"#,
-        )
-        .expect("seed retired block");
-        install(&["claude-sonnet-5"]);
-        assert!(
-            systemprompt_bridge::integration::opencode::retired_admin_tier().is_some(),
-            "doctor sees the retired block"
-        );
-        OPENCODE_HOST.remove_profile().expect("remove");
-        assert_eq!(read(&p.managed), serde_json::json!({ "theme": "dark" }));
-        assert!(!p.user.exists());
-        assert!(systemprompt_bridge::integration::opencode::retired_admin_tier().is_none());
     });
 }
 

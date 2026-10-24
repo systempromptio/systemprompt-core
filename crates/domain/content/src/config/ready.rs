@@ -13,13 +13,11 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{CategoryId, SourceId};
-use systemprompt_manifest::split_frontmatter;
 use systemprompt_models::ContentRouting;
 use walkdir::WalkDir;
 
 use crate::ContentError;
-use crate::models::ContentMetadata;
-use crate::services::validate_content_metadata;
+use crate::services::ingestion::{ParsedFrontmatter, parse_frontmatter};
 
 use super::validated::{ContentConfigValidated, ContentSourceConfigValidated};
 
@@ -180,9 +178,7 @@ fn parse_content_file(
 ) -> Result<ParsedContent, ContentError> {
     let markdown_text = std::fs::read_to_string(file_path).map_err(ContentError::Io)?;
 
-    let (metadata, body) = parse_frontmatter(&markdown_text)?;
-
-    validate_content_metadata(&metadata)?;
+    let ParsedFrontmatter { metadata, body, .. } = parse_frontmatter(&markdown_text)?;
 
     let published_at = parse_date(&metadata.published_at)?;
 
@@ -208,17 +204,6 @@ fn parse_content_file(
         version_hash,
         file_path: file_path.to_path_buf(),
     })
-}
-
-fn parse_frontmatter(markdown: &str) -> Result<(ContentMetadata, String), ContentError> {
-    let frontmatter = split_frontmatter(markdown).ok_or_else(|| {
-        ContentError::Parse("Invalid frontmatter format - missing '---' delimiters".to_owned())
-    })?;
-
-    let metadata: ContentMetadata =
-        serde_yaml::from_str(frontmatter.yaml).map_err(ContentError::Yaml)?;
-
-    Ok((metadata, frontmatter.body.trim().to_owned()))
 }
 
 fn parse_date(date_str: &str) -> Result<DateTime<Utc>, ContentError> {

@@ -25,7 +25,7 @@ pub(super) const DEFAULT_MAX_SSE_EVENT_SIZE: usize = 16 * 1024 * 1024;
 #[derive(Debug, thiserror::Error)]
 enum BoundedSseError {
     #[error(transparent)]
-    Source(Box<dyn std::error::Error + Send + Sync>),
+    Source(reqwest::Error),
     #[error("SSE event exceeded the maximum size of {max_size} bytes")]
     EventTooLarge { max_size: usize },
 }
@@ -100,14 +100,13 @@ impl EventSizeLimiter {
     }
 }
 
-pub(super) fn bounded_sse_stream<S, B, E>(
+pub(super) fn bounded_sse_stream<S, B>(
     stream: S,
     max_event_size: usize,
 ) -> BoxStream<'static, Result<Sse, SseError>>
 where
-    S: Stream<Item = Result<B, E>> + Send + 'static,
+    S: Stream<Item = Result<B, reqwest::Error>> + Send + 'static,
     B: AsRef<[u8]> + bytes::Buf + Send + 'static,
-    E: std::error::Error + Send + Sync + 'static,
 {
     let bounded = futures::stream::unfold(
         (
@@ -119,7 +118,7 @@ where
             let chunk = match stream.next().await? {
                 Ok(chunk) => chunk,
                 Err(error) => {
-                    let item = Err(BoundedSseError::Source(Box::new(error)));
+                    let item = Err(BoundedSseError::Source(error));
                     return Some((item, (stream, None)));
                 },
             };

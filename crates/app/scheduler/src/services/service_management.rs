@@ -19,9 +19,9 @@
 
 use std::time::Duration;
 
-use systemprompt_database::{ServiceConfig, ServiceRepository};
+use systemprompt_database::{Reaped, ServiceConfig, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, StopOutcome};
+use systemprompt_loader::subprocess::{self, StopOutcome, SubprocessLiveness};
 use systemprompt_manifest::services::ServiceModule;
 use tracing::warn;
 
@@ -108,9 +108,9 @@ impl ServiceManagementService {
             .map_err(SchedulerError::from)
     }
 
-    pub async fn cleanup_stale_entries(&self) -> SchedulerResult<u64> {
+    pub async fn reap_stale(&self) -> SchedulerResult<Reaped> {
         self.service_repo
-            .cleanup_stale_entries()
+            .reap_stale(&SubprocessLiveness)
             .await
             .map_err(SchedulerError::from)
     }
@@ -162,8 +162,8 @@ impl ServiceManagementService {
         let api = stop_api_listeners(api_port, STOP_GRACE).await?;
         await_api_port_release(api_port, &api).await?;
 
-        let stale_entries_removed = match self.cleanup_stale_entries().await {
-            Ok(removed) => removed,
+        let stale_entries_removed = match self.reap_stale().await {
+            Ok(reaped) => reaped.total(),
             Err(e) => {
                 warn!(error = %e, "Failed to clean stale service entries");
                 0

@@ -50,10 +50,10 @@ fn an_unknown_id_fails_the_whole_request() {
 }
 
 #[test]
-fn the_retired_codex_alias_is_an_unknown_id() {
-    let err = named(&["codex"]).expect_err("only codex-cli names the Codex host");
+fn the_retired_opencode_alias_is_an_unknown_id() {
+    let err = named(&["open-code"]).expect_err("only opencode and opencode-cli name OpenCode");
     assert!(
-        matches!(&err, SelectionError::Unknown { id, .. } if id == "codex"),
+        matches!(&err, SelectionError::Unknown { id, .. } if id == "open-code"),
         "{err:?}"
     );
 }

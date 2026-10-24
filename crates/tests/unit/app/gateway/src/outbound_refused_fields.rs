@@ -7,7 +7,7 @@
 //! for its next request, and a field the Messages API requires is never
 //! dropped however the upstream phrases its refusal.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
 use systemprompt_gateway::protocol::canonical::{
@@ -19,8 +19,7 @@ use systemprompt_gateway::protocol::outbound::retry::{RetryPolicy, with_policy};
 use systemprompt_gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome,
 };
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
@@ -28,24 +27,14 @@ use super::support;
 
 const REFUSED_FIELD: &str = "context_management";
 
-fn route(provider: &str) -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new("r1")),
-        name: None,
-        description: None,
-        model_pattern: "*".into(),
-        provider: ProviderId::new(provider),
-        upstream_model: Some("upstream-1".into()),
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+fn route(provider: &str) -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        provider,
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    )
 }
 
 fn request() -> CanonicalRequest {
@@ -123,8 +112,9 @@ async fn send(endpoint: &str, provider: &str) -> Result<OutboundOutcome, Outboun
     let req = request();
     let raw = raw_body();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(endpoint, "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -185,7 +175,7 @@ async fn the_provider_remembers_the_refused_field_for_its_next_request() {
         .await
         .expect("second");
 
-    assert!(learned("refusing-field-upstream-b").contains(REFUSED_FIELD));
+    assert!(learned("refusing-field-upstream-b/api").contains(REFUSED_FIELD));
     let sent = bodies_sent(&server.received_requests().await.expect("log"));
     assert_eq!(
         sent.len(),
@@ -209,7 +199,7 @@ async fn an_unrelated_400_is_returned_as_is() {
         .await;
 
     assert!(send(&server.uri(), "strict-upstream").await.is_err());
-    assert!(learned("strict-upstream").is_empty());
+    assert!(learned("strict-upstream/api").is_empty());
 }
 
 #[test]

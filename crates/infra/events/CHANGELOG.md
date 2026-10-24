@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- The cache listener accepts `config:<plane>` payloads and advances the matching config `CacheDomain`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Changed

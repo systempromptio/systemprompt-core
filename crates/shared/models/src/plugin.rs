@@ -87,13 +87,7 @@ pub struct PluginHooksRef {
     pub governance: bool,
     #[serde(default)]
     pub comms: bool,
-    // Why: `judge` was `evaluation` until 5c8d3ae9e. The struct denies unknown
-    // fields, so a published kit or a customer config still using the old key
-    // is a fatal load failure, not a warning — and kits are pinned OCI
-    // artifacts we do not get to edit in lockstep with a core release. The
-    // alias keeps them loading; drop it once every pinned kit has been
-    // republished on the new name.
-    #[serde(default, alias = "evaluation")]
+    #[serde(default)]
     pub judge: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub include: Vec<String>,

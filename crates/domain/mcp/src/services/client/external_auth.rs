@@ -30,6 +30,7 @@ use http::{HeaderName, HeaderValue};
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExternalAuth;
+use systemprompt_security::credential::TokenCache;
 
 use super::validation::rewrite_url_for_internal_use;
 use crate::error::{McpDomainError, McpDomainResult};
@@ -51,11 +52,12 @@ struct AccessorError {
 const ACCESSOR_ERROR_MAX_CHARS: usize = 240;
 
 pub(super) async fn resolve_external_bearer(
+    connector_tokens: &TokenCache,
     ext: &ExternalAuth,
     context: &RequestContext,
     server: &str,
 ) -> McpDomainResult<String> {
-    if let Some(token) = machine_grant_bearer(ext, server).await? {
+    if let Some(token) = machine_grant_bearer(connector_tokens, ext, server).await? {
         return Ok(token);
     }
     let Some(jwt) = context.auth_token() else {
@@ -94,7 +96,11 @@ pub(super) async fn resolve_external_bearer(
     .await
 }
 
-async fn machine_grant_bearer(ext: &ExternalAuth, server: &str) -> McpDomainResult<Option<String>> {
+async fn machine_grant_bearer(
+    connector_tokens: &TokenCache,
+    ext: &ExternalAuth,
+    server: &str,
+) -> McpDomainResult<Option<String>> {
     let Ok(deployment) = crate::services::deployment::DeploymentService::get_deployment(server)
     else {
         return Ok(None);
@@ -102,15 +108,16 @@ async fn machine_grant_bearer(ext: &ExternalAuth, server: &str) -> McpDomainResu
     let Some(connector) = deployment.connector.filter(|c| c.grant.is_machine()) else {
         return Ok(None);
     };
-    let token = systemprompt_security::connector_grant::machine_token(server, &connector)
-        .await
-        .map_err(|error| {
-            tracing::warn!(server, %error, "connector machine grant failed");
-            McpDomainError::ExternalAuthUnavailable {
-                server: server.to_owned(),
-                message: error.to_string(),
-            }
-        })?;
+    let token =
+        systemprompt_security::connector_grant::machine_token(connector_tokens, server, &connector)
+            .await
+            .map_err(|error| {
+                tracing::warn!(server, %error, "connector machine grant failed");
+                McpDomainError::ExternalAuthUnavailable {
+                    server: server.to_owned(),
+                    message: error.to_string(),
+                }
+            })?;
     // Why: a connector's resolved ExternalAuth carries an empty scheme because
     // the broker answers with a complete header value; a minted machine token
     // is bare, so the scheme is added here.

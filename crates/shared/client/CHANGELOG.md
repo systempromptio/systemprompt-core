@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Header and gateway path constants spelled once.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

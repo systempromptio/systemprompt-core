@@ -72,7 +72,7 @@ pub(super) fn assemble_content_analytics(
     })
 }
 
-pub(super) async fn resolve_and_install_system_admin(
+pub(super) async fn load_system_admin(
     config: &Config,
     users: &Arc<UserService>,
 ) -> RuntimeResult<Arc<SystemAdmin>> {
@@ -81,7 +81,6 @@ pub(super) async fn resolve_and_install_system_admin(
         email: config.system_admin_email.clone(),
     };
     let resolved = resolve_system_admin(&cfg, users.as_ref()).await?;
-    systemprompt_logging::install_log_attribution(resolved.clone());
     Ok(Arc::new(resolved))
 }
 

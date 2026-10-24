@@ -39,9 +39,9 @@ async fn summary_and_stats_report_reasoning_and_keep_tokens_used_intact() {
             id, request_id, user_id, context_id, provider, model,
             tokens_used, input_tokens, output_tokens,
             reasoning_tokens, cache_read_tokens, cache_creation_tokens,
-            cost_microdollars, status, actor_kind, actor_id, synthetic, created_at
+            cost_microdollars, status, actor_kind, actor_id, traffic, created_at
         ) VALUES ($1, $2, $3, $4, 'openai', 'gpt-test',
-            $5, $6, $7, $8, $9, $10, 1234, 'completed', 'user', $3, FALSE, $11)",
+            $5, $6, $7, $8, $9, $10, 1234, 'completed', 'user', $3, 'production', $11)",
     )
     .bind(format!("air-{nonce}"))
     .bind(format!("req-{nonce}"))

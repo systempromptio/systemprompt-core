@@ -1,4 +1,5 @@
 use proptest::prelude::*;
+use systemprompt_identifiers::SkillId;
 use systemprompt_models::a2a::*;
 
 use super::identifiers::{arb_artifact_id, arb_context_id, arb_message_id, arb_task_id};
@@ -202,7 +203,7 @@ pub fn arb_agent_skill() -> impl Strategy<Value = AgentSkill> {
         proptest::collection::vec("[a-z]{1,10}", 0..5),
     )
         .prop_map(|(id, name, description, tags)| AgentSkill {
-            id,
+            id: SkillId::new(id),
             name,
             description,
             tags,

@@ -84,6 +84,7 @@ async fn batched_resolution_matches_the_per_key_states_and_bundles() {
                 operation_key: format!("adopt-{withdrawn_key}"),
                 comparison_evidence: Default::default(),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await
@@ -100,6 +101,7 @@ async fn batched_resolution_matches_the_per_key_states_and_bundles() {
                 operation_key: format!("withdraw-{withdrawn_key}"),
                 comparison_evidence: Default::default(),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await
@@ -109,7 +111,7 @@ async fn batched_resolution_matches_the_per_key_states_and_bundles() {
 
     let rows = f
         .repository
-        .list_skill_resolutions(&f.owner)
+        .list_resolutions(&f.owner, ResourceKind::Skill)
         .await
         .expect("batched states");
     let by_key: BTreeMap<&str, &ManagedResolution> = rows
@@ -182,7 +184,7 @@ async fn the_overlay_withholds_revoked_keys_for_that_consumer_only() {
     assert_ne!(stamp_before, stamp_after, "a revocation moves the stamp");
     assert_eq!(
         f.repository
-            .revoked_skill_keys(&f.owner, &revoked.owner)
+            .revoked_keys(&f.owner, &revoked.owner, ResourceKind::Skill)
             .await
             .expect("revoked keys")
             .into_iter()
@@ -193,13 +195,13 @@ async fn the_overlay_withholds_revoked_keys_for_that_consumer_only() {
     let (_dir, disk) = disk_catalog_with(&f.key);
     let denied = disk
         .clone()
-        .with_organization_skills(f.repository.clone(), &f.owner, &revoked.owner)
+        .with_organization_resources(f.repository.clone(), &f.owner, &revoked.owner)
         .await
         .expect("denied catalogue");
     assert!(denied.as_content().skills.is_empty());
     let served = disk
         .clone()
-        .with_organization_skills(f.repository.clone(), &f.owner, &granted.owner)
+        .with_organization_resources(f.repository.clone(), &f.owner, &granted.owner)
         .await
         .expect("served catalogue");
     assert_eq!(served.as_content().skills.len(), 1);
@@ -219,7 +221,7 @@ async fn the_overlay_withholds_revoked_keys_for_that_consumer_only() {
         .expect("stamp");
     assert_ne!(stamp_after, stamp_withdrawn, "a withdrawal moves the stamp");
     let gone = disk
-        .with_organization_skills(f.repository.clone(), &f.owner, &granted.owner)
+        .with_organization_resources(f.repository.clone(), &f.owner, &granted.owner)
         .await
         .expect("withdrawn catalogue");
     assert!(gone.as_content().skills.is_empty());
@@ -306,6 +308,7 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
                     operation_key: format!("publish-{key}"),
                     comparison_evidence: Default::default(),
                     limitations: String::new(),
+                    cohort: None,
                 },
             )
             .await
@@ -314,7 +317,7 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
     }
 
     let baseline = repository
-        .list_skill_resolutions(&owner)
+        .list_resolutions(&owner, ResourceKind::Skill)
         .await
         .expect("baseline catalog resolutions");
     let digest_for = |key: &str| {
@@ -345,7 +348,7 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
     .expect("diverge selected digest from publication");
 
     let divergent = repository
-        .list_skill_resolutions(&owner)
+        .list_resolutions(&owner, ResourceKind::Skill)
         .await
         .expect("divergent catalog resolutions");
     assert!(divergent.iter().any(|row| {

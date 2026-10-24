@@ -66,7 +66,7 @@ fn ctx(provider: &str, model: &str, system: Option<&str>) -> OverrideContext {
 fn replace_rule(provider: Option<&str>, pattern: Option<&str>, prompt: &str) -> SystemPromptRule {
     SystemPromptRule {
         provider: provider.map(ProviderId::new),
-        model_pattern: pattern.map(ToOwned::to_owned),
+        models: pattern.map(|p| systemprompt_manifest::services::ModelGlobs(vec![p.to_owned()])),
         action: OverrideRuleAction::Replace,
         prompt: Some(prompt.to_owned()),
     }
@@ -75,7 +75,7 @@ fn replace_rule(provider: Option<&str>, pattern: Option<&str>, prompt: &str) -> 
 #[tokio::test]
 async fn replace_rule_substitutes_prompt() {
     let rules = vec![replace_rule(Some("cerebras"), Some("claude-*"), "light")];
-    let resolution = OverrideEngine::global()
+    let resolution = OverrideEngine::new()
         .resolve(&rules, &ctx("cerebras", "claude-opus-4-8", Some("huge")))
         .await;
     assert_eq!(
@@ -93,11 +93,11 @@ async fn replace_rule_substitutes_prompt() {
 async fn strip_rule_removes_prompt() {
     let rules = vec![SystemPromptRule {
         provider: Some(ProviderId::new("cerebras")),
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Strip,
         prompt: None,
     }];
-    let resolution = OverrideEngine::global()
+    let resolution = OverrideEngine::new()
         .resolve(&rules, &ctx("cerebras", "claude-3-7-sonnet", Some("huge")))
         .await;
     assert_eq!(resolution.action, OverrideAction::Strip);
@@ -110,7 +110,7 @@ async fn strip_rule_removes_prompt() {
 #[tokio::test]
 async fn non_matching_provider_passes_through() {
     let rules = vec![replace_rule(Some("cerebras"), Some("claude-*"), "light")];
-    let resolution = OverrideEngine::global()
+    let resolution = OverrideEngine::new()
         .resolve(&rules, &ctx("openai", "claude-opus-4-8", Some("keep")))
         .await;
     assert_eq!(resolution.action, OverrideAction::Passthrough);
@@ -124,7 +124,7 @@ async fn first_matching_rule_wins() {
         replace_rule(None, Some("claude-*"), "first"),
         replace_rule(Some("cerebras"), Some("claude-*"), "second"),
     ];
-    let resolution = OverrideEngine::global()
+    let resolution = OverrideEngine::new()
         .resolve(&rules, &ctx("cerebras", "claude-opus-4-8", None))
         .await;
     assert_eq!(
@@ -135,7 +135,7 @@ async fn first_matching_rule_wins() {
 
 #[tokio::test]
 async fn empty_rules_pass_through() {
-    let resolution = OverrideEngine::global()
+    let resolution = OverrideEngine::new()
         .resolve(&[], &ctx("cerebras", "claude-opus-4-8", Some("keep")))
         .await;
     assert_eq!(resolution.action, OverrideAction::Passthrough);
@@ -144,7 +144,7 @@ async fn empty_rules_pass_through() {
 
 #[tokio::test]
 async fn registered_extension_replaces_when_no_config_rule_matches() {
-    let engine = OverrideEngine::global();
+    let engine = OverrideEngine::new();
     assert!(engine.has_extensions());
     let resolution = engine
         .resolve(&[], &ctx("ext-test-provider", "any-model", Some("orig")))
@@ -166,7 +166,7 @@ async fn registered_extension_replaces_when_no_config_rule_matches() {
 #[tokio::test]
 async fn config_rule_wins_over_registered_extension() {
     let rules = vec![replace_rule(Some("ext-test-provider"), None, "from-config")];
-    let resolution = OverrideEngine::global()
+    let resolution = OverrideEngine::new()
         .resolve(&rules, &ctx("ext-test-provider", "any-model", None))
         .await;
     assert_eq!(
@@ -178,7 +178,7 @@ async fn config_rule_wins_over_registered_extension() {
 
 #[tokio::test]
 async fn erroring_extension_degrades_to_passthrough() {
-    let resolution = OverrideEngine::global()
+    let resolution = OverrideEngine::new()
         .resolve(&[], &ctx("ext-err-provider", "any-model", Some("keep")))
         .await;
     assert_eq!(resolution.action, OverrideAction::Passthrough);
@@ -222,8 +222,8 @@ fn passthrough_resolution_has_no_descriptor_even_with_source() {
 }
 
 #[tokio::test]
-async fn the_process_wide_engine_collects_the_inventory_registered_overrides() {
-    let engine = OverrideEngine::global();
+async fn a_new_engine_collects_the_inventory_registered_overrides() {
+    let engine = OverrideEngine::new();
 
     assert!(
         engine.has_extensions(),
@@ -265,7 +265,7 @@ async fn the_process_wide_engine_collects_the_inventory_registered_overrides() {
 
 #[test]
 fn the_engine_debug_reports_a_count_rather_than_naming_the_extensions() {
-    let rendered = format!("{:?}", OverrideEngine::global());
+    let rendered = format!("{:?}", OverrideEngine::new());
 
     assert!(rendered.contains("OverrideEngine"));
     assert!(

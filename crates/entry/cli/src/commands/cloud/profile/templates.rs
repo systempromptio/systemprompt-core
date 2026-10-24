@@ -8,7 +8,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use regex::Regex;
 use std::path::Path;
 use systemprompt_cloud::constants::container;
 use systemprompt_config::write_private_atomic;
@@ -17,7 +16,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::CliPaths;
 
-use crate::commands::cloud::init::templates::ai_config;
+use crate::commands::cloud::init::templates::{ai_config, catalog_files};
 
 use systemprompt_cloud::deploy::DockerfileBuilder;
 
@@ -256,30 +255,45 @@ pub fn run_migrations_cmd(profile_path: &Path) -> Result<()> {
 pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
     let services_path = get_services_path()?;
     let ai_dir = Path::new(&services_path).join("ai");
-    let ai_config_path = ai_dir.join("config.yaml");
+    let gateway_path = ai_dir.join("gateway.yaml");
 
-    if !ai_config_path.exists() {
-        CliService::warning("AI config not found. Creating services/ai/config.yaml");
+    if !gateway_path.exists() {
+        CliService::warning("Model catalog not found. Creating services/ai/");
         CliService::info("Run 'systemprompt cloud init' for full project setup");
-
         std::fs::create_dir_all(&ai_dir)
             .with_context(|| format!("Failed to create directory {}", ai_dir.display()))?;
-        std::fs::write(&ai_config_path, ai_config(provider)?)
-            .with_context(|| format!("Failed to write {}", ai_config_path.display()))?;
-        CliService::success(&format!("Created: {}", ai_config_path.display()));
+        if !ai_dir.join("config.yaml").exists() {
+            std::fs::write(ai_dir.join("config.yaml"), ai_config())
+                .with_context(|| format!("Failed to write {}", ai_dir.display()))?;
+        }
+        for (name, body) in catalog_files(provider)? {
+            let path = ai_dir.join(name);
+            std::fs::write(&path, body)
+                .with_context(|| format!("Failed to write {}", path.display()))?;
+        }
+        CliService::success(&format!(
+            "Created the model catalog in {}",
+            ai_dir.display()
+        ));
         return Ok(());
     }
 
-    let content = std::fs::read_to_string(&ai_config_path)
-        .with_context(|| format!("Failed to read {}", ai_config_path.display()))?;
-    let re = Regex::new(r#"default_provider:\s*"?\w+"?"#).context("Failed to compile regex")?;
-    let updated = re.replace(&content, format!(r#"default_provider: "{}""#, provider));
-
-    std::fs::write(&ai_config_path, updated.as_ref())
-        .with_context(|| format!("Failed to write {}", ai_config_path.display()))?;
+    let mut document = systemprompt_config::read_catalog(&ai_dir)
+        .with_context(|| format!("Failed to read {}", ai_dir.display()))?;
+    let Some(model) = crate::commands::admin::setup::catalog::first_model_on(&document, provider)
+    else {
+        CliService::warning(&format!(
+            "The catalog deploys no model on '{provider}'; gateway.default_model is unchanged"
+        ));
+        return Ok(());
+    };
+    let gateway = document
+        .gateway
+        .get_or_insert_with(systemprompt_manifest::services::GatewayConfigSpec::default);
+    gateway.default_model = Some(model.clone());
+    crate::commands::admin::config::services_io::write_gateway(&ai_dir, Some(gateway))?;
     CliService::success(&format!(
-        "Updated default_provider to '{}' in AI config",
-        provider
+        "Set gateway.default_model to '{model}' (served by '{provider}')"
     ));
     Ok(())
 }

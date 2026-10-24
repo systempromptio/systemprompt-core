@@ -90,7 +90,7 @@ fn register_running_service(database_url: &str, port: u16) {
             .await
             .expect("connect to test database");
         // The row must carry a pid at all, because
-        // `ServiceRepository::cleanup_stale_entries` deletes every
+        // `ServiceRepository::reap_stale` deletes every
         // `status = 'running' AND pid IS NULL` row across the whole table, and
         // a concurrently-running test process boots an orchestrator that calls
         // it. It must additionally be a pid whose environ names this service —

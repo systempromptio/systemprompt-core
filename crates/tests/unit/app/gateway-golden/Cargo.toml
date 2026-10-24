@@ -4,18 +4,15 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Golden catalog resolution recorder (0.72.1 snapshots for the 0.73 config rewrite)"
+description = "Golden catalog resolution recorder (walks the ResolvedCatalog in the 0.72.1 golden schema)"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-gateway = { workspace = true }
+systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-identifiers = { workspace = true }
-systemprompt-loader = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
-systemprompt-wire = { workspace = true }
 serde_json = { workspace = true }
-tempfile = { workspace = true }

@@ -6,6 +6,11 @@
 
 - `LocalProfileBuilder::build` and `CloudProfileBuilder::build` return `ProfileResult<Profile>` with the derived URL fields filled from `server.external_url`.
 
+### Changed
+
+- Return cloud credentials from the bootstrap instead of a process cell.
+- One task-state parser, no serde aliases, shared port defaults.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

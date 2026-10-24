@@ -31,7 +31,6 @@ pub const BUNDLE_ALLOWED_DIRS: &[&str] = &[
     "artifacts",
     "config",
     "content",
-    "evaluation",
     "external_agents",
     "gateway",
     "governance",

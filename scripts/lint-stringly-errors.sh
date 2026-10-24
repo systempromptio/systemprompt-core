@@ -18,11 +18,14 @@
 # Usage:
 #   lint-stringly-errors.sh            list every hit, exit 1 when any remain
 #   lint-stringly-errors.sh --report   per-crate counts by category, exit 0
-#   lint-stringly-errors.sh [--report] PATH...   report only hits under PATHs
-#                                    (constructions are always read workspace-wide)
+#   lint-stringly-errors.sh [--report] ROOT...   scan ROOTs instead of the core
+#                                    roots (constructions are read across the
+#                                    same roots); paths resolve against the
+#                                    caller's working directory
 set -euo pipefail
-root="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$root"
+if [ "$#" -eq 0 ] || { [ "$#" -eq 1 ] && [ "$1" = "--report" ]; }; then
+    cd "$(cd "$(dirname "$0")/.." && pwd)"
+fi
 exec python3 - "$@" <<'PY'
 import os
 import re
@@ -34,11 +37,12 @@ report = False
 if args and args[0] == "--report":
     report = True
     args = args[1:]
-roots = [
+core_roots = [
     "crates/shared", "crates/infra", "crates/domain", "crates/app",
     "crates/entry", "systemprompt/src", "bin/bridge/src",
 ]
-selected = [a.rstrip("/") for a in args] or roots
+selected = [a.rstrip("/") for a in args] or core_roots
+roots = selected
 
 
 def is_selected(path):

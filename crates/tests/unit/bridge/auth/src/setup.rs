@@ -1,3 +1,4 @@
+use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::auth::setup::{self, SetupError, TokenRejection};
 use tempfile::TempDir;
 
@@ -144,7 +145,7 @@ fn session_setup_inherits_the_gateway_already_on_disk() {
 fn logout_keeps_a_config_that_still_carries_a_gateway() {
     let ((config, pat_exists), _cfg) = sandbox(|| {
         setup::login(GOOD, Some("http://gw.invalid:7400")).expect("login");
-        let paths = setup::logout().expect("logout");
+        let paths = setup::logout(&SecretStore::resolve()).expect("logout");
         (
             std::fs::read_to_string(&paths.config_file).expect("config survives"),
             paths.pat_file.exists(),
@@ -168,7 +169,7 @@ fn logout_keeps_a_config_that_still_carries_a_gateway() {
 fn logout_after_a_session_sign_in_removes_the_session_section() {
     let ((config, present), _cfg) = sandbox(|| {
         setup::session_setup(Some("http://gw.invalid:7500")).expect("session setup");
-        let paths = setup::logout().expect("logout");
+        let paths = setup::logout(&SecretStore::resolve()).expect("logout");
         let config = std::fs::read_to_string(&paths.config_file).expect("config survives");
         let cfg: systemprompt_bridge::config::Config =
             toml::from_str(&config).expect("valid config");
@@ -186,8 +187,8 @@ fn logout_after_a_session_sign_in_removes_the_session_section() {
 fn clean_reports_exactly_what_it_removed() {
     let ((first, second), _cfg) = sandbox(|| {
         setup::login(GOOD, None).expect("login");
-        let first = setup::clean().expect("first clean");
-        let second = setup::clean().expect("second clean");
+        let first = setup::clean(&SecretStore::resolve()).expect("first clean");
+        let second = setup::clean(&SecretStore::resolve()).expect("second clean");
         (first, second)
     });
     assert!(first.pat_removed && first.config_removed);
@@ -205,7 +206,7 @@ fn status_tracks_the_login_lifecycle() {
         let before = setup::status().expect("status");
         setup::login(GOOD, None).expect("login");
         let after = setup::status().expect("status");
-        setup::clean().expect("clean");
+        setup::clean(&SecretStore::resolve()).expect("clean");
         let cleaned = setup::status().expect("status");
         (before, after, cleaned)
     });
@@ -224,7 +225,7 @@ fn logout_on_a_config_that_is_only_a_pat_section_removes_the_file() {
         let paths = setup::resolve_paths().expect("paths");
         std::fs::create_dir_all(&paths.config_dir).expect("mkdir");
         std::fs::write(&paths.config_file, "[pat]\nfile = \"/nowhere\"\n").expect("seed config");
-        let out = setup::logout().expect("logout");
+        let out = setup::logout(&SecretStore::resolve()).expect("logout");
         (out.config_file.exists(), out)
     });
     assert!(
@@ -287,7 +288,7 @@ fn logout_fails_with_the_read_config_context_when_the_config_path_is_a_directory
     let (err, _cfg) = sandbox(|| {
         let paths = setup::resolve_paths().unwrap();
         std::fs::create_dir_all(&paths.config_file).unwrap();
-        setup::logout().expect_err("an unreadable config must fail logout")
+        setup::logout(&SecretStore::resolve()).expect_err("an unreadable config must fail logout")
     });
     match err {
         SetupError::Io { action, .. } => {
@@ -302,7 +303,7 @@ fn clean_fails_with_the_remove_context_when_the_pat_path_is_a_directory() {
     let (err, _cfg) = sandbox(|| {
         let paths = setup::resolve_paths().unwrap();
         std::fs::create_dir_all(&paths.pat_file).unwrap();
-        setup::clean().expect_err("an unremovable PAT path must fail clean")
+        setup::clean(&SecretStore::resolve()).expect_err("an unremovable PAT path must fail clean")
     });
     match err {
         SetupError::Io { action, .. } => {

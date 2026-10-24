@@ -3,7 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::{AiRequest, ProviderUsage, UserAiUsage};
+use crate::models::rows::AiRequestRow;
+use crate::models::{AiRequest, ProviderUsage, RequestStatus, UserAiUsage};
 use chrono::Utc;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ProviderRequestId, SessionId, TaskId, TraceId,
@@ -17,7 +18,7 @@ impl AiRequestRepository {
     #[must_use = "this returns a Result that should not be ignored"]
     pub async fn get_by_id(&self, id: &AiRequestId) -> Result<Option<AiRequest>, RepositoryError> {
         sqlx::query_as!(
-            AiRequest,
+            AiRequestRow,
             r#"
             SELECT id as "id!: AiRequestId",
                    request_id as "request_id!: AiRequestId",
@@ -40,6 +41,7 @@ impl AiRequestRepository {
         )
         .fetch_optional(self.pool())
         .await
+        .map(|row| row.map(AiRequest::from))
         .map_err(RepositoryError::from)
     }
 
@@ -59,12 +61,13 @@ impl AiRequestRepository {
                 COALESCE(SUM(cost_microdollars), 0)::float8 / 1000000.0 as "total_cost!",
                 AVG(latency_ms)::bigint as "avg_latency_ms"
             FROM ai_requests
-            WHERE created_at > $1 AND status = 'completed'
+            WHERE created_at > $1 AND status = $2
               AND provider IS NOT NULL AND model IS NOT NULL
             GROUP BY provider, model
             ORDER BY COUNT(*) DESC
             "#,
-            cutoff
+            cutoff,
+            RequestStatus::Completed.as_str()
         )
         .fetch_all(self.pool())
         .await

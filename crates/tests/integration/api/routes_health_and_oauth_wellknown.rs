@@ -85,6 +85,9 @@ async fn handle_health_returns_status() -> anyhow::Result<()> {
             "/health",
             get(systemprompt_api::services::server::builder::handle_health),
         )
+        .layer(axum::Extension(std::sync::Arc::new(
+            systemprompt_api::services::server::SchedulerHealth::new(),
+        )))
         .with_state((*ctx).clone());
     let resp = app.oneshot(empty_get("/health")).await?;
     let status = resp.status().as_u16();

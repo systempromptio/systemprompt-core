@@ -4,9 +4,9 @@ use std::time::Duration;
 
 use systemprompt_logging::services::cli::table::{
     ServiceTableEntry, render_service_table, render_service_table_into, render_startup_complete,
-    render_table, truncate_to_width,
+    render_table,
 };
-use systemprompt_logging::services::cli::theme::ServiceStatus;
+use systemprompt_logging::services::cli::theme::StatusGlyph;
 
 fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -40,32 +40,6 @@ fn render_service_lines(title: &str, services: &[ServiceTableEntry]) -> Vec<Stri
 }
 
 #[test]
-fn truncate_to_width_returns_input_when_short_enough() {
-    assert_eq!(truncate_to_width("hello", 10), "hello");
-    assert_eq!(truncate_to_width("hello", 5), "hello");
-}
-
-#[test]
-fn truncate_to_width_truncates_and_appends_ellipsis() {
-    let out = truncate_to_width("abcdefghij", 6);
-    assert_eq!(out, "abc...");
-    assert!(out.chars().count() <= 6);
-}
-
-#[test]
-fn truncate_to_width_zero_width_yields_ellipsis_only() {
-    let out = truncate_to_width("abcdef", 3);
-    assert_eq!(out, "...");
-}
-
-#[test]
-fn truncate_to_width_handles_unicode() {
-    let s = "日本語テストひらがな";
-    let out = truncate_to_width(s, 5);
-    assert!(out.ends_with("..."));
-}
-
-#[test]
 fn render_table_empty_rows_no_panic() {
     render_table(&["a", "b"], &[]);
 }
@@ -95,11 +69,11 @@ fn render_table_handles_extra_cells() {
 
 #[test]
 fn service_table_entry_builder() {
-    let e = ServiceTableEntry::new("svc", "type", Some(1234), ServiceStatus::Running);
+    let e = ServiceTableEntry::new("svc", "type", Some(1234), StatusGlyph::Running);
     assert_eq!(e.name, "svc");
     assert_eq!(e.service_type, "type");
     assert_eq!(e.port, Some(1234));
-    assert!(matches!(e.status, ServiceStatus::Running));
+    assert!(matches!(e.status, StatusGlyph::Running));
 }
 
 #[test]
@@ -110,11 +84,11 @@ fn render_service_table_empty_no_panic() {
 #[test]
 fn render_service_table_all_status_variants() {
     let services = vec![
-        ServiceTableEntry::new("r", "t", Some(80), ServiceStatus::Running),
-        ServiceTableEntry::new("s", "t", Some(81), ServiceStatus::Starting),
-        ServiceTableEntry::new("o", "t", None, ServiceStatus::Stopped),
-        ServiceTableEntry::new("f", "t", Some(83), ServiceStatus::Failed),
-        ServiceTableEntry::new("u", "t", Some(84), ServiceStatus::Unknown),
+        ServiceTableEntry::new("r", "t", Some(80), StatusGlyph::Running),
+        ServiceTableEntry::new("s", "t", Some(81), StatusGlyph::Starting),
+        ServiceTableEntry::new("o", "t", None, StatusGlyph::Stopped),
+        ServiceTableEntry::new("f", "t", Some(83), StatusGlyph::Failed),
+        ServiceTableEntry::new("u", "t", Some(84), StatusGlyph::Unknown),
     ];
     render_service_table("All Services", &services);
 }
@@ -122,12 +96,12 @@ fn render_service_table_all_status_variants() {
 #[test]
 fn render_service_table_every_line_is_the_same_width() {
     let services = vec![
-        ServiceTableEntry::new("api", "http", Some(8080), ServiceStatus::Running),
+        ServiceTableEntry::new("api", "http", Some(8080), StatusGlyph::Running),
         ServiceTableEntry::new(
             "a-considerably-longer-name",
             "subprocess",
             None,
-            ServiceStatus::Stopped,
+            StatusGlyph::Stopped,
         ),
     ];
 
@@ -152,7 +126,7 @@ fn render_service_table_rows_are_framed_by_box_glyphs() {
         "api",
         "http",
         Some(8080),
-        ServiceStatus::Running,
+        StatusGlyph::Running,
     )];
 
     let lines = render_service_lines("Services", &services);
@@ -173,8 +147,8 @@ fn render_service_table_rows_are_framed_by_box_glyphs() {
 #[test]
 fn render_service_table_status_column_is_padded_not_collapsed() {
     let services = vec![
-        ServiceTableEntry::new("a", "t", Some(80), ServiceStatus::Running),
-        ServiceTableEntry::new("b", "t", Some(81), ServiceStatus::Starting),
+        ServiceTableEntry::new("a", "t", Some(80), StatusGlyph::Running),
+        ServiceTableEntry::new("b", "t", Some(81), StatusGlyph::Starting),
     ];
 
     let lines = render_service_lines("Services", &services);

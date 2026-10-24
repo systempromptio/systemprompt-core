@@ -1,6 +1,6 @@
 //! `AiRequestTrace` over the request rows this crate owns: sampling of
-//! completed production traffic and owner-scoped usage reads for the
-//! evaluation domain.
+//! completed production traffic and owner-scoped usage reads for an
+//! extension that evaluates it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId, SessionId, UserId};
 use systemprompt_traits::{
-    AiProviderError, AiProviderResult, AiRequestTrace, TraceMessage, TraceRequestStatus,
+    AiProviderError, AiProviderResult, AiRequestTrace, RequestStatus, TraceMessage,
     TraceRequestUsage, TraceSample, TraceSampleFilter, TraceSampleMode,
 };
 
@@ -65,9 +65,9 @@ async fn sample_requests(
         FROM ai_requests r
         LEFT JOIN ai_request_payloads p ON p.ai_request_id = r.id
         LEFT JOIN ai_tool_catalogs c ON c.sha256 = p.offered_tools_sha256
-        WHERE r.status = 'completed'
+        WHERE r.status = $8
           AND r.actor_kind <> 'job'
-          AND NOT r.synthetic
+          AND r.traffic = 'production'
           AND ($1::timestamptz IS NULL OR r.created_at >= $1)
           AND ($2::timestamptz IS NULL OR r.created_at < $2)
           AND ($3::text IS NULL OR r.provider = $3)
@@ -83,7 +83,8 @@ async fn sample_requests(
         filter.model.as_ref().map(ModelId::as_str),
         ids.as_deref(),
         filter.context_id.as_ref().map(ContextId::as_str),
-        filter.limit
+        filter.limit,
+        RequestStatus::Completed.as_str()
     )
     .fetch_all(pool)
     .await
@@ -116,9 +117,9 @@ async fn sample_conversations(
             FROM ai_requests r
             LEFT JOIN ai_request_payloads p ON p.ai_request_id = r.id
             LEFT JOIN ai_tool_catalogs c ON c.sha256 = p.offered_tools_sha256
-            WHERE r.status = 'completed'
+            WHERE r.status = $8
               AND r.actor_kind <> 'job'
-              AND NOT r.synthetic
+              AND r.traffic = 'production'
               AND ($1::timestamptz IS NULL OR r.created_at >= $1)
               AND ($2::timestamptz IS NULL OR r.created_at < $2)
               AND ($3::text IS NULL OR r.provider = $3)
@@ -136,7 +137,8 @@ async fn sample_conversations(
         filter.model.as_ref().map(ModelId::as_str),
         ids.as_deref(),
         filter.context_id.as_ref().map(ContextId::as_str),
-        filter.limit
+        filter.limit,
+        RequestStatus::Completed.as_str()
     )
     .fetch_all(pool)
     .await
@@ -172,7 +174,10 @@ fn usage_from_row(row: UsageRow) -> AiProviderResult<TraceRequestUsage> {
     Ok(TraceRequestUsage {
         request_id: AiRequestId::new(row.id),
         session_id: row.session_id,
-        status: TraceRequestStatus::parse(&row.status),
+        status: row
+            .status
+            .parse::<RequestStatus>()
+            .map_err(|e| AiProviderError::Internal(Box::new(e)))?,
         completed_at: row.completed_at,
         accounting_failed_at: row.accounting_failed_at,
         cost_microdollars: row.cost_microdollars,

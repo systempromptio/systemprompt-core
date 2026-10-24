@@ -1,5 +1,5 @@
 -- AI usage, rolled up per hour at write time (store, don't compute): one row
--- per (UTC hour, user, provider, model, agent, synthetic) carrying additive
+-- per (UTC hour, user, provider, model, agent, traffic) carrying additive
 -- measures, so a dashboard window costs the number of hours it spans instead
 -- of the number of requests behind it. Averages are `*_sum / *_n`; anything
 -- not additive (percentiles, distinct conversations) keeps reading
@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS ai_usage_rollup_hourly (
     provider TEXT NOT NULL,
     model TEXT NOT NULL,
     agent_name TEXT NOT NULL,
-    synthetic BOOLEAN NOT NULL,
+    traffic TEXT NOT NULL
+        CONSTRAINT ai_usage_rollup_hourly_traffic_check CHECK (traffic IN ('production', 'evaluation')),
     request_count BIGINT NOT NULL DEFAULT 0,
     tokens BIGINT NOT NULL DEFAULT 0,
     input_tokens BIGINT NOT NULL DEFAULT 0,
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS ai_usage_rollup_hourly (
     user_key_request_count BIGINT NOT NULL DEFAULT 0,
     user_key_tokens BIGINT NOT NULL DEFAULT 0,
     user_key_cost_microdollars BIGINT NOT NULL DEFAULT 0,
-    PRIMARY KEY (bucket, user_id, provider, model, agent_name, synthetic)
+    PRIMARY KEY (bucket, user_id, provider, model, agent_name, traffic)
 );
 CREATE INDEX IF NOT EXISTS idx_ai_usage_rollup_hourly_user_bucket
     ON ai_usage_rollup_hourly(user_id, bucket);
@@ -51,12 +52,12 @@ CREATE OR REPLACE FUNCTION ai_usage_rollup_upsert_sql(source TEXT)
 RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
 SELECT format('
     INSERT INTO ai_usage_rollup_hourly AS r (
-        bucket, user_id, provider, model, agent_name, synthetic, request_count, tokens,
+        bucket, user_id, provider, model, agent_name, traffic, request_count, tokens,
         input_tokens, output_tokens, reasoning_tokens, cache_read_tokens,
         cache_creation_tokens, cost_microdollars, latency_sum_ms, latency_n, cache_hits,
         user_key_request_count, user_key_tokens, user_key_cost_microdollars)
     SELECT date_trunc(''hour'', s.created_at, ''UTC''), s.user_id, COALESCE(s.provider, ''''),
-           COALESCE(s.model, ''''), COALESCE(t.agent_name, ''''), s.synthetic,
+           COALESCE(s.model, ''''), COALESCE(t.agent_name, ''''), s.traffic,
            SUM(s.sign), SUM(s.sign * COALESCE(s.tokens_used, 0)),
            SUM(s.sign * COALESCE(s.input_tokens, 0)), SUM(s.sign * COALESCE(s.output_tokens, 0)),
            SUM(s.sign * COALESCE(s.reasoning_tokens, 0)),
@@ -74,7 +75,7 @@ SELECT format('
     LEFT JOIN agent_tasks t ON t.task_id = s.task_id
     GROUP BY 1, 2, 3, 4, 5, 6
     ORDER BY 1, 2, 3, 4, 5, 6
-    ON CONFLICT (bucket, user_id, provider, model, agent_name, synthetic) DO UPDATE SET
+    ON CONFLICT (bucket, user_id, provider, model, agent_name, traffic) DO UPDATE SET
         request_count = r.request_count + EXCLUDED.request_count,
         tokens = r.tokens + EXCLUDED.tokens,
         input_tokens = r.input_tokens + EXCLUDED.input_tokens,
@@ -111,11 +112,11 @@ END $$;
 CREATE OR REPLACE FUNCTION ai_usage_rollup_apply()
 RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
-    changed CONSTANT TEXT := '(n.created_at, n.user_id, n.provider, n.model, n.task_id, n.synthetic, '
+    changed CONSTANT TEXT := '(n.created_at, n.user_id, n.provider, n.model, n.task_id, n.traffic, '
         'n.tokens_used, n.input_tokens, n.output_tokens, n.reasoning_tokens, n.cache_read_tokens, '
         'n.cache_creation_tokens, n.cost_microdollars, n.latency_ms, n.cache_hit, '
         'n.billing_source) IS DISTINCT FROM '
-        '(o.created_at, o.user_id, o.provider, o.model, o.task_id, o.synthetic, o.tokens_used, '
+        '(o.created_at, o.user_id, o.provider, o.model, o.task_id, o.traffic, o.tokens_used, '
         'o.input_tokens, o.output_tokens, o.reasoning_tokens, o.cache_read_tokens, '
         'o.cache_creation_tokens, o.cost_microdollars, o.latency_ms, o.cache_hit, '
         'o.billing_source)';

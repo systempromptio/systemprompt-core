@@ -14,19 +14,35 @@
 #                     does not contain the word `dyn`. Say why the trait is
 #                     object-safe.
 #
-#   scripts/lint-async-trait.sh            # gate
+#   scripts/lint-async-trait.sh            # gate over the core roots
 #   scripts/lint-async-trait.sh --count    # hit count only
+#   scripts/lint-async-trait.sh ROOT...    # scan other source roots (the
+#                                          # `dyn` search covers the same roots)
+#
+# Without roots the script runs from the repository root; with roots, paths
+# resolve against the caller's working directory. A directory literally named
+# `tests` or `target` is skipped for the production scan.
 set -uo pipefail
 export LC_ALL=C
-cd "$(dirname "$0")/.."
 command -v rg >/dev/null || { echo "lint-async-trait: ripgrep required" >&2; exit 2; }
 
 COUNT=0
-[ "${1:-}" = "--count" ] && COUNT=1
+ROOTS=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --count) COUNT=1; shift ;;
+        -*) echo "usage: $0 [--count] [ROOT...]" >&2; exit 2 ;;
+        *) ROOTS+=("$1"); shift ;;
+    esac
+done
+if [ "${#ROOTS[@]}" -eq 0 ]; then
+    cd "$(dirname "$0")/.."
+    ROOTS=(crates systemprompt/src bin/bridge/src)
+fi
 
-PROD_GLOBS=(-g '*.rs' -g '!crates/tests/**' -g '!**/target/**' -g '!**/build.rs')
-PROD_ROOTS=(crates systemprompt/src bin/bridge/src)
-ALL_ROOTS=(crates systemprompt/src bin/bridge/src)
+PROD_GLOBS=(-g '*.rs' -g '!**/tests/**' -g '!**/target/**' -g '!**/build.rs')
+PROD_ROOTS=("${ROOTS[@]}")
+ALL_ROOTS=("${ROOTS[@]}")
 
 # Keyed by `path::Name`: same-named traits in different crates are distinct.
 declare -A trait_name trait_file trait_line dyn_used

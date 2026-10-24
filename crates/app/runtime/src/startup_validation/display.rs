@@ -5,7 +5,7 @@
 
 use systemprompt_logging::services::cli::BrandColors;
 use systemprompt_logging::{CliService, is_structured_output};
-use systemprompt_traits::{StartupValidationReport, ValidationReport};
+use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 
 pub fn display_validation_report(report: &StartupValidationReport) {
     CliService::output("");

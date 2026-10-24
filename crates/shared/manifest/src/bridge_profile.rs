@@ -1,24 +1,22 @@
 //! Builder for the `GET /v1/bridge/profile` payload.
 //!
 //! The desktop bridge (`bin/bridge`) fetches this to render host configuration
-//! and to decide which provider models each host advertises. The server
+//! and to decide which models each host advertises. The server
 //! (`crates/entry/api`) produces it and the bridge consumes it through these
 //! exact types, so the two sides cannot drift.
 //!
-//! Every field is derived in [`build`] from
-//! [`ProviderRegistry::advertised_providers`], the single bearer of the
-//! advertisement rule
-//! ([`ApiSurface::is_advertised`](systemprompt_models::providers::ApiSurface::is_advertised)).
-//! A `surface: backend` provider is therefore structurally absent from both
-//! `providers` and the flat `models` front door. The flat `models` list is the
-//! *whole* advertised set, not one family's projection: the gateway transcodes
-//! every inbound wire to every provider wire, so every advertised model is
-//! reachable from every host, provided it is servable ([`is_model_servable`]):
-//! a model whose serving provider has no credential is left out of `models` and
-//! `model_limits`, though its provider still appears in `providers` flagged
-//! `configured = false`. `providers` carries the per-provider split the bridge
-//! uses to build the narrower per-host views (Claude Desktop being the only
-//! host that narrows).
+//! Every field is derived from the [`ResolvedCatalog`]. The flat `models`
+//! list is every advertised model (`clients` not empty) that is servable for
+//! the caller: the model resolves, and some hop of its chain has a configured
+//! credential (the platform secret is present, or the caller stored a key for
+//! the personal credential). The gateway transcodes every inbound wire to every
+//! upstream wire, so an advertised model is reachable from every host; the
+//! per-provider `providers` split, with each provider's `clients`, is what the
+//! bridge narrows per host with.
+//!
+//! `default_model` is `gateway.default_model`, presented as `<id>[1m]` when
+//! the model is advertised to Claude clients and its context window is at
+//! least 1M tokens: the marker is derived here, never written in config.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,18 +26,148 @@ use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_models::bridge::profile::{
     AdvertisedLimits, BridgeProfileResponse, ProviderHealth,
 };
+use systemprompt_models::providers::{ClientFamily, LONG_CONTEXT_WINDOW, with_context_variant};
 
-use crate::services::{GatewayConfig, ProviderEntry, ProviderRegistry};
+use crate::services::catalog::{
+    ModelRequest, ResolvedCatalog, ResolvedCredential, ResolvedModel, ResolvedProvider,
+};
 
-fn advertised_limits(
-    registry: &ProviderRegistry,
-    servable: impl Fn(&str) -> bool,
-) -> BTreeMap<String, AdvertisedLimits> {
-    registry
-        .advertised_providers()
-        .flat_map(|entry| entry.models.iter())
-        .filter(|model| !model.hidden && model.limits.context_window > 0)
-        .filter(|model| servable(model.id.as_str()))
+/// The caller's credential facts: which platform secrets the deployment
+/// holds, and which personal credentials this user stored a key for.
+#[derive(Clone, Copy)]
+pub struct CredentialFacts<'a> {
+    pub secret_present: &'a dyn Fn(&str) -> bool,
+    pub personal_keys: &'a BTreeSet<String>,
+}
+
+impl std::fmt::Debug for CredentialFacts<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CredentialFacts")
+            .field("personal_keys", &self.personal_keys)
+            .finish_non_exhaustive()
+    }
+}
+
+impl CredentialFacts<'_> {
+    #[must_use]
+    pub fn configured(&self, credential: &ResolvedCredential) -> bool {
+        if credential.is_personal() {
+            return self.personal_keys.contains(credential.id.as_str());
+        }
+        credential
+            .platform_secret()
+            .is_some_and(|secret| (self.secret_present)(secret.as_str()))
+    }
+}
+
+#[must_use]
+pub fn is_model_servable(
+    catalog: &ResolvedCatalog,
+    model: &str,
+    facts: &CredentialFacts<'_>,
+) -> bool {
+    catalog
+        .resolve(&ModelRequest::new(model))
+        .is_ok_and(|target| {
+            target
+                .chain
+                .iter()
+                .any(|hop| facts.configured(&hop.credential))
+        })
+}
+
+fn provider_models<'a>(
+    catalog: &'a ResolvedCatalog,
+    provider: &'a ResolvedProvider,
+) -> impl Iterator<Item = &'a ResolvedModel> {
+    catalog.advertised_models(None).filter(move |model| {
+        catalog
+            .enabled_hops(model.id.as_str())
+            .any(|hop| hop.provider == provider.id)
+    })
+}
+
+#[must_use]
+pub fn provider_health(
+    catalog: &ResolvedCatalog,
+    facts: &CredentialFacts<'_>,
+) -> Vec<ProviderHealth> {
+    catalog
+        .providers()
+        .filter(|provider| provider.enabled)
+        .filter_map(|provider| {
+            let models: Vec<&ResolvedModel> = provider_models(catalog, provider).collect();
+            if models.is_empty() {
+                return None;
+            }
+            let credential = catalog.credential(provider.credential.as_str())?;
+            let configured = facts.configured(credential);
+            let config_issue = (!configured).then(|| {
+                credential.platform_secret().map_or_else(
+                    || "personal key not added — add your own key in Settings".to_owned(),
+                    |secret| format!("API key secret '{}' is not configured", secret.as_str()),
+                )
+            });
+            let clients: BTreeSet<ClientFamily> = models
+                .iter()
+                .flat_map(|m| m.clients.iter().copied())
+                .collect();
+            Some(ProviderHealth {
+                name: provider.id.as_str().to_owned(),
+                credential: credential.id.as_str().to_owned(),
+                clients: clients.into_iter().collect(),
+                configured,
+                models: models.iter().map(|m| m.id.as_str().to_owned()).collect(),
+                config_issue,
+                display_name: provider
+                    .display_name
+                    .clone()
+                    .or_else(|| credential.label.clone()),
+                personal_key: credential.is_personal(),
+            })
+        })
+        .collect()
+}
+
+#[must_use]
+pub fn presented_default_model(catalog: &ResolvedCatalog) -> Option<String> {
+    let id = catalog.default_model()?;
+    let model = catalog.model(id.as_str())?;
+    let long_context = model.limits.context_window >= LONG_CONTEXT_WINDOW
+        && model.is_advertised_to(ClientFamily::Claude);
+    Some(if long_context {
+        with_context_variant(id.as_str())
+    } else {
+        id.as_str().to_owned()
+    })
+}
+
+#[derive(Debug, Clone)]
+pub struct BridgeProfileParams<'a> {
+    pub inference_gateway_base_url: String,
+    pub auth_scheme: String,
+    pub organization_uuid: Option<String>,
+    pub catalog: &'a ResolvedCatalog,
+}
+
+#[must_use]
+pub fn build(
+    params: BridgeProfileParams<'_>,
+    facts: &CredentialFacts<'_>,
+) -> BridgeProfileResponse {
+    let BridgeProfileParams {
+        inference_gateway_base_url,
+        auth_scheme,
+        organization_uuid,
+        catalog,
+    } = params;
+    let servable: Vec<&ResolvedModel> = catalog
+        .advertised_models(None)
+        .filter(|model| is_model_servable(catalog, model.id.as_str(), facts))
+        .collect();
+    let model_limits: BTreeMap<String, AdvertisedLimits> = servable
+        .iter()
+        .filter(|model| model.limits.context_window > 0)
         .map(|model| {
             (
                 model.id.as_str().to_owned(),
@@ -49,148 +177,14 @@ fn advertised_limits(
                 },
             )
         })
-        .collect()
-}
-
-fn entry_configured(
-    entry: &ProviderEntry,
-    secret_present: &impl Fn(&str) -> bool,
-    personal_keys: &BTreeSet<String>,
-) -> bool {
-    if entry.is_user_credential() {
-        return personal_keys.contains(entry.credential_owner());
-    }
-    entry
-        .platform_secret()
-        .is_some_and(|secret| secret_present(secret.as_str()))
-}
-
-pub fn provider_health(
-    registry: &ProviderRegistry,
-    secret_present: impl Fn(&str) -> bool,
-) -> Vec<ProviderHealth> {
-    provider_health_for_user(registry, &secret_present, &BTreeSet::new())
-}
-
-pub fn provider_health_for_user(
-    registry: &ProviderRegistry,
-    secret_present: &impl Fn(&str) -> bool,
-    personal_keys: &BTreeSet<String>,
-) -> Vec<ProviderHealth> {
-    registry
-        .advertised_providers()
-        .map(|entry| {
-            let configured = entry_configured(entry, secret_present, personal_keys);
-            let config_issue = (!configured).then(|| {
-                entry.platform_secret().map_or_else(
-                    || "personal key not added — add your own key in Settings".to_owned(),
-                    |secret| format!("API key secret '{}' is not configured", secret.as_str()),
-                )
-            });
-            ProviderHealth {
-                name: entry.name.as_str().to_owned(),
-                surface: entry.surface,
-                configured,
-                models: entry
-                    .models
-                    .iter()
-                    .filter(|model| !model.hidden)
-                    .map(|model| model.id.as_str().to_owned())
-                    .collect(),
-                config_issue,
-                display_name: entry.display_name.clone(),
-                personal_key: entry.takes_own_personal_key(),
-            }
-        })
-        .collect()
-}
-
-pub fn is_model_servable(
-    registry: &ProviderRegistry,
-    gateway: Option<&GatewayConfig>,
-    model: &str,
-    secret_present: &impl Fn(&str) -> bool,
-) -> bool {
-    is_model_servable_for_user(registry, gateway, model, secret_present, &BTreeSet::new())
-}
-
-pub fn is_model_servable_for_user(
-    registry: &ProviderRegistry,
-    gateway: Option<&GatewayConfig>,
-    model: &str,
-    secret_present: &impl Fn(&str) -> bool,
-    personal_keys: &BTreeSet<String>,
-) -> bool {
-    let configured = |provider: &str| {
-        registry
-            .find_provider(provider)
-            .is_some_and(|entry| entry_configured(entry, secret_present, personal_keys))
-    };
-    if let Some(gw) = gateway {
-        if let Some(route) = gw.find_route(model) {
-            return route
-                .all_chains()
-                .iter()
-                .flat_map(|(_, views)| views)
-                .any(|view| configured(view.provider.as_str()));
-        }
-        if let Some(default) = gw.default_provider.as_ref() {
-            return configured(default.as_str());
-        }
-    }
-    registry
-        .providers
-        .iter()
-        .filter(|entry| entry.find_model(model).is_some())
-        .any(|entry| entry_configured(entry, secret_present, personal_keys))
-}
-
-#[derive(Debug, Clone)]
-pub struct BridgeProfileParams<'a> {
-    pub inference_gateway_base_url: String,
-    pub auth_scheme: String,
-    pub organization_uuid: Option<String>,
-    pub default_model: Option<String>,
-    pub registry: &'a ProviderRegistry,
-    pub gateway: Option<&'a GatewayConfig>,
-}
-
-#[must_use]
-pub fn build(
-    params: BridgeProfileParams<'_>,
-    secret_present: impl Fn(&str) -> bool,
-) -> BridgeProfileResponse {
-    build_for_user(params, secret_present, &BTreeSet::new())
-}
-
-#[must_use]
-pub fn build_for_user(
-    params: BridgeProfileParams<'_>,
-    secret_present: impl Fn(&str) -> bool,
-    personal_keys: &BTreeSet<String>,
-) -> BridgeProfileResponse {
-    let BridgeProfileParams {
-        inference_gateway_base_url,
-        auth_scheme,
-        organization_uuid,
-        default_model,
-        registry,
-        gateway,
-    } = params;
-    let servable = |model: &str| {
-        is_model_servable_for_user(registry, gateway, model, &secret_present, personal_keys)
-    };
+        .collect();
     BridgeProfileResponse {
         inference_gateway_base_url,
         auth_scheme,
-        models: registry
-            .advertised_model_ids(&[])
-            .into_iter()
-            .filter(|model| servable(model))
-            .collect(),
-        default_model,
+        models: servable.iter().map(|m| m.id.as_str().to_owned()).collect(),
+        default_model: presented_default_model(catalog),
         organization_uuid,
-        model_limits: advertised_limits(registry, servable),
-        providers: provider_health_for_user(registry, &secret_present, personal_keys),
+        model_limits,
+        providers: provider_health(catalog, facts),
     }
 }

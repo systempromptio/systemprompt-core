@@ -9,13 +9,16 @@
 
 pub mod advisory_lock;
 pub mod base;
+pub mod change_context;
 pub mod coordination;
 pub mod lease;
+pub mod ownership;
 pub mod release_stamp;
 pub mod service;
 
 pub use advisory_lock::{EXTENSION_LOCK_CLASS, SessionAdvisoryLock, SessionAdvisoryLocks};
 pub use base::PgDbPool;
+pub use change_context::{PgConfigVersion, with_change_context};
 pub use coordination::CoordinationRepositories;
 pub use lease::InstanceLeaseRepository;
 pub use release_stamp::{
@@ -23,6 +26,6 @@ pub use release_stamp::{
 };
 pub use service::{
     CLAIM_DEAD_PEER_SECS, CreateServiceInput, INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS,
-    InstanceClaim, InstanceClaimError, ServiceConfig, ServiceModule, ServiceRepository,
-    ServiceStatus, UpsertServiceProcessInput,
+    InstanceClaim, InstanceClaimError, Reaped, ReapedService, ServiceConfig, ServiceModule,
+    ServiceRepository, ServiceStatus, UpsertServiceProcessInput,
 };

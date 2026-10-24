@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ai_catalog_legacy_map (legacy_provider, provider, endpoint, credential)\n               VALUES ($1, $2, $3, $4)\n               ON CONFLICT (legacy_provider) DO UPDATE\n                   SET provider = EXCLUDED.provider, endpoint = EXCLUDED.endpoint,\n                       credential = EXCLUDED.credential",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ae874c964333765c6ca1d7c52a7c7df0aa4a8a103b64aa7014f604b1033a7f1f"
+}

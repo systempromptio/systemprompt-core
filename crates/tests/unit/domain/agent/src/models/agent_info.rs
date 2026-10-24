@@ -8,7 +8,7 @@
 
 use systemprompt_agent::models::a2a::{AgentCard, AgentInterface};
 use systemprompt_agent::models::agent_info::AgentInfo;
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::{AgentId, SkillId};
 use systemprompt_models::a2a::ProtocolBinding;
 
 fn create_test_card() -> AgentCard {
@@ -96,7 +96,7 @@ fn test_agent_info_with_skills() {
     let card = create_test_card();
     let skills = vec![
         AgentSkill {
-            id: "skill-1".to_string(),
+            id: SkillId::new("skill-1"),
             name: "Search".to_string(),
             description: "Search capability".to_string(),
             tags: vec!["search".to_string()],
@@ -106,7 +106,7 @@ fn test_agent_info_with_skills() {
             security_requirements: None,
         },
         AgentSkill {
-            id: "skill-2".to_string(),
+            id: SkillId::new("skill-2"),
             name: "Chat".to_string(),
             description: "Chat capability".to_string(),
             tags: vec!["chat".to_string()],
@@ -143,7 +143,7 @@ fn test_agent_info_builder_chain() {
 
     let card = create_test_card();
     let skills = vec![AgentSkill {
-        id: "skill-1".to_string(),
+        id: SkillId::new("skill-1"),
         name: "Search".to_string(),
         description: "Search".to_string(),
         tags: vec![],
@@ -180,7 +180,7 @@ fn test_agent_info_skills_count_with_skills() {
     let card = create_test_card();
     let skills = vec![
         AgentSkill {
-            id: "1".to_string(),
+            id: SkillId::new("1"),
             name: "S1".to_string(),
             description: "D1".to_string(),
             tags: vec![],
@@ -190,7 +190,7 @@ fn test_agent_info_skills_count_with_skills() {
             security_requirements: None,
         },
         AgentSkill {
-            id: "2".to_string(),
+            id: SkillId::new("2"),
             name: "S2".to_string(),
             description: "D2".to_string(),
             tags: vec![],
@@ -200,7 +200,7 @@ fn test_agent_info_skills_count_with_skills() {
             security_requirements: None,
         },
         AgentSkill {
-            id: "3".to_string(),
+            id: SkillId::new("3"),
             name: "S3".to_string(),
             description: "D3".to_string(),
             tags: vec![],

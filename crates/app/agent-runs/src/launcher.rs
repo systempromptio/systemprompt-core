@@ -60,7 +60,7 @@ impl AgentRunLauncher for RepositoryRunLauncher {
             .insert_run(NewAgentRun {
                 id: &id,
                 origin_kind: &launch.origin_kind,
-                origin_id: &launch.origin_id,
+                origin_id: launch.origin_id.as_str(),
                 user_id: &launch.user_id,
                 request: &request,
                 not_before: None,

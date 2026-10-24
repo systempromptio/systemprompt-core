@@ -17,10 +17,12 @@ fn ensure_bootstrap() {
                 "JWT_SECRET",
                 "signing-key-independence-jwt-secret-A-32-bytes-or-longer",
             );
-            std::env::set_var(
-                "DATABASE_URL",
-                "postgres://placeholder:placeholder@localhost/placeholder",
-            );
+            if std::env::var_os("DATABASE_URL").is_none() {
+                std::env::set_var(
+                    "DATABASE_URL",
+                    "postgres://placeholder:placeholder@localhost/placeholder",
+                );
+            }
             std::env::set_var("MANIFEST_SIGNING_SECRET_SEED", SEED_B64);
         }
         systemprompt_test_fixtures::secrets::install_named_secret(

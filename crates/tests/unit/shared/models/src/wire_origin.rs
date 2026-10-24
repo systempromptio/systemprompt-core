@@ -409,14 +409,16 @@ fn internal_origin_pairs_all_three_halves() {
 
 #[test]
 fn every_known_bridge_host_maps_onto_the_wire_vocabulary() {
-    for host in HostKind::ALL.map(HostKind::as_str) {
-        let kind = ClientKind::from_bridge_host_id(host)
-            .unwrap_or_else(|| panic!("{host} has no ClientKind"));
-        assert_eq!(kind.bridge_host_id(), Some(host));
+    for host in HostKind::ALL {
+        let kind = ClientKind::from(host);
+        assert!(kind.hosts().any(|h| h == host), "{host}");
         assert!(EvaluatorClient::try_from(kind).is_ok(), "{host}");
     }
-    assert_eq!(ClientKind::from_bridge_host_id("codex"), None);
-    assert_eq!(ClientKind::Pi.bridge_host_id(), None);
+    assert_eq!(
+        ClientKind::from(HostKind::Codex),
+        ClientKind::from(HostKind::CodexCli)
+    );
+    assert_eq!(ClientKind::Pi.hosts().count(), 0);
 }
 
 #[test]

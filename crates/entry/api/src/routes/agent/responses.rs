@@ -3,13 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
 use serde::Serialize;
 use systemprompt_models::{ApiError, CollectionResponse, SingleResponse};
 
 pub fn api_error_response(error: ApiError) -> Response {
-    error.into_response()
+    ApiHttpError::from(error).into_response()
 }
 
 pub fn single_response<T: Serialize + 'static>(data: T) -> Response {

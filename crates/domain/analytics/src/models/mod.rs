@@ -20,7 +20,16 @@ pub use events::{
     LinkClickEventData, ScrollEventData,
 };
 pub use fingerprint::{FingerprintAnalysisResult, FingerprintReputation, FlagReason};
-pub use reporting::*;
-pub(crate) use rows::{
-    AgentListDbRow, EngagementEventRow, RecentContextDbRow, ToolAgentUsageDbRow, ToolListDbRow,
+pub use reporting::{
+    AgentAiStatsRow, AgentErrorRow, AgentHourlyRow, AgentListRow, AgentStatsRow,
+    AgentStatusBreakdownRow, AgentSummaryRow, AgentTaskRow, BotTotalsRow, BotTypeRow,
+    ContentStatsRow, ContentTrendRow, ContextGroupRow, ContextSummaryRow, ConversationListRow,
+    CostBreakdownRow, CostSummaryRow, CostTrendRow, CostUserBreakdownRow, DeviceRow,
+    GatewaySessionListRow, GeoRow, LiveSessionRow, ModelUsageRow, OverviewAgentRow,
+    OverviewCostRow, OverviewRequestRow, OverviewToolRow, PreviousCostRow, RecentContextRow,
+    RequestListFilter, RequestListRow, RequestStatsRow, RequestTrendRow, SessionStatsRow,
+    SessionTrendRow, TimestampRow, ToolAgentUsageRow, ToolCaller, ToolErrorRow, ToolExecutionRow,
+    ToolListRow, ToolStatsRow, ToolStatusBreakdownRow, ToolSummaryRow, TopContentRow,
+    TrafficNavigationRow, TrafficPageRow, TrafficSourceRow,
 };
+pub(crate) use rows::{AgentListDbRow, RecentContextDbRow, ToolAgentUsageDbRow, ToolListDbRow};

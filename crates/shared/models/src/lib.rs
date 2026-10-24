@@ -37,11 +37,11 @@
 //! - [`origin`] — client attribution of an AI request (client kind, attestation
 //!   tier, evidence).
 //! - [`plugin`] — plugin component references carried in the bridge manifest.
-//! - [`providers`] — the client-facing API surface of an upstream provider.
+//! - [`providers`] — the client families a catalog model is advertised to.
 //! - [`routing`] — request routing classification.
 //! - [`scope`] — per-request scoping identity for scoped DB transactions.
 //! - [`subprocess`] — identity contract for supervised child processes.
-//! - [`text`], [`time_format`] — display formatting helpers.
+//! - [`text`] — display formatting helpers.
 //! - [`users`] — public user / session summaries.
 //!
 //! No module here spawns processes or opens sockets: process spawning lives
@@ -66,6 +66,7 @@ pub mod macros;
 pub mod a2a;
 pub mod agui;
 pub mod ai;
+pub mod analytics;
 pub mod api;
 pub mod artifacts;
 pub mod attribution;
@@ -73,6 +74,7 @@ pub mod auth;
 pub mod bridge;
 pub mod content;
 pub mod content_config;
+pub mod defaults;
 pub mod errors;
 pub mod events;
 pub mod execution;
@@ -92,7 +94,6 @@ pub mod routing;
 pub mod scope;
 pub mod subprocess;
 pub mod text;
-pub mod time_format;
 pub mod users;
 
 pub use a2a::{

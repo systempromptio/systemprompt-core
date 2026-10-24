@@ -65,6 +65,26 @@ function modelFilterBody(draft, effective, allModels, overridden) {
     </div>`;
 }
 
+// Which rule chose the Cowork session is decided in Rust (`TargetSource`);
+// this only names it and offers the picker that pins another one.
+const COWORK_SOURCE = {
+  "pinned": ["cowork-source-pinned", "pinned on this computer"],
+  "gateway": ["cowork-source-gateway", "named by the gateway"],
+  "personal": ["cowork-source-personal", "personal session"],
+  "only-session": ["cowork-source-only-session", "the only session"],
+};
+
+function coworkSessionRow(session) {
+  const [key, fallback] = COWORK_SOURCE[session.source] || [null, session.source];
+  const source = (key && t(key)) || fallback;
+  return agentDrawerRow(t("cowork-session") || "Cowork organization", `
+    <div class="sp-status__detail sp-u-mono" title="${escapeHtml(session.path)}">${escapeHtml(session.org)}</div>
+    ${agentDrawerDetailText(source, { muted: true })}
+    <div class="sp-drawer__filter-actions">
+      <button class="sp-btn-ghost" type="button" data-action="act" data-kind="pick-cowork-session">${escapeHtml(t("agent-action-pick-cowork-session") || "Choose organization")}</button>
+    </div>`);
+}
+
 export function renderAgentDrawerModels(drawer, host) {
   // "Not checked yet" is a third state, and rendering nothing for it made it
   // indistinguishable from an agent with no models at all.
@@ -87,6 +107,7 @@ export function renderAgentDrawerModels(drawer, host) {
     agentDrawerRow(t("host-model-filter") || "Model filter",
       modelFilterBody(draft, draft ? draft.protocols : saved, draft ? draft.all : saved.length === 0, !!host.model_protocols_overridden)),
   ];
+  if (host.cowork_session) { rows.push(coworkSessionRow(host.cowork_session)); }
   return agentDrawerSection("agent-section-models", "Models",
     `<table class="sp-status__board"><tbody>${rows.join("")}</tbody></table>`);
 }

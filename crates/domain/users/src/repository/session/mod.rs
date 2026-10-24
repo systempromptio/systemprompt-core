@@ -9,6 +9,7 @@ mod fingerprint;
 mod geo;
 mod mutations;
 mod queries;
+mod snapshot_row;
 
 use crate::Result;
 use chrono::{DateTime, Utc};
@@ -16,6 +17,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_models::analytics::BehavioralBotReason;
 use systemprompt_traits::session_store::{
     ActiveSessionLookup, CreateSessionParams, SessionBehavioralData, SessionRecord,
     SessionSnapshot as AnalyticsSession,
@@ -75,8 +77,19 @@ impl SessionRepository {
     pub async fn mark_converted(&self, session_id: &SessionId) -> Result<()> {
         mutations::mark_converted(&self.write_pool, session_id).await
     }
-    pub async fn mark_as_behavioral_bot(&self, session_id: &SessionId, reason: &str) -> Result<()> {
+    pub async fn mark_as_behavioral_bot(
+        &self,
+        session_id: &SessionId,
+        reason: BehavioralBotReason,
+    ) -> Result<()> {
         behavioral::mark_as_behavioral_bot(&self.write_pool, session_id, reason).await
+    }
+    pub async fn mark_ghost_sessions_as_bots(&self) -> Result<u64> {
+        behavioral::mark_ghost_sessions_as_bots(&self.write_pool).await
+    }
+    pub async fn mark_no_js_sessions_as_bots(&self, engaged: &[SessionId]) -> Result<u64> {
+        let engaged: Vec<String> = engaged.iter().map(ToString::to_string).collect();
+        behavioral::mark_no_js_sessions_as_bots(&self.write_pool, &engaged).await
     }
     pub async fn check_and_mark_behavioral_bot(
         &self,

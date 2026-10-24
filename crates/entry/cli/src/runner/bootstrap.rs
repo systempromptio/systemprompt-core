@@ -15,10 +15,9 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use systemprompt_cloud::{CredentialsBootstrap, SessionStore};
+use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, SessionStore};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::LogLevel;
@@ -147,9 +146,11 @@ pub(super) fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
         .map(|profile| profile.runtime.log_level)
 }
 
-pub(super) async fn init_credentials_gracefully(announce: bool) -> Result<()> {
-    match CredentialsBootstrap::init().await {
-        Ok(_) => Ok(()),
+pub(super) async fn init_credentials_gracefully(
+    announce: bool,
+) -> Result<Option<CloudCredentials>> {
+    match CredentialsBootstrap::load().await {
+        Ok(credentials) => Ok(credentials),
         Err(e) if e.is_local_mode_recoverable() => {
             if announce {
                 tracing::warn!(
@@ -163,8 +164,7 @@ pub(super) async fn init_credentials_gracefully(announce: bool) -> Result<()> {
                     "Cloud credentials unavailable; continuing in local-only mode"
                 );
             }
-            CredentialsBootstrap::init_empty();
-            Ok(())
+            Ok(None)
         },
         Err(e) => Err(anyhow::Error::new(e).context("Credential initialization failed")),
     }
@@ -188,7 +188,7 @@ pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
     )
     .await
     .context("Failed to resolve the services bundle sources")?;
-    let paths = AppPaths::from_profile(
+    AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
         Some(active_root.path.as_path()),
@@ -206,7 +206,6 @@ pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
         systemprompt_loader::ServicesBootstrap::try_init()
             .context("Failed to load the services configuration")?;
     }
-    FilesConfig::init(&paths).context("Failed to initialize files configuration")?;
     Ok(())
 }
 
@@ -226,7 +225,10 @@ pub(super) fn run_validation() -> Result<()> {
     Ok(())
 }
 
-pub(super) fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvironment) {
+pub(super) fn validate_cloud_credentials(
+    env: &crate::environment::ExecutionEnvironment,
+    credentials: Option<&CloudCredentials>,
+) {
     if env.is_remote_cli {
         return;
     }
@@ -235,28 +237,21 @@ pub(super) fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvi
         .ok()
         .is_none_or(Profile::is_local_trial);
 
-    match CredentialsBootstrap::get() {
-        Ok(Some(creds)) => {
+    match credentials {
+        Some(creds) => {
             if creds.is_token_expired() {
                 CliService::warning(
                     "Cloud token has expired. Run 'systemprompt cloud auth login' to refresh.",
                 );
             }
         },
-        Ok(None) => {
+        None => {
             if is_local_profile {
                 tracing::debug!("Cloud credentials not present; running in local-only mode");
             } else {
                 CliService::error(
                     "Cloud credentials not found. Run 'systemprompt cloud auth login' to register.",
                 );
-            }
-        },
-        Err(e) => {
-            if is_local_profile {
-                tracing::debug!(error = %e, "Cloud credentials unavailable; running in local-only mode");
-            } else {
-                CliService::error(&format!("Cloud credential error: {}", e));
             }
         },
     }

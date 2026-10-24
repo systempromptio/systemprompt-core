@@ -30,6 +30,7 @@ fn plugin(files: &[(&str, &[u8])]) -> PluginEntry {
             })
             .collect(),
         hooks: systemprompt_models::plugin::PluginHooksRef::default(),
+        publication: None,
     }
 }
 

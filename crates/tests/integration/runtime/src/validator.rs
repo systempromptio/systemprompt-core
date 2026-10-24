@@ -8,12 +8,13 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use systemprompt_files::FilesConfigValidator;
 use systemprompt_logging::set_startup_mode;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_runtime::{FilesConfigValidator, StartupValidator};
+use systemprompt_runtime::StartupValidator;
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -114,7 +115,7 @@ fn validate_returns_services_config_error_when_profile_uninitialised_verbose() {
 
 #[test]
 fn files_config_validator_round_trip() {
-    use systemprompt_traits::DomainConfig;
+    use systemprompt_manifest::validators::DomainConfig;
 
     let validator = FilesConfigValidator::new();
     assert_eq!(validator.domain_id(), "files");

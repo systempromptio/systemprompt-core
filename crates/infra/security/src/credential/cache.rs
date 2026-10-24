@@ -46,15 +46,16 @@ struct CachedToken {
     expires_at: SystemTime,
 }
 
-#[derive(Default)]
-struct TokenCache {
+/// Minted tokens keyed by secret name, with single-flight minting per key.
+///
+/// It also owns the bounded HTTP client every exchange through it uses. Owned
+/// by the service that mints (storage token source, MCP client); it is shared
+/// by handle, never process-wide.
+#[derive(Debug, Default)]
+pub struct TokenCache {
     entries: RwLock<HashMap<String, CachedToken>>,
     mints: tokio::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
-}
-
-fn cache() -> &'static TokenCache {
-    static CACHE: OnceLock<TokenCache> = OnceLock::new();
-    CACHE.get_or_init(TokenCache::default)
+    http: OnceLock<Result<reqwest::Client, Arc<reqwest::Error>>>,
 }
 
 #[must_use]
@@ -65,55 +66,66 @@ pub fn clamp_ttl(declared: Option<u64>) -> Duration {
     }
 }
 
-fn cached(key: &str) -> Option<String> {
-    let guard = cache()
-        .entries
-        .read()
-        .unwrap_or_else(PoisonError::into_inner);
-    let token = guard.get(key).and_then(|entry| {
-        (entry.expires_at > SystemTime::now() + EXPIRY_SKEW).then(|| entry.token.clone())
-    });
-    drop(guard);
-    token
-}
-
-fn store(key: &str, token: &str, ttl: Duration) {
-    cache()
-        .entries
-        .write()
-        .unwrap_or_else(PoisonError::into_inner)
-        .insert(
-            key.to_owned(),
-            CachedToken {
-                token: token.to_owned(),
-                expires_at: SystemTime::now() + ttl,
-            },
-        );
-}
-
-pub async fn token_for<F, Fut>(key: &str, mint: F) -> Result<String, CredentialError>
-where
-    F: FnOnce() -> Fut,
-    Fut: Future<Output = Result<(String, Duration), CredentialError>>,
-{
-    if let Some(token) = cached(key) {
-        return Ok(token);
+impl TokenCache {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    // Why: the per-key lock is held in a map that is never pruned. Its keys
-    // are secret names, of which a deployment has a handful, so the map is
-    // bounded by configuration rather than by traffic.
-    let lock = {
-        let mut mints = cache().mints.lock().await;
-        Arc::clone(mints.entry(key.to_owned()).or_default())
-    };
-    let _minting = lock.lock().await;
-
-    if let Some(token) = cached(key) {
-        return Ok(token);
+    pub(crate) fn http_client(&self) -> Result<&reqwest::Client, CredentialError> {
+        self.http
+            .get_or_init(super::http::build_client)
+            .as_ref()
+            .map_err(|e| CredentialError::Client(Arc::clone(e)))
     }
 
-    let (token, ttl) = mint().await?;
-    store(key, &token, ttl);
-    Ok(token)
+    fn cached(&self, key: &str) -> Option<String> {
+        let guard = self.entries.read().unwrap_or_else(PoisonError::into_inner);
+        let token = guard.get(key).and_then(|entry| {
+            (entry.expires_at > SystemTime::now() + EXPIRY_SKEW).then(|| entry.token.clone())
+        });
+        drop(guard);
+        token
+    }
+
+    fn store(&self, key: &str, token: &str, ttl: Duration) {
+        self.entries
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(
+                key.to_owned(),
+                CachedToken {
+                    token: token.to_owned(),
+                    expires_at: SystemTime::now() + ttl,
+                },
+            );
+    }
+
+    pub async fn token_for<F, Fut>(&self, key: &str, mint: F) -> Result<String, CredentialError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<(String, Duration), CredentialError>>,
+    {
+        if let Some(token) = self.cached(key) {
+            return Ok(token);
+        }
+
+        // Why: the per-key lock is held in a map that is never pruned. Its keys
+        // are catalog credential ids (see `TokenCacheKey`) and connector grant
+        // names, of which a deployment has a handful, so the map is bounded by
+        // configuration rather than by traffic.
+        let lock = {
+            let mut mints = self.mints.lock().await;
+            Arc::clone(mints.entry(key.to_owned()).or_default())
+        };
+        let _minting = lock.lock().await;
+
+        if let Some(token) = self.cached(key) {
+            return Ok(token);
+        }
+
+        let (token, ttl) = mint().await?;
+        self.store(key, &token, ttl);
+        Ok(token)
+    }
 }

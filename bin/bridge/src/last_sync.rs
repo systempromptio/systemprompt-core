@@ -8,9 +8,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
+use systemprompt_models::bridge::host::HostKind;
 
 use serde::{Deserialize, Serialize};
 
@@ -52,9 +52,7 @@ pub struct LastSyncState {
     #[serde(default)]
     pub user: Option<String>,
     #[serde(default)]
-    pub enabled_hosts: Vec<String>,
-    #[serde(default)]
-    pub host_model_protocols: BTreeMap<String, Vec<String>>,
+    pub enabled_hosts: Vec<HostKind>,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
     #[serde(default)]
@@ -72,7 +70,7 @@ impl LastSyncState {
     }
 
     // Why: a manifest that only partially applied is not in force. The host
-    // set, protocol map and update policy the enroller and the updater read
+    // set and update policy the enroller and the updater read
     // back must stay those of the last manifest that fully applied, and the
     // replay checkpoint with them, or a host whose emitter failed is reported
     // as enabled and a tightened update policy as delivered.
@@ -81,7 +79,6 @@ impl LastSyncState {
         Self {
             manifest_version: prior.manifest_version.clone(),
             enabled_hosts: prior.enabled_hosts.clone(),
-            host_model_protocols: prior.host_model_protocols.clone(),
             auto_update: prior.auto_update,
             ..self
         }
@@ -183,7 +180,7 @@ pub fn delivered_state() -> Result<Option<LastSyncState>, ReplayStateError> {
         .then_some(state))
 }
 
-pub fn last_synced_enabled_hosts() -> Result<Option<Vec<String>>, ReplayStateError> {
+pub fn last_synced_enabled_hosts() -> Result<Option<Vec<HostKind>>, ReplayStateError> {
     Ok(delivered_state()?.map(|state| state.enabled_hosts))
 }
 

@@ -125,14 +125,14 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
 }
 
 async fn resolve_email() -> Result<String> {
-    CredentialsBootstrap::try_init()
+    let creds = CredentialsBootstrap::load()
         .await
-        .context("Failed to initialize credentials")?;
-    let creds = CredentialsBootstrap::require().map_err(|_e| {
-        anyhow::anyhow!(
-            "No --email provided and no credentials available. Pass --email or run `systemprompt \
-             cloud auth login` first."
-        )
-    })?;
+        .context("Failed to initialize credentials")?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "No --email provided and no credentials available. Pass --email or run \
+                 `systemprompt cloud auth login` first."
+            )
+        })?;
     Ok(creds.user_email.as_str().to_owned())
 }

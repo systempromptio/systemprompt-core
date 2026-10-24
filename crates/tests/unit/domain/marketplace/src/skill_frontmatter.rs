@@ -89,6 +89,7 @@ fn rendered(skills: &[SkillEntry]) -> String {
         artifacts: &[],
         plugins_root: Path::new("/nonexistent"),
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let config = plugin_config(
         "alpha",

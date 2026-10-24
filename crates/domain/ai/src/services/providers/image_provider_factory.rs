@@ -1,10 +1,12 @@
-//! Image-provider factory, keyed on registry [`WireProtocol`].
+//! Image-provider factory, keyed on the endpoint's [`WireProtocol`].
 //!
-//! Connectivity comes from the registry [`ProviderEntry`] resolved into an
-//! [`UpstreamTarget`] (endpoint, credential, model catalog); the per-provider
-//! AI policy supplies the image-model default. Only the `gemini` and
-//! `openai-chat`/`-responses` protocols generate images; other protocols fall
-//! back to one that can.
+//! `ai.default_image_model` names a catalog model; its first enabled
+//! deployment on an image-capable wire with a platform credential is the
+//! endpoint images are generated on. Connectivity is that hop resolved into
+//! an [`UpstreamTarget`]; the model definitions are every model deployed on
+//! the same endpoint, keyed by the upstream name the endpoint is sent, and
+//! priced from the deployment. Only the `gemini` and
+//! `openai-chat`/`-responses` wires generate images.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,19 +14,35 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_manifest::services::{AiProviderConfig, ModelDefinition, ProviderEntry};
+use systemprompt_manifest::services::ModelDefinition;
+use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
 use systemprompt_wire::WireProtocol;
 
-use crate::error::Result;
-use crate::services::upstream::UpstreamTarget;
+use crate::error::{AiError, ProviderCapability, Result, RoutingError};
+use crate::services::upstream::{EndpointBinding, UpstreamTarget};
+use systemprompt_identifiers::ProviderId;
 
 use super::{BoxedImageProvider, GeminiImageProvider, OpenAiImageProvider};
 
 #[derive(Debug)]
 pub struct ImageProviderParams<'a> {
-    pub entry: &'a ProviderEntry,
-    pub policy: &'a AiProviderConfig,
+    pub catalog: &'a ResolvedCatalog,
+    pub hop: &'a ResolvedHop,
     pub target: UpstreamTarget,
+}
+
+/// The default image provider and the provider id it is registered under.
+pub struct DefaultImageProvider {
+    pub provider: String,
+    pub client: BoxedImageProvider,
+}
+
+impl std::fmt::Debug for DefaultImageProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DefaultImageProvider")
+            .field("provider", &self.provider)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -32,22 +50,47 @@ pub struct ImageProviderFactory;
 
 impl ImageProviderFactory {
     pub fn create(params: &ImageProviderParams<'_>) -> Result<BoxedImageProvider> {
-        if !params.policy.enabled {
-            return Err(crate::error::AiError::ProviderDisabled {
-                provider: params.entry.name.as_str().to_owned(),
-            });
+        if !params.catalog.is_enabled(params.hop) {
+            return Err(AiError::Routing(RoutingError::ProviderDisabled {
+                provider: ProviderId::new(params.hop.provider.as_str()),
+            }));
         }
-
-        match params.entry.wire {
+        match params.hop.wire {
             WireProtocol::Gemini => Ok(Self::create_gemini(params)),
             WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => {
                 Ok(Self::create_openai(params))
             },
-            WireProtocol::Anthropic => Err(crate::error::AiError::CapabilityUnsupported {
-                provider: params.entry.name.as_str().to_owned(),
-                capability: crate::error::ProviderCapability::ImageGeneration,
-            }),
+            WireProtocol::Anthropic => Err(AiError::Routing(RoutingError::CapabilityUnsupported {
+                provider: ProviderId::new(params.hop.provider.as_str()),
+                capability: ProviderCapability::ImageGeneration,
+            })),
         }
+    }
+
+    pub fn from_catalog(catalog: &ResolvedCatalog) -> Result<Option<DefaultImageProvider>> {
+        let Some(model) = catalog.default_image_model() else {
+            return Ok(None);
+        };
+        let hop = catalog
+            .enabled_hops(model.as_str())
+            .filter(|hop| Self::supports_image_generation(hop.wire))
+            .find(|hop| !hop.credential.is_personal())
+            .ok_or_else(|| {
+                AiError::Routing(RoutingError::NoProviderForModel {
+                    model: model.clone(),
+                })
+            })?;
+        let binding = EndpointBinding::of_hop(catalog, hop)?;
+        let target = UpstreamTarget::from_secrets(binding)?;
+        let client = Self::create(&ImageProviderParams {
+            catalog,
+            hop,
+            target,
+        })?;
+        Ok(Some(DefaultImageProvider {
+            provider: hop.provider.as_str().to_owned(),
+            client,
+        }))
     }
 
     #[must_use]
@@ -59,42 +102,40 @@ impl ImageProviderFactory {
     }
 
     fn create_gemini(params: &ImageProviderParams<'_>) -> BoxedImageProvider {
-        let base = GeminiImageProvider::with_target(params.target.clone())
-            .with_model_definitions(Self::model_definitions(params.entry));
-
-        let provider = match params.policy.default_image_model.as_str() {
-            "" => base,
-            model => base.with_default_model(model.to_owned()),
-        };
-
-        Arc::new(provider)
+        Arc::new(
+            GeminiImageProvider::with_target(params.target.clone())
+                .with_model_definitions(Self::model_definitions(params))
+                .with_default_model(params.hop.upstream_model.clone()),
+        )
     }
 
     fn create_openai(params: &ImageProviderParams<'_>) -> BoxedImageProvider {
-        let base = OpenAiImageProvider::with_target(params.target.clone())
-            .with_model_definitions(Self::model_definitions(params.entry));
-
-        let provider = match params.policy.default_image_model.as_str() {
-            "" => base,
-            model => base.with_default_model(model.to_owned()),
-        };
-
-        Arc::new(provider)
+        Arc::new(
+            OpenAiImageProvider::with_target(params.target.clone())
+                .with_model_definitions(Self::model_definitions(params))
+                .with_default_model(params.hop.upstream_model.clone()),
+        )
     }
 
-    fn model_definitions(entry: &ProviderEntry) -> HashMap<String, ModelDefinition> {
-        entry
-            .models
-            .iter()
-            .map(|m| {
-                (
-                    m.id.as_str().to_owned(),
+    fn model_definitions(params: &ImageProviderParams<'_>) -> HashMap<String, ModelDefinition> {
+        let endpoint = params.hop.endpoint_ref();
+        params
+            .catalog
+            .models()
+            .filter_map(|model| {
+                let hop = params
+                    .catalog
+                    .deployments(model.id.as_str())
+                    .iter()
+                    .find(|hop| hop.endpoint_ref() == endpoint)?;
+                Some((
+                    hop.upstream_model.clone(),
                     ModelDefinition {
-                        capabilities: m.capabilities,
-                        limits: m.limits,
-                        pricing: m.pricing,
+                        capabilities: model.capabilities,
+                        limits: model.limits,
+                        pricing: hop.pricing,
                     },
-                )
+                ))
             })
             .collect()
     }

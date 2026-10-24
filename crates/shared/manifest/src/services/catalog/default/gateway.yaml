@@ -1,0 +1,14 @@
+# Default gateway: off, with the one alias the vendor publishes.
+#
+# Part of core's embedded default catalog (`DefaultCatalog`). The gateway is
+# switched on, and `default_model` chosen, by the install. `claude-haiku-4-5`
+# is Anthropic's rolling name for the dated `claude-haiku-4-5-20251001`: the
+# same upstream model under a second requested id is an alias route, never a
+# second model.
+
+gateway:
+  enabled: false
+  routes:
+    - id: claude-haiku-4-5-alias
+      label: Claude Haiku 4.5 (rolling name)
+      alias: { requested: claude-haiku-4-5, model: claude-haiku-4-5-20251001 }

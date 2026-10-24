@@ -30,12 +30,14 @@ pub mod payload;
 pub mod phases;
 mod quota_settlement;
 mod tool_results;
+pub mod tool_validity;
 
 pub(crate) use admission::PendingFinding;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use systemprompt_ai::models::CatalogHop;
 use systemprompt_ai::repository::{
     AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
 };
@@ -44,10 +46,21 @@ use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
 };
+use systemprompt_manifest::services::catalog::ResolvedHop;
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 
 pub use access_log::GatewayAccessLog;
+
+impl GatewayRequestContext {
+    pub fn open_on(&mut self, hop: &ResolvedHop) {
+        hop.provider.as_str().clone_into(&mut self.provider);
+        self.hop = Some(CatalogHop {
+            credential: hop.credential.id.as_str().to_owned(),
+            endpoint: hop.endpoint_ref().to_string(),
+        });
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct GatewayRequestContext {
@@ -61,6 +74,7 @@ pub struct GatewayRequestContext {
     pub access_scope: AccessScope,
     pub client_id: Option<ClientId>,
     pub provider: String,
+    pub hop: Option<CatalogHop>,
     pub model: String,
     pub requested_model: Option<String>,
     pub max_tokens: Option<u32>,
@@ -93,10 +107,13 @@ pub struct GatewayAudit {
     started_at: Instant,
     upstream: Mutex<UpstreamClock>,
     background: systemprompt_traits::BackgroundTasks,
+    logging: systemprompt_logging::LoggingRuntime,
     quota_buckets: AiQuotaBucketRepository,
     quota_reservation: Mutex<Option<crate::quota::QuotaReservation>>,
     admission: Mutex<Option<admission::PendingAdmission>>,
     user_key_billing: std::sync::atomic::AtomicBool,
+    tool_validity: Arc<tool_validity::ToolValidityCache>,
+    tool_validators: std::sync::OnceLock<Arc<systemprompt_ai::services::tools::ToolArgsValidator>>,
 }
 
 #[derive(Debug, Default)]
@@ -123,15 +140,22 @@ impl GatewayAudit {
             started_at: Instant::now(),
             upstream: Mutex::new(UpstreamClock::default()),
             background: repos.background.clone(),
+            logging: repos.logging.clone(),
             quota_buckets: repos.quota_buckets.clone(),
             quota_reservation: Mutex::new(None),
             admission: Mutex::new(None),
             user_key_billing: std::sync::atomic::AtomicBool::new(false),
+            tool_validity: Arc::clone(&repos.tool_validity),
+            tool_validators: std::sync::OnceLock::new(),
         }
     }
 
     pub const fn background(&self) -> &systemprompt_traits::BackgroundTasks {
         &self.background
+    }
+
+    pub const fn logging(&self) -> &systemprompt_logging::LoggingRuntime {
+        &self.logging
     }
 
     pub async fn set_served_model(&self, model: &str) {
@@ -150,19 +174,24 @@ impl GatewayAudit {
         }
     }
 
-    pub async fn set_served_provider(&self, provider: &str) {
+    pub async fn set_served_hop(&self, hop: &ResolvedHop) {
+        let served = admission::OwnedHop {
+            provider: hop.provider.as_str().to_owned(),
+            credential: hop.credential.id.as_str().to_owned(),
+            endpoint: hop.endpoint_ref().to_string(),
+        };
         if let Ok(mut slot) = self.served_provider.lock() {
-            *slot = Some(provider.to_owned());
+            *slot = Some(served.provider.clone());
         }
-        if self.stash_served_provider(provider) {
+        if self.stash_served_hop(&served) {
             return;
         }
         if let Err(e) = self
             .requests
-            .update_served_provider(&self.ctx.ai_request_id, provider)
+            .update_served_hop(&self.ctx.ai_request_id, served.as_served())
             .await
         {
-            tracing::warn!(error = %e, "update_served_provider failed");
+            tracing::warn!(error = %e, "update_served_hop failed");
         }
     }
 

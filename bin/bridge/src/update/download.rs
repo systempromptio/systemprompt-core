@@ -51,7 +51,7 @@ pub async fn download_verified(
     let dest = updates.join(format!("update-{}-{}", manifest.version, platform));
     let tmp = crate::fsutil::temp_path_for(&dest);
 
-    let url = client.url(&format!("/v1/bridge/download/{platform}"));
+    let url = client.url(&systemprompt_models::ApiPaths::bridge_download(platform));
     let resp = client
         .http()
         .get(&url)

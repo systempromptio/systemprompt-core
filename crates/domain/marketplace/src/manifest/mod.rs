@@ -28,7 +28,8 @@ use systemprompt_identifiers::{LibraryArtifactId, SkillId, UserId};
 use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_models::bridge::ids::ManifestSignature;
 use systemprompt_models::bridge::manifest::{
-    ManifestClaudeCode, ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
+    ManifestClaudeCode, ManifestMarketplace, ManifestOpenCode, SignedManifest,
+    SignedManifestEnvelope, ThemeRef,
 };
 use systemprompt_security::manifest_signing;
 
@@ -103,7 +104,7 @@ impl ManifestService {
             cache,
         } = *request;
         let hooks = load_hooks(services_root)?;
-        let plugins = load_plugins(services, &catalog.as_content(), cache)?;
+        let plugins = catalog.stamp_plugins(load_plugins(services, &catalog.as_content(), cache)?);
         let skill_owners = skill_owners(services, &catalog.as_content());
         let rule_owners = rule_owners(services, &catalog.as_content());
         let selected_skills: BTreeSet<SkillId> = skill_owners.keys().cloned().collect();
@@ -203,6 +204,14 @@ fn listed_marketplaces(
                     .collect(),
                 claude_code: marketplace.claude_code.map(|c| ManifestClaudeCode {
                     skill_listing_budget_chars: c.skill_listing_budget_chars,
+                }),
+                opencode: marketplace.opencode.as_ref().map(|o| ManifestOpenCode {
+                    min_client_version: o.min_client_version.clone(),
+                    theme: o.theme.as_ref().map(|t| ThemeRef {
+                        name: t.name.clone(),
+                        sha: t.sha256.clone(),
+                    }),
+                    cli_defaults: o.cli_defaults.clone(),
                 }),
             }
         })

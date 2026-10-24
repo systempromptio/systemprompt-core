@@ -23,9 +23,7 @@ use systemprompt_models::attribution::ScopeBinding;
 pub use systemprompt_models::auth::{AccountKind, UserRole, UserStatus};
 
 mod rows;
-pub(crate) use rows::{
-    UserActivityRow, UserApiKeyRow, UserDeviceCertRow, UserRow, UserWithSessionsRow,
-};
+pub(crate) use rows::{UserActivityRow, UserApiKeyRow, UserRow, UserWithSessionsRow};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {

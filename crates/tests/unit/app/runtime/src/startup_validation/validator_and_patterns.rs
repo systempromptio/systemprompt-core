@@ -203,8 +203,8 @@ fn test_phase_error_pattern() {
 
 #[test]
 fn test_files_config_validator_domain_id() {
-    use systemprompt_runtime::FilesConfigValidator;
-    use systemprompt_traits::DomainConfig;
+    use systemprompt_files::FilesConfigValidator;
+    use systemprompt_manifest::validators::DomainConfig;
 
     let validator = FilesConfigValidator::new();
     assert_eq!(validator.domain_id(), "files");
@@ -212,9 +212,9 @@ fn test_files_config_validator_domain_id() {
 
 #[test]
 fn test_files_config_validator_priority() {
-    use systemprompt_runtime::FilesConfigValidator;
-    use systemprompt_traits::DomainConfig;
+    use systemprompt_files::FilesConfigValidator;
+    use systemprompt_manifest::validators::DomainConfig;
 
     let validator = FilesConfigValidator::new();
-    assert_eq!(validator.priority(), 5);
+    assert_eq!(validator.priority(), 10);
 }

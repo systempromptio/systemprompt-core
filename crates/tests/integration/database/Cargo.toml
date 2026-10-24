@@ -15,6 +15,7 @@ reqwest = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-traits = { workspace = true }
 anyhow = { workspace = true }
 sqlx = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
@@ -34,5 +35,6 @@ ignored = [
     "systemprompt-database",
     "systemprompt-extension",
     "systemprompt-identifiers",
+    "systemprompt-traits",
     "systemprompt-test-fixtures",
 ]

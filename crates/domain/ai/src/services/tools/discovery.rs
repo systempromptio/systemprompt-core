@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, Result, ToolError};
 use std::sync::Arc;
 use systemprompt_identifiers::{AgentName, McpToolName};
 use systemprompt_models::RequestContext;
@@ -48,15 +48,10 @@ impl ToolDiscovery {
         // Why: an agent planning against a partial tool list would silently
         // lose capabilities; a server that cannot be listed fails discovery.
         if !inventory.is_complete() {
-            let failed: Vec<String> = inventory
-                .failed_servers
-                .iter()
-                .map(|f| format!("{}: {}", f.server, f.message))
-                .collect();
-            return Err(AiError::ToolDiscovery(format!(
-                "tool inventory for agent {agent_name} is incomplete: {}",
-                failed.join("; ")
-            )));
+            return Err(AiError::Tool(ToolError::DiscoveryIncomplete {
+                agent: agent_name.clone(),
+                failed: inventory.failed_servers,
+            }));
         }
 
         Ok(inventory.tools.iter().map(definition_to_mcp_tool).collect())

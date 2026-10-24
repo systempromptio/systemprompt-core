@@ -73,6 +73,7 @@ fn marketplace(id: &MarketplaceId, access: MarketplaceAccess) -> MarketplaceConf
         external_marketplaces: vec![],
         external_plugins: vec![],
         claude_code: None,
+        opencode: None,
     }
 }
 

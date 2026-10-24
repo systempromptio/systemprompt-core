@@ -11,15 +11,17 @@
 use std::io::Write;
 use std::time::Duration;
 
+use systemprompt_models::text::truncate_with_ellipsis;
+
 use crate::services::cli::sink::{report_write_failure, stdout_write, stdout_writeln};
-use crate::services::cli::theme::{BrandColors, ServiceStatus};
+use crate::services::cli::theme::{BrandColors, StatusGlyph};
 
 #[derive(Debug, Clone)]
 pub struct ServiceTableEntry {
     pub name: String,
     pub service_type: String,
     pub port: Option<u16>,
-    pub status: ServiceStatus,
+    pub status: StatusGlyph,
 }
 
 impl ServiceTableEntry {
@@ -27,7 +29,7 @@ impl ServiceTableEntry {
         name: impl Into<String>,
         service_type: impl Into<String>,
         port: Option<u16>,
-        status: ServiceStatus,
+        status: StatusGlyph,
     ) -> Self {
         Self {
             name: name.into(),
@@ -36,15 +38,6 @@ impl ServiceTableEntry {
             status,
         }
     }
-}
-
-pub fn truncate_to_width(s: &str, width: usize) -> String {
-    if s.chars().count() <= width {
-        return s.to_owned();
-    }
-    let truncate_to = width.saturating_sub(3);
-    let truncated: String = s.chars().take(truncate_to).collect();
-    format!("{truncated}...")
 }
 
 fn calculate_column_widths(headers: &[&str], rows: &[Vec<String>]) -> Vec<usize> {
@@ -75,7 +68,7 @@ fn render_table_border(widths: &[usize], left: &str, middle: &str, right: &str) 
 fn render_table_row(cells: &[&str], widths: &[usize]) {
     stdout_write(format_args!("\u{2502}"));
     for (i, (&cell, &width)) in cells.iter().zip(widths.iter()).enumerate() {
-        let truncated = truncate_to_width(cell, width);
+        let truncated = truncate_with_ellipsis(cell, width);
         stdout_write(format_args!(" {truncated:<width$} "));
         if i < widths.len() - 1 {
             stdout_write(format_args!("\u{2502}"));
@@ -225,18 +218,18 @@ fn render_service_row(
     // Why: Rust string formatting counts ANSI escape characters toward field width.
     let padded_status = format!("{status_display:<width$}", width = cols.status);
     let colored_status = match service.status {
-        ServiceStatus::Running => BrandColors::running(padded_status),
-        ServiceStatus::Starting => BrandColors::starting(padded_status),
-        ServiceStatus::Stopped | ServiceStatus::Failed => BrandColors::stopped(padded_status),
-        ServiceStatus::Unknown => BrandColors::dim(padded_status),
+        StatusGlyph::Running => BrandColors::running(padded_status),
+        StatusGlyph::Starting => BrandColors::starting(padded_status),
+        StatusGlyph::Stopped | StatusGlyph::Failed => BrandColors::stopped(padded_status),
+        StatusGlyph::Unknown => BrandColors::dim(padded_status),
     };
 
     writeln!(
         out,
         "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:>port_width$} \u{2502} \
          {colored_status} \u{2502}",
-        truncate_to_width(&service.name, name_width),
-        truncate_to_width(&service.service_type, type_width),
+        truncate_with_ellipsis(&service.name, name_width),
+        truncate_with_ellipsis(&service.service_type, type_width),
         port_str,
     )
 }

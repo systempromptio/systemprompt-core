@@ -105,10 +105,11 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_manifest::RuntimeStatus;
+        use systemprompt_manifest::ServiceStatus;
+        use systemprompt_scheduler::VerifiedService;
         assert_eq!(
-            state.runtime_status,
-            RuntimeStatus::Crashed,
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Error),
             "running row with a non-existent PID must resolve as Crashed"
         );
         assert_eq!(
@@ -147,10 +148,11 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_manifest::RuntimeStatus;
+        use systemprompt_manifest::ServiceStatus;
+        use systemprompt_scheduler::VerifiedService;
         assert_eq!(
-            state.runtime_status,
-            RuntimeStatus::Crashed,
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Error),
             "running row with NULL pid must resolve as Crashed"
         );
 
@@ -193,10 +195,11 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_manifest::RuntimeStatus;
+        use systemprompt_manifest::ServiceStatus;
+        use systemprompt_scheduler::VerifiedService;
         assert_eq!(
-            state.runtime_status,
-            RuntimeStatus::Stopped,
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Stopped),
             "starting row with a non-existent PID must resolve as Stopped"
         );
         assert_eq!(
@@ -235,10 +238,11 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_manifest::RuntimeStatus;
+        use systemprompt_manifest::ServiceStatus;
+        use systemprompt_scheduler::VerifiedService;
         assert_eq!(
-            state.runtime_status,
-            RuntimeStatus::Stopped,
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Stopped),
             "starting row with NULL pid must resolve as Stopped"
         );
 
@@ -318,10 +322,11 @@ mod state_verifier_seeded {
             .find(|s| s.name == name.as_str())
             .expect("state present");
 
-        use systemprompt_manifest::RuntimeStatus;
+        use systemprompt_manifest::ServiceStatus;
+        use systemprompt_scheduler::VerifiedService;
         assert_eq!(
-            state.runtime_status,
-            RuntimeStatus::Crashed,
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Error),
             "disabled service with running+dead PID must be Crashed"
         );
         assert_eq!(
@@ -433,11 +438,18 @@ mod state_verifier_seeded {
         }
 
         let state_a = states.iter().find(|s| s.name == name_a.as_str()).unwrap();
-        use systemprompt_manifest::RuntimeStatus;
-        assert_eq!(state_a.runtime_status, RuntimeStatus::Crashed);
+        use systemprompt_manifest::ServiceStatus;
+        use systemprompt_scheduler::VerifiedService;
+        assert_eq!(
+            state_a.runtime,
+            VerifiedService::observed(ServiceStatus::Error)
+        );
 
         let state_b = states.iter().find(|s| s.name == name_b.as_str()).unwrap();
-        assert_eq!(state_b.runtime_status, RuntimeStatus::Stopped);
+        assert_eq!(
+            state_b.runtime,
+            VerifiedService::observed(ServiceStatus::Stopped)
+        );
 
         let state_c = states.iter().find(|s| s.name == name_c.as_str()).unwrap();
         assert_eq!(state_c.needs_action, ServiceAction::CleanupDb);
@@ -776,7 +788,8 @@ mod state_verifier_live {
     use std::net::TcpListener;
     use std::process::{Child, Command};
 
-    use systemprompt_manifest::RuntimeStatus;
+    use systemprompt_manifest::ServiceStatus;
+    use systemprompt_scheduler::VerifiedService;
 
     fn spawn_sleep() -> Child {
         Command::new("sleep")
@@ -832,7 +845,10 @@ mod state_verifier_live {
             .find(|s| s.name == name.as_str())
             .expect("state");
 
-        assert_eq!(state.runtime_status, RuntimeStatus::Running);
+        assert_eq!(
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Running)
+        );
         assert_eq!(state.pid, Some(child.id()));
         assert_eq!(
             state.needs_action,
@@ -884,7 +900,10 @@ mod state_verifier_live {
             .find(|s| s.name == name.as_str())
             .expect("state");
 
-        assert_eq!(state.runtime_status, RuntimeStatus::Running);
+        assert_eq!(
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Running)
+        );
         assert_eq!(
             state.needs_action,
             ServiceAction::Stop,
@@ -935,8 +954,8 @@ mod state_verifier_live {
             .expect("state");
 
         assert_eq!(
-            state.runtime_status,
-            RuntimeStatus::Starting,
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Starting),
             "live PID with an unresponsive port is Starting, not Running"
         );
         assert_eq!(
@@ -988,7 +1007,10 @@ mod state_verifier_live {
             .find(|s| s.name == name.as_str())
             .expect("state");
 
-        assert_eq!(state.runtime_status, RuntimeStatus::Starting);
+        assert_eq!(
+            state.runtime,
+            VerifiedService::observed(ServiceStatus::Starting)
+        );
         assert_eq!(state.pid, Some(child.id()));
 
         child.kill().ok();
@@ -1021,8 +1043,8 @@ mod state_verifier_live {
             .expect("state");
 
         assert_eq!(
-            state.runtime_status,
-            RuntimeStatus::Orphaned,
+            state.runtime,
+            VerifiedService::orphaned(),
             "no DB row but an occupied port must resolve as Orphaned"
         );
         assert_eq!(

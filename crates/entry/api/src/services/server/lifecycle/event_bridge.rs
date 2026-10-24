@@ -22,6 +22,7 @@ pub(in crate::services::server) fn start_event_bridge(ctx: &AppContext) {
         pool.as_ref().clone(),
         instance_id,
         ctx.cache_epochs().clone(),
+        std::sync::Arc::clone(ctx.event_broadcasters()),
     )
     .with_listener_pool(listener_pool.as_ref().clone())
     .start();

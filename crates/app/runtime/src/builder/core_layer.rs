@@ -3,13 +3,15 @@
 //! Resolves the profile-driven foundation an
 //! [`AppContext`](crate::context::AppContext) is assembled on — config, paths,
 //! files, database pool, signing key, authz hook, and logging — plus extension
-//! discovery and schema installation. The path/files/config inits are
-//! idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can build a
-//! context self-sufficiently while a CLI that already ran them sees a no-op.
+//! discovery and schema installation. The files configuration is built here
+//! from the resolved paths and owned by the context; the profile and config
+//! inits are idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can
+//! build a context self-sufficiently while a CLI that already ran them sees a
+//! no-op.
 //!
 //! Upstreams publish and retire models without an operator edit, so the
-//! provider registry is augmented at boot from their live listings
-//! (`discover_vertex_models`). That pass is fail-open: a provider no catalog
+//! catalog is augmented at boot from their live listings
+//! (`discover_vertex_models`). That pass is fail-open: an endpoint no catalog
 //! source recognises or a missing or unusable credential leaves the YAML
 //! catalog exactly as authored. Which providers are discoverable is decided by
 //! the loader's catalog sources from the credential their secret parses into —
@@ -27,6 +29,7 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_manifest::{Config, Profile};
@@ -37,18 +40,21 @@ use crate::error::RuntimeResult;
 pub(super) struct CoreLayer {
     pub(super) config: Arc<Config>,
     pub(super) app_paths: Arc<AppPaths>,
+    pub(super) files_config: Arc<FilesConfig>,
     pub(super) database: Arc<Database>,
     pub(super) authz_hook: SharedAuthzHook,
     pub(super) governance: Arc<GovernanceEngine>,
     pub(super) file_storage: Arc<dyn FileStorage>,
     pub(super) cache_epochs: CacheEpochs,
+    pub(super) log_sink: systemprompt_logging::LogSink,
+    pub(super) policy: systemprompt_marketplace::managed::PublicationPolicy,
 }
 
 async fn init_services(
     secrets: &systemprompt_manifest::secrets::Secrets,
 ) -> RuntimeResult<&'static systemprompt_manifest::services::ServicesConfig> {
-    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
-        Box::pin(discover_vertex_models(providers))
+    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|catalog| {
+        Box::pin(discover_vertex_models(catalog))
     })
     .await?;
     if let Some(gateway) = services.gateway_config() {
@@ -80,9 +86,15 @@ async fn resolve_services_root(
         profile.path_resolution(),
         Some(active_root.path.as_path()),
     )?);
-    systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))?;
     Ok((active_root, app_paths))
+}
+
+fn init_files_config(app_paths: &AppPaths) -> RuntimeResult<Arc<FilesConfig>> {
+    let files_config = FilesConfig::from_profile(app_paths)?;
+    files_config.validate()?;
+    files_config.ensure_storage_structure()?;
+    Ok(Arc::new(files_config))
 }
 
 pub(super) async fn init_core(
@@ -91,10 +103,10 @@ pub(super) async fn init_core(
     let profile = ProfileBootstrap::get()?;
     let secrets = SecretsBootstrap::get()?;
     let (active_root, app_paths) = resolve_services_root(profile, secrets).await?;
+    let files_config = init_files_config(&app_paths)?;
     let services = init_services(secrets).await?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = config.instance_id.clone();
-    systemprompt_logging::set_instance_id(instance_id.clone());
     let file_storage =
         crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, secrets)
             .await?;
@@ -112,6 +124,11 @@ pub(super) async fn init_core(
         &database,
     )
     .await?;
+
+    let policy = systemprompt_marketplace::managed::PublicationPolicy::discover(
+        &database,
+        services.marketplace.clone().unwrap_or_default(),
+    )?;
 
     let cache_epochs = CacheEpochs::new();
     let authz_audit_pool = database.write_pool();
@@ -131,7 +148,7 @@ pub(super) async fn init_core(
     )?);
 
     systemprompt_logging::set_console_format(profile.observability.log_format);
-    systemprompt_logging::init_logging(&database);
+    let log_sink = systemprompt_logging::init_logging(&database, Some(instance_id.clone()));
 
     if config.database_write_url.is_some() {
         tracing::debug!(
@@ -142,16 +159,19 @@ pub(super) async fn init_core(
     Ok(CoreLayer {
         config,
         app_paths,
+        files_config,
         database,
         authz_hook,
         governance,
         file_storage,
         cache_epochs,
+        log_sink,
+        policy,
     })
 }
 
 pub async fn discover_vertex_models(
-    providers: &mut systemprompt_manifest::services::ProviderRegistry,
+    catalog: &mut systemprompt_manifest::services::catalog::CatalogDocument,
 ) -> systemprompt_manifest::services::DiscoveryReport {
     use systemprompt_manifest::services::DiscoveryReport;
 
@@ -161,7 +181,7 @@ pub async fn discover_vertex_models(
     };
     let lookup = |name: &str| secrets.get(name).cloned();
     systemprompt_loader::vertex_discovery::discover(
-        providers,
+        catalog,
         &lookup,
         std::time::Duration::from_secs(10),
     )
@@ -227,7 +247,7 @@ pub(super) async fn init_extensions(
                 .await?;
         crate::schema_currency::refuse_breaking(&report.ahead, ProfileBootstrap::get()?)?;
         crate::schema_currency::warn_ahead(&report.ahead);
-        systemprompt_database::mark_schema_changed();
+        database.mark_schema_changed();
         report
     } else if schema.verify {
         let profile = ProfileBootstrap::get()?;

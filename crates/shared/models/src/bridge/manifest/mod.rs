@@ -23,6 +23,7 @@
 mod entries;
 mod external;
 mod managed_mcp;
+mod opencode;
 /// Platform-owned `SKILL.md` frontmatter keys and the passthrough renderer.
 pub mod skill_frontmatter;
 
@@ -31,20 +32,22 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::bridge::host::HostKind;
 pub use crate::bridge::ids::ManifestSignature;
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::bridge::update_policy::AutoUpdatePolicy;
 use systemprompt_identifiers::{ApiKeyId, MarketplaceId, PluginId, TenantId, UserId};
 
 pub use entries::{
-    AgentEntry, ArtifactEntry, HookEntry, PluginEntry, PluginFile, RuleEntry, SkillEntry,
-    SkillPublication, SkillSource,
+    AgentEntry, ArtifactEntry, HookEntry, ManagedPublicationRef, PluginEntry, PluginFile,
+    RuleEntry, SkillEntry, SkillSource,
 };
 pub use external::{
     ExternalPluginSkills, ManifestExternalMarketplace, ManifestExternalMarketplaceSource,
     ManifestExternalPlugin, ManifestExternalPluginSource,
 };
 pub use managed_mcp::ManagedMcpServer;
+pub use opencode::{ManifestOpenCode, OPENCODE_V2_MIN_BRIDGE, ThemeRef};
 
 pub const MANIFEST_SCHEMA_VERSION: u32 = 2;
 
@@ -69,11 +72,17 @@ pub fn manifest_min_bridge_version(marketplaces: &[ManifestMarketplace]) -> semv
         .iter()
         .flat_map(|marketplace| &marketplace.external_marketplaces)
         .any(|external| external.source.reference.is_some());
+    let carries_opencode = marketplaces
+        .iter()
+        .any(|marketplace| marketplace.opencode.is_some());
+    let mut required = floor;
     if carries_ref {
-        floor.max(EXTERNAL_MARKETPLACE_REF_MIN_BRIDGE)
-    } else {
-        floor
+        required = required.max(EXTERNAL_MARKETPLACE_REF_MIN_BRIDGE);
     }
+    if carries_opencode {
+        required = required.max(OPENCODE_V2_MIN_BRIDGE);
+    }
+    required
 }
 
 #[must_use]
@@ -114,9 +123,9 @@ pub struct SignedManifest {
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub revocations: Vec<ApiKeyId>,
     #[serde(default)]
-    pub enabled_hosts: Vec<String>,
+    pub enabled_hosts: Vec<HostKind>,
     #[serde(default)]
-    pub host_model_protocols: BTreeMap<String, Vec<String>>,
+    pub host_model_protocols: BTreeMap<HostKind, Vec<String>>,
     #[serde(default)]
     pub artifacts: Vec<ArtifactEntry>,
     #[serde(default)]
@@ -149,6 +158,8 @@ pub struct ManifestMarketplace {
     pub external_plugins: Vec<ManifestExternalPlugin>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_code: Option<ManifestClaudeCode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opencode: Option<ManifestOpenCode>,
 }
 
 /// The Claude Code client settings a marketplace asks the bridge to write.

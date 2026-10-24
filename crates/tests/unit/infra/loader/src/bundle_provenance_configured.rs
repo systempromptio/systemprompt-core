@@ -3,7 +3,9 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use systemprompt_loader::bundle::{BundleCache, owning_bundle_hashes, sources_provenance};
+use systemprompt_loader::bundle::{
+    BaseTreeHashMemo, BundleCache, owning_bundle_hashes, sources_provenance,
+};
 use systemprompt_manifest::profile::FetchFailurePolicy;
 use systemprompt_manifest::services::bundle::{
     BUNDLE_MANIFEST_FILE, BundleSourceState, ServicesBundleState,
@@ -124,7 +126,7 @@ fn run_parent_and_child() {
 
 fn run_child_assertions() {
     systemprompt_config::ProfileBootstrap::init().expect("initialize isolated configured profile");
-    let provenance = sources_provenance();
+    let provenance = sources_provenance(&BaseTreeHashMemo::new());
     assert_eq!(
         provenance.composed_hash.as_deref(),
         Some("composed-fixture-hash")

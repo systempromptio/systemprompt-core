@@ -63,7 +63,7 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         McpCommands::Validate(args) => {
-            let (result, valid) = validate::execute(args, ctx)
+            let (result, valid) = Box::pin(validate::execute(args, ctx))
                 .await
                 .context("Failed to validate MCP server")?;
             render_result(&result, config);

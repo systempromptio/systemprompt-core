@@ -1,30 +1,23 @@
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
 
-// These are `ApiSurface` tags, which is what `host.model_protocols` carries and
-// what `hostModelFilterSet` parses back. They are NOT `ProviderProtocol` tags:
-// this list once held "openai-chat"/"openai-responses", which matched nothing
-// coming from the bridge (the surface tag is plain "openai"), so the OpenAI
-// boxes rendered unchecked while OpenAI was on, and ticking one saved a filter
-// the bridge then dropped as unparseable.
-//
-// Only the advertised surfaces get a checkbox. `backend` is never advertised to
-// a client, so there is nothing for a user to decide about it -- but it can
-// still be in effect, and `captureAgentDrawerFilter` carries it through
-// untouched rather than silently dropping it on save.
-export const AGENT_WIRE_SURFACES = ["anthropic", "openai", "gemini"];
+// These are `ClientFamily` tags, which is what `host.model_protocols` carries
+// and what `hostModelFilterSet` parses back: the client families a host lists
+// catalog models for (a model's `clients`). Any other tag is dropped by the
+// bridge as unparseable, so this list is exactly the three families.
+export const AGENT_WIRE_SURFACES = ["claude", "openai", "gemini"];
 
 // The wire name is what the filter actually stores, so it stays on screen -- but
 // as the secondary line. A checkbox whose whole accessible name is "openai"
 // tells a user nothing about what they are turning off.
 export const AGENT_SURFACE_L10N = {
-  "anthropic": "proto-anthropic",
+  "claude": "proto-anthropic",
   "openai": "proto-openai",
   "gemini": "proto-gemini",
 };
 
 export const AGENT_SURFACE_LABEL = {
-  "anthropic": "Claude models",
+  "claude": "Claude models",
   "openai": "OpenAI models",
   "gemini": "Gemini models",
 };

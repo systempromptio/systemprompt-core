@@ -68,6 +68,7 @@ async fn payload_write_fault_rolls_back_the_entire_completion_settlement() {
         id: AiToolCallId::new("toolu_rollback"),
         name: "lookup".to_owned(),
         input: "{}".to_owned(),
+        args: None,
     }];
 
     let error = repo
@@ -190,6 +191,7 @@ async fn a_completion_settles_usage_payload_and_turn_in_one_transaction() {
         id: AiToolCallId::new("toolu_1"),
         name: "lookup".to_owned(),
         input: "{}".to_owned(),
+        args: None,
     }];
 
     repo.settle(&id, &uid, completion(&body, "sha-a", &tools))
@@ -220,6 +222,7 @@ async fn replaying_the_same_completion_does_not_duplicate_the_turn() {
         id: AiToolCallId::new("toolu_1"),
         name: "lookup".to_owned(),
         input: "{}".to_owned(),
+        args: None,
     }];
 
     repo.settle(&id, &uid, completion(&body, "sha-a", &tools))

@@ -14,7 +14,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod resolver;
-pub mod trait_impl;
 pub mod validator;
 
-pub use resolver::RegistryService;
+pub use resolver::{McpDeploymentProviderImpl, RegistryService};

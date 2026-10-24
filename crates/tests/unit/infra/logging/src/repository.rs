@@ -5,7 +5,7 @@
 
 use chrono::{Duration as ChronoDuration, Utc};
 use serde_json::json;
-use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AnalyticsEventId, LogId, SessionId, TraceId, UserId};
 use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
 use systemprompt_logging::{AnalyticsRepository, DatabaseLogService, LoggingRepository};
 use systemprompt_test_fixtures::test_db_pool;
@@ -37,7 +37,7 @@ async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically()
     assert!(!store.has_analytics_events(&session_id).await.unwrap());
     store.persist_events(&[]).await.unwrap();
     let first = AnalyticsEventRecord {
-        id: format!("evt_{}", uuid::Uuid::new_v4()),
+        id: AnalyticsEventId::new(format!("evt_{}", uuid::Uuid::new_v4())),
         user_id: UserId::new("anon"),
         session_id: session_id.clone(),
         event_type: "page_view".to_owned(),
@@ -67,7 +67,7 @@ async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically()
     );
 
     let mut second = first.clone();
-    second.id = format!("evt_{}", uuid::Uuid::new_v4());
+    second.id = AnalyticsEventId::new(format!("evt_{}", uuid::Uuid::new_v4()));
     second.page_url = "/second".to_owned();
     second.event_data = json!([1, "unmodified"]);
     assert!(
@@ -285,7 +285,7 @@ async fn cleanup_old_logs_removes_old_rows() {
     let count = repo.count_logs_before(cutoff).await.unwrap();
     assert!(count >= 1);
 
-    let deleted = repo.cleanup_old_logs(cutoff).await.unwrap();
+    let deleted = repo.purge_before(cutoff, 5000).await.unwrap();
     assert!(deleted >= 1);
     assert!(repo.get_by_id(&id).await.unwrap().is_none());
 }

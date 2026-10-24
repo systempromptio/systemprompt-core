@@ -28,7 +28,7 @@ use crate::models::a2a::{A2aRequestParams, A2aResponse, SendMessageResult, Task,
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
-use crate::services::a2a_server::processing::message::MessageProcessor;
+use crate::services::a2a_server::processing::message::MessageHandler;
 use crate::services::shared::AgentServiceError;
 
 use super::list_tasks::{ListTasksError, list_caller_tasks, trim_history};
@@ -199,7 +199,7 @@ async fn send_message(
         return Ok(task);
     }
 
-    let message_processor = MessageProcessor::new(
+    let message_processor = MessageHandler::new(
         Arc::clone(state.agent_state.repositories()),
         Arc::clone(&state.ai_service),
         state.agent_state.webhooks(),

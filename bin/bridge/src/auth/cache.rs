@@ -7,9 +7,9 @@ use crate::config;
 use crate::gateway::types::HelperOutput;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{fs, io};
-use systemprompt_identifiers::ValidatedUrl;
+use systemprompt_identifiers::{UserId, ValidatedUrl};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CredentialBinding {
@@ -75,6 +75,22 @@ pub fn read_for(
     gateway: &ValidatedUrl,
     min_remaining_secs: u64,
 ) -> io::Result<Option<HelperOutput>> {
+    Ok(read_aged(cfg, gateway, min_remaining_secs)?.map(|aged| aged.output))
+}
+
+/// A cached token with how long ago it was minted, which decides whether a
+/// gateway 401 earns a re-mint (`gateway::rejection`).
+#[derive(Debug, Clone)]
+pub struct AgedOutput {
+    pub output: HelperOutput,
+    pub age: Duration,
+}
+
+pub fn read_aged(
+    cfg: &config::Config,
+    gateway: &ValidatedUrl,
+    min_remaining_secs: u64,
+) -> io::Result<Option<AgedOutput>> {
     let entry = match read_entry() {
         Ok(Some(entry)) => entry,
         Ok(None) => return Ok(None),
@@ -95,7 +111,26 @@ pub fn read_for(
         return Ok(None);
     }
     let now = now()?;
-    Ok(is_still_valid(entry.expires_at, now, min_remaining_secs).then_some(entry.output))
+    if !is_still_valid(entry.expires_at, now, min_remaining_secs) {
+        return Ok(None);
+    }
+    let minted_at = entry.expires_at.saturating_sub(entry.output.ttl);
+    Ok(Some(AgedOutput {
+        age: Duration::from_secs(now.saturating_sub(minted_at)),
+        output: entry.output,
+    }))
+}
+
+// Why: the profile cache is read under this user even after the token
+// expires, so an offline probe still renders the last profile it was served.
+#[must_use]
+pub fn cached_user(cfg: &config::Config, gateway: &ValidatedUrl) -> Option<UserId> {
+    let entry = read_entry().ok().flatten()?;
+    let binding = CredentialBinding::capture(cfg).ok()?;
+    if &entry.gateway != gateway || entry.binding.as_ref() != Some(&binding) {
+        return None;
+    }
+    super::jwt::decode_unverified(entry.output.token.as_str())?.user_id
 }
 
 pub fn cached_gateway() -> io::Result<Option<ValidatedUrl>> {
@@ -175,15 +210,4 @@ pub fn write_bound(
         binding: Some(binding.clone()),
     };
     crate::fsutil::atomic_write_0600(&cache_path()?, &serde_json::to_vec(&entry)?)
-}
-
-// Why: core's /v1/bridge/profile lists personal-key providers (OpenCode Go)
-// only for the member the bearer names; an anonymous fetch drops them.
-#[must_use]
-pub fn cached_bearer(gateway: &ValidatedUrl) -> Option<crate::ids::BearerToken> {
-    let cfg = config::load().ok()?;
-    read_for(&cfg, gateway, 30)
-        .ok()
-        .flatten()
-        .map(|out| out.token)
 }

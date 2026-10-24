@@ -10,21 +10,27 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use super::service_records::{DbServiceRecord, ServiceConfig};
-use super::state_types::{DesiredStatus, RuntimeStatus, ServiceType};
+use super::service_row::decode_db_service;
+use super::state_types::{DesiredStatus, ServiceType, VerifiedService};
 use super::supervision::port_holders;
 use super::verified_state::VerifiedServiceState;
-use crate::error::{SchedulerError, SchedulerResult};
-use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool, JsonRow};
+use crate::error::SchedulerResult;
+use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_loader::subprocess;
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
-use systemprompt_traits::RepositoryError;
 
 const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
     "SELECT name, module_name as service_type, status, pid, port, \
      EXTRACT(EPOCH FROM updated_at) AS updated_at_epoch FROM services WHERE instance_id \
-     = $1 AND status IN ('running', 'starting', 'stopped')",
+     = $1 AND status IN ($2, $3, $4)",
 );
+
+const VERIFIED_STATUSES: [ServiceStatus; 3] = [
+    ServiceStatus::Running,
+    ServiceStatus::Starting,
+    ServiceStatus::Stopped,
+];
 
 const STARTUP_GRACE: Duration = Duration::from_secs(45);
 
@@ -33,53 +39,6 @@ const fn service_type(module: ServiceModule) -> ServiceType {
         ServiceModule::Agent => ServiceType::Agent,
         ServiceModule::Mcp => ServiceType::Mcp,
     }
-}
-
-fn required_text<'a>(row: &'a JsonRow, column: &str) -> SchedulerResult<&'a str> {
-    row.get(column)
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| invalid_row(format!("row has no `{column}` value")))
-}
-
-fn invalid_row(reason: String) -> SchedulerError {
-    SchedulerError::Repository(RepositoryError::invalid_data("services", reason))
-}
-
-fn decode_error(
-    context: &str,
-    source: impl std::error::Error + Send + Sync + 'static,
-) -> SchedulerError {
-    SchedulerError::Repository(RepositoryError::Decode {
-        context: context.to_owned(),
-        source: Box::new(source),
-    })
-}
-
-fn decode_db_service(row: &JsonRow) -> SchedulerResult<DbServiceRecord> {
-    let name = ServiceName::new(required_text(row, "name")?);
-    let service_type = required_text(row, "service_type")?
-        .parse::<ServiceModule>()
-        .map_err(|e| decode_error("services.module_name", e))?;
-    let status = required_text(row, "status")?
-        .parse::<ServiceStatus>()
-        .map_err(|e| decode_error("services.status", e))?;
-    let pid = row.get("pid").and_then(serde_json::Value::as_i64);
-    let port = row
-        .get("port")
-        .and_then(serde_json::Value::as_i64)
-        .and_then(|p| i32::try_from(p).ok())
-        .ok_or_else(|| invalid_row(format!("row `{name}` has no valid `port` value")))?;
-    let updated_at_epoch = row
-        .get("updated_at_epoch")
-        .and_then(serde_json::Value::as_f64);
-    Ok(DbServiceRecord {
-        name,
-        service_type,
-        status,
-        pid,
-        port,
-        updated_at_epoch,
-    })
 }
 
 fn now_epoch() -> Option<f64> {
@@ -186,7 +145,7 @@ impl ServiceStateVerifier {
         &self,
         db_record: Option<&DbServiceRecord>,
         port: u16,
-    ) -> SchedulerResult<(RuntimeStatus, Option<u32>)> {
+    ) -> SchedulerResult<(VerifiedService, Option<u32>)> {
         let recorded_pid = db_record
             .and_then(|record| record.pid)
             .and_then(|pid| u32::try_from(pid).ok());
@@ -195,28 +154,29 @@ impl ServiceStateVerifier {
                 if subprocess::is_running(pid).await {
                     self.classify_live(record, pid, port).await
                 } else {
-                    (RuntimeStatus::Crashed, None)
+                    (VerifiedService::observed(ServiceStatus::Error), None)
                 }
             },
             (Some(record), None) if record.status == ServiceStatus::Running => {
-                (RuntimeStatus::Crashed, None)
+                (VerifiedService::observed(ServiceStatus::Error), None)
             },
             (Some(record), Some(pid)) if record.status == ServiceStatus::Starting => {
                 if subprocess::is_running(pid).await {
-                    (RuntimeStatus::Starting, Some(pid))
+                    (
+                        VerifiedService::observed(ServiceStatus::Starting),
+                        Some(pid),
+                    )
                 } else {
-                    (RuntimeStatus::Stopped, None)
+                    (VerifiedService::observed(ServiceStatus::Stopped), None)
                 }
             },
             (Some(record), None) if record.status == ServiceStatus::Starting => {
-                (RuntimeStatus::Stopped, None)
+                (VerifiedService::observed(ServiceStatus::Stopped), None)
             },
-            _ => port_holders(port)
-                .await?
-                .first()
-                .map_or((RuntimeStatus::Stopped, None), |pid| {
-                    (RuntimeStatus::Orphaned, Some(*pid))
-                }),
+            _ => port_holders(port).await?.first().map_or(
+                (VerifiedService::observed(ServiceStatus::Stopped), None),
+                |pid| (VerifiedService::orphaned(), Some(*pid)),
+            ),
         };
         Ok(status)
     }
@@ -226,10 +186,10 @@ impl ServiceStateVerifier {
         record: &DbServiceRecord,
         pid: u32,
         port: u16,
-    ) -> (RuntimeStatus, Option<u32>) {
+    ) -> (VerifiedService, Option<u32>) {
         let port_up = self.is_port_responsive(port).await;
         if port_up {
-            (RuntimeStatus::Running, Some(pid))
+            (VerifiedService::observed(ServiceStatus::Running), Some(pid))
         } else if is_wedged(port_up, record.updated_at_epoch, now_epoch(), STARTUP_GRACE) {
             tracing::warn!(
                 service = %record.name,
@@ -238,9 +198,12 @@ impl ServiceStateVerifier {
                 "Service process is alive but its port is unresponsive past the startup grace \
                  window; treating as crashed for restart"
             );
-            (RuntimeStatus::Crashed, Some(pid))
+            (VerifiedService::observed(ServiceStatus::Error), Some(pid))
         } else {
-            (RuntimeStatus::Starting, Some(pid))
+            (
+                VerifiedService::observed(ServiceStatus::Starting),
+                Some(pid),
+            )
         }
     }
 
@@ -257,7 +220,15 @@ impl ServiceStateVerifier {
         let rows = self
             .db_pool
             .as_ref()
-            .fetch_all(&FETCH_DB_SERVICES, &[&self.instance_id.as_str()])
+            .fetch_all(
+                &FETCH_DB_SERVICES,
+                &[
+                    &self.instance_id.as_str(),
+                    &VERIFIED_STATUSES[0].as_str(),
+                    &VERIFIED_STATUSES[1].as_str(),
+                    &VERIFIED_STATUSES[2].as_str(),
+                ],
+            )
             .await?;
 
         rows.iter().map(decode_db_service).collect()
@@ -282,7 +253,7 @@ impl ServiceStateVerifier {
         let states = self.get_verified_states(configs).await?;
         Ok(states
             .into_iter()
-            .filter(|s| s.runtime_status == RuntimeStatus::Running)
+            .filter(|s| s.runtime == VerifiedService::observed(ServiceStatus::Running))
             .collect())
     }
 
@@ -293,7 +264,7 @@ impl ServiceStateVerifier {
         let states = self.get_verified_states(configs).await?;
         Ok(states
             .into_iter()
-            .filter(|s| s.runtime_status == RuntimeStatus::Crashed)
+            .filter(|s| s.runtime == VerifiedService::observed(ServiceStatus::Error))
             .collect())
     }
 }

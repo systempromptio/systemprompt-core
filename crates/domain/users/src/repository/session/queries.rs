@@ -11,9 +11,11 @@ use chrono::{Duration, Utc};
 use sqlx::PgPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
-use systemprompt_traits::session_store::SessionSnapshot as AnalyticsSession;
+use systemprompt_traits::session_store::{
+    ActiveSessionLookup, SessionRecord, SessionSnapshot as AnalyticsSession,
+};
 
-use systemprompt_traits::session_store::{ActiveSessionLookup, SessionRecord};
+use super::snapshot_row::SessionSnapshotRow;
 
 pub(super) async fn find_by_id(
     pool: &PgPool,
@@ -21,7 +23,7 @@ pub(super) async fn find_by_id(
 ) -> Result<Option<AnalyticsSession>> {
     let id = session_id.as_str();
     sqlx::query_as!(
-        AnalyticsSession,
+        SessionSnapshotRow,
         r#"
         SELECT session_id as "session_id: SessionId",
                user_id as "user_id?: UserId",
@@ -38,6 +40,7 @@ pub(super) async fn find_by_id(
     )
     .fetch_optional(pool)
     .await
+    .map(|row| row.map(AnalyticsSession::from))
     .map_err(Into::into)
 }
 
@@ -48,7 +51,7 @@ pub(super) async fn find_by_fingerprint(
 ) -> Result<Option<AnalyticsSession>> {
     let uid = user_id.as_str();
     sqlx::query_as!(
-        AnalyticsSession,
+        SessionSnapshotRow,
         r#"
         SELECT session_id as "session_id: SessionId",
                user_id as "user_id?: UserId",
@@ -68,6 +71,7 @@ pub(super) async fn find_by_fingerprint(
     )
     .fetch_optional(pool)
     .await
+    .map(|row| row.map(AnalyticsSession::from))
     .map_err(Into::into)
 }
 
@@ -77,7 +81,7 @@ pub(super) async fn list_active_by_user(
 ) -> Result<Vec<AnalyticsSession>> {
     let uid = user_id.as_str();
     sqlx::query_as!(
-        AnalyticsSession,
+        SessionSnapshotRow,
         r#"
         SELECT session_id as "session_id: SessionId",
                user_id as "user_id?: UserId",
@@ -95,6 +99,7 @@ pub(super) async fn list_active_by_user(
     )
     .fetch_all(pool)
     .await
+    .map(|rows| rows.into_iter().map(AnalyticsSession::from).collect())
     .map_err(Into::into)
 }
 

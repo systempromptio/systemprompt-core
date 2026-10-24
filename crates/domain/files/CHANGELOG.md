@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Own the startup validation report and DomainConfig.
+- Declare owner reassignments through one table-driven macro.
+- Move process statics into owned state.
+
 ## [0.70.0] - 2026-10-18
 
 ### Changed

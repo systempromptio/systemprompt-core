@@ -7,3 +7,4 @@ crate::define_id!(ExecutionStepId, uuid);
 crate::define_id!(LogId, uuid);
 crate::define_id!(TokenId, generate);
 crate::define_id!(ArtifactId, generate, schema);
+crate::define_id!(ArtifactElementId, schema);

@@ -110,10 +110,23 @@ pub(crate) fn detach_console() {
     unsafe { FreeConsole() };
 }
 
+/// Why the Windows elevated helper process could not be launched or awaited.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+pub enum HelperLaunchError {
+    #[error("ShellExecuteExW(runas) failed with status {status}")]
+    Launch { status: u32 },
+    #[error("the elevated process handle was null")]
+    NullHandle,
+    #[error("WaitForSingleObject returned {status}")]
+    Wait { status: u32 },
+    #[error("GetExitCodeProcess failed")]
+    ExitCode,
+}
+
 pub(crate) enum ElevationOutcome {
     Completed { exit_code: u32 },
     Declined,
-    Failed(String),
+    Failed(HelperLaunchError),
 }
 
 fn to_wide(s: &str) -> Vec<u16> {
@@ -186,26 +199,24 @@ pub(crate) fn run_elevated(exe: &Path, args: &[&str]) -> ElevationOutcome {
         if code == ERROR_CANCELLED {
             return ElevationOutcome::Declined;
         }
-        return ElevationOutcome::Failed(format!(
-            "ShellExecuteExW(runas) failed with status {code}"
-        ));
+        return ElevationOutcome::Failed(HelperLaunchError::Launch { status: code });
     }
     if info.hProcess.is_null() {
-        return ElevationOutcome::Failed("elevated process handle was null".into());
+        return ElevationOutcome::Failed(HelperLaunchError::NullHandle);
     }
     let handle = OwnedHandle(info.hProcess);
     // SAFETY: `handle.0` is the non-null process handle just returned by
     // `ShellExecuteExW`.
     let wait = unsafe { WaitForSingleObject(handle.0, INFINITE) };
     if wait != WAIT_OBJECT_0 {
-        return ElevationOutcome::Failed(format!("WaitForSingleObject returned {wait}"));
+        return ElevationOutcome::Failed(HelperLaunchError::Wait { status: wait });
     }
     let mut exit_code: u32 = 0;
     // SAFETY: `handle.0` is the live process handle; `exit_code` points to a live
     // local.
     let got = unsafe { GetExitCodeProcess(handle.0, &raw mut exit_code) };
     if got == 0 {
-        return ElevationOutcome::Failed("GetExitCodeProcess failed".into());
+        return ElevationOutcome::Failed(HelperLaunchError::ExitCode);
     }
     ElevationOutcome::Completed { exit_code }
 }

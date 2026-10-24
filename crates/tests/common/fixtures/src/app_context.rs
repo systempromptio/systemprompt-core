@@ -324,6 +324,10 @@ fn fixture_app_context_assembled(
         },
         ConfigPlane {
             config: Arc::new(config),
+            files_config: Arc::new(systemprompt_files::FilesConfig::new(
+                app_paths.storage().root().to_path_buf(),
+                systemprompt_files::FilesConfigYaml::default(),
+            )),
             app_paths,
             content_config: None,
             route_classifier: Arc::new(RouteClassifier::new(None)),
@@ -336,6 +340,7 @@ fn fixture_app_context_assembled(
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
+            logging: crate::fixture_logging_runtime(),
             authz_hook,
             governance,
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
@@ -345,7 +350,9 @@ fn fixture_app_context_assembled(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
             event_bridge: Arc::new(OnceLock::new()),
-            event_router: systemprompt_events::EventRouter::local_only(),
+            event_router: systemprompt_events::EventRouter::local_only(Arc::new(
+                systemprompt_events::EventBroadcasters::new(),
+            )),
             geoip_reader: None,
             file_storage,
             shutdown: Default::default(),
@@ -353,6 +360,7 @@ fn fixture_app_context_assembled(
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),
+            connector_tokens: Arc::default(),
         },
     );
 

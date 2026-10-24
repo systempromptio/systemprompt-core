@@ -7,6 +7,7 @@
 use axum::http::{HeaderMap, StatusCode, header};
 use systemprompt_identifiers::ManagedResourceId;
 use systemprompt_marketplace::managed::ManagedError;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 use systemprompt_runtime::AppContext;
@@ -58,7 +59,7 @@ pub(super) async fn resource(
     if !services
         .instance_enabled_hosts()
         .iter()
-        .any(|value| host.accepts_host_name(value.as_str()))
+        .any(|value| host.accepts(*value))
     {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
@@ -81,10 +82,11 @@ pub(super) async fn resource(
             .as_ref()
             .is_some_and(|publication| &publication.resource_id == resource)
             && (skill.hosts.is_empty()
-                || skill
-                    .hosts
-                    .iter()
-                    .any(|value| host.accepts_host_name(value.as_str())))
+                || skill.hosts.iter().any(|value| {
+                    value
+                        .parse::<HostKind>()
+                        .is_ok_and(|value| host.accepts(value))
+                }))
     }) {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }

@@ -50,8 +50,8 @@ pub(super) async fn record_catalog_grants(
 pub(super) struct PerUserContext {
     pub user: Option<UserInfo>,
     pub revocations: Vec<ApiKeyId>,
-    pub enabled_hosts: Vec<String>,
-    pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
+    pub enabled_hosts: Vec<HostKind>,
+    pub host_model_protocols: std::collections::BTreeMap<HostKind, Vec<String>>,
 }
 
 // Why: `revocations` and `enabled_hosts` are the policy half of the signed
@@ -78,7 +78,6 @@ pub(super) async fn load_per_user_context(
         Ok(prefs) => instance_hosts
             .into_iter()
             .filter(|host| prefs.admits(*host))
-            .map(|host| host.as_str().to_owned())
             .collect(),
         Err(e) => {
             return Err(BridgeError::internal(
@@ -89,10 +88,7 @@ pub(super) async fn load_per_user_context(
     };
 
     let host_model_protocols = match bridge_data::load_host_model_protocols(ctx, user_id).await {
-        Ok(rows) => rows
-            .into_iter()
-            .map(|(host, protocols)| (host.as_str().to_owned(), protocols))
-            .collect(),
+        Ok(rows) => rows.into_iter().collect(),
         Err(e) => {
             tracing::warn!(
                 error = %e,

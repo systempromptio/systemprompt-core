@@ -9,17 +9,23 @@
 //! caller sent; the raw secret only proves the channel (`bridge-secret`), so
 //! the caller's own declaration is passed through for the gateway to weigh.
 //!
+//! `x-session-id` belongs to the client: the gateway binds the session to the
+//! credential and records the client's header as `client_session`, so a
+//! client-supplied value is forwarded byte-for-byte and none is synthesized
+//! when the client sent none (not even from configured extra headers).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 
 use hyper::HeaderMap;
-use systemprompt_identifiers::{GatewayConversationId, SessionId, headers as sp_headers};
+use systemprompt_identifiers::{GatewayConversationId, headers as sp_headers};
 use systemprompt_models::origin::{ClientAttestation, ClientKind};
 
 use super::{ForwardError, ForwardResult, HeaderBuildError};
 use crate::proxy::credential::LoopbackCredential;
+use systemprompt_models::ApiPaths;
 
 const HOP_BY_HOP: &[&str] = &[
     "host",
@@ -32,20 +38,19 @@ const HOP_BY_HOP: &[&str] = &[
     "transfer-encoding",
     "content-length",
     "authorization",
-    "x-api-key",
-    "x-systemprompt-device-credential",
-    "x-systemprompt-host",
+    sp_headers::API_KEY,
+    crate::headers::DEVICE_CREDENTIAL,
+    crate::headers::HOST,
     sp_headers::CLIENT_ATTESTATION,
     // Why: the OpenCode session rides upstream inside `metadata.user_id`,
     // never as a header the gateway would have to trust from any client.
-    crate::feedback::sessions::OPENCODE_SESSION_HEADER,
+    sp_headers::OPENCODE_SESSION,
 ];
 
 #[derive(Debug, Clone, Copy)]
 pub struct UpstreamHeaderInputs<'a> {
     pub src: &'a HeaderMap,
     pub bearer: &'a str,
-    pub session_id: &'a SessionId,
     pub gateway_conversation_id: Option<&'a GatewayConversationId>,
     pub extra: &'a BTreeMap<String, String>,
     pub attest: Option<&'a LoopbackCredential>,
@@ -55,22 +60,15 @@ pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResul
     let UpstreamHeaderInputs {
         src,
         bearer,
-        session_id,
         gateway_conversation_id,
         extra,
         attest,
     } = *inputs;
-    let mut headers = HeaderMap::with_capacity(src.len() + 6 + extra.len());
+    let mut headers = HeaderMap::with_capacity(src.len() + 5 + extra.len());
     copy_request_headers(src, &mut headers);
-    stamp_attestation(&mut headers, attest)?;
+    stamp_attestation(&mut headers, attest);
 
     headers.insert(reqwest::header::AUTHORIZATION, bearer_value(bearer)?);
-    let session_value = reqwest::header::HeaderValue::try_from(session_id.as_str())
-        .map_err(|e| invalid_header(sp_headers::SESSION_ID, e))?;
-    headers.insert(
-        reqwest::header::HeaderName::from_static(sp_headers::SESSION_ID),
-        session_value,
-    );
     if let Some(id) = gateway_conversation_id {
         let value = reqwest::header::HeaderValue::try_from(id.as_str())
             .map_err(|e| invalid_header(sp_headers::GATEWAY_CONVERSATION_ID, e))?;
@@ -80,7 +78,10 @@ pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResul
         );
     }
 
-    for (k, v) in extra {
+    for (k, v) in extra
+        .iter()
+        .filter(|(k, _)| !k.eq_ignore_ascii_case(sp_headers::SESSION_ID))
+    {
         let name = reqwest::header::HeaderName::from_bytes(k.as_bytes())
             .map_err(|e| invalid_header(k, e))?;
         let value = reqwest::header::HeaderValue::try_from(v).map_err(|e| invalid_header(k, e))?;
@@ -95,27 +96,18 @@ pub(super) fn bearer_value(token: &str) -> ForwardResult<reqwest::header::Header
         .map_err(|e| invalid_header("authorization", e))
 }
 
-pub fn stamp_attestation(
-    headers: &mut HeaderMap,
-    attest: Option<&LoopbackCredential>,
-) -> ForwardResult<()> {
+pub fn stamp_attestation(headers: &mut HeaderMap, attest: Option<&LoopbackCredential>) {
     let client_kind = reqwest::header::HeaderName::from_static(sp_headers::CLIENT_KIND);
     let attestation = reqwest::header::HeaderName::from_static(sp_headers::CLIENT_ATTESTATION);
     let tier = match attest {
         None | Some(LoopbackCredential::Hook(_)) => {
             headers.remove(&client_kind);
-            return Ok(());
+            return;
         },
         Some(LoopbackCredential::Host(host)) => {
-            let Some(kind) = ClientKind::from_bridge_host_id(host.as_str()) else {
-                return Err(ForwardError::BadHeader(format!(
-                    "{}: no client kind for host {host}",
-                    sp_headers::CLIENT_KIND
-                )));
-            };
             headers.insert(
                 client_kind,
-                reqwest::header::HeaderValue::from_static(kind.as_str()),
+                reqwest::header::HeaderValue::from_static(ClientKind::from(*host).as_str()),
             );
             ClientAttestation::HostToken
         },
@@ -125,7 +117,6 @@ pub fn stamp_attestation(
         attestation,
         reqwest::header::HeaderValue::from_static(tier.as_str()),
     );
-    Ok(())
 }
 
 pub fn copy_request_headers(src: &HeaderMap, dest: &mut HeaderMap) {
@@ -167,14 +158,14 @@ pub(super) fn ensure_ingestion_delivery_id(
     headers: &mut HeaderMap,
 ) -> ForwardResult<()> {
     // Why: retries of one inbound delivery must carry the same ingestion identity.
-    if request_path.starts_with("/api/public/hooks/")
-        && !headers.contains_key("x-ingestion-event-id")
+    if ApiPaths::is_public_hook(request_path)
+        && !headers.contains_key(crate::headers::INGESTION_EVENT_ID)
     {
         let value: http::HeaderValue = uuid::Uuid::new_v4()
             .to_string()
             .parse()
             .map_err(|e| invalid_header("ingestion event ID", e))?;
-        headers.insert("x-ingestion-event-id", value);
+        headers.insert(crate::headers::INGESTION_EVENT_ID, value);
     }
 
     Ok(())

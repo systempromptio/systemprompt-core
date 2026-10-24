@@ -1,234 +1,161 @@
-//! `admin config provider` command: manage AI providers in the
-//! `ai/config.yaml`.
+//! `admin config provider` — the catalog's vendor accounts
+//! (`services/ai/providers.yaml`): credential, headers, user agent and
+//! whether the provider serves at all.
 //!
-//! [`ProviderCommands`] lists providers, sets the default, and toggles a
-//! provider's enabled flag, editing the AI config YAML in place.
+//! A new provider is added with its first endpoint (`--wire`, `--url`), since
+//! a provider without one does not resolve; further endpoints are edited with
+//! `admin config endpoint`. `disable` takes every endpoint of the provider
+//! out of every chain, everywhere.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_loader::ServicesBootstrap;
+use systemprompt_config::{EndpointSpec, ProviderCatalogService, ProviderSpec};
+use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
 
-use super::types::{
-    ConfigSection, ProviderInfo, ProviderListOutput, ProviderSetOutput, read_yaml_file,
-    write_yaml_file,
-};
+use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, render_list};
 use crate::CliConfig;
-use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum ProviderCommands {
-    #[command(about = "List AI providers")]
-    List(ListArgs),
-
-    #[command(about = "Set default provider")]
-    Set(SetArgs),
-
+    #[command(about = "List declared providers and their endpoints")]
+    List,
+    #[command(about = "Add or update a provider (unset options keep their stored value)")]
+    Add(ProviderAddArgs),
     #[command(about = "Enable a provider")]
-    Enable(EnableArgs),
-
-    #[command(about = "Disable a provider")]
-    Disable(DisableArgs),
-}
-
-#[derive(Debug, Clone, Copy, Args)]
-pub struct ListArgs;
-
-#[derive(Debug, Clone, Args)]
-pub struct SetArgs {
-    #[arg(value_name = "PROVIDER")]
-    pub provider: String,
-}
-
-#[derive(Debug, Clone, Args)]
-pub struct EnableArgs {
-    #[arg(value_name = "PROVIDER")]
-    pub provider: String,
+    Enable {
+        #[arg(long)]
+        id: String,
+    },
+    #[command(about = "Disable a provider everywhere")]
+    Disable {
+        #[arg(long)]
+        id: String,
+    },
+    #[command(about = "Remove a provider by id")]
+    Remove {
+        #[arg(long)]
+        id: String,
+    },
 }
 
 #[derive(Debug, Clone, Args)]
-pub struct DisableArgs {
-    #[arg(value_name = "PROVIDER")]
-    pub provider: String,
+pub struct ProviderAddArgs {
+    #[arg(long)]
+    pub id: String,
+    #[arg(long, help = "Credential id the provider authenticates with")]
+    pub credential: String,
+    #[arg(long)]
+    pub display_name: Option<String>,
+    #[arg(long, help = "User agent; `{install}` expands to the site name")]
+    pub user_agent: Option<String>,
+    #[arg(long = "header", help = "Extra header as KEY=VALUE (repeatable)")]
+    pub headers: Vec<String>,
+    #[arg(long, help = "Endpoint id of the first endpoint (default `api`)")]
+    pub endpoint: Option<String>,
+    #[arg(
+        long,
+        help = "Wire of the first endpoint (required for a new provider)"
+    )]
+    pub wire: Option<String>,
+    #[arg(long, help = "URL of the first endpoint (required for a new provider)")]
+    pub url: Option<String>,
 }
 
-pub fn execute(cmd: ProviderCommands, config: &CliConfig) -> Result<()> {
-    match cmd {
-        ProviderCommands::List(_args) => {
-            let result = list_providers()?;
-            render_result(
-                &CommandOutput::table_of(
-                    vec!["name", "enabled", "is_default", "model", "endpoint"],
-                    &result.providers,
-                )
-                .with_title("AI Providers"),
-                config,
-            );
+fn first_endpoint(args: &ProviderAddArgs) -> Result<Option<EndpointSpec>> {
+    match (args.wire.as_deref(), args.url.as_deref()) {
+        (Some(wire), Some(url)) => Ok(Some(EndpointSpec {
+            provider: ProviderId::new(&args.id),
+            id: EndpointId::new(args.endpoint.as_deref().unwrap_or("api")),
+            wire: parse_wire(wire)?,
+            url: url.to_owned(),
+        })),
+        (None, None) => Ok(None),
+        _ => bail!("--wire and --url go together"),
+    }
+}
+
+
+pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<()> {
+    match command {
+        ProviderCommands::List => {
+            let document = read_active()?;
+            let rows = document
+                .providers
+                .iter()
+                .map(|(id, provider)| {
+                    let endpoints: Vec<String> = provider
+                        .endpoints
+                        .iter()
+                        .map(|(endpoint, e)| format!("{endpoint} ({} {})", e.wire, e.url))
+                        .collect();
+                    let state = if provider.enabled { "" } else { " [disabled]" };
+                    format!(
+                        "{id}{state} credential {}: {}",
+                        provider.credential,
+                        endpoints.join(", ")
+                    )
+                })
+                .collect();
+            render_list(config, "Providers", rows);
+            Ok(())
         },
-        ProviderCommands::Set(args) => {
-            let result = set_default_provider(&args.provider)?;
-            render_result(
-                &CommandOutput::card_value("Provider Updated", &result),
-                config,
-            );
+        ProviderCommands::Add(args) => {
+            let spec = ProviderSpec {
+                id: ProviderId::new(&args.id),
+                credential: CredentialId::new(&args.credential),
+                display_name: args.display_name.clone(),
+                user_agent: args.user_agent.clone(),
+                extra_headers: parse_headers(&args.headers)?,
+                enabled: None,
+                first_endpoint: first_endpoint(args)?,
+            };
+            apply(config, "Provider Updated", |document, context| {
+                if document.providers.get(spec.id.as_str()).is_none()
+                    && spec.first_endpoint.is_none()
+                {
+                    bail!("a new provider needs its first endpoint: pass --wire and --url");
+                }
+                ProviderCatalogService::upsert_provider(document, context, spec)?;
+                Ok(format!("Provider {} saved", args.id))
+            })
+            .await
         },
-        ProviderCommands::Enable(args) => {
-            let result = set_provider_enabled(&args.provider, true)?;
-            render_result(
-                &CommandOutput::card_value("Provider Enabled", &result),
-                config,
-            );
-        },
-        ProviderCommands::Disable(args) => {
-            let result = set_provider_enabled(&args.provider, false)?;
-            render_result(
-                &CommandOutput::card_value("Provider Disabled", &result),
-                config,
-            );
+        ProviderCommands::Enable { id } => set_enabled(config, id, true).await,
+        ProviderCommands::Disable { id } => set_enabled(config, id, false).await,
+        ProviderCommands::Remove { id } => {
+            apply(config, "Provider Removed", |document, context| {
+                ProviderCatalogService::remove_provider(document, context, &ProviderId::new(id))?;
+                Ok(format!("Provider {id} removed"))
+            })
+            .await
         },
     }
-    Ok(())
 }
 
-fn get_ai_config_path() -> Result<std::path::PathBuf> {
-    ConfigSection::Ai.file_path()
-}
-
-fn list_providers() -> Result<ProviderListOutput> {
-    let registry = ServicesBootstrap::providers()?;
-    let file_path = get_ai_config_path()?;
-    let content = read_yaml_file(&file_path)?;
-
-    let ai = content
-        .get("ai")
-        .ok_or_else(|| anyhow::anyhow!("Missing 'ai' section in config"))?;
-
-    let default_provider = ai
-        .get("default_provider")
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown")
-        .to_owned();
-
-    let providers_section = ai.get("providers");
-
-    let mut providers = Vec::new();
-
-    if let Some(serde_yaml::Value::Mapping(providers_map)) = providers_section {
-        for (name, config) in providers_map {
-            let name_str = name.as_str().unwrap_or("unknown").to_owned();
-
-            let enabled = config
-                .get("enabled")
-                .and_then(serde_yaml::Value::as_bool)
-                .unwrap_or(true);
-
-            let model = config
-                .get("default_model")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown")
-                .to_owned();
-
-            let endpoint = registry
-                .find_provider(&name_str)
-                .map(|entry| entry.endpoint.clone());
-
-            providers.push(ProviderInfo {
-                name: name_str.clone(),
-                enabled,
-                is_default: name_str == default_provider,
-                model,
-                endpoint,
-            });
-        }
-    }
-
-    Ok(ProviderListOutput {
-        providers,
-        default_provider,
+async fn set_enabled(config: &CliConfig, id: &str, enabled: bool) -> Result<()> {
+    apply(config, "Provider Updated", |document, context| {
+        let credential = document
+            .providers
+            .get(id)
+            .map(|p| p.credential.clone())
+            .ok_or_else(|| anyhow::anyhow!("provider '{id}' is not declared"))?;
+        ProviderCatalogService::upsert_provider(
+            document,
+            context,
+            ProviderSpec {
+                id: ProviderId::new(id),
+                credential,
+                display_name: None,
+                user_agent: None,
+                extra_headers: std::collections::HashMap::new(),
+                enabled: Some(enabled),
+                first_endpoint: None,
+            },
+        )?;
+        Ok(format!("Provider {id} enabled = {enabled}"))
     })
-}
-
-fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
-    let registry = ServicesBootstrap::providers()?;
-    if registry.find_provider(provider).is_none() {
-        let available: Vec<&str> = registry.providers.iter().map(|p| p.name.as_str()).collect();
-        anyhow::bail!(
-            "Unknown provider: '{}' is not in the services provider registry. Available: {:?}",
-            provider,
-            available
-        );
-    }
-
-    let file_path = get_ai_config_path()?;
-    let mut content = read_yaml_file(&file_path)?;
-
-    let policy = content.get("ai").and_then(|ai| ai.get("providers"));
-    let enabled = policy
-        .and_then(|p| p.get(provider))
-        .and_then(|p| p.get("enabled"))
-        .and_then(serde_yaml::Value::as_bool)
-        .unwrap_or(true);
-    if !enabled {
-        anyhow::bail!(
-            "Provider '{}' is disabled in AI policy; enable it first \
-             (admin config provider enable {})",
-            provider,
-            provider
-        );
-    }
-
-    // JSON: mutates one key in the untyped AI config document, leaving unknown
-    // operator-authored keys in place.
-    if let Some(serde_yaml::Value::Mapping(ai_map)) = content.get_mut("ai") {
-        ai_map.insert(
-            serde_yaml::Value::String("default_provider".to_owned()),
-            serde_yaml::Value::String(provider.to_owned()),
-        );
-    }
-
-    write_yaml_file(&file_path, &content)?;
-
-    Ok(ProviderSetOutput {
-        provider: provider.to_owned(),
-        action: "set_default".to_owned(),
-        message: format!("Default provider set to '{}'", provider),
-    })
-}
-
-fn set_provider_enabled(provider: &str, enabled: bool) -> Result<ProviderSetOutput> {
-    let file_path = get_ai_config_path()?;
-    let mut content = read_yaml_file(&file_path)?;
-
-    let ai = content
-        .get_mut("ai")
-        .ok_or_else(|| anyhow::anyhow!("Missing 'ai' section"))?;
-
-    let providers = ai
-        .get_mut("providers")
-        .ok_or_else(|| anyhow::anyhow!("Missing 'providers' section"))?;
-
-    let provider_config = providers
-        .get_mut(provider)
-        .ok_or_else(|| anyhow::anyhow!("Unknown provider: '{}'", provider))?;
-
-    // JSON: mutates one key in the untyped AI config document, leaving unknown
-    // operator-authored keys in place.
-    if let serde_yaml::Value::Mapping(config_map) = provider_config {
-        config_map.insert(
-            serde_yaml::Value::String("enabled".to_owned()),
-            serde_yaml::Value::Bool(enabled),
-        );
-    }
-
-    write_yaml_file(&file_path, &content)?;
-
-    let action = if enabled { "enabled" } else { "disabled" };
-
-    Ok(ProviderSetOutput {
-        provider: provider.to_owned(),
-        action: action.to_owned(),
-        message: format!("Provider '{}' {}", provider, action),
-    })
+    .await
 }

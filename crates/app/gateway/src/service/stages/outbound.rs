@@ -23,14 +23,15 @@ pub(super) struct CtxParts<'a> {
     pub(super) raw_body: Option<&'a Bytes>,
 }
 
-pub(super) fn outbound_ctx<'a>(
+pub(super) const fn outbound_ctx<'a>(
     upstream: &'a ResolvedUpstream<'a>,
     request: &'a CanonicalRequest,
     parts: CtxParts<'a>,
 ) -> OutboundCtx<'a> {
     OutboundCtx {
-        route: upstream.route.as_ref(),
+        target: &upstream.hop,
         upstream: &upstream.call,
+        http: &upstream.http,
         request,
         upstream_model: parts.upstream_model,
         model_limits: parts.model_limits,
@@ -129,7 +130,7 @@ pub(super) async fn send_bracketed(
         Ok(outcome) => Ok(outcome),
         Err(e) => {
             audit.mark_upstream_end();
-            audit_upstream_failure(audit, upstream.provider.name.as_str(), request_model, &e).await;
+            audit_upstream_failure(audit, upstream.hop.provider.as_str(), request_model, &e).await;
             Err(DispatchError::Recorded(e))
         },
     }

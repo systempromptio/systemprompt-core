@@ -7,6 +7,7 @@
 
 pub mod reconciler;
 pub mod service_records;
+mod service_row;
 pub mod state_types;
 pub mod state_verifier;
 pub mod supervision;
@@ -14,7 +15,7 @@ pub mod verified_state;
 
 pub use reconciler::{ReconciliationResult, ServiceReconciler};
 pub use service_records::{DbServiceRecord, ServiceConfig};
-pub use state_types::{DesiredStatus, RuntimeStatus, ServiceAction, ServiceType};
+pub use state_types::{DesiredStatus, ServiceAction, ServiceStatus, ServiceType, VerifiedService};
 pub use state_verifier::ServiceStateVerifier;
 pub use supervision::{
     ApiListenerStop, child_kind, port_holders, stop_api_listeners, stop_owned_port_holders,

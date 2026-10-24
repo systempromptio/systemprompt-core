@@ -1,6 +1,5 @@
-use systemprompt_gateway::{
-    GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfig, SafetyHistoryMode,
-};
+use systemprompt_gateway::{GatewayPolicySpec, QuotaWindow, SafetyConfig, SafetyHistoryMode};
+use systemprompt_manifest::EnforcementMode;
 
 #[test]
 fn permissive_is_default() {
@@ -8,7 +7,7 @@ fn permissive_is_default() {
     assert!(p.quota_windows.is_empty());
     assert_eq!(
         p.quota_mode,
-        QuotaMode::Enforce,
+        EnforcementMode::Enforce,
         "an omitted quota_mode enforces; warn is opt-in"
     );
     assert!(p.safety.scanners.is_empty());
@@ -33,7 +32,10 @@ fn quota_window_serde_roundtrip() {
 fn a_quota_window_written_before_subjects_existed_still_deserializes_as_user() {
     let yaml = "window_seconds: 3600\nmax_requests: 50";
     let qw: QuotaWindow = serde_yaml::from_str(yaml).expect("de");
-    assert_eq!(qw.subject, systemprompt_gateway::USER_QUOTA_SUBJECT);
+    assert_eq!(
+        qw.subject,
+        systemprompt_identifiers::QuotaSubjectKind::User.as_str()
+    );
     assert_eq!(qw.max_cost_microdollars, None);
 }
 
@@ -96,7 +98,7 @@ fn quota_mode_warn_round_trips_through_the_spec_yaml() {
     assert!(spec.quota_mode.is_warn());
     let back: GatewayPolicySpec =
         serde_yaml::from_str(&serde_yaml::to_string(&spec).expect("ser")).expect("de again");
-    assert_eq!(back.quota_mode, QuotaMode::Warn);
+    assert_eq!(back.quota_mode, EnforcementMode::Warn);
 }
 
 #[test]

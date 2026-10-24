@@ -60,7 +60,7 @@ pub enum ProfileInputsError {
         config_dir: String,
     },
     #[error("fetch bridge profile: {0}")]
-    BridgeProfile(#[source] crate::gateway::GatewayError),
+    BridgeProfile(#[source] crate::auth::profile::ProfileFetchError),
     #[error(transparent)]
     Facts(#[from] ProfileFactsError),
 }
@@ -85,16 +85,13 @@ pub async fn build_profile_inputs(
     }
 
     let gateway_url = config::gateway_url_or_default(&cfg);
-    let bearer = crate::auth::cache::cached_bearer(&gateway_url);
-    let server_profile = bridge
-        .gateway_client(gateway_url)
-        .fetch_bridge_profile(bearer.as_ref())
+    let server_profile = crate::auth::profile::fetch_signed_in(&bridge.gateway_client(gateway_url))
         .await
         .map_err(ProfileInputsError::BridgeProfile)?;
 
     let mut facts = ProfileFacts::load(loopback, &bridge.mcp_registry.load(), overrides.clone())?;
     facts.profile = Some(server_profile);
-    Ok(facts.inputs_for(host.id(), host.accepted_surfaces()))
+    Ok(facts.inputs_for(host.profile_identity()))
 }
 
 /// Whether the user asked for this repair.

@@ -126,6 +126,7 @@ pub(super) async fn publish(f: &Fixture) {
                 comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
                 ),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await
@@ -146,6 +147,7 @@ pub(super) async fn withdraw(f: &Fixture) {
                 comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
                 ),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await

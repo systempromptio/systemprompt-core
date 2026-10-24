@@ -10,3 +10,6 @@
 
 crate::define_id!(AgentRunId, uuid);
 crate::define_id!(HostSessionId, non_empty);
+crate::define_id!(AgentRunOriginId, checked, |value| {
+    crate::macros::validate_non_empty("AgentRunOriginId", value)
+});

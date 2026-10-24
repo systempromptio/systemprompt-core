@@ -1,11 +1,11 @@
 //! The upstream seam the in-process AI service shares with the gateway.
 //!
-//! Pins that a catalog entry resolves to the same place whichever stack sends
+//! Pins that a catalog hop resolves to the same place whichever stack sends
 //! it: an API key stays an API key on the first-party endpoint, and a Google
-//! service account on Vertex AI fills `{project}`, mints a bearer and renders
-//! the Vertex envelope. Also pins the two driver defects the old per-client
-//! plumbing carried: the catalog's upstream id was never sent, and an
-//! `openai-responses` provider was posted to `/chat/completions`.
+//! service account on a Vertex endpoint fills `{project}`, mints a bearer and
+//! renders the Vertex envelope. Also pins the two driver defects the old
+//! per-client plumbing carried: the catalog's upstream id was never sent, and
+//! an `openai-responses` provider was posted to `/chat/completions`.
 
 use serde_json::json;
 use systemprompt_ai::models::ai::AiMessage;
@@ -13,8 +13,8 @@ use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::openai::OpenAiProvider;
 use systemprompt_ai::services::providers::provider_trait::{GenerationParams, ProviderClient};
 use systemprompt_ai::{UpstreamTarget, UpstreamTargetError};
-use systemprompt_identifiers::SecretName;
-use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
+use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
+use systemprompt_test_fixtures::catalog::vertex_regions;
 use systemprompt_test_fixtures::keys::test_key;
 use systemprompt_wire::{Hosting, WireProtocol};
 use wiremock::matchers::{body_partial_json, method, path};
@@ -22,15 +22,16 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::services::providers::mock_http;
 
-const VERTEX_TEMPLATE: &str =
-    "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic";
+fn hop<'c>(catalog: &'c ResolvedCatalog, model: &str, endpoint: &str) -> &'c ResolvedHop {
+    catalog
+        .deployments(model)
+        .iter()
+        .find(|hop| hop.endpoint.as_str() == endpoint)
+        .unwrap_or_else(|| panic!("{model} deployed on {endpoint}"))
+}
 
-fn seed(provider: &str) -> ProviderEntry {
-    ProviderRegistry::default_seed()
-        .expect("embedded default catalog parses")
-        .find_provider(provider)
-        .expect("provider present in default catalog")
-        .clone()
+fn anthropic_hop(catalog: &ResolvedCatalog) -> &ResolvedHop {
+    hop(catalog, "claude-sonnet-5", "api")
 }
 
 fn service_account(token_uri: &str) -> String {
@@ -44,16 +45,11 @@ fn service_account(token_uri: &str) -> String {
     .to_string()
 }
 
-fn vertex_entry(secret: &str) -> ProviderEntry {
-    let mut entry = seed("anthropic");
-    entry.endpoint = VERTEX_TEMPLATE.to_owned();
-    entry.api_key_secret = Some(SecretName::new(secret));
-    entry
-}
-
 #[tokio::test]
 async fn an_api_key_stays_first_party() {
-    let target = UpstreamTarget::resolve(&seed("anthropic"), "sk-fixture").expect("resolves");
+    let catalog = mock_http::default_catalog();
+    let target =
+        UpstreamTarget::resolve(&catalog, anthropic_hop(&catalog), "sk-fixture").expect("resolves");
     assert_eq!(target.hosting(), Hosting::FirstParty);
     assert_eq!(target.wire(), WireProtocol::Anthropic);
 
@@ -81,13 +77,18 @@ async fn a_service_account_reaches_claude_on_vertex() {
         .mount(&google)
         .await;
 
-    let entry = vertex_entry("upstream-seam-vertex-sa");
+    let catalog = vertex_regions().build();
     let secret = service_account(&format!("{}/token", google.uri()));
-    let target = UpstreamTarget::resolve(&entry, &secret).expect("service account resolves");
+    let target = UpstreamTarget::resolve(
+        &catalog,
+        hop(&catalog, "claude-sonnet-5", "claude-global"),
+        &secret,
+    )
+    .expect("service account resolves");
     assert_eq!(target.hosting(), Hosting::Vertex);
     assert_eq!(
         target.endpoint(),
-        "https://aiplatform.googleapis.com/v1/projects/fixture-project/locations/global/publishers/anthropic"
+        "https://aiplatform.googleapis.com/v1/projects/fixture-project/locations/global/publishers/anthropic/models"
     );
 
     let call = target.call().await.expect("token minted");
@@ -98,14 +99,16 @@ async fn a_service_account_reaches_claude_on_vertex() {
     assert!(!headers.iter().any(|(name, _)| name == "anthropic-version"));
     assert!(
         call.url(WireProtocol::Anthropic, "claude-sonnet-5", true)
-            .ends_with("/publishers/anthropic/models/claude-sonnet-5:streamRawPredict")
+            .ends_with("/claude-sonnet-5:streamRawPredict")
     );
 }
 
 #[test]
 fn a_malformed_service_account_is_refused_at_resolve() {
+    let catalog = vertex_regions().build();
     let err = UpstreamTarget::resolve(
-        &vertex_entry("upstream-seam-malformed"),
+        &catalog,
+        hop(&catalog, "claude-sonnet-5", "claude-global"),
         r#"{"type":"service_account"}"#,
     )
     .unwrap_err();
@@ -117,20 +120,28 @@ fn a_malformed_service_account_is_refused_at_resolve() {
 
 #[test]
 fn a_vertex_template_without_a_project_is_refused_at_resolve() {
-    let mut entry = vertex_entry("upstream-seam-no-project");
-    entry.wire = WireProtocol::Gemini;
-    let err = UpstreamTarget::resolve(&entry, "sk-plain").unwrap_err();
+    let catalog = vertex_regions().build();
+    let gemini = hop(&catalog, "vertex-gemini-3.8-flash", "gemini");
+    let err = UpstreamTarget::resolve(&catalog, gemini, "sk-plain").unwrap_err();
     assert!(matches!(err, UpstreamTargetError::Endpoint { .. }));
 }
 
 #[test]
 fn an_api_key_is_refused_for_claude_on_vertex() {
-    let err =
-        UpstreamTarget::resolve(&vertex_entry("upstream-seam-api-key"), "sk-plain").unwrap_err();
+    let catalog = vertex_regions().build();
+    let err = UpstreamTarget::resolve(
+        &catalog,
+        hop(&catalog, "claude-sonnet-5", "claude-eu"),
+        "sk-plain",
+    )
+    .unwrap_err();
     match err {
-        UpstreamTargetError::ApiKeyOnVertex { provider, secret } => {
-            assert_eq!(provider, "anthropic");
-            assert_eq!(secret, "upstream-seam-api-key");
+        UpstreamTargetError::ApiKeyOnVertex {
+            endpoint,
+            credential,
+        } => {
+            assert_eq!(endpoint, "vertex/claude-eu");
+            assert_eq!(credential, "vertex-sa");
         },
         other => panic!("expected ApiKeyOnVertex, got {other:?}"),
     }
@@ -159,7 +170,7 @@ async fn the_anthropic_driver_sends_the_catalog_upstream_id() {
 
     let mut models = mock_http::seed_models("anthropic");
     let requested = models[0].id.as_str().to_owned();
-    models[0].upstream_model = Some("claude-upstream-fixture".to_owned());
+    models[0].upstream_model = "claude-upstream-fixture".to_owned();
     let provider = AnthropicProvider::with_target(mock_http::api_key_target(
         "anthropic",
         WireProtocol::Anthropic,

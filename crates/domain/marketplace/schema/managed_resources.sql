@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS managed_resources (
     owner_id TEXT NOT NULL,
     source_id TEXT NOT NULL,
     upstream_key TEXT NOT NULL CHECK (length(upstream_key) BETWEEN 1 AND 200),
-    kind TEXT NOT NULL CHECK (kind IN ('skill','plugin','marketplace','supporting')),
+    kind TEXT NOT NULL CHECK (kind IN ('skill','plugin','marketplace','supporting','rule')),
     resource_key TEXT NOT NULL CHECK (length(resource_key) BETWEEN 1 AND 200),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     FOREIGN KEY(owner_id, source_id) REFERENCES managed_sources(owner_id, id),

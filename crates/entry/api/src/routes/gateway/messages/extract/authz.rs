@@ -73,12 +73,12 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
 
 pub async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
-    route: &systemprompt_manifest::services::GatewayRoute,
+    route_id: &RouteId,
     model: &str,
     context_id: &ContextId,
     hook: &SharedAuthzHook,
 ) -> Result<(), RejectionError> {
-    let route_id = route.effective_id();
+    let route_id = route_id.clone();
     let (roles, attributes, act_chain) = principal.authz_attributes();
     let req = build_gateway_authz_request(GatewayAuthzRequestInput {
         user_id: principal.user_id().clone(),
@@ -88,7 +88,7 @@ pub async fn enforce_authz_pre_dispatch(
         trace_id: principal.trace_id().clone(),
         route_id,
         model: ModelId::new(model),
-        session_id: Some(principal.attested_session().clone()),
+        session_id: Some(principal.session_id().clone()),
         client_id: principal.client_id().cloned(),
         context_id: context_id.clone(),
     });

@@ -1,98 +1,68 @@
-//! Whether a route's deployments can reach a Gemini upstream, which decides if
+//! Whether a resolved chain can reach a Gemini upstream, which decides if
 //! thought signatures are looked up for an inbound request.
 
 use systemprompt_api::routes::gateway::messages::extract::signatures::route_needs_thought_signatures;
-use systemprompt_identifiers::{ProviderId, SecretName};
-use systemprompt_manifest::services::gateway::GatewayRoute;
-use systemprompt_manifest::services::providers::surface_for;
-use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
+use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
+use systemprompt_gateway::RouteResolution;
+use systemprompt_identifiers::ModelId;
+use systemprompt_manifest::services::catalog::{EndpointConfig, ModelRequest, ProviderConfig};
+use systemprompt_manifest::services::{GatewayRoute, ModelGlobs};
 use systemprompt_wire::WireProtocol;
 
-fn provider(name: &str, wire: WireProtocol) -> ProviderEntry {
-    ProviderEntry {
-        name: ProviderId::new(name),
-        display_name: None,
-        description: None,
-        wire,
-        surface: surface_for(wire),
-        endpoint: "https://example.invalid/v1".to_owned(),
-        api_key_secret: Some(SecretName::new(name)),
-        credential: Default::default(),
-        credential_from: None,
-        user_agent: None,
-        forward_headers: Vec::new(),
-        governance: Default::default(),
-        extra_headers: Default::default(),
-        accepted_betas: None,
-        models: Vec::new(),
+fn resolution(model: &str) -> RouteResolution {
+    let mut fixture = CatalogFixture::new();
+    for (name, wire) in [
+        ("anthropic", WireProtocol::Anthropic),
+        ("openai", WireProtocol::OpenAiChat),
+        ("gemini", WireProtocol::Gemini),
+    ] {
+        fixture = fixture
+            .credential(name, platform(name))
+            .provider(name, ProviderConfig::new(name))
+            .endpoint(
+                name,
+                "api",
+                EndpointConfig::new(wire, "https://example.invalid/v1"),
+            );
     }
-}
-
-fn registry() -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![
-            provider("anthropic", WireProtocol::Anthropic),
-            provider("openai", WireProtocol::OpenAiChat),
-            provider("gemini", WireProtocol::Gemini),
-        ],
+    let catalog = fixture
+        .model("claude-x", claude_model(0))
+        .model("claude-gf", claude_model(0))
+        .model("claude-cf", claude_model(0))
+        .model("gemini-x", claude_model(0))
+        .deploy("claude-x", ["anthropic/api", "openai/api"])
+        .deploy("claude-gf", ["anthropic/api", "gemini/api"])
+        .deploy("claude-cf", ["anthropic/api"])
+        .deploy("gemini-x", ["gemini/api"])
+        .route(GatewayRoute {
+            models: ModelGlobs(vec!["claude-cf".to_owned()]),
+            context_fallbacks: vec![ModelId::new("gemini-x")],
+            ..GatewayRoute::new("cf")
+        })
+        .build();
+    RouteResolution {
+        target: catalog
+            .resolve(&ModelRequest::new(model))
+            .expect("resolves"),
     }
-}
-
-fn route(value: serde_json::Value) -> GatewayRoute {
-    serde_json::from_value(value).expect("route")
 }
 
 #[test]
-fn an_anthropic_only_route_needs_no_signatures() {
-    let r = route(serde_json::json!({
-        "model_pattern": "claude-*",
-        "provider": "anthropic",
-        "fallbacks": [{"provider": "openai"}]
-    }));
-    assert!(!route_needs_thought_signatures(&registry(), &r));
+fn an_anthropic_and_openai_chain_needs_no_signatures() {
+    assert!(!route_needs_thought_signatures(&resolution("claude-x")));
 }
 
 #[test]
 fn a_gemini_primary_needs_signatures() {
-    let r = route(serde_json::json!({"model_pattern": "gemini-*", "provider": "gemini"}));
-    assert!(route_needs_thought_signatures(&registry(), &r));
+    assert!(route_needs_thought_signatures(&resolution("gemini-x")));
 }
 
 #[test]
-fn a_gemini_fallback_needs_signatures() {
-    let r = route(serde_json::json!({
-        "model_pattern": "claude-*",
-        "provider": "anthropic",
-        "fallbacks": [{"provider": "gemini"}]
-    }));
-    assert!(route_needs_thought_signatures(&registry(), &r));
+fn a_gemini_failover_deployment_needs_signatures() {
+    assert!(route_needs_thought_signatures(&resolution("claude-gf")));
 }
 
 #[test]
 fn a_gemini_context_fallback_needs_signatures() {
-    let r = route(serde_json::json!({
-        "model_pattern": "claude-*",
-        "provider": "anthropic",
-        "context_fallbacks": [{"provider": "gemini"}]
-    }));
-    assert!(route_needs_thought_signatures(&registry(), &r));
-}
-
-#[test]
-fn a_gemini_scope_chain_needs_signatures() {
-    let r = route(serde_json::json!({
-        "model_pattern": "claude-*",
-        "provider": "anthropic",
-        "by_scope": {
-            "dimension": "project",
-            "chains": {"apollo": {"provider": "openai", "fallbacks": [{"provider": "gemini"}]}}
-        }
-    }));
-    assert!(route_needs_thought_signatures(&registry(), &r));
-}
-
-#[test]
-fn an_unknown_provider_needs_no_signatures() {
-    let r = route(serde_json::json!({"model_pattern": "x-*", "provider": "missing"}));
-    assert!(!route_needs_thought_signatures(&registry(), &r));
+    assert!(route_needs_thought_signatures(&resolution("claude-cf")));
 }

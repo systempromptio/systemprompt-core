@@ -2,7 +2,7 @@
 //!
 //! `systemprompt-manifest` holds the shapes that are read from disk at boot
 //! and validated before the runtime starts: the services manifest (agents,
-//! plugins, hooks, MCP servers, skills, marketplaces, the provider registry
+//! plugins, hooks, MCP servers, skills, marketplaces, the model catalog
 //! and the gateway policy), the on-disk profile, the secrets document, the
 //! global [`Config`] assembled from them, and the startup validators. Runtime
 //! request and response models stay in `systemprompt-models`; the provider
@@ -18,7 +18,7 @@
 //! - [`paths`] — path-resolution contract and well-known directory constants.
 //! - [`env`](mod@env) — `${VAR}` interpolation over environment variables.
 //! - [`bridge_profile`] — the builder of the `/v1/bridge/profile` payload from
-//!   the provider registry.
+//!   resolved catalog.
 //!
 //! Public functions return `thiserror`-derived enums from
 //! `systemprompt_models::errors`; `anyhow::Error` is never used in a public
@@ -48,9 +48,9 @@ pub use profile::{
 pub use secrets::Secrets;
 pub use services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, AiConfig, CapabilitiesConfig,
-    DiskHookConfig, DiskSkillConfig, HOOK_CONFIG_FILENAME, MarketplaceConfig,
+    DiskHookConfig, DiskSkillConfig, EnforcementMode, HOOK_CONFIG_FILENAME, MarketplaceConfig,
     OAuthConfig as AgentOAuthConfig, PluginConfig, PluginConfigFile, PluginVariableDef,
-    RetiredCardKeyError, RuntimeStatus, SKILL_CONFIG_FILENAME, SchedulerConfig, ServiceModule,
-    ServiceStatus, ServiceType, ServicesConfig, SkillsConfig, SystemAdmin, WebConfig,
-    split_frontmatter, strip_frontmatter,
+    RetiredCardKeyError, SKILL_CONFIG_FILENAME, SchedulerConfig, ServiceModule, ServiceStatus,
+    ServiceType, ServicesConfig, SkillsConfig, SystemAdmin, WebConfig, split_frontmatter,
+    strip_frontmatter,
 };

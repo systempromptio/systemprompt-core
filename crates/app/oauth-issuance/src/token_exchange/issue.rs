@@ -14,6 +14,7 @@ use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 
 use super::oidc::validate_oidc_subject;
+use super::subject::JwksCache;
 use super::{ID_TOKEN_TYPE, JWT_TOKEN_TYPE, TokenExchangeRequest};
 use crate::{IssuanceError, IssuanceResult, TokenResponse};
 
@@ -21,6 +22,7 @@ pub async fn issue_id_jag(
     client_id: &ClientId,
     request: &TokenExchangeRequest<'_>,
     global: &Config,
+    jwks: &JwksCache,
 ) -> IssuanceResult<TokenResponse> {
     if !matches!(request.subject_token_type, ID_TOKEN_TYPE | JWT_TOKEN_TYPE) {
         return Err(IssuanceError::InvalidRequest {
@@ -32,7 +34,7 @@ pub async fn issue_id_jag(
         });
     }
 
-    let subject = validate_oidc_subject(request.subject_token, global).await?;
+    let subject = validate_oidc_subject(request.subject_token, global, jwks).await?;
 
     let aud = match request.audience {
         None => global.jwt_issuer.as_str(),

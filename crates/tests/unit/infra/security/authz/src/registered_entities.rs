@@ -59,7 +59,7 @@ fn rejection_names_the_id_the_catalog_and_for_routes_the_fix() {
     let msg = err.to_string();
     assert!(msg.contains("claude-opus-4-8-gemini"), "{msg}");
     assert!(msg.contains("claude-star-4203d1"), "{msg}");
-    assert!(msg.contains("entity_match"), "{msg}");
+    assert!(msg.contains("gateway.catalog_route_id"), "{msg}");
 
     let registered = RegisteredEntities::new().with_kind(EntityKind::McpServer, ["odoo"]);
     let msg = registered

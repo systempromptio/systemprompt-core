@@ -254,4 +254,36 @@ impl ContextRepository {
 
         Ok(())
     }
+
+    // Why: the caller selects candidates across domains it may only read;
+    // the agent-owned conditions are re-applied here so a context that gained
+    // a message between the select and this delete is kept.
+    pub async fn delete_empty_contexts(
+        &self,
+        context_ids: &[ContextId],
+        older_than_hours: i64,
+        excluded_kind: ContextKind,
+    ) -> Result<u64, RepositoryError> {
+        if context_ids.is_empty() {
+            return Ok(0);
+        }
+        let ids: Vec<String> = context_ids.iter().map(ToString::to_string).collect();
+        let result = sqlx::query!(
+            r#"
+            DELETE FROM user_contexts uc
+            WHERE uc.context_id = ANY($1)
+              AND NOT EXISTS (
+                SELECT 1 FROM task_messages tm WHERE tm.context_id = uc.context_id
+              )
+              AND uc.created_at < NOW() - make_interval(hours => $2::int)
+              AND (uc.kind != $3 OR uc.session_id IS NULL)
+            "#,
+            &ids,
+            i32::try_from(older_than_hours).unwrap_or(i32::MAX),
+            excluded_kind.as_str()
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
 }

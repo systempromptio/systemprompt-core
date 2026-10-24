@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Parse frontmatter through the ingestion parser for the ready snapshot.
+- Declare owner reassignments through one table-driven macro.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

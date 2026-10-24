@@ -11,6 +11,7 @@ use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_models::CliPaths;
+use systemprompt_models::defaults::DEFAULT_API_PORT;
 
 use super::find_services_config;
 use crate::constants::{container, storage};
@@ -92,13 +93,13 @@ COPY .systemprompt/profiles {profiles}
 RUN chmod +x {bin}/* && chown -R app:app {app}
 
 USER app
-EXPOSE 8080
+EXPOSE {api_port}
 
 # Environment configuration
 {env_section}
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/api/v1/health || exit 1
+    CMD curl -f http://localhost:{api_port}/api/v1/health || exit 1
 
 CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--foreground"]
 "#,
@@ -129,6 +130,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             cmd_infra = CliPaths::INFRA,
             cmd_services = CliPaths::SERVICES,
             cmd_serve = CliPaths::SERVE,
+            api_port = DEFAULT_API_PORT,
         )
     }
 
@@ -214,6 +216,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     }
 
     fn env_section(&self) -> String {
+        let api_port = DEFAULT_API_PORT;
         let profile_env = self.profile_name.map_or_else(String::new, |name| {
             format!(
                 "    SYSTEMPROMPT_PROFILE={}/{}/profile.yaml \\",
@@ -225,7 +228,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         if profile_env.is_empty() {
             format!(
                 r#"ENV HOST=0.0.0.0 \
-    PORT=8080 \
+    PORT={api_port} \
     RUST_LOG=info \
     PATH="{}:$PATH" \
 {}
@@ -241,7 +244,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         } else {
             format!(
                 r#"ENV HOST=0.0.0.0 \
-    PORT=8080 \
+    PORT={api_port} \
     RUST_LOG=info \
     PATH="{}:$PATH" \
 {}

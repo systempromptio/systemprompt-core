@@ -164,7 +164,7 @@ fn static_headers_on_internal_server_are_rejected() {
 #[test]
 fn external_server_without_spawn_fields_parses_and_validates() {
     let d: Deployment = serde_yaml::from_str(
-        "type: external\nendpoint: https://mcp.example.com/mcp\nenabled: true\n\
+        "server_type: external\nendpoint: https://mcp.example.com/mcp\nenabled: true\n\
          display_in_web: false\noauth:\n  required: false\n  scopes: []\n  audience: mcp\n  \
          client_id: null\n",
     )

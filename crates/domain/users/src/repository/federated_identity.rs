@@ -54,31 +54,9 @@ impl UserRepository {
         let mut conn = self.write_pool.acquire().await?;
         let mut tx = conn.begin().await?;
 
-        if let Some(existing) = sqlx::query!(
-            "UPDATE federated_identities SET last_seen_at = CURRENT_TIMESTAMP WHERE issuer = $1 \
-             AND external_sub = $2 RETURNING user_id",
-            issuer,
-            external_sub
-        )
-        .fetch_optional(&mut *tx)
-        .await?
-        {
-            let user = sqlx::query_as!(
-                UserRow,
-                r#"
-                SELECT id, name, email, full_name, display_name, status,
-                       email_verified, roles, avatar_url, is_bot, is_scanner,
-                       created_at, updated_at, account_kind
-                FROM users WHERE id = $1
-                "#,
-                existing.user_id
-            )
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(UserError::from)
-            .and_then(User::try_from)?;
+        if let Some(existing) = touch_existing_link(&mut tx, issuer, external_sub).await? {
             tx.commit().await?;
-            return Ok(user);
+            return Ok(existing);
         }
 
         if let Some(existing) =
@@ -88,46 +66,88 @@ impl UserRepository {
             return Ok(existing);
         }
 
-        let fields = NewFederatedUser::derive(issuer, external_sub, claims);
-
-        let user = sqlx::query_as!(
-            UserRow,
-            r#"
-            INSERT INTO users (
-                id, name, email, full_name, display_name,
-                status, email_verified, roles, is_bot,
-                created_at, updated_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, false, $7::TEXT[], false, $8, $8)
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
-            "#,
-            fields.id.as_str(),
-            fields.name,
-            fields.email,
-            fields.display_name.as_deref(),
-            fields.display_name.as_deref(),
-            fields.status.as_str(),
-            &fields.roles,
-            fields.now,
-        )
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(UserError::from)
-        .and_then(User::try_from)?;
-
-        sqlx::query!(
-            "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
-            issuer,
-            external_sub,
-            user.id.as_str()
-        )
-        .execute(&mut *tx)
-        .await?;
-
+        let user = insert_federated_user(&mut tx, issuer, external_sub, claims).await?;
         tx.commit().await?;
         Ok(user)
     }
+}
+
+async fn touch_existing_link(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    issuer: &str,
+    external_sub: &str,
+) -> Result<Option<User>> {
+    let Some(existing) = sqlx::query!(
+        "UPDATE federated_identities SET last_seen_at = CURRENT_TIMESTAMP WHERE issuer = $1 \
+         AND external_sub = $2 RETURNING user_id",
+        issuer,
+        external_sub
+    )
+    .fetch_optional(&mut **tx)
+    .await?
+    else {
+        return Ok(None);
+    };
+    let user = sqlx::query_as!(
+        UserRow,
+        r#"
+        SELECT id, name, email, full_name, display_name, status,
+               email_verified, roles, avatar_url, is_bot, is_scanner,
+               created_at, updated_at, account_kind
+        FROM users WHERE id = $1
+        "#,
+        existing.user_id
+    )
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(UserError::from)
+    .and_then(User::try_from)?;
+    Ok(Some(user))
+}
+
+async fn insert_federated_user(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    issuer: &str,
+    external_sub: &str,
+    claims: &FederatedIdentityClaims,
+) -> Result<User> {
+    let fields = NewFederatedUser::derive(issuer, external_sub, claims);
+
+    let user = sqlx::query_as!(
+        UserRow,
+        r#"
+        INSERT INTO users (
+            id, name, email, full_name, display_name,
+            status, email_verified, roles, is_bot,
+            created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, false, $7::TEXT[], false, $8, $8)
+        RETURNING id, name, email, full_name, display_name, status, email_verified,
+                  roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
+        "#,
+        fields.id.as_str(),
+        fields.name,
+        fields.email,
+        fields.display_name.as_deref(),
+        fields.display_name.as_deref(),
+        fields.status.as_str(),
+        &fields.roles,
+        fields.now,
+    )
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(UserError::from)
+    .and_then(User::try_from)?;
+
+    sqlx::query!(
+        "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
+        issuer,
+        external_sub,
+        user.id.as_str()
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(user)
 }
 
 async fn link_by_verified_email(

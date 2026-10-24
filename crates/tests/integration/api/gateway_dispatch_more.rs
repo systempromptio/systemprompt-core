@@ -13,6 +13,7 @@ use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     build_error_response, classify_dispatch_error, map_dispatch_error,
 };
 use systemprompt_api::routes::gateway::messages::error::RejectionError;
+use systemprompt_gateway::OverrideEngine;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
@@ -183,9 +184,14 @@ async fn apply_system_prompt_override_is_noop_without_overrides() {
     let provider = ProviderId::new("anthropic");
     let mut request = canonical();
     let before = request.system.clone();
-    let descriptor =
-        apply_system_prompt_override(&config, &provider, "claude-test-upstream", &mut request)
-            .await;
+    let descriptor = apply_system_prompt_override(
+        &OverrideEngine::new(),
+        &config,
+        &provider,
+        "claude-test-upstream",
+        &mut request,
+    )
+    .await;
     assert!(descriptor.is_none(), "no overrides configured");
     assert_eq!(request.system, before, "system prompt is untouched");
 }
@@ -202,12 +208,13 @@ fn config_with_rule(rule: SystemPromptRule) -> GatewayConfig {
 async fn apply_system_prompt_override_replace_swaps_system_prompt() {
     let config = config_with_rule(SystemPromptRule {
         provider: Some(ProviderId::new("anthropic")),
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Replace,
         prompt: Some("governed prompt".to_owned()),
     });
     let mut request = canonical();
     let descriptor = apply_system_prompt_override(
+        &OverrideEngine::new(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",
@@ -225,13 +232,14 @@ async fn apply_system_prompt_override_replace_swaps_system_prompt() {
 async fn apply_system_prompt_override_strip_clears_system_prompt() {
     let config = config_with_rule(SystemPromptRule {
         provider: None,
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Strip,
         prompt: None,
     });
     let mut request = canonical();
     request.system = vec![SystemBlock::text("to be removed".to_owned())];
     let descriptor = apply_system_prompt_override(
+        &OverrideEngine::new(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",
@@ -249,13 +257,14 @@ async fn apply_system_prompt_override_strip_clears_system_prompt() {
 async fn apply_system_prompt_override_non_matching_provider_passes_through() {
     let config = config_with_rule(SystemPromptRule {
         provider: Some(ProviderId::new("gemini")),
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Strip,
         prompt: None,
     });
     let mut request = canonical();
     let before = request.system.clone();
     apply_system_prompt_override(
+        &OverrideEngine::new(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",

@@ -24,6 +24,7 @@ pub(super) mod macos;
 mod macos_payload;
 mod macos_remove;
 pub mod policy;
+pub mod policy_mcp;
 mod policy_render;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod sync;
@@ -85,10 +86,7 @@ pub(crate) fn desktop_policy_entries(
         mcp.registry,
         mcp.overrides.clone(),
     )?;
-    let inputs = facts.inputs_for(
-        systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
-        policy::DESKTOP_SURFACES,
-    );
+    let inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
     policy::desktop_policy(&inputs, mcp.egress_allowed_hosts)
 }
 

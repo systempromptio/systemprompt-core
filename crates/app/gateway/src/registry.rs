@@ -1,10 +1,11 @@
-//! Process-global registry of gateway upstream providers and adapters.
+//! Registries of gateway upstream adapters and safety scanners, and the
+//! [`GatewayEngines`] set that owns one of each engine for a gateway.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use super::protocol::outbound::anthropic::AnthropicOutbound;
 use super::protocol::outbound::gemini::GeminiOutbound;
@@ -12,13 +13,21 @@ use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
 use crate::policies::{
-    HeuristicScanner, NullScanner, SafetyConfig, SafetyScanner, SafetyScannerRegistration,
-    ScannerFactory, ScannerSettings,
+    HeuristicScanner, NullScanner, OverrideEngine, RouteSelectorEngine, SafetyConfig,
+    SafetyScanner, SafetyScannerRegistration, ScannerFactory, ScannerSettings,
 };
+use crate::service::failover::{DeploymentLoad, ProviderBreakers};
+use systemprompt_client::GuardedClientConfig;
 use systemprompt_wire::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
     entries: HashMap<String, Arc<dyn OutboundAdapter>>,
+}
+
+impl Default for GatewayUpstreamRegistry {
+    fn default() -> Self {
+        Self::build()
+    }
 }
 
 impl std::fmt::Debug for GatewayUpstreamRegistry {
@@ -30,9 +39,9 @@ impl std::fmt::Debug for GatewayUpstreamRegistry {
 }
 
 impl GatewayUpstreamRegistry {
-    pub fn global() -> &'static Self {
-        static REGISTRY: OnceLock<GatewayUpstreamRegistry> = OnceLock::new();
-        REGISTRY.get_or_init(Self::build)
+    #[must_use]
+    pub fn new() -> Self {
+        Self::build()
     }
 
     pub fn get(&self, tag: &str) -> Option<&Arc<dyn OutboundAdapter>> {
@@ -84,6 +93,12 @@ pub struct SafetyScannerRegistry {
 
 const BUILTIN_SCANNER_NAMES: &[&str] = &["null", "heuristic"];
 
+impl Default for SafetyScannerRegistry {
+    fn default() -> Self {
+        Self::build()
+    }
+}
+
 impl std::fmt::Debug for SafetyScannerRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SafetyScannerRegistry")
@@ -93,9 +108,9 @@ impl std::fmt::Debug for SafetyScannerRegistry {
 }
 
 impl SafetyScannerRegistry {
-    pub fn global() -> &'static Self {
-        static REGISTRY: OnceLock<SafetyScannerRegistry> = OnceLock::new();
-        REGISTRY.get_or_init(Self::build)
+    #[must_use]
+    pub fn new() -> Self {
+        Self::build()
     }
 
     pub fn create(&self, name: &str, safety: &SafetyConfig) -> Option<Arc<dyn SafetyScanner>> {
@@ -140,5 +155,48 @@ impl SafetyScannerRegistry {
         }
 
         Self { entries }
+    }
+}
+
+/// The engines one gateway owns, built once at the composition root and
+/// shared by handle.
+///
+/// Upstream adapters, safety scanners, the system-prompt override engine, the
+/// route selector, the per-provider circuit breakers, the per-deployment
+/// in-flight gauge and the upstream HTTP client.
+#[derive(Debug)]
+pub struct GatewayEngines {
+    pub upstream_registry: Arc<GatewayUpstreamRegistry>,
+    pub scanner_registry: Arc<SafetyScannerRegistry>,
+    pub override_engine: Arc<OverrideEngine>,
+    pub route_selector: Arc<RouteSelectorEngine>,
+    pub breakers: ProviderBreakers,
+    pub load: DeploymentLoad,
+    pub http: reqwest::Client,
+}
+
+/// Failure to assemble a [`GatewayEngines`] set at boot.
+#[derive(Debug, thiserror::Error)]
+pub enum GatewayEnginesError {
+    #[error("gateway upstream HTTP client could not be built")]
+    HttpClient(#[source] reqwest::Error),
+}
+
+impl GatewayEngines {
+    pub fn new() -> Result<Self, GatewayEnginesError> {
+        let http = systemprompt_client::guarded_client(&GuardedClientConfig {
+            timeout: None,
+            ..GuardedClientConfig::default()
+        })
+        .map_err(GatewayEnginesError::HttpClient)?;
+        Ok(Self {
+            upstream_registry: Arc::default(),
+            scanner_registry: Arc::default(),
+            override_engine: Arc::default(),
+            route_selector: Arc::default(),
+            breakers: ProviderBreakers::new(),
+            load: DeploymentLoad::default(),
+            http,
+        })
     }
 }

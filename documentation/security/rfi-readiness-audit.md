@@ -41,12 +41,13 @@ are configured as warnings.
 and its acceptance rationale. An ignored advisory remains an exception to the scan; a
 successful scan does not establish that dependencies contain no vulnerabilities.
 
-The register includes `RUSTSEC-2023-0071` for `rsa`, `RUSTSEC-2026-0173` for
-`proc-macro-error2`, and exceptions for dependencies in the bridge's Linux windowing
-resolution graph: `RUSTSEC-2026-0194`, `RUSTSEC-2026-0195`, `RUSTSEC-2026-0192`,
-`RUSTSEC-2024-0370`, `RUSTSEC-2024-0412`, `RUSTSEC-2024-0413`, `RUSTSEC-2024-0415`,
-`RUSTSEC-2024-0416`, `RUSTSEC-2024-0418`, `RUSTSEC-2024-0419`, `RUSTSEC-2024-0420`
-and `RUSTSEC-2024-0429`.
+The register includes `RUSTSEC-2023-0071` for `rsa`, `RUSTSEC-2026-0235` for the
+never-enabled optional `rkyv` dependency of `rust_decimal`, `RUSTSEC-2024-0449` for
+`unsafe-libyaml`, and exceptions for dependencies in the bridge's Linux windowing
+resolution graph: `RUSTSEC-2026-0192`, `RUSTSEC-2024-0370`, `RUSTSEC-2026-0370`,
+`RUSTSEC-2026-0371`, `RUSTSEC-2026-0372`, `RUSTSEC-2024-0412`, `RUSTSEC-2024-0413`,
+`RUSTSEC-2024-0415`, `RUSTSEC-2024-0416`, `RUSTSEC-2024-0418`, `RUSTSEC-2024-0419`,
+`RUSTSEC-2024-0420` and `RUSTSEC-2024-0429`.
 
 Review dependency reachability for the target platform and feature set using its lockfile
 and Cargo dependency graph. Build-time dependencies also require supply-chain review.

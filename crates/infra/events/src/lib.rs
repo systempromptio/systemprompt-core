@@ -21,13 +21,13 @@
 //! # Example
 //!
 //! ```no_run
-//! use systemprompt_events::{A2A_BROADCASTER, Broadcaster};
+//! use systemprompt_events::{Broadcaster, EventBroadcasters};
 //! use systemprompt_identifiers::UserId;
 //! use systemprompt_models::A2AEvent;
 //!
-//! # async fn demo(event: A2AEvent) {
+//! # async fn demo(broadcasters: &EventBroadcasters, event: A2AEvent) {
 //! let user_id = UserId::new("user_abc");
-//! let delivered = A2A_BROADCASTER.broadcast(&user_id, event).await;
+//! let delivered = broadcasters.a2a.broadcast(&user_id, event).await;
 //! tracing::info!(delivered, "A2A event fanned out");
 //! # }
 //! ```
@@ -78,10 +78,10 @@ pub trait Broadcaster: Send + Sync {
 
 pub use extension::EventsExtension;
 pub use services::{
-    A2A_BROADCASTER, A2ABroadcaster, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, AgUiBroadcaster,
-    AnalyticsBroadcaster, CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL,
-    CONTEXT_BROADCASTER, ConnectionGuard, ContextBroadcaster, EventBridgeHandle, EventRouter,
-    EventsOwnerReassignment, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
-    OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge, RelayStatus, invalidate_all_cache_domains,
-    receive_cache_invalidation, standard_keep_alive,
+    A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, BroadcasterConnections,
+    CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL, ConnectionGuard,
+    ContextBroadcaster, EventBridgeHandle, EventBroadcasters, EventRouter, EventsOwnerReassignment,
+    GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, OUTBOX_CHANNEL, OutboxChannel,
+    PostgresEventBridge, RelayStatus, invalidate_all_cache_domains, receive_cache_invalidation,
+    standard_keep_alive,
 };

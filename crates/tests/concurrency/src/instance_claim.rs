@@ -13,7 +13,7 @@ use systemprompt_database::{
     ServiceRepository, ServiceStatus, UpsertServiceProcessInput,
 };
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{LivePids, test_database_url};
 
 const REPLICAS: usize = 8;
 
@@ -61,7 +61,8 @@ async fn boot_replica(db: DbPool, names: Vec<ServiceName>) -> Result<InstanceId,
         .await
         .map_err(|e| e.to_string())?;
     }
-    repo.cleanup_stale_entries()
+    let own_pids = (0..names.len()).map(|offset| 10_000 + offset as u32);
+    repo.reap_stale(&LivePids::of(own_pids))
         .await
         .map_err(|e| e.to_string())?;
     repo.touch_heartbeat().await.map_err(|e| e.to_string())?;

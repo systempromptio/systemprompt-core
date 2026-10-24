@@ -16,6 +16,8 @@
 //! - [`plugin_bundle`] — the `.claude-plugin/plugin.json` manifest shape and
 //!   the well-formedness predicate shared by every plugin-bundle
 //!   producer/consumer.
+//! - [`opencode`] — the `OpenCode` V2 `opencode.json` document and its policy
+//!   lockdown, rendered once for the bridge and the headless host.
 //! - [`manifest_version`] — the parsed `<rfc3339>-<hex>` version identifier
 //!   carried inside every manifest.
 //! - [`gateway`] — the whoami, device self-enrolment, session PAT and release
@@ -44,6 +46,7 @@ pub mod host;
 pub mod ids;
 pub mod manifest;
 pub mod manifest_version;
+pub mod opencode;
 pub mod plugin_bundle;
 pub mod profile;
 pub mod update_policy;

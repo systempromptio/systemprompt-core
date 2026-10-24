@@ -29,13 +29,12 @@ fn configured_models(raw: Option<&str>) -> Result<Vec<String>, MdmError> {
     })
 }
 
-// Why: Claude Desktop is the single carve-out from the reachability rule, so
-// its list is filtered here, where the key is built (every caller goes
-// through `claude_desktop_policy`); the gateway transcodes every inbound wire
-// to every provider wire for every other host.
+// Why: the list arrives already narrowed to the models the catalog
+// advertises to Claude clients (`model_view::host_model_view`); Claude
+// Desktop rejects any other id in `inferenceModels`, and the catalog's
+// `clients` is the one rule that decides it.
 pub(super) fn inference_entries(inputs: &PolicyInputs<'_>) -> Result<Vec<PolicyEntry>, MdmError> {
-    let configured = configured_models(inputs.models.as_deref())?;
-    let models = crate::gateway::model_view::desktop_models(&configured);
+    let models = configured_models(inputs.models.as_deref())?;
     Ok(vec![
         ("inferenceProvider", PolicyValue::Str("gateway".into())),
         (

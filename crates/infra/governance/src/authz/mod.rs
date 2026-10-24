@@ -48,6 +48,7 @@ pub mod runtime;
 pub mod scope_binding;
 pub mod subject;
 pub mod subject_directory;
+pub mod traffic;
 pub mod types;
 
 pub use audit::{
@@ -85,6 +86,7 @@ pub use subject::{
 pub use subject_directory::{
     RoleDirectory, RoleDirectoryRegistration, SharedRoleDirectory, discover_role_directory,
 };
+pub use traffic::{TRAFFIC_PRECEDENCE, TrafficProvider};
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
     DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, PendingReason, RuleType, SubjectRef,

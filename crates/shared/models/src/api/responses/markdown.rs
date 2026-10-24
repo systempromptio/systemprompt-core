@@ -6,13 +6,6 @@
 
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "web")]
-use axum::http::StatusCode;
-#[cfg(feature = "web")]
-use axum::response::IntoResponse;
-#[cfg(feature = "web")]
-use http::header;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarkdownFrontmatter {
     pub title: String,
@@ -94,23 +87,5 @@ impl MarkdownResponse {
     pub fn to_markdown(&self) -> Result<String, serde_yaml::Error> {
         let yaml = self.frontmatter.to_yaml()?;
         Ok(format!("---\n{}---\n\n{}", yaml, self.body))
-    }
-}
-
-#[cfg(feature = "web")]
-impl IntoResponse for MarkdownResponse {
-    fn into_response(self) -> axum::response::Response {
-        match self.to_markdown() {
-            Ok(body) => (
-                StatusCode::OK,
-                [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
-                body,
-            )
-                .into_response(),
-            Err(e) => {
-                tracing::error!(error = %e, "MarkdownResponse frontmatter serialization failed");
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            },
-        }
     }
 }

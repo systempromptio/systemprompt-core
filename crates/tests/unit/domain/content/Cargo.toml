@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+inventory = { workspace = true }
 reqwest = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-content = { workspace = true }
@@ -34,4 +35,6 @@ async-trait = { workspace = true }
 sqlx = { workspace = true }
 
 [package.metadata.cargo-machete]
-ignored = ["reqwest"]
+# Why: `register_extension!` expands to `::inventory::submit!`, which machete cannot see.
+ignored = ["reqwest", "inventory"]
+

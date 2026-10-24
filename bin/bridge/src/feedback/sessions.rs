@@ -13,7 +13,6 @@ use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::origin::{ClientKind, native_marker, ua_product};
 
-pub const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeSession {
@@ -67,12 +66,15 @@ pub fn native_session(
             }
         },
         EvaluatorClient::OpenCode => {
-            let raw = headers.get(OPENCODE_SESSION_HEADER)?.to_str().ok()?;
+            let raw = headers
+                .get(systemprompt_identifiers::headers::OPENCODE_SESSION)?
+                .to_str()
+                .ok()?;
             // Why: the current plugin sends the v5 UUID; a plugin from before
             // the mapping sends the raw `ses_…` id, which maps to the same UUID.
-            match ClientSessionId::try_new(raw) {
-                Ok(id) => id.as_str().to_owned(),
-                Err(_) => super::opencode_session::session_uuid(raw)
+            match super::opencode_session::canonical_session_uuid(raw) {
+                Some(id) => id.hyphenated().to_string(),
+                None => super::opencode_session::session_uuid(raw)
                     .ok()?
                     .as_str()
                     .to_owned(),
@@ -95,7 +97,7 @@ fn presenting_client(
     body: &[u8],
 ) -> Option<ClientKind> {
     if let Some(host) = verified_host {
-        return ClientKind::from_bridge_host_id(host.as_str());
+        return Some(ClientKind::from(host));
     }
     if let Some(marker) = native_marker(body) {
         return Some(marker.client());

@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS services (
     server_type TEXT NOT NULL DEFAULT 'internal',
     pid INTEGER,
     port INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'stopped',
+    status TEXT NOT NULL DEFAULT 'stopped'
+        CHECK (status IN ('starting', 'running', 'stopping', 'stopped', 'error')),
     binary_mtime BIGINT,
     heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -14,9 +14,8 @@ use std::hash::BuildHasher;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::services::ProviderRegistry;
+use systemprompt_manifest::services::CredentialRegistry;
 
 use super::{CheckResult, CheckStatus};
 
@@ -28,8 +27,7 @@ pub fn check_profile_valid(profile: &Profile) -> CheckResult {
 }
 
 pub fn check_extension_configs(profile: &Profile) -> CheckResult {
-    let services_root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
-    let services_path = services_root.as_path();
+    let services_path = Path::new(&profile.paths.services);
     match systemprompt_runtime::validate_extension_configs(services_path) {
         Err(err) => CheckResult::fail(
             "extension-config",
@@ -117,16 +115,15 @@ pub fn check_required_secrets<S: BuildHasher>(secrets: &HashMap<String, String, 
 }
 
 pub fn check_provider_secrets<S: BuildHasher>(
-    registry: &ProviderRegistry,
+    credentials: &CredentialRegistry,
     secrets: &HashMap<String, String, S>,
 ) -> CheckResult {
-    let missing: Vec<String> = registry
-        .providers
+    let missing: Vec<String> = credentials
         .iter()
-        .filter_map(|provider| {
-            let secret = provider.platform_secret()?;
+        .filter_map(|(id, credential)| {
+            let secret = credential.secret.as_ref()?;
             (!secret_present(secrets, secret.as_str()))
-                .then(|| format!("{} (needs `{}`)", provider.name.as_str(), secret.as_str()))
+                .then(|| format!("{} (needs `{}`)", id.as_str(), secret.as_str()))
         })
         .collect();
 

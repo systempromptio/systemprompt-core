@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE bridge_user_host_model_prefs\n            SET model_protocols = array_replace(model_protocols, $1, $2),\n                updated_at = CURRENT_TIMESTAMP\n            WHERE $1 = ANY(model_protocols)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8da8fc1d6ca4f520349276fe5ce7f7f99734f04d8ea8a3a0ccd63b1f90bb303b"
+}

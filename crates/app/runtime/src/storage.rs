@@ -17,6 +17,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::{InstanceId, SecretName};
 use systemprompt_manifest::Secrets;
 use systemprompt_manifest::profile::{GcsCredentials, StorageBackend, StorageConfig};
+use systemprompt_security::credential::TokenCache;
 use systemprompt_security::google::{ServiceAccountKey, access_token};
 use systemprompt_storage::{
     DEFAULT_METADATA_TOKEN_URL, FileStorageBackend, GcsError, GcsParams, GcsTokenSource,
@@ -34,6 +35,7 @@ const OBJECT_STORE_READ_TIMEOUT: Duration = Duration::from_secs(60);
 pub struct ServiceAccountTokens {
     cache_key: String,
     key: ServiceAccountKey,
+    tokens: TokenCache,
 }
 
 impl ServiceAccountTokens {
@@ -42,6 +44,7 @@ impl ServiceAccountTokens {
         Self {
             cache_key: format!("storage-gcs:{secret}"),
             key,
+            tokens: TokenCache::new(),
         }
     }
 }
@@ -49,7 +52,7 @@ impl ServiceAccountTokens {
 #[async_trait]
 impl GcsTokenSource for ServiceAccountTokens {
     async fn bearer(&self) -> Result<String, GcsError> {
-        access_token(&self.cache_key, &self.key)
+        access_token(&self.tokens, &self.cache_key, &self.key)
             .await
             .map_err(|e| GcsError::Token(Box::new(e)))
     }

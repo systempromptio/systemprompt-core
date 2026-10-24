@@ -63,7 +63,7 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &SkillId) -> Result<Ag
     };
 
     Ok(AgentSkill {
-        id: skill_id_str.to_owned(),
+        id: skill_id.clone(),
         name: config.name.unwrap_or_else(|| skill_id_str.to_owned()),
         description: config
             .description

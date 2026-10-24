@@ -26,8 +26,10 @@ use systemprompt_database::{ServiceConfig, ServiceModule};
 use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
+use systemprompt_mcp::services::client::McpClient;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::credential::TokenCache;
 
 use super::auth::{AccessValidator, build_mcp_unknown_service_challenge};
 use super::backend::{HeaderInjector, ProxyError, RequestBuilder, ResponseHandler, UrlResolver};
@@ -53,15 +55,20 @@ pub struct ProxyEngine {
     identities: Arc<McpProxyIdentityRepository>,
     intent_claims: Option<systemprompt_mcp::IntentClaimService>,
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
+    mcp_client: Arc<McpClient>,
 }
 
 impl ProxyEngine {
-    pub fn new(identities: Arc<McpProxyIdentityRepository>) -> Self {
+    pub fn new(
+        identities: Arc<McpProxyIdentityRepository>,
+        connector_tokens: Arc<TokenCache>,
+    ) -> Self {
         Self {
             client_pool: ClientPool::new(),
             identities,
             intent_claims: None,
             artifact_ingest: None,
+            mcp_client: Arc::new(McpClient::new(connector_tokens)),
         }
     }
 

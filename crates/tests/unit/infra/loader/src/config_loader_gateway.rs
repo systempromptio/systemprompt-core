@@ -1,19 +1,17 @@
 //! Gateway post-parse fix-ups in the services loader: `!include` prompt
-//! resolution and route-id backfill.
+//! resolution.
 
-use systemprompt_identifiers::{ProviderId, RouteId};
+use systemprompt_identifiers::ProviderId;
 use systemprompt_loader::ConfigLoadError;
-use systemprompt_loader::config_loader::gateway::{
-    backfill_route_ids, resolve_override_prompt_includes,
-};
+use systemprompt_loader::config_loader::gateway::resolve_override_prompt_includes;
 use systemprompt_manifest::services::{
-    GatewayConfigSpec, GatewayRoute, OverrideRuleAction, SystemPromptRule,
+    GatewayConfigSpec, ModelGlobs, OverrideRuleAction, SystemPromptRule,
 };
 
 fn replace_rule(prompt: &str) -> SystemPromptRule {
     SystemPromptRule {
         provider: Some(ProviderId::new("cerebras")),
-        model_pattern: Some("claude-*".to_owned()),
+        models: Some(ModelGlobs(vec!["claude-*".to_owned()])),
         action: OverrideRuleAction::Replace,
         prompt: Some(prompt.to_owned()),
     }
@@ -23,26 +21,6 @@ fn spec_with(rules: Vec<SystemPromptRule>) -> GatewayConfigSpec {
     GatewayConfigSpec {
         system_prompt_overrides: rules,
         ..Default::default()
-    }
-}
-
-fn route(id: &str) -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new(id)),
-        name: None,
-        description: None,
-        model_pattern: "claude-*".to_owned(),
-        provider: ProviderId::new("cerebras"),
-        upstream_model: None,
-        extra_headers: std::collections::HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
     }
 }
 
@@ -78,7 +56,7 @@ fn inline_prompt_and_strip_rule_pass_through() {
     let dir = tempfile::tempdir().unwrap();
     let strip = SystemPromptRule {
         provider: None,
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Strip,
         prompt: None,
     };
@@ -91,25 +69,4 @@ fn inline_prompt_and_strip_rule_pass_through() {
         Some("a literal prompt body")
     );
     assert_eq!(spec.system_prompt_overrides[1].prompt, None);
-}
-
-#[test]
-fn backfill_route_ids_fills_only_blank_ids() {
-    let mut spec = GatewayConfigSpec::default();
-    spec.routes = vec![route("  "), route("keep-me")];
-
-    let mutated = backfill_route_ids(&mut spec);
-
-    assert!(mutated);
-    assert!(spec.routes[0].declared_id().is_some());
-    assert_eq!(spec.routes[1].effective_id().as_str(), "keep-me");
-}
-
-#[test]
-fn backfill_route_ids_no_op_when_all_ids_present() {
-    let mut spec = GatewayConfigSpec::default();
-    spec.routes = vec![route("route-a")];
-
-    assert!(!backfill_route_ids(&mut spec));
-    assert_eq!(spec.routes[0].effective_id().as_str(), "route-a");
 }

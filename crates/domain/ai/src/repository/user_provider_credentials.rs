@@ -1,5 +1,5 @@
-//! Repository for `user_provider_credentials`: provider keys a user stored for
-//! themselves (personal subscriptions).
+//! Repository for `user_provider_credentials`: keys a member stored for
+//! themselves (personal subscriptions), one per catalog credential id.
 //!
 //! The key arrives sealed with [`systemprompt_security::at_rest`]
 //! (`crate::store_personal_key` seals it) and is opened only by
@@ -14,13 +14,13 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{CredentialId, UserId};
 use systemprompt_traits::RepositoryError;
 
 /// What is known about a stored key without opening it.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct UserProviderCredentialMeta {
-    pub provider: String,
+    pub credential: String,
     pub label: Option<String>,
     pub created_at: DateTime<Utc>,
     pub verified_at: Option<DateTime<Utc>>,
@@ -44,7 +44,7 @@ impl UserProviderCredentialRepository {
     pub async fn set_key(
         &self,
         user_id: &UserId,
-        provider: &str,
+        credential: &CredentialId,
         sealed: &str,
         label: Option<&str>,
     ) -> Result<UserProviderCredentialMeta, RepositoryError> {
@@ -53,19 +53,19 @@ impl UserProviderCredentialRepository {
             UserProviderCredentialMeta,
             r#"
             INSERT INTO user_provider_credentials
-                (user_id, provider, ciphertext, nonce, label, verified_at)
+                (user_id, credential, ciphertext, nonce, label, verified_at)
             VALUES ($1, $2, $3, $4, $5, NOW())
-            ON CONFLICT (user_id, provider) DO UPDATE SET
+            ON CONFLICT (user_id, credential) DO UPDATE SET
                 ciphertext = EXCLUDED.ciphertext,
                 nonce = EXCLUDED.nonce,
                 label = EXCLUDED.label,
                 created_at = NOW(),
                 verified_at = NOW(),
                 last_used_at = NULL
-            RETURNING provider, label, created_at, verified_at, last_used_at
+            RETURNING credential, label, created_at, verified_at, last_used_at
             "#,
             user_id.as_str(),
-            provider,
+            credential.as_str(),
             sealed,
             nonce,
             label,
@@ -78,17 +78,17 @@ impl UserProviderCredentialRepository {
     pub async fn find_key(
         &self,
         user_id: &UserId,
-        provider: &str,
+        credential: &CredentialId,
     ) -> Result<Option<String>, RepositoryError> {
         let sealed = sqlx::query_scalar!(
             r#"
             UPDATE user_provider_credentials
             SET last_used_at = NOW()
-            WHERE user_id = $1 AND provider = $2
+            WHERE user_id = $1 AND credential = $2
             RETURNING ciphertext
             "#,
             user_id.as_str(),
-            provider,
+            credential.as_str(),
         )
         .fetch_optional(&*self.write_pool)
         .await?;
@@ -100,7 +100,7 @@ impl UserProviderCredentialRepository {
             Err(error) => {
                 tracing::warn!(
                     user_id = %user_id,
-                    provider,
+                    credential = %credential.as_str(),
                     %error,
                     "Stored provider credential did not open; treating it as absent"
                 );
@@ -116,10 +116,10 @@ impl UserProviderCredentialRepository {
         let rows = sqlx::query_as!(
             UserProviderCredentialMeta,
             r#"
-            SELECT provider, label, created_at, verified_at, last_used_at
+            SELECT credential, label, created_at, verified_at, last_used_at
             FROM user_provider_credentials
             WHERE user_id = $1
-            ORDER BY provider
+            ORDER BY credential
             "#,
             user_id.as_str(),
         )
@@ -131,12 +131,12 @@ impl UserProviderCredentialRepository {
     pub async fn delete_key(
         &self,
         user_id: &UserId,
-        provider: &str,
+        credential: &CredentialId,
     ) -> Result<bool, RepositoryError> {
         let result = sqlx::query!(
-            r#"DELETE FROM user_provider_credentials WHERE user_id = $1 AND provider = $2"#,
+            r#"DELETE FROM user_provider_credentials WHERE user_id = $1 AND credential = $2"#,
             user_id.as_str(),
-            provider,
+            credential.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;

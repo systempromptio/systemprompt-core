@@ -13,7 +13,7 @@ use super::super::config::skills_dir;
 fn target() -> SkillTarget {
     SkillTarget {
         root: skills_dir(),
-        host_id: systemprompt_models::bridge::host::HostKind::Hermes,
+        product: systemprompt_models::bridge::host::HostProduct::Hermes,
         policy: SkillDirPolicy::Verbatim,
     }
 }

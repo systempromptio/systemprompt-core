@@ -1,7 +1,7 @@
 //! The model card must still be found when the catalog id is not the upstream
 //! name.
 //!
-//! `ProviderModel::matches` keys on the catalog id and its aliases, never on
+//! The catalog model is keyed by its id, never by
 //! `upstream_model`. The dispatch pipeline resolved `model_limits` with the
 //! upstream name, so every provider whose ids differ from the upstream's --
 //! both Vertex entries -- got `None` limits: no output-token clamp, no
@@ -13,19 +13,19 @@
 //! upstream and asserts on the body the *upstream received*, which is the only
 //! place the limits are observable.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use bytes::Bytes;
 use serde_json::{Value, json};
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_gateway::protocol::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::service::GatewayService;
-use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
+use systemprompt_manifest::services::GatewayConfig;
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,
 };
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::{ModelLimits, WireProtocol};
 use wiremock::matchers::method;
@@ -46,61 +46,28 @@ const GEMINI_CAP: u32 = 8192;
 fn registry(
     endpoint: &str,
     wire: WireProtocol,
-    surface: ApiSurface,
+    family: ClientFamily,
     limits: ModelLimits,
-) -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![ProviderEntry {
-            name: ProviderId::new(PROVIDER),
-            display_name: None,
-            description: None,
-            wire,
-            surface,
-            endpoint: endpoint.to_owned(),
-            api_key_secret: Some(SecretName::new(API_KEY_SECRET)),
-            credential: Default::default(),
-            credential_from: None,
-            user_agent: None,
-            forward_headers: Vec::new(),
-            governance: Default::default(),
-            extra_headers: HashMap::new(),
-            accepted_betas: None,
-            models: vec![ProviderModel {
-                id: ModelId::new(CATALOG_ID),
-                aliases: Vec::new(),
-                hidden: false,
-                governance: None,
+) -> ResolvedCatalog {
+    CatalogFixture::new()
+        .credential(PROVIDER, platform(API_KEY_SECRET))
+        .provider(PROVIDER, ProviderConfig::new(PROVIDER))
+        .endpoint(PROVIDER, "api", EndpointConfig::new(wire, endpoint))
+        .model(
+            CATALOG_ID,
+            ModelEntry {
                 upstream_model: Some(UPSTREAM_NAME.to_owned()),
-                pricing: Default::default(),
-                capabilities: Default::default(),
                 limits,
-            }],
-        }],
-    }
+                ..ModelEntry::new(vec![family])
+            },
+        )
+        .deploy(CATALOG_ID, [format!("{PROVIDER}/api").as_str()])
+        .build()
 }
 
 fn config() -> GatewayConfig {
-    let mut route = GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: CATALOG_ID.to_owned(),
-        provider: ProviderId::new(PROVIDER),
-        upstream_model: None,
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
     GatewayConfig {
         enabled: true,
-        routes: vec![route],
         ..GatewayConfig::default()
     }
 }
@@ -146,7 +113,7 @@ fn gemini_reply() -> Value {
 async fn upstream_saw(
     label: &str,
     wire: WireProtocol,
-    surface: ApiSurface,
+    family: ClientFamily,
     limits: ModelLimits,
     reply: Value,
 ) -> anyhow::Result<Value> {
@@ -169,7 +136,7 @@ async fn upstream_saw(
 
     let resp = GatewayService::dispatch(
         &config(),
-        &registry(&upstream.uri(), wire, surface, limits),
+        &registry(&upstream.uri(), wire, family, limits),
         &pool,
         &gw_repos(&pool),
         di,
@@ -207,7 +174,7 @@ async fn openai_chat_clamps_output_tokens_to_the_card_found_by_catalog_id() -> a
     let body = upstream_saw(
         "chat-clamp",
         WireProtocol::OpenAiChat,
-        ApiSurface::OpenAi,
+        ClientFamily::OpenAi,
         clamp_only(),
         openai_chat_reply(),
     )
@@ -236,7 +203,7 @@ async fn openai_chat_uses_the_reasoning_ceiling_from_the_card() -> anyhow::Resul
     let body = upstream_saw(
         "chat-reasoning",
         WireProtocol::OpenAiChat,
-        ApiSurface::OpenAi,
+        ClientFamily::OpenAi,
         limits,
         openai_chat_reply(),
     )
@@ -257,7 +224,7 @@ async fn gemini_budgets_thinking_from_the_card_found_by_catalog_id() -> anyhow::
     let body = upstream_saw(
         "gemini-thinking",
         WireProtocol::Gemini,
-        ApiSurface::Gemini,
+        ClientFamily::Gemini,
         with_thinking_budget(),
         gemini_reply(),
     )

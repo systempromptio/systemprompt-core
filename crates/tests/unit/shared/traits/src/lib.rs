@@ -11,6 +11,9 @@ mod auth;
 mod cache_epoch;
 
 #[cfg(test)]
+mod config_watch;
+
+#[cfg(test)]
 mod db_value;
 
 #[cfg(test)]
@@ -19,8 +22,6 @@ mod extension_error;
 #[cfg(test)]
 mod validation;
 
-#[cfg(test)]
-mod validation_report;
 
 #[cfg(test)]
 mod startup_events;
@@ -40,9 +41,6 @@ mod jwt;
 
 #[cfg(test)]
 #[cfg(test)]
-mod domain_config;
-
-#[cfg(test)]
 mod context_errors;
 
 #[cfg(test)]
@@ -53,6 +51,9 @@ mod content_filter;
 
 #[cfg(test)]
 mod ai_providers;
+
+#[cfg(test)]
+mod request_status;
 
 #[cfg(test)]
 mod agent_run_launcher;

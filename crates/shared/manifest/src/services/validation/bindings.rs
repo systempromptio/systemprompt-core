@@ -256,9 +256,7 @@ impl ServicesConfig {
         }
     }
 
-    pub(crate) fn validate_single_evaluation_hook_owner(
-        &self,
-    ) -> Result<(), ServicesValidationError> {
+    pub(crate) fn validate_single_judge_hook_owner(&self) -> Result<(), ServicesValidationError> {
         let owners: Vec<&str> = self
             .plugins
             .values()

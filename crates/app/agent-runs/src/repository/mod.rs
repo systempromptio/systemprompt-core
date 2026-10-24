@@ -15,6 +15,8 @@
 mod bundle;
 pub mod claim;
 pub mod events;
+pub mod idempotent;
+pub mod retention;
 pub mod rows;
 pub mod task_link;
 
@@ -29,11 +31,13 @@ use systemprompt_identifiers::{
 };
 
 pub use bundle::{AgentRunRepositories, RunCredentialRepositories};
+pub use idempotent::{Enqueued, request_digest};
 pub use rows::AgentRunRow;
 
 use crate::error::AgentRunsResult;
 use crate::outcome::{RunOutcome, RunStatus};
 use crate::request::RunRequest;
+use systemprompt_models::managed::AssetDigest;
 
 #[derive(Debug, Clone)]
 pub struct AgentRunRepository {
@@ -111,6 +115,21 @@ impl AgentRunRepository {
             run.context_id.map(ContextId::as_str),
         )
         .execute(&mut **tx)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn record_harness_digest(
+        &self,
+        id: &AgentRunId,
+        digest: &AssetDigest,
+    ) -> AgentRunsResult<()> {
+        sqlx::query!(
+            "UPDATE agent_runs SET harness_digest = $2 WHERE id = $1",
+            id.as_str(),
+            digest.as_str(),
+        )
+        .execute(&*self.write_pool)
         .await?;
         Ok(())
     }

@@ -63,8 +63,11 @@ pub enum AgentServiceError {
         tool_name: systemprompt_identifiers::McpToolName,
     },
 
-    #[error("agent stream failed: {message}")]
-    StreamFailed { message: String },
+    #[error("agent stream failed: {source}")]
+    StreamFailed {
+        #[source]
+        source: std::sync::Arc<Self>,
+    },
 
     #[error("skill {skill_id} not found on disk: {} is missing", .path.display())]
     SkillNotOnDisk {

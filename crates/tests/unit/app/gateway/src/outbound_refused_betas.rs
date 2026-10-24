@@ -5,7 +5,7 @@
 //! answers otherwise: the request succeeds after one re-send, the kept betas
 //! survive, and the provider remembers the refusal for its next request.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
 use serde_json::json;
 use systemprompt_gateway::protocol::canonical::{
@@ -19,8 +19,7 @@ use systemprompt_gateway::protocol::outbound::retry::{RetryPolicy, with_policy};
 use systemprompt_gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome,
 };
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
@@ -29,24 +28,14 @@ use super::support;
 const REFUSED: &str = "advisor-tool-2026-03-01";
 const KEPT: &str = "interleaved-thinking-2025-05-14";
 
-fn route(provider: &str) -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new("r1")),
-        name: None,
-        description: None,
-        model_pattern: "*".into(),
-        provider: ProviderId::new(provider),
-        upstream_model: Some("upstream-1".into()),
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+fn route(provider: &str) -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        provider,
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    )
 }
 
 fn request() -> CanonicalRequest {
@@ -113,8 +102,9 @@ async fn send(endpoint: &str, provider: &str) -> Result<OutboundOutcome, Outboun
     let req = request();
     let forward = vec![("anthropic-beta".to_owned(), format!("{REFUSED},{KEPT}"))];
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(endpoint, "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -174,7 +164,7 @@ async fn the_provider_remembers_the_refusal_for_its_next_request() {
         .await
         .expect("second");
 
-    assert!(learned("refusing-upstream-b").contains(REFUSED));
+    assert!(learned("refusing-upstream-b/api").contains(REFUSED));
     let sent = betas_sent(&server.received_requests().await.expect("log"));
     assert_eq!(
         sent.len(),

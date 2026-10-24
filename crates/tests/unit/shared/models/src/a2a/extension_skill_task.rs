@@ -145,14 +145,8 @@ fn test_task_state_auth_required() {
 }
 
 #[test]
-fn test_task_state_rejects_legacy_lowercase() {
-    for legacy in [
-        "submitted",
-        "working",
-        "input-required",
-        "pending",
-        "unknown",
-    ] {
+fn test_task_state_rejects_unknown_names() {
+    for legacy in ["cancelled", "Working", "pending", "unknown"] {
         let err = legacy.parse::<TaskState>().unwrap_err();
         assert_eq!(err.value, legacy);
     }

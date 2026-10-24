@@ -6,11 +6,11 @@
 use std::collections::HashMap;
 
 use systemprompt_manifest::ServicesConfig;
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
+use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::{Deployment, McpServerType, OAuthRequirement};
 use systemprompt_runtime::{collect_manifest_errors, merge_mcp_errors};
-use systemprompt_traits::validation_report::ValidationIssue;
-use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 fn deployment(
     server_type: McpServerType,

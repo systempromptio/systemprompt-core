@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AgentName, TaskId};
+use systemprompt_identifiers::{AgentName, AgentRunOriginId, TaskId};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::AgentRunLaunch;
 
@@ -75,7 +75,7 @@ pub(super) async fn launch_if_configured(
         context_id: message.context_id.clone(),
         request,
         origin_kind: AGENT_RUN_ORIGIN_KIND.to_owned(),
-        origin_id: task_id.to_string(),
+        origin_id: AgentRunOriginId::new(task_id.as_str()),
     };
     match launcher.enqueue(launch).await {
         Ok(run_id) => {

@@ -20,9 +20,10 @@ use systemprompt_template_provider::{
 use tokio::fs;
 
 use crate::error::{GeneratorResult as Result, PublishError};
+use crate::prerender::components::render_components;
 use crate::prerender::content::process_all_sources;
 use crate::prerender::context::{PrerenderContext, load_prerender_context};
-use crate::prerender::utils::{merge_json_data, render_components};
+use crate::prerender::json_merge::merge_json_data;
 
 pub async fn prerender_content(
     db_pool: DbPool,

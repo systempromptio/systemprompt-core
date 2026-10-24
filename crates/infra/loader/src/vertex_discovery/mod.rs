@@ -5,10 +5,12 @@
 //! and occasionally withdraws one — and every staleness costs the same thing:
 //! a model we are entitled to and have priced is simply not on offer.
 //!
-//! So at boot, every provider whose secret parses into a credential some
-//! [`CatalogSource`] accepts is asked what it serves; the entries the rate
-//! card prices and Google's documentation still supports are kept, and the
-//! ones the catalog did not already declare are appended. The listing call is
+//! So at boot, every endpoint of an enabled provider whose platform
+//! credential's secret parses into a credential some [`CatalogSource`]
+//! accepts is asked what it serves; the entries the rate card prices (keyed
+//! by the endpoint's wire) and Google's documentation still supports are
+//! kept, and the ones the catalog did not already declare are appended as a
+//! model plus one deployment on that endpoint. The listing call is
 //! the only network traffic: nothing here ever calls a model to probe it.
 //! Discovery cannot fail a boot: a listing that 403s, a model that
 //! is priced but unlisted, a model listed but unpriced — each becomes a line
@@ -19,7 +21,8 @@
 //! that applies to any upstream that can be asked for a catalog. The whole run
 //! is bounded by the caller's timeout, per provider. Discovery is a
 //! convenience and boot is not: if an upstream is slow, the instance starts
-//! with the catalog it shipped with.
+//! with the catalog it shipped with. The listing token is minted under the
+//! credential's [`TokenCacheKey`], so it is the token dispatch reuses.
 //!
 //! [`default_sources`] is the list compiled into this build — a single element
 //! today; the next upstream that can be asked for a catalog is an entry there
@@ -41,12 +44,13 @@ pub mod vertex;
 use std::collections::HashSet;
 use std::time::Duration;
 
-use systemprompt_identifiers::SecretName;
-use systemprompt_manifest::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
-use systemprompt_security::credential::ProviderCredential;
+use systemprompt_identifiers::CredentialId;
+use systemprompt_manifest::services::catalog::CatalogDocument;
+use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
+use systemprompt_security::credential::{ProviderCredential, TokenCacheKey};
 
 use classify::Classification;
-use source::{CatalogListing, CatalogSource};
+use source::{CatalogListing, CatalogSource, DiscoveryEndpoint};
 use vertex::VertexCatalog;
 
 /// Resolves a secret name to its value.
@@ -58,14 +62,14 @@ pub fn default_sources(card: VertexRateCard) -> Vec<Box<dyn CatalogSource>> {
 }
 
 struct Plan<'a> {
-    index: usize,
+    endpoint: DiscoveryEndpoint,
     source: &'a dyn CatalogSource,
     credential: ProviderCredential,
-    secret_name: SecretName,
+    credential_id: CredentialId,
 }
 
 pub async fn discover(
-    providers: &mut ProviderRegistry,
+    document: &mut CatalogDocument,
     secret: SecretLookup<'_>,
     timeout: Duration,
 ) -> DiscoveryReport {
@@ -88,7 +92,7 @@ pub async fn discover(
         sources: &sources,
         card: &card,
     };
-    discover_with(providers, secret, timeout, catalog, &mut report).await;
+    discover_with(document, secret, timeout, catalog, &mut report).await;
     report
 }
 
@@ -110,25 +114,22 @@ impl std::fmt::Debug for Catalog<'_> {
 }
 
 pub async fn discover_with(
-    providers: &mut ProviderRegistry,
+    document: &mut CatalogDocument,
     secret: SecretLookup<'_>,
     timeout: Duration,
     catalog: Catalog<'_>,
     report: &mut DiscoveryReport,
 ) {
-    let plans = plan(providers, secret, catalog.sources, report);
+    let plans = plan(document, secret, catalog.sources, report);
     if plans.is_empty() {
         return;
     }
 
     let http = reqwest::Client::new();
     for plan in plans {
-        let Some(provider) = providers.providers.get(plan.index) else {
-            continue;
-        };
-        let name = provider.name.as_str().to_owned();
-
-        let auth = match plan.credential.bearer(plan.secret_name.as_str()).await {
+        let name = plan.endpoint.endpoint.to_string();
+        let cache_key = TokenCacheKey::platform(&plan.credential_id);
+        let auth = match plan.credential.bearer(&cache_key).await {
             Ok(auth) => auth,
             Err(e) => {
                 push_failure(
@@ -140,7 +141,7 @@ pub async fn discover_with(
         };
         let scope = plan.credential.scope();
 
-        let listing = plan.source.list(&http, &auth, provider, &scope);
+        let listing = plan.source.list(&http, &auth, &plan.endpoint, &scope);
         let listing = match tokio::time::timeout(timeout, listing).await {
             Ok(Ok(listing)) => listing,
             Ok(Err(e)) => {
@@ -155,7 +156,7 @@ pub async fn discover_with(
                 continue;
             },
         };
-        absorb(providers, plan.index, catalog.card, listing, report);
+        absorb(document, &plan.endpoint, catalog.card, listing, report);
     }
 }
 
@@ -165,17 +166,38 @@ fn push_failure(report: &mut DiscoveryReport, note: String) {
 }
 
 fn plan<'a>(
-    providers: &ProviderRegistry,
+    document: &CatalogDocument,
     secret: SecretLookup<'_>,
     sources: &'a [Box<dyn CatalogSource>],
     report: &mut DiscoveryReport,
 ) -> Vec<Plan<'a>> {
     let mut plans = Vec::new();
-    for (index, entry) in providers.providers.iter().enumerate() {
-        if !sources.iter().any(|s| s.matches_provider(entry)) {
+    for (provider_id, provider) in document.providers.iter() {
+        if !provider.enabled {
             continue;
         }
-        let Some(secret_name) = entry.platform_secret().cloned() else {
+        let endpoints: Vec<DiscoveryEndpoint> = provider
+            .endpoints
+            .iter()
+            .map(|(endpoint_id, endpoint)| DiscoveryEndpoint {
+                endpoint: systemprompt_manifest::services::catalog::EndpointRef {
+                    provider: provider_id.clone(),
+                    endpoint: endpoint_id.clone(),
+                },
+                wire: endpoint.wire,
+                url: endpoint.url.clone(),
+            })
+            .filter(|endpoint| sources.iter().any(|s| s.matches_endpoint(endpoint)))
+            .collect();
+        if endpoints.is_empty() {
+            continue;
+        }
+        let Some(secret_name) = document
+            .credentials
+            .get(provider.credential.as_str())
+            .filter(|c| !c.kind.is_personal())
+            .and_then(|c| c.secret.clone())
+        else {
             continue;
         };
         let Some(value) = secret(secret_name.as_str()) else {
@@ -186,25 +208,27 @@ fn plan<'a>(
             Err(e) => {
                 report
                     .failed_publishers
-                    .push(format!("{}: {e}", entry.name.as_str()));
+                    .push(format!("{}: {e}", provider_id.as_str()));
                 continue;
             },
         };
-        if let Some(source) = sources.iter().find(|s| s.applies(entry, &credential)) {
-            plans.push(Plan {
-                index,
-                source: source.as_ref(),
-                credential,
-                secret_name,
-            });
+        for endpoint in endpoints {
+            if let Some(source) = sources.iter().find(|s| s.applies(&endpoint, &credential)) {
+                plans.push(Plan {
+                    endpoint,
+                    source: source.as_ref(),
+                    credential: credential.clone(),
+                    credential_id: provider.credential.clone(),
+                });
+            }
         }
     }
     plans
 }
 
 fn absorb(
-    providers: &mut ProviderRegistry,
-    index: usize,
+    document: &mut CatalogDocument,
+    endpoint: &DiscoveryEndpoint,
     card: &VertexRateCard,
     listing: CatalogListing,
     report: &mut DiscoveryReport,
@@ -212,16 +236,11 @@ fn absorb(
     for failure in listing.failures {
         push_failure(report, failure);
     }
-    let Some(provider) = providers.providers.get_mut(index) else {
-        return;
-    };
-    let name = provider.name.as_str().to_owned();
-    let name = name.as_str();
     let mut seen: HashSet<String> = HashSet::new();
     let today = chrono::Utc::now().date_naive();
 
     for model in &listing.models {
-        let (classification, entry) = classify::classify_discovered(model, card, name);
+        let (classification, entry) = classify::classify_discovered(model, card, endpoint.wire);
         match classification {
             Classification::NotServerless => {},
             Classification::Unpriced => {
@@ -235,11 +254,11 @@ fn absorb(
             Classification::Publish => {
                 if let Some(entry) = entry {
                     seen.insert(entry.upstream.clone());
-                    merge::publish(provider, entry, today, report);
+                    merge::publish(document, endpoint, entry, today, report);
                 }
             },
         }
     }
 
-    merge::record_unseen(card, name, &seen, report);
+    merge::record_unseen(card, endpoint.wire, &seen, report);
 }

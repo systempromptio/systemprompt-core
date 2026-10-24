@@ -13,6 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod agent_runs;
 mod error;
 mod extension_mount;
 mod gateway;
@@ -27,8 +28,10 @@ use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::NodeRole;
 
+use crate::routes::admin::services::RefreshLock;
 pub(super) use error::RouteMountError;
 use role::RouteGroup;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 
@@ -42,22 +45,25 @@ use crate::services::middleware::{
 pub(super) fn configure_routes(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
+    engines: &Arc<GatewayEngines>,
 ) -> Result<Router, RouteMountError> {
-    build_routes(ctx, ctx.config().role, events)
+    build_routes(ctx, ctx.config().role, events, engines)
 }
 
 pub fn configure_routes_for_role(
     ctx: &AppContext,
     role: NodeRole,
     events: Option<&StartupEventSender>,
+    engines: &Arc<GatewayEngines>,
 ) -> anyhow::Result<Router> {
-    Ok(build_routes(ctx, role, events)?)
+    Ok(build_routes(ctx, role, events, engines)?)
 }
 
 fn build_routes(
     ctx: &AppContext,
     role: NodeRole,
     events: Option<&StartupEventSender>,
+    engines: &Arc<GatewayEngines>,
 ) -> Result<Router, RouteMountError> {
     let groups = role::route_groups(role);
     let serves = |group: RouteGroup| groups.contains(&group);
@@ -77,8 +83,11 @@ fn build_routes(
     let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
     let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
+    let refresh_lock = RefreshLock::default();
+
     let mount = protocol::MountCtx {
         ctx,
+        engines,
         limits: &limits,
         public_middleware: &public_middleware,
         user_middleware: &user_middleware,
@@ -88,6 +97,7 @@ fn build_routes(
     }
     if serves(RouteGroup::Agent) {
         router = protocol::mount_agent(router, &mount, a2a_middleware)?;
+        router = agent_runs::mount_agent_runs(router, &mount)?;
     }
     if serves(RouteGroup::McpAndStream) {
         router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
@@ -105,12 +115,20 @@ fn build_routes(
         router = protocol::mount_messaging(router, &mount)?;
     }
     if serves(RouteGroup::Extensions) {
-        router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
+        router = extension_mount::mount_extension_routes(
+            router,
+            ctx,
+            &user_middleware,
+            &refresh_lock,
+            events,
+        )?;
     }
     router = mount_discovery(router, ctx, &serves, public_middleware, user_middleware)?;
     if serves(RouteGroup::Oauth) {
         router = router.merge(link_passkey_router(ctx, &limits, public_middleware)?);
     }
+
+    router = router.layer(axum::Extension(refresh_lock));
 
     let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool());
     let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());

@@ -109,9 +109,12 @@ fn ensure_storage_structure_reports_uncreatable_root() {
     .expect("app paths");
     let cfg = FilesConfig::from_profile(&paths).expect("from_profile");
 
-    let errors = cfg.ensure_storage_structure();
+    let err = cfg
+        .ensure_storage_structure()
+        .expect_err("a storage root below a regular file cannot be created");
 
-    assert_eq!(errors.len(), 1, "unexpected errors: {errors:?}");
-    assert!(errors[0].contains("Failed to create storage root"));
-    assert!(errors[0].contains(&storage.display().to_string()));
+    match err {
+        systemprompt_files::FilesError::StorageDir { path, .. } => assert_eq!(path, storage),
+        other => panic!("expected StorageDir, got {other:?}"),
+    }
 }

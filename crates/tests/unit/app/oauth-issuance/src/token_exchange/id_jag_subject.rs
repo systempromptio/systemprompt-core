@@ -13,8 +13,8 @@ use systemprompt_identifiers::ClientId;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
-use systemprompt_oauth_issuance::IssuanceError;
 use systemprompt_oauth_issuance::token_exchange::id_jag_subject::validate_id_jag_subject;
+use systemprompt_oauth_issuance::{IssuanceError, JwksCache};
 use systemprompt_test_fixtures::{
     fixture_config, install_test_signing_key, test_database_url, test_db_pool,
 };
@@ -64,15 +64,21 @@ async fn validate(
     config: &Config,
 ) -> Result<Vec<String>, IssuanceError> {
     let repo = OAuthRepository::new(pool);
-    validate_id_jag_subject(token, &ClientId::new(CLIENT), &repo, config)
-        .await
-        .map(|identity| {
-            identity
-                .scope
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-        })
+    validate_id_jag_subject(
+        token,
+        &ClientId::new(CLIENT),
+        &repo,
+        config,
+        &JwksCache::new(),
+    )
+    .await
+    .map(|identity| {
+        identity
+            .scope
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+    })
 }
 
 #[tokio::test]

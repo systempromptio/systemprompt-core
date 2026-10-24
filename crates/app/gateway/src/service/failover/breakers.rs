@@ -1,17 +1,20 @@
-//! Per-provider circuit breakers for the gateway's upstream calls, sharing
-//! each provider's `resilience:` settings with the internal
-//! `ResilientProvider`.
+//! Per-endpoint circuit breakers for the gateway's upstream calls, built from
+//! the endpoint's resolved `resilience:` settings (the endpoint's override,
+//! else its provider's), the same settings the internal `ResilientProvider`
+//! uses. A breaker is keyed by `provider/endpoint`, so one failing region or
+//! wire never trips its siblings.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use systemprompt_database::resilience::{CircuitBreaker, Probe, ResilienceConfig};
 use systemprompt_manifest::services::ResilienceSettings;
+use systemprompt_manifest::services::catalog::ResolvedHop;
 
-/// Process-wide circuit breakers, one per provider name, sharing the
+/// Circuit breakers owned by one gateway, one per provider name, sharing the
 /// provider's `resilience:` settings with the internal `ResilientProvider`.
 pub struct ProviderBreakers {
     inner: Mutex<HashMap<String, Arc<CircuitBreaker>>>,
@@ -31,12 +34,7 @@ impl ProviderBreakers {
         }
     }
 
-    pub fn global() -> &'static Self {
-        static BREAKERS: OnceLock<ProviderBreakers> = OnceLock::new();
-        BREAKERS.get_or_init(Self::new)
-    }
-
-    pub fn for_provider(&self, name: &str, settings: &ResilienceSettings) -> Arc<CircuitBreaker> {
+    pub fn for_endpoint(&self, name: &str, settings: &ResilienceSettings) -> Arc<CircuitBreaker> {
         let mut map = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         Arc::clone(map.entry(name.to_owned()).or_insert_with(|| {
             Arc::new(CircuitBreaker::new(
@@ -53,12 +51,9 @@ impl Default for ProviderBreakers {
     }
 }
 
-pub(crate) fn breaker_settings(provider: &str) -> ResilienceSettings {
-    systemprompt_loader::ServicesBootstrap::get()
-        .ok()
-        .and_then(|services| services.ai.providers.get(provider))
-        .map(|p| p.resilience)
-        .unwrap_or_default()
+#[must_use]
+pub fn breaker_key(hop: &ResolvedHop) -> String {
+    hop.endpoint_ref().to_string()
 }
 
 pub(super) fn acquire(breaker: &CircuitBreaker) -> Option<Probe<'_>> {

@@ -10,7 +10,7 @@ use systemprompt_gateway::{
     ScannerSettings, register_safety_scanner,
 };
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
@@ -111,7 +111,7 @@ async fn a_failing_scanner_blocks_the_request_under_an_enforcing_policy() -> any
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(format!(

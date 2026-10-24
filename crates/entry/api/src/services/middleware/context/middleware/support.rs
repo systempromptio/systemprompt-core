@@ -11,6 +11,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::super::extractors::ContextExtractor;
+use crate::error::ApiHttpError;
 
 pub(super) type DynExtractor = Arc<dyn ContextExtractor + Send + Sync>;
 
@@ -35,8 +36,10 @@ pub(super) fn session_context_required_error(
         method = %method,
         "Middleware configuration error: SessionMiddleware must run before context middleware"
     );
-    ApiError::internal_error("Middleware configuration error")
-        .with_trace_id(trace_id.clone())
-        .with_path(path)
-        .into_response()
+    ApiHttpError::from(
+        ApiError::internal_error("Middleware configuration error")
+            .with_trace_id(trace_id.clone())
+            .with_path(path),
+    )
+    .into_response()
 }

@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+semver = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }

@@ -22,10 +22,10 @@ systemprompt-wire = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-security = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
 tempfile = { workspace = true }
 rmcp = { workspace = true }
 async-trait = { workspace = true }

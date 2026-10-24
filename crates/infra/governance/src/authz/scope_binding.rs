@@ -3,6 +3,8 @@
 //! A key may only be bound to a dimension value its owner actually holds, as
 //! reported by the registered subject-attribute provider for that dimension.
 //! The admin HTTP route and the CLI both issue keys through this one check.
+//! A provider's key-bound values are held by no user and pass on the
+//! issuer's authority.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,6 +41,9 @@ impl SubjectProviderSet {
             let Some(provider) = self.find(scope.dimension.as_str()) else {
                 return Err(ScopeBindingError::UnknownDimension(scope.dimension.clone()));
             };
+            if provider.key_bound_values().contains(&scope.value.as_str()) {
+                continue;
+            }
             let held = provider.values_for(owner).await?;
             if !held.iter().any(|value| value == &scope.value) {
                 return Err(ScopeBindingError::NotAMember {

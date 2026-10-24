@@ -189,7 +189,7 @@ impl ExecutionStepRepository {
         .map_err(|e| AgentError::step_write(step_id, e))?;
 
         parse_step(ParseStepParams {
-            step_id: row.step_id,
+            step_id: StepId(row.step_id),
             task_id: row.task_id,
             status: row.status,
             content: row.content,

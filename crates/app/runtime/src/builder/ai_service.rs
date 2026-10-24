@@ -1,9 +1,10 @@
 //! The process-wide [`AiService`] handed to every consumer of [`AppContext`].
 //!
 //! One service per process: its audit tasks are never closed, they drain with
-//! the runtime. A catalog without a usable default provider (a bridge-only
-//! deployment, say) yields `None` after a single warning, so boot never
-//! depends on inference being configured.
+//! the runtime. It is built from the booted `ResolvedCatalog`; a catalog
+//! without a servable default model (a bridge-only deployment, say) yields
+//! `None` after a single warning, so boot never depends on inference being
+//! configured.
 //!
 //! [`AppContext`]: crate::context::AppContext
 //!
@@ -11,6 +12,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+
+use systemprompt_security::credential::TokenCache;
 
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_database::DbPool;
@@ -25,12 +28,14 @@ pub(super) fn build_ai_service(
     database: &DbPool,
     repositories: &RepositoryBundles,
     mcp_registry: &RegistryService,
-) -> RuntimeResult<Option<Arc<AiService>>> {
+) -> RuntimeResult<(Option<Arc<AiService>>, Arc<TokenCache>)> {
     let services = systemprompt_loader::ServicesBootstrap::get()?;
+    let connector_tokens: Arc<TokenCache> = Arc::default();
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(database),
         mcp_registry.clone(),
         &services.ai.mcp.resilience,
+        Arc::clone(&connector_tokens),
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
         SessionRepository::new(database),
@@ -38,8 +43,9 @@ pub(super) fn build_ai_service(
     let materializer = Arc::new(systemprompt_agent::services::ContextProviderService::new(
         repositories.a2a.contexts.clone(),
     ));
+    let catalog = Arc::new(systemprompt_loader::ServicesBootstrap::catalog()?.clone());
     match AiService::new(
-        &services.providers,
+        catalog,
         &services.ai,
         AiServiceProviders {
             tools: tool_provider,
@@ -47,12 +53,13 @@ pub(super) fn build_ai_service(
         },
         &repositories.ai,
     ) {
-        Ok(service) => Ok(Some(Arc::new(
-            service.with_context_materializer(materializer),
-        ))),
+        Ok(service) => Ok((
+            Some(Arc::new(service.with_context_materializer(materializer))),
+            connector_tokens,
+        )),
         Err(err) => {
             tracing::warn!(error = %err, "Inference is not configured; the runtime carries no AI service");
-            Ok(None)
+            Ok((None, connector_tokens))
         },
     }
 }

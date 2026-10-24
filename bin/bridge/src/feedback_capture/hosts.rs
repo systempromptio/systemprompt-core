@@ -22,11 +22,13 @@ pub(super) fn roots(
         HostKind::Hermes => {
             vec![crate::integration::hermes::feedback_skill_root().join(skill.id.as_str())]
         },
-        HostKind::OpenCode => vec![crate::integration::opencode::feedback_skill_root().join(
-            crate::integration::managed_skills::kebab_dir(skill.id.as_str()),
-        )],
-        HostKind::CodexCli => {
-            crate::integration::codex_cli::feedback_skill_roots(ctx.loopback, ctx.manifest, skill)
+        HostKind::OpenCode | HostKind::OpenCodeCli => {
+            vec![crate::integration::opencode::feedback_skill_root().join(
+                crate::integration::managed_skills::kebab_dir(skill.id.as_str()),
+            )]
+        },
+        HostKind::Codex | HostKind::CodexCli => {
+            crate::integration::codex::feedback_skill_roots(ctx.loopback, ctx.manifest, skill)
                 .map_err(|error| FeedbackError::Io(std::io::Error::other(error)))?
         },
         HostKind::ClaudeCode => {

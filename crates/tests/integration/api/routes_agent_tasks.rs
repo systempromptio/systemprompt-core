@@ -74,11 +74,9 @@ async fn list_user_tasks_handles_all_status_values() -> anyhow::Result<()> {
         "input-required",
         "completed",
         "canceled",
-        "cancelled",
         "failed",
         "rejected",
         "auth-required",
-        "weird-unknown",
     ] {
         let resp = app(&ctx)
             .oneshot(empty_get(&format!("/?status={s}")))
@@ -87,6 +85,16 @@ async fn list_user_tasks_handles_all_status_values() -> anyhow::Result<()> {
             resp.status().is_success(),
             "status={s} -> {}",
             resp.status()
+        );
+    }
+    for s in ["cancelled", "weird-unknown"] {
+        let resp = app(&ctx)
+            .oneshot(empty_get(&format!("/?status={s}")))
+            .await?;
+        assert_eq!(
+            resp.status(),
+            http::StatusCode::BAD_REQUEST,
+            "status={s} is outside the task-state vocabulary"
         );
     }
     Ok(())

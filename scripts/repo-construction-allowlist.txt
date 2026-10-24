@@ -1,0 +1,24 @@
+# Files that may construct a repository outside the structural exemptions
+# (crates/*/*/src/repository/**, crates/app/runtime/src/builder/**,
+# crates/entry/cli/src/**, **/jobs/**). Each is structurally unable to use an
+# AppContext accessor; one path per line, `#` starts a comment.
+
+# infra sits below app/runtime and cannot name AppContext; each of these is
+# the composition root for its own repository.
+crates/infra/events/src/services/bridge.rs
+crates/infra/events/src/services/routing.rs
+crates/infra/logging/src/services/database_log.rs
+crates/infra/logging/src/layer/mod.rs
+# the services-tree authz reconcile is called from the CLI, a services
+# refresh and a boot step; it takes a pool because none of those three has an
+# AppContext to take the repository from.
+crates/infra/governance/src/authz/reconcile.rs
+crates/infra/logging/src/services/maintenance.rs
+# scheduler-owned repos (SchedulerRepository, JobRepository,
+# LoggingRepository) have exactly one consuming crate; an AppContext
+# accessor for them is not warranted.
+crates/app/scheduler/src/services/job_execution/mod.rs
+crates/app/scheduler/src/services/scheduling/mod.rs
+# the logging AnalyticsRepository is an infra repo with no AppContext
+# accessor; the middleware constructs-and-stores it once at server build.
+crates/entry/api/src/services/middleware/analytics/mod.rs

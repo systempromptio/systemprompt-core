@@ -3,7 +3,7 @@ use systemprompt_gateway::registry::{GatewayUpstreamRegistry, SafetyScannerRegis
 
 #[test]
 fn built_in_protocol_tags_present() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
     for tag in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
         assert!(registry.get(tag).is_some(), "missing built-in tag: {tag}");
     }
@@ -11,14 +11,15 @@ fn built_in_protocol_tags_present() {
 
 #[test]
 fn provider_names_are_not_registry_keys() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
     assert!(registry.get("openai").is_none());
     assert!(registry.get("minimax").is_none());
 }
 
 #[test]
 fn the_registry_enumerates_the_tags_it_can_dispatch() {
-    let tags = GatewayUpstreamRegistry::global().tags();
+    let registry = GatewayUpstreamRegistry::new();
+    let tags = registry.tags();
 
     for expected in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
         assert!(
@@ -30,7 +31,7 @@ fn the_registry_enumerates_the_tags_it_can_dispatch() {
 
 #[test]
 fn every_enumerated_tag_resolves_to_an_adapter() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
 
     for tag in registry.tags() {
         assert!(
@@ -42,7 +43,7 @@ fn every_enumerated_tag_resolves_to_an_adapter() {
 
 #[test]
 fn the_safety_registry_carries_both_builtins() {
-    let registry = SafetyScannerRegistry::global();
+    let registry = SafetyScannerRegistry::new();
     let safety = SafetyConfig::default();
 
     assert!(
@@ -60,7 +61,7 @@ fn an_unknown_scanner_name_resolves_to_nothing() {
     // A policy naming a scanner that was never registered must fail to resolve
     // rather than silently falling back to a permissive one.
     assert!(
-        SafetyScannerRegistry::global()
+        SafetyScannerRegistry::new()
             .create("no-such-scanner", &SafetyConfig::default())
             .is_none()
     );
@@ -68,7 +69,7 @@ fn an_unknown_scanner_name_resolves_to_nothing() {
 
 #[test]
 fn every_named_safety_scanner_resolves() {
-    let registry = SafetyScannerRegistry::global();
+    let registry = SafetyScannerRegistry::new();
 
     let safety = SafetyConfig::default();
     let names = registry.names();

@@ -146,6 +146,8 @@ fn request(wall_clock: Duration) -> RunRequest {
         attribution_scopes: Vec::new(),
         plugin_id: None,
         plugin_dirs: Vec::new(),
+        harness: None,
+        traffic: systemprompt_agent_runs::TrafficClass::Production,
     }
 }
 
@@ -207,6 +209,7 @@ pub(crate) async fn run_with(
             seq_after,
             sink: &sink,
             cancel,
+            harness: None,
         },
     )
     .await
@@ -236,6 +239,7 @@ pub(crate) async fn run_in(layout: &RunLayout, host: &ShHost) -> RunReport {
             seq_after: None,
             sink: &sink,
             cancel: CancellationToken::new(),
+            harness: None,
         },
     )
     .await

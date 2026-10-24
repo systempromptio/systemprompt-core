@@ -11,6 +11,10 @@
 //! it without the run's API key being bound to the value (`workflow=<run_id>`,
 //! `project=<id>`, …).
 //!
+//! [`RunRequest::harness`] names a managed revision installed into the host's
+//! config tree before spawn; [`RunRequest::traffic`] classes the run's
+//! gateway traffic (`production` unless the caller asks for `evaluation`).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,19 +23,13 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{HostSessionId, PluginId};
+use systemprompt_identifiers::{HostSessionId, ManagedResourceId, PluginId, ResourceRevisionId};
 use systemprompt_models::attribution::ScopeBinding;
+pub use systemprompt_models::attribution::TrafficClass;
+pub use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::managed::AssetDigest;
 
 use crate::macros::text_enum;
-
-text_enum!(
-    HostKind, UnknownHost {
-        ClaudeCode => "claude-code",
-        CodexCli => "codex-cli",
-        OpenCode => "opencode",
-        Hermes => "hermes",
-    }
-);
 
 text_enum!(
     PermissionMode, UnknownPermissionMode {
@@ -41,6 +39,16 @@ text_enum!(
         Plan => "plan",
     }
 );
+
+/// The managed revision a run installs into its host before spawn.
+/// `bundle_digest` is the digest of the whole revision closure; a bundle
+/// with any other digest is refused.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HarnessRef {
+    pub resource_id: ManagedResourceId,
+    pub revision_id: ResourceRevisionId,
+    pub bundle_digest: AssetDigest,
+}
 
 /// An MCP server handed to the host, keyed by its name in
 /// [`RunRequest::mcp_servers`].
@@ -102,12 +110,17 @@ pub struct RunRequest {
     pub plugin_id: Option<PluginId>,
     #[serde(default)]
     pub plugin_dirs: Vec<PathBuf>,
+    #[serde(default)]
+    pub harness: Option<HarnessRef>,
+    #[serde(default)]
+    pub traffic: TrafficClass,
 }
 
 impl RunRequest {
     #[must_use]
     pub fn scope_headers(&self) -> BTreeMap<String, String> {
-        self.attribution_scopes
+        let mut headers: BTreeMap<String, String> = self
+            .attribution_scopes
             .iter()
             .map(|binding| {
                 (
@@ -115,7 +128,19 @@ impl RunRequest {
                     binding.value.clone(),
                 )
             })
-            .collect()
+            .collect();
+        if self.traffic == TrafficClass::Evaluation {
+            headers.insert(
+                format!("x-systemprompt-scope-{}", TrafficClass::DIMENSION),
+                self.traffic.as_str().to_owned(),
+            );
+        }
+        headers
+    }
+
+    #[must_use]
+    pub fn traffic_binding(&self) -> Option<ScopeBinding> {
+        (self.traffic == TrafficClass::Evaluation).then(|| ScopeBinding::traffic(self.traffic))
     }
 }
 

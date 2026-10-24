@@ -37,14 +37,18 @@ fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
         db,
         GatewayJournal::open(
             state_dir,
-            systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+            systemprompt_config::SecretsBootstrap::encryption_master_key()
+                .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+        },
     )
 }
 
@@ -60,6 +64,7 @@ fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestCon
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_owned(),
+        hop: None,
         requested_model: Some("claude-requested".to_owned()),
         model: "claude-test".to_owned(),
         max_tokens: Some(16),

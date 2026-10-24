@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS ai_quota_buckets (
     id TEXT PRIMARY KEY,
     subject_id VARCHAR(255) NOT NULL,
-    subject_kind TEXT NOT NULL DEFAULT 'user',
+    subject_kind TEXT NOT NULL DEFAULT 'user' CHECK (length(subject_kind) > 0),
     window_seconds INTEGER NOT NULL,
     window_start TIMESTAMPTZ NOT NULL,
     requests BIGINT NOT NULL DEFAULT 0,

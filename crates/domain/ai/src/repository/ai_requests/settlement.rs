@@ -7,7 +7,7 @@
 
 use sqlx::{Postgres, Transaction};
 use systemprompt_identifiers::{AiRequestId, UserId};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{RepositoryError, RequestStatus};
 
 use super::AiRequestRepository;
 use super::settlement_outcome::{SettleCompletion, SettlementOutcome};
@@ -29,8 +29,8 @@ impl AiRequestRepository {
             ));
         }
         let affected = sqlx::query!(
-            "UPDATE ai_requests SET status='failed', accounting_failed_at=COALESCE(accounting_failed_at,CURRENT_TIMESTAMP), accounting_error=COALESCE(accounting_error,$3), error_message=COALESCE(accounting_error,$3), updated_at=CASE WHEN accounting_failed_at IS NULL THEN CURRENT_TIMESTAMP ELSE updated_at END WHERE id=$1 AND user_id=$2 AND (accounting_error IS NULL OR accounting_error=$3)",
-            request_id.as_str(), owner.as_str(), error
+            "UPDATE ai_requests SET status=$4, accounting_failed_at=COALESCE(accounting_failed_at,CURRENT_TIMESTAMP), accounting_error=COALESCE(accounting_error,$3), error_message=COALESCE(accounting_error,$3), updated_at=CASE WHEN accounting_failed_at IS NULL THEN CURRENT_TIMESTAMP ELSE updated_at END WHERE id=$1 AND user_id=$2 AND (accounting_error IS NULL OR accounting_error=$3)",
+            request_id.as_str(), owner.as_str(), error, RequestStatus::Failed.as_str()
         ).execute(self.write_pool()).await?.rows_affected();
         if affected != 1 {
             return Err(settlement_conflict(
@@ -72,7 +72,7 @@ impl AiRequestRepository {
                 sqlx::query!(
                     r#"
                     UPDATE ai_requests
-                    SET status = 'failed', error_message = $2,
+                    SET status = $13, error_message = $2,
                         input_tokens = CASE WHEN $3 THEN $4 ELSE input_tokens END,
                         output_tokens = CASE WHEN $3 THEN $5 ELSE output_tokens END,
                         cache_read_tokens = CASE WHEN $3 THEN $6 ELSE cache_read_tokens END,
@@ -84,7 +84,7 @@ impl AiRequestRepository {
                         upstream_latency_ms = COALESCE($12, upstream_latency_ms),
                         completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE id = $1 AND status <> 'completed' AND accounting_failed_at IS NULL
+                    WHERE id = $1 AND status <> $14 AND accounting_failed_at IS NULL
                     "#,
                     request_id.as_str(),
                     failure.error,
@@ -98,6 +98,8 @@ impl AiRequestRepository {
                     failure.cost_microdollars,
                     failure.latency_ms,
                     failure.upstream_latency_ms,
+                    RequestStatus::Failed.as_str(),
+                    RequestStatus::Completed.as_str(),
                 )
                 .execute(&mut *tx)
                 .await?;
@@ -131,6 +133,45 @@ async fn settle_completion(
     if previous.is_none() {
         insert_turn(tx, request_id, completion).await?;
     }
+    upsert_response_payload(tx, request_id, completion).await?;
+    let usage = completion.usage;
+    sqlx::query!(
+        r#"
+        UPDATE ai_requests
+        SET input_tokens = $2, output_tokens = $3, cache_read_tokens = $4,
+            cache_creation_tokens = $5, reasoning_tokens = $6, tokens_used = $7,
+            cost_microdollars = $8, latency_ms = $9, upstream_latency_ms = $10,
+            cache_hit = $11, finish_reason = $12,
+            status = CASE WHEN accounting_failed_at IS NULL THEN $13::text ELSE $14::text END,
+            completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        "#,
+        request_id.as_str(),
+        tokens(usage.input_tokens)?,
+        tokens(usage.output_tokens)?,
+        tokens(usage.cache_read_tokens)?,
+        tokens(usage.cache_creation_tokens)?,
+        tokens(usage.reasoning_tokens)?,
+        tokens(usage.tokens_used)?,
+        completion.cost_microdollars,
+        completion.latency_ms,
+        completion.upstream_latency_ms,
+        usage.cache_read_tokens > 0,
+        completion.finish_reason,
+        RequestStatus::Completed.as_str(),
+        RequestStatus::Failed.as_str()
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+async fn upsert_response_payload(
+    tx: &mut Transaction<'_, Postgres>,
+    request_id: &AiRequestId,
+    completion: &SettleCompletion<'_>,
+) -> Result<(), RepositoryError> {
     let payload = &completion.payload;
     sqlx::query!(
         r#"
@@ -157,34 +198,6 @@ async fn settle_completion(
     )
     .execute(&mut **tx)
     .await?;
-    let usage = completion.usage;
-    sqlx::query!(
-        r#"
-        UPDATE ai_requests
-        SET input_tokens = $2, output_tokens = $3, cache_read_tokens = $4,
-            cache_creation_tokens = $5, reasoning_tokens = $6, tokens_used = $7,
-            cost_microdollars = $8, latency_ms = $9, upstream_latency_ms = $10,
-            cache_hit = $11, finish_reason = $12,
-            status = CASE WHEN accounting_failed_at IS NULL THEN 'completed' ELSE 'failed' END,
-            completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-        "#,
-        request_id.as_str(),
-        tokens(usage.input_tokens)?,
-        tokens(usage.output_tokens)?,
-        tokens(usage.cache_read_tokens)?,
-        tokens(usage.cache_creation_tokens)?,
-        tokens(usage.reasoning_tokens)?,
-        tokens(usage.tokens_used)?,
-        completion.cost_microdollars,
-        completion.latency_ms,
-        completion.upstream_latency_ms,
-        usage.cache_read_tokens > 0,
-        completion.finish_reason
-    )
-    .execute(&mut **tx)
-    .await?;
     Ok(())
 }
 
@@ -197,15 +210,20 @@ async fn insert_turn(
         sqlx::query!(
             r#"
             INSERT INTO ai_request_tool_calls (
-                request_id, ai_tool_call_id, tool_name, tool_input, sequence_number
+                request_id, ai_tool_call_id, tool_name, tool_input, sequence_number,
+                args_validity, args_error_path
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
             request_id.as_str(),
             tool.id.as_str(),
             tool.name,
             tool.input,
-            tokens(u32::try_from(index + 1).unwrap_or(u32::MAX))?
+            tokens(u32::try_from(index + 1).unwrap_or(u32::MAX))?,
+            tool.args.as_ref().map(|args| args.validity.as_str()),
+            tool.args
+                .as_ref()
+                .and_then(|args| args.error_path.as_deref())
         )
         .execute(&mut **tx)
         .await?;

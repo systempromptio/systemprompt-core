@@ -19,7 +19,8 @@ mod upsert;
 pub use choose::{ChooseSessionError, CoworkSessionChoice, choose_session, usable_sessions};
 pub use emit::{CoworkTarget, EmitReport, apply_enable, clear_all};
 pub use resolve::{
-    ResolveTargetError, dir_names_org, match_org, pick_target, pick_target_for_org, resolve_target,
+    ResolveTargetError, TargetSource, choose_target, dir_names_org, match_org, pick_target,
+    resolve_target, resolve_target_with_source,
 };
 
 pub use settings::{

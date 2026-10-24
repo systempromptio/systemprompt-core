@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Rustdoc links, bridge layer order and globals, row/model unification, JSON reasons.
+- One enforcement mode, request status, quota subject and service status.
+- Type the remaining raw-string identifier fields.
+- Surface undecodable log rows as repository errors.
+- Own the database sink and platform owner in LoggingRuntime.
+- Truncate through the models text helpers.
+- No dry-run ledger counts; high-volume IPs read v_clean_traffic.
+- Delete through owner repositories; table ownership covers app and entry.
+
 ## [0.71.0] - 2026-10-21
 
 ### Fixed

@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::ContentId;
+use systemprompt_identifiers::{AnalyticsEventId, ContentId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -71,7 +71,7 @@ pub struct CreateAnalyticsEventBatchInput {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AnalyticsEventCreated {
-    pub id: String,
+    pub id: AnalyticsEventId,
     pub event_type: String,
 }
 

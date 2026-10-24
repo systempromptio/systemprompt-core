@@ -176,6 +176,8 @@ mod stream_tap_accumulator;
 mod protocol_matrix;
 
 #[cfg(test)]
+mod routes_agent_runs;
+#[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
 
@@ -584,6 +586,10 @@ mod api_error_redaction;
 mod gateway_attribution;
 
 #[cfg(test)]
+#[path = "gateway_traffic.rs"]
+mod gateway_traffic;
+
+#[cfg(test)]
 #[path = "gateway_quota_reservation.rs"]
 mod gateway_quota_reservation;
 
@@ -598,3 +604,11 @@ mod gateway_api_key_limits;
 #[cfg(test)]
 #[path = "gateway_rate_windows.rs"]
 mod gateway_rate_windows;
+
+#[cfg(test)]
+#[path = "gateway_principal_parity.rs"]
+mod gateway_principal_parity;
+
+#[cfg(test)]
+#[path = "gateway_api_key_session_binding.rs"]
+mod gateway_api_key_session_binding;

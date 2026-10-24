@@ -5,8 +5,9 @@
 
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
 use crate::models::{
-    AiRequestRecord, AiRequestRecordBuilder, RequestKind, RequestOrigin, RequestStatus,
+    AiRequestRecord, AiRequestRecordBuilder, ArgsCheck, RequestKind, RequestOrigin, RequestStatus,
 };
+use crate::services::tools::ToolArgsValidator;
 use systemprompt_identifiers::{ActorKind, AiToolCallId, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_wire::canonical::CanonicalUsage;
@@ -22,6 +23,7 @@ pub(super) struct ToolCallData {
     pub tool_name: McpToolName,
     pub tool_input: String,
     pub sequence: i32,
+    pub args: ArgsCheck,
 }
 
 #[derive(Debug)]
@@ -160,7 +162,10 @@ const fn message_role_to_str(role: MessageRole) -> &'static str {
     }
 }
 
-pub(super) fn extract_tool_calls(response: &AiResponse) -> Vec<ToolCallData> {
+pub(super) fn extract_tool_calls(
+    response: &AiResponse,
+    validator: &ToolArgsValidator,
+) -> Vec<ToolCallData> {
     response
         .tool_calls
         .iter()
@@ -191,6 +196,7 @@ pub(super) fn extract_tool_calls(response: &AiResponse) -> Vec<ToolCallData> {
                 tool_name,
                 tool_input,
                 sequence: i as i32,
+                args: validator.check(tool_call.name.as_str(), &tool_call.arguments),
             })
         })
         .collect()

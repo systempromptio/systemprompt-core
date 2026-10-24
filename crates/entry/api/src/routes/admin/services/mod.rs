@@ -21,22 +21,21 @@ mod status;
 
 use std::sync::Arc;
 
+use axum::Router;
 use axum::routing::{get, post};
-use axum::{Extension, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_runtime::AppContext;
 
-pub use refresh::{RefreshQuery, ServicesRefresh, process_refresh_lock, refresh};
+pub use refresh::{RefreshQuery, ServicesRefresh, refresh};
 pub use status::build_status;
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
         .route("/status", get(status::status))
         .route("/refresh", post(refresh))
-        .layer(Extension(process_refresh_lock()))
 }
 
 /// Single-flight guard around the fetch-verify-compose pipeline.

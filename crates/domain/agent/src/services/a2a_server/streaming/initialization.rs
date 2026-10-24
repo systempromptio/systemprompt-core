@@ -16,7 +16,7 @@ use tokio::sync::mpsc::Sender;
 use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::services::a2a_server::handlers::AgentHandlerState;
-use crate::services::a2a_server::processing::message::MessageProcessor;
+use crate::services::a2a_server::processing::message::MessageHandler;
 
 use super::frames::jsonrpc_error_event;
 use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
@@ -47,14 +47,14 @@ fn create_processor(
     state: &AgentHandlerState,
     tx: &Sender<Event>,
     request_id: &NumberOrString,
-) -> Result<MessageProcessor, ()> {
-    MessageProcessor::new(
+) -> Result<MessageHandler, ()> {
+    MessageHandler::new(
         Arc::clone(state.agent_state.repositories()),
         Arc::clone(&state.ai_service),
         state.agent_state.webhooks(),
     )
     .map_err(|e| {
-        tracing::error!(error = %e, "Failed to create MessageProcessor");
+        tracing::error!(error = %e, "Failed to create MessageHandler");
         if tx
             .try_send(jsonrpc_error_event(
                 JsonRpcErrorBuilder::internal_error()

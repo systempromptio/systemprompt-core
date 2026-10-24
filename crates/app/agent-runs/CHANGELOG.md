@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Type the remaining raw-string identifier fields.
+- Header and gateway path constants spelled once.
+- One HostKind with seven ids, app distinct from CLI.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

@@ -101,9 +101,9 @@ fn the_attempt_plan_puts_healthy_deployments_first_and_never_leaves_a_request_un
 fn breakers_are_keyed_per_provider_and_shared_across_calls() {
     let breakers = ProviderBreakers::new();
     let settings = ResilienceSettings::default();
-    let a = breakers.for_provider("anthropic", &settings);
-    let again = breakers.for_provider("anthropic", &settings);
-    let b = breakers.for_provider("vertex", &settings);
+    let a = breakers.for_endpoint("anthropic", &settings);
+    let again = breakers.for_endpoint("anthropic", &settings);
+    let b = breakers.for_endpoint("vertex", &settings);
     assert!(Arc::ptr_eq(&a, &again));
     assert!(!Arc::ptr_eq(&a, &b));
 }
@@ -116,8 +116,8 @@ fn a_provider_trips_after_its_failure_threshold_and_stays_isolated() {
         breaker_open_cooldown_ms: 60_000,
         ..ResilienceSettings::default()
     };
-    let primary = breakers.for_provider("anthropic", &settings);
-    let fallback = breakers.for_provider("vertex", &settings);
+    let primary = breakers.for_endpoint("anthropic", &settings);
+    let fallback = breakers.for_endpoint("vertex", &settings);
     primary.acquire().expect("closed breaker admits").failure();
     assert!(!primary.is_open(), "one failure is below the threshold");
     primary.acquire().expect("still closed").failure();

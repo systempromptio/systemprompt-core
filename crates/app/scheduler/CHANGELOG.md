@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `jobs::vertex_discovery::lifecycle_notices(&ModelRegistry, …)` replaces the `ProviderRegistry` argument; the job probes a clone of the booted catalog registries.
+## [Unreleased]
+
+### Added
+
+- `config_plane_base` (the per-entity three-way-merge base), `config_conflicts` (both sides of a conflicting entity and its resolution) and `config_plane_state.last_apply_*` columns. Migration `005_config_plane_last_apply` (with down): catalog-only `ADD COLUMN`s on the one-row-per-plane table.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

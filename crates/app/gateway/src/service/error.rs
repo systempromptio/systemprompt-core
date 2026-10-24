@@ -69,17 +69,15 @@ pub enum GatewayError {
     MissingPricing(#[from] MissingPricing),
     #[error(transparent)]
     UpstreamTarget(#[from] UpstreamTargetError),
-    #[error("no gateway route matches model '{model}'")]
+    #[error("model '{model}' has no deployment on an enabled provider")]
     NoRoute { model: String },
-    #[error("gateway route '{route}' names provider '{provider}', which is not declared")]
-    UndeclaredProvider { route: String, provider: String },
     #[error("gateway has no outbound adapter for wire protocol '{wire}'")]
     NoAdapter { wire: String },
     #[error(
-        "personal key required for provider {provider} — add it in the bridge Settings or your \
-         profile"
+        "personal key required for credential {credential} — add it in the bridge Settings or \
+         your profile"
     )]
-    PersonalKeyRequired { provider: String },
+    PersonalKeyRequired { credential: String },
     #[error("gateway dispatch has no authenticated session")]
     MissingSession,
     #[error("gateway {context}")]
@@ -113,10 +111,9 @@ impl GatewayError {
             Self::GuardForbidden(_) | Self::PersonalKeyRequired { .. } => StatusCode::FORBIDDEN,
             Self::ImageFetch(image) if image.caller_fault() => StatusCode::BAD_REQUEST,
             Self::Upstream(upstream) => upstream_status(upstream),
-            Self::MissingPricing(_)
-            | Self::NoRoute { .. }
-            | Self::UndeclaredProvider { .. }
-            | Self::NoAdapter { .. } => StatusCode::NOT_FOUND,
+            Self::MissingPricing(_) | Self::NoRoute { .. } | Self::NoAdapter { .. } => {
+                StatusCode::NOT_FOUND
+            },
             Self::UpstreamTarget(target) if is_unservable_target(target) => StatusCode::NOT_FOUND,
             Self::ImageFetch(_)
             | Self::UpstreamTarget(_)

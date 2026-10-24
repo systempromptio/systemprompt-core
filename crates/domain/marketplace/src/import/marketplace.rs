@@ -75,6 +75,7 @@ pub(super) fn import_marketplace(
         external_marketplaces: sidecar.marketplace.external_marketplaces.clone(),
         external_plugins,
         claude_code: sidecar.marketplace.claude_code,
+        opencode: sidecar.marketplace.opencode.clone(),
     };
 
     config

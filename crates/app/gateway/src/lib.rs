@@ -31,6 +31,7 @@ pub mod protocol;
 pub mod quota;
 pub mod registry;
 pub mod repository;
+pub mod routing;
 pub mod service;
 pub mod signature_cache;
 pub mod stream_tap;
@@ -46,23 +47,26 @@ pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::CapturedToolUse;
 pub use error::{GatewayAuditError, GatewayAuditResult};
 pub use policies::{
-    API_KEY_QUOTA_SUBJECT, CATEGORY_SCANNER_FAILURE, CalendarPeriod, Finding, FindingSpan,
-    GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyError,
-    GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
+    CATEGORY_SCANNER_FAILURE, CalendarPeriod, Finding, FindingSpan, GATEWAY_POLICIES_FILE,
+    GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyError, GatewayPolicyIngestionService,
+    GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
     IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
     NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
     OverrideError, OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY,
-    PHASE_RESPONSE, PartReplacement, PolicyResolver, PolicyUnavailable, QuotaMode, QuotaWindow,
-    RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
-    SafetyConfig, SafetyHistoryMode, SafetyMode, SafetyScanner, SafetyScannerRegistration,
-    ScanError, ScannerFactory, ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
-    SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT, WindowSpan,
+    PHASE_RESPONSE, PartReplacement, PolicyResolver, PolicyUnavailable, QuotaWindow, RouteSelector,
+    RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration, SafetyConfig,
+    SafetyHistoryMode, SafetyScanner, SafetyScannerRegistration, ScanError, ScannerFactory,
+    ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
+    SystemPromptOverrideRegistration, WindowSpan,
     load_from_yaml as load_gateway_policies_from_yaml,
 };
 pub use protocol::{
     CanonicalEvent, CanonicalRequest, CanonicalResponse, InboundAdapter, OutboundAdapter,
     OutboundAdapterRegistration, OutboundCtx, OutboundOutcome,
 };
-pub use registry::{GatewayUpstreamRegistry, SafetyScannerRegistry};
-pub use repository::GatewayRepositories;
+pub use registry::{
+    GatewayEngines, GatewayEnginesError, GatewayUpstreamRegistry, SafetyScannerRegistry,
+};
+pub use repository::{GatewayHandles, GatewayRepositories};
+pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};

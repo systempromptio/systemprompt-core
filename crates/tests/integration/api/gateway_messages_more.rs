@@ -15,12 +15,10 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use systemprompt_ai::models::RequestStatus;
-use systemprompt_api::routes::gateway::messages::auth::{
-    ApiKeyPrincipal, AuthedPrincipal, authenticate,
-};
+use systemprompt_api::routes::gateway::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
 use systemprompt_api::routes::gateway::messages::extract::authz::enforce_authz_pre_dispatch;
 use systemprompt_api::routes::gateway::messages::extract::headers::{
-    optional_gateway_conversation_id, read_gateway_body, require_session_id,
+    optional_gateway_conversation_id, optional_session_id, read_gateway_body,
 };
 use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
 use systemprompt_api::routes::gateway::messages::rejection::{
@@ -43,7 +41,7 @@ use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 
-fn test_partial() -> RejectionPartial {
+pub(super) fn test_partial() -> RejectionPartial {
     RejectionPartial::new(RequestOrigin::gateway(
         ClientKind::Other,
         InboundWireProtocol::AnthropicMessages,
@@ -57,21 +55,27 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_config::SecretsBootstrap::encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("gateway journal opens")
 }
 
 
-fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::GatewayRepositories {
+pub(super) fn gw_repos(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_gateway::GatewayRepositories {
     systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+        },
     )
 }
 
@@ -123,40 +127,23 @@ fn user_message(text: &str) -> CanonicalMessage {
 }
 
 #[test]
-fn require_session_id_reads_present_header() {
+fn optional_session_id_reads_present_header() {
     let h = header_map(&[(SESSION_ID, "sess-123")]);
-    let id = require_session_id(&h).expect("session id parsed");
+    let id = optional_session_id(&h).expect("session id parsed");
     assert_eq!(id.as_str(), "sess-123");
 }
 
 #[test]
-fn require_session_id_trims_surrounding_whitespace() {
+fn optional_session_id_trims_surrounding_whitespace() {
     let h = header_map(&[(SESSION_ID, "  sess-trim  ")]);
-    let id = require_session_id(&h).expect("session id parsed");
+    let id = optional_session_id(&h).expect("session id parsed");
     assert_eq!(id.as_str(), "sess-trim");
 }
 
 #[test]
-fn require_session_id_missing_header_is_bad_request() {
-    let RejectionError {
-        status,
-        message: msg,
-        ..
-    } = require_session_id(&HeaderMap::new()).expect_err("missing must fail");
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(msg.contains("missing"), "{msg}");
-}
-
-#[test]
-fn require_session_id_empty_header_is_bad_request() {
-    let h = header_map(&[(SESSION_ID, "   ")]);
-    let RejectionError {
-        status,
-        message: msg,
-        ..
-    } = require_session_id(&h).expect_err("empty must fail");
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(msg.contains("empty"), "{msg}");
+fn optional_session_id_missing_or_empty_header_is_none_not_an_error() {
+    assert!(optional_session_id(&HeaderMap::new()).is_none());
+    assert!(optional_session_id(&header_map(&[(SESSION_ID, "   ")])).is_none());
 }
 
 #[test]
@@ -277,36 +264,28 @@ fn derive_conversation_without_messages_is_bad_request() {
 }
 
 fn api_key_principal(user: &str) -> AuthedPrincipal {
-    AuthedPrincipal::ApiKey(ApiKeyPrincipal {
-        api_key_id: systemprompt_identifiers::ApiKeyId::generate(),
-        limits: systemprompt_users::ApiKeyLimits::default(),
-        scopes: Vec::new(),
-        user_id: UserId::new(user),
+    AuthedPrincipal {
+        principal: Principal {
+            user_id: UserId::new(user),
+            roles: Vec::new(),
+            subject: systemprompt_governance::authz::SubjectAttributes::new(),
+            attributes: std::collections::BTreeMap::new(),
+            act_chain: Vec::new(),
+            client_id: None,
+            scopes: Some(KeyScopes {
+                api_key_id: systemprompt_identifiers::ApiKeyId::generate(),
+                limits: systemprompt_users::ApiKeyLimits::default(),
+                scopes: Vec::new(),
+            }),
+        },
         trace_id: TraceId::generate(),
-        attested_session: SessionId::generate(),
-    })
+        session_id: SessionId::generate(),
+        client_session: None,
+    }
 }
 
-fn gateway_route() -> systemprompt_manifest::services::GatewayRoute {
-    let mut route = systemprompt_manifest::services::GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: "claude-*".to_owned(),
-        provider: systemprompt_identifiers::ProviderId::new("anthropic"),
-        upstream_model: None,
-        extra_headers: std::collections::HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
-    route
+fn gateway_route() -> systemprompt_identifiers::RouteId {
+    systemprompt_identifiers::RouteId::new("claude-route")
 }
 
 #[tokio::test]
@@ -390,49 +369,22 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
         .await?;
 
     let extractor = jwt_extractor(&ctx)?;
-    let principal = authenticate(&issued.secret, &cred.session_id, &extractor, &ctx)
-        .await
-        .expect("api key authenticates");
+    let principal = super::gateway_api_key_session_binding::sign_in(
+        &ctx,
+        &extractor,
+        &issued.secret,
+        Some(&cred.session_id),
+        &systemprompt_governance::authz::SubjectProviderSet::default(),
+    )
+    .await
+    .expect("api key authenticates");
     assert_eq!(principal.user_id().as_str(), cred.user_id.as_str());
     assert_eq!(
-        principal.attested_session().as_str(),
+        principal.session_id().as_str(),
         cred.session_id.as_str(),
-        "api-key principal carries the session it presented, once attested"
+        "an issued session the caller presents is used as is"
     );
-    Ok(())
-}
-
-#[tokio::test]
-async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
-    let cred = seed_admin_credential(&pool, "auth-apikey-forged@example.invalid").await?;
-    let service = ApiKeyService::new(
-        Arc::clone(ctx.user_repository()),
-        systemprompt_users::ApiKeyLifetime::unbounded(),
-    );
-    let issued = service
-        .issue(IssueApiKeyParams {
-            user_id: &cred.user_id,
-            name: "gateway-auth-forged-session",
-            expires_at: None,
-            limits: &systemprompt_users::ApiKeyLimits::default(),
-            scopes: &[],
-            purpose: None,
-        })
-        .await?;
-
-    let extractor = jwt_extractor(&ctx)?;
-    let forged = SessionId::new("not-a-real-session");
-    let RejectionError {
-        status,
-        message: msg,
-        ..
-    } = authenticate(&issued.secret, &forged, &extractor, &ctx)
-        .await
-        .expect_err("a session the server never issued must not authenticate");
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
-    assert!(msg.contains("mint one at"), "{msg}");
+    assert!(principal.client_session().is_none());
     Ok(())
 }
 
@@ -440,11 +392,12 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
 async fn authenticate_rejects_unknown_api_key() -> Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let extractor = jwt_extractor(&ctx)?;
-    let RejectionError { status, .. } = authenticate(
-        "sp-live-deadbeefdeadbeef",
-        &SessionId::generate(),
-        &extractor,
+    let RejectionError { status, .. } = super::gateway_api_key_session_binding::sign_in(
         &ctx,
+        &extractor,
+        "sp-live-deadbeefdeadbeef",
+        Some(&SessionId::generate()),
+        &systemprompt_governance::authz::SubjectProviderSet::default(),
     )
     .await
     .expect_err("unknown api key must fail");
@@ -458,12 +411,18 @@ async fn authenticate_accepts_seeded_jwt() -> Result<()> {
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-jwt@example.invalid").await?;
     let extractor = jwt_extractor(&ctx)?;
-    let principal = authenticate(cred.jwt.as_str(), &cred.session_id, &extractor, &ctx)
-        .await
-        .expect("jwt authenticates");
+    let principal = super::gateway_api_key_session_binding::sign_in(
+        &ctx,
+        &extractor,
+        cred.jwt.as_str(),
+        Some(&cred.session_id),
+        &systemprompt_governance::authz::SubjectProviderSet::default(),
+    )
+    .await
+    .expect("jwt authenticates");
     assert_eq!(principal.user_id().as_str(), cred.user_id.as_str());
     assert_eq!(
-        principal.attested_session().as_str(),
+        principal.session_id().as_str(),
         cred.session_id.as_str(),
         "jwt principal carries its attested session"
     );
@@ -475,7 +434,7 @@ fn build_rejection_record_needs_user_id() {
     let partial = test_partial();
     let id = AiRequestId::generate();
     assert!(
-        build_rejection_record(&id, &partial).is_none(),
+        build_rejection_record(None, &id, &partial).is_none(),
         "no user_id yields no record"
     );
 }
@@ -485,7 +444,7 @@ fn build_rejection_record_leaves_unresolved_routing_absent() {
     let mut partial = test_partial();
     partial.user_id = Some(UserId::new("rej-user"));
     let id = AiRequestId::generate();
-    let record = build_rejection_record(&id, &partial).expect("record built");
+    let record = build_rejection_record(None, &id, &partial).expect("record built");
     assert_eq!(record.provider, None);
     assert_eq!(record.model, None);
     assert_eq!(record.status, RequestStatus::Rejected);
@@ -497,7 +456,7 @@ fn build_rejection_record_keeps_routing_it_did_resolve() {
     partial.user_id = Some(UserId::new("rej-user"));
     partial.model = Some("claude-test".to_owned());
     let id = AiRequestId::generate();
-    let record = build_rejection_record(&id, &partial).expect("record built");
+    let record = build_rejection_record(None, &id, &partial).expect("record built");
     assert_eq!(record.provider, None);
     assert_eq!(record.model.as_deref(), Some("claude-test"));
 }
@@ -508,8 +467,10 @@ fn build_rejection_record_without_a_context_gets_a_fresh_context_not_the_legacy_
     partial.user_id = Some(UserId::new("rej-user"));
     partial.context_id = None;
     partial.session_id = None;
-    let first = build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
-    let second = build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
+    let first =
+        build_rejection_record(None, &AiRequestId::generate(), &partial).expect("record built");
+    let second =
+        build_rejection_record(None, &AiRequestId::generate(), &partial).expect("record built");
     let legacy = systemprompt_identifiers::ContextId::legacy_context_row();
     assert_ne!(first.context_id, legacy);
     assert_ne!(second.context_id, legacy);

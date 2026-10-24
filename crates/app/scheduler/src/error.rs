@@ -99,8 +99,11 @@ pub enum SchedulerError {
     #[error("Managed marketplace error: {0}")]
     Managed(#[from] systemprompt_marketplace::managed::ManagedError),
 
-    #[error("No retention path for table {table}")]
-    UnknownRetentionTable { table: String },
+    #[error("Logging error: {0}")]
+    Logging(#[from] systemprompt_logging::models::LoggingError),
+
+    #[error("MCP error: {0}")]
+    Mcp(#[from] systemprompt_mcp::McpDomainError),
 
     #[error("Unknown OTLP export signal '{signal}'")]
     UnknownOtlpSignal { signal: String },

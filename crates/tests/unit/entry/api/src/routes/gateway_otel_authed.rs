@@ -1,7 +1,7 @@
 //! `/otel` with a real gateway credential: the authenticated handler accepts
-//! a bound session and refuses an unattested one, and each decoded signal
-//! (protobuf traces, logs and metrics, JSON logs) is counted under its own
-//! label on `gateway_desktop_telemetry_exports_total`.
+//! a bound session and refuses a header that contradicts the JWT claim, and
+//! each decoded signal (protobuf traces, logs and metrics, JSON logs) is
+//! counted under its own label on `gateway_desktop_telemetry_exports_total`.
 
 use std::sync::Arc;
 
@@ -188,14 +188,18 @@ async fn a_session_header_the_credential_does_not_attest_is_refused() {
 }
 
 #[tokio::test]
-async fn a_credential_without_a_session_header_is_refused() {
+async fn a_jwt_without_a_session_header_is_bound_to_its_claim() {
     let h = harness().await;
     let request = post("/otel/v1/traces", "application/x-protobuf")
         .header("authorization", format!("Bearer {}", h.authed.jwt.as_str()))
         .body(Body::from(traces()))
         .expect("request");
     let resp = handle(Arc::clone(&h.extractor), (*h.ctx).clone(), request).await;
-    assert!(resp.status().is_client_error(), "{}", resp.status());
+    assert_eq!(
+        resp.status(),
+        StatusCode::ACCEPTED,
+        "the JWT's session claim binds the request when no header is sent"
+    );
 }
 
 #[tokio::test]
@@ -210,7 +214,11 @@ async fn a_json_log_export_is_decoded_and_counted() {
     let request = post("/v1/logs", "application/json; charset=utf-8")
         .body(Body::from(body.to_string()))
         .expect("request");
-    let resp = ingest_envelope(request).await;
+    let resp = ingest_envelope(
+        &systemprompt_test_fixtures::fixture_logging_runtime(),
+        request,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::ACCEPTED);
     assert!(exports("logs") > before, "a JSON log export is ingested");
 }

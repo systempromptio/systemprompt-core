@@ -31,7 +31,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::SkillId;
+use systemprompt_identifiers::{PluginId, SkillId};
 use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
@@ -46,10 +46,12 @@ pub use systemprompt_models::bridge::plugin_bundle::{
 
 use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
+use plugin_source::PluginSource;
 
 mod agents;
 mod artifacts;
 mod mcp;
+mod plugin_source;
 mod rules;
 mod skills;
 
@@ -76,6 +78,7 @@ pub struct BundleContent<'a> {
     pub artifacts: &'a [ArtifactEntry],
     pub plugins_root: &'a Path,
     pub managed_files: &'a BTreeMap<SkillId, RevisionFiles>,
+    pub managed_plugin_files: &'a BTreeMap<PluginId, RevisionFiles>,
 }
 
 const HOOKS_RELPATH: &str = "./hooks/hooks.json";
@@ -97,8 +100,13 @@ pub fn build_plugin_bundle(
         content.disabled_mcp_servers,
         &mut bundle,
     )?;
-    append_script_files(config, content.plugins_root, &mut bundle)?;
-    append_package_files(config, content.plugins_root, &mut bundle)?;
+    let source = content.managed_plugin_files.get(&config.id).map_or_else(
+        || PluginSource::Disk(content.plugins_root.join(config.id.as_str())),
+        PluginSource::Managed,
+    );
+    append_script_files(config, &source, &mut bundle)?;
+    append_package_files(&source, &mut bundle)?;
+    append_host_files(&source, &mut bundle)?;
 
     let version = content_version(&config.version, &bundle);
     let manifest = build_manifest(config, &version);
@@ -143,22 +151,23 @@ fn build_manifest(config: &PluginConfig, version: &str) -> PluginManifest {
 }
 
 fn append_package_files(
-    config: &PluginConfig,
-    plugins_root: &Path,
+    source: &PluginSource<'_>,
     bundle: &mut PluginBundle,
 ) -> Result<(), MarketplaceError> {
-    let dir = plugins_root.join(config.id.as_str());
-    let package = dir.join(NODE_PACKAGE_FILE);
-    if !package.is_file() {
-        return Ok(());
-    }
-    let Some(lockfile) = node_lockfile(&dir) else {
+    let Some(package) = source.read(NODE_PACKAGE_FILE)? else {
         return Ok(());
     };
-    for name in [NODE_PACKAGE_FILE, lockfile] {
-        let bytes = std::fs::read(dir.join(name)).map_err(|e| {
-            MarketplaceError::catalog(format!("read {}", dir.join(name).display()), e)
-        })?;
+    let mut lock = None;
+    for name in NODE_LOCKFILES {
+        if let Some(bytes) = source.read(name)? {
+            lock = Some((name, bytes));
+            break;
+        }
+    }
+    let Some((lockfile, lock_bytes)) = lock else {
+        return Ok(());
+    };
+    for (name, bytes) in [(NODE_PACKAGE_FILE, package), (lockfile, lock_bytes)] {
         bundle.insert(
             name.to_owned(),
             BundleFile {
@@ -166,6 +175,19 @@ fn append_package_files(
                 executable: false,
             },
         );
+    }
+    Ok(())
+}
+
+// Why: `hosts/<host>/…` is host-native content (an OpenCode plugin module, a
+// theme) that the bridge projects verbatim, so it travels with the bundle.
+fn append_host_files(
+    source: &PluginSource<'_>,
+    bundle: &mut PluginBundle,
+) -> Result<(), MarketplaceError> {
+    for (path, bytes) in source.under("hosts")? {
+        let executable = source.executable(&path);
+        bundle.insert(path, BundleFile { bytes, executable });
     }
     Ok(())
 }
@@ -184,23 +206,16 @@ fn content_version(base: &str, bundle: &PluginBundle) -> String {
 
 fn append_script_files(
     config: &PluginConfig,
-    plugins_root: &Path,
+    source: &PluginSource<'_>,
     bundle: &mut PluginBundle,
 ) -> Result<(), MarketplaceError> {
     for script in &config.scripts {
         if script.source == "generated:tracking" {
             continue;
         }
-        let source = plugins_root.join(config.id.as_str()).join(&script.source);
-        if !source.is_file() {
+        let Some(bytes) = source.read(&script.source)? else {
             continue;
-        }
-        let bytes = std::fs::read(&source).map_err(|e| {
-            MarketplaceError::catalog(
-                format!("plugin '{}' script {}", config.id, source.display()),
-                e,
-            )
-        })?;
+        };
         bundle.insert(
             format!("scripts/{}", script.name),
             BundleFile {

@@ -27,10 +27,12 @@ fn ensure_bootstrap() {
                 "JWT_SECRET",
                 "manifest-signing-jcs-test-secret-must-be-32-bytes-or-longer",
             );
-            std::env::set_var(
-                "DATABASE_URL",
-                "postgres://placeholder:placeholder@localhost/placeholder",
-            );
+            if std::env::var_os("DATABASE_URL").is_none() {
+                std::env::set_var(
+                    "DATABASE_URL",
+                    "postgres://placeholder:placeholder@localhost/placeholder",
+                );
+            }
             std::env::set_var(
                 "MANIFEST_SIGNING_SECRET_SEED",
                 "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
@@ -71,6 +73,7 @@ fn sample_manifest() -> SignedManifest {
                 size: 42,
             }],
             hooks: Default::default(),
+            publication: None,
         }],
         skills: vec![SkillEntry {
             publication: None,
@@ -96,6 +99,7 @@ fn sample_manifest() -> SignedManifest {
             instructions: "never force-push".into(),
             hosts: Vec::new(),
             plugins: Vec::new(),
+            publication: None,
         }],
         agents: vec![AgentEntry {
             id: AgentId::new("agent_one"),

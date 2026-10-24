@@ -25,7 +25,7 @@ fn services_config() -> String {
     format!(
         r#"mcp_servers:
   {ENABLED}:
-    type: external
+    server_type: external
     endpoint: http://127.0.0.1:5099/mcp
     enabled: true
     tool_policy: allow
@@ -40,7 +40,7 @@ fn services_config() -> String {
       audience: mcp
       client_id: null
   {DISABLED}:
-    type: external
+    server_type: external
     endpoint: http://127.0.0.1:5098/mcp
     enabled: false
     tool_policy: allow

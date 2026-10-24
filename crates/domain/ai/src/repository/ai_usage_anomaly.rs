@@ -13,7 +13,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{RepositoryError, RequestStatus};
 
 const BASELINE_HOURS: f64 = 7.0 * 24.0;
 
@@ -50,7 +50,7 @@ impl AiUsageAnomalyRepository {
                        COALESCE(SUM(cost_microdollars), 0)::BIGINT AS cost
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
-                  AND status = 'completed' AND synthetic = FALSE
+                  AND status = $3 AND traffic = 'production'
                 GROUP BY user_id
             ),
             baseline AS (
@@ -58,7 +58,7 @@ impl AiUsageAnomalyRepository {
                        COALESCE(SUM(cost_microdollars), 0)::BIGINT AS cost
                 FROM ai_requests
                 WHERE created_at >= $1 - INTERVAL '7 days' AND created_at < $1
-                  AND status = 'completed' AND synthetic = FALSE
+                  AND status = $3 AND traffic = 'production'
                   AND user_id IN (SELECT user_id FROM observed)
                 GROUP BY user_id
             )
@@ -73,6 +73,7 @@ impl AiUsageAnomalyRepository {
             "#,
             since,
             until,
+            RequestStatus::Completed.as_str(),
         )
         .fetch_all(self.pool.as_ref())
         .await?;

@@ -1,7 +1,7 @@
 use super::schema_check::assert_conforms;
 use serde_json::json;
 use std::collections::HashMap;
-use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, SkillId, TaskId};
 use systemprompt_models::a2a::{
     AgentCapabilities, AgentCard, AgentExtension, AgentSkill, ApiKeyLocation, ApiKeySecurityScheme,
     Artifact, ArtifactMetadata, AuthorizationCodeOAuthFlow, ClientCredentialsOAuthFlow,
@@ -329,7 +329,7 @@ fn full_agent_card_conforms_to_schema() {
         vec!["admin".to_owned()],
     )]);
     card.skills = vec![AgentSkill {
-        id: "s".to_owned(),
+        id: SkillId::new("s"),
         name: "Skill".to_owned(),
         description: "does".to_owned(),
         tags: vec!["t".to_owned()],

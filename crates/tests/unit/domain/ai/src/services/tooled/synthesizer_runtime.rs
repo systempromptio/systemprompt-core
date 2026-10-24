@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use rmcp::model::ContentBlock;
 use serde_json::json;
 use std::sync::Mutex;
-use systemprompt_ai::error::{AiError, Result};
+use systemprompt_ai::error::{AiError, ProviderError, Result};
 use systemprompt_ai::models::ai::{AiMessage, AiResponse, MessageRole};
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::providers::{
@@ -17,7 +17,7 @@ use systemprompt_ai::services::providers::{
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
 use systemprompt_ai::services::tooled::{ResponseSynthesizer, SynthesisParams};
-use systemprompt_identifiers::{AiRequestId, AiToolCallId};
+use systemprompt_identifiers::{AiRequestId, AiToolCallId, ProviderId};
 
 #[derive(Debug, Clone, Copy)]
 enum Outcome {
@@ -59,10 +59,9 @@ impl StubProvider {
         match outcome {
             Outcome::Text(text) => Ok(Self::response(text)),
             Outcome::Empty => Ok(Self::response("")),
-            Outcome::Error => Err(AiError::ProviderError {
-                provider: "stub".to_owned(),
-                message: "stub failure".to_owned(),
-            }),
+            Outcome::Error => Err(AiError::Provider(ProviderError::EmptyResponse {
+                provider: ProviderId::new("stub"),
+            })),
         }
     }
 }
@@ -209,7 +208,7 @@ async fn provider_error_produces_synthesis_failed_fallback() {
 
     assert!(out.contains("Tool execution completed"));
     assert!(out.contains("Synthesis error"));
-    assert!(out.contains("stub failure"));
+    assert!(out.contains("Provider stub returned empty response"));
 }
 
 #[tokio::test]

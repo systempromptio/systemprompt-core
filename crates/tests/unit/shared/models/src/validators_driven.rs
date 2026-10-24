@@ -1,11 +1,11 @@
 use systemprompt_manifest::validators::{
-    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    RateLimitsConfigValidator, ValidationConfigProvider, WebConfigRaw, WebConfigValidator,
+    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, DomainConfig,
+    McpConfigValidator, RateLimitsConfigValidator, ValidationConfigProvider, WebConfigRaw,
+    WebConfigValidator,
 };
 use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_test_fixtures::fixture_config;
-use systemprompt_traits::DomainConfig;
 
 fn base_config() -> Config {
     fixture_config("postgres://localhost/test")
@@ -22,123 +22,95 @@ fn services_with_ai_json(ai: serde_json::Value) -> ServicesConfig {
 
 mod ai_validator {
     use super::*;
+    use systemprompt_manifest::services::GatewayState;
+    use systemprompt_manifest::services::catalog::DefaultCatalog;
 
-    #[test]
-    fn errors_when_default_provider_empty() {
-        let services = ServicesConfig::default();
+    fn services_with_catalog(ai: serde_json::Value, default_model: Option<&str>) -> ServicesConfig {
+        let mut services = services_with_ai_json(ai);
+        let document = DefaultCatalog::document().expect("default catalog parses");
+        services.credentials = document.credentials;
+        services.providers = document.providers;
+        services.models = document.models;
+        services.deployments = document.deployments;
+        let mut gateway = document.gateway.unwrap_or_default();
+        gateway.default_model = default_model.map(systemprompt_identifiers::ModelId::new);
+        services.gateway = Some(GatewayState::Spec(gateway));
+        services
+    }
+
+    fn report_for(
+        services: ServicesConfig,
+    ) -> systemprompt_manifest::validators::validation_report::ValidationReport {
         let prov = provider(base_config(), services);
         let mut v = AiConfigValidator::new();
         v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        v.validate().expect("validate")
+    }
+
+    #[test]
+    fn errors_when_no_default_model_is_configured() {
+        let report = report_for(services_with_catalog(serde_json::json!({}), None));
         assert!(report.has_errors());
     }
 
     #[test]
-    fn errors_when_default_provider_not_in_providers() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "ghost",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude" }
-            }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+    fn errors_when_the_default_model_is_not_in_the_catalog() {
+        let report = report_for(services_with_catalog(serde_json::json!({}), Some("ghost")));
         assert!(report.has_errors());
     }
 
     #[test]
     fn errors_when_no_providers_enabled() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": false, "default_model": "claude" }
-            }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
-        assert!(report.has_errors());
+        let mut services = services_with_catalog(serde_json::json!({}), None);
+        for provider in services.providers.providers.values_mut() {
+            provider.enabled = false;
+        }
+        assert!(report_for(services).has_errors());
+    }
+
+    #[test]
+    fn the_retired_provider_keys_do_not_deserialize() {
+        let json = serde_json::json!({ "ai": { "default_provider": "anthropic" } });
+        assert!(serde_json::from_value::<ServicesConfig>(json).is_err());
     }
 
     #[test]
     fn valid_config_has_no_errors() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude-3" }
-            }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        let report = report_for(services_with_catalog(
+            serde_json::json!({}),
+            Some("claude-sonnet-5"),
+        ));
         assert!(!report.has_errors(), "report: {report:?}");
     }
 
     #[test]
-    fn warns_when_enabled_provider_has_no_default_model() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "" }
-            }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
-        assert!(!report.has_errors());
-        assert!(report.has_warnings());
-    }
-
-    #[test]
     fn warns_when_history_retention_zero() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude-3" }
-            },
-            "history": { "retention_days": 0 }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        let report = report_for(services_with_catalog(
+            serde_json::json!({ "history": { "retention_days": 0 } }),
+            Some("claude-sonnet-5"),
+        ));
         assert!(report.has_warnings());
     }
 
     #[test]
     fn errors_when_mcp_connect_timeout_zero() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude-3" }
-            },
-            "mcp": { "resilience": { "connect_timeout_ms": 0, "request_timeout_ms": 1000 } }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        let report = report_for(services_with_catalog(
+            serde_json::json!({
+                "mcp": { "resilience": { "connect_timeout_ms": 0, "request_timeout_ms": 1000 } }
+            }),
+            Some("claude-sonnet-5"),
+        ));
         assert!(report.has_errors());
     }
 
     #[test]
     fn errors_when_mcp_request_timeout_zero() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude-3" }
-            },
-            "mcp": { "resilience": { "connect_timeout_ms": 1000, "request_timeout_ms": 0 } }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        let report = report_for(services_with_catalog(
+            serde_json::json!({
+                "mcp": { "resilience": { "connect_timeout_ms": 1000, "request_timeout_ms": 0 } }
+            }),
+            Some("claude-sonnet-5"),
+        ));
         assert!(report.has_errors());
     }
 
@@ -289,14 +261,14 @@ mod mcp_validator {
 
     fn internal(name: &str, port: u16) -> String {
         format!(
-            "  {name}:\n    type: internal\n    binary: {name}-bin\n    port: {port}\n    \
+            "  {name}:\n    server_type: internal\n    binary: {name}-bin\n    port: {port}\n    \
              enabled: true\n    display_in_web: false\n{OAUTH}"
         )
     }
 
     fn external(name: &str) -> String {
         format!(
-            "  {name}:\n    type: external\n    endpoint: https://{name}.example.com/mcp\n    \
+            "  {name}:\n    server_type: external\n    endpoint: https://{name}.example.com/mcp\n    \
              enabled: true\n    display_in_web: false\n{OAUTH}"
         )
     }
@@ -581,7 +553,7 @@ mod agents_validator {
 
     fn validated(
         services: ServicesConfig,
-    ) -> systemprompt_traits::validation_report::ValidationReport {
+    ) -> systemprompt_manifest::validators::validation_report::ValidationReport {
         let prov = provider(base_config(), services);
         let mut v = AgentConfigValidator::new();
         v.load(&prov).expect("load");
@@ -720,7 +692,7 @@ mod web_validator_paths {
     fn validated(
         config: Config,
         raw: WebConfigRaw,
-    ) -> systemprompt_traits::validation_report::ValidationReport {
+    ) -> systemprompt_manifest::validators::validation_report::ValidationReport {
         let prov = provider(config, ServicesConfig::default()).with_web_config(raw);
         let mut v = WebConfigValidator::new();
         v.load(&prov).expect("load");

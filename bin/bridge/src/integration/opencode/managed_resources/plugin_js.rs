@@ -1,7 +1,8 @@
 //! The `OpenCode` plugin that reports skill use to the gateway.
 //!
-//! `OpenCode` loads every module in `~/.config/opencode/plugin/`, so the bridge
-//! writes one file there and removes it when no plugin owns governance. The
+//! `OpenCode` 2.x loads every module in `~/.config/opencode/plugins/`, so the
+//! bridge writes one file there and removes it when no plugin owns governance;
+//! the copy the V1 writer left in `plugin/` is removed on every write. The
 //! file carries the per-plugin hook token for the loopback proxy's track
 //! route; the proxy mints the gateway JWT and stamps device identity exactly as
 //! it does for Claude Code hooks, so nothing server-side distinguishes the
@@ -17,9 +18,9 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::HostProduct;
 
-use crate::gateway::manifest::{SignedManifest, skill_targets_host};
+use crate::gateway::manifest::{SignedManifest, skill_targets_product};
 use crate::host_sync::ApplyError;
 use crate::integration::managed_skills::kebab_dir;
 use crate::proxy::LoopbackEndpoint;
@@ -29,6 +30,12 @@ const FILE_NAME: &str = "systemprompt-hooks.js";
 
 fn plugin_path() -> PathBuf {
     super::super::config::user_dir()
+        .join("plugins")
+        .join(FILE_NAME)
+}
+
+fn v1_plugin_path() -> PathBuf {
+    super::super::config::user_dir()
         .join("plugin")
         .join(FILE_NAME)
 }
@@ -37,11 +44,11 @@ fn skill_map(manifest: &SignedManifest) -> BTreeMap<String, String> {
     manifest
         .skills
         .iter()
-        .filter(|skill| skill_targets_host(skill, HostKind::OpenCode))
+        .filter(|skill| skill_targets_product(skill, HostProduct::OpenCode))
         .map(|skill| {
             let dir = kebab_dir(skill.id.as_str());
             let owner = skill.plugins.first().map_or_else(
-                || HostKind::OpenCode.as_str().to_owned(),
+                || super::super::TOKEN_HOST.as_str().to_owned(),
                 |p| p.as_str().to_owned(),
             );
             (dir.clone(), format!("{owner}:{dir}"))
@@ -84,6 +91,7 @@ pub(super) fn write_hook_plugin(
                 .hyphenated()
                 .to_string(),
         );
+    super::owned::remove(&v1_plugin_path())?;
     let path = plugin_path();
     if std::fs::read(&path).is_ok_and(|current| current == body.as_bytes()) {
         return Ok(());
@@ -101,13 +109,6 @@ pub(super) fn write_hook_plugin(
 }
 
 pub(crate) fn remove_hook_plugin() -> Result<(), ApplyError> {
-    let path = plugin_path();
-    match std::fs::remove_file(&path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(source) => Err(ApplyError::Io {
-            context: format!("remove {}", path.display()),
-            source,
-        }),
-    }
+    super::owned::remove(&v1_plugin_path())?;
+    super::owned::remove(&plugin_path())
 }

@@ -1,17 +1,19 @@
-//! AI-config validation: provider credentials and sampling ranges.
+//! AI-config validation over the resolved catalog.
+//!
+//! Checks in-process connectivity and the sampling, MCP and history ranges.
+//! The catalog's own references are validated when it is resolved, so
+//! nothing here re-reads provider config.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use systemprompt_manifest::services::AiConfig;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use tracing::warn;
 
 use super::error::AiConfigError;
 use crate::error::Result;
-use crate::services::providers::ProviderClient;
+use crate::services::core::{ProviderClients, WithheldEndpoint};
 
 #[derive(Debug, Copy, Clone)]
 pub struct ConfigValidator;
@@ -19,56 +21,36 @@ pub struct ConfigValidator;
 impl ConfigValidator {
     pub fn validate(
         config: &AiConfig,
-        providers: &HashMap<String, Arc<dyn ProviderClient>>,
-        missing_env_vars: &[String],
+        catalog: &ResolvedCatalog,
+        clients: &ProviderClients,
+        withheld: &[WithheldEndpoint],
     ) -> Result<()> {
-        Self::validate_providers(config, providers, missing_env_vars)?;
+        Self::validate_connectivity(catalog, clients, withheld)?;
         Self::validate_sampling(config);
         Self::validate_mcp(config)?;
         Self::validate_history(config);
         Ok(())
     }
 
-    fn validate_providers(
-        config: &AiConfig,
-        providers: &HashMap<String, Arc<dyn ProviderClient>>,
-        missing_env_vars: &[String],
+    fn validate_connectivity(
+        catalog: &ResolvedCatalog,
+        clients: &ProviderClients,
+        withheld: &[WithheldEndpoint],
     ) -> Result<()> {
-        if providers.is_empty() {
+        if clients.is_empty() {
             return Err(AiConfigError::NoProvidersEnabled {
-                policy_providers: config.providers.keys().cloned().collect(),
-                unresolved_secrets: missing_env_vars.to_vec(),
-            }
-            .into());
-        }
-
-        let default = &config.default_provider;
-        if !config.providers.get(default).is_some_and(|c| c.enabled) {
-            return Err(AiConfigError::DefaultProviderNotEnabled {
-                provider: default.clone(),
-                enabled: config
-                    .providers
+                enabled_providers: catalog
+                    .providers()
+                    .filter(|p| p.enabled)
+                    .map(|p| p.id.as_str().to_owned())
+                    .collect(),
+                withheld: withheld
                     .iter()
-                    .filter(|(_, c)| c.enabled)
-                    .map(|(name, _)| name.clone())
+                    .map(|w| format!("{}: {}", w.endpoint, w.reason))
                     .collect(),
             }
             .into());
         }
-
-        if !providers.contains_key(default) {
-            let needle = format!("Provider '{default}'");
-            return Err(AiConfigError::DefaultProviderNoConnectivity {
-                provider: default.clone(),
-                connected: providers.keys().cloned().collect(),
-                withheld: missing_env_vars
-                    .iter()
-                    .find(|m| m.contains(&needle))
-                    .cloned(),
-            }
-            .into());
-        }
-
         Ok(())
     }
 

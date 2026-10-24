@@ -1,8 +1,8 @@
 //! Tests for StartupValidationReport, ValidationReport, ValidationIssue,
 //! ValidationWarning, and domain/expected domains
 
-use systemprompt_runtime::FilesConfigValidator;
-use systemprompt_traits::{DomainConfig, StartupValidationReport, ValidationReport};
+use systemprompt_files::FilesConfigValidator;
+use systemprompt_manifest::validators::{DomainConfig, StartupValidationReport, ValidationReport};
 
 #[test]
 fn test_startup_validation_report_new() {
@@ -78,7 +78,7 @@ fn test_validation_report_warnings_empty() {
 
 #[test]
 fn test_validation_report_add_error() {
-    use systemprompt_traits::validation_report::ValidationIssue;
+    use systemprompt_manifest::validators::validation_report::ValidationIssue;
 
     let mut report = ValidationReport::new("test");
     report.add_error(ValidationIssue::new("field", "message"));
@@ -88,7 +88,7 @@ fn test_validation_report_add_error() {
 
 #[test]
 fn test_validation_report_add_warning() {
-    use systemprompt_traits::validation_report::ValidationWarning;
+    use systemprompt_manifest::validators::validation_report::ValidationWarning;
 
     let mut report = ValidationReport::new("test");
     report.add_warning(ValidationWarning::new("field", "message"));
@@ -98,7 +98,7 @@ fn test_validation_report_add_warning() {
 
 #[test]
 fn test_validation_report_multiple_errors() {
-    use systemprompt_traits::validation_report::ValidationIssue;
+    use systemprompt_manifest::validators::validation_report::ValidationIssue;
 
     let mut report = ValidationReport::new("test");
     report.add_error(ValidationIssue::new("field1", "error 1"));
@@ -108,7 +108,7 @@ fn test_validation_report_multiple_errors() {
 
 #[test]
 fn test_validation_report_multiple_warnings() {
-    use systemprompt_traits::validation_report::ValidationWarning;
+    use systemprompt_manifest::validators::validation_report::ValidationWarning;
 
     let mut report = ValidationReport::new("test");
     report.add_warning(ValidationWarning::new("field1", "warning 1"));
@@ -118,7 +118,7 @@ fn test_validation_report_multiple_warnings() {
 
 #[test]
 fn test_validation_error_new() {
-    use systemprompt_traits::validation_report::ValidationIssue;
+    use systemprompt_manifest::validators::validation_report::ValidationIssue;
 
     let error = ValidationIssue::new("field_name", "error message");
     assert_eq!(error.field, "field_name");
@@ -128,7 +128,7 @@ fn test_validation_error_new() {
 #[test]
 fn test_validation_error_with_path() {
     use std::path::PathBuf;
-    use systemprompt_traits::validation_report::ValidationIssue;
+    use systemprompt_manifest::validators::validation_report::ValidationIssue;
 
     let error = ValidationIssue::new("field", "message").with_path(PathBuf::from("/path/to/file"));
     error.path.as_ref().expect("Should have path");
@@ -136,7 +136,7 @@ fn test_validation_error_with_path() {
 
 #[test]
 fn test_validation_error_with_suggestion() {
-    use systemprompt_traits::validation_report::ValidationIssue;
+    use systemprompt_manifest::validators::validation_report::ValidationIssue;
 
     let error = ValidationIssue::new("field", "message").with_suggestion("Try this fix");
     assert_eq!(
@@ -148,7 +148,7 @@ fn test_validation_error_with_suggestion() {
 #[test]
 fn test_validation_error_full_chain() {
     use std::path::PathBuf;
-    use systemprompt_traits::validation_report::ValidationIssue;
+    use systemprompt_manifest::validators::validation_report::ValidationIssue;
 
     let error = ValidationIssue::new("database_url", "Connection failed")
         .with_path(PathBuf::from("/config/db.yaml"))
@@ -164,7 +164,7 @@ fn test_validation_error_full_chain() {
 
 #[test]
 fn test_validation_warning_new() {
-    use systemprompt_traits::validation_report::ValidationWarning;
+    use systemprompt_manifest::validators::validation_report::ValidationWarning;
 
     let warning = ValidationWarning::new("field_name", "warning message");
     assert_eq!(warning.field, "field_name");
@@ -173,7 +173,7 @@ fn test_validation_warning_new() {
 
 #[test]
 fn test_validation_warning_with_suggestion() {
-    use systemprompt_traits::validation_report::ValidationWarning;
+    use systemprompt_manifest::validators::validation_report::ValidationWarning;
 
     let warning = ValidationWarning::new("field", "message").with_suggestion("Consider this");
     warning.suggestion.as_ref().expect("Should have suggestion");

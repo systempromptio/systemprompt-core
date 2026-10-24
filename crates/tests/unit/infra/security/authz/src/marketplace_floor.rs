@@ -71,6 +71,7 @@ mod resolution {
             external_marketplaces: vec![],
             external_plugins: vec![],
             claude_code: None,
+            opencode: None,
         }
     }
 

@@ -1,120 +1,189 @@
-//! Gateway routing patterns and stable route-id synthesis.
+//! Gateway policy routes.
 //!
-//! A [`GatewayRoute`] maps an external `model_pattern` (exact, prefix `foo*`,
-//! suffix `*foo`, or catch-all `*`) onto a provider in the registry. When a
-//! route omits an explicit id, [`synthesize_route_id`] derives a stable one
-//! from `(model_pattern, provider)` so `access_control_rules` can address the
-//! route by a name that survives reordering. A model's connectivity is never
-//! embedded here — [`GatewayRoute::resolve`] looks the provider up in the
-//! registry at use time.
+//! A route is policy only. Dispatch does not need one: every model resolves
+//! through its own deployments (`services/ai/deployments.yaml`). A route
+//! narrows or pins that chain for the requests it matches, aliases a second
+//! requested id onto a catalog model, or exists to carry an audit label and an
+//! access-control address. It has a declared, stable `id`; `label` is the
+//! audit text and is separate from it.
 //!
-//! A route's deployments are its provider followed by its ordered
-//! fallbacks, so an upstream that is unreachable or exhausts the
-//! transient-failure retry budget hands the same request to the next.
-//! `by_scope` swaps that chain for a per-scope one keyed by the value a request
-//! is attributed to in one scope dimension.
+//! - `models`: one glob or a list (exact, prefix `foo*`, suffix `*foo`, or `*`)
+//!   over catalog model ids; a route matches a model when any glob does.
+//! - `when`: request predicates, including `scope` (every listed dimension must
+//!   be attributed the listed value).
+//! - `deployments`: an ordered subset of the matched model's own deployments
+//!   (optionally weighted); empty keeps the model's chain.
+//! - `context_fallbacks`: catalog models, tried in order when a request's
+//!   estimated input exceeds the matched model's context window.
+//! - `alias: {requested, model}`: a request for `requested` is served as
+//!   `model`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod chain;
 mod predicates;
 mod selection;
 mod token_estimate;
 
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ProviderId, RouteId};
-
-use super::route_id::{match_pattern, synthesize_route_id};
-use crate::services::ai::ModelPricing;
-use crate::services::providers::{ProviderEntry, ProviderRegistry};
+use systemprompt_identifiers::{ModelId, RouteId};
+use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_wire::canonical::CanonicalRequest;
 
-pub use chain::{ChainSelection, RouteDeployment, RouteScopeChains, ScopeChain, UnmappedScope};
+use super::route_id::match_pattern;
+use crate::services::catalog::EndpointRef;
+
 pub use predicates::{ResponseFormatKind, RouteMatch, RouteRequirements};
 pub use selection::SelectionStrategy;
 pub use token_estimate::estimate_input_tokens;
 
+/// One glob or a list of globs over catalog model ids.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(from = "OneOrMany", into = "Vec<String>")]
+pub struct ModelGlobs(pub Vec<String>);
+
+#[derive(Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+enum OneOrMany {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl From<OneOrMany> for ModelGlobs {
+    fn from(value: OneOrMany) -> Self {
+        match value {
+            OneOrMany::One(glob) => Self(vec![glob]),
+            OneOrMany::Many(globs) => Self(globs),
+        }
+    }
+}
+
+impl From<ModelGlobs> for Vec<String> {
+    fn from(value: ModelGlobs) -> Self {
+        value.0
+    }
+}
+
+impl ModelGlobs {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[must_use]
+    pub fn matches(&self, model: &str) -> bool {
+        self.0.iter().any(|glob| match_pattern(glob, model))
+    }
+}
+
+/// One deployment a route pins, with its weight under `strategy: weighted`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum RouteDeployment {
+    Endpoint(EndpointRef),
+    Weighted(WeightedDeployment),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WeightedDeployment {
+    pub endpoint: EndpointRef,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<u32>,
+}
+
+impl RouteDeployment {
+    #[must_use]
+    pub const fn endpoint(&self) -> &EndpointRef {
+        match self {
+            Self::Endpoint(endpoint) => endpoint,
+            Self::Weighted(weighted) => &weighted.endpoint,
+        }
+    }
+
+    #[must_use]
+    pub const fn weight(&self) -> Option<u32> {
+        match self {
+            Self::Endpoint(_) => None,
+            Self::Weighted(weighted) => weighted.weight,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RouteAlias {
+    pub requested: ModelId,
+    pub model: ModelId,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayRoute {
+    pub id: RouteId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<RouteId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub label: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub model_pattern: String,
-    pub provider: ProviderId,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub upstream_model: Option<String>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub extra_headers: HashMap<String, String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pricing: Option<ModelPricing>,
+    #[serde(default, skip_serializing_if = "ModelGlobs::is_empty")]
+    pub models: ModelGlobs,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<RouteMatch>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requires: Option<RouteRequirements>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fallbacks: Vec<RouteDeployment>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub by_scope: Option<RouteScopeChains>,
+    pub deployments: Vec<RouteDeployment>,
     #[serde(default, skip_serializing_if = "SelectionStrategy::is_ordered")]
     pub strategy: SelectionStrategy,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub weight: Option<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub context_fallbacks: Vec<RouteDeployment>,
+    pub context_fallbacks: Vec<ModelId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alias: Option<RouteAlias>,
 }
 
 impl GatewayRoute {
-    pub fn matches(&self, model: &str) -> bool {
-        match_pattern(
-            &self.model_pattern,
-            systemprompt_models::providers::without_context_variant(model),
-        )
-    }
-
-    pub fn matches_request(&self, request: &CanonicalRequest) -> bool {
-        self.matches(request.model.as_str())
-            && self
-                .when
-                .as_ref()
-                .is_none_or(|w| w.matches_request(request))
-    }
-
-    pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
-        self.upstream_model
-            .as_deref()
-            .unwrap_or_else(|| systemprompt_models::providers::without_context_variant(requested))
-    }
-
-    pub fn ensure_id(&mut self) -> bool {
-        if self.declared_id().is_some() {
-            return false;
+    #[must_use]
+    pub fn new(id: impl Into<String>) -> Self {
+        Self {
+            id: RouteId::new(id),
+            label: None,
+            description: None,
+            models: ModelGlobs::default(),
+            when: None,
+            requires: None,
+            deployments: Vec::new(),
+            strategy: SelectionStrategy::Ordered,
+            context_fallbacks: Vec::new(),
+            alias: None,
         }
-        self.id = Some(synthesize_route_id(
-            &self.model_pattern,
-            self.provider.as_str(),
-        ));
-        true
-    }
-
-    pub fn declared_id(&self) -> Option<&RouteId> {
-        self.id.as_ref().filter(|id| !id.as_str().trim().is_empty())
     }
 
     #[must_use]
-    pub fn effective_id(&self) -> RouteId {
-        self.declared_id()
-            .cloned()
-            .unwrap_or_else(|| synthesize_route_id(&self.model_pattern, self.provider.as_str()))
+    pub fn matches_model(&self, model: &str) -> bool {
+        self.models.matches(model)
     }
 
-    pub fn resolve<'a>(&self, registry: &'a ProviderRegistry) -> Option<&'a ProviderEntry> {
-        registry.find_provider(self.provider.as_str())
+    #[must_use]
+    pub fn aliases(&self, requested: &str) -> Option<&ModelId> {
+        self.alias
+            .as_ref()
+            .filter(|alias| alias.requested.as_str() == requested)
+            .map(|alias| &alias.model)
+    }
+
+    #[must_use]
+    pub fn matches_when(
+        &self,
+        attribution: Option<&RequestAttribution>,
+        request: Option<&CanonicalRequest>,
+    ) -> bool {
+        self.when
+            .as_ref()
+            .is_none_or(|when| when.matches(attribution, request))
+    }
+
+    #[must_use]
+    pub fn audit_label(&self) -> &str {
+        self.label.as_deref().unwrap_or_else(|| self.id.as_str())
     }
 }

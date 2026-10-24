@@ -1,5 +1,5 @@
 //! Extension discovery that builds the `ExtensionRegistry` from `inventory`
-//! submissions and injected extensions.
+//! submissions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,31 +25,6 @@ impl ExtensionRegistry {
                 "Discovered extension via inventory"
             );
             registry.insert(ext_arc)?;
-        }
-
-        let injected = crate::runtime_config::get_injected_extensions();
-        if !injected.is_empty() {
-            debug!(
-                count = injected.len(),
-                "Including injected extensions in discovery"
-            );
-            for ext in injected {
-                let ext_id = ext.id().to_owned();
-                if registry.extensions.contains_key(&ext_id) {
-                    debug!(
-                        id = %ext_id,
-                        "Skipping injected extension - already discovered via inventory"
-                    );
-                    continue;
-                }
-                debug!(
-                    id = %ext_id,
-                    name = %ext.name(),
-                    priority = ext.priority(),
-                    "Including injected extension"
-                );
-                registry.insert(ext)?;
-            }
         }
 
         registry.sort_by_priority()?;

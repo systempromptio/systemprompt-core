@@ -171,7 +171,7 @@ single_use_lifetimes = "warn"
 [workspace.dependencies]
 chacha20poly1305 = "0.11"
 # Core dependencies
-tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-test = "0.4"
 anyhow = "1.0"
 semver = "1"
@@ -179,6 +179,7 @@ thiserror = "2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
 async-trait = "0.1"
+arc-swap = "1.9"
 
 # Database
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "macros", "postgres", "migrate", "chrono", "rust_decimal", "json"] }
@@ -194,6 +195,7 @@ validator = { version = "0.21", features = ["derive"] }
 regex = "1.13"
 globset = { version = "0.4", default-features = false }
 indexmap = { version = "2.14", features = ["serde"] }
+jsonschema = { version = "0.60", default-features = false }
 
 # HTTP/API (for API crate)
 axum = "0.8"
@@ -252,13 +254,13 @@ async-stream = "0.3"
 wiremock = "0.6"
 
 # Markdown and templating
-comrak = { version = "0.56", default-features = false }
+comrak = { version = "0.57", default-features = false }
 handlebars = "6"
 # Static-site generation (app/generator)
 quick-xml = { version = "0.42", features = ["serialize"] }
 
 # MCP additional dependencies
-# Why: held at 0.2 because rmcp 3.5.1 requires sse-stream ^0.2.4; 0.3 would duplicate.
+# Why: held at 0.2 because rmcp 3.7.0 requires sse-stream ^0.2.4; 0.3 would duplicate.
 sse-stream = "0.2.6"
 # Lean by default = rmcp's own default features (`base64`, `macros`, `server`),
 # which give the `rmcp::model` types + their `schemars`/JsonSchema impls but pull
@@ -269,7 +271,7 @@ sse-stream = "0.2.6"
 # the SSRF guard (`validate_outbound_url`) and is held to our body limits. Every
 # other dependent (notably the desktop bridge) only uses `rmcp::model` via
 # systemprompt-models.
-rmcp = { version = "=3.5.1" }
+rmcp = { version = "=3.7.0" }
 
 # Security
 rand = "0.10"
@@ -288,7 +290,7 @@ webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"]
 rsa = { version = "0.9", features = ["pem", "sha2"] }
 # Why: `pkcs8` is consumed only through `rsa::pkcs8` so the two can never diverge;
 # `rsa` 0.10 (still a release candidate) retires the RUSTSEC-2023-0071 ignore in deny.toml.
-lru = "0.18"
+lru = "0.19"
 
 # Ed25519 manifest signing. Core signs (`infra/security/src/manifest_signing.rs`)
 # and the bridge verifies (`bin/bridge/src/gateway/manifest.rs`), so both the

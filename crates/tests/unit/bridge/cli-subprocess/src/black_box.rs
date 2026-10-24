@@ -16,7 +16,7 @@ use systemprompt_identifiers::{
     ConsumerInstallationId, DeviceId, InstallationReceiptId, ManagedResourceId, PublicationId,
     ResourceRevisionId, UserId,
 };
-use systemprompt_models::bridge::manifest::SkillPublication;
+use systemprompt_models::bridge::manifest::ManagedPublicationRef;
 use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, ConsumerReceiptResponse, FileReadback, ReadbackStatus,
     ReceiptAcknowledgement, RuntimeFileReadback,
@@ -141,9 +141,9 @@ fn receipt(publication: &str, generation: i64) -> ConsumerReceiptRequest {
     }
 }
 
-fn publication(publication: &str, generation: i64) -> SkillPublication {
+fn publication(publication: &str, generation: i64) -> ManagedPublicationRef {
     let digest = ContentDigest::of(format!("{publication}-bundle").as_bytes());
-    SkillPublication {
+    ManagedPublicationRef {
         publication_id: PublicationId::new(publication),
         resource_id: ManagedResourceId::new("feedback-status-resource"),
         revision_id: ResourceRevisionId::new(format!("{publication}-revision")),

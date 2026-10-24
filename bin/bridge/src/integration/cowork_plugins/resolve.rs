@@ -1,9 +1,12 @@
 //! Which Cowork org session the bridge writes into.
 //!
-//! Precedence: the session whose directory names this deployment's
-//! organization (the gateway tenant), then `cowork.session_org_dir`, then the
-//! personal session or the only usable one. Anything else is ambiguous and is
-//! refused, with the candidates attached so the GUI can offer a picker.
+//! Precedence: the explicit local pin (`cowork.session_org_dir`), then the
+//! session whose directory names the `organization_uuid` the gateway's bridge
+//! profile returns, then the personal session or the only usable one.
+//! Anything else is ambiguous and is refused, with the candidates attached so
+//! the GUI can offer a picker. The bridge never derives the organisation id
+//! itself; the gateway is its one source, and [`TargetSource`] says which
+//! rule won so the GUI can show it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,28 +42,64 @@ pub enum ResolveTargetError {
         source: io::Error,
     },
     #[error(
-        "several Cowork org sessions are usable and none is the personal session or this \
-         organization's; set cowork.session_org_dir to choose one"
+        "several Cowork org sessions are usable and none is the personal session or the one \
+         the gateway names; choose one in the bridge (Claude Desktop › Choose session) or set \
+         cowork.session_org_dir"
     )]
     Ambiguous { candidates: Vec<PathBuf> },
 }
 
+/// Which rule chose the Cowork session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TargetSource {
+    Pinned,
+    Gateway,
+    Personal,
+    OnlySession,
+}
+
+impl TargetSource {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pinned => "pinned",
+            Self::Gateway => "gateway",
+            Self::Personal => "personal",
+            Self::OnlySession => "only-session",
+        }
+    }
+}
+
 pub fn resolve_target() -> Result<Option<CoworkTarget>, ResolveTargetError> {
-    let enumerated = enumerate_candidates();
-    if let (Ok(Some(candidates)), Some(org)) = (&enumerated, deployment_org_id())
-        && let Some(path) = match_org(candidates, &org)
-    {
-        return Ok(Some(target_for(path)));
-    }
+    Ok(resolve_target_with_source()?.map(|(target, _)| target))
+}
 
+pub fn resolve_target_with_source()
+-> Result<Option<(CoworkTarget, TargetSource)>, ResolveTargetError> {
     if let Some(configured) = configured_session_org_dir()? {
-        return Ok(Some(configured));
+        return Ok(Some((configured, TargetSource::Pinned)));
     }
-
-    let Some(candidates) = enumerated? else {
+    let Some(candidates) = enumerate_candidates()? else {
         return Ok(None);
     };
-    Ok(pick_target(&candidates)?.map(target_for))
+    let org = gateway_org_id();
+    Ok(choose_target(None, org.as_deref(), &candidates)?
+        .map(|(path, source)| (target_for(path), source)))
+}
+
+pub fn choose_target(
+    pinned: Option<PathBuf>,
+    org: Option<&str>,
+    candidates: &[(SystemTime, PathBuf)],
+) -> Result<Option<(PathBuf, TargetSource)>, ResolveTargetError> {
+    if let Some(path) = pinned {
+        return Ok(Some((path, TargetSource::Pinned)));
+    }
+    if let Some(path) = org.and_then(|org| match_org(candidates, org)) {
+        return Ok(Some((path, TargetSource::Gateway)));
+    }
+    pick_target(candidates)
 }
 
 pub fn enumerate_candidates() -> Result<Option<Vec<(SystemTime, PathBuf)>>, ResolveTargetError> {
@@ -112,15 +151,8 @@ fn target_for(session_org_dir: PathBuf) -> CoworkTarget {
     }
 }
 
-// Why: Claude Desktop is provisioned with the operator's
-// `deployment_organization_uuid`, else the organization the gateway
-// advertises for the tenant, and Cowork names the org session after it.
-fn deployment_org_id() -> Option<String> {
-    let cfg = crate::config::Config::load().ok()?;
-    if let Some(uuid) = cfg.deployment_organization_uuid {
-        return Some(uuid.as_str().to_owned());
-    }
-    match crate::gateway::profile_cache::load() {
+fn gateway_org_id() -> Option<String> {
+    match crate::auth::profile_cache::load() {
         Ok(profile) => profile.and_then(|p| p.organization_uuid),
         Err(e) => {
             tracing::debug!(
@@ -187,19 +219,9 @@ pub fn match_org(candidates: &[(SystemTime, PathBuf)], org: &str) -> Option<Path
     Some(first.clone())
 }
 
-pub fn pick_target_for_org(
-    candidates: &[(SystemTime, PathBuf)],
-    org: Option<&str>,
-) -> Result<Option<PathBuf>, ResolveTargetError> {
-    if let Some(path) = org.and_then(|org| match_org(candidates, org)) {
-        return Ok(Some(path));
-    }
-    pick_target(candidates)
-}
-
 pub fn pick_target(
     candidates: &[(SystemTime, PathBuf)],
-) -> Result<Option<PathBuf>, ResolveTargetError> {
+) -> Result<Option<(PathBuf, TargetSource)>, ResolveTargetError> {
     if candidates.is_empty() {
         return Ok(None);
     }
@@ -208,7 +230,7 @@ pub fn pick_target(
         org_uuid_of(p.as_path()).as_deref() == Some(PERSONAL_SESSION_UUID)
             && usable_org_dir(p.as_path())
     }) {
-        return Ok(Some(path.clone()));
+        return Ok(Some((path.clone(), TargetSource::Personal)));
     }
 
     let usable: Vec<&PathBuf> = candidates
@@ -226,7 +248,7 @@ pub fn pick_target(
             );
             Ok(None)
         },
-        [only] => Ok(Some((*only).clone())),
+        [only] => Ok(Some(((*only).clone(), TargetSource::OnlySession))),
         many => {
             let listed = many
                 .iter()

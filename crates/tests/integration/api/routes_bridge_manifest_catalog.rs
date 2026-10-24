@@ -178,7 +178,7 @@ async fn host_model_filter_round_trips_into_manifest_and_clears() -> anyhow::Res
         .oneshot(authed_post(
             "/bridge/profile/host-model-filter",
             cred.jwt.as_str(),
-            serde_json::json!({"host_id": "claude-code", "model_protocols": ["anthropic", "openai"]}),
+            serde_json::json!({"host_id": "claude-code", "model_protocols": ["claude", "openai"]}),
         ))
         .await?;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -186,14 +186,14 @@ async fn host_model_filter_round_trips_into_manifest_and_clears() -> anyhow::Res
     assert_eq!(echoed["host_id"].as_str(), Some("claude-code"));
     assert_eq!(
         echoed["model_protocols"],
-        serde_json::json!(["anthropic", "openai"])
+        serde_json::json!(["claude", "openai"])
     );
 
     let (status, body) = fetch_manifest(app.clone(), cred.jwt.as_str()).await?;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(
         body["host_model_protocols"]["claude-code"],
-        serde_json::json!(["anthropic", "openai"]),
+        serde_json::json!(["claude", "openai"]),
         "{body}"
     );
 

@@ -21,9 +21,10 @@ use systemprompt_database::{
 };
 use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_files::FileRepository;
+use systemprompt_files::{FileRepository, FilesConfig};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
+use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_marketplace::inventory::PublishGuard;
@@ -33,9 +34,11 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
+use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
+mod accessors;
 mod context_loaders;
 mod debug_impls;
 mod repositories;
@@ -74,6 +77,7 @@ pub struct DataPlane {
 pub struct ConfigPlane {
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
+    pub files_config: Arc<FilesConfig>,
     pub content_config: Option<Arc<ContentConfigRaw>>,
     pub route_classifier: Arc<RouteClassifier>,
 }
@@ -89,6 +93,7 @@ pub struct Plugins {
 #[derive(Clone)]
 pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
+    pub logging: LoggingRuntime,
     pub authz_hook: SharedAuthzHook,
     pub governance: Arc<GovernanceEngine>,
     pub cache_epochs: CacheEpochs,
@@ -102,6 +107,7 @@ pub struct Subsystems {
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
+    pub connector_tokens: Arc<TokenCache>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the
@@ -251,10 +257,6 @@ impl AppContext {
         &self.subsystems.publish_guard
     }
 
-    pub fn system_admin(&self) -> &SystemAdmin {
-        &self.subsystems.system_admin
-    }
-
     pub const fn mcp_registry(&self) -> &RegistryService {
         &self.plugins.mcp_registry
     }
@@ -271,17 +273,5 @@ impl AppContext {
     #[must_use]
     pub fn schema_state(&self) -> &crate::SchemaState {
         &self.subsystems.schema_install
-    }
-
-    pub const fn shutdown_request(&self) -> &ShutdownRequest {
-        &self.subsystems.shutdown
-    }
-
-    pub const fn background_tasks(&self) -> &BackgroundTasks {
-        &self.subsystems.background_tasks
-    }
-
-    pub fn request_restart(&self, reason: &str) {
-        self.subsystems.shutdown.request(reason);
     }
 }

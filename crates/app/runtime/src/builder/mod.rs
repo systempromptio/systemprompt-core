@@ -150,11 +150,14 @@ impl AppContextBuilder {
         let CoreLayer {
             config,
             app_paths,
+            files_config,
             database,
             authz_hook,
             governance,
             file_storage,
             cache_epochs,
+            log_sink,
+            policy,
         } = init_core(self.authz_hook).await?;
 
         let (extension_registry, schema_install) = init_extensions(
@@ -173,15 +176,18 @@ impl AppContextBuilder {
         )?;
 
         let (repositories, user_service, system_admin, mcp_registry) =
-            build_domain_layer(&config, &database, content.analytics_repositories).await?;
+            build_domain_layer(&config, &database, content.analytics_repositories, policy).await?;
 
         let marketplace_filter = self
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
+        let (ai_service, connector_tokens) =
+            ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
         let subsystems = Subsystems {
-            ai_service: ai_service::build_ai_service(&database, &repositories, &mcp_registry)?,
+            ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance),
+            logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
             authz_hook,
             governance,
@@ -194,6 +200,7 @@ impl AppContextBuilder {
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks: self.background_tasks.unwrap_or_default(),
             publish_guard: Arc::default(),
+            connector_tokens,
         };
 
         Ok(AppContext::from_parts(
@@ -207,6 +214,7 @@ impl AppContextBuilder {
             ConfigPlane {
                 config,
                 app_paths,
+                files_config,
                 content_config: content.content_config,
                 route_classifier: content.route_classifier,
             },
@@ -230,6 +238,7 @@ fn event_router_or_outbox(
         EventRouter::with_outbox(
             database.write_pool().as_ref().clone(),
             config.instance_id.clone(),
+            Arc::new(systemprompt_events::EventBroadcasters::new()),
         )
     })
 }
@@ -251,19 +260,24 @@ async fn build_domain_layer(
     config: &Config,
     database: &systemprompt_database::DbPool,
     analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+    policy: systemprompt_marketplace::managed::PublicationPolicy,
 ) -> RuntimeResult<(
     composition::RepositoryBundles,
     Arc<UserService>,
     Arc<systemprompt_manifest::SystemAdmin>,
     RegistryService,
 )> {
-    let mut repositories =
-        build_repositories(database, analytics_repositories, config.instance_id.clone());
+    let mut repositories = build_repositories(
+        database,
+        analytics_repositories,
+        config.instance_id.clone(),
+        policy,
+    );
     let user_service = Arc::new(
         UserService::new(Arc::clone(&repositories.users))
             .with_owner_reassignments(owner_reassignments(database)),
     );
-    let system_admin = assembly::resolve_and_install_system_admin(config, &user_service).await?;
+    let system_admin = assembly::load_system_admin(config, &user_service).await?;
     repositories.install_organization_resolver(system_admin.id());
     let mcp_registry = RegistryService::new(system_admin.id().clone());
     ensure_legacy_context(&repositories, &system_admin).await?;

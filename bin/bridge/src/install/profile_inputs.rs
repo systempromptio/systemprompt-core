@@ -12,7 +12,6 @@
 use std::collections::BTreeMap;
 
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::providers::ApiSurface;
 
 use crate::gateway::types::BridgeProfile;
 use crate::ids::{HostToken, LoopbackSecret};
@@ -37,8 +36,9 @@ pub struct ProfileGenInputs {
     pub mcp_servers: Option<Vec<McpServerEntry>>,
 }
 
-
-pub type ModelProtocolOverrides = BTreeMap<String, Vec<String>>;
+/// The user's per-host model filters, as the gateway stores them and serves
+/// them in the signed manifest. The server is their one store.
+pub type ModelProtocolOverrides = BTreeMap<HostKind, Vec<String>>;
 
 /// Why the facts a host profile is rendered from could not be read.
 #[derive(Debug, thiserror::Error)]
@@ -48,11 +48,13 @@ pub enum ProfileFactsError {
     #[error("loopback secret: {0}")]
     LoopbackSecret(#[source] std::io::Error),
     #[error("cached bridge profile: {0}")]
-    ProfileCache(#[from] crate::gateway::profile_cache::ProfileCacheError),
+    ProfileCache(#[from] crate::auth::profile_cache::ProfileCacheError),
     #[error("resolve managed MCP servers: {0}")]
     ManagedServers(#[source] std::io::Error),
-    #[error("last sync record: {0}")]
-    LastSync(#[from] crate::last_sync::ReplayStateError),
+    #[error("stored manifest envelope: {0}")]
+    StoredManifest(#[source] std::io::Error),
+    #[error("decode stored manifest: {0}")]
+    ManifestDecode(#[from] crate::gateway::manifest::ManifestError),
 }
 
 /// The local facts a host profile is rendered from.
@@ -69,7 +71,6 @@ pub struct ProfileFacts {
     pub profile: Option<BridgeProfile>,
     pub mcp_servers: Option<Vec<McpServerEntry>>,
     pub overrides: ModelProtocolOverrides,
-    pub operator_org_uuid: Option<String>,
 }
 
 impl ProfileFacts {
@@ -78,12 +79,11 @@ impl ProfileFacts {
         registry: &crate::mcp_registry::McpRegistry,
         overrides: ModelProtocolOverrides,
     ) -> Result<Self, ProfileFactsError> {
-        let cfg = crate::config::load()?;
         let secret = loopback
             .secret()
             .map_err(ProfileFactsError::LoopbackSecret)?;
         let mcp_servers = if crate::mcp_registry::fragment_exists() {
-            crate::install::mdm::policy::mcp_entries(loopback, registry)
+            crate::install::mdm::policy_mcp::mcp_entries(loopback, registry)
                 .map_err(ProfileFactsError::ManagedServers)?
         } else {
             None
@@ -91,56 +91,47 @@ impl ProfileFacts {
         Ok(Self {
             gateway_base_url: loopback.origin(),
             secret,
-            profile: crate::gateway::profile_cache::load()?,
+            profile: crate::auth::profile_cache::load()?,
             mcp_servers,
             overrides,
-            operator_org_uuid: cfg
-                .deployment_organization_uuid
-                .as_ref()
-                .map(|uuid| uuid.as_str().to_owned()),
         })
     }
 
+    // Why: the filters are read from the envelope the gateway signed, not
+    // from a bridge-side copy; a manifest from another gateway is not this
+    // user's filter set.
     pub fn persisted_overrides() -> Result<ModelProtocolOverrides, ProfileFactsError> {
-        let Some(meta) = crate::config::paths::bridge_metadata_dir() else {
+        let Some(fragment) =
+            crate::mcp_registry::read_envelope().map_err(ProfileFactsError::StoredManifest)?
+        else {
             return Ok(ModelProtocolOverrides::new());
         };
-        Ok(
-            crate::last_sync::read_last_sync(&meta.join(crate::config::paths::LAST_SYNC_SENTINEL))?
-                .map(|state| state.host_model_protocols)
-                .unwrap_or_default(),
-        )
+        let cfg = crate::config::load()?;
+        let gateway = crate::config::gateway_url_or_default(&cfg);
+        if !crate::mcp_registry::same_origin(&fragment.gateway, &gateway) {
+            return Ok(ModelProtocolOverrides::new());
+        }
+        Ok(crate::gateway::manifest::decode_payload(&fragment.envelope)?.host_model_protocols)
     }
 
-    // Why: the operator's `deployment_organization_uuid` is the deployment's
-    // own setting and outranks what the gateway advertises for the tenant.
     #[must_use]
-    pub fn inputs_for(&self, host: HostKind, accepted_surfaces: &[ApiSurface]) -> ProfileGenInputs {
-        let surfaces = crate::gateway::model_view::effective_surfaces(
-            host,
-            accepted_surfaces,
-            &self.overrides,
-        );
+    pub fn inputs_for(&self, host: HostKind) -> ProfileGenInputs {
+        let clients = crate::gateway::model_view::HostClients::for_host(host, &self.overrides);
         let mut headers = BTreeMap::new();
-        if !surfaces.is_empty() {
+        if !clients.families.is_empty() {
             headers.insert(
                 systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),
-                surfaces
-                    .iter()
-                    .map(|s| s.as_tag())
-                    .collect::<Vec<_>>()
-                    .join(","),
+                clients.tags().join(","),
             );
         }
         let (models, model_limits, default_model, gateway_org) = self.profile.as_ref().map_or_else(
             || (Vec::new(), BTreeMap::new(), None, None),
             |profile| {
-                let models = if host == HostKind::ClaudeDesktop {
-                    crate::gateway::model_view::desktop_models(&profile.models)
-                } else {
-                    crate::gateway::model_view::host_model_view(&profile.providers, &surfaces)
-                        .compatible_models
-                };
+                let models = crate::gateway::model_view::host_model_view(
+                    &profile.providers,
+                    &clients.families,
+                )
+                .compatible_models;
                 (
                     models,
                     profile.model_limits.clone(),
@@ -155,7 +146,7 @@ impl ProfileFacts {
             models,
             model_limits,
             default_model,
-            organization_uuid: self.operator_org_uuid.clone().or(gateway_org),
+            organization_uuid: gateway_org,
             headers,
             mcp_servers: self.mcp_servers.clone(),
         }

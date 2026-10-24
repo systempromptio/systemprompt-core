@@ -1,0 +1,256 @@
+//! Subprocess-free process enumeration: image basename plus, when available,
+//! the full executable path.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::path::PathBuf;
+
+mod classify;
+
+pub(crate) use classify::find_processes;
+pub use classify::{ProcessHit, classify_process};
+
+#[derive(Debug, Clone)]
+pub(crate) struct ProcInfo {
+    pub name: String,
+    pub path: Option<String>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SysprocError {
+    #[error("process enumeration failed: {source}")]
+    Enumerate {
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("process enumeration is not supported on this platform")]
+    Unsupported,
+}
+
+pub(crate) fn list_processes() -> Result<Vec<ProcInfo>, SysprocError> {
+    #[cfg(target_os = "windows")]
+    {
+        windows::list()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        macos::list()
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        linux::list()
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        Err(SysprocError::Unsupported)
+    }
+}
+
+#[cfg(target_os = "windows")]
+mod windows {
+    #![allow(unsafe_code, reason = "Win32 ToolHelp32 process enumeration FFI")]
+
+    use super::{ProcInfo, SysprocError};
+    use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
+        TH32CS_SNAPPROCESS,
+    };
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+    };
+
+    pub(super) fn list() -> Result<Vec<ProcInfo>, SysprocError> {
+        // SAFETY: `CreateToolhelp32Snapshot` has no preconditions and reports failure
+        // as an invalid handle, checked immediately below.
+        let snap = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+        if snap == INVALID_HANDLE_VALUE || snap.is_null() {
+            return Err(SysprocError::Enumerate {
+                source: std::io::Error::last_os_error(),
+            });
+        }
+        let mut out = Vec::new();
+        // SAFETY: `PROCESSENTRY32W` is plain-old-data for which all-zero is valid
+        // before `dwSize` is set.
+        let mut entry = unsafe { std::mem::zeroed::<PROCESSENTRY32W>() };
+        entry.dwSize = u32::try_from(size_of::<PROCESSENTRY32W>()).unwrap_or(0);
+        // SAFETY: `snap` is a live snapshot handle and `entry` is initialized with
+        // `dwSize`.
+        if unsafe { Process32FirstW(snap, &raw mut entry) } != 0 {
+            loop {
+                let exe_field = &entry.szExeFile;
+                let len = exe_field
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(exe_field.len());
+                let name = String::from_utf16_lossy(&exe_field[..len]);
+                let path = image_path(entry.th32ProcessID);
+                out.push(ProcInfo { name, path });
+                // SAFETY: `snap` remains valid and `entry` stays initialized across iterations.
+                if unsafe { Process32NextW(snap, &raw mut entry) } == 0 {
+                    break;
+                }
+            }
+        }
+        // SAFETY: `snap` is the live snapshot handle owned by this function.
+        unsafe { CloseHandle(snap) };
+        Ok(out)
+    }
+
+    fn image_path(pid: u32) -> Option<String> {
+        const MAX_PATH_LONG: usize = 32_768;
+
+        // SAFETY: `OpenProcess` takes plain scalars and reports failure with a
+        // null handle, checked immediately below.
+        let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+        if handle.is_null() {
+            return None;
+        }
+        let mut buf = vec![0u16; MAX_PATH_LONG];
+        let mut len = u32::try_from(buf.len()).unwrap_or(0);
+        // SAFETY: `handle` is a live process handle and `buf`/`len` are a matched
+        // buffer and capacity out-param.
+        let ok = unsafe { QueryFullProcessImageNameW(handle, 0, buf.as_mut_ptr(), &raw mut len) };
+        // SAFETY: `handle` is the live handle owned by this function.
+        unsafe { CloseHandle(handle) };
+        if ok == 0 {
+            return None;
+        }
+        let len = usize::try_from(len).unwrap_or(0).min(buf.len());
+        Some(String::from_utf16_lossy(&buf[..len]))
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod macos {
+    #![allow(unsafe_code, reason = "macOS libproc process enumeration FFI")]
+
+    use super::{ProcInfo, SysprocError};
+
+    const PROC_ALL_PIDS: u32 = 1;
+    const PATH_MAX_BYTES: usize = 4096;
+
+    unsafe extern "C" {
+        fn proc_listpids(
+            r#type: u32,
+            typeinfo: u32,
+            buffer: *mut libc::c_void,
+            buffersize: libc::c_int,
+        ) -> libc::c_int;
+
+        fn proc_pidpath(
+            pid: libc::c_int,
+            buffer: *mut libc::c_void,
+            buffersize: u32,
+        ) -> libc::c_int;
+    }
+
+    pub(super) fn list() -> Result<Vec<ProcInfo>, SysprocError> {
+        // SAFETY: a null buffer with zero length is the documented way to query the
+        // required size; the call only reads `type`/`typeinfo` scalars.
+        let needed = unsafe { proc_listpids(PROC_ALL_PIDS, 0, std::ptr::null_mut(), 0) };
+        if needed <= 0 {
+            return Err(SysprocError::Enumerate {
+                source: std::io::Error::last_os_error(),
+            });
+        }
+        let count = (needed as usize) / size_of::<libc::pid_t>();
+        let mut pids = vec![0i32; count + 32];
+        let bytes = i32::try_from(pids.len() * size_of::<libc::pid_t>()).unwrap_or(0);
+        // SAFETY: `pids` is a live buffer of `bytes` length that the call fills with
+        // pids.
+        let written = unsafe {
+            proc_listpids(
+                PROC_ALL_PIDS,
+                0,
+                pids.as_mut_ptr().cast::<libc::c_void>(),
+                bytes,
+            )
+        };
+        if written <= 0 {
+            return Err(SysprocError::Enumerate {
+                source: std::io::Error::last_os_error(),
+            });
+        }
+        let n = (written as usize) / size_of::<libc::pid_t>();
+        let mut out = Vec::with_capacity(n);
+        let mut buf = vec![0u8; PATH_MAX_BYTES];
+        for &pid in pids.iter().take(n) {
+            if pid <= 0 {
+                continue;
+            }
+            // SAFETY: `buf` is a live buffer of `PATH_MAX_BYTES` length for the path
+            // output.
+            let len = unsafe {
+                proc_pidpath(
+                    pid,
+                    buf.as_mut_ptr().cast::<libc::c_void>(),
+                    PATH_MAX_BYTES as u32,
+                )
+            };
+            if len <= 0 {
+                continue;
+            }
+            let path = String::from_utf8_lossy(&buf[..len as usize]).to_string();
+            let name = std::path::Path::new(&path)
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default();
+            out.push(ProcInfo {
+                name,
+                path: Some(path),
+            });
+        }
+        Ok(out)
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+mod linux {
+    use super::{ProcInfo, SysprocError};
+    use std::fs;
+
+    pub(super) fn list() -> Result<Vec<ProcInfo>, SysprocError> {
+        let entries = fs::read_dir("/proc").map_err(|source| SysprocError::Enumerate { source })?;
+        let mut out = Vec::new();
+        for entry in entries.flatten() {
+            let file_name = entry.file_name();
+            let Some(name_str) = file_name.to_str() else {
+                continue;
+            };
+            if name_str.parse::<u32>().is_err() {
+                continue;
+            }
+            // Why: /proc entries vanish between readdir and read; a missing
+            // comm is a process that exited, not an enumeration failure.
+            let Ok(comm) = fs::read_to_string(format!("/proc/{name_str}/comm")) else {
+                continue;
+            };
+            let name = comm.trim().to_owned();
+            let path = fs::read_link(format!("/proc/{name_str}/exe"))
+                .ok()
+                .map(|p| p.display().to_string());
+            out.push(ProcInfo { name, path });
+        }
+        Ok(out)
+    }
+}
+
+pub fn binary_on_path(binary: &str) -> Option<PathBuf> {
+    let paths = std::env::var_os("PATH")?;
+    std::env::split_paths(&paths).find_map(|dir| {
+        ["", ".exe", ".cmd"]
+            .iter()
+            .map(|ext| dir.join(format!("{binary}{ext}")))
+            .find(|candidate| candidate.is_file())
+    })
+}
+
+pub(crate) fn host_name() -> Option<String> {
+    hostname::get()
+        .ok()
+        .and_then(|name| name.into_string().ok())
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty())
+}

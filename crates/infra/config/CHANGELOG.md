@@ -5,6 +5,8 @@
 ### Breaking
 
 - `ProfileBootstrap` loads the layered profile (`Profile::load_from_path`).
+- `ProviderCatalogService` edits the four catalog registries of a `CatalogDocument` (credentials, providers with endpoints, models, deployments) instead of a `ProviderRegistry` list: `upsert_/remove_{credential, provider, endpoint, model}` take a `CatalogContext`, apply each edit to a copy, re-resolve it and refuse (`ConfigError::CatalogRefused`) when the result does not build. `CredentialSpec`, `ProviderSpec`, `EndpointSpec` and `ModelSpec` (a model upsert takes its deployments and an optional price) keep every field they leave unset, so an upsert never drops a credential, user agent, headers, betas or resilience. `read_catalog` / `write_catalog` read and write the `services/ai` files (`gateway.yaml` is never written). `ConfigError::ModelNotFound` no longer names a provider; `CredentialNotFound`, `EndpointNotFound`, `ModelWithoutDeployments`, `CatalogRefused` and `CatalogDocument` are new.
+## [Unreleased]
 
 ### Fixed
 

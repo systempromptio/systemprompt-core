@@ -41,7 +41,7 @@ impl AiService {
     pub async fn generate_with_tools(&self, request: &AiRequest) -> Result<AiResponse> {
         let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
-        let provider = self.get_provider(request.provider())?;
+        let provider = self.get_provider(request)?;
         let model = request.model();
         let tools = request.tools.as_deref().unwrap_or(&[]);
 
@@ -199,7 +199,7 @@ impl AiService {
     ) -> Result<(AiResponse, Vec<ToolCall>)> {
         let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
-        let provider = self.get_provider(request.provider())?;
+        let provider = self.get_provider(request)?;
         let model = request.model();
         let tools = request.tools.clone().unwrap_or_else(Vec::new);
 

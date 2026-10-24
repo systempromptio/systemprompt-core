@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use async_trait::async_trait;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{SsoAssertionId, UserId};
 use systemprompt_oauth_issuance::sso::{RoleResolver, SsoHookContext};
 use systemprompt_oauth_issuance::{
     register_auth_event_sink, register_role_resolver, register_sso_provider,
@@ -163,7 +163,7 @@ impl SsoProvider for FakeProvider {
             groups,
             groups_overage: ret.param("overage").is_some(),
             tenant_id: None,
-            assertion_id: ret.param("assertion").map(str::to_owned),
+            assertion_id: ret.param("assertion").map(SsoAssertionId::new),
             assertion_expires_at: None,
             raw_claims: serde_json::Value::Null,
         })

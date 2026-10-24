@@ -23,6 +23,8 @@ pub enum CatalogFetchError {
     Unreachable { reason: String },
     #[error("gateway not probed")]
     NotProbed,
+    #[error("{reason}")]
+    SignedOut { reason: String },
 }
 
 /// How far the held [`InferenceCatalog`] can be trusted.

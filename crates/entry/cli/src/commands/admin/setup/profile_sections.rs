@@ -21,13 +21,14 @@ use systemprompt_manifest::{
     Environment, LogLevel, OutputFormat, PathsConfig, RuntimeConfig, SecurityConfig, ServerConfig,
 };
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL};
 
 pub(super) fn server(is_prod: bool) -> ServerConfig {
     let host = if is_prod { "0.0.0.0" } else { "127.0.0.1" };
-    let mut server = ServerConfig::new(host, 8080, "http://localhost:8080");
+    let mut server = ServerConfig::new(host, DEFAULT_API_PORT, DEFAULT_API_URL);
     server.extra_cors_origins = vec![
         "http://localhost:5173".to_owned(),
-        "http://127.0.0.1:8080".to_owned(),
+        format!("http://127.0.0.1:{DEFAULT_API_PORT}"),
     ];
     server.role = systemprompt_manifest::profile::NodeRole::All;
     server

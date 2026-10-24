@@ -17,7 +17,7 @@ mod desktop_policy;
 pub mod filesystem;
 pub mod hooks;
 pub mod marketplace;
-pub mod opencode_tier;
+pub mod opencode;
 pub mod proxy;
 #[cfg(target_os = "windows")]
 pub mod registry;
@@ -98,7 +98,10 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.extend(proxy::check_proxy_client_config(&env));
     checks.extend(desktop_policy::check_settings(&env));
     checks.extend(claude_code::check_settings(&proxy.loopback().origin()));
-    checks.extend(opencode_tier::check_retired_admin_tier());
+    match crate::last_sync::last_synced_enabled_hosts() {
+        Ok(enabled) => checks.extend(opencode::checks(enabled.as_deref())),
+        Err(e) => checks.push(Check::warn("enabled hosts", e.to_string())),
+    }
     if let Some(check) = hooks::check_hook_urls(proxy.port()) {
         checks.push(check);
     }
@@ -124,8 +127,8 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.push(filesystem::check_private_files());
     checks.push(filesystem::check_bridge_working_dir());
     checks.push(filesystem::check_org_plugins_writable());
-    checks.push(auth::check_credential_store());
-    checks.push(auth::check_hook_token_mint(&client).await);
+    checks.push(auth::check_credential_store(bridge.secrets()));
+    checks.push(auth::check_hook_token_mint(bridge.secrets(), &client).await);
     let any_fail = checks.iter().any(|c| matches!(c.status, Status::Fail));
     (checks, any_fail)
 }
