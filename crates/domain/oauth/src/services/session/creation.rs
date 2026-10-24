@@ -46,6 +46,7 @@ impl SessionCreationService {
         let config = systemprompt_manifest::Config::get()?;
         let signing = JwtSigningParams {
             issuer: &config.jwt_issuer,
+            keys: &self.keys,
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)?;
 

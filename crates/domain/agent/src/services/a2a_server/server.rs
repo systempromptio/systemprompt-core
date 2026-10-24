@@ -107,6 +107,7 @@ impl Server {
             oauth_config,
             global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
+            agent_state.signing_keys().clone(),
         );
 
         oauth_state = oauth_state.with_jwt_provider(Arc::clone(agent_state.jwt_provider()));

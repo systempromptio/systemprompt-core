@@ -10,6 +10,7 @@ use std::future::Future;
 
 use systemprompt_identifiers::ServiceName;
 use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser};
+use systemprompt_security::keys::SigningKeys;
 
 pub use authentication::AuthenticationService;
 pub use authorization::AuthorizationService;
@@ -61,21 +62,26 @@ impl AuthService {
             .map_err(|_e| http::StatusCode::UNAUTHORIZED)
     }
 
-    pub fn authenticate(headers: &http::HeaderMap) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthenticationService::authenticate(headers)
+    pub fn authenticate(
+        keys: &SigningKeys,
+        headers: &http::HeaderMap,
+    ) -> Result<AuthenticatedUser, http::StatusCode> {
+        AuthenticationService::authenticate(keys, headers)
     }
 
     pub fn authorize_service_access(
+        keys: &SigningKeys,
         headers: &http::HeaderMap,
         service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthorizationService::authorize_service_access(headers, service_name)
+        AuthorizationService::authorize_service_access(keys, headers, service_name)
     }
 
     pub fn authorize_required_audience(
+        keys: &SigningKeys,
         headers: &http::HeaderMap,
         required_audience: &str,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthorizationService::authorize_required_audience(headers, required_audience)
+        AuthorizationService::authorize_required_audience(keys, headers, required_audience)
     }
 }

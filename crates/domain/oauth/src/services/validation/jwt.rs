@@ -9,15 +9,17 @@
 
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_security::jwt::{ValidationPolicy, decode_rs256_claims};
+use systemprompt_security::keys::SigningKeys;
 
 use crate::error::OauthResult;
 use crate::models::JwtClaims;
 
 pub fn validate_jwt_token(
+    keys: &SigningKeys,
     token: &str,
     issuer: &str,
     audiences: &[JwtAudience],
 ) -> OauthResult<JwtClaims> {
     let policy = ValidationPolicy::issuer_scoped(issuer, audiences);
-    Ok(decode_rs256_claims(token, &policy)?)
+    Ok(decode_rs256_claims(keys, token, &policy)?)
 }

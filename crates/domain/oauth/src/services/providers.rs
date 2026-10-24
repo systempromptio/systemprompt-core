@@ -5,6 +5,7 @@
 
 use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
@@ -18,21 +19,27 @@ use super::validation::jwt::validate_jwt_token;
 pub struct JwtValidationProviderImpl {
     issuer: String,
     audiences: Vec<JwtAudience>,
+    keys: SigningKeys,
 }
 
 impl JwtValidationProviderImpl {
     #[must_use]
-    pub const fn new(issuer: String, audiences: Vec<JwtAudience>) -> Self {
-        Self { issuer, audiences }
+    pub const fn new(issuer: String, audiences: Vec<JwtAudience>, keys: SigningKeys) -> Self {
+        Self {
+            issuer,
+            audiences,
+            keys,
+        }
     }
 
-    pub fn from_config() -> JwtResult<Self> {
+    pub fn from_config(keys: SigningKeys) -> JwtResult<Self> {
         let config = systemprompt_manifest::Config::get()
             .map_err(|e| JwtProviderError::Internal(Box::new(e)))?;
 
         Ok(Self {
             issuer: config.jwt_issuer.clone(),
             audiences: config.jwt_audiences.clone(),
+            keys,
         })
     }
 }
@@ -40,9 +47,11 @@ impl JwtValidationProviderImpl {
 impl JwtValidationProvider for JwtValidationProviderImpl {
     fn validate_token(&self, token: &str) -> JwtResult<AgentJwtClaims> {
         let claims =
-            validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| match e {
-                OauthError::Expired(_) => JwtProviderError::TokenExpired,
-                _ => JwtProviderError::InvalidToken,
+            validate_jwt_token(&self.keys, token, &self.issuer, &self.audiences).map_err(|e| {
+                match e {
+                    OauthError::Expired(_) => JwtProviderError::TokenExpired,
+                    _ => JwtProviderError::InvalidToken,
+                }
             })?;
 
         let is_admin = claims.is_admin();
@@ -125,6 +134,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
         let jti = AccessTokenId::new(generate_secure_token("jwt"));
         let signing = JwtSigningParams {
             issuer: &self.issuer,
+            keys: &self.keys,
         };
 
         generate_jwt(&user, config, jti, &params.session_id, &signing)

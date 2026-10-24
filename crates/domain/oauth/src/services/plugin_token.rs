@@ -36,7 +36,7 @@ pub struct PluginTokenService;
 impl PluginTokenService {
     pub fn issue(
         subject: PluginTokenSubject,
-        issuer: &str,
+        signing: &JwtSigningParams<'_>,
         plugin_id: PluginId,
         duration_days: u32,
         session_id: &SessionId,
@@ -50,7 +50,6 @@ impl PluginTokenService {
             Vec::new(),
         );
 
-        let signing = JwtSigningParams { issuer };
         let jti = AccessTokenId::generate();
 
         let config = JwtConfig {
@@ -63,7 +62,7 @@ impl PluginTokenService {
             purpose: None,
         };
 
-        let token = generate_jwt(&authenticated, config, jti.clone(), session_id, &signing)?;
+        let token = generate_jwt(&authenticated, config, jti.clone(), session_id, signing)?;
 
         Ok(IssuedPluginToken { token, jti })
     }

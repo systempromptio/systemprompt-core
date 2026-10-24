@@ -31,6 +31,7 @@ use systemprompt_models::bridge::manifest::{
     ManifestClaudeCode, ManifestMarketplace, ManifestOpenCode, SignedManifest,
     SignedManifestEnvelope, ThemeRef,
 };
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
@@ -161,9 +162,12 @@ impl ManifestService {
         Ok(filtered)
     }
 
-    pub fn seal(manifest: &SignedManifest) -> Result<SignedManifestEnvelope, MarketplaceError> {
+    pub fn seal(
+        keys: &SigningKeys,
+        manifest: &SignedManifest,
+    ) -> Result<SignedManifestEnvelope, MarketplaceError> {
         let payload = manifest_signing::canonicalize(manifest)?;
-        let signature = manifest_signing::sign_bytes(payload.as_bytes())?;
+        let signature = keys.sign_manifest_bytes(payload.as_bytes());
         Ok(SignedManifestEnvelope {
             payload,
             signature: ManifestSignature::new(signature),

@@ -21,6 +21,7 @@ use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
 use systemprompt_models::execution::context::ExecutionContext;
+use systemprompt_security::keys::SigningKeys;
 
 use super::{extract_bearer_token, extract_request_context};
 
@@ -88,6 +89,7 @@ pub async fn enforce_rbac_from_registry(
     server_id: &McpServerId,
     hook: &SharedAuthzHook,
     services_config: &ServicesConfig,
+    keys: &SigningKeys,
 ) -> Result<AuthResult, McpError> {
     let header_dump = mcp_context
         .extensions
@@ -137,7 +139,7 @@ pub async fn enforce_rbac_from_registry(
         )
     })?;
 
-    let claims = validate_and_extract_claims(server_id, &token)?;
+    let claims = validate_and_extract_claims(keys, server_id, &token)?;
     validate_audience(server_id, &claims, oauth_config)?;
     validate_scopes_for_permissions(server_id, &claims.get_permissions(), oauth_config)?;
 

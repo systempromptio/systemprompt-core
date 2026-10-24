@@ -42,9 +42,10 @@
 //! ```no_run
 //! use systemprompt_models::auth::JwtAudience;
 //! use systemprompt_security::AuthValidationService;
+//! use systemprompt_security::keys::SigningKeys;
 //!
-//! # fn demo(headers: &axum::http::HeaderMap) -> systemprompt_security::AuthResult<()> {
-//! let svc = AuthValidationService::new("systemprompt.io".to_string(), JwtAudience::standard());
+//! # fn demo(headers: &axum::http::HeaderMap, keys: SigningKeys) -> systemprompt_security::AuthResult<()> {
+//! let svc = AuthValidationService::new("systemprompt.io".to_string(), JwtAudience::standard(), keys);
 //! let _ctx = svc.validate_request(headers)?;
 //! # Ok(())
 //! # }

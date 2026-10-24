@@ -7,6 +7,7 @@ use crate::TokenValidator;
 use crate::error::OauthError;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser, JwtAudience};
+use systemprompt_security::keys::SigningKeys;
 
 use crate::services::validation::jwt;
 
@@ -14,14 +15,19 @@ use crate::services::validation::jwt;
 pub struct JwtTokenValidator {
     issuer: String,
     audiences: Vec<JwtAudience>,
+    keys: SigningKeys,
 }
 
 impl JwtTokenValidator {
-    pub const fn new(issuer: String, audiences: Vec<JwtAudience>) -> Self {
-        Self { issuer, audiences }
+    pub const fn new(issuer: String, audiences: Vec<JwtAudience>, keys: SigningKeys) -> Self {
+        Self {
+            issuer,
+            audiences,
+            keys,
+        }
     }
 
-    pub fn from_config() -> Result<Self, AuthRequestError> {
+    pub fn from_config(keys: SigningKeys) -> Result<Self, AuthRequestError> {
         let config = systemprompt_manifest::Config::get().map_err(|error| {
             tracing::error!(%error, "JWT validator could not read the configuration");
             AuthRequestError::AuthenticationFailed {
@@ -31,6 +37,7 @@ impl JwtTokenValidator {
         Ok(Self {
             issuer: config.jwt_issuer.clone(),
             audiences: config.jwt_audiences.clone(),
+            keys,
         })
     }
 }
@@ -42,17 +49,15 @@ impl TokenValidator for JwtTokenValidator {
                   validator decodes the JWT synchronously"
     )]
     async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthRequestError> {
-        let claims =
-            jwt::validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|error| {
-                match error {
-                    OauthError::Expired(_) => AuthRequestError::TokenExpired,
-                    other => {
-                        tracing::debug!(error = %other, "JWT validation failed");
-                        AuthRequestError::AuthenticationFailed {
-                            message: "JWT validation failed".to_owned(),
-                        }
-                    },
-                }
+        let claims = jwt::validate_jwt_token(&self.keys, token, &self.issuer, &self.audiences)
+            .map_err(|error| match error {
+                OauthError::Expired(_) => AuthRequestError::TokenExpired,
+                other => {
+                    tracing::debug!(error = %other, "JWT validation failed");
+                    AuthRequestError::AuthenticationFailed {
+                        message: "JWT validation failed".to_owned(),
+                    }
+                },
             })?;
 
         let user_id = UserId::try_new(claims.registered.sub.as_str())

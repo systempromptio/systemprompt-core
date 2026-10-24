@@ -26,6 +26,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,
 };
@@ -110,6 +111,7 @@ async fn adopt_or_mint_session(
 }
 
 pub async fn issue_bridge_access(
+    keys: &SigningKeys,
     analytics: &dyn AnalyticsProvider,
     sessions: &dyn SessionProvider,
     users: &dyn UserProvider,
@@ -137,6 +139,7 @@ pub async fn issue_bridge_access(
     let config = build_bridge_jwt_config(&auth_user, ttl, purpose);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
+        keys,
     };
     let token = generate_jwt(
         &auth_user,

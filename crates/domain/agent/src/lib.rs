@@ -35,7 +35,7 @@ pub(crate) mod state;
 
 pub use extension::AgentExtension;
 
-pub use state::AgentState;
+pub use state::{AgentAuth, AgentState};
 
 pub use models::a2a::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, AgentCapabilities, AgentCard, AgentInterface,

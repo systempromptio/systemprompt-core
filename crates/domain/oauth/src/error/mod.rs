@@ -117,9 +117,6 @@ pub enum OauthError {
     #[error("at-rest hashing failed: {0}")]
     AtRestHash(#[from] systemprompt_security::AtRestHashError),
 
-    #[error("signing key unavailable: {0}")]
-    SigningKey(#[from] systemprompt_security::keys::TokenAuthorityError),
-
     #[error("token signing failed: {0}")]
     Signing(#[from] jsonwebtoken::errors::Error),
 
@@ -280,7 +277,6 @@ impl OauthError {
             | Self::Config(_)
             | Self::Secrets(_)
             | Self::AtRestHash(_)
-            | Self::SigningKey(_)
             | Self::Signing(_)
             | Self::InvalidTokenLifetime { .. }
             | Self::Bcrypt(_)

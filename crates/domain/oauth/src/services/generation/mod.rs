@@ -18,7 +18,7 @@ use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, CustomClaims, JwtAudience, Permission, RateLimitTier,
     RegisteredClaims, TokenType, UserType,
 };
-use systemprompt_security::keys::authority;
+use systemprompt_security::keys::SigningKeys;
 
 pub mod id_jag;
 mod secret;
@@ -76,6 +76,7 @@ mod expires_in_seconds {
 #[derive(Debug, Clone)]
 pub struct JwtSigningParams<'a> {
     pub issuer: &'a str,
+    pub keys: &'a SigningKeys,
 }
 
 impl Default for JwtConfig {
@@ -113,7 +114,7 @@ pub fn generate_jwt_with_act(params: DelegatedJwtParams<'_>) -> Result<String> {
         params.signing,
     )?;
     token.custom.act = Some(params.act);
-    encode_claims(&token, params.signing)
+    encode_with_keys(params.signing.keys, &token)
 }
 
 fn build_claims(
@@ -165,29 +166,20 @@ fn build_claims(
     })
 }
 
-fn encode_claims(claims: &JwtClaims, _signing: &JwtSigningParams<'_>) -> Result<String> {
-    encode_with_authority(claims)
-}
-
-fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
-    let kid = authority::active_kid()?;
+fn encode_with_keys(keys: &SigningKeys, claims: &JwtClaims) -> Result<String> {
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_owned());
-    let key = authority::encoding_key()?;
-    let token = encode(&header, claims, key)?;
-    Ok(token)
+    header.kid = Some(keys.active_kid().to_owned());
+    Ok(encode(&header, claims, keys.encoding_key())?)
 }
 
-fn encode_id_jag_with_authority(
+fn encode_id_jag_with_keys(
+    keys: &SigningKeys,
     claims: &crate::services::validation::id_jag::IdJagClaims,
 ) -> Result<String> {
-    let kid = authority::active_kid()?;
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_owned());
+    header.kid = Some(keys.active_kid().to_owned());
     header.typ = Some(crate::services::validation::id_jag::ID_JAG_TYP.to_owned());
-    let key = authority::encoding_key()?;
-    let token = encode(&header, claims, key)?;
-    Ok(token)
+    Ok(encode(&header, claims, keys.encoding_key())?)
 }
 
 pub fn generate_jwt(
@@ -198,7 +190,7 @@ pub fn generate_jwt(
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
     let claims = build_claims(user, config, jti, session_id, signing)?;
-    encode_with_authority(&claims)
+    encode_with_keys(signing.keys, &claims)
 }
 
 pub fn generate_anonymous_jwt(
@@ -256,5 +248,5 @@ pub fn generate_anonymous_jwt_with_expiry(
         },
     };
 
-    encode_with_authority(&claims)
+    encode_with_keys(signing.keys, &claims)
 }

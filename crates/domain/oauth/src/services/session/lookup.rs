@@ -54,6 +54,7 @@ impl SessionCreationService {
             .ok()?;
         let signing = JwtSigningParams {
             issuer: &config.jwt_issuer,
+            keys: &self.keys,
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, client_id, &signing)
             .inspect_err(|e| {

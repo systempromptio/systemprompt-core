@@ -10,12 +10,14 @@ use std::str::FromStr;
 use systemprompt_identifiers::{ServiceName, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use systemprompt_security::TokenExtractor;
+use systemprompt_security::keys::SigningKeys;
 
 #[derive(Debug, Copy, Clone)]
 pub struct AuthorizationService;
 
 impl AuthorizationService {
     pub fn authorize_service_access(
+        keys: &SigningKeys,
         headers: &HeaderMap,
         service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, StatusCode> {
@@ -31,9 +33,12 @@ impl AuthorizationService {
         let config =
             systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let Ok(claims) =
-            jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-        else {
+        let Ok(claims) = jwt_validation::validate_jwt_token(
+            keys,
+            &token,
+            &config.jwt_issuer,
+            &config.jwt_audiences,
+        ) else {
             tracing::warn!(
                 service = %service_name,
                 "JWT validation failed"
@@ -54,6 +59,7 @@ impl AuthorizationService {
     }
 
     pub fn authorize_required_audience(
+        keys: &SigningKeys,
         headers: &HeaderMap,
         required_audience: &str,
     ) -> Result<AuthenticatedUser, StatusCode> {
@@ -63,9 +69,13 @@ impl AuthorizationService {
         let config =
             systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let claims =
-            jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-                .map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let claims = jwt_validation::validate_jwt_token(
+            keys,
+            &token,
+            &config.jwt_issuer,
+            &config.jwt_audiences,
+        )
+        .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
         let required_aud =
             JwtAudience::from_str(required_audience).map_err(|_e| StatusCode::BAD_REQUEST)?;
@@ -78,6 +88,7 @@ impl AuthorizationService {
     }
 
     pub fn authorize_any_audience(
+        keys: &SigningKeys,
         headers: &HeaderMap,
         allowed_audiences: &[&str],
     ) -> Result<AuthenticatedUser, StatusCode> {
@@ -87,9 +98,13 @@ impl AuthorizationService {
         let config =
             systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let claims =
-            jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-                .map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let claims = jwt_validation::validate_jwt_token(
+            keys,
+            &token,
+            &config.jwt_issuer,
+            &config.jwt_audiences,
+        )
+        .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
         let allowed_auds: Vec<JwtAudience> = allowed_audiences
             .iter()

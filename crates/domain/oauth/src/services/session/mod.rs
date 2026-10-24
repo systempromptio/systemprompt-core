@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     BoxedSource, CreateSessionInput, FingerprintProvider, SessionAnalytics, SessionProvider,
     UserProvider,
@@ -64,6 +65,7 @@ pub struct SessionCreationService {
     user_provider: Arc<dyn UserProvider>,
     fingerprint_locks: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
+    keys: SigningKeys,
 }
 
 impl std::fmt::Debug for SessionCreationService {
@@ -78,12 +80,14 @@ impl SessionCreationService {
     pub fn new(
         session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
+        keys: SigningKeys,
     ) -> Self {
         Self {
             session_provider,
             user_provider,
             fingerprint_locks: Arc::new(RwLock::new(HashMap::new())),
             fingerprint_provider: None,
+            keys,
         }
     }
 

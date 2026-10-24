@@ -5,6 +5,7 @@
 
 use chrono::Utc;
 use systemprompt_identifiers::ClientId;
+use systemprompt_security::keys::SigningKeys;
 
 use crate::error::OauthResult as Result;
 use crate::services::validation::id_jag::IdJagClaims;
@@ -20,6 +21,7 @@ pub struct IdJagGrant<'a> {
     pub scope: Option<&'a str>,
     pub ttl_secs: i64,
     pub issuer: &'a str,
+    pub keys: &'a SigningKeys,
 }
 
 pub fn mint_id_jag(grant: &IdJagGrant<'_>) -> Result<String> {
@@ -38,5 +40,5 @@ pub fn mint_id_jag(grant: &IdJagGrant<'_>) -> Result<String> {
         email_verified: grant.email_verified,
         resource: grant.resource.map(ToOwned::to_owned),
     };
-    super::encode_id_jag_with_authority(&claims)
+    super::encode_id_jag_with_keys(grant.keys, &claims)
 }
