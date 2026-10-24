@@ -8,7 +8,6 @@ async fn request_wakes_a_waiter() {
     let waiter = request.clone();
     let task = tokio::spawn(async move { waiter.requested().await });
 
-    tokio::time::sleep(Duration::from_millis(20)).await;
     request.request("test");
 
     let woken = tokio::time::timeout(Duration::from_secs(2), task).await;
@@ -31,17 +30,18 @@ async fn one_request_wakes_exactly_one_waiter() {
     let first = request.clone();
     let second = request.clone();
 
-    let a = tokio::spawn(async move { first.requested().await });
-    let b = tokio::spawn(async move { second.requested().await });
-    tokio::time::sleep(Duration::from_millis(20)).await;
+    let mut a = tokio::spawn(async move { first.requested().await });
+    let mut b = tokio::spawn(async move { second.requested().await });
 
     request.request("once");
-    tokio::time::sleep(Duration::from_millis(50)).await;
 
-    let finished = usize::from(a.is_finished()) + usize::from(b.is_finished());
-    assert_eq!(finished, 1, "a single request woke {finished} waiters");
-    a.abort();
-    b.abort();
+    let (woken, other) = tokio::select! {
+        result = &mut a => (result, &mut b),
+        result = &mut b => (result, &mut a),
+    };
+    assert!(woken.is_ok(), "the woken waiter panicked");
+    let second_wake = tokio::time::timeout(Duration::from_millis(50), other).await;
+    assert!(second_wake.is_err(), "a single request woke both waiters");
 }
 
 #[tokio::test]
@@ -62,14 +62,13 @@ async fn a_select_resolves_on_the_request_branch() {
 async fn a_separate_handle_does_not_signal_an_unrelated_waiter() {
     let other = ShutdownRequest::default();
     let waiter = ShutdownRequest::default();
-    let task = tokio::spawn(async move { waiter.requested().await });
-    tokio::time::sleep(Duration::from_millis(20)).await;
+    let mut task = tokio::spawn(async move { waiter.requested().await });
 
     other.request("unrelated");
-    tokio::time::sleep(Duration::from_millis(50)).await;
 
+    let woken = tokio::time::timeout(Duration::from_millis(50), &mut task).await;
     assert!(
-        !task.is_finished(),
+        woken.is_err(),
         "handles built separately must not share a notification"
     );
     task.abort();
@@ -80,7 +79,6 @@ async fn a_clone_observes_a_request_raised_on_the_original() {
     let request = ShutdownRequest::default();
     let waiter = request.clone();
     let task = tokio::spawn(async move { waiter.requested().await });
-    tokio::time::sleep(Duration::from_millis(20)).await;
 
     request.request("clone");
 
