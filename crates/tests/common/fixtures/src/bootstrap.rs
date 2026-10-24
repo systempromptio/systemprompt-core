@@ -56,6 +56,10 @@ pub const TEST_SLACK_BOT_TOKEN: &str = "xoxb-test-bot-token";
 // The Teams app password resolved from the named ref `teams_app_password`.
 pub const TEST_TEAMS_APP_PASSWORD: &str = "test-teams-app-password";
 
+// The fixture profile's `server.external_url`, from which its JWT issuer is
+// derived; tokens minted against the default bootstrap carry it as `iss`.
+pub const FIXTURE_EXTERNAL_URL: &str = "http://127.0.0.1";
+
 pub struct TestBootstrap {
     pub _tmp: TempDir,
     pub profile_path: PathBuf,
@@ -276,7 +280,7 @@ fn init_bootstrap_inner_expecting(
             storage: &storage_path,
             web: &web_path,
         },
-        api_base_url.unwrap_or("http://127.0.0.1"),
+        api_base_url.unwrap_or(FIXTURE_EXTERNAL_URL),
     );
     let profile_path = tmp_path.join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml).expect("write profile.yaml");

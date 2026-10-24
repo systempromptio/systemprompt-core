@@ -23,8 +23,8 @@ use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
-    mint_admin_jwt, seed_oauth_client, test_db_pool,
+    FIXTURE_EXTERNAL_URL, OAuthClientFixture, ensure_test_bootstrap, fixture_config,
+    install_test_signing_key, mint_admin_jwt, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -89,7 +89,7 @@ async fn seeded_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
 }
 
 fn mint_access_token(user: &UserId) -> String {
-    mint_admin_jwt(user, "introspect@introspect.invalid", "https://issuer.test")
+    mint_admin_jwt(user, "introspect@introspect.invalid", FIXTURE_EXTERNAL_URL)
         .as_str()
         .to_owned()
 }

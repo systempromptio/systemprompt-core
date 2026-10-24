@@ -17,11 +17,11 @@ use systemprompt_governance::authz::{
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_mcp::middleware::{AuthResult, enforce_rbac_from_registry};
 use systemprompt_models::RequestContext as SysRequestContext;
-use systemprompt_test_fixtures::{mint_admin_jwt, mint_bridge_jwt};
+use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_admin_jwt, mint_bridge_jwt};
 
 use crate::harness::bootstrap_with_services;
 
-const ISSUER: &str = "https://issuer.test";
+const ISSUER: &str = FIXTURE_EXTERNAL_URL;
 
 fn sys_ctx() -> SysRequestContext {
     SysRequestContext::new(

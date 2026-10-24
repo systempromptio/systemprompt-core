@@ -17,7 +17,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{CloudConfig, CloudValidationMode, ProfileType};
 use systemprompt_models::auth::UserType;
 
-const ISSUER: &str = "https://routing-issuer.test";
+const ISSUER: &str = "https://routing.example.invalid";
 
 struct WorkingDirectory(std::path::PathBuf);
 
@@ -77,12 +77,11 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     profile.paths.services = "/app/services".to_owned();
     profile.paths.bin = "/app/bin".to_owned();
     profile.paths.web_path = Some("/app/web".to_owned());
-    profile.server.api_external_url = "https://routing.example.invalid".to_owned();
+    profile.server.external_url = ISSUER.to_owned();
     profile
         .server
         .trusted_proxies
         .push("fc00::/7".parse().expect("valid cloud proxy range"));
-    profile.security.issuer = ISSUER.to_owned();
     profile.cloud = Some(CloudConfig {
         tenant_id: Some(routed_tenant.clone()),
         validation: CloudValidationMode::Strict,
