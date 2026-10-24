@@ -73,15 +73,13 @@ impl Profile {
             .trim()
             .trim_end_matches('/')
             .to_owned();
-        let parsed = url::Url::parse(&raw).map_err(|e| ProfileError::InvalidExternalUrl {
-            url: raw.clone(),
-            reason: e.to_string(),
-        })?;
+        let parsed =
+            url::Url::parse(&raw).map_err(|source| ProfileError::UnparsableExternalUrl {
+                url: raw.clone(),
+                source,
+            })?;
         if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
-            return Err(ProfileError::InvalidExternalUrl {
-                url: raw,
-                reason: "must be an absolute http:// or https:// URL with a host".to_owned(),
-            });
+            return Err(ProfileError::ExternalUrlNotHttp { url: raw });
         }
 
         let internal = internal_url_for(&self.server.host, self.server.port);

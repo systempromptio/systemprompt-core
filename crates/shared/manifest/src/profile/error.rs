@@ -64,8 +64,15 @@ pub enum ProfileError {
         source_field: String,
     },
 
-    #[error("server.external_url '{url}' is invalid: {reason}")]
-    InvalidExternalUrl { url: String, reason: String },
+    #[error("server.external_url '{url}' is invalid")]
+    UnparsableExternalUrl {
+        url: String,
+        #[source]
+        source: url::ParseError,
+    },
+
+    #[error("server.external_url '{url}' must be an absolute http:// or https:// URL with a host")]
+    ExternalUrlNotHttp { url: String },
 
     #[error("Profile '{name}' validation failed:\n  - {}", errors.join("\n  - "))]
     Validation { name: String, errors: Vec<String> },
