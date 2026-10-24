@@ -7,9 +7,9 @@
 //! [`reconcile_services_authz`], so the resolver reflects the edit without a
 //! restart or a wait for the boot-time governance pass.
 //!
-//! The edit is projected under the `yaml` source: this is the baked services
-//! tree, not a fetched bundle, and it prunes unscoped because it is the only
-//! writer of those rows.
+//! The edit is projected under the `code:services` source: this is the baked
+//! services tree, not a fetched bundle, and it prunes unscoped because it is
+//! the only writer of those rows.
 //!
 //! Reconciliation is best-effort: the services-file write is the source of
 //! truth and has already succeeded. If the database is unreachable (an offline
@@ -18,12 +18,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::Path;
 use std::sync::Arc;
 
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, DbPool};
-use systemprompt_governance::authz::{YAML_SOURCE, reconcile_services_authz};
+use systemprompt_governance::authz::{SERVICES_SOURCE, reconcile_services_authz};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesConfig;
 
@@ -70,16 +68,8 @@ async fn try_reconcile(services: &ServicesConfig, source_path: &str) -> anyhow::
         .await?,
     );
 
-    let services_dir = ProfileBootstrap::get()?.paths.services.clone();
     let source = format!("services:{source_path}");
-    reconcile_services_authz(
-        &database,
-        services,
-        Path::new(&services_dir),
-        YAML_SOURCE,
-        None,
-    )
-    .await?;
+    reconcile_services_authz(&database, services, SERVICES_SOURCE, None).await?;
     tracing::debug!(source = %source, "authz reconciled after a services edit");
     Ok(())
 }

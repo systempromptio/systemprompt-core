@@ -70,7 +70,7 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
     let repo = AccessControlRepository::from_pool(std::sync::Arc::clone(&pool));
     let route = format!("rb-cache-{}", uuid::Uuid::new_v4().simple());
     let user = systemprompt_test_fixtures::unique_user_id("rb-cache");
-    repo.upsert_entity(EntityKind::GatewayRoute, &route, false, "test")
+    repo.upsert_entity(EntityKind::GatewayRoute, &route, false, "code:test")
         .await
         .expect("entity");
     let hook = RuleBasedHook::new(
@@ -94,7 +94,7 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
         rule_value: user.as_str(),
         access: Access::Allow,
         justification: None,
-        source: "test",
+        source: "code:test",
     })
     .await
     .expect("rule");

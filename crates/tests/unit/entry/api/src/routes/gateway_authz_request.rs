@@ -23,6 +23,7 @@ fn forwards_roles_and_attributes_to_authz_request() {
         trace_id: TraceId::new("trace-x"),
         route_id: RouteId::new("route-1"),
         model: ModelId::new("claude-3"),
+        provider: None,
         session_id: None,
         client_id: None,
         context_id: ContextId::from_uuid(uuid::Uuid::from_u128(1)),

@@ -91,7 +91,7 @@ async fn extension_hook_evaluated_and_audited() {
     )
     .bind("gateway_route")
     .bind(&route)
-    .bind("test:extension_hook")
+    .bind("code:extension_hook")
     .execute(write_pool.as_ref())
     .await
     .expect("seed entity row");

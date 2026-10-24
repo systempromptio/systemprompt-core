@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE access_control_entities SET default_included = false, updated_at = NOW()\n           WHERE entity_type = $1 AND entity_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cf2ef57e56a2b2152e01e375243bf22e0ee0bccbf2891ef2c2f460765cc1180c"
+}

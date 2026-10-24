@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    Actor, ActorKind, AgentId, ClientId, ContextId, McpToolName, ModelId, SessionId, TaskId,
-    TraceId, UserId,
+    Actor, ActorKind, AgentId, ClientId, ContextId, McpToolName, ModelId, ProviderId, SessionId,
+    TaskId, TraceId, UserId,
 };
 
 use super::decision::DenyReason;
@@ -25,7 +25,8 @@ use crate::policy::types::AccessScope;
 /// `kind` is a dotted-namespaced literal. Core mints three:
 ///
 /// - `"none"` — no context (server-attach RBAC, etc).
-/// - `"gateway.invocation"` — payload `{ "model": "..." }`.
+/// - `"gateway.invocation"` — payload `{ "model": "...", "provider": "..." }`
+///   (`provider` absent when the caller has not resolved one).
 /// - `"mcp.tool_call"` — payload `{ "tool": "..." }`.
 ///
 /// Tenants mint their own (e.g. `"acme.order_submission"`) and recognise
@@ -58,10 +59,14 @@ impl AuthzContext {
     }
 
     #[must_use]
-    pub fn gateway_invocation(model: &ModelId) -> Self {
+    pub fn gateway_invocation(model: &ModelId, provider: Option<&ProviderId>) -> Self {
+        let mut payload = serde_json::json!({ "model": model.as_str() });
+        if let (Some(provider), Some(map)) = (provider, payload.as_object_mut()) {
+            map.insert("provider".to_owned(), provider.as_str().into());
+        }
         Self {
             kind: Cow::Borrowed(Self::GATEWAY_INVOCATION_KIND),
-            payload: serde_json::json!({ "model": model.as_str() }),
+            payload,
         }
     }
 
@@ -91,6 +96,17 @@ impl AuthzContext {
             .get("model")
             .and_then(|v| v.as_str())
             .map(ModelId::new)
+    }
+
+    #[must_use]
+    pub fn gateway_invocation_provider(&self) -> Option<ProviderId> {
+        if self.kind != Self::GATEWAY_INVOCATION_KIND {
+            return None;
+        }
+        self.payload
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .map(ProviderId::new)
     }
 
     #[must_use]

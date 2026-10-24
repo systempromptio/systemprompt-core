@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM access_control_entities e\n               WHERE e.entity_type = $1 AND e.entity_id = $2\n                 AND NOT EXISTS (SELECT 1 FROM access_control_rules r\n                                  WHERE r.entity_type = e.entity_type\n                                    AND r.entity_id = e.entity_id)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "34c76c85108b3102b33fc952971030f0df95a52d3023052b524770abd4dd69d1"
+}

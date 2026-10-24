@@ -1,13 +1,16 @@
 //! Principal parity (credential.md §9.6): the same user reaches the gateway's
 //! pre-dispatch authz with the same decision whether they present a bridge
-//! JWT or a personal access token. Before 0.73 an API key carried no roles,
-//! so a role-gated route allowed the JWT and refused the PAT.
+//! JWT or a personal access token, on role-gated routes and on the
+//! decision-time `model/<glob>` entitlements alike. Before 0.73 an API key
+//! carried no roles, so a role-gated route allowed the JWT and refused the PAT.
 
 use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_api::routes::gateway::messages::auth::AuthedPrincipal;
-use systemprompt_api::routes::gateway::messages::extract::authz::enforce_authz_pre_dispatch;
+use systemprompt_api::routes::gateway::messages::extract::authz::{
+    DispatchTarget, enforce_authz_pre_dispatch,
+};
 use systemprompt_governance::authz::types::{Access, EntityKind, RuleType};
 use systemprompt_governance::authz::{
     AccessControlRepository, AuthzError, ChainSources, NullAuditSink, RuleBasedHook,
@@ -15,7 +18,7 @@ use systemprompt_governance::authz::{
     UpsertRuleParams,
 };
 use systemprompt_governance::policy::types::AccessScope;
-use systemprompt_identifiers::{ContextId, RouteId, UserId};
+use systemprompt_identifiers::{ContextId, ProviderId, RouteId, UserId};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams};
 
@@ -44,7 +47,7 @@ impl SubjectAttributeProvider for GroupProvider {
 }
 
 async fn gate_on_role(repo: &AccessControlRepository, route: &str, role: &str) -> Result<()> {
-    repo.upsert_entity(EntityKind::GatewayRoute, route, false, "test")
+    repo.upsert_entity(EntityKind::GatewayRoute, route, false, "code:test")
         .await?;
     repo.upsert_rule(UpsertRuleParams {
         entity_type: EntityKind::GatewayRoute,
@@ -53,17 +56,48 @@ async fn gate_on_role(repo: &AccessControlRepository, route: &str, role: &str) -
         rule_value: role,
         access: Access::Allow,
         justification: None,
-        source: "test",
+        source: "code:test",
+    })
+    .await?;
+    Ok(())
+}
+
+async fn entitle_model(
+    repo: &AccessControlRepository,
+    glob: &str,
+    rule: (&str, &str),
+) -> Result<()> {
+    repo.upsert_entity(EntityKind::Model, glob, false, "code:test")
+        .await?;
+    let (rule_type, value) = rule;
+    repo.upsert_rule(UpsertRuleParams {
+        entity_type: EntityKind::Model,
+        entity_id: glob,
+        rule_type: RuleType::from(rule_type),
+        rule_value: value,
+        access: Access::Allow,
+        justification: None,
+        source: "code:test",
     })
     .await?;
     Ok(())
 }
 
 async fn allowed(principal: &AuthedPrincipal, route_id: &str, hook: &SharedAuthzHook) -> bool {
+    allowed_for(principal, route_id, MODEL, hook).await
+}
+
+async fn allowed_for(
+    principal: &AuthedPrincipal,
+    route_id: &str,
+    model: &str,
+    hook: &SharedAuthzHook,
+) -> bool {
+    let route = RouteId::new(route_id);
+    let provider = ProviderId::new("parity-provider");
     enforce_authz_pre_dispatch(
         principal,
-        &RouteId::new(route_id),
-        MODEL,
+        DispatchTarget::new(&route, model, &provider),
         &ContextId::generate(),
         hook,
     )
@@ -101,6 +135,16 @@ async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_rout
     let repo = AccessControlRepository::from_pool(Arc::clone(&pool_arc));
     gate_on_role(&repo, &eng_route, "eng").await?;
     gate_on_role(&repo, &finance_route, "finance").await?;
+    let open_route = format!("parity-open-{suffix}");
+    repo.upsert_entity(EntityKind::GatewayRoute, &open_route, false, "code:test")
+        .await?;
+    entitle_model(&repo, &format!("parity-group-{suffix}-*"), ("role", "eng")).await?;
+    entitle_model(
+        &repo,
+        &format!("parity-finance-{suffix}-*"),
+        ("role", "finance"),
+    )
+    .await?;
     let hook: SharedAuthzHook = Arc::new(RuleBasedHook::new(
         pool_arc,
         Arc::new(NullAuditSink),
@@ -133,6 +177,18 @@ async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_rout
         let via_pat = allowed(&pat, route_id, &hook).await;
         assert_eq!(via_jwt, via_pat, "JWT and PAT disagree on {route_id}");
         assert_eq!(via_jwt, expected, "unexpected decision on {route_id}");
+    }
+    for (model, expected) in [
+        (format!("parity-group-{suffix}-opus"), true),
+        (format!("parity-finance-{suffix}-opus"), false),
+    ] {
+        let via_jwt = allowed_for(&jwt, &open_route, &model, &hook).await;
+        let via_pat = allowed_for(&pat, &open_route, &model, &hook).await;
+        assert_eq!(via_jwt, via_pat, "JWT and PAT disagree on model {model}");
+        assert_eq!(
+            via_jwt, expected,
+            "unexpected entitlement for model {model}"
+        );
     }
     Ok(())
 }

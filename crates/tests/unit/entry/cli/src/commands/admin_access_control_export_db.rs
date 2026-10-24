@@ -13,7 +13,7 @@ async fn seed_role_rule(pool: &DbPool, entity_id: &str, role: &str, justificatio
     let raw = pool.pool();
     sqlx::query(
         "INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) \
-         VALUES ('agent', $1, false, 'test') ON CONFLICT DO NOTHING",
+         VALUES ('agent', $1, false, 'code:test') ON CONFLICT DO NOTHING",
     )
     .bind(entity_id)
     .execute(raw.as_ref())
@@ -22,8 +22,8 @@ async fn seed_role_rule(pool: &DbPool, entity_id: &str, role: &str, justificatio
 
     sqlx::query(
         "INSERT INTO access_control_rules \
-         (entity_type, entity_id, rule_type, rule_value, access, justification) \
-         VALUES ('agent', $1, 'role', $2, 'allow', $3)",
+         (entity_type, entity_id, rule_type, rule_value, access, justification, source) \
+         VALUES ('agent', $1, 'role', $2, 'allow', $3, 'code:test')",
     )
     .bind(entity_id)
     .bind(role)
@@ -42,14 +42,14 @@ async fn snapshot_includes_seeded_role_rule() {
 
     let yaml = render_yaml_snapshot(&pool).await.unwrap();
 
-    assert!(yaml.contains("rules:"));
+    assert!(yaml.contains("entities:"));
     assert!(
         yaml.contains(&entity_id),
         "entity_id must appear in snapshot"
     );
     assert!(yaml.contains(&role), "role must appear in snapshot");
     assert!(yaml.contains("granted for coverage"));
-    assert!(yaml.contains("entity_type: agent"));
+    assert!(yaml.contains(&format!("agent/{entity_id}")));
 }
 
 #[tokio::test]
@@ -61,7 +61,7 @@ async fn snapshot_omits_user_rules() {
     let raw = pool.pool();
     sqlx::query(
         "INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) \
-         VALUES ('agent', $1, false, 'test') ON CONFLICT DO NOTHING",
+         VALUES ('agent', $1, false, 'code:test') ON CONFLICT DO NOTHING",
     )
     .bind(&entity_id)
     .execute(raw.as_ref())
@@ -69,8 +69,8 @@ async fn snapshot_omits_user_rules() {
     .unwrap();
     sqlx::query(
         "INSERT INTO access_control_rules \
-         (entity_type, entity_id, rule_type, rule_value, access, justification) \
-         VALUES ('agent', $1, 'user', $2, 'allow', NULL)",
+         (entity_type, entity_id, rule_type, rule_value, access, justification, source) \
+         VALUES ('agent', $1, 'user', $2, 'allow', NULL, 'console:admin')",
     )
     .bind(&entity_id)
     .bind(&user_val)

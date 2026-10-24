@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `enforce_authz_pre_dispatch` takes a `DispatchTarget` (route, model, serving provider); `GatewayAuthzRequestInput` gains `provider`; `bridge_admission::probe_route` returns the serving provider with the route id.
 - Gateway request extraction resolves the route through `systemprompt_gateway::resolve_route` (scope attribution included); `extract::authz::enforce_authz_pre_dispatch` takes the access `RouteId`; `extract::signatures::route_needs_thought_signatures(&RouteResolution)`.
 - `GET /v1/bridge/profile` answers only an authenticated caller (401 otherwise) and is built by `bridge_profile::build` over the resolved catalog. `/v1/me/provider-credentials/{credential}` stores, lists and removes keys per catalog credential (`ProviderCredentialStatus.credential`); the error key `not_personal_provider` is `not_personal_credential` and `BridgeError::PersonalKeyUnverified { credential }` replaces `{ provider }`.
 - `/v1/models` lists advertised models servable by a configured credential; `x-inference-protocol` takes client-family tags (`families_from_header` replaces `surfaces_from_header`), and host model filters are stored as client-family tags.

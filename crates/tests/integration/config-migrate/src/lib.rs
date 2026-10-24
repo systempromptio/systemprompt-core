@@ -14,4 +14,6 @@ mod data;
 #[cfg(test)]
 mod golden;
 #[cfg(test)]
+mod roles;
+#[cfg(test)]
 mod support;

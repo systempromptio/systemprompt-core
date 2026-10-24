@@ -1,9 +1,14 @@
-//! `Extension` registration for the authz subsystem: schema and migrations.
+//! `Extension` registration for the authz subsystem: schema, migrations and
+//! the `access_control` config plane.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_extension::prelude::*;
+
+use super::plane::AccessControlPlane;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AuthzExtension;
@@ -103,6 +108,10 @@ impl Extension for AuthzExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
+    }
+
+    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
+        vec![Arc::new(AccessControlPlane)]
     }
 }
 

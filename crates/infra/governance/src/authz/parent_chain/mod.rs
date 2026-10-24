@@ -13,12 +13,15 @@
 //! The entity's own ruleset is evaluated ahead of its parents, and a plugin
 //! rule closes the cascade before any marketplace is consulted, so a deny at
 //! the entity or plugin level still wins over every admitting marketplace.
+//! The decision-time pattern and entitlement levels (`patterns`) sit between
+//! the entity and its owner chains.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod cache;
 mod chains;
+mod patterns;
 mod sources;
 
 use std::collections::BTreeMap;
@@ -33,6 +36,7 @@ use super::subject::{SubjectAttributes, SubjectDimension};
 use super::types::{AccessRule, Decision, DenyReason, EntityKind, EntityRef};
 
 pub use cache::ChainIndexCache;
+pub use patterns::DecisionFacts;
 pub use sources::{ChainSources, MarketplaceSource};
 
 #[derive(Debug, Clone)]
@@ -61,12 +65,14 @@ pub struct ResolveBase<'a> {
     pub default_included: Option<bool>,
     pub attributes: &'a SubjectAttributes,
     pub dimensions: &'a [SubjectDimension],
+    pub facts: DecisionFacts<'a>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct ParentChainIndex {
     pub(super) marketplaces: BTreeMap<MarketplaceId, LoadedParent>,
     pub(super) plugins: BTreeMap<PluginId, LoadedParent>,
+    pub(super) patterns: Vec<LoadedParent>,
     pub(super) sources: Arc<ChainSources>,
 }
 
@@ -80,8 +86,15 @@ impl ParentChainIndex {
         Self {
             marketplaces,
             plugins,
+            patterns: Vec::new(),
             sources,
         }
+    }
+
+    #[must_use]
+    pub fn with_patterns(mut self, patterns: Vec<LoadedParent>) -> Self {
+        self.patterns = patterns;
+        self
     }
 
     pub async fn load(
@@ -112,6 +125,7 @@ impl ParentChainIndex {
         Ok(Self {
             marketplaces,
             plugins,
+            patterns: patterns::load_patterns(repo).await?,
             sources,
         })
     }
@@ -143,15 +157,18 @@ impl ParentChainIndex {
             })
         };
 
+        let nearer = self.pattern_parents(kind, id, base.facts);
         let mut first_deny = None;
         for chain in self.chains_for(kind, id) {
-            let decision = resolve_with(&chain);
+            let mut levels = nearer.clone();
+            levels.extend(chain);
+            let decision = resolve_with(&levels);
             if decision.permits() {
                 return decision;
             }
             first_deny.get_or_insert(decision);
         }
-        first_deny.unwrap_or_else(|| resolve_with(&[]))
+        first_deny.unwrap_or_else(|| resolve_with(&nearer))
     }
 }
 

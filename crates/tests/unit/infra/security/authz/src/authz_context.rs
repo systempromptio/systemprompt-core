@@ -38,7 +38,7 @@ fn default_context_is_none() {
 #[test]
 fn gateway_invocation_context() {
     let model = ModelId::new("claude-3-opus");
-    let ctx = AuthzContext::gateway_invocation(&model);
+    let ctx = AuthzContext::gateway_invocation(&model, None);
     assert!(!ctx.is_none());
     assert_eq!(ctx.kind.as_ref(), "gateway.invocation");
     let extracted = ctx.gateway_invocation_model().expect("model");
@@ -86,7 +86,7 @@ fn authz_context_serde_none() {
 #[test]
 fn marketplace_floor_roundtrip() {
     let model = ModelId::new("claude-3-5-sonnet");
-    let base_ctx = AuthzContext::gateway_invocation(&model);
+    let base_ctx = AuthzContext::gateway_invocation(&model, None);
 
     let mut floor: BTreeMap<String, serde_json::Value> = BTreeMap::new();
     floor.insert("tier".to_owned(), json!("pro"));
@@ -109,7 +109,7 @@ fn marketplace_floor_on_none_context() {
 #[test]
 fn marketplace_floor_not_present_returns_none() {
     let model = ModelId::new("claude-3-haiku");
-    let ctx = AuthzContext::gateway_invocation(&model);
+    let ctx = AuthzContext::gateway_invocation(&model, None);
     assert!(ctx.marketplace_floor().is_none());
 }
 

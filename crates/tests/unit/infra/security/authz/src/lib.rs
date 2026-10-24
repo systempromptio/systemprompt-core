@@ -3,7 +3,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
-mod access_control_config;
+#[cfg(test)]
+mod access_plane_db;
 #[cfg(test)]
 mod act_chain;
 #[cfg(test)]
@@ -11,9 +12,10 @@ mod actor_kind_schema;
 #[cfg(test)]
 mod authz_context;
 #[cfg(test)]
-mod config_validate;
 #[cfg(test)]
 mod db_sink_actor;
+#[cfg(test)]
+mod decision_patterns;
 #[cfg(test)]
 mod decision_schema;
 #[cfg(test)]
@@ -35,7 +37,6 @@ mod ingestion_db;
 #[cfg(test)]
 mod ingestion_ownership;
 #[cfg(test)]
-mod ingestion_yaml_path;
 #[cfg(test)]
 mod kind_sql_roundtrip;
 #[cfg(test)]
@@ -60,6 +61,8 @@ mod resolver;
 mod resolver_parents;
 #[cfg(test)]
 mod rule_based_hook;
+#[cfg(test)]
+mod rules_file;
 #[cfg(test)]
 mod subject_attributes;
 #[cfg(test)]

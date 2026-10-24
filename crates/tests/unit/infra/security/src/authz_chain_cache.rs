@@ -48,7 +48,7 @@ async fn upsert_rule(repo: &AccessControlRepository, entity_id: &str, value: &st
         rule_value: value,
         access: Access::Allow,
         justification: None,
-        source: "yaml",
+        source: "code:services",
     })
     .await
     .expect("upsert rule");
@@ -58,7 +58,7 @@ async fn upsert_rule(repo: &AccessControlRepository, entity_id: &str, value: &st
 async fn within_the_recheck_window_the_same_index_is_served_without_a_reload() {
     let (repo, db) = fixture_repository().await;
     let id = unique_entity();
-    repo.upsert_entity(KIND, &id, false, "test")
+    repo.upsert_entity(KIND, &id, false, "code:test")
         .await
         .expect("entity");
     let cache = ChainIndexCache::new(LONG, LONG, systemprompt_traits::CacheEpochs::new());
@@ -78,7 +78,7 @@ async fn within_the_recheck_window_the_same_index_is_served_without_a_reload() {
 async fn an_upserted_rule_moves_the_fingerprint_and_forces_a_reload() {
     let (repo, db) = fixture_repository().await;
     let id = unique_entity();
-    repo.upsert_entity(KIND, &id, false, "test")
+    repo.upsert_entity(KIND, &id, false, "code:test")
         .await
         .expect("entity");
     let cache = ChainIndexCache::new(
@@ -103,7 +103,7 @@ async fn an_upserted_rule_moves_the_fingerprint_and_forces_a_reload() {
 async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
     let (repo, db) = fixture_repository().await;
     let id = unique_entity();
-    repo.upsert_entity(KIND, &id, false, "test")
+    repo.upsert_entity(KIND, &id, false, "code:test")
         .await
         .expect("entity");
     let rule = repo
@@ -114,7 +114,7 @@ async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
             rule_value: "auditor",
             access: Access::Allow,
             justification: None,
-            source: "yaml",
+            source: "code:services",
         })
         .await
         .expect("rule");

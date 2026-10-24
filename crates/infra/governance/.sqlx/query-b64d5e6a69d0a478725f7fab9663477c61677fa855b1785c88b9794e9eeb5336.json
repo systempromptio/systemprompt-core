@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.entity_type, e.entity_id, e.default_included, r.rule_type, r.rule_value,\n                  r.access AS \"access: Access\", r.justification\n             FROM access_control_entities e\n             JOIN access_control_rules r\n               ON r.entity_type = e.entity_type AND r.entity_id = e.entity_id\n            WHERE r.rule_type <> 'user'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "entity_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "access_control_entities",
+            "name": "entity_type"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "entity_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "access_control_entities",
+            "name": "entity_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "default_included",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "access_control_entities",
+            "name": "default_included"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "rule_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "access_control_rules",
+            "name": "rule_type"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "rule_value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "access_control_rules",
+            "name": "rule_value"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "access: Access",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "access_control_rules",
+            "name": "access"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "justification",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "access_control_rules",
+            "name": "justification"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "b64d5e6a69d0a478725f7fab9663477c61677fa855b1785c88b9794e9eeb5336"
+}

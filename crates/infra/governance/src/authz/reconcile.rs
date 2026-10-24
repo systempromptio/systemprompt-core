@@ -1,11 +1,12 @@
 //! Projection of a services tree into the authz tables.
 //!
-//! Three passes run against the tree, in order: the gateway-route catalog is
-//! made equal to the routes the tree dispatches, `access-control/roles.yaml` is
-//! ingested against that catalog, and every marketplace `access` block is
-//! projected. Route ids are content-addressed, so the catalog pass has to come
-//! first — a rule naming a route the tree no longer defines is rejected rather
-//! than materialised.
+//! Two passes run against the tree, in order: the gateway-route catalog is
+//! made equal to the routes the tree dispatches, and every marketplace
+//! `access` block is projected. `access-control/rules.yaml` is not projected
+//! here: it is the `access_control` config plane, which only `config apply`
+//! (or `/admin/sync`) writes. The catalog pass registers entity rows only; it
+//! never touches `default_included` on an existing row and never prunes a
+//! glob entity the access plane declared.
 //!
 //! Every caller passes the `source` that owns the rows it writes and the
 //! [`IngestScope`] it is entitled to prune inside. A tree fetched as
@@ -36,35 +37,28 @@
 //! never once per source. The catalog pass is an exact set reconcile: running
 //! it per source would converge, but each run would relabel the entity rows
 //! with whichever source happened to go last, so provenance would be a race.
-//! Only the base bundle may carry `gateway/` and `access-control/`, so only it
-//! gets those two passes.
+//! Only the base bundle may carry `gateway/`, so only it gets the catalog
+//! pass.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
-use std::path::Path;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::RouteId;
 use systemprompt_manifest::services::catalog::CatalogContext;
 use systemprompt_manifest::services::{BundleOwnership, ServicesBundleManifest, ServicesConfig};
 
-use super::AuthzError;
 use super::error::AuthzResult;
 use super::gateway_entities::{GatewayReconcileReport, reconcile_gateway_entities_exact};
-use super::ingestion::{
-    AccessControlIngestionService, IngestOptions, IngestReport, IngestScope, RegisteredEntities,
-};
+use super::ingestion::{AccessControlIngestionService, IngestOptions, IngestReport, IngestScope};
 use super::repository::AccessControlRepository;
 use super::types::EntityKind;
-
-const ROLES_YAML_RELATIVE: &str = "access-control/roles.yaml";
 
 #[derive(Debug, Clone, Default)]
 pub struct ReconcileReport {
     pub gateway: Option<GatewayReconcileReport>,
-    pub roles: Option<IngestReport>,
     pub marketplaces: Option<IngestReport>,
 }
 
@@ -78,7 +72,6 @@ struct Pass<'a> {
 pub async fn reconcile_services_authz(
     db: &DbPool,
     services: &ServicesConfig,
-    services_root: &Path,
     source: &str,
     scope: Option<IngestScope>,
 ) -> AuthzResult<ReconcileReport> {
@@ -88,13 +81,12 @@ pub async fn reconcile_services_authz(
         platform_dirs: true,
         delete_orphans: false,
     };
-    run_pass(db, services, services_root, &pass).await
+    run_pass(db, services, &pass).await
 }
 
 pub async fn reconcile_composed_bundles(
     db: &DbPool,
     services: &ServicesConfig,
-    composed_root: &Path,
     bundles: &[(&str, &ServicesBundleManifest)],
 ) -> AuthzResult<Vec<(String, ReconcileReport)>> {
     let mut out = Vec::with_capacity(bundles.len());
@@ -108,7 +100,7 @@ pub async fn reconcile_composed_bundles(
             platform_dirs: index == 0,
             delete_orphans: true,
         };
-        let report = run_pass(db, &view, composed_root, &pass).await?;
+        let report = run_pass(db, &view, &pass).await?;
         out.push(((*name).to_owned(), report));
     }
     Ok(out)
@@ -117,7 +109,6 @@ pub async fn reconcile_composed_bundles(
 async fn run_pass(
     db: &DbPool,
     services: &ServicesConfig,
-    services_root: &Path,
     pass: &Pass<'_>,
 ) -> AuthzResult<ReconcileReport> {
     let repo = AccessControlRepository::new(db);
@@ -127,13 +118,10 @@ async fn run_pass(
     let id_refs: Vec<&str> = route_ids.iter().map(RouteId::as_str).collect();
 
     let mut report = ReconcileReport::default();
-    let registered = if id_refs.is_empty() {
-        RegisteredEntities::default()
-    } else {
+    if pass.platform_dirs && !id_refs.is_empty() {
         report.gateway =
             Some(reconcile_gateway_entities_exact(&repo, &id_refs, pass.source).await?);
-        RegisteredEntities::new().with_kind(EntityKind::GatewayRoute, id_refs.iter().copied())
-    };
+    }
 
     let options = IngestOptions {
         override_existing: true,
@@ -141,22 +129,6 @@ async fn run_pass(
         source: pass.source.to_owned(),
         scope: pass.scope.clone(),
     };
-
-    let roles_yaml = services_root.join(ROLES_YAML_RELATIVE);
-    let roles_present =
-        tokio::fs::try_exists(&roles_yaml)
-            .await
-            .map_err(|source| AuthzError::File {
-                action: "probe",
-                path: roles_yaml.display().to_string(),
-                source,
-            })?;
-    if pass.platform_dirs && roles_present {
-        report.roles = Some(
-            svc.ingest_config_from_yaml_path(&roles_yaml, options.clone(), &registered)
-                .await?,
-        );
-    }
 
     report.marketplaces = Some(
         svc.ingest_marketplace_access(&services.marketplaces, options)

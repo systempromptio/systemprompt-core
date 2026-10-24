@@ -16,7 +16,9 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use systemprompt_ai::models::RequestStatus;
 use systemprompt_api::routes::gateway::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
-use systemprompt_api::routes::gateway::messages::extract::authz::enforce_authz_pre_dispatch;
+use systemprompt_api::routes::gateway::messages::extract::authz::{
+    DispatchTarget, enforce_authz_pre_dispatch,
+};
 use systemprompt_api::routes::gateway::messages::extract::headers::{
     optional_gateway_conversation_id, optional_session_id, read_gateway_body,
 };
@@ -31,7 +33,9 @@ use systemprompt_gateway::protocol::{
 };
 use systemprompt_governance::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
-use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AiRequestId, ContextId, ModelId, ProviderId, SessionId, TraceId, UserId,
+};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
@@ -295,8 +299,7 @@ async fn enforce_authz_allows_under_allow_all_hook() {
     let principal = api_key_principal("authz-allow-user");
     enforce_authz_pre_dispatch(
         &principal,
-        &route,
-        "claude-test",
+        DispatchTarget::new(&route, "claude-test", &ProviderId::new("anthropic")),
         &ContextId::generate(),
         &hook,
     )
@@ -315,8 +318,7 @@ async fn enforce_authz_denies_under_deny_all_hook() {
         ..
     } = enforce_authz_pre_dispatch(
         &principal,
-        &route,
-        "claude-test",
+        DispatchTarget::new(&route, "claude-test", &ProviderId::new("anthropic")),
         &ContextId::generate(),
         &hook,
     )

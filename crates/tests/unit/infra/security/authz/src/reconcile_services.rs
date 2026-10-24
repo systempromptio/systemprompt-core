@@ -30,21 +30,9 @@ async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
 }
 
 #[tokio::test]
-async fn reconcile_projects_roles_yaml_and_marketplace_access() {
+async fn reconcile_projects_marketplace_access() {
     let db = test_db_pool().await;
-    let route = unique_id("rec-route");
     let market = unique_id("rec-mkt");
-
-    let root = tempfile::tempdir().expect("temp services root");
-    std::fs::create_dir_all(root.path().join("access-control")).expect("access-control dir");
-    std::fs::write(
-        root.path().join("access-control/roles.yaml"),
-        format!(
-            "rules:\n  - entity_type: gateway_route\n    entity_id: {route}\n    access: allow\n \
-             \n    roles: [ops]\n"
-        ),
-    )
-    .expect("write roles.yaml");
 
     let mut services = ServicesConfig::default();
     let cfg: MarketplaceConfig = serde_yaml::from_str(&format!(
@@ -60,24 +48,13 @@ async fn reconcile_projects_roles_yaml_and_marketplace_access() {
         systemprompt_governance::authz::EntityKind::Marketplace,
         [market.clone()],
     );
-    let report = reconcile_services_authz(
-        &db,
-        &services,
-        root.path(),
-        "bundle:test",
-        Some(scope.clone()),
-    )
-    .await
-    .expect("reconcile");
+    let report = reconcile_services_authz(&db, &services, "bundle:test", Some(scope.clone()))
+        .await
+        .expect("reconcile");
 
     assert!(
         report.gateway.is_none(),
         "a tree with no gateway declares no routes to reconcile"
-    );
-    assert_eq!(
-        report.roles.expect("roles.yaml was projected").inserted,
-        1,
-        "the roles.yaml grant is inserted"
     );
     assert_eq!(
         report
@@ -88,18 +65,14 @@ async fn reconcile_projects_roles_yaml_and_marketplace_access() {
         "the marketplace access block is projected"
     );
 
-    let again = reconcile_services_authz(&db, &services, root.path(), "bundle:test", Some(scope))
+    let again = reconcile_services_authz(&db, &services, "bundle:test", Some(scope))
         .await
         .expect("second reconcile");
     assert_eq!(
-        (
-            again.roles.expect("roles").skipped,
-            again.marketplaces.expect("marketplaces").skipped
-        ),
-        (1, 1),
+        again.marketplaces.expect("marketplaces").skipped,
+        1,
         "reconciling an unchanged tree rewrites nothing"
     );
 
-    cleanup(&db, "gateway_route", &route).await;
     cleanup(&db, "marketplace", &market).await;
 }

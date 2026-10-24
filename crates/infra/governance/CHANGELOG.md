@@ -2,6 +2,10 @@
 
 ## [0.73.0] - Unreleased
 
+### Breaking
+
+- `rules.yaml` is the one access-control dialect and the `access_control` config plane (`AccessControlPlane`, `rules_file`, `render_current_rules`); roles.yaml ingestion is deleted; `EntityKind::{Model, Provider}` and decision-time pattern levels (`DecisionFacts`, `ParentChainIndex::pattern_parents`); `AuthzContext::gateway_invocation` takes the provider; closed `source` vocabulary (`SERVICES_SOURCE`, `CONSOLE_SOURCE_PREFIX`) and migration `027_entitlement_kinds_closed_source`; `AccessControlRepository::{list_pattern_entities, update_route_ids}`.
+
 ### Fixed
 
 - The authz reconcile and the base bundle ingest scope reconcile `ResolvedCatalog::route_ids()` (every declared policy route plus the catalog route id).

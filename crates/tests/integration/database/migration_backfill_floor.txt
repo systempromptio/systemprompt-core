@@ -13,7 +13,8 @@ content=005
 database=001
 events=009
 files=002
-governance=021
+# governance 027 rewrites access_control_* source labels to the closed provenance vocabulary before constraining them.
+governance=027
 logging=009
 marketplace=016
 mcp=017

@@ -16,7 +16,7 @@ use std::collections::HashSet;
 use systemprompt_identifiers::UserId;
 
 use super::error::AuthzResult;
-use super::parent_chain::{ParentChainIndex, ResolveBase};
+use super::parent_chain::{DecisionFacts, ParentChainIndex, ResolveBase};
 use super::repository::AccessControlRepository;
 use super::subject::{SubjectAttributes, SubjectDimension};
 use super::types::EntityKind;
@@ -56,6 +56,7 @@ pub async fn allowed_ids(
                 default_included,
                 attributes: query.attributes,
                 dimensions: query.dimensions,
+                facts: DecisionFacts::default(),
             },
         );
         if decision.permits() {
