@@ -209,9 +209,6 @@ impl Commands {
                     CommandDescriptor::NONE
                 }
             },
-            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
-                args,
-            ))) if !args.data => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Admin(admin::AdminCommands::Config(_))
             | Self::Web(_)
             | Self::Core(
