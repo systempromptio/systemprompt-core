@@ -190,10 +190,17 @@ pub(super) fn bridge_profile_routes(
     let jwt_manifest = Arc::clone(jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(jwt_extractor);
     let jwt_host_model_filter = Arc::clone(jwt_extractor);
+    let ctx_pubkey = ctx.clone();
     let ctx_profile = ctx.clone();
     let jwt_profile = Arc::clone(jwt_extractor);
     Router::new()
-        .route(ApiPaths::gateway_relative(ApiPaths::BRIDGE_PUBKEY), get(bridge::pubkey))
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_PUBKEY),
+            get(move || {
+                let context = ctx_pubkey.clone();
+                async move { bridge::pubkey(&context) }
+            }),
+        )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE),
             get(move |headers| {

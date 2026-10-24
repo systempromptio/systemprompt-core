@@ -9,7 +9,6 @@ use axum::routing::get;
 use axum::{Json, Router};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::keys::{Jwks, authority};
 
 use crate::error::ApiHttpError;
 use crate::services::middleware::{RateLimitState, RouterExt};
@@ -25,13 +24,6 @@ pub fn jwks_router(ctx: &AppContext) -> Result<Router, LoaderError> {
         .with_rate_limit(&limits, JWKS_RATE_LIMIT_PER_SECOND, "wellknown_jwks")
 }
 
-async fn handle_jwks(State(_ctx): State<AppContext>) -> Result<impl IntoResponse, ApiHttpError> {
-    let jwks = match authority::signing_key() {
-        Ok(key) => key.jwks(),
-        Err(err) => {
-            tracing::warn!(error = %err, "failed to load signing key for JWKS endpoint");
-            Jwks { keys: vec![] }
-        },
-    };
-    Ok(Json(jwks))
+async fn handle_jwks(State(ctx): State<AppContext>) -> Result<impl IntoResponse, ApiHttpError> {
+    Ok(Json(ctx.signing_keys().signing_key().jwks()))
 }

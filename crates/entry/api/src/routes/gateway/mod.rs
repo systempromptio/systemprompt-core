@@ -85,6 +85,7 @@ fn build_jwt_extractor(ctx: &AppContext) -> anyhow::Result<Arc<JwtContextExtract
         user_provider,
         jti_revocation,
         ctx.config().jwt_issuer.clone(),
+        ctx.signing_keys().clone(),
     )))
 }
 

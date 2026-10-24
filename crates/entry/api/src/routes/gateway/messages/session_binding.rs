@@ -136,7 +136,7 @@ async fn mint(ctx: &AppContext, request: SessionRequest<'_>) -> Result<SessionId
         .session_provider()
         .ok_or_else(|| binding_error("session provider unavailable"))?;
     let session_analytics = analytics.extract_analytics(request.headers, ExtractSignals::default());
-    SessionCreationService::new(sessions, users)
+    SessionCreationService::new(sessions, users, ctx.signing_keys().clone())
         .create_authenticated_session(request.user_id, &session_analytics, SessionSource::Api)
         .await
         .map_err(|e| binding_error("api-key session mint failed").with_cause(e))

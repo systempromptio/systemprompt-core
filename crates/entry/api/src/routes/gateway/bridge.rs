@@ -21,7 +21,6 @@ use systemprompt_manifest::bridge_profile;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_oauth::repository::HostPrefWrite;
 
-use systemprompt_security::manifest_signing;
 
 pub use systemprompt_manifest::bridge_profile::provider_health;
 pub use systemprompt_models::bridge::profile::{BridgeProfileResponse, ProviderHealth};
@@ -137,10 +136,10 @@ pub struct PubkeyResponse {
     pub pubkey: String,
 }
 
-pub async fn pubkey() -> Result<Json<PubkeyResponse>, ApiHttpError> {
-    let pubkey = manifest_signing::pubkey_b64()
-        .map_err(|e| BridgeError::internal("manifest signing key unavailable", e))?;
-    Ok(Json(PubkeyResponse { pubkey }))
+pub fn pubkey(ctx: &systemprompt_runtime::AppContext) -> Json<PubkeyResponse> {
+    Json(PubkeyResponse {
+        pubkey: ctx.signing_keys().manifest_pubkey_b64(),
+    })
 }
 
 pub async fn profile(

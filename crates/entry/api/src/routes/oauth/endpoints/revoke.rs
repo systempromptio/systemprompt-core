@@ -149,7 +149,12 @@ async fn revoke_access_token(
     caller: &Caller<'_>,
 ) -> Result<(), OAuthHttpError> {
     let config = Config::get()?;
-    let claims = match validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences) {
+    let claims = match validate_jwt_token(
+        state.signing_keys(),
+        token,
+        &config.jwt_issuer,
+        &config.jwt_audiences,
+    ) {
         Ok(claims) => claims,
         Err(e) => {
             tracing::debug!(error = %e, "Access token did not verify; nothing to revoke");

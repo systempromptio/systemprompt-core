@@ -48,6 +48,7 @@ impl SsoRouteState {
         let session_service = SessionCreationService::new(
             Arc::clone(oauth.session_provider()),
             Arc::clone(oauth.user_provider()),
+            oauth.signing_keys().clone(),
         );
         let driver = SsoDriver::discover(
             ctx.db_pool(),

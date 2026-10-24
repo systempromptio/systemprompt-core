@@ -71,6 +71,7 @@ impl SessionMiddleware {
         let session_creation_service = Arc::new(SessionCreationService::new(
             analytics,
             Arc::new(user_service),
+            ctx.signing_keys().clone(),
         ));
 
         Self {

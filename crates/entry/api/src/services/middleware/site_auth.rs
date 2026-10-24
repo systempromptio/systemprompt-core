@@ -9,6 +9,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
 use systemprompt_models::auth::Permission;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{TokenExtractor, extract_user_context};
 
 // Why: Secure cookie deletion requires HTTPS outside browsers' localhost
@@ -26,6 +27,7 @@ pub async fn site_auth_gate(
     next: Next,
     config: SiteAuthConfig,
     issuer: &str,
+    keys: &SigningKeys,
 ) -> Response {
     let path = request.uri().path();
 
@@ -61,7 +63,7 @@ pub async fn site_auth_gate(
         return next.run(request).await;
     }
 
-    match authorize(&request, &config, issuer) {
+    match authorize(&request, &config, issuer, keys) {
         AuthOutcome::Authorized => next.run(request).await,
         outcome => {
             let redirect = login_redirect(config.login_path, request.uri());
@@ -82,7 +84,12 @@ enum AuthOutcome {
     Unauthorized,
 }
 
-fn authorize(request: &Request, config: &SiteAuthConfig, issuer: &str) -> AuthOutcome {
+fn authorize(
+    request: &Request,
+    config: &SiteAuthConfig,
+    issuer: &str,
+    keys: &SigningKeys,
+) -> AuthOutcome {
     let path = request.uri().path();
     let Ok(token) = TokenExtractor::browser_only()
         .extract(request.headers())
@@ -99,7 +106,7 @@ fn authorize(request: &Request, config: &SiteAuthConfig, issuer: &str) -> AuthOu
     }) else {
         return AuthOutcome::Unauthorized;
     };
-    let Ok(user_ctx) = extract_user_context(&token, issuer)
+    let Ok(user_ctx) = extract_user_context(keys, &token, issuer)
         .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed; clearing cookie"))
     else {
         return AuthOutcome::InvalidToken;

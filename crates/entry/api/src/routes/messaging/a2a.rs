@@ -73,6 +73,7 @@ pub(super) fn mint_a2a_token(
     };
     let signing = JwtSigningParams {
         issuer: &ctx.config().jwt_issuer,
+        keys: ctx.signing_keys(),
     };
     generate_jwt(
         authed,

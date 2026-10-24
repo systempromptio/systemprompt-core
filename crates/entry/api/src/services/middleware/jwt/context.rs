@@ -20,6 +20,7 @@ use std::sync::Arc;
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_identifiers::{ContextId, headers as sp_headers};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{JwtUserContext, TokenExtractor, extract_user_context};
 use systemprompt_traits::{SessionProvider, UserProvider};
 
@@ -35,6 +36,7 @@ pub struct JwtContextExtractor {
     user_cache: Arc<UserCache>,
     jti_revocation: JtiRevocationChecker,
     issuer: String,
+    keys: SigningKeys,
 }
 
 impl std::fmt::Debug for JwtContextExtractor {
@@ -51,6 +53,7 @@ impl JwtContextExtractor {
         user_provider: Arc<dyn UserProvider>,
         jti_revocation: JtiRevocationChecker,
         issuer: String,
+        keys: SigningKeys,
     ) -> Self {
         Self {
             token_extractor: TokenExtractor::browser_only(),
@@ -59,6 +62,7 @@ impl JwtContextExtractor {
             user_cache: UserCache::new(),
             jti_revocation,
             issuer,
+            keys,
         }
     }
 
@@ -70,7 +74,7 @@ impl JwtContextExtractor {
             .token_extractor
             .extract(headers)
             .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
-        extract_user_context(&token, &self.issuer)
+        extract_user_context(&self.keys, &token, &self.issuer)
             .map_err(|e| ContextExtractionError::InvalidToken(e.into()))
     }
 
@@ -152,7 +156,7 @@ impl JwtContextExtractor {
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
     ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
-        let jwt_context = extract_user_context(jwt_token.as_str(), &self.issuer)
+        let jwt_context = extract_user_context(&self.keys, jwt_token.as_str(), &self.issuer)
             .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
 
         let user = self.validate(&jwt_context, "gateway").await?;

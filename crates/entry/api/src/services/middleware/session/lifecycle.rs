@@ -70,6 +70,7 @@ pub(super) async fn refresh_session_for_user(
         &ClientId::new("sp_web".to_owned()),
         &systemprompt_oauth::services::JwtSigningParams {
             issuer: &config.jwt_issuer,
+            keys: session_creation_service.signing_keys(),
         },
     )
     .map_err(|e| {

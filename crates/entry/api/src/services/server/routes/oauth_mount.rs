@@ -38,8 +38,14 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
         Arc::new(ctx.mcp_registry().clone());
     let oauth_repository = ctx.oauth_repositories().oauth.clone();
     let webauthn = WebAuthnService::new(oauth_repository.clone(), Arc::clone(&users));
-    let state = OAuthState::new(oauth_repository, analytics, sessions, users)
-        .with_mcp_registry(mcp_registry);
+    let state = OAuthState::new(
+        oauth_repository,
+        analytics,
+        sessions,
+        users,
+        ctx.signing_keys().clone(),
+    )
+    .with_mcp_registry(mcp_registry);
     match webauthn {
         Ok(service) => Ok(state.with_webauthn(Arc::new(service))),
         Err(e) => {

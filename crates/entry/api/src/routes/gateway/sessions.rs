@@ -75,6 +75,7 @@ pub async fn create_session(
             ApiHttpError::internal("Session provider unavailable", "provider is not registered")
         })?,
         user_provider,
+        ctx.signing_keys().clone(),
     )
     .create_authenticated_session(&record.user_id, &session_analytics, SessionSource::Api)
     .await?;

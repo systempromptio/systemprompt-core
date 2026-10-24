@@ -23,17 +23,19 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::keys::SigningKeys;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct AuthValidator;
 
 impl AuthValidator {
     pub(super) fn validate_service_access(
+        keys: &SigningKeys,
         headers: &HeaderMap,
         service_name: &ServiceName,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let result = AuthService::authorize_service_access(headers, service_name);
+        let result = AuthService::authorize_service_access(keys, headers, service_name);
 
         if let Err(status) = &result {
             let trace_id =
@@ -144,8 +146,13 @@ pub(crate) fn build_mcp_unknown_service_challenge(
     ctx: &AppContext,
     req_context: Option<&RequestContext>,
 ) -> Option<ProxyError> {
-    let status_code =
-        AuthValidator::validate_service_access(headers, service_name, req_context).err()?;
+    let status_code = AuthValidator::validate_service_access(
+        ctx.signing_keys(),
+        headers,
+        service_name,
+        req_context,
+    )
+    .err()?;
     let resource_path = ApiPaths::mcp_server_endpoint(service_name.as_str());
     let has_authorization = headers.get(AUTHORIZATION).is_some();
     Some(challenge_or_error(&ChallengeRequest {

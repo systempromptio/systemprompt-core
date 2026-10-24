@@ -171,14 +171,13 @@ impl AppContextBuilder {
             policy,
         } = init_core(self.authz_hook, self.signing_keys).await?;
 
-        let (extension_registry, schema_install) = init_extensions(
+        let (extensions, schema_install, governance) = init_governed_extensions(
             self.extension_registry,
             self.schema,
             self.migration_config,
             &database,
         )
         .await?;
-        let governance = ConfigWatch::new(load_governance(&database).await?);
 
         let content = assembly::assemble_content_analytics(
             &config,
@@ -218,12 +217,7 @@ impl AppContextBuilder {
             connector_tokens,
         };
 
-        let plugins = build_plugins(
-            extension_registry,
-            mcp_registry,
-            self.marketplace_filter,
-            &database,
-        );
+        let plugins = build_plugins(extensions, mcp_registry, self.marketplace_filter, &database);
 
         Ok(AppContext::from_parts(
             build_data_plane(
@@ -244,6 +238,21 @@ impl AppContextBuilder {
             subsystems,
         ))
     }
+}
+
+async fn init_governed_extensions(
+    registry: Option<ExtensionRegistry>,
+    schema: SchemaPolicy,
+    migration_config: MigrationConfig,
+    database: &Arc<systemprompt_database::Database>,
+) -> RuntimeResult<(
+    Arc<ExtensionRegistry>,
+    systemprompt_database::SchemaInstallReport,
+    ConfigWatch<systemprompt_governance::policy::GovernanceEngine>,
+)> {
+    let (registry, report) = init_extensions(registry, schema, migration_config, database).await?;
+    let governance = ConfigWatch::new(load_governance(database).await?);
+    Ok((registry, report, governance))
 }
 
 pub(crate) async fn load_governance(

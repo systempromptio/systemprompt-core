@@ -34,7 +34,12 @@ pub async fn ensure_session(
     let config = systemprompt_manifest::Config::get()?;
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers)
-        && let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
+        && let Ok(claims) = validate_jwt_token(
+            ctx.signing_keys(),
+            &token,
+            &config.jwt_issuer,
+            &config.jwt_audiences,
+        )
         && let Some(session_id) = claims.custom.session_id
         && let Ok(user_id) = UserId::try_new(claims.registered.sub)
     {
@@ -49,7 +54,11 @@ pub async fn ensure_session(
     let user_service = UserService::new(Arc::clone(ctx.user_repository()));
     let concrete = Arc::clone(&ctx.analytics_repositories().session_store);
     let analytics: Arc<dyn systemprompt_traits::SessionProvider> = concrete;
-    let session_service = SessionCreationService::new(analytics, Arc::new(user_service));
+    let session_service = SessionCreationService::new(
+        analytics,
+        Arc::new(user_service),
+        ctx.signing_keys().clone(),
+    );
 
     let client_id = ClientId::new("sp_web");
     let request_analytics = ctx

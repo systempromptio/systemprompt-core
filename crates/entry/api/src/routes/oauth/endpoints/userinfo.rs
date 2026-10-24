@@ -27,14 +27,14 @@ pub struct UserinfoResponse {
 }
 
 pub async fn handle_userinfo(
-    State(_state): State<OAuthState>,
+    State(state): State<OAuthState>,
     headers: HeaderMap,
 ) -> Result<Response, OAuthHttpError> {
     let token = extract_bearer_token(&headers).ok_or_else(|| {
         OAuthHttpError::invalid_request("Missing or invalid Authorization header")
     })?;
 
-    let userinfo = get_userinfo(&token).map_err(|_e| {
+    let userinfo = get_userinfo(&state, &token).map_err(|_e| {
         OAuthHttpError::invalid_token(
             "The access token provided is expired, revoked, malformed, or invalid",
         )
@@ -55,9 +55,14 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     auth_str.strip_prefix("Bearer ").map(str::to_owned)
 }
 
-fn get_userinfo(token: &str) -> anyhow::Result<UserinfoResponse> {
+fn get_userinfo(state: &OAuthState, token: &str) -> anyhow::Result<UserinfoResponse> {
     let config = systemprompt_manifest::Config::get()?;
-    let claims = validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences)?;
+    let claims = validate_jwt_token(
+        state.signing_keys(),
+        token,
+        &config.jwt_issuer,
+        &config.jwt_audiences,
+    )?;
 
     Ok(UserinfoResponse {
         sub: claims.registered.sub.clone(),

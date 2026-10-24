@@ -91,6 +91,7 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
     let caller_ip = client_ip_from_request(&request);
     let users = require_user_provider(&ctx)?;
     let result = issue_bridge_access(
+        ctx.signing_keys(),
         analytics.as_ref(),
         ctx.session_provider()
             .ok_or_else(|| {
@@ -131,6 +132,7 @@ pub async fn session(
             request_headers: &headers,
             caller_ip,
             code: body.code.trim(),
+            keys: ctx.signing_keys(),
         },
     )
     .await?

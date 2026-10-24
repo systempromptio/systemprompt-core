@@ -12,10 +12,10 @@ use anyhow::Result;
 use futures_util::future::join_all;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_manifest::AgentConfig;
 use systemprompt_oauth::JwtValidationProviderImpl;
@@ -79,11 +79,16 @@ async fn build_orchestrator(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<AgentOrchestrator> {
-    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config()?);
+    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
+        ctx.signing_keys().clone(),
+    )?);
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
-        jwt_provider,
+        AgentAuth {
+            jwt_provider,
+            signing_keys: ctx.signing_keys().clone(),
+        },
         Arc::clone(ctx.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
     ));
