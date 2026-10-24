@@ -10,9 +10,9 @@
 //! an alias route forwards its target model's `upstream_model` (0.72.1 sent
 //! the alias string). A hop 0.72.1 recorded as unserved for want of a price
 //! was never dispatched, so the migration does not deploy it and the
-//! comparison drops it from the golden chain. `{install}` user agents and endpoint-scoped betas are
-//! intended too but are not part of the snapshot schema. Every other
-//! difference fails the test and is listed.
+//! comparison drops it from the golden chain. `{install}` user agents and
+//! endpoint-scoped betas are intended too but are not part of the snapshot
+//! schema. Every other difference fails the test and is listed.
 
 use serde_json::{Value, json};
 use systemprompt_cli::commands::admin::config::migrate::{plan, write};

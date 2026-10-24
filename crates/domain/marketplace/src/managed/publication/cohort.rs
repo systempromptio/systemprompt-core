@@ -61,8 +61,10 @@ impl ManagedRepository {
 
     async fn dimension_values(&self, dimension: &str, consumer: &UserId) -> Result<Vec<String>> {
         if dimension == ROLE_DIMENSION {
-            let directory = discover_role_directory(&Arc::new(self.pool.clone()))
-                .ok_or_else(|| invalid("A cohort ring names roles but no role directory is registered"))?;
+            let directory =
+                discover_role_directory(&Arc::new(self.pool.clone())).ok_or_else(|| {
+                    invalid("A cohort ring names roles but no role directory is registered")
+                })?;
             return directory
                 .roles_of(consumer)
                 .await

@@ -1,5 +1,6 @@
 //! The users domain's answer to "does anybody hold this role?" and "which
-//! roles does this user hold?", registered with the security crate at link time.
+//! roles does this user hold?", registered with the security crate at link
+//! time.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

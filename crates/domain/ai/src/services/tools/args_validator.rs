@@ -56,9 +56,7 @@ impl ToolArgsValidator {
         }
         match serde_json::from_str::<Value>(trimmed) {
             Ok(input) => self.check(tool, &input),
-            Err(_) if !self.tools.contains_key(tool) => {
-                ArgsCheck::of(ArgsValidity::UnknownTool)
-            },
+            Err(_) if !self.tools.contains_key(tool) => ArgsCheck::of(ArgsValidity::UnknownTool),
             Err(_) => ArgsCheck::of(ArgsValidity::Unparseable),
         }
     }
