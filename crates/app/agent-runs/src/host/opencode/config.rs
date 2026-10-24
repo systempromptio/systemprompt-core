@@ -49,7 +49,7 @@ pub fn build(
             (
                 alias.clone(),
                 ModelEntry {
-                    model_id: alias.clone(),
+                    model: alias.clone(),
                     limit: None,
                 },
             )
@@ -71,7 +71,7 @@ pub fn build(
             ),
         )
         .with_policies(lockdown_policies(&Lockdown {
-            provider_id: PROVIDER_ID,
+            provider: PROVIDER_ID,
             allowed_tools: &request.allowed_tools,
             denied_tools: &denied,
             allowed_mcp: &mcp_names,

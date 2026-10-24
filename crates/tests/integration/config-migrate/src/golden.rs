@@ -8,7 +8,9 @@
 //!
 //! The allowlist of intended differences is exactly what was decided:
 //! an alias route forwards its target model's `upstream_model` (0.72.1 sent
-//! the alias string). `{install}` user agents and endpoint-scoped betas are
+//! the alias string). A hop 0.72.1 recorded as unserved for want of a price
+//! was never dispatched, so the migration does not deploy it and the
+//! comparison drops it from the golden chain. `{install}` user agents and endpoint-scoped betas are
 //! intended too but are not part of the snapshot schema. Every other
 //! difference fails the test and is listed.
 
@@ -123,6 +125,14 @@ fn alias_target_upstream(catalog: &ResolvedCatalog, id: &str) -> Option<String> 
         .map(|h| h.upstream_model.clone())
 }
 
+fn dispatched(golden: &[Value]) -> Vec<Value> {
+    golden
+        .iter()
+        .filter(|hop| hop["served"] != json!(false) || hop["pricing"].get("error").is_none())
+        .cloned()
+        .collect()
+}
+
 fn compare_chain(
     catalog: &ResolvedCatalog,
     id: &str,
@@ -131,6 +141,7 @@ fn compare_chain(
     new: &[Value],
     out: &mut Vec<String>,
 ) {
+    let golden = &dispatched(golden);
     if golden.len() != new.len() {
         out.push(format!(
             "{id}{label}: chain has {} hops, 0.72.1 had {}",

@@ -1,3 +1,5 @@
+-- @supersedes-checksum: 19dc04761d112bde
+-- @cost: rows=300000 measured=20ms triggers=live
 -- `ai_request_tool_calls` records whether each tool call's arguments satisfy
 -- the input schema the tool was offered with, and the JSON pointer of the
 -- first failing instance; `tool_call_ledger` exposes both. Existing rows keep

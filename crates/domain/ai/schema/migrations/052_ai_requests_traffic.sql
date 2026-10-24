@@ -1,3 +1,5 @@
+-- @supersedes-checksum: 59aded89aa904ec0
+-- @cost: rows=300000 measured=130ms triggers=live
 -- @compat: breaking
 -- Gateway traffic carries a canonical class (schema/ai_requests.sql): the
 -- `traffic` column replaces the boolean `synthetic`, and the hourly rollup
@@ -12,12 +14,15 @@ ALTER TABLE ai_requests
     ADD COLUMN IF NOT EXISTS traffic TEXT NOT NULL DEFAULT 'production';
 ALTER TABLE ai_requests DROP CONSTRAINT IF EXISTS ai_requests_traffic_check;
 ALTER TABLE ai_requests
-    ADD CONSTRAINT ai_requests_traffic_check CHECK (traffic IN ('production', 'evaluation'));
+    ADD CONSTRAINT ai_requests_traffic_check CHECK (traffic IN ('production', 'evaluation')) NOT VALID;
 
 ALTER TABLE ai_usage_rollup_hourly
     ADD COLUMN IF NOT EXISTS traffic TEXT NOT NULL DEFAULT 'production';
 
+-- Why: bounded: only evaluation rows carry `synthetic`, a small slice of the table.
 UPDATE ai_requests SET traffic = 'evaluation' WHERE synthetic;
+ALTER TABLE ai_requests VALIDATE CONSTRAINT ai_requests_traffic_check;
+-- Why: bounded: the hourly rollup holds one row per bucket and key, not per request.
 UPDATE ai_usage_rollup_hourly SET traffic = 'evaluation' WHERE synthetic;
 
 ALTER TABLE ai_usage_rollup_hourly ALTER COLUMN traffic DROP DEFAULT;
@@ -26,7 +31,9 @@ ALTER TABLE ai_usage_rollup_hourly DROP CONSTRAINT IF EXISTS ai_usage_rollup_hou
 ALTER TABLE ai_usage_rollup_hourly DROP COLUMN IF EXISTS synthetic;
 ALTER TABLE ai_usage_rollup_hourly
     ADD CONSTRAINT ai_usage_rollup_hourly_traffic_check
-        CHECK (traffic IN ('production', 'evaluation')),
+        CHECK (traffic IN ('production', 'evaluation')) NOT VALID;
+ALTER TABLE ai_usage_rollup_hourly VALIDATE CONSTRAINT ai_usage_rollup_hourly_traffic_check;
+ALTER TABLE ai_usage_rollup_hourly
     ADD CONSTRAINT ai_usage_rollup_hourly_pkey
         PRIMARY KEY (bucket, user_id, provider, model, agent_name, traffic);
 

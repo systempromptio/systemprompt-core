@@ -76,18 +76,18 @@ pub fn decode_line(state: &mut DecodeState, line: &str) -> Vec<HostEvent> {
         },
     };
     let (session, body) = match event {
-        StreamEvent::StepStart { session_id } => (session_id, Vec::new()),
-        StreamEvent::Text { session_id, part } => (
-            session_id,
+        StreamEvent::StepStart { session } => (session, Vec::new()),
+        StreamEvent::Text { session, part } => (
+            session,
             vec![RunEventPayload::AssistantText { text: part.text }],
         ),
-        StreamEvent::ToolUse { session_id, part } => (session_id, tool(state, part)),
-        StreamEvent::StepFinish { session_id, part } => (session_id, vec![step(&part)]),
-        StreamEvent::Error { session_id, error } => {
+        StreamEvent::ToolUse { session, part } => (session, tool(state, part)),
+        StreamEvent::StepFinish { session, part } => (session, vec![step(&part)]),
+        StreamEvent::Error { session, error } => {
             let kind = error.kind.unwrap_or_else(|| "unknown".to_owned());
             let message = error.message.unwrap_or_default();
             (
-                session_id,
+                session,
                 vec![runner(
                     RunnerLevel::Error,
                     format!("{ERROR_PREFIX} {kind}: {message}"),

@@ -13,26 +13,26 @@ use serde::Deserialize;
 pub(super) enum StreamEvent {
     StepStart {
         #[serde(rename = "sessionID")]
-        session_id: Option<String>,
+        session: Option<String>,
     },
     Text {
         #[serde(rename = "sessionID")]
-        session_id: Option<String>,
+        session: Option<String>,
         part: TextPart,
     },
     ToolUse {
         #[serde(rename = "sessionID")]
-        session_id: Option<String>,
+        session: Option<String>,
         part: ToolPart,
     },
     StepFinish {
         #[serde(rename = "sessionID")]
-        session_id: Option<String>,
+        session: Option<String>,
         part: StepFinishPart,
     },
     Error {
         #[serde(rename = "sessionID")]
-        session_id: Option<String>,
+        session: Option<String>,
         error: ErrorBody,
     },
     #[serde(other)]

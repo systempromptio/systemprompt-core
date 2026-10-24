@@ -34,7 +34,7 @@ use crate::request::{HostKind, RunRequest};
 
 pub const PAT_ENV: &str = "SYSTEMPROMPT_PAT";
 
-pub const PROGRAM: &str = "opencode";
+pub const PROGRAM: &str = HostKind::OpenCode.as_str();
 
 pub(super) fn execution() -> Execution {
     Execution::Supported(Box::new(OpenCodeCli::default()))
