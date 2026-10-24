@@ -63,3 +63,29 @@ fn failover_state_is_owned_per_engine_set() {
         &second.breakers.for_endpoint("p/e", &settings),
     ));
 }
+
+#[test]
+fn a_breaker_opened_on_one_engine_set_leaves_the_other_closed() {
+    let first = GatewayEngines::new().expect("gateway engines build");
+    let second = GatewayEngines::new().expect("gateway engines build");
+    let settings = systemprompt_manifest::services::ResilienceSettings::default();
+    let opened = first.breakers.for_endpoint("p/e", &settings);
+    let untouched = second.breakers.for_endpoint("p/e", &settings);
+
+    for _ in 0..1_000 {
+        if opened.is_open() {
+            break;
+        }
+        opened.record_failure();
+    }
+
+    assert!(opened.is_open(), "repeated failures must open the breaker");
+    assert!(
+        !untouched.is_open(),
+        "a breaker opened on one engine set must not trip the same endpoint on another"
+    );
+    assert!(
+        first.breakers.for_endpoint("p/e", &settings).is_open(),
+        "the opening engine set keeps its breaker open"
+    );
+}
