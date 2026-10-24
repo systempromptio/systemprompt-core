@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, Header, encode};
+use jsonwebtoken::{encode, Algorithm, Header};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{

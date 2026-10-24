@@ -75,7 +75,10 @@ fn parse_request_stop_as_array() {
     let a = OpenAiResponsesInbound;
     let body = br#"{"model":"gpt-4o","stop":["A","B"]}"#;
     let req = a.parse_request(&Bytes::from_static(body)).expect("parse");
-    assert_eq!(req.sampling.stop_sequences, vec!["A".to_owned(), "B".to_owned()]);
+    assert_eq!(
+        req.sampling.stop_sequences,
+        vec!["A".to_owned(), "B".to_owned()]
+    );
 }
 
 #[test]

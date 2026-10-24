@@ -75,7 +75,10 @@ fn inbound_parse_keeps_cache_control_on_every_block_kind() {
         req.system[1].cache_control,
         Some(CacheControl::with_ttl(CacheTtl::OneHour))
     );
-    assert_eq!(req.tooling.tools[0].cache_control, Some(CacheControl::EPHEMERAL));
+    assert_eq!(
+        req.tooling.tools[0].cache_control,
+        Some(CacheControl::EPHEMERAL)
+    );
     assert_eq!(req.messages[0].content[0].cache_control(), None);
     assert!(matches!(
         req.messages[2].content[0],

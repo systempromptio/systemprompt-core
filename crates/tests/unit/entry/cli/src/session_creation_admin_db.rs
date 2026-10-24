@@ -306,7 +306,9 @@ mod tenant_fallback {
 // another's.
 mod cli_context {
     use super::{pname, seed, test_db_pool};
-    use systemprompt_cli::session::creation::admin_bootstrap::{create_cli_context, get_or_create_admin};
+    use systemprompt_cli::session::creation::admin_bootstrap::{
+        create_cli_context, get_or_create_admin,
+    };
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::{SessionId, UserId};
     use systemprompt_test_fixtures::seed_user_session;

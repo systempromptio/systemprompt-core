@@ -200,13 +200,19 @@ fn parse_tools_function_type_only() {
 #[test]
 fn parse_tool_choice_string_auto() {
     let req = parse_ok(br#"{"model":"gpt-4o","tool_choice":"auto"}"#);
-    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Auto)));
+    assert!(matches!(
+        req.tooling.tool_choice,
+        Some(CanonicalToolChoice::Auto)
+    ));
 }
 
 #[test]
 fn parse_tool_choice_string_none() {
     let req = parse_ok(br#"{"model":"gpt-4o","tool_choice":"none"}"#);
-    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::None)));
+    assert!(matches!(
+        req.tooling.tool_choice,
+        Some(CanonicalToolChoice::None)
+    ));
 }
 
 #[test]

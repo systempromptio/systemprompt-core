@@ -363,14 +363,20 @@ fn parse_tools_array() {
 fn parse_tool_choice_auto() {
     let body = br#"{"model":"m","max_tokens":1,"tool_choice":{"type":"auto"},"messages":[{"role":"user","content":"x"}]}"#;
     let req = parse_ok(body);
-    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Auto)));
+    assert!(matches!(
+        req.tooling.tool_choice,
+        Some(CanonicalToolChoice::Auto)
+    ));
 }
 
 #[test]
 fn parse_tool_choice_any() {
     let body = br#"{"model":"m","max_tokens":1,"tool_choice":{"type":"any"},"messages":[{"role":"user","content":"x"}]}"#;
     let req = parse_ok(body);
-    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Any)));
+    assert!(matches!(
+        req.tooling.tool_choice,
+        Some(CanonicalToolChoice::Any)
+    ));
 }
 
 #[test]

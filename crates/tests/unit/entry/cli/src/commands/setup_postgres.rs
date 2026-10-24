@@ -5,11 +5,11 @@
 
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
+use systemprompt_cli::admin::setup::docker_compose::create_compose_files_if_missing;
+use systemprompt_cli::admin::setup::postgres::{setup_interactive, setup_non_interactive};
 use systemprompt_cli::admin::setup::postgres_access::{
     PostgresConfig, detect_postgresql, generate_password, test_connection,
 };
-use systemprompt_cli::admin::setup::docker_compose::create_compose_files_if_missing;
-use systemprompt_cli::admin::setup::postgres::{setup_interactive, setup_non_interactive};
 use systemprompt_cli::interactive::ScriptedPrompter;
 
 fn scripted(answers: &[&str]) -> ScriptedPrompter {

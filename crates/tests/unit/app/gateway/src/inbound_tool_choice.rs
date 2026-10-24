@@ -97,7 +97,10 @@ fn anthropic_accepts_object_forms() {
     let req = AnthropicMessagesInbound
         .parse_request(&anthropic_body(&json!({"type": "any"})))
         .expect("parse");
-    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Any)));
+    assert!(matches!(
+        req.tooling.tool_choice,
+        Some(CanonicalToolChoice::Any)
+    ));
 
     let req = AnthropicMessagesInbound
         .parse_request(&anthropic_body(&json!({"type": "tool", "name": "f"})))
@@ -157,7 +160,10 @@ fn openai_responses_accepts_string_and_function_forms() {
     let req = OpenAiResponsesInbound
         .parse_request(&responses_body(&json!("auto")))
         .expect("parse");
-    assert!(matches!(req.tooling.tool_choice, Some(CanonicalToolChoice::Auto)));
+    assert!(matches!(
+        req.tooling.tool_choice,
+        Some(CanonicalToolChoice::Auto)
+    ));
 
     let choice = json!({"type": "function", "name": "f"});
     let req = OpenAiResponsesInbound
