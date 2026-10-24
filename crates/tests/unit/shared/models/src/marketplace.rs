@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_manifest::services::{
     MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceRuleAccess,
@@ -344,10 +343,6 @@ marketplace:
         vec!["mcp-a".to_string(), "mcp-b".to_string()]
     );
 }
-
-// Silence unused warning for the imports re-used across helpers above.
-#[allow(dead_code)]
-fn _hint(_: HashMap<String, String>) {}
 
 fn with_rules(id: &str, rules: Vec<MarketplaceAccessRule>) -> MarketplaceConfig {
     let mut mp = marketplace(id, PluginComponentRef::default());

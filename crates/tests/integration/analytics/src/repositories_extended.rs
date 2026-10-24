@@ -26,7 +26,6 @@ async fn acquire_serial() -> MutexGuard<'static, ()> {
         .await
 }
 
-#[allow(dead_code)]
 struct Fixture {
     pool: PgPool,
     db: DbPool,

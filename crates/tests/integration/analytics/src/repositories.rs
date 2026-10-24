@@ -31,13 +31,11 @@ async fn acquire_serial() -> MutexGuard<'static, ()> {
         .await
 }
 
-#[allow(dead_code)]
 struct Fixture {
     pool: PgPool,
     db: DbPool,
     user_id: String,
     user_typed: UserId,
-    context_id: String,
     tag: String,
     window_start: chrono::DateTime<Utc>,
     window_end: chrono::DateTime<Utc>,
@@ -84,7 +82,6 @@ impl Fixture {
             pool,
             db,
             user_id,
-            context_id,
             tag,
             window_start,
             window_end,

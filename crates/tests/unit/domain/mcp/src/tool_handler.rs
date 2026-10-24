@@ -214,7 +214,6 @@ async fn execute_input_parse_error_returns_invalid_params() {
 // the server's whole tool list. The definition must carry the root type.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(tag = "report", rename_all = "snake_case")]
-#[allow(dead_code)]
 enum TaggedInput {
     Activity { days: u16 },
     Costs { days: u16 },
@@ -229,11 +228,15 @@ impl McpToolHandler for TaggedHandler {
     }
     async fn handle(
         &self,
-        _input: TaggedInput,
+        input: TaggedInput,
         _ctx: &RequestContext,
         _exec: &McpExecutionId,
     ) -> Result<(TextArtifact, String), McpError> {
-        Ok((TextArtifact::new(String::new()), String::new()))
+        let (report, days) = match input {
+            TaggedInput::Activity { days } => ("activity", days),
+            TaggedInput::Costs { days } => ("costs", days),
+        };
+        Ok((TextArtifact::new(format!("{report}:{days}")), String::new()))
     }
 }
 
