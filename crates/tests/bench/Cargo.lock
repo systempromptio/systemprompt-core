@@ -4369,6 +4369,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-catalog-fixtures"
+version = "0.1.0"
+dependencies = [
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-wire",
+]
+
+[[package]]
 name = "systemprompt-client"
 version = "0.73.0"
 dependencies = [
@@ -4967,6 +4977,7 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-catalog-fixtures",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
