@@ -47,7 +47,8 @@ fn sorted(value: Value) -> Value {
     }
 }
 
-// JSON: a governance YAML node as sorted JSON; its shape is the declaring policy's.
+// JSON: a governance YAML node as sorted JSON; its shape is the declaring
+// policy's.
 fn to_json(yaml: &YamlValue) -> Result<Value, GovernanceConfigError> {
     serde_json::to_value(yaml)
         .map(sorted)
