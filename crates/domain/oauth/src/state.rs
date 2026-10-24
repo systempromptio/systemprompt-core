@@ -8,6 +8,7 @@ use crate::error::{OauthError, OauthResult};
 use crate::repository::OAuthRepository;
 use crate::services::webauthn::WebAuthnService;
 use std::sync::Arc;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     AnalyticsProvider, FingerprintProvider, McpRegistryProvider, SessionProvider, UserProvider,
 };
@@ -21,6 +22,7 @@ pub struct OAuthState {
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
     webauthn: Option<Arc<WebAuthnService>>,
+    signing_keys: SigningKeys,
 }
 
 impl std::fmt::Debug for OAuthState {
@@ -39,6 +41,7 @@ impl std::fmt::Debug for OAuthState {
                 &self.mcp_registry.as_ref().map(|_| "<registry>"),
             )
             .field("webauthn", &self.webauthn.is_some())
+            .field("signing_keys", &self.signing_keys)
             .finish()
     }
 }
@@ -50,6 +53,7 @@ impl OAuthState {
         analytics_provider: Arc<dyn AnalyticsProvider>,
         session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
+        signing_keys: SigningKeys,
     ) -> Self {
         Self {
             oauth_repository,
@@ -59,6 +63,7 @@ impl OAuthState {
             fingerprint_provider: None,
             mcp_registry: None,
             webauthn: None,
+            signing_keys,
         }
     }
 
@@ -88,6 +93,10 @@ impl OAuthState {
     pub fn with_fingerprint_provider(mut self, provider: Arc<dyn FingerprintProvider>) -> Self {
         self.fingerprint_provider = Some(provider);
         self
+    }
+
+    pub const fn signing_keys(&self) -> &SigningKeys {
+        &self.signing_keys
     }
 
     pub const fn oauth_repository(&self) -> &OAuthRepository {

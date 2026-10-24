@@ -77,13 +77,14 @@ pub async fn handle_token_exchange(
     let repo = state.oauth_repository();
 
     if request.requested_token_type == Some(ID_JAG_TOKEN_TYPE) {
-        return issue_id_jag(client_id, &request, global, jwks).await;
+        return issue_id_jag(state.signing_keys(), client_id, &request, global, jwks).await;
     }
 
     let subject = if request.subject_token_type == ID_JAG_TOKEN_TYPE {
-        validate_id_jag_subject(request.subject_token, client_id, repo, global, jwks).await?
+        validate_id_jag_subject(request.subject_token, client_id, state, global, jwks).await?
     } else {
         validate_subject_token(
+            state.signing_keys(),
             request.subject_token,
             request.subject_token_type,
             global,
@@ -121,6 +122,7 @@ pub async fn handle_token_exchange(
     };
     let signing = JwtSigningParams {
         issuer: &global.jwt_issuer,
+        keys: state.signing_keys(),
     };
 
     let access_token = generate_jwt_with_act(DelegatedJwtParams {

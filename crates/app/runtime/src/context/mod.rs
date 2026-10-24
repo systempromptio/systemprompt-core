@@ -35,6 +35,7 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
@@ -95,6 +96,7 @@ pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub logging: LoggingRuntime,
     pub authz_hook: SharedAuthzHook,
+    pub signing_keys: SigningKeys,
     pub governance: ConfigWatch<GovernanceEngine>,
     pub services: ConfigWatch<ServicesConfig>,
     pub cache_epochs: CacheEpochs,
@@ -265,6 +267,11 @@ impl AppContext {
 
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.subsystems.authz_hook
+    }
+
+    #[must_use]
+    pub const fn signing_keys(&self) -> &SigningKeys {
+        &self.subsystems.signing_keys
     }
 
     #[must_use]

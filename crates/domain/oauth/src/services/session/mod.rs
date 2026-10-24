@@ -91,6 +91,10 @@ impl SessionCreationService {
         }
     }
 
+    pub const fn signing_keys(&self) -> &SigningKeys {
+        &self.keys
+    }
+
     pub const fn user_provider(&self) -> &Arc<dyn UserProvider> {
         &self.user_provider
     }

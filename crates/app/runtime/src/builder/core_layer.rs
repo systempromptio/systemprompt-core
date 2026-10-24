@@ -32,6 +32,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_manifest::{Config, Profile};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{CacheEpochs, FileStorage};
 
 use crate::error::RuntimeResult;
@@ -42,6 +43,7 @@ pub(super) struct CoreLayer {
     pub(super) files_config: Arc<FilesConfig>,
     pub(super) database: Arc<Database>,
     pub(super) authz_hook: SharedAuthzHook,
+    pub(super) signing_keys: SigningKeys,
     pub(super) file_storage: Arc<dyn FileStorage>,
     pub(super) cache_epochs: CacheEpochs,
     pub(super) log_sink: systemprompt_logging::LogSink,
@@ -97,6 +99,7 @@ fn init_files_config(app_paths: &AppPaths) -> RuntimeResult<Arc<FilesConfig>> {
 
 pub(super) async fn init_core(
     authz_hook_override: Option<SharedAuthzHook>,
+    signing_keys_override: Option<SigningKeys>,
 ) -> RuntimeResult<CoreLayer> {
     let profile = ProfileBootstrap::get()?;
     let secrets = SecretsBootstrap::get()?;
@@ -109,7 +112,10 @@ pub(super) async fn init_core(
         crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, secrets)
             .await?;
 
-    systemprompt_security::keys::authority::init()?;
+    let signing_keys = match signing_keys_override {
+        Some(keys) => keys,
+        None => SigningKeys::resolve(&config.signing_key_path)?,
+    };
 
     let database = connect_database(profile, &config).await?;
 
@@ -153,6 +159,7 @@ pub(super) async fn init_core(
         files_config,
         database,
         authz_hook,
+        signing_keys,
         file_storage,
         cache_epochs,
         log_sink,

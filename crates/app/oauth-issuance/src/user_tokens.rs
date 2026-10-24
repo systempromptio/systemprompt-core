@@ -78,6 +78,7 @@ pub async fn generate_tokens_by_user_id(
     let session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
+        state.signing_keys().clone(),
     );
     let analytics = state.analytics_provider().extract_analytics(
         params.origin.headers,
@@ -91,7 +92,7 @@ pub async fn generate_tokens_by_user_id(
         .await?;
 
     let jwt_and_refresh =
-        create_jwt_and_refresh_token(repo, &user, final_permissions, &session_id, &params).await?;
+        create_jwt_and_refresh_token(state, &user, final_permissions, &session_id, &params).await?;
 
     if let Err(e) = repo.update_client_last_used(params.client_id).await {
         tracing::warn!(
@@ -122,12 +123,13 @@ struct JwtAndRefreshToken {
 }
 
 async fn create_jwt_and_refresh_token(
-    repo: &OAuthRepository,
+    state: &OAuthState,
     user: &AuthenticatedUser,
     permissions: Vec<Permission>,
     session_id: &SessionId,
     params: &UserTokenParams<'_>,
 ) -> Result<JwtAndRefreshToken, UserTokenError> {
+    let repo = state.oauth_repository();
     let scope_string = permissions_to_string(&permissions);
     let access_token_jti = AccessTokenId::generate();
     let global_config = Config::get()?;
@@ -142,6 +144,7 @@ async fn create_jwt_and_refresh_token(
     };
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
+        keys: state.signing_keys(),
     };
     let access_token = generate_jwt(user, config, access_token_jti, session_id, &signing)?;
 

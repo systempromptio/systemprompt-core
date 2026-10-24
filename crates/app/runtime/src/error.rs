@@ -32,7 +32,7 @@ use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
-use systemprompt_security::keys::TokenAuthorityError;
+use systemprompt_security::keys::SigningKeysError;
 use systemprompt_traits::{BoxedSource, FileStorageError, RepositoryError};
 use systemprompt_users::UserError;
 use thiserror::Error;
@@ -115,7 +115,7 @@ pub enum RuntimeError {
     Spawner(#[source] std::io::Error),
 
     #[error("signing key init: {0}")]
-    Signing(#[from] TokenAuthorityError),
+    Signing(#[from] SigningKeysError),
 
     #[error("authz bootstrap: {0}")]
     Authz(#[from] AuthzError),

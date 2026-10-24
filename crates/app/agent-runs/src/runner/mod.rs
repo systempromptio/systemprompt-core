@@ -27,6 +27,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentRunId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::JobContext;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::RunnerService;
 use systemprompt_users::ApiKeyLifetime;
 use tokio_util::sync::CancellationToken;
@@ -120,6 +121,10 @@ impl RunnerService for A2aRunnerService {
             tracing::error!("A2A agent-run runner has no AppPaths; no A2A run will be claimed");
             return;
         };
+        let Ok(signing_keys) = ctx.get::<SigningKeys>().cloned() else {
+            tracing::error!("A2A agent-run runner has no SigningKeys; no A2A run will be claimed");
+            return;
+        };
         let config = match Config::get() {
             Ok(config) => config,
             Err(error) => {
@@ -138,6 +143,7 @@ impl RunnerService for A2aRunnerService {
                 repos.credentials,
                 &runner.issuer,
                 ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
+                signing_keys,
             ),
             runner,
         )

@@ -12,6 +12,7 @@ use systemprompt_identifiers::ClientId;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
+use systemprompt_security::keys::SigningKeys;
 
 use super::oidc::validate_oidc_subject;
 use super::subject::JwksCache;
@@ -19,6 +20,7 @@ use super::{ID_TOKEN_TYPE, JWT_TOKEN_TYPE, TokenExchangeRequest};
 use crate::{IssuanceError, IssuanceResult, TokenResponse};
 
 pub async fn issue_id_jag(
+    keys: &SigningKeys,
     client_id: &ClientId,
     request: &TokenExchangeRequest<'_>,
     global: &Config,
@@ -61,6 +63,7 @@ pub async fn issue_id_jag(
         scope: request.scope,
         ttl_secs: global.id_jag_ttl_secs,
         issuer: &global.jwt_issuer,
+        keys,
     })
     .map_err(|e| IssuanceError::server("ID-JAG minting failed", e))?;
 

@@ -26,6 +26,7 @@ use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, ConfigWatch};
 use systemprompt_users::UserService;
 
@@ -49,6 +50,7 @@ pub struct AppContextBuilder {
     show_startup_warnings: bool,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
     authz_hook: Option<SharedAuthzHook>,
+    signing_keys: Option<SigningKeys>,
     schema: SchemaPolicy,
     migration_config: MigrationConfig,
     shutdown: Option<ShutdownRequest>,
@@ -63,6 +65,7 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("show_startup_warnings", &self.show_startup_warnings)
             .field("marketplace_filter", &self.marketplace_filter.is_some())
             .field("authz_hook", &self.authz_hook.is_some())
+            .field("signing_keys", &self.signing_keys.is_some())
             .field("install_schemas", &self.schema.install)
             .field("verify_schema", &self.schema.verify)
             .field("migration_config", &self.migration_config)
@@ -119,6 +122,12 @@ impl AppContextBuilder {
     }
 
     #[must_use]
+    pub fn with_signing_keys(mut self, keys: SigningKeys) -> Self {
+        self.signing_keys = Some(keys);
+        self
+    }
+
+    #[must_use]
     pub fn with_shared_authz_hook(mut self, hook: SharedAuthzHook) -> Self {
         self.authz_hook = Some(hook);
         self
@@ -155,11 +164,12 @@ impl AppContextBuilder {
             files_config,
             database,
             authz_hook,
+            signing_keys,
             file_storage,
             cache_epochs,
             log_sink,
             policy,
-        } = init_core(self.authz_hook).await?;
+        } = init_core(self.authz_hook, self.signing_keys).await?;
 
         let (extension_registry, schema_install) = init_extensions(
             self.extension_registry,
@@ -189,6 +199,7 @@ impl AppContextBuilder {
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
             authz_hook,
+            signing_keys,
             governance,
             services: ConfigWatch::new(systemprompt_loader::ServicesBootstrap::get()?.clone()),
             cache_epochs,

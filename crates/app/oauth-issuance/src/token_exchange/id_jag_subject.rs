@@ -15,13 +15,13 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::Permission;
-use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_oauth::services::validation::id_jag::{
     ClaimPolicy, DEFAULT_LEEWAY_SECS, IdJagClaims, validate_claims, validate_typ,
 };
 use systemprompt_security::jwt::reject_critical_header;
-use systemprompt_security::keys::authority;
+use systemprompt_security::keys::SigningKeys;
 
 use super::subject::{JwksCache, REQUIRED_CLAIMS, SubjectIdentity, peek_issuer};
 use crate::{IssuanceError, IssuanceResult};
@@ -29,11 +29,12 @@ use crate::{IssuanceError, IssuanceResult};
 pub async fn validate_id_jag_subject(
     token: &str,
     authenticated_client: &ClientId,
-    repo: &OAuthRepository,
+    state: &OAuthState,
     global: &Config,
     jwks: &JwksCache,
 ) -> IssuanceResult<SubjectIdentity> {
-    let (claims, allowed_client_ids) = verify_id_jag_signature(token, global, jwks).await?;
+    let (claims, allowed_client_ids) =
+        verify_id_jag_signature(state.signing_keys(), token, global, jwks).await?;
 
     let policy = ClaimPolicy {
         expected_audience: global.jwt_issuer.as_str(),
@@ -55,7 +56,8 @@ pub async fn validate_id_jag_subject(
             reason: "ID-JAG jti is invalid",
             source: e.into(),
         })?;
-    let first_use = repo
+    let first_use = state
+        .oauth_repository()
         .consume_id_jag_jti(&jti, expires_at)
         .await
         .map_err(|e| IssuanceError::server("ID-JAG replay store unavailable", e))?;
@@ -89,6 +91,7 @@ pub async fn validate_id_jag_subject(
 }
 
 async fn verify_id_jag_signature(
+    keys: &SigningKeys,
     token: &str,
     global: &Config,
     jwks: &JwksCache,
@@ -115,8 +118,8 @@ async fn verify_id_jag_signature(
     validation.set_required_spec_claims(&REQUIRED_CLAIMS);
 
     if declared_iss == global.jwt_issuer {
-        let key = authority::decoding_key_for_kid(&kid)
-            .map_err(|e| IssuanceError::server("Signing key lookup failed", e))?
+        let key = keys
+            .decoding_key_for_kid(&kid)
             .ok_or_else(|| IssuanceError::InvalidGrant {
                 reason: format!("unknown `kid` `{kid}`"),
             })?;

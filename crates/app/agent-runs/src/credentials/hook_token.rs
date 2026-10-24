@@ -10,7 +10,10 @@
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AccessTokenId, PluginId, SessionId, UserId};
 use systemprompt_oauth::OAuthRepository;
-use systemprompt_oauth::services::{IssuedPluginToken, PluginTokenService, PluginTokenSubject};
+use systemprompt_oauth::services::{
+    IssuedPluginToken, JwtSigningParams, PluginTokenService, PluginTokenSubject,
+};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_users::UserRepository;
 
 use crate::error::{AgentRunsError, AgentRunsResult};
@@ -24,6 +27,7 @@ pub(super) struct MintedHookToken {
 
 pub(super) struct HookTokenRequest<'a> {
     pub issuer: &'a str,
+    pub keys: &'a SigningKeys,
     pub user_id: &'a UserId,
     pub plugin_id: &'a PluginId,
     pub session_id: &'a SessionId,
@@ -36,6 +40,7 @@ pub(super) async fn mint_hook_token(
 ) -> AgentRunsResult<MintedHookToken> {
     let HookTokenRequest {
         issuer,
+        keys,
         user_id,
         plugin_id,
         session_id,
@@ -58,8 +63,14 @@ pub(super) async fn mint_hook_token(
     };
     let days = token_days(ttl);
     let expires_at = Utc::now() + chrono::Duration::days(i64::from(days));
-    let minted = PluginTokenService::issue(subject, issuer, plugin_id.clone(), days, session_id)
-        .map_err(|source| AgentRunsError::PluginToken { source })?;
+    let minted = PluginTokenService::issue(
+        subject,
+        &JwtSigningParams { issuer, keys },
+        plugin_id.clone(),
+        days,
+        session_id,
+    )
+    .map_err(|source| AgentRunsError::PluginToken { source })?;
     Ok(MintedHookToken {
         issued: minted,
         expires_at,

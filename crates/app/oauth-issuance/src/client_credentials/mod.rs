@@ -154,6 +154,7 @@ pub async fn generate_client_tokens(
 
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
+        keys: state.signing_keys(),
     };
     let jwt_token = generate_jwt(
         &authenticated,

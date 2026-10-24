@@ -17,7 +17,7 @@ use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission};
 use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_security::jwt::reject_critical_header;
-use systemprompt_security::keys::JwksClient;
+use systemprompt_security::keys::{JwksClient, SigningKeys};
 
 use super::{ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE};
 use crate::{IssuanceError, IssuanceResult};
@@ -36,6 +36,7 @@ pub struct SubjectIdentity {
 }
 
 pub async fn validate_subject_token(
+    keys: &SigningKeys,
     token: &str,
     token_type: &str,
     global: &Config,
@@ -60,7 +61,7 @@ pub async fn validate_subject_token(
     let declared_iss = peek_issuer(token)?;
 
     if declared_iss == global.jwt_issuer {
-        return validate_self_issued(token, &header, global);
+        return validate_self_issued(keys, token, &header, global);
     }
 
     let trusted = global
@@ -128,12 +129,11 @@ pub fn peek_issuer(token: &str) -> IssuanceResult<String> {
 }
 
 fn validate_self_issued(
+    keys: &SigningKeys,
     token: &str,
     header: &jsonwebtoken::Header,
     global: &Config,
 ) -> IssuanceResult<SubjectIdentity> {
-    use systemprompt_security::keys::authority;
-
     if header.alg != Algorithm::RS256 {
         return Err(IssuanceError::InvalidGrant {
             reason: "subject_token must be RS256-signed".to_owned(),
@@ -145,8 +145,8 @@ fn validate_self_issued(
         .ok_or_else(|| IssuanceError::InvalidGrant {
             reason: "subject_token missing `kid` header".to_owned(),
         })?;
-    let key = authority::decoding_key_for_kid(kid)
-        .map_err(|e| IssuanceError::server("Signing key lookup failed", e))?
+    let key = keys
+        .decoding_key_for_kid(kid)
         .ok_or_else(|| IssuanceError::InvalidGrant {
             reason: format!("unknown `kid` `{kid}`"),
         })?;

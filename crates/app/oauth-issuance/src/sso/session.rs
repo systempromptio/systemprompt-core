@@ -73,6 +73,7 @@ pub async fn mint_browser_session(
     };
     let signing = JwtSigningParams {
         issuer: &config.jwt_issuer,
+        keys: session_service.signing_keys(),
     };
     let access_token = generate_jwt(
         &user,

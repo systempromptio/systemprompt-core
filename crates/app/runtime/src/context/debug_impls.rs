@@ -23,6 +23,7 @@ impl std::fmt::Debug for AppContext {
             .field("system_admin", &self.subsystems.system_admin.username())
             .field("mcp_registry", &"RegistryService")
             .field("authz_hook", &"SharedAuthzHook")
+            .field("signing_keys", &self.subsystems.signing_keys)
             .field("governance", &self.subsystems.governance)
             .finish()
     }
@@ -79,6 +80,7 @@ impl std::fmt::Debug for Subsystems {
             .field("system_admin", &self.system_admin.username())
             .field("logging", &self.logging)
             .field("authz_hook", &"SharedAuthzHook")
+            .field("signing_keys", &self.signing_keys)
             .field("governance", &self.governance)
             .field("services", &self.services)
             .field("cache_epochs", &self.cache_epochs)

@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 use systemprompt_oauth::OAuthRepository;
 use systemprompt_oauth::services::SessionCreationService;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{SessionProvider, UserProvider};
 use systemprompt_users::{
     ApiKeyLifetime, ApiKeyService, SessionRepository, UserRepository, UserService,
@@ -51,6 +52,7 @@ impl RunCredentialService {
         repos: RunCredentialRepositories,
         issuer: impl Into<String>,
         lifetime: ApiKeyLifetime,
+        signing_keys: SigningKeys,
     ) -> Self {
         let RunCredentialRepositories {
             users,
@@ -62,7 +64,11 @@ impl RunCredentialService {
         Self {
             keys: ApiKeyService::new(Arc::clone(&users), lifetime),
             sessions,
-            creator: SessionCreationService::new(session_provider, Arc::clone(&user_provider)),
+            creator: SessionCreationService::new(
+                session_provider,
+                Arc::clone(&user_provider),
+                signing_keys,
+            ),
             user_provider,
             oauth,
             users,
@@ -97,6 +103,7 @@ impl RunCredentialService {
                 self.user_provider.as_ref(),
                 McpTokenRequest {
                     issuer: &self.issuer,
+                    keys: self.creator.signing_keys(),
                     user_id: &req.user_id,
                     session_id: &credentials.gateway_session_id,
                     ttl,
@@ -123,6 +130,7 @@ impl RunCredentialService {
             &self.users,
             HookTokenRequest {
                 issuer: &self.issuer,
+                keys: self.creator.signing_keys(),
                 user_id: &req.user_id,
                 plugin_id,
                 session_id: &credentials.gateway_session_id,
