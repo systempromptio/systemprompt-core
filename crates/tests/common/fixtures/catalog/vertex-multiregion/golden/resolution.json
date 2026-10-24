@@ -1,7 +1,7 @@
 {
   "core_version": "0.72.1",
   "default_model": "claude-sonnet-5[1m]",
-  "fixture": "astound",
+  "fixture": "vertex-multiregion",
   "gateway_enabled": true,
   "models": {
     "anthropic-claude-fable-5": {

@@ -162,11 +162,11 @@ gateway:
   auth_scheme: bearer
   inference_path_prefix: /v1
   bridge_releases:
-    repo: Astound-Digital/systemprompt-astound
-    token_secret: ASTOUND_RELEASE_TOKEN
+    repo: example-org/example-gateway
+    token_secret: BRIDGE_RELEASE_TOKEN
     tag_prefix: v
     assets:
-      macos: astound-bridge-macos.zip
-      windows: astound-bridge-windows.exe
-      linux-x86_64: astound-bridge-linux-x86_64.tar.gz
-      linux-aarch64: astound-bridge-linux-aarch64.tar.gz
+      macos: example-bridge-macos.zip
+      windows: example-bridge-windows.exe
+      linux-x86_64: example-bridge-linux-x86_64.tar.gz
+      linux-aarch64: example-bridge-linux-aarch64.tar.gz

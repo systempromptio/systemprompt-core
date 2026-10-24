@@ -189,7 +189,7 @@ providers:
   surface: openai
   endpoint: https://opencode.ai/inference/go/openai/v1
   credential: user
-  user_agent: "systemprompt-gateway (opencode-go; dynapps)"
+  user_agent: "systemprompt-gateway (opencode-go; example)"
   forward_headers: [x-opencode-session]
   governance:
     european: false
@@ -338,7 +338,7 @@ providers:
   endpoint: https://opencode.ai/inference/go/anthropic/v1
   accepted_betas: []
   credential: user
-  user_agent: "systemprompt-gateway (opencode-go; dynapps)"
+  user_agent: "systemprompt-gateway (opencode-go; example)"
   forward_headers: [x-opencode-session]
   governance:
     european: false

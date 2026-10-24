@@ -1,7 +1,7 @@
 {
   "core_version": "0.72.1",
   "default_model": "claude-sonnet-5-5[1m]",
-  "fixture": "dynapps",
+  "fixture": "byok-gateway",
   "gateway_enabled": true,
   "models": {
     "claude-haiku-5-5": {

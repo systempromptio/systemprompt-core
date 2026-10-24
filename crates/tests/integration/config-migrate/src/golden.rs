@@ -24,7 +24,7 @@ use systemprompt_models::providers::ClientFamily;
 
 use crate::support::{Tree, fixtures_root, from_fixture, snapshot};
 
-const FIXTURES: [&str; 3] = ["core-default", "dynapps", "astound"];
+const FIXTURES: [&str; 3] = ["core-default", "byok-gateway", "vertex-multiregion"];
 const PRICE_FIELDS: [&str; 5] = [
     "input_per_million",
     "output_per_million",
