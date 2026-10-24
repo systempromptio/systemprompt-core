@@ -16,6 +16,33 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ---
 
+## Upgrading to 0.73: migrate, then apply
+
+`config apply` is mandatory after every upgrade, after `admin config migrate`
+and the database migrations, before the node serves traffic. Run it once on a
+fresh install too:
+
+```bash
+sp admin config migrate            # rewrite a 0.72 services tree (once)
+sp admin config migrate --data     # move personal keys and audit columns (once)
+sp admin config apply --reason "upgrade to 0.73"
+```
+
+Config planes fail closed until they are applied. If you skip the apply:
+
+| plane | unapplied behaviour |
+|---|---|
+| `governance` | every governed tool and gateway request is denied with `governance plane not applied — run \`systemprompt admin config apply\`` |
+| `gateway_policies` | every gateway request is refused (503 `gateway policy unavailable`); the log names the apply command |
+| `access_control` | every entity defaults to closed, so nothing is entitled |
+
+Boot logs the unapplied governance plane at error, `/readyz` lists it under
+`config.unapplied`, and `sp admin config planes list` shows `applied: NO` and a
+NOT APPLIED title. A plane the services tree does not declare is applied
+as declared-empty: governance runs the warn-only chain, gateway policies run
+the permissive policy. A plane applied with `mode: warn` records findings and
+refuses nothing.
+
 ## Command Groups
 
 `admin config` has thirteen groups. `show`, `list`, and `validate` are top-level; the rest are subcommand groups.
