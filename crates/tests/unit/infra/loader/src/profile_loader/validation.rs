@@ -289,8 +289,9 @@ fn load_and_validate_by_name_valid() {
     )
     .expect("write profile");
 
-    let profile = ProfileLoader::load_and_validate(&temp.path().join("profiles"), &profile_name("byname"))
-        .expect("valid named profile should load and validate");
+    let profile =
+        ProfileLoader::load_and_validate(&temp.path().join("profiles"), &profile_name("byname"))
+            .expect("valid named profile should load and validate");
     assert_eq!(profile.name, "byname");
 }
 
@@ -305,8 +306,9 @@ fn load_and_validate_by_name_invalid_port_errors() {
     )
     .expect("write profile");
 
-    let err = ProfileLoader::load_and_validate(&temp.path().join("profiles"), &profile_name("badport"))
-        .expect_err("port 0 must fail validation through the by-name path");
+    let err =
+        ProfileLoader::load_and_validate(&temp.path().join("profiles"), &profile_name("badport"))
+            .expect_err("port 0 must fail validation through the by-name path");
     assert!(err.to_string().contains("port"));
 }
 

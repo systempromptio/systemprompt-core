@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 
 use serde_yaml::Value;
 use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::derived::internal_url_for;
 use systemprompt_manifest::profile::{
-    AuthzMode, ProfileError, committed_source_errors, derived::internal_url_for, merge_yaml,
+    AuthzMode, ProfileError, committed_source_errors, merge_yaml,
 };
 
 const BASE: &str = r"
@@ -86,7 +87,9 @@ fn load_layered_applies_overlay_over_base() {
     let tree = Tree::new(
         Some(BASE),
         "prod",
-        Some("name: prod\nserver:\n  external_url: https://prod.example.com\n  extra_cors_origins: [https://app.example.com]\nruntime:\n  log_level: quiet\n"),
+        Some(
+            "name: prod\nserver:\n  external_url: https://prod.example.com\n  extra_cors_origins: [https://app.example.com]\nruntime:\n  log_level: quiet\n",
+        ),
     );
     let profile = Profile::load_layered(&tree.profiles, "prod").unwrap();
     assert_eq!(profile.name, "prod");
@@ -96,7 +99,10 @@ fn load_layered_applies_overlay_over_base() {
         profile.server.cors_allowed_origins,
         vec!["https://prod.example.com", "https://app.example.com"]
     );
-    assert!(matches!(profile.runtime.log_level, systemprompt_manifest::LogLevel::Quiet));
+    assert!(matches!(
+        profile.runtime.log_level,
+        systemprompt_manifest::LogLevel::Quiet
+    ));
 }
 
 #[test]
@@ -110,7 +116,10 @@ fn missing_base_is_overlay_only() {
 fn missing_overlay_is_an_error() {
     let tree = Tree::new(Some(BASE), "local", None);
     let err = Profile::load_layered(&tree.profiles, "local").unwrap_err();
-    assert!(matches!(err, ProfileError::MissingOverlay { .. }), "{err:?}");
+    assert!(
+        matches!(err, ProfileError::MissingOverlay { .. }),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -118,7 +127,9 @@ fn derived_fields_follow_external_url_and_bind() {
     let tree = Tree::new(
         Some(BASE),
         "prod",
-        Some("server:\n  host: 0.0.0.0\n  port: 9000\n  external_url: https://api.example.com:8443/\n"),
+        Some(
+            "server:\n  host: 0.0.0.0\n  port: 9000\n  external_url: https://api.example.com:8443/\n",
+        ),
     );
     let profile = Profile::load_layered(&tree.profiles, "prod").unwrap();
     let server = &profile.server;
@@ -126,7 +137,10 @@ fn derived_fields_follow_external_url_and_bind() {
     assert_eq!(server.api_server_url, "https://api.example.com:8443");
     assert_eq!(server.api_external_url, "https://api.example.com:8443");
     assert!(server.use_https);
-    assert_eq!(server.cors_allowed_origins[0], "https://api.example.com:8443");
+    assert_eq!(
+        server.cors_allowed_origins[0],
+        "https://api.example.com:8443"
+    );
     assert_eq!(profile.security.issuer, "https://api.example.com:8443");
     assert_eq!(server.api_internal_url, "http://localhost:9000");
     let hook = &profile.governance.unwrap().authz.unwrap().hook;
@@ -139,10 +153,17 @@ fn derived_fields_follow_external_url_and_bind() {
 
 #[test]
 fn http_external_url_default_port_origin() {
-    let tree = Tree::new(Some(BASE), "local", Some("server:\n  external_url: http://example.test:80\n"));
+    let tree = Tree::new(
+        Some(BASE),
+        "local",
+        Some("server:\n  external_url: http://example.test:80\n"),
+    );
     let profile = Profile::load_layered(&tree.profiles, "local").unwrap();
     assert!(!profile.server.use_https);
-    assert_eq!(profile.server.cors_allowed_origins[0], "http://example.test");
+    assert_eq!(
+        profile.server.cors_allowed_origins[0],
+        "http://example.test"
+    );
     assert_eq!(profile.server.api_internal_url, "http://127.0.0.1:8080");
 }
 
@@ -155,12 +176,36 @@ fn internal_url_brackets_ipv6() {
 #[test]
 fn every_derived_field_is_refused_when_stated() {
     for (snippet, field, source) in [
-        ("server:\n  api_server_url: x\n", "server.api_server_url", "server.external_url"),
-        ("server:\n  api_external_url: x\n", "server.api_external_url", "server.external_url"),
-        ("server:\n  use_https: true\n", "server.use_https", "server.external_url"),
-        ("server:\n  cors_allowed_origins: []\n", "server.cors_allowed_origins", "server.external_url"),
-        ("security:\n  jwt_issuer: x\n", "security.jwt_issuer", "server.external_url"),
-        ("server:\n  api_internal_url: x\n", "server.api_internal_url", "server.host and server.port"),
+        (
+            "server:\n  api_server_url: x\n",
+            "server.api_server_url",
+            "server.external_url",
+        ),
+        (
+            "server:\n  api_external_url: x\n",
+            "server.api_external_url",
+            "server.external_url",
+        ),
+        (
+            "server:\n  use_https: true\n",
+            "server.use_https",
+            "server.external_url",
+        ),
+        (
+            "server:\n  cors_allowed_origins: []\n",
+            "server.cors_allowed_origins",
+            "server.external_url",
+        ),
+        (
+            "security:\n  jwt_issuer: x\n",
+            "security.jwt_issuer",
+            "server.external_url",
+        ),
+        (
+            "server:\n  api_internal_url: x\n",
+            "server.api_internal_url",
+            "server.host and server.port",
+        ),
         (
             "governance:\n  authz:\n    hook:\n      mode: webhook\n      url: x\n",
             "governance.authz.hook.url",
@@ -181,7 +226,10 @@ fn every_derived_field_is_refused_when_stated() {
             other => panic!("{field}: unexpected {other:?}"),
         }
         let message = err.to_string();
-        assert!(message.contains(field) && message.contains(source), "{message}");
+        assert!(
+            message.contains(field) && message.contains(source),
+            "{message}"
+        );
     }
 }
 
@@ -192,7 +240,10 @@ fn legacy_secrets_profile_file_name_is_refused() {
     std::fs::write(&path, BASE).unwrap();
     let err = Profile::load_from_path(&path).unwrap_err();
     assert!(matches!(err, ProfileError::LegacyShape { .. }), "{err:?}");
-    assert!(err.to_string().contains("systemprompt admin config migrate"));
+    assert!(
+        err.to_string()
+            .contains("systemprompt admin config migrate")
+    );
 }
 
 #[test]
@@ -223,7 +274,10 @@ fn save_overlay_writes_only_changed_keys_and_never_the_base() {
 
     let overlay: Value = serde_yaml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     assert_eq!(overlay, yaml("name: local\nserver:\n  port: 9999\n"));
-    assert_eq!(std::fs::read_to_string(tree.profiles.join("base.yaml")).unwrap(), BASE);
+    assert_eq!(
+        std::fs::read_to_string(tree.profiles.join("base.yaml")).unwrap(),
+        BASE
+    );
     assert_eq!(Profile::load_from_path(&path).unwrap().server.port, 9999);
 }
 

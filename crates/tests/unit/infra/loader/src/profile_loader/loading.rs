@@ -179,7 +179,11 @@ fn test_load_by_name_not_found() {
     let profiles_dir = temp_dir.path().join("profiles");
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
-    ProfileLoader::load(&temp_dir.path().join("profiles"), &profile_name("nonexistent")).unwrap_err();
+    ProfileLoader::load(
+        &temp_dir.path().join("profiles"),
+        &profile_name("nonexistent"),
+    )
+    .unwrap_err();
 }
 
 fn profile_name(name: &str) -> systemprompt_identifiers::ProfileName {

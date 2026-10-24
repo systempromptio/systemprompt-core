@@ -103,11 +103,7 @@ fn make_profile() -> Profile {
 #[test]
 fn edit_server_settings_applies_scripted_answers() {
     let mut profile = make_profile();
-    let prompter = scripted(&[
-        "0.0.0.0",
-        "9090",
-        "https://public.example.com",
-    ]);
+    let prompter = scripted(&["0.0.0.0", "9090", "https://public.example.com"]);
 
     edit_server_settings(&prompter, &mut profile).expect("edit succeeds");
 

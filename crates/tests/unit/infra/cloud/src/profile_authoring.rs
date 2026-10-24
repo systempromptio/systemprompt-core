@@ -34,7 +34,9 @@ fn test_generate_display_name_capitalizes_unknown_names() {
 
 #[test]
 fn test_local_profile_defaults() {
-    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build().unwrap();
+    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services")
+        .build()
+        .unwrap();
 
     assert_eq!(profile.name, "local");
     assert_eq!(profile.display_name, "Local Development");
@@ -79,7 +81,8 @@ fn test_local_profile_defaults() {
 fn test_local_profile_cloud_and_secrets_sections() {
     let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services")
         .with_tenant_id(TenantId::new("local_tenant"))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let cloud = profile.cloud.as_ref().unwrap();
     assert_eq!(
@@ -96,7 +99,9 @@ fn test_local_profile_cloud_and_secrets_sections() {
 
 #[test]
 fn test_local_profile_governance_webhook() {
-    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build().unwrap();
+    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services")
+        .build()
+        .unwrap();
 
     let governance = profile.governance.as_ref().unwrap();
     let authz = governance.authz.as_ref().unwrap();
@@ -176,7 +181,8 @@ fn test_cloud_profile_custom_fields() {
         .with_external_db_access(true)
         .with_secrets_path("./secrets.json")
         .with_trusted_issuer(issuer)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert!(profile.database.external_db_access);
     assert_eq!(profile.server.api_server_url, "https://example.com");
@@ -219,7 +225,8 @@ fn test_cloud_profile_secrets_path_defaults_to_unset() {
 fn test_cloud_profile_governance_targets_internal_url() {
     let profile = CloudProfileBuilder::new("prod")
         .with_external_url("https://example.com")
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     let governance = profile.governance.as_ref().unwrap();
     let authz = governance.authz.as_ref().unwrap();
@@ -234,7 +241,8 @@ fn test_cloud_profile_governance_targets_internal_url() {
 fn cloud_profile_carries_forward_a_hand_set_geoip_database() {
     let profile = CloudProfileBuilder::new("prod")
         .with_geoip_database(Some("/x.mmdb".to_owned()))
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     assert_eq!(profile.paths.geoip_database.as_deref(), Some("/x.mmdb"));
 }
@@ -259,7 +267,9 @@ fn cloud_profile_paths_are_resolved_lexically() {
 
 #[test]
 fn local_profile_paths_are_canonicalized() {
-    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build().unwrap();
+    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services")
+        .build()
+        .unwrap();
 
     assert_eq!(
         profile.path_resolution(),

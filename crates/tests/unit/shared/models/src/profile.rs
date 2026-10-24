@@ -393,7 +393,10 @@ fn from_yaml_rejects_legacy_top_level_sections_with_migrate_hint() {
         );
         let message = err.to_string();
         assert!(message.contains(key), "{message}");
-        assert!(message.contains("systemprompt admin config migrate"), "{message}");
+        assert!(
+            message.contains("systemprompt admin config migrate"),
+            "{message}"
+        );
     }
 }
 

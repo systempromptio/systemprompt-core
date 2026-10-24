@@ -60,7 +60,13 @@ async fn an_unknown_authz_mode_is_rejected() {
 #[tokio::test]
 async fn webhook_mode_rejects_a_stated_url() {
     let err = Harness::try_parse_from([
-        "config", "governance", "set", "--mode", "webhook", "--url", "https://x.example",
+        "config",
+        "governance",
+        "set",
+        "--mode",
+        "webhook",
+        "--url",
+        "https://x.example",
     ])
     .unwrap_err();
     assert!(err.to_string().contains("--url"), "{err}");
@@ -68,9 +74,16 @@ async fn webhook_mode_rejects_a_stated_url() {
 
 #[tokio::test]
 async fn webhook_mode_is_written_with_its_timeout_and_no_url() {
-    run(&["governance", "set", "--mode", "webhook", "--timeout-ms", "750"])
-        .await
-        .unwrap();
+    run(&[
+        "governance",
+        "set",
+        "--mode",
+        "webhook",
+        "--timeout-ms",
+        "750",
+    ])
+    .await
+    .unwrap();
 
     let yaml = profile_yaml();
     assert!(yaml.contains("750"), "{yaml}");
