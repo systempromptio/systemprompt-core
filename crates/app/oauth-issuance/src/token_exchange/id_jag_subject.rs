@@ -15,7 +15,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::Permission;
-use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_oauth::services::validation::id_jag::{
     ClaimPolicy, DEFAULT_LEEWAY_SECS, IdJagClaims, validate_claims, validate_typ,
@@ -26,15 +26,26 @@ use systemprompt_security::keys::SigningKeys;
 use super::subject::{JwksCache, REQUIRED_CLAIMS, SubjectIdentity, peek_issuer};
 use crate::{IssuanceError, IssuanceResult};
 
+#[derive(Debug, Clone, Copy)]
+pub struct IdJagContext<'a> {
+    pub repo: &'a OAuthRepository,
+    pub keys: &'a SigningKeys,
+    pub global: &'a Config,
+    pub jwks: &'a JwksCache,
+}
+
 pub async fn validate_id_jag_subject(
     token: &str,
     authenticated_client: &ClientId,
-    state: &OAuthState,
-    global: &Config,
-    jwks: &JwksCache,
+    context: IdJagContext<'_>,
 ) -> IssuanceResult<SubjectIdentity> {
-    let (claims, allowed_client_ids) =
-        verify_id_jag_signature(state.signing_keys(), token, global, jwks).await?;
+    let IdJagContext {
+        repo,
+        keys,
+        global,
+        jwks,
+    } = context;
+    let (claims, allowed_client_ids) = verify_id_jag_signature(keys, token, global, jwks).await?;
 
     let policy = ClaimPolicy {
         expected_audience: global.jwt_issuer.as_str(),
@@ -56,8 +67,7 @@ pub async fn validate_id_jag_subject(
             reason: "ID-JAG jti is invalid",
             source: e.into(),
         })?;
-    let first_use = state
-        .oauth_repository()
+    let first_use = repo
         .consume_id_jag_jti(&jti, expires_at)
         .await
         .map_err(|e| IssuanceError::server("ID-JAG replay store unavailable", e))?;
