@@ -5,6 +5,7 @@
 //! own current-thread runtime inside the `temp_env` closure.
 
 use std::path::Path;
+use systemprompt_test_fixtures::block_on;
 
 use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::cli::doctor::auth::{
@@ -34,14 +35,6 @@ fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
     ];
     let path = dir.path().to_path_buf();
     temp_env::with_vars(vars, || f(&path))
-}
-
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime")
-        .block_on(f)
 }
 
 fn start_mock() -> (MockServer, tokio::runtime::Runtime) {

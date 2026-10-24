@@ -1,6 +1,7 @@
 use systemprompt_bridge::cli::doctor::{self, Status};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::validate::{self, CheckLevel};
+use systemprompt_test_fixtures::block_on;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -22,14 +23,6 @@ fn sandbox_vars(home: &TempDir, gateway: &str) -> Vec<(&'static str, Option<Stri
         ("SP_BRIDGE_PAT", None),
         ("SP_BRIDGE_CONFIG", None),
     ]
-}
-
-fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(fut)
 }
 
 fn health_server(health_status: u16, with_whoami: bool) -> (MockServer, String) {

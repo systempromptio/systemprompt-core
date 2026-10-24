@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use systemprompt_test_fixtures::block_on;
 
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
@@ -126,14 +127,6 @@ fn stub_client() -> GatewayClient {
         ValidatedUrl::try_new("http://127.0.0.1:0").expect("stub url"),
         reqwest::Client::new(),
     )
-}
-
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime")
-        .block_on(f)
 }
 
 fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), ApplyError> {

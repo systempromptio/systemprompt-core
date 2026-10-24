@@ -5,6 +5,7 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use systemprompt_bridge::auth::plugin_oauth::SecretStore;
+use systemprompt_test_fixtures::{block_on, install_headless_keystore};
 
 use systemprompt_bridge::auth::plugin_oauth::{self, OAuthClientCreds};
 use systemprompt_bridge::gateway::GatewayClient;
@@ -14,27 +15,12 @@ use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+fn use_headless_keystore() -> SecretStore {
+    install_headless_keystore();
+    SecretStore::resolve()
+}
+
 static UNIQUE: AtomicU32 = AtomicU32::new(0);
-
-#[cfg(target_os = "linux")]
-fn use_headless_keystore() -> SecretStore {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(
-            linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
-        );
-    });
-    SecretStore::resolve()
-}
-
-#[cfg(not(target_os = "linux"))]
-fn use_headless_keystore() -> SecretStore {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
-    });
-    SecretStore::resolve()
-}
 
 fn unique(prefix: &str) -> String {
     format!(
@@ -51,14 +37,6 @@ fn with_cache_home<T>(body: impl FnOnce(&SecretStore) -> T) -> (T, TempDir) {
         body(&secrets)
     });
     (out, temp)
-}
-
-fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(fut)
 }
 
 #[test]

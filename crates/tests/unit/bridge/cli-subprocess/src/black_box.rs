@@ -7,6 +7,7 @@
 
 use std::path::PathBuf;
 use std::process::{Command, Output};
+use systemprompt_test_fixtures::block_on;
 
 use chrono::Utc;
 use systemprompt_bridge::feedback::credentials::Enrollment;
@@ -219,14 +220,6 @@ fn run_without_credentials_exits_5() {
     let sb = sandbox(None);
     let out = require_bin!(run_bridge(&sb, &["run"]));
     assert_eq!(out.status.code(), Some(5));
-}
-
-fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(fut)
 }
 
 #[test]

@@ -5,6 +5,7 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use systemprompt_bridge::auth::plugin_oauth::SecretStore;
+use systemprompt_test_fixtures::{block_on, install_headless_keystore};
 
 use systemprompt_bridge::auth::plugin_oauth::{
     self, OAuthClientCreds, mint_or_refresh_plugin_token,
@@ -16,32 +17,12 @@ use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
+fn use_headless_keystore() -> SecretStore {
+    install_headless_keystore();
+    SecretStore::resolve()
+}
+
 static UNIQUE: AtomicU32 = AtomicU32::new(0);
-
-// The bridge's own lazy platform-store bootstrap must stand down before the
-// first entry is created, so a headless store is installed here instead. Linux
-// CI gets the kernel keyring, which needs no Secret Service daemon; elsewhere
-// the in-memory mock plays the same role without reaching for the platform
-// keychain, which would prompt or fail on a developer's machine.
-#[cfg(target_os = "linux")]
-fn use_headless_keystore() -> SecretStore {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(
-            linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
-        );
-    });
-    SecretStore::resolve()
-}
-
-#[cfg(not(target_os = "linux"))]
-fn use_headless_keystore() -> SecretStore {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
-    });
-    SecretStore::resolve()
-}
 
 fn unique(prefix: &str) -> String {
     format!(
@@ -143,14 +124,6 @@ fn provision_body(server_uri: &str, client_id: &str, secret: &str) -> serde_json
         "scopes": ["hook:govern", "hook:track"],
         "token_endpoint": format!("{server_uri}/oauth/token"),
     })
-}
-
-fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(fut)
 }
 
 #[test]

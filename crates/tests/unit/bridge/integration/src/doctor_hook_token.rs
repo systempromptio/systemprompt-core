@@ -8,32 +8,13 @@ use systemprompt_bridge::cli::doctor::Status;
 use systemprompt_bridge::cli::doctor::auth::check_hook_token_mint;
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_identifiers::{ClientId, ValidatedUrl};
+use systemprompt_test_fixtures::install_headless_keystore;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-// The bridge's own lazy platform-store bootstrap must stand down before the
-// first entry is created, so a headless store is installed here instead. Linux
-// CI gets the kernel keyring, which needs no Secret Service daemon; elsewhere
-// the in-memory mock plays the same role without reaching for the platform
-// keychain, which would prompt or fail on a developer's machine.
-#[cfg(target_os = "linux")]
 fn use_headless_keystore() -> SecretStore {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(
-            linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
-        );
-    });
-    SecretStore::resolve()
-}
-
-#[cfg(not(target_os = "linux"))]
-fn use_headless_keystore() -> SecretStore {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
-    });
+    install_headless_keystore();
     SecretStore::resolve()
 }
 

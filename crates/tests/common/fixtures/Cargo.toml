@@ -47,6 +47,10 @@ sqlx = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 wiremock = { workspace = true }
+keyring-core = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+linux-keyutils-keyring-store = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

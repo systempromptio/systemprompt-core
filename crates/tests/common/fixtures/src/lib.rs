@@ -19,6 +19,7 @@ pub mod governance;
 pub mod instance;
 pub mod jwt;
 pub mod keys;
+pub mod keystore;
 pub mod liveness;
 pub mod messaging;
 pub mod net;
@@ -64,6 +65,7 @@ pub use governance::{apply_governance, apply_governance_plane, record_plane_appl
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{mint_admin_jwt, mint_bridge_jwt, test_signing_keys};
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
+pub use keystore::install_headless_keystore;
 pub use liveness::LivePids;
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
 pub use net::{bind_in_range, free_port_in_range, port_is_unheld};
@@ -78,8 +80,7 @@ pub use secrets::{ensure_test_secrets_bootstrap, install_named_secret};
 pub use service_row::seed_running_service;
 pub use subprocess::{
     announce_helper_ready, bounded_output, helper, spawn_marked_child, test_spawner, Helper,
-    MarkedChild,
-    HELPER_READY_ENV,
+    MarkedChild, HELPER_READY_ENV,
 };
 pub use usage::{usage, usage_update, UsageBuilder};
 pub use user::{
