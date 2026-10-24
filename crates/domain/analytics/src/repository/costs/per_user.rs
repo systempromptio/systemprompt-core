@@ -1,26 +1,19 @@
 //! Per-user cost queries for `CostAnalyticsRepository`.
 //!
-//! Scopes spend, token, and conversation reads to a single [`UserId`],
-//! including model/agent breakdowns and recent-context summaries used for
-//! per-user billing and usage views. Spend, tokens and the per-model cost
-//! breakdown read the hourly rollup (`report_ai_usage_hourly`), widening the
-//! window to whole UTC hours at its start. The conversation reads stay on
-//! `report_ai_requests` for their window: each counts distinct contexts, which
-//! no rollup can add up, and the recent-contexts list is per conversation.
+//! Scopes spend and token reads to a single [`UserId`] for per-user billing
+//! views. Spend, tokens and the per-model cost breakdown read the hourly
+//! rollup (`report_ai_usage_hourly`), widening the window to whole UTC hours
+//! at its start. The user's conversation reads live in `conversations`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::CostAnalyticsRepository;
 use crate::Result;
-use crate::models::RecentContextDbRow;
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_identifiers::UserId;
 
-use crate::models::reporting::{
-    ContextGroupRow, ContextSummaryRow, CostBreakdownRow, CostSummaryRow, PreviousCostRow,
-    RecentContextRow,
-};
+use crate::models::reporting::{CostBreakdownRow, CostSummaryRow, PreviousCostRow};
 
 impl CostAnalyticsRepository {
     pub async fn get_summary_for_user(
@@ -106,149 +99,5 @@ impl CostAnalyticsRepository {
         .fetch_all(&*self.pool)
         .await
         .map_err(Into::into)
-    }
-
-    pub async fn get_context_summary_for_user(
-        &self,
-        user_id: &UserId,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-    ) -> Result<ContextSummaryRow> {
-        sqlx::query_as!(
-            ContextSummaryRow,
-            r#"
-            SELECT
-                COUNT(DISTINCT context_id)::bigint as "conversations!",
-                COUNT(*)::bigint as "ai_requests!"
-            FROM report_ai_requests
-            WHERE created_at >= $1 AND created_at < $2
-              AND traffic = 'production'
-              AND user_id = $3
-              AND context_id IS NOT NULL
-            "#,
-            start,
-            end,
-            user_id.as_str()
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .map_err(Into::into)
-    }
-
-    pub async fn get_contexts_by_model_for_user(
-        &self,
-        user_id: &UserId,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-        limit: i64,
-    ) -> Result<Vec<ContextGroupRow>> {
-        sqlx::query_as!(
-            ContextGroupRow,
-            r#"
-            SELECT
-                model as "name!",
-                COUNT(DISTINCT context_id)::bigint as "conversations!",
-                COUNT(*)::bigint as "ai_requests!"
-            FROM report_ai_requests
-            WHERE created_at >= $1 AND created_at < $2
-              AND traffic = 'production'
-              AND user_id = $3
-              AND context_id IS NOT NULL
-              AND model IS NOT NULL
-            GROUP BY model
-            ORDER BY COUNT(DISTINCT context_id) DESC
-            LIMIT $4
-            "#,
-            start,
-            end,
-            user_id.as_str(),
-            limit
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .map_err(Into::into)
-    }
-
-    pub async fn get_contexts_by_agent_for_user(
-        &self,
-        user_id: &UserId,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-        limit: i64,
-    ) -> Result<Vec<ContextGroupRow>> {
-        sqlx::query_as!(
-            ContextGroupRow,
-            r#"
-            SELECT
-                COALESCE(at.agent_name, 'unattributed') as "name!",
-                COUNT(DISTINCT r.context_id)::bigint as "conversations!",
-                COUNT(*)::bigint as "ai_requests!"
-            FROM report_ai_requests r
-            LEFT JOIN report_agent_tasks at ON at.task_id = r.task_id
-            WHERE r.created_at >= $1 AND r.created_at < $2
-                  AND r.traffic = 'production'
-              AND r.user_id = $3
-              AND r.context_id IS NOT NULL
-            GROUP BY COALESCE(at.agent_name, 'unattributed')
-            ORDER BY COUNT(DISTINCT r.context_id) DESC
-            LIMIT $4
-            "#,
-            start,
-            end,
-            user_id.as_str(),
-            limit
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .map_err(Into::into)
-    }
-
-    pub async fn get_recent_contexts_for_user(
-        &self,
-        user_id: &UserId,
-        end: DateTime<Utc>,
-        limit: i64,
-    ) -> Result<Vec<RecentContextRow>> {
-        let rows = sqlx::query_as!(
-            RecentContextDbRow,
-            r#"
-            SELECT
-                ctx.context_id as "context_id!: ContextId",
-                ctx.last_activity as "last_activity!",
-                ctx.ai_requests as "ai_requests!",
-                last_req.model,
-                last_task.agent_name,
-                uc.name as "context_name?"
-            FROM (
-                SELECT
-                    r.context_id,
-                    MAX(r.created_at) AS last_activity,
-                    COUNT(*) AS ai_requests
-                FROM report_ai_requests r
-                WHERE r.user_id = $1
-                  AND r.created_at < $2
-                  AND r.traffic = 'production'
-                  AND r.context_id IS NOT NULL
-                GROUP BY r.context_id
-                ORDER BY MAX(r.created_at) DESC
-                LIMIT $3
-            ) ctx
-            LEFT JOIN LATERAL (
-                SELECT model, task_id FROM report_ai_requests
-                WHERE context_id = ctx.context_id
-                ORDER BY created_at DESC
-                LIMIT 1
-            ) last_req ON TRUE
-            LEFT JOIN report_agent_tasks last_task ON last_task.task_id = last_req.task_id
-            LEFT JOIN report_user_contexts uc ON uc.context_id = ctx.context_id
-            ORDER BY ctx.last_activity DESC
-            "#,
-            user_id.as_str(),
-            end,
-            limit
-        )
-        .fetch_all(&*self.pool)
-        .await?;
-        Ok(rows.into_iter().map(RecentContextRow::from).collect())
     }
 }

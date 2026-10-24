@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                model as \"name!\",\n                COUNT(DISTINCT context_id)::bigint as \"conversations!\",\n                COUNT(*)::bigint as \"ai_requests!\"\n            FROM report_ai_requests\n            WHERE created_at >= $1 AND created_at < $2\n              AND traffic = 'production'\n              AND user_id = $3\n              AND context_id IS NOT NULL\n              AND model IS NOT NULL\n            GROUP BY model\n            ORDER BY COUNT(DISTINCT context_id) DESC\n            LIMIT $4\n            ",
+  "query": "\n            SELECT\n                model as \"name!\",\n                COUNT(DISTINCT context_id)::bigint as \"conversations!\",\n                SUM(request_count)::bigint as \"ai_requests!\"\n            FROM report_ai_context_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2\n              AND traffic = 'production'\n              AND user_id = $3\n              AND model <> ''\n            GROUP BY model\n            ORDER BY COUNT(DISTINCT context_id) DESC\n            LIMIT $4\n            ",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "report_ai_requests",
+            "table": "report_ai_context_hourly",
             "name": "model"
           }
         }
@@ -41,5 +41,5 @@
       null
     ]
   },
-  "hash": "07426c0ac37319f4073a3c4a47c76a22ced42d580754bbca7ff12868453e33ac"
+  "hash": "fbb75dfc68d83ad5a8f32a00e3f4e8ea131e4294a6b0ef0864e3c99a2a60e265"
 }

@@ -2,8 +2,10 @@
 //!
 //! For one closed window `[since, until)` it returns, per user active in that
 //! window, the window's completed request count and cost beside the user's
-//! trailing seven-day hourly average ending at `since`. Synthetic and
-//! non-completed rows are excluded from both sides.
+//! trailing seven-day hourly average ending at `since`. Evaluation traffic
+//! and non-completed requests are excluded from both sides. Both sides read
+//! the hourly per-conversation rollup (`ai_context_rollup_hourly`), so the
+//! window is whole UTC hours; the scan's window always is.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,18 +48,19 @@ impl AiUsageAnomalyRepository {
         let rows = sqlx::query!(
             r#"
             WITH observed AS (
-                SELECT user_id, COUNT(*)::BIGINT AS requests,
+                SELECT user_id, SUM(request_count)::BIGINT AS requests,
                        COALESCE(SUM(cost_microdollars), 0)::BIGINT AS cost
-                FROM ai_requests
-                WHERE created_at >= $1 AND created_at < $2
+                FROM ai_context_rollup_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
                   AND status = $3 AND traffic = 'production'
                 GROUP BY user_id
             ),
             baseline AS (
-                SELECT user_id, COUNT(*)::BIGINT AS requests,
+                SELECT user_id, SUM(request_count)::BIGINT AS requests,
                        COALESCE(SUM(cost_microdollars), 0)::BIGINT AS cost
-                FROM ai_requests
-                WHERE created_at >= $1 - INTERVAL '7 days' AND created_at < $1
+                FROM ai_context_rollup_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') - INTERVAL '7 days'
+                  AND bucket < date_trunc('hour', $1::timestamptz, 'UTC')
                   AND status = $3 AND traffic = 'production'
                   AND user_id IN (SELECT user_id FROM observed)
                 GROUP BY user_id

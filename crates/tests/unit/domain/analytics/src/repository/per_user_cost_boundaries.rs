@@ -147,6 +147,75 @@ async fn per_user_cost_context_queries_exclude_other_users_and_evaluation_traffi
     assert_eq!(recent[0].model.as_deref(), Some("model-b"));
     assert_eq!(recent[0].context_name.as_deref(), Some("owner recent"));
 
+    let summary = repository
+        .get_context_summary_for_user(&owner, start, window_end)
+        .await
+        .expect("owner context summary");
+    assert_eq!((summary.conversations, summary.ai_requests), (2, 2));
+
+    let agents = repository
+        .get_contexts_by_agent_for_user(&owner, start, window_end, 10)
+        .await
+        .expect("owner contexts by agent");
+    assert_eq!(agents.len(), 1);
+    assert_eq!(
+        (
+            agents[0].name.as_str(),
+            agents[0].conversations,
+            agents[0].ai_requests
+        ),
+        ("unattributed", 2, 2)
+    );
+
+    let users = repository
+        .get_breakdown_by_user(start, window_end, 10)
+        .await
+        .expect("breakdown by user");
+    let owner_row = users
+        .iter()
+        .find(|row| row.user_id == owner)
+        .expect("owner in breakdown");
+    assert_eq!(
+        (
+            owner_row.cost,
+            owner_row.requests,
+            owner_row.tokens,
+            owner_row.conversations
+        ),
+        (330, 2, 20, 2)
+    );
+    assert!(owner_row.name.is_some());
+
+    sqlx::query(
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, \
+         tokens_used, cost_microdollars, status, actor_kind, actor_id, created_at) \
+         VALUES ($1, $2, $3, $4, 'fixture', 'model-b', 10, 1, 'completed', 'user', $3, $5)",
+    )
+    .bind(format!("cost-row-{suffix}-late"))
+    .bind(format!("cost-request-{suffix}-late"))
+    .bind(owner.as_str())
+    .bind(recent_context.as_str())
+    .bind(base + Duration::minutes(4))
+    .execute(raw.as_ref())
+    .await
+    .expect("insert a later request in the recent context");
+    sqlx::query("DELETE FROM ai_requests WHERE id = $1")
+        .bind(format!("cost-row-{suffix}-late"))
+        .execute(raw.as_ref())
+        .await
+        .expect("delete the later request");
+    let recent = repository
+        .get_recent_contexts_for_user(&owner, base + Duration::minutes(5), 2)
+        .await
+        .expect("recent owner contexts after delete");
+    assert_eq!(recent[0].context_id, recent_context);
+    assert_eq!(recent[0].ai_requests, 1);
+    assert_eq!(
+        recent[0].last_activity.timestamp_micros(),
+        (base + Duration::minutes(1)).timestamp_micros()
+    );
+    assert_eq!(recent[1].context_id, first_context);
+
     let rollup: Vec<(String, i64, i64)> = sqlx::query_as(
         "SELECT traffic, request_count, cost_microdollars FROM ai_usage_rollup_hourly \
          WHERE user_id = $1 AND bucket = $2 ORDER BY traffic, model",
