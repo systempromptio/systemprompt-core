@@ -17,7 +17,7 @@ use systemprompt_models::auth::{
 };
 
 use crate::error::{JwtError, JwtResult};
-use crate::keys::authority;
+use crate::keys::SigningKeys;
 
 #[derive(Debug)]
 pub struct AdminTokenParams<'a> {
@@ -33,7 +33,10 @@ pub struct AdminTokenParams<'a> {
 pub struct JwtService;
 
 impl JwtService {
-    pub fn generate_admin_token(params: &AdminTokenParams<'_>) -> JwtResult<JwtToken> {
+    pub fn generate_admin_token(
+        keys: &SigningKeys,
+        params: &AdminTokenParams<'_>,
+    ) -> JwtResult<JwtToken> {
         let now = Utc::now();
         let expiry = now + params.duration;
 
@@ -65,11 +68,9 @@ impl JwtService {
             },
         };
 
-        let kid = authority::active_kid().map_err(JwtError::Signing)?;
         let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some(kid.to_owned());
-        let key = authority::encoding_key().map_err(JwtError::Signing)?;
-        let token = encode(&header, &claims, key).map_err(JwtError::from)?;
+        header.kid = Some(keys.active_kid().to_owned());
+        let token = encode(&header, &claims, keys.encoding_key()).map_err(JwtError::from)?;
 
         Ok(JwtToken::new(token))
     }

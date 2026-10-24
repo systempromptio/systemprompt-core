@@ -18,6 +18,7 @@ use systemprompt_models::auth::{Permission, UserType};
 
 use super::validate::{ValidationPolicy, decode_session_claims};
 use crate::error::{AuthError, AuthResult};
+use crate::keys::SigningKeys;
 
 #[derive(Debug, Clone)]
 pub struct JwtUserContext {
@@ -34,8 +35,12 @@ pub struct JwtUserContext {
     pub purpose: Option<String>,
 }
 
-pub fn extract_user_context(token: &str, issuer: &str) -> AuthResult<JwtUserContext> {
-    let claims = decode_session_claims(token, &ValidationPolicy::session_context(issuer))?;
+pub fn extract_user_context(
+    keys: &SigningKeys,
+    token: &str,
+    issuer: &str,
+) -> AuthResult<JwtUserContext> {
+    let claims = decode_session_claims(keys, token, &ValidationPolicy::session_context(issuer))?;
 
     let session_id = claims
         .custom

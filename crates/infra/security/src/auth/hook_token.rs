@@ -24,6 +24,7 @@ use systemprompt_models::auth::{JwtAudience, Permission};
 
 use crate::error::{AuthError, AuthResult};
 use crate::jwt::{ValidationPolicy, decode_rs256_claims};
+use crate::keys::SigningKeys;
 
 #[derive(Debug, Clone)]
 pub struct ValidatedHookClaims {
@@ -35,12 +36,13 @@ pub struct ValidatedHookClaims {
 #[derive(Debug)]
 pub struct HookTokenValidator {
     issuer: String,
+    keys: SigningKeys,
 }
 
 impl HookTokenValidator {
     #[must_use]
-    pub const fn new(issuer: String) -> Self {
-        Self { issuer }
+    pub const fn new(issuer: String, keys: SigningKeys) -> Self {
+        Self { issuer, keys }
     }
 
     pub fn validate_govern(
@@ -77,7 +79,7 @@ impl HookTokenValidator {
         request_plugin_id: Option<&PluginId>,
     ) -> AuthResult<ValidatedHookClaims> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, &[JwtAudience::Hook]);
-        let claims = decode_rs256_claims(token, &policy)?;
+        let claims = decode_rs256_claims(&self.keys, token, &policy)?;
 
         if !claims.custom.scope.contains(&required_scope) {
             return Err(AuthError::HookScopeMissing(required_scope_name));

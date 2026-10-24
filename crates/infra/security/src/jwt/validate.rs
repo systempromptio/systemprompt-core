@@ -30,7 +30,7 @@ use jsonwebtoken::{Algorithm, Header, Validation, decode, decode_header};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, UserType};
 
 use crate::error::{AuthError, AuthResult};
-use crate::keys::authority;
+use crate::keys::SigningKeys;
 
 pub const JWT_LEEWAY_SECONDS: u64 = 30;
 
@@ -67,7 +67,11 @@ pub fn reject_critical_header(header: &Header) -> Result<(), JwtError> {
     Ok(())
 }
 
-pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthResult<JwtClaims> {
+pub fn decode_rs256_claims(
+    keys: &SigningKeys,
+    token: &str,
+    policy: &ValidationPolicy<'_>,
+) -> AuthResult<JwtClaims> {
     if policy.audiences.is_empty() {
         return Err(AuthError::EmptyAudiencePolicy);
     }
@@ -80,8 +84,8 @@ pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthRe
         });
     }
     let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
-    let key = authority::decoding_key_for_kid(kid)
-        .map_err(AuthError::KeyLookup)?
+    let key = keys
+        .decoding_key_for_kid(kid)
         .ok_or_else(|| AuthError::UnknownKid(kid.to_owned()))?;
 
     let mut validation = Validation::new(Algorithm::RS256);
@@ -98,8 +102,12 @@ pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthRe
         .map_err(AuthError::InvalidToken)
 }
 
-pub fn decode_session_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthResult<JwtClaims> {
-    let claims = decode_rs256_claims(token, policy)?;
+pub fn decode_session_claims(
+    keys: &SigningKeys,
+    token: &str,
+    policy: &ValidationPolicy<'_>,
+) -> AuthResult<JwtClaims> {
+    let claims = decode_rs256_claims(keys, token, policy)?;
 
     if let Some(act) = claims.custom.act.as_ref() {
         let depth = act.depth();

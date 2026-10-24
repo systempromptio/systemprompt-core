@@ -1,9 +1,8 @@
 //! Ed25519 signing of bridge manifests.
 //!
-//! The signing key is derived from a 32-byte seed loaded by
-//! [`systemprompt_config::SecretsBootstrap`]. The seed is cached in a
-//! process-wide [`OnceLock`] so the key derivation runs at most once per
-//! process. Manifests are canonicalised via JSON Canonicalization Scheme
+//! The deployment's signing key lives in [`crate::keys::SigningKeys`]; the
+//! functions here canonicalise, sign with an explicit seed and verify.
+//! Manifests are canonicalised via JSON Canonicalization Scheme
 //! (RFC 8785) before signing so that semantically-equivalent payloads
 //! produce identical signatures.
 //!
@@ -14,8 +13,6 @@ use base64::Engine;
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::sync::OnceLock;
-use systemprompt_config::SecretsBootstrap;
 
 use crate::error::{ManifestSigningError, ManifestSigningResult};
 
@@ -23,31 +20,8 @@ const ED25519_PUBLIC_KEY_LEN: usize = 32;
 const ED25519_SIGNATURE_LEN: usize = 64;
 const KEY_ID_HEX_CHARS: usize = 16;
 
-pub fn signing_key() -> ManifestSigningResult<&'static SigningKey> {
-    static CELL: OnceLock<SigningKey> = OnceLock::new();
-    if let Some(k) = CELL.get() {
-        return Ok(k);
-    }
-    let seed = SecretsBootstrap::manifest_signing_secret_seed()
-        .map_err(ManifestSigningError::SeedUnavailable)?;
-    let key = SigningKey::from_bytes(&seed);
-    Ok(CELL.get_or_init(|| key))
-}
-
 pub fn canonicalize<T: Serialize>(value: &T) -> ManifestSigningResult<String> {
     serde_jcs::to_string(value).map_err(ManifestSigningError::Canonicalize)
-}
-
-pub fn sign_bytes(payload: &[u8]) -> ManifestSigningResult<String> {
-    let key = signing_key()?;
-    let sig = key.sign(payload);
-    Ok(base64::engine::general_purpose::STANDARD.encode(sig.to_bytes()))
-}
-
-pub fn pubkey_b64() -> ManifestSigningResult<String> {
-    let key = signing_key()?;
-    let vk: VerifyingKey = key.verifying_key();
-    Ok(base64::engine::general_purpose::STANDARD.encode(vk.to_bytes()))
 }
 
 pub fn sign_with_seed(seed: &[u8; 32], payload: &[u8]) -> String {

@@ -55,9 +55,6 @@ pub enum AuthError {
     #[error("token `kid` `{0}` does not match any known signing key")]
     UnknownKid(String),
 
-    #[error("signing key lookup failed: {0}")]
-    KeyLookup(#[source] crate::keys::authority::TokenAuthorityError),
-
     #[error("issuer `{0}` is not trusted")]
     UntrustedIssuer(String),
 
@@ -99,16 +96,10 @@ impl AuthError {
 pub enum JwtError {
     #[error("jwt encoding failed: {0}")]
     Encoding(#[from] jsonwebtoken::errors::Error),
-
-    #[error("jwt signing key unavailable: {0}")]
-    Signing(#[source] crate::keys::authority::TokenAuthorityError),
 }
 
 #[derive(Debug, Error)]
 pub enum ManifestSigningError {
-    #[error("manifest signing seed unavailable: {0}")]
-    SeedUnavailable(#[source] systemprompt_config::SecretsBootstrapError),
-
     #[error("jcs canonicalize: {0}")]
     Canonicalize(#[source] serde_json::Error),
 

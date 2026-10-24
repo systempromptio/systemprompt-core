@@ -19,13 +19,13 @@ use rsa::rand_core::OsRng;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use sha2::{Digest, Sha256};
 
-pub mod authority;
 pub mod jwks;
 pub mod jwks_client;
+pub mod signing_keys;
 
-pub use authority::{TokenAuthorityError, TokenAuthorityResult};
 pub use jwks::{Jwk, Jwks};
 pub use jwks_client::{JwksClient, JwksClientError};
+pub use signing_keys::{SigningKeys, SigningKeysError, SigningKeysResult};
 
 pub const DEFAULT_RSA_BITS: usize = 2048;
 

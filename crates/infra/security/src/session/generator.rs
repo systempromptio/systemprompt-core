@@ -13,7 +13,7 @@ use systemprompt_models::auth::{
 };
 
 use crate::error::{JwtError, JwtResult};
-use crate::keys::authority;
+use crate::keys::SigningKeys;
 
 #[derive(Debug)]
 pub struct SessionParams<'a> {
@@ -32,12 +32,14 @@ pub struct SessionParams<'a> {
 #[derive(Debug)]
 pub struct SessionGenerator {
     issuer: String,
+    keys: SigningKeys,
 }
 
 impl SessionGenerator {
-    pub fn new(issuer: impl Into<String>) -> Self {
+    pub fn new(issuer: impl Into<String>, keys: SigningKeys) -> Self {
         Self {
             issuer: issuer.into(),
+            keys,
         }
     }
 
@@ -73,11 +75,9 @@ impl SessionGenerator {
             },
         };
 
-        let kid = authority::active_kid().map_err(JwtError::Signing)?;
         let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some(kid.to_owned());
-        let key = authority::encoding_key().map_err(JwtError::Signing)?;
-        let token = encode(&header, &claims, key).map_err(JwtError::from)?;
+        header.kid = Some(self.keys.active_kid().to_owned());
+        let token = encode(&header, &claims, self.keys.encoding_key()).map_err(JwtError::from)?;
 
         Ok(SessionToken::new(token))
     }
