@@ -302,3 +302,57 @@ async fn analytics_repository_constructs() {
     let db = test_db_pool().await;
     let _repo = AnalyticsRepository::new(&db);
 }
+
+#[tokio::test]
+async fn a_log_row_with_null_user_id_decodes_to_an_error() {
+    let db = test_db_pool().await;
+    let pool = db.write_pool();
+    let repo = LoggingRepository::new(&db);
+    let id = LogId::generate();
+    sqlx::query(
+        "INSERT INTO logs (id, level, module, message, user_id, session_id, trace_id) \
+         VALUES ($1, 'INFO', 'null-user-mod', 'row without a user', NULL, 'sess', 'trace')",
+    )
+    .bind(id.as_str())
+    .execute(pool.as_ref())
+    .await
+    .unwrap();
+
+    let fetched = repo.get_by_id(&id).await;
+    let deleted = repo.delete_log_entry(&id).await.unwrap();
+
+    assert!(deleted, "the seeded row must be removed");
+    assert!(
+        fetched.is_err(),
+        "a NULL user_id must surface as an error, got {fetched:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_log_row_with_an_unparseable_context_id_decodes_to_a_repository_error() {
+    let db = test_db_pool().await;
+    let pool = db.write_pool();
+    let repo = LoggingRepository::new(&db);
+    let id = LogId::generate();
+    sqlx::query(
+        "INSERT INTO logs (id, level, module, message, user_id, session_id, trace_id, context_id) \
+         VALUES ($1, 'INFO', 'bad-context-mod', 'row with a blank context', 'user', 'sess', \
+         'trace', '')",
+    )
+    .bind(id.as_str())
+    .execute(pool.as_ref())
+    .await
+    .unwrap();
+
+    let fetched = repo.get_by_id(&id).await;
+    let deleted = repo.delete_log_entry(&id).await.unwrap();
+
+    assert!(deleted, "the seeded row must be removed");
+    assert!(
+        matches!(
+            fetched,
+            Err(systemprompt_logging::models::LoggingError::Repository(_))
+        ),
+        "a blank context_id must decode to a typed repository error, got {fetched:?}"
+    );
+}
