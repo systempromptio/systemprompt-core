@@ -32,6 +32,7 @@ fn lifecycle(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> Age
     AgentLifecycle::new(
         AgentServiceRepository::new(pool, instance.clone()),
         app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
     )
     .expect("lifecycle")
 }
@@ -230,21 +231,44 @@ async fn free_function_verbs_cover_missing_agent_paths() {
         unique_instance(),
     );
     assert!(
-        verbs::start_agent(repo.clone(), app_paths(), &name, None)
-            .await
-            .is_err()
-    );
-    assert!(
-        verbs::enable_agent(repo.clone(), app_paths(), &name, None)
-            .await
-            .is_err()
-    );
-    assert!(
-        verbs::restart_agent(repo.clone(), app_paths(), &name, None)
-            .await
-            .is_err()
-    );
-    verbs::disable_agent(repo.clone(), app_paths(), &name)
+        verbs::start_agent(
+            repo.clone(),
+            app_paths(),
+            systemprompt_test_fixtures::test_spawner(),
+            &name,
+            None
+        )
         .await
-        .expect("disable of an unregistered agent is a no-op removal");
+        .is_err()
+    );
+    assert!(
+        verbs::enable_agent(
+            repo.clone(),
+            app_paths(),
+            systemprompt_test_fixtures::test_spawner(),
+            &name,
+            None
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        verbs::restart_agent(
+            repo.clone(),
+            app_paths(),
+            systemprompt_test_fixtures::test_spawner(),
+            &name,
+            None
+        )
+        .await
+        .is_err()
+    );
+    verbs::disable_agent(
+        repo.clone(),
+        app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
+        &name,
+    )
+    .await
+    .expect("disable of an unregistered agent is a no-op removal");
 }

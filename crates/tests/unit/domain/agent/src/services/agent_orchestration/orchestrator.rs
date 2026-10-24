@@ -42,9 +42,14 @@ async fn make_orchestrator(
     instance: &InstanceId,
 ) -> AgentOrchestrator {
     let agent_state = make_agent_state_for(pool, instance);
-    AgentOrchestrator::new(agent_state, app_paths(), None)
-        .await
-        .expect("orchestrator")
+    AgentOrchestrator::new(
+        agent_state,
+        app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
+        None,
+    )
+    .await
+    .expect("orchestrator")
 }
 
 #[tokio::test]

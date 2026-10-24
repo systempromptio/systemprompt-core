@@ -111,6 +111,9 @@ pub enum RuntimeError {
     #[error("services reconcile state: {0}")]
     ServicesReconcileState(#[source] BundleError),
 
+    #[error("subprocess spawner: {0}")]
+    Spawner(#[source] std::io::Error),
+
     #[error("signing key init: {0}")]
     Signing(#[from] TokenAuthorityError),
 

@@ -11,6 +11,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::Spawner;
 use systemprompt_traits::StartupEventSender;
 
 pub mod event_bus;
@@ -57,13 +58,14 @@ impl McpOrchestrator {
         service_repo: ServiceRepository,
         app_paths: Arc<AppPaths>,
         registry: RegistryService,
+        spawner: Arc<Spawner>,
     ) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
 
         registry.validate()?;
         let database = DatabaseService::new(service_repo, Arc::clone(&app_paths), registry.clone());
         let network = NetworkService::new();
-        let process = ProcessService::new();
+        let process = ProcessService::new(spawner);
         let monitoring = MonitoringService::new();
         let lifecycle = LifecycleService::new(
             process,

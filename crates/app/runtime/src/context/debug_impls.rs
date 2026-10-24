@@ -97,6 +97,7 @@ impl std::fmt::Debug for Subsystems {
                 "background_tasks_in_flight",
                 &self.background_tasks.in_flight(),
             )
+            .field("spawner", &"Spawner")
             .field("publish_guard", &"Mutex<PublishGuard>")
             .field("connector_tokens", &"TokenCache")
             .finish()

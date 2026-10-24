@@ -107,6 +107,7 @@ pub struct Subsystems {
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,
+    pub spawner: Arc<systemprompt_loader::subprocess::Spawner>,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
     pub connector_tokens: Arc<TokenCache>,
 }

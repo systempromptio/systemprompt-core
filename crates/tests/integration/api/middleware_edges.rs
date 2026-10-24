@@ -150,6 +150,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
             ),
             shutdown: Default::default(),
             background_tasks: Default::default(),
+            spawner: systemprompt_test_fixtures::test_spawner(),
             connector_tokens: Arc::default(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),

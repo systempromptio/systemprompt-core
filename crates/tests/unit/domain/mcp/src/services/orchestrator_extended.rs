@@ -38,7 +38,13 @@ async fn make_orchestrator() -> McpOrchestrator {
     );
     let registry = RegistryService::new(fixture_user_id());
     let service_repo = ServiceRepository::new(&db, unique_instance());
-    McpOrchestrator::new(service_repo, app_paths, registry).expect("orchestrator")
+    McpOrchestrator::new(
+        service_repo,
+        app_paths,
+        registry,
+        systemprompt_test_fixtures::test_spawner(),
+    )
+    .expect("orchestrator")
 }
 
 #[tokio::test]

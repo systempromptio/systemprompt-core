@@ -26,7 +26,18 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
+
+use systemprompt_loader::subprocess::Spawner;
+
+static TEST_SPAWNER: OnceLock<Arc<Spawner>> = OnceLock::new();
+
+pub fn test_spawner() -> Arc<Spawner> {
+    Arc::clone(
+        TEST_SPAWNER.get_or_init(|| Arc::new(Spawner::new().expect("start subprocess spawner"))),
+    )
+}
 
 use tempfile::TempDir;
 

@@ -11,26 +11,29 @@
 
 pub mod spawner;
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
+use systemprompt_loader::subprocess::{self, ChildKind, Spawner, StopOutcome};
 
 const STOP_GRACE: Duration = Duration::from_secs(5);
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ProcessService;
+#[derive(Debug, Clone)]
+pub struct ProcessService {
+    spawner: Arc<Spawner>,
+}
 
 impl ProcessService {
-    pub const fn new() -> Self {
-        Self
+    pub const fn new(spawner: Arc<Spawner>) -> Self {
+        Self { spawner }
     }
 
-    pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
-        spawner::spawn_server(paths, config)
+    pub fn spawn_server(&self, paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
+        spawner::spawn_server(&self.spawner, paths, config)
     }
 
     pub async fn is_running(pid: u32) -> bool {

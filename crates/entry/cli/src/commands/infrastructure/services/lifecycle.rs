@@ -43,9 +43,14 @@ pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrc
         Arc::clone(ctx.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
     ));
-    AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
-        .await
-        .context("Failed to initialize agent orchestrator")
+    AgentOrchestrator::new(
+        agent_state,
+        Arc::clone(ctx.app_paths_arc()),
+        Arc::clone(ctx.spawner()),
+        None,
+    )
+    .await
+    .context("Failed to initialize agent orchestrator")
 }
 
 pub(crate) fn mcp_orchestrator(ctx: &Arc<AppContext>) -> Result<McpOrchestrator> {
@@ -53,6 +58,7 @@ pub(crate) fn mcp_orchestrator(ctx: &Arc<AppContext>) -> Result<McpOrchestrator>
         (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
+        Arc::clone(ctx.spawner()),
     )
     .context("Failed to initialize MCP manager")
 }

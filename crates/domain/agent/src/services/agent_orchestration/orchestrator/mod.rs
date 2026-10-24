@@ -26,6 +26,7 @@ use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, mon
 use crate::state::AgentState;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::AgentName;
+use systemprompt_loader::subprocess::Spawner;
 
 #[derive(Debug, Clone)]
 pub struct AgentInfo {
@@ -46,6 +47,7 @@ impl AgentOrchestrator {
     pub async fn new(
         agent_state: Arc<AgentState>,
         app_paths: Arc<AppPaths>,
+        spawner: Arc<Spawner>,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<Self> {
         tracing::debug!("Initializing Agent Orchestrator");
@@ -53,7 +55,7 @@ impl AgentOrchestrator {
         let agent_repo = agent_state.repositories().agent_services.clone();
 
         let db_service = AgentDatabaseService::new(agent_repo.clone())?;
-        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths)?;
+        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths, spawner)?;
         let reconciler = AgentReconciler::new(agent_repo.clone())?;
         let monitor = AgentMonitor::new(agent_repo)?;
 

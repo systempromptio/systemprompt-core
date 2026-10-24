@@ -176,9 +176,14 @@ async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
         Arc::new(broadcaster),
     ));
 
-    AgentOrchestrator::new(agent_state, Arc::clone(app.app_paths_arc()), None)
-        .await
-        .context("Failed to initialize agent orchestrator")
+    AgentOrchestrator::new(
+        agent_state,
+        Arc::clone(app.app_paths_arc()),
+        Arc::clone(app.spawner()),
+        None,
+    )
+    .await
+    .context("Failed to initialize agent orchestrator")
 }
 
 pub fn delete_single_agent(

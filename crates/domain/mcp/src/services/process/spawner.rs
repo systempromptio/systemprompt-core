@@ -17,7 +17,7 @@ use std::path::Path;
 use std::process::Command;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-use systemprompt_loader::subprocess::{self, ChildKind};
+use systemprompt_loader::subprocess::{self, ChildKind, Spawner};
 use systemprompt_manifest::{Config, Secrets};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
@@ -140,7 +140,11 @@ pub fn serialize_server_configs(config: &McpServerConfig) -> McpDomainResult<(St
     Ok((tools_config_json, server_model_config_json))
 }
 
-pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
+pub fn spawn_server(
+    spawner: &Spawner,
+    paths: &AppPaths,
+    config: &McpServerConfig,
+) -> McpDomainResult<u32> {
     let binary = config.spawn_binary()?;
     let port = config.spawn_port()?;
     let binary_path = paths.build().resolve_binary(binary).map_err(|e| {
@@ -190,7 +194,7 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         .stdin(std::process::Stdio::null());
     subprocess::place_in_own_process_group(&mut child_command);
 
-    let pid = subprocess::spawn_supervised(child_command).map_err(|e| {
+    let pid = spawner.spawn_supervised(child_command).map_err(|e| {
         crate::error::McpDomainError::operation(
             format!("Failed to start detached {}", config.name),
             e,

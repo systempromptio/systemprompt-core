@@ -199,6 +199,10 @@ impl AppContextBuilder {
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks: self.background_tasks.unwrap_or_default(),
+            spawner: Arc::new(
+                systemprompt_loader::subprocess::Spawner::new()
+                    .map_err(crate::error::RuntimeError::Spawner)?,
+            ),
             publish_guard: Arc::default(),
             connector_tokens,
         };

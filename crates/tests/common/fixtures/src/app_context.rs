@@ -357,6 +357,7 @@ fn fixture_app_context_assembled(
             file_storage,
             shutdown: Default::default(),
             background_tasks: Default::default(),
+            spawner: crate::subprocess::test_spawner(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),

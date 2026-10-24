@@ -88,7 +88,14 @@ async fn build_orchestrator(
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
     ));
 
-    match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {
+    match AgentOrchestrator::new(
+        agent_state,
+        Arc::clone(ctx.app_paths_arc()),
+        Arc::clone(ctx.spawner()),
+        events,
+    )
+    .await
+    {
         Ok(orch) => Ok(orch),
         Err(e) => {
             events.error(

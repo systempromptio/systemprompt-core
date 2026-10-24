@@ -154,6 +154,7 @@ async fn plane_debug_impls_flag_optional_members() {
         ),
         shutdown: Default::default(),
         background_tasks: Default::default(),
+        spawner: systemprompt_test_fixtures::test_spawner(),
         publish_guard: Arc::new(tokio::sync::Mutex::new(
             systemprompt_marketplace::inventory::PublishGuard::default(),
         )),

@@ -41,7 +41,7 @@ async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryServ
         registry.clone(),
     );
     let lifecycle = LifecycleService::new(
-        ProcessService::new(),
+        ProcessService::new(systemprompt_test_fixtures::test_spawner()),
         NetworkService::new(),
         database.clone(),
         MonitoringService::new(),

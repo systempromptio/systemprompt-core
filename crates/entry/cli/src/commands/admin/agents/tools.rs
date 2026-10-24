@@ -77,6 +77,7 @@ pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<Com
         (**app.service_repository()).clone(),
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),
+        Arc::clone(app.spawner()),
     )
     .context("Failed to initialize MCP manager")?;
     let running_servers = manager

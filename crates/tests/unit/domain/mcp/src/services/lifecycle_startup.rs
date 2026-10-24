@@ -151,7 +151,9 @@ async fn start_server_rejects_external_servers() {
         registry,
     );
     let lifecycle = LifecycleService::new(
-        systemprompt_mcp::services::process::ProcessService::new(),
+        systemprompt_mcp::services::process::ProcessService::new(
+            systemprompt_test_fixtures::test_spawner(),
+        ),
         systemprompt_mcp::services::NetworkService::new(),
         database,
         systemprompt_mcp::services::MonitoringService::new(),

@@ -28,6 +28,7 @@ fn orchestrator(
             (**ctx.service_repository()).clone(),
             std::sync::Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
+            std::sync::Arc::clone(ctx.spawner()),
         )
         .expect("orchestrator"),
     )

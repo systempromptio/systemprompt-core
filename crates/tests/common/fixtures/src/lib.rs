@@ -74,7 +74,8 @@ pub use schema::{install_extension_schemas, install_extension_schemas_with_confi
 pub use secrets::{ensure_test_secrets_bootstrap, install_named_secret};
 pub use service_row::seed_running_service;
 pub use subprocess::{
-    announce_helper_ready, helper, spawn_marked_child, Helper, MarkedChild, HELPER_READY_ENV,
+    announce_helper_ready, helper, spawn_marked_child, test_spawner, Helper, MarkedChild,
+    HELPER_READY_ENV,
 };
 pub use usage::{usage, usage_update, UsageBuilder};
 pub use user::{

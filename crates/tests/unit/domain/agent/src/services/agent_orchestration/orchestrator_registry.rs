@@ -58,9 +58,14 @@ async fn make_orchestrator(
     names_and_ports: &[(&AgentName, u16)],
 ) -> AgentOrchestrator {
     let agent_state = make_agent_state_for(pool, instance);
-    let mut orchestrator = AgentOrchestrator::new(agent_state, app_paths(), None)
-        .await
-        .expect("orchestrator");
+    let mut orchestrator = AgentOrchestrator::new(
+        agent_state,
+        app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
+        None,
+    )
+    .await
+    .expect("orchestrator");
     orchestrator.set_registry(registry_with(names_and_ports));
     orchestrator
 }

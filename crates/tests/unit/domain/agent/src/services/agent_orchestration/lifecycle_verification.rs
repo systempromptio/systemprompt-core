@@ -33,6 +33,7 @@ fn lifecycle(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> Age
     AgentLifecycle::new(
         AgentServiceRepository::new(pool, instance.clone()),
         app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
     )
     .expect("lifecycle")
 }

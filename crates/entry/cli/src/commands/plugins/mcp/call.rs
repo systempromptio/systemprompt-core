@@ -121,6 +121,7 @@ async fn resolve_running_url(server_name: &McpServerId, ctx: &CommandContext) ->
         (**app.service_repository()).clone(),
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),
+        Arc::clone(app.spawner()),
     )
     .context("Failed to initialize MCP manager")?;
     let running_servers = manager

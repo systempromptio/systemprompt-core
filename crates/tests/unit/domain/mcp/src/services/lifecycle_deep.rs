@@ -49,7 +49,7 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
     let repo = ServiceRepository::new(&db, unique_instance());
     let database = DatabaseService::new(repo.clone(), Arc::clone(&app_paths), registry);
     let lifecycle = LifecycleService::new(
-        ProcessService::new(),
+        ProcessService::new(systemprompt_test_fixtures::test_spawner()),
         NetworkService::new(),
         database,
         MonitoringService::new(),

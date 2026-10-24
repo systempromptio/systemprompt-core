@@ -43,7 +43,7 @@ async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
         registry,
     );
     let lifecycle = LifecycleService::new(
-        ProcessService::new(),
+        ProcessService::new(systemprompt_test_fixtures::test_spawner()),
         NetworkService::new(),
         database,
         MonitoringService::new(),

@@ -32,6 +32,10 @@ impl AppContext {
         &self.subsystems.background_tasks
     }
 
+    pub const fn spawner(&self) -> &Arc<systemprompt_loader::subprocess::Spawner> {
+        &self.subsystems.spawner
+    }
+
     pub fn request_restart(&self, reason: &str) {
         self.subsystems.shutdown.request(reason);
     }

@@ -41,9 +41,14 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
         Arc::new(HttpWebhookBroadcaster::from_config(app.config())?),
     ));
 
-    let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(app.app_paths_arc()), None)
-        .await
-        .context("Failed to initialize agent orchestrator")?;
+    let orchestrator = AgentOrchestrator::new(
+        agent_state,
+        Arc::clone(app.app_paths_arc()),
+        Arc::clone(app.spawner()),
+        None,
+    )
+    .await
+    .context("Failed to initialize agent orchestrator")?;
 
     let all_statuses = orchestrator.list_all().await?;
 

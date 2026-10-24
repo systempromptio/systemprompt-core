@@ -243,8 +243,17 @@ mod supervised_spawn {
 
     use super::{MCP_SERVICE_ID_ENV, live_pid_is_subprocess};
     use std::process::Command;
+    use std::sync::OnceLock;
     use std::time::{Duration, Instant};
-    use systemprompt_loader::subprocess::spawn_supervised;
+    use systemprompt_loader::subprocess::Spawner;
+
+    static SPAWNER: OnceLock<Spawner> = OnceLock::new();
+
+    fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {
+        SPAWNER
+            .get_or_init(|| Spawner::new().expect("start spawner"))
+            .spawn_supervised(cmd)
+    }
 
     fn sleeper() -> Command {
         let mut cmd = Command::new("sleep");

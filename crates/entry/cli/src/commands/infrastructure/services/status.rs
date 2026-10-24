@@ -210,6 +210,7 @@ async fn mcp_service_statuses(ctx: &Arc<AppContext>) -> Result<Vec<McpServiceSta
         (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
+        Arc::clone(ctx.spawner()),
     )?;
     Ok(manager.service_statuses().await?)
 }

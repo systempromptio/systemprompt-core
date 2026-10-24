@@ -15,12 +15,14 @@ pub mod command;
 use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_identifiers::AgentName;
+use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
 pub async fn spawn_detached(
     paths: &AppPaths,
+    spawner: &Spawner,
     agent_name: &AgentName,
     port: u16,
 ) -> OrchestrationResult<u32> {
@@ -47,7 +49,8 @@ pub async fn spawn_detached(
         log_file,
     });
 
-    let pid = systemprompt_loader::subprocess::spawn_supervised(cmd)
+    let pid = spawner
+        .spawn_supervised(cmd)
         .map_err(|e| OrchestrationError::spawn(format!("Failed to spawn {agent_name}"), e))?;
 
     if !systemprompt_loader::subprocess::is_running(pid).await {

@@ -44,8 +44,13 @@ async fn make_orchestrator_and_repo() -> (McpOrchestrator, ServiceRepository) {
     );
     let registry = RegistryService::new(fixture_user_id());
     let service_repo = ServiceRepository::new(&db, unique_instance());
-    let orchestrator =
-        McpOrchestrator::new(service_repo.clone(), app_paths, registry).expect("orchestrator");
+    let orchestrator = McpOrchestrator::new(
+        service_repo.clone(),
+        app_paths,
+        registry,
+        systemprompt_test_fixtures::test_spawner(),
+    )
+    .expect("orchestrator");
     (orchestrator, service_repo)
 }
 

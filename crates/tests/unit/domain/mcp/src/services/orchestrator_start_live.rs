@@ -80,6 +80,7 @@ async fn live_server(prefix: &str) -> LiveServer {
         repo.clone(),
         app_paths,
         RegistryService::new(fixture_user_id()),
+        systemprompt_test_fixtures::test_spawner(),
     )
     .expect("orchestrator");
 

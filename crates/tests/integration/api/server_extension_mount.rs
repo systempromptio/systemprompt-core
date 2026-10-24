@@ -237,6 +237,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             ),
             shutdown: Default::default(),
             background_tasks: Default::default(),
+            spawner: systemprompt_test_fixtures::test_spawner(),
             connector_tokens: Arc::default(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
