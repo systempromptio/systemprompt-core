@@ -9627,7 +9627,6 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
- "systemprompt-users",
  "tempfile",
  "tokio",
  "tracing",
