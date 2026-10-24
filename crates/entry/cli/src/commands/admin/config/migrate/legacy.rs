@@ -70,6 +70,7 @@ pub struct LegacyProvider {
     pub display_name: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(deserialize_with = "super::legacy_wire::deserialize")]
     pub wire: WireProtocol,
     pub surface: LegacySurface,
     pub endpoint: String,

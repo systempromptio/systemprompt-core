@@ -20,6 +20,7 @@ pub mod fold;
 pub mod gateway;
 pub mod legacy;
 pub mod legacy_map;
+mod legacy_wire;
 pub mod models;
 pub mod plan;
 pub mod replay;
