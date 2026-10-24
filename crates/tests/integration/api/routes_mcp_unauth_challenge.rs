@@ -137,6 +137,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
             governance: systemprompt_test_fixtures::default_governance_watch(),
+            services: systemprompt_test_fixtures::fixture_services_watch(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             ai_service: None,
             artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,

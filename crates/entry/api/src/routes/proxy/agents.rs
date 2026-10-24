@@ -34,13 +34,12 @@ pub fn router(ctx: &AppContext) -> Router {
                 move |Path((service_name, path)): Path<(String, String)>, state, request| {
                     let engine = engine_with_path.clone();
                     async move {
-                        engine
-                            .handle_agent_request_with_path(
-                                Path((service_name, path)),
-                                state,
-                                request,
-                            )
-                            .await
+                        Box::pin(engine.handle_agent_request_with_path(
+                            Path((service_name, path)),
+                            state,
+                            request,
+                        ))
+                        .await
                     }
                 },
             ),

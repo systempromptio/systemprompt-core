@@ -20,6 +20,7 @@ use systemprompt_traits::{
 use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
     start_governance_watch, start_registry_heartbeat, start_schema_watch, start_secrets_refresh,
+    start_services_watch,
 };
 use super::readiness::ReadinessState;
 use super::routes::role::LifecyclePlan;
@@ -84,6 +85,7 @@ async fn start_role_phases(
 ) -> Result<Option<SchedulerHandle>> {
     start_event_bridge(ctx);
     start_governance_watch(ctx);
+    start_services_watch(ctx);
     start_registry_heartbeat(ctx);
     start_secrets_refresh(ctx);
     start_schema_watch(ctx);

@@ -1,4 +1,5 @@
-//! Service accessors: the process-wide governance engine, AI service,
+//! Service accessors: the process-wide governance engine, the services
+//! config every request reads, AI service,
 //! artifact ingest, logging runtime and lifecycle owners the composition root
 //! built once.
 //!
@@ -9,7 +10,7 @@ use std::sync::Arc;
 
 use systemprompt_governance::policy::{GovernanceEngine, GovernanceEngineError};
 use systemprompt_logging::LoggingRuntime;
-use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_manifest::services::{ServicesConfig, SystemAdmin};
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch};
 
 use super::{AppContext, ShutdownRequest};
@@ -53,6 +54,16 @@ impl AppContext {
     #[must_use]
     pub const fn governance_watch(&self) -> &ConfigWatch<GovernanceEngine> {
         &self.subsystems.governance
+    }
+
+    #[must_use]
+    pub fn services_config(&self) -> Arc<ServicesConfig> {
+        self.subsystems.services.get()
+    }
+
+    #[must_use]
+    pub const fn services_watch(&self) -> &ConfigWatch<ServicesConfig> {
+        &self.subsystems.services
     }
 
     pub async fn load_governance(&self) -> Result<GovernanceEngine, GovernanceEngineError> {

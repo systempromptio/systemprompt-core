@@ -24,7 +24,7 @@ use std::time::Duration;
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::{BackgroundTasks, CacheDomain, CacheEpochs, RepositoryError};
 
@@ -150,7 +150,7 @@ impl<T: Send + Sync + 'static> ConfigWatch<T> {
                 true
             },
             Err(error) => {
-                warn!(domain = domain.label(), %error, "config watch reload failed; keeping the last value");
+                error!(domain = domain.label(), %error, "config watch reload failed; keeping the last value");
                 false
             },
         }

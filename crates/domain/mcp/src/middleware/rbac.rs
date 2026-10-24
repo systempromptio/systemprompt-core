@@ -1,7 +1,9 @@
 //! Role-based access control for MCP server requests.
 //!
 //! Validates a Bearer JWT (or proxy-verified identity headers) against the
-//! per-server `OAuthRequirement` declared in the registry config.
+//! per-server `OAuthRequirement` declared in the registry config. The caller
+//! passes the services config it already holds (the server's services watch),
+//! so a request never re-reads the services tree.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,7 +17,7 @@ use systemprompt_governance::authz::{
     member_attribute_floor,
 };
 use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId};
-use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
 use systemprompt_models::execution::context::ExecutionContext;
@@ -85,16 +87,12 @@ pub async fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
     server_id: &McpServerId,
     hook: &SharedAuthzHook,
+    services_config: &ServicesConfig,
 ) -> Result<AuthResult, McpError> {
     let header_dump = mcp_context
         .extensions
         .get::<http::request::Parts>()
         .map(diagnostic_headers);
-
-    let services_config = ConfigLoader::load().map_err(|e| {
-        tracing::error!(server = %server_id, headers = ?header_dump, error = %e, "Failed to load services config");
-        McpError::internal_error("Failed to load services config", None)
-    })?;
 
     let deployment = services_config
         .mcp_servers
@@ -114,7 +112,7 @@ pub async fn enforce_rbac_from_registry(
         return Ok(AuthResult::Anonymous(request_context));
     }
 
-    let floor = member_attribute_floor(&services_config, EntityKind::McpServer, server_id.as_str());
+    let floor = member_attribute_floor(services_config, EntityKind::McpServer, server_id.as_str());
 
     if let Some(proxy_auth) = try_proxy_verified_auth(
         mcp_context.extensions.get::<http::request::Parts>(),

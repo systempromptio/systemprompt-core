@@ -9,6 +9,10 @@ mod routes_marketplace;
 mod routes_marketplace_success;
 
 #[cfg(test)]
+#[path = "routes_marketplace_services_watch.rs"]
+mod routes_marketplace_services_watch;
+
+#[cfg(test)]
 #[path = "routes_gateway_auth.rs"]
 mod routes_gateway_auth;
 

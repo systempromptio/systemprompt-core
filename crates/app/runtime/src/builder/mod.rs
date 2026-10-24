@@ -178,10 +178,6 @@ impl AppContextBuilder {
         let (repositories, user_service, system_admin, mcp_registry) =
             build_domain_layer(&config, &database, content.analytics_repositories, policy).await?;
 
-        let marketplace_filter = self
-            .marketplace_filter
-            .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
-
         let (ai_service, connector_tokens) =
             ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
         let subsystems = Subsystems {
@@ -191,6 +187,7 @@ impl AppContextBuilder {
             system_admin,
             authz_hook,
             governance,
+            services: ConfigWatch::new(systemprompt_loader::ServicesBootstrap::get()?.clone()),
             cache_epochs,
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(OnceLock::new()),
@@ -205,7 +202,7 @@ impl AppContextBuilder {
 
         Ok(AppContext::from_parts(
             build_data_plane(
-                database,
+                Arc::clone(&database),
                 content.analytics_service,
                 content.fingerprint_repo,
                 user_service,
@@ -221,7 +218,9 @@ impl AppContextBuilder {
             Plugins {
                 extension_registry,
                 mcp_registry,
-                marketplace_filter,
+                marketplace_filter: self
+                    .marketplace_filter
+                    .unwrap_or_else(|| assembly::build_marketplace_filter(&database)),
                 marketplace_cache: Arc::default(),
             },
             subsystems,
@@ -262,13 +261,8 @@ fn build_artifact_ingest(
     database: &systemprompt_database::DbPool,
     governance: &systemprompt_governance::policy::GovernanceEngine,
 ) -> Arc<systemprompt_mcp::ArtifactIngest> {
-    let ingest = systemprompt_mcp::ArtifactIngest::from_db(
-        database,
-        governance
-            .secret_scanner()
-            .map(|scanner| Arc::new(scanner.clone())),
-    );
-    Arc::new(ingest)
+    let scanner = governance.secret_scanner().map(|s| Arc::new(s.clone()));
+    Arc::new(systemprompt_mcp::ArtifactIngest::from_db(database, scanner))
 }
 
 async fn build_domain_layer(

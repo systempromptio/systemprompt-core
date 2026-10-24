@@ -19,6 +19,7 @@ systemprompt-database = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-manifest = { workspace = true }
+systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 serde = { workspace = true }
 tempfile = { workspace = true }
@@ -34,5 +35,5 @@ chrono = { workspace = true }
 async-trait = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 wiremock = { workspace = true }

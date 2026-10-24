@@ -83,6 +83,7 @@ impl std::fmt::Debug for Subsystems {
             .field("logging", &self.logging)
             .field("authz_hook", &"SharedAuthzHook")
             .field("governance", &self.governance)
+            .field("services", &self.services)
             .field("cache_epochs", &self.cache_epochs)
             .field("ai_service", &self.ai_service.is_some())
             .field("artifact_ingest", &self.artifact_ingest)
