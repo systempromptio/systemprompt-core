@@ -105,7 +105,6 @@ async fn lookup_oauth_requirement(
                 .map_err(|error| registry_lookup_error(service_name, error))?;
             let info = registry
                 .get_agent(service_name.as_str())
-                .await
                 .map_err(|error| registry_lookup_error(service_name, error))?;
             Ok(OAuthRequirement {
                 module: ServiceModule::Agent,

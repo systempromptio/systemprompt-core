@@ -21,7 +21,7 @@ impl AgentLifecycle {
     ) -> OrchestrationResult<String> {
         let start = Instant::now();
 
-        let agent_config = self.db_service.get_agent_config(agent_name).await?;
+        let agent_config = self.db_service.get_agent_config(agent_name)?;
 
         if let Some(tx) = events {
             tx.agent_starting(&agent_config.name, agent_config.port);

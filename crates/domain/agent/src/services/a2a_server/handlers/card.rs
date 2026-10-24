@@ -28,21 +28,18 @@ pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> i
         |c| c.api_external_url.clone(),
     );
 
-    agent_card_response(AgentRegistry::new(), &agent_name, &base_url).await
+    agent_card_response(AgentRegistry::new(), &agent_name, &base_url)
 }
 
-pub async fn agent_card_response(
+pub fn agent_card_response(
     registry: AgentResult<AgentRegistry>,
     agent_name: &AgentName,
     base_url: &str,
 ) -> Response {
     match registry {
-        Ok(registry) => match registry.get_agent(agent_name.as_str()).await {
+        Ok(registry) => match registry.get_agent(agent_name.as_str()) {
             Ok(agent_config) => {
-                match registry
-                    .to_agent_card(&agent_config.name, base_url, vec![], None)
-                    .await
-                {
+                match registry.to_agent_card(&agent_config.name, base_url, vec![], None) {
                     Ok(agent_card) => (StatusCode::OK, Json(agent_card)).into_response(),
                     Err(e) => {
                         tracing::error!(error = %e, "Failed to build agent card");

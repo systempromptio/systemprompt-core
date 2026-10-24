@@ -36,8 +36,7 @@ async fn known_agent_returns_ok_with_card() {
         Ok(registry_with("card_seam_agent")),
         &AgentName::new("card_seam_agent"),
         "http://cards.invalid",
-    )
-    .await;
+    );
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = body_string(response).await;
@@ -54,8 +53,7 @@ async fn unknown_agent_returns_not_found() {
         Ok(registry_with("card_seam_agent")),
         &AgentName::new("missing_agent"),
         "http://cards.invalid",
-    )
-    .await;
+    );
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
     let body = body_string(response).await;
@@ -79,8 +77,7 @@ async fn card_assembly_failure_returns_internal_error() {
         Ok(registry),
         &AgentName::new("card_seam_alias"),
         "http://cards.invalid",
-    )
-    .await;
+    );
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     let body = body_string(response).await;
@@ -96,8 +93,7 @@ async fn registry_failure_returns_internal_error() {
         ))),
         &AgentName::new("card_seam_agent"),
         "http://cards.invalid",
-    )
-    .await;
+    );
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     let body = body_string(response).await;

@@ -110,13 +110,11 @@ async fn server_new_rejects_an_agent_absent_from_the_registry() {
     let state = super::a2a_helpers::make_agent_state(&pool);
 
     let err = systemprompt_agent::services::a2a_server::Server::new(
-        Arc::clone(&pool),
         state,
         Arc::new(StubAiProvider::new()),
         &AgentName::new("__no_such_agent_for_server"),
         9311,
     )
-    .await
     .expect_err("an unregistered agent cannot be served");
     assert!(
         err.to_string().contains("__no_such_agent_for_server"),

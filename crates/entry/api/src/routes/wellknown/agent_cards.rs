@@ -40,7 +40,7 @@ async fn handle_default_agent_card(
         ApiError::internal("Failed to create agent registry", e)
     })?;
 
-    let default_agent = registry.get_default_agent().await.map_err(|e| {
+    let default_agent = registry.get_default_agent().map_err(|e| {
         tracing::error!(error = %e, "Failed to get default agent");
         ApiError::not_found("Default agent not found")
     })?;
@@ -49,7 +49,6 @@ async fn handle_default_agent_card(
 
     let agent_card = registry
         .to_agent_card(&default_agent.name, base_url, vec![], None)
-        .await
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to create agent card");
             ApiError::internal("Failed to create agent card", e)
@@ -68,7 +67,7 @@ async fn handle_agent_card_by_name(
         ApiError::internal("Failed to create agent registry", e)
     })?;
 
-    let _agent = registry.get_agent(agent_name.as_str()).await.map_err(|e| {
+    let _agent = registry.get_agent(agent_name.as_str()).map_err(|e| {
         tracing::warn!(agent = %agent_name, error = %e, "Agent not found");
         ApiError::not_found(format!("Agent '{}' not found", agent_name))
     })?;
@@ -77,7 +76,6 @@ async fn handle_agent_card_by_name(
 
     let agent_card = registry
         .to_agent_card(agent_name.as_str(), base_url, vec![], None)
-        .await
         .map_err(|e| {
             tracing::error!(agent = %agent_name, error = %e, "Failed to create agent card");
             ApiError::internal("Failed to create agent card", e)
@@ -94,19 +92,13 @@ async fn handle_list_agent_cards(
         ApiError::internal("Failed to create agent registry", e)
     })?;
 
-    let agents = registry.list_agents().await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to list agents");
-        ApiError::internal("Failed to list agents", e)
-    })?;
+    let agents = registry.list_agents();
 
     let base_url = &ctx.config().api_external_url;
 
     let mut cards = Vec::new();
     for agent in agents {
-        if let Ok(card) = registry
-            .to_agent_card(&agent.name, base_url, vec![], None)
-            .await
-        {
+        if let Ok(card) = registry.to_agent_card(&agent.name, base_url, vec![], None) {
             cards.push(card);
         }
     }

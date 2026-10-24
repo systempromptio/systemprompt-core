@@ -22,8 +22,7 @@ pub fn router(ctx: &AppContext) -> Router {
             any(move |Path(service_name): Path<String>, state, request| {
                 let engine = engine.clone();
                 async move {
-                    engine
-                        .handle_agent_request(Path((service_name,)), state, request)
+                    Box::pin(engine.handle_agent_request(Path((service_name,)), state, request))
                         .await
                 }
             }),

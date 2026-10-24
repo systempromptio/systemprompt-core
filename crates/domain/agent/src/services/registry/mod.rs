@@ -40,13 +40,7 @@ impl AgentRegistry {
         }
     }
 
-    #[expect(
-        clippy::unused_async,
-        clippy::unused_async_trait_impl,
-        reason = "async signature required by AgentRegistryProvider trait impl in \
-                  registry_provider.rs"
-    )]
-    pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
+    pub fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
         self.config
             .agents
             .get(name)
@@ -54,23 +48,11 @@ impl AgentRegistry {
             .ok_or_else(|| AgentError::NotFound(name.to_owned()))
     }
 
-    #[expect(
-        clippy::unused_async,
-        clippy::unused_async_trait_impl,
-        reason = "async signature required by AgentRegistryProvider trait impl in \
-                  registry_provider.rs"
-    )]
-    pub async fn list_agents(&self) -> AgentResult<Vec<AgentConfig>> {
-        Ok(self.config.agents.values().cloned().collect())
+    pub fn list_agents(&self) -> Vec<AgentConfig> {
+        self.config.agents.values().cloned().collect()
     }
 
-    #[expect(
-        clippy::unused_async,
-        clippy::unused_async_trait_impl,
-        reason = "async signature required by AgentRegistryProvider trait impl in \
-                  registry_provider.rs"
-    )]
-    pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
+    pub fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         let is_cloud = is_cloud_deployment()?;
         Ok(self
             .config
@@ -81,13 +63,7 @@ impl AgentRegistry {
             .collect())
     }
 
-    #[expect(
-        clippy::unused_async,
-        clippy::unused_async_trait_impl,
-        reason = "async signature required by AgentRegistryProvider trait impl in \
-                  registry_provider.rs"
-    )]
-    pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
+    pub fn get_default_agent(&self) -> AgentResult<AgentConfig> {
         let is_cloud = is_cloud_deployment()?;
         self.config
             .agents
@@ -97,17 +73,17 @@ impl AgentRegistry {
             .ok_or_else(|| AgentError::NotFound("default agent not configured".to_owned()))
     }
 
-    pub async fn to_agent_card(
+    pub fn to_agent_card(
         &self,
         name: &str,
         api_external_url: &str,
         mcp_extensions: Vec<AgentExtension>,
-        runtime_status: Option<(String, Option<u16>, Option<u32>)>,
+        runtime_status: Option<&(String, Option<u16>, Option<u32>)>,
     ) -> AgentResult<AgentCard> {
-        let agent = self.get_agent(name).await?;
+        let agent = self.get_agent(name)?;
         let url = agent.construct_url(api_external_url);
 
-        let extensions = build_extensions(&agent, runtime_status.as_ref(), mcp_extensions);
+        let extensions = build_extensions(&agent, runtime_status, mcp_extensions);
 
         let (security_schemes, security_requirements) = if agent.card.security_schemes.is_some()
             || agent.card.security_requirements.is_some()
@@ -167,8 +143,8 @@ impl AgentRegistry {
         })
     }
 
-    pub async fn get_mcp_servers(&self, agent_name: &AgentName) -> AgentResult<Vec<McpServerId>> {
-        let agent = self.get_agent(agent_name.as_str()).await?;
+    pub fn get_mcp_servers(&self, agent_name: &AgentName) -> AgentResult<Vec<McpServerId>> {
+        let agent = self.get_agent(agent_name.as_str())?;
         Ok(agent
             .metadata
             .mcp_servers
@@ -178,11 +154,11 @@ impl AgentRegistry {
             .collect())
     }
 
-    pub async fn find_next_available_port(&self) -> AgentResult<u16> {
+    pub fn find_next_available_port(&self) -> AgentResult<u16> {
         const BASE_PORT: u16 = 9000;
         const MAX_PORT: u16 = 9999;
 
-        let agents = self.list_agents().await?;
+        let agents = self.list_agents();
         let used_ports: Vec<u16> = agents.iter().map(|a| a.port).collect();
 
         for port in BASE_PORT..=MAX_PORT {

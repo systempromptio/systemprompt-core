@@ -242,7 +242,6 @@ async fn agent_exists_false_for_unconfigured() {
     let svc = service(&pool, &instance).await;
     let exists = svc
         .agent_exists(&AgentName::new("__no_such_configured_agent"))
-        .await
         .expect("exists");
     assert!(!exists);
 }
@@ -254,7 +253,6 @@ async fn get_agent_config_unknown_errors() {
     let svc = service(&pool, &instance).await;
     let err = svc
         .get_agent_config(&AgentName::new("__no_such_agent_cfg"))
-        .await
         .expect_err("not found");
     assert!(format!("{err}").contains("not found"));
 }

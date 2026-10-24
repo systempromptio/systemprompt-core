@@ -87,7 +87,7 @@ async fn agent_database_service_remove_and_update_state() -> Result<()> {
     svc.update_agent_running(&name, 5, 9110).await?;
     svc.update_agent_stopped(&name).await?;
     svc.remove_agent_service(&name).await?;
-    let after = svc.agent_exists(&name).await?;
+    let after = svc.agent_exists(&name)?;
     assert!(!after);
     fx.cleanup().await?;
     Ok(())
@@ -112,7 +112,7 @@ async fn agent_database_service_get_agent_config_unknown_errors() -> Result<()> 
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, unique_instance());
     let svc = AgentDatabaseService::new(repo).expect("svc");
-    let result = svc.get_agent_config(&AgentName::new("__unknown_xyz")).await;
+    let result = svc.get_agent_config(&AgentName::new("__unknown_xyz"));
     assert!(result.is_err());
     fx.cleanup().await?;
     Ok(())

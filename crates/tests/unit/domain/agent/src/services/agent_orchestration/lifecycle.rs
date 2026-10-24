@@ -67,7 +67,7 @@ async fn start_agent_unknown_agent_creates_no_service_state() {
         .await
         .expect_err("an unknown agent cannot start");
     assert!(err.to_string().contains(name.as_str()));
-    assert!(!db.agent_exists(&name).await.expect("service lookup"));
+    assert!(!db.agent_exists(&name).expect("service lookup"));
     assert!(
         db.repository
             .find_agent_status(&name)
@@ -127,7 +127,7 @@ async fn disable_agent_with_dead_pid_removes_service_row() {
 
     lifecycle.disable_agent(&name).await.expect("disable");
 
-    let exists = db.agent_exists(&name).await.expect("exists");
+    let exists = db.agent_exists(&name).expect("exists");
     assert!(!exists, "disable must remove the service row");
 }
 

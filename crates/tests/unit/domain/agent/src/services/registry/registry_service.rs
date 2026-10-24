@@ -8,7 +8,7 @@ async fn agent_registry_list_agents_empty_default() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new().expect("registry");
-    let list = registry.list_agents().await.expect("list");
+    let list = registry.list_agents();
     assert!(list.is_empty());
 }
 
@@ -17,7 +17,7 @@ async fn agent_registry_list_enabled_empty_default() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new().expect("registry");
-    let list = registry.list_enabled_agents().await.expect("list");
+    let list = registry.list_enabled_agents().expect("list");
     assert!(list.is_empty());
 }
 
@@ -28,7 +28,6 @@ async fn agent_registry_get_agent_unknown_errors() {
     let registry = AgentRegistry::new().expect("registry");
     let err = registry
         .get_agent("__no_such_agent_aaa")
-        .await
         .expect_err("missing agent");
     assert!(format!("{err}").contains("__no_such_agent_aaa"));
 }
@@ -38,7 +37,7 @@ async fn agent_registry_get_default_errors_when_unset() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new().expect("registry");
-    let err = registry.get_default_agent().await.expect_err("no default");
+    let err = registry.get_default_agent().expect_err("no default");
     assert!(format!("{err}").contains("default"));
 }
 
@@ -47,9 +46,7 @@ async fn agent_registry_get_mcp_servers_unknown_errors() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new().expect("registry");
-    let result = registry
-        .get_mcp_servers(&AgentName::new("__no_agent_for_mcp"))
-        .await;
+    let result = registry.get_mcp_servers(&AgentName::new("__no_agent_for_mcp"));
     assert!(result.is_err());
 }
 
@@ -58,10 +55,7 @@ async fn agent_registry_find_next_available_port_returns_base() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new().expect("registry");
-    let port = registry
-        .find_next_available_port()
-        .await
-        .expect("next port");
+    let port = registry.find_next_available_port().expect("next port");
     assert!(port >= 9000);
     assert!(port <= 9999);
 }
@@ -72,8 +66,8 @@ async fn agent_registry_clone_independent() {
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new().expect("registry");
     let cloned = registry.clone();
-    let original_list = registry.list_agents().await.expect("list");
-    let cloned_list = cloned.list_agents().await.expect("list");
+    let original_list = registry.list_agents();
+    let cloned_list = cloned.list_agents();
     assert_eq!(original_list.len(), cloned_list.len());
 }
 
@@ -82,8 +76,6 @@ async fn agent_registry_to_agent_card_unknown_errors() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new().expect("registry");
-    let result = registry
-        .to_agent_card("does_not_exist_xx", "http://test", vec![], None)
-        .await;
+    let result = registry.to_agent_card("does_not_exist_xx", "http://test", vec![], None);
     assert!(result.is_err());
 }

@@ -107,7 +107,7 @@ impl AgentDatabaseService {
     }
 
     pub async fn list_all_agents(&self) -> OrchestrationResult<Vec<(AgentName, AgentStatus)>> {
-        let agent_configs = self.registry.list_agents().await?;
+        let agent_configs = self.registry.list_agents();
 
         let mut agents = Vec::new();
 
@@ -122,19 +122,16 @@ impl AgentDatabaseService {
         Ok(agents)
     }
 
-    pub async fn agent_exists(&self, agent_name: &AgentName) -> OrchestrationResult<bool> {
-        match self.registry.get_agent(agent_name.as_str()).await {
+    pub fn agent_exists(&self, agent_name: &AgentName) -> OrchestrationResult<bool> {
+        match self.registry.get_agent(agent_name.as_str()) {
             Ok(_) => Ok(true),
             Err(AgentError::NotFound(_)) => Ok(false),
             Err(e) => Err(e.into()),
         }
     }
 
-    pub async fn get_agent_config(
-        &self,
-        agent_name: &AgentName,
-    ) -> OrchestrationResult<AgentConfig> {
-        match self.registry.get_agent(agent_name.as_str()).await {
+    pub fn get_agent_config(&self, agent_name: &AgentName) -> OrchestrationResult<AgentConfig> {
+        match self.registry.get_agent(agent_name.as_str()) {
             Ok(agent_config) => Ok(agent_config),
             Err(AgentError::NotFound(_)) => {
                 Err(OrchestrationError::AgentNotFound(agent_name.to_string()))

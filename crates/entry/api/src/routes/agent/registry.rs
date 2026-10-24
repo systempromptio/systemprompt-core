@@ -32,18 +32,11 @@ pub async fn handle_agent_registry(
     let service_repo = ctx.service_repository();
     let api_external_url = &ctx.config().api_external_url;
 
-    match registry.list_agents().await {
-        Ok(agents) => {
-            let mut agent_cards =
-                build_agent_cards(&registry, service_repo, api_external_url, agents).await;
-            sort_default_first(&mut agent_cards);
-            Json(CollectionResponse::new(agent_cards)).into_response()
-        },
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to list agents");
-            ApiHttpError::internal("Failed to retrieve agent registry", e).into_response()
-        },
-    }
+    let agents = registry.list_agents();
+    let mut agent_cards =
+        build_agent_cards(&registry, service_repo, api_external_url, agents).await;
+    sort_default_first(&mut agent_cards);
+    Json(CollectionResponse::new(agent_cards)).into_response()
 }
 
 async fn build_agent_cards(
@@ -57,13 +50,13 @@ async fn build_agent_cards(
     for agent_config in agents {
         let service_name = ServiceName::new(agent_config.name.as_str());
         let runtime_status = match service_repo.find_service_by_name(&service_name).await {
-            Ok(Some(service)) => Some((
+            Ok(Some(service)) => (
                 service.status.to_string(),
                 Some(agent_config.port),
                 service.pid.map(|p| p as u32),
-            )),
-            Ok(None) => Some(("NotStarted".to_owned(), Some(agent_config.port), None)),
-            Err(_) => Some(("Unknown".to_owned(), Some(agent_config.port), None)),
+            ),
+            Ok(None) => ("NotStarted".to_owned(), Some(agent_config.port), None),
+            Err(_) => ("Unknown".to_owned(), Some(agent_config.port), None),
         };
 
         let mcp_extensions = create_mcp_extensions_from_config(
@@ -71,15 +64,12 @@ async fn build_agent_cards(
             api_external_url,
         );
 
-        match registry
-            .to_agent_card(
-                &agent_config.name,
-                api_external_url,
-                mcp_extensions,
-                runtime_status,
-            )
-            .await
-        {
+        match registry.to_agent_card(
+            &agent_config.name,
+            api_external_url,
+            mcp_extensions,
+            Some(&runtime_status),
+        ) {
             Ok(card) => {
                 agent_cards.push(card);
             },

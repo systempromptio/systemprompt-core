@@ -21,7 +21,7 @@ pub(super) async fn agent_snapshots(
 
     let mut snapshots = Vec::with_capacity(all_agents.len());
     for (agent_id, status) in &all_agents {
-        let Ok(agent_config) = agent_registry.get_agent(agent_id.as_str()).await else {
+        let Ok(agent_config) = agent_registry.get_agent(agent_id.as_str()) else {
             continue;
         };
 

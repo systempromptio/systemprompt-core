@@ -26,12 +26,8 @@ impl AgentRegistryProviderService {
 }
 
 impl AgentRegistryProvider for AgentRegistryProviderService {
-    async fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
-        let agent = self
-            .registry
-            .get_agent(name)
-            .await
-            .map_err(registry_error)?;
+    fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
+        let agent = self.registry.get_agent(name).map_err(registry_error)?;
 
         Ok(AgentInfo {
             name: agent.name,
@@ -46,11 +42,10 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
         })
     }
 
-    async fn list_enabled_agents(&self) -> Result<Vec<AgentInfo>, RegistryError> {
+    fn list_enabled_agents(&self) -> Result<Vec<AgentInfo>, RegistryError> {
         let agents = self
             .registry
             .list_enabled_agents()
-            .await
             .map_err(registry_error)?;
 
         Ok(agents
@@ -69,12 +64,8 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
             .collect())
     }
 
-    async fn get_default_agent(&self) -> Result<AgentInfo, RegistryError> {
-        let agent = self
-            .registry
-            .get_default_agent()
-            .await
-            .map_err(registry_error)?;
+    fn get_default_agent(&self) -> Result<AgentInfo, RegistryError> {
+        let agent = self.registry.get_default_agent().map_err(registry_error)?;
 
         Ok(AgentInfo {
             name: agent.name,

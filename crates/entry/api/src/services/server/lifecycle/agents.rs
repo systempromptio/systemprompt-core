@@ -38,7 +38,7 @@ pub async fn reconcile_agents(
         },
     };
 
-    let enabled_agents = match agent_registry.list_enabled_agents().await {
+    let enabled_agents = match agent_registry.list_enabled_agents() {
         Ok(agents) => agents,
         Err(e) => {
             events.error(format!("Failed to list enabled agents: {e}"), true);
@@ -147,7 +147,7 @@ async fn handle_failed_agents(
 
     for (agent_name, first_error) in failed_agents {
         tracing::warn!(agent = %agent_name, error = ?first_error, "Agent failed on first start attempt");
-        let agent_config = match agent_registry.get_agent(agent_name).await {
+        let agent_config = match agent_registry.get_agent(agent_name) {
             Ok(config) => config,
             Err(e) => {
                 events.agent_failed(agent_name.clone(), format!("Agent config not found: {e}"));

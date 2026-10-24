@@ -13,7 +13,6 @@ use axum::body::Body;
 use axum::http::Request;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::Server;
-use systemprompt_database::DbPool;
 use systemprompt_models::ai::AiProvider;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_config, init_services_bootstrap, test_db_pool,
@@ -85,7 +84,7 @@ fn boot() -> &'static TestBootstrap {
     BOOT.get_or_init(|| init_services_bootstrap(&format!("{SERVICES_YAML}{GATEWAY_YAML}")))
 }
 
-async fn state() -> (Arc<AgentState>, DbPool) {
+async fn state() -> Arc<AgentState> {
     let b = boot();
     let pool = test_db_pool().await;
     let config = Arc::new(fixture_config(&b.database_url));
@@ -97,7 +96,7 @@ async fn state() -> (Arc<AgentState>, DbPool) {
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
     );
-    (Arc::new(state), pool)
+    Arc::new(state)
 }
 
 fn ai() -> Arc<dyn AiProvider> {
@@ -109,16 +108,14 @@ fn ai() -> Arc<dyn AiProvider> {
 // identity nobody asked it to hold.
 #[tokio::test]
 async fn a_server_for_an_agent_that_is_not_registered_is_refused() {
-    let (agent_state, pool) = state().await;
+    let agent_state = state().await;
 
     let err = Server::new(
-        pool,
         agent_state,
         ai(),
         &AgentName::new("agent-that-does-not-exist"),
         0,
     )
-    .await
     .expect_err("an unregistered agent must not produce a server");
 
     assert!(
@@ -132,16 +129,9 @@ async fn a_server_for_an_agent_that_is_not_registered_is_refused() {
 // stays invisible until something calls it.
 #[tokio::test]
 async fn the_router_answers_only_the_paths_it_declares() {
-    let (agent_state, pool) = state().await;
-    let server = Server::new(
-        pool,
-        agent_state,
-        ai(),
-        &AgentName::new("a2a_fixture_agent"),
-        0,
-    )
-    .await
-    .expect("a registered agent should produce a server");
+    let agent_state = state().await;
+    let server = Server::new(agent_state, ai(), &AgentName::new("a2a_fixture_agent"), 0)
+        .expect("a registered agent should produce a server");
 
     let resp = server
         .create_router()
@@ -164,15 +154,13 @@ async fn the_router_answers_only_the_paths_it_declares() {
 // the port and the free stream permits.
 #[tokio::test]
 async fn the_debug_impl_redacts_every_handle_it_holds() {
-    let (agent_state, pool) = state().await;
+    let agent_state = state().await;
     let server = Server::new(
-        pool,
         agent_state,
         ai(),
         &AgentName::new("a2a_fixture_agent"),
         4711,
     )
-    .await
     .expect("a registered agent should produce a server");
 
     let rendered = format!("{server:?}");

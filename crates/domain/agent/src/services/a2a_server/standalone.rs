@@ -18,15 +18,8 @@ pub async fn run_standalone(
     agent_name: &AgentName,
     port: u16,
 ) -> Result<()> {
-    let server = Server::new(
-        Arc::clone(agent_state.db_pool()),
-        agent_state,
-        ai_service,
-        agent_name,
-        port,
-    )
-    .await
-    .map_err(|e| AgentServiceError::operation("Failed to create agent server", e))?;
+    let server = Server::new(agent_state, ai_service, agent_name, port)
+        .map_err(|e| AgentServiceError::operation("Failed to create agent server", e))?;
 
     server
         .run(async {

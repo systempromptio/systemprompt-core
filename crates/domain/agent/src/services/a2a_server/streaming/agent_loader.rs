@@ -59,7 +59,7 @@ pub(super) async fn load_agent_runtime(
         },
     };
 
-    match registry.get_agent(agent_name.as_str()).await {
+    match registry.get_agent(agent_name.as_str()) {
         Ok(agent_config) => Ok(agent_config.into()),
         Err(e) => {
             let error_msg = format!("Failed to load agent '{}': {}", agent_name, e);

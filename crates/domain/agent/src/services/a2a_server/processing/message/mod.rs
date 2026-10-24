@@ -139,11 +139,11 @@ impl MessageHandler {
         Arc::clone(&self.webhooks)
     }
 
-    pub async fn load_agent_runtime(&self, agent_name: &AgentName) -> Result<AgentRuntimeInfo> {
+    pub fn load_agent_runtime(agent_name: &AgentName) -> Result<AgentRuntimeInfo> {
         use crate::services::registry::AgentRegistry;
 
         let registry = AgentRegistry::new()?;
-        let agent_config = registry.get_agent(agent_name.as_str()).await?;
+        let agent_config = registry.get_agent(agent_name.as_str())?;
 
         Ok(agent_config.into())
     }

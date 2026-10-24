@@ -57,10 +57,10 @@ pub(crate) fn mcp_orchestrator(ctx: &Arc<AppContext>) -> Result<McpOrchestrator>
     .context("Failed to initialize MCP manager")
 }
 
-pub(crate) async fn resolve_agent_name(
+pub(crate) fn resolve_agent_name(
     agent_identifier: &str,
 ) -> Result<systemprompt_identifiers::AgentName> {
     let registry = AgentRegistry::new()?;
-    let agent = registry.get_agent(agent_identifier).await?;
+    let agent = registry.get_agent(agent_identifier)?;
     Ok(systemprompt_identifiers::AgentName::new(agent.name))
 }

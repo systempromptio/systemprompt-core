@@ -19,7 +19,7 @@ impl AgentOrchestrator {
         let mut agent_info = Vec::new();
 
         for (agent_name, status) in agents {
-            let port = match self.db_service.get_agent_config(&agent_name).await {
+            let port = match self.db_service.get_agent_config(&agent_name) {
                 Ok(config) => config.port,
                 Err(_) => match status {
                     AgentStatus::Running { port, .. } => port,
@@ -46,13 +46,13 @@ impl AgentOrchestrator {
     ) -> OrchestrationResult<ValidationReport> {
         let mut report = ValidationReport::new();
 
-        let exists = self.db_service.agent_exists(agent_name).await?;
+        let exists = self.db_service.agent_exists(agent_name)?;
         if !exists {
             report.add_issue("Agent not found in database".to_owned());
             return Ok(report);
         }
 
-        match self.db_service.get_agent_config(agent_name).await {
+        match self.db_service.get_agent_config(agent_name) {
             Ok(_) => {},
             Err(e) => {
                 report.add_issue(format!("Configuration error: {e}"));

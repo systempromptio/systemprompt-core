@@ -27,7 +27,7 @@ fn provider(agents: Vec<AgentConfig>) -> AgentRegistryProviderService {
 async fn get_agent_projects_agent_info_with_oauth() {
     let provider = provider(vec![agent_config("rp_alpha")]);
 
-    let info = provider.get_agent("rp_alpha").await.expect("agent found");
+    let info = provider.get_agent("rp_alpha").expect("agent found");
     assert_eq!(info.name, "rp_alpha");
     assert_eq!(info.port, 9100);
     assert!(info.enabled);
@@ -40,7 +40,7 @@ async fn get_agent_projects_agent_info_with_oauth() {
 #[tokio::test]
 async fn get_agent_unknown_maps_to_not_found() {
     let provider = provider(vec![]);
-    let err = provider.get_agent("rp_ghost").await.expect_err("missing");
+    let err = provider.get_agent("rp_ghost").expect_err("missing");
     assert!(matches!(err, RegistryError::NotFound(_)));
 }
 
@@ -51,7 +51,7 @@ async fn list_enabled_agents_excludes_disabled() {
     disabled.enabled = false;
     let provider = provider(vec![agent_config("rp_on"), disabled]);
 
-    let listed = provider.list_enabled_agents().await.expect("list");
+    let listed = provider.list_enabled_agents().expect("list");
     let names: Vec<_> = listed.iter().map(|a| a.name.as_str()).collect();
     assert_eq!(names, vec!["rp_on"]);
 }
@@ -62,13 +62,12 @@ async fn default_agent_resolution_follows_default_flag() {
     let provider_without = provider(vec![agent_config("rp_plain")]);
     let err = provider_without
         .get_default_agent()
-        .await
         .expect_err("no default flagged");
     assert!(matches!(err, RegistryError::NotFound(_)));
 
     let mut flagged = agent_config("rp_default");
     flagged.default = true;
     let provider_with = provider(vec![agent_config("rp_plain"), flagged]);
-    let info = provider_with.get_default_agent().await.expect("default");
+    let info = provider_with.get_default_agent().expect("default");
     assert_eq!(info.name, "rp_default");
 }
