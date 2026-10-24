@@ -1,5 +1,5 @@
 -- @supersedes-checksum: 59aded89aa904ec0
--- @cost: rows=300000 measured=130ms triggers=live
+-- @cost: rows=300000 measured=130ms triggers=suspended
 -- @compat: breaking
 -- Gateway traffic carries a canonical class (schema/ai_requests.sql): the
 -- `traffic` column replaces the boolean `synthetic`, and the hourly rollup
