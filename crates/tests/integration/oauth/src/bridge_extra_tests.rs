@@ -24,7 +24,6 @@ fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::User
 }
 
 fn ensure_runtime() {
-    systemprompt_test_fixtures::install_test_signing_key();
     let _ = Config::install(test_config());
 }
 
@@ -109,6 +108,7 @@ async fn exchange_code_issued_and_consumed_once() {
         &**analytics.session_store(),
         &user_provider(&db),
         BridgeExchangeRequest {
+            keys: &systemprompt_test_fixtures::test_signing_keys(),
             request_headers: &headers,
             caller_ip: None,
             code: &issued.code,
@@ -127,6 +127,7 @@ async fn exchange_code_issued_and_consumed_once() {
         &**analytics.session_store(),
         &user_provider(&db),
         BridgeExchangeRequest {
+            keys: &systemprompt_test_fixtures::test_signing_keys(),
             request_headers: &headers,
             caller_ip: None,
             code: &issued.code,
@@ -153,6 +154,7 @@ async fn exchange_unknown_code_returns_none() {
         &**analytics.session_store(),
         &user_provider(&db),
         BridgeExchangeRequest {
+            keys: &systemprompt_test_fixtures::test_signing_keys(),
             request_headers: &headers,
             caller_ip: None,
             code: "deadbeef",

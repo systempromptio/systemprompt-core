@@ -10,12 +10,11 @@
 //! that only manifests across *different* keys. [`next_test_key`] hands out the
 //! rotating keys so a suite can take as many distinct ones as it needs.
 //!
-//! Index 0 is reserved for the process-wide token authority
-//! ([`crate::jwt::install_test_signing_key`]) and is never returned by
-//! [`next_test_key`]: a test that installs the authority and then mints a token
-//! from a deliberately foreign key must not be handed the authority's own key
-//! as the "foreign" one, or the rejection it asserts on would silently become a
-//! success.
+//! Index 0 backs [`crate::jwt::test_signing_keys`] and is never returned by
+//! [`next_test_key`]: a test that verifies against the fixture keys and then
+//! mints a token from a deliberately foreign key must not be handed the
+//! fixture's own key as the "foreign" one, or the rejection it asserts on would
+//! silently become a success.
 //!
 //! These keys are test fixtures. They are committed deliberately, are reachable
 //! only from the test workspace, and must never be used by production code.
@@ -33,7 +32,7 @@ const TEST_KEY_PEMS: [&str; 6] = [
     include_str!("../keys/test_signing_key_5.pem"),
 ];
 
-/// Index of the key backing the process-wide token authority.
+/// Index of the key backing [`crate::jwt::test_signing_keys`].
 pub const AUTHORITY_KEY_INDEX: usize = 0;
 
 /// How many distinct keys [`next_test_key`] cycles through before repeating.

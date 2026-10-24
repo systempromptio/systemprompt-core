@@ -20,24 +20,39 @@ fn forge_jwt(header_json: &str) -> String {
 
 #[test]
 fn empty_token_is_rejected() {
-    let err = validate_jwt_token("", "issuer", &[JwtAudience::Api])
-        .expect_err("empty input must fail header decode");
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        "",
+        "issuer",
+        &[JwtAudience::Api],
+    )
+    .expect_err("empty input must fail header decode");
 
     assert!(matches!(err, OauthError::TokenRejected(_)));
 }
 
 #[test]
 fn garbage_token_is_rejected() {
-    let err = validate_jwt_token("not-a-jwt", "issuer", &[JwtAudience::Api])
-        .expect_err("garbage input must fail header decode");
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        "not-a-jwt",
+        "issuer",
+        &[JwtAudience::Api],
+    )
+    .expect_err("garbage input must fail header decode");
 
     assert!(matches!(err, OauthError::TokenRejected(_)));
 }
 
 #[test]
 fn two_segment_token_is_rejected() {
-    let err = validate_jwt_token("aaa.bbb", "issuer", &[JwtAudience::Api])
-        .expect_err("two-segment input must fail header decode");
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        "aaa.bbb",
+        "issuer",
+        &[JwtAudience::Api],
+    )
+    .expect_err("two-segment input must fail header decode");
 
     assert!(matches!(err, OauthError::TokenRejected(_)));
 }
@@ -46,8 +61,13 @@ fn two_segment_token_is_rejected() {
 fn rs256_without_kid_yields_token_missing_kid() {
     let token = forge_jwt(r#"{"alg":"RS256","typ":"JWT"}"#);
 
-    let err = validate_jwt_token(&token, "issuer", &[JwtAudience::Api])
-        .expect_err("missing kid must be rejected");
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        "issuer",
+        &[JwtAudience::Api],
+    )
+    .expect_err("missing kid must be rejected");
 
     assert!(matches!(err, OauthError::TokenMissingKid));
 }
@@ -56,8 +76,13 @@ fn rs256_without_kid_yields_token_missing_kid() {
 fn rs256_with_unknown_kid_yields_unknown_kid_or_lookup_failure() {
     let token = forge_jwt(r#"{"alg":"RS256","kid":"unknown-key-id","typ":"JWT"}"#);
 
-    let err = validate_jwt_token(&token, "issuer", &[JwtAudience::Api])
-        .expect_err("unknown kid must be rejected");
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        "issuer",
+        &[JwtAudience::Api],
+    )
+    .expect_err("unknown kid must be rejected");
 
     match err {
         OauthError::TokenUnknownKid { kid } => {

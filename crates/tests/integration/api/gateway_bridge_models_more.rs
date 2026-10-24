@@ -26,7 +26,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::api::ErrorCode;
 use systemprompt_models::providers::ClientFamily;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
+use systemprompt_test_fixtures::seed_admin_credential;
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
@@ -65,7 +65,6 @@ fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Gateway
 
 async fn router_and_pool() -> Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let router = gateway_router(&ctx).expect("gateway router builds");
     Ok((router, pool))
 }

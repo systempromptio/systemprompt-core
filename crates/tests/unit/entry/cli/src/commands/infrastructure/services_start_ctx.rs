@@ -21,8 +21,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
-    test_database_url, test_db_pool,
+    DisposableDb, ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
 
 #[derive(Debug, Parser)]
@@ -39,7 +38,6 @@ fn parse(args: &[&str]) -> ServicesCommands {
 
 async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let url = test_database_url();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &url);
@@ -129,7 +127,6 @@ async fn a_start_without_skip_migrate_runs_the_migration_phase_idempotently() {
     // this run: an install onto whatever an earlier run left behind proves
     // nothing about the phase under test.
     ensure_test_bootstrap();
-    install_test_signing_key();
     let disp = DisposableDb::with_schema("cov_cli_startmig").await;
     let pool = disp.test_pool().await;
     let app = test_app_context(&pool, disp.url());

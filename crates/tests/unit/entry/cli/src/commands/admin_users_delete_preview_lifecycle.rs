@@ -10,9 +10,7 @@ use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::create_local_session_row;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
-};
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
 use systemprompt_users::{UserRepository, UserService};
 
 const HELPER: &str = "commands::admin_users_delete_preview_lifecycle::delete_preview_helper";
@@ -39,7 +37,6 @@ async fn delete_preview_helper() {
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
     ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = database.test_pool().await;
     let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let target = service
@@ -60,9 +57,14 @@ async fn delete_preview_helper() {
         )
         .await
         .expect("sibling user");
-    let session = create_local_session_row(&pool, &target.id, chrono::Duration::hours(1))
-        .await
-        .expect("target session");
+    let session = create_local_session_row(
+        &pool,
+        &target.id,
+        chrono::Duration::hours(1),
+        systemprompt_test_fixtures::test_signing_keys(),
+    )
+    .await
+    .expect("target session");
     let raw = pool.pool();
     let users_before: Vec<(String, String, String, Vec<String>)> = sqlx::query_as(
         "SELECT id, name, status, roles FROM users WHERE id IN ($1, $2) ORDER BY id",

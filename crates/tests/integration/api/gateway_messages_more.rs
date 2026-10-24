@@ -37,7 +37,7 @@ use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{
     AiRequestId, ContextId, ModelId, ProviderId, SessionId, TraceId, UserId,
 };
-use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
+use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;
@@ -354,13 +354,13 @@ fn jwt_extractor(
         user_provider,
         jti,
         issuer,
+        systemprompt_test_fixtures::test_signing_keys(),
     ))
 }
 
 #[tokio::test]
 async fn authenticate_accepts_seeded_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-apikey@example.invalid").await?;
     let service = ApiKeyService::new(
         Arc::clone(ctx.user_repository()),
@@ -417,7 +417,6 @@ async fn authenticate_rejects_unknown_api_key() -> Result<()> {
 #[tokio::test]
 async fn authenticate_accepts_seeded_jwt() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-jwt@example.invalid").await?;
     let extractor = jwt_extractor(&ctx)?;
     let principal = super::gateway_api_key_session_binding::sign_in(

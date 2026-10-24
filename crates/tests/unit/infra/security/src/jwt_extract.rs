@@ -3,7 +3,6 @@ use systemprompt_models::auth::{
     ActClaim, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
 };
 use systemprompt_security::{AuthError, extract_user_context};
-use systemprompt_test_fixtures::install_test_signing_key;
 
 const ISSUER: &str = "test";
 const ALICE: &str = "00000000-0000-4000-8000-00000000a11c";
@@ -26,11 +25,9 @@ fn mint_with(
     issuer: &str,
     act: Option<ActClaim>,
 ) -> String {
-    install_test_signing_key();
     use chrono::{Duration, Utc};
     use jsonwebtoken::{Algorithm, Header, encode};
     use systemprompt_models::auth::{CustomClaims, JwtClaims, RegisteredClaims};
-    use systemprompt_security::keys::authority;
 
     let now = Utc::now();
     let claims = JwtClaims {
@@ -61,11 +58,10 @@ fn mint_with(
         },
     };
 
-    let kid = authority::active_kid().expect("kid");
+    let keys = systemprompt_test_fixtures::test_signing_keys();
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_owned());
-    let key = authority::encoding_key().expect("key");
-    encode(&header, &claims, key).expect("encode")
+    header.kid = Some(keys.active_kid().to_owned());
+    encode(&header, &claims, keys.encoding_key()).expect("encode")
 }
 
 #[test]
@@ -79,7 +75,12 @@ fn extract_user_context_success() {
         UserType::User,
     );
 
-    let ctx = extract_user_context(&token, ISSUER).expect("extract");
+    let ctx = extract_user_context(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        ISSUER,
+    )
+    .expect("extract");
     assert_eq!(ctx.user_id.as_str(), ALICE);
     assert_eq!(ctx.session_id, sid);
     assert_eq!(ctx.role, Permission::User);
@@ -91,7 +92,12 @@ fn extract_user_context_admin() {
     let sid = SessionId::generate();
     let token = mint_custom(ADMIN, Some(sid), vec![Permission::Admin], UserType::Admin);
 
-    let ctx = extract_user_context(&token, ISSUER).expect("extract admin");
+    let ctx = extract_user_context(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        ISSUER,
+    )
+    .expect("extract admin");
     assert_eq!(ctx.user_type, UserType::Admin);
     assert_eq!(ctx.role, Permission::Admin);
 }
@@ -99,7 +105,12 @@ fn extract_user_context_admin() {
 #[test]
 fn extract_user_context_missing_session_id() {
     let token = mint_custom("u2", None, vec![Permission::User], UserType::User);
-    let err = extract_user_context(&token, ISSUER).unwrap_err();
+    let err = extract_user_context(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        ISSUER,
+    )
+    .unwrap_err();
     assert!(
         matches!(err, AuthError::MissingSessionId),
         "expected MissingSessionId, got {err:?}"
@@ -110,7 +121,12 @@ fn extract_user_context_missing_session_id() {
 fn extract_user_context_user_type_mismatch() {
     let sid = SessionId::generate();
     let token = mint_custom("u3", Some(sid), vec![Permission::Admin], UserType::User);
-    let err = extract_user_context(&token, ISSUER).unwrap_err();
+    let err = extract_user_context(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        ISSUER,
+    )
+    .unwrap_err();
     assert!(
         matches!(err, AuthError::UserTypeMismatch { .. }),
         "expected UserTypeMismatch, got {err:?}"
@@ -121,7 +137,12 @@ fn extract_user_context_user_type_mismatch() {
 fn extract_user_context_missing_scope() {
     let sid = SessionId::generate();
     let token = mint_custom("u4", Some(sid), vec![], UserType::Anon);
-    let err = extract_user_context(&token, ISSUER).unwrap_err();
+    let err = extract_user_context(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        ISSUER,
+    )
+    .unwrap_err();
     assert!(
         matches!(err, AuthError::MissingScope),
         "expected MissingScope, got {err:?}"
@@ -138,7 +159,12 @@ fn extract_user_context_rejects_a_foreign_issuer() {
         "https://someone-else.example",
         None,
     );
-    let err = extract_user_context(&token, ISSUER).unwrap_err();
+    let err = extract_user_context(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        ISSUER,
+    )
+    .unwrap_err();
     assert!(
         matches!(err, AuthError::InvalidToken(_)),
         "expected InvalidToken for a foreign issuer, got {err:?}"
@@ -167,7 +193,12 @@ fn extract_user_context_rejects_an_over_deep_act_chain() {
         ISSUER,
         Some(node),
     );
-    let err = extract_user_context(&token, ISSUER).unwrap_err();
+    let err = extract_user_context(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        ISSUER,
+    )
+    .unwrap_err();
     assert!(
         matches!(err, AuthError::ActChainTooDeep { .. }),
         "expected ActChainTooDeep, got {err:?}"
@@ -183,7 +214,12 @@ fn extract_user_context_rejects_an_empty_or_sentinel_subject() {
             vec![Permission::User],
             UserType::User,
         );
-        let err = extract_user_context(&token, ISSUER).unwrap_err();
+        let err = extract_user_context(
+            &systemprompt_test_fixtures::test_signing_keys(),
+            &token,
+            ISSUER,
+        )
+        .unwrap_err();
         assert!(
             matches!(err, AuthError::InvalidSubject(_)),
             "expected InvalidSubject for sub {subject:?}, got {err:?}"
@@ -199,6 +235,11 @@ fn extract_user_context_accepts_a_non_uuid_subject() {
         vec![Permission::User],
         UserType::User,
     );
-    let ctx = extract_user_context(&token, ISSUER).expect("non-UUID subject is a valid user id");
+    let ctx = extract_user_context(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        ISSUER,
+    )
+    .expect("non-UUID subject is a valid user id");
     assert_eq!(ctx.user_id.as_str(), "seeded-admin");
 }

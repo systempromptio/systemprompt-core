@@ -18,8 +18,8 @@ use systemprompt_api::services::middleware::SessionMiddleware;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    FIXTURE_JWT_ISSUER, ensure_test_bootstrap, fixture_config, install_test_signing_key,
-    mint_admin_jwt, seed_admin_credential, seed_user_row,
+    FIXTURE_JWT_ISSUER, ensure_test_bootstrap, fixture_config, mint_admin_jwt,
+    seed_admin_credential, seed_user_row,
 };
 use tower::ServiceExt;
 
@@ -33,7 +33,6 @@ async fn router() -> Result<(DbPool, Router)> {
     let b = ensure_test_bootstrap();
     let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     let (db, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let mw = SessionMiddleware::new(&ctx);
     let app = Router::new()
         .route("/page", get(ok_handler))

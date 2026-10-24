@@ -1,14 +1,12 @@
-//! Test-only signing key install and JWT minting helpers.
+//! Test signing keys and JWT minting helpers.
 //!
-//! [`install_test_signing_key`] is idempotent — the underlying authority cell
-//! is process-wide and accepts only one key, so every caller installs the same
-//! fixture key. Concurrent test runs must share
-//! the same key, which is fine because every test that consumes a JWT resolves
-//! it via [`mint_admin_jwt`] / [`mint_bridge_jwt`]. The key is the committed
-//! fixture from [`crate::keys`] rather than a freshly generated one.
+//! [`test_signing_keys`] builds the [`SigningKeys`] value every test hands to
+//! the context or constructor under test. The RSA key is the committed fixture
+//! from [`crate::keys`] and the manifest seed is the all-zero seed the fixture
+//! secrets carry, so a value built here agrees with the keys an `AppContext`
+//! resolves from the bootstrapped profile.
 
 use std::collections::BTreeMap;
-use std::sync::OnceLock;
 
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, Header};
@@ -18,21 +16,19 @@ use systemprompt_models::auth::{
     UserType,
 };
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
-use systemprompt_security::keys::authority::{active_kid, encoding_key, install};
-use systemprompt_security::keys::RsaSigningKey;
+use systemprompt_security::keys::SigningKeys;
 
-static SIGNING_KEY: OnceLock<RsaSigningKey> = OnceLock::new();
+const TEST_MANIFEST_SEED: [u8; 32] = [0; 32];
 
-pub fn install_test_signing_key() -> &'static RsaSigningKey {
-    SIGNING_KEY.get_or_init(|| {
-        let key = crate::keys::test_key(crate::keys::AUTHORITY_KEY_INDEX);
-        install(key.clone()).expect("install the fixture signing key");
-        key
-    })
+pub fn test_signing_keys() -> SigningKeys {
+    SigningKeys::new(
+        crate::keys::test_key(crate::keys::AUTHORITY_KEY_INDEX),
+        &TEST_MANIFEST_SEED,
+    )
+    .expect("build the fixture signing keys")
 }
 
 pub fn mint_admin_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken {
-    install_test_signing_key();
     let session = SessionId::generate();
     let params = AdminTokenParams {
         user_id,
@@ -42,11 +38,10 @@ pub fn mint_admin_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken {
         duration: Duration::hours(1),
         client_id: None,
     };
-    JwtService::generate_admin_token(&params).expect("mint admin jwt")
+    JwtService::generate_admin_token(&test_signing_keys(), &params).expect("mint admin jwt")
 }
 
 pub fn mint_bridge_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken {
-    install_test_signing_key();
     let session = SessionId::generate();
     let now = Utc::now();
     let expiry = now + Duration::hours(1);
@@ -79,10 +74,9 @@ pub fn mint_bridge_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken 
         },
     };
 
-    let kid = active_kid().expect("active kid present");
+    let keys = test_signing_keys();
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_owned());
-    let key = encoding_key().expect("encoding key present");
-    let token = encode(&header, &claims, key).expect("encode bridge jwt");
+    header.kid = Some(keys.active_kid().to_owned());
+    let token = encode(&header, &claims, keys.encoding_key()).expect("encode bridge jwt");
     JwtToken::new(token)
 }

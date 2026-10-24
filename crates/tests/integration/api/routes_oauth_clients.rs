@@ -23,8 +23,7 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::hash_registration_token;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
-    seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -52,13 +51,13 @@ fn ctx_for(user: &UserId) -> RequestContext {
 
 async fn clients_app(user: UserId) -> anyhow::Result<Router> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     let inject = move |mut req: Request<Body>, next: Next| {
         let ctx = ctx_for(&user);
@@ -74,13 +73,13 @@ async fn clients_app(user: UserId) -> anyhow::Result<Router> {
 
 async fn client_config_app() -> anyhow::Result<Router> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),

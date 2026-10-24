@@ -17,8 +17,8 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_test_fixtures::{
-    AuthedFixture, TestBootstrap, init_services_bootstrap, install_test_signing_key,
-    seed_admin_credential, test_app_context, test_db_pool,
+    AuthedFixture, TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context,
+    test_db_pool,
 };
 use tokio::sync::OnceCell;
 use tower::ServiceExt;
@@ -99,7 +99,6 @@ async fn harness() -> &'static Harness {
 
 async fn app() -> Result<(Router, DbPool)> {
     let h = harness().await;
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &h.boot.database_url);
     Ok((gateway_router(&ctx).expect("gateway router builds"), pool))

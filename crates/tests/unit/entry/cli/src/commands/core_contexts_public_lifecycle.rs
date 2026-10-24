@@ -18,8 +18,7 @@ use systemprompt_loader::ProfileLoader;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context_with, install_test_signing_key,
-    seed_user_row, seed_user_session,
+    DisposableDb, ensure_test_bootstrap, fixture_app_context_with, seed_user_row, seed_user_session,
 };
 
 const HELPER: &str = "commands::core_contexts_public_lifecycle::public_context_lifecycle_helper";
@@ -63,7 +62,6 @@ async fn public_context_lifecycle_helper() {
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
     let boot = ensure_test_bootstrap();
-    install_test_signing_key();
     let project = systemprompt_test_fixtures::canonical_tempdir();
     let profile_path = project
         .path()

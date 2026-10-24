@@ -25,10 +25,8 @@ use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
-use systemprompt_security::keys::authority::{active_kid, encoding_key};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
-    seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -87,13 +85,13 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
 
 async fn token_app() -> anyhow::Result<Router> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
@@ -116,7 +114,6 @@ async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
 }
 
 fn mint_federated(iss: &str, aud: &str, typ: Option<&str>, with_kid: bool) -> String {
-    install_test_signing_key();
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("clock")
@@ -133,9 +130,18 @@ fn mint_federated(iss: &str, aud: &str, typ: Option<&str>, with_kid: bool) -> St
     let mut header = Header::new(Algorithm::RS256);
     header.typ = typ.map(str::to_owned);
     if with_kid {
-        header.kid = Some(active_kid().expect("active kid").to_owned());
+        header.kid = Some(
+            systemprompt_test_fixtures::test_signing_keys()
+                .active_kid()
+                .to_owned(),
+        );
     }
-    encode(&header, &claims, encoding_key().expect("encoding key")).expect("encode federated jwt")
+    encode(
+        &header,
+        &claims,
+        systemprompt_test_fixtures::test_signing_keys().encoding_key(),
+    )
+    .expect("encode federated jwt")
 }
 
 fn form_post(body: String) -> Request<Body> {

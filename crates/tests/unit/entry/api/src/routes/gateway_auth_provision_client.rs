@@ -28,6 +28,7 @@ async fn harness() -> (Arc<JwtContextExtractor>, AppContext) {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     (extractor, (*ctx).clone())
 }

@@ -24,9 +24,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
 use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::services::webauthn::hash_token;
-use systemprompt_test_fixtures::{
-    fixture_config, install_test_signing_key, seed_user_row, test_db_pool,
-};
+use systemprompt_test_fixtures::{fixture_config, seed_user_row, test_db_pool};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -57,13 +55,13 @@ fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthSt
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     )
     .with_webauthn(Arc::new(webauthn)))
 }
 
 async fn app() -> anyhow::Result<Router> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = oauth_state(&ctx)?;
     Ok(public_router(std::sync::Arc::new(
@@ -264,7 +262,6 @@ async fn issue_link_token(ctx: &systemprompt_runtime::AppContext) -> (UserId, St
 
 async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppContext>)> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = oauth_state(&ctx)?;
     Ok((

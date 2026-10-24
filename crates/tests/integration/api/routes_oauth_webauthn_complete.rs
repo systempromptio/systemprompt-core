@@ -93,6 +93,7 @@ async fn webauthn_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),

@@ -24,8 +24,8 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id,
-    install_test_signing_key, test_db_pool, unique_instance,
+    ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id, test_db_pool,
+    unique_instance,
 };
 use systemprompt_users::{UserRepository, UserService};
 use tower::ServiceExt;
@@ -33,7 +33,6 @@ use tower::ServiceExt;
 async fn boot_server() -> anyhow::Result<axum::Router> {
     let test_instance = unique_instance();
     let bootstrap = ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
 
     let mut config = fixture_config(&bootstrap.database_url);
@@ -130,6 +129,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
             system_admin: Arc::new(fixture_system_admin("admin")),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
+            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
             governance: systemprompt_test_fixtures::default_governance_watch(),
             services: systemprompt_test_fixtures::fixture_services_watch(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),

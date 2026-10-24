@@ -18,10 +18,9 @@ use systemprompt_models::auth::{
     CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
     UserType,
 };
-use systemprompt_security::keys::authority::{active_kid, encoding_key};
 use uuid::Uuid;
 
-use crate::jwt::install_test_signing_key;
+use crate::jwt::test_signing_keys;
 
 #[derive(Debug, Clone)]
 pub struct AuthedFixture {
@@ -116,7 +115,7 @@ fn mint_jwt_internal(
     roles: Vec<String>,
     rate_limit_tier: RateLimitTier,
 ) -> JwtToken {
-    install_test_signing_key();
+    let keys = test_signing_keys();
     let now = Utc::now();
     let expiry = now + Duration::hours(1);
     let claims = JwtClaims {
@@ -146,11 +145,9 @@ fn mint_jwt_internal(
             purpose: None,
         },
     };
-    let kid = active_kid().expect("active kid present");
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_owned());
-    let key = encoding_key().expect("encoding key present");
-    let token = encode(&header, &claims, key).expect("encode jwt");
+    header.kid = Some(keys.active_kid().to_owned());
+    let token = encode(&header, &claims, keys.encoding_key()).expect("encode jwt");
     JwtToken::new(token)
 }
 

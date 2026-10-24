@@ -31,8 +31,8 @@ use systemprompt_models::feedback::receipts::{
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, install_test_signing_key,
-    seed_bridge_credential, seed_user_row, test_db_pool,
+    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, seed_bridge_credential,
+    seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -121,7 +121,6 @@ struct Harness {
 
 async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
     let boot = boot();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = fixture_app_context_with(&pool, &boot.database_url, boot_paths(boot), filter)
         .expect("fixture context");
@@ -137,6 +136,7 @@ async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     Harness {
         pool,
@@ -815,6 +815,7 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     let harness = Harness {
         pool,

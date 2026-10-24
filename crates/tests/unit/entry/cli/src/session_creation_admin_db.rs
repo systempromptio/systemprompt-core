@@ -16,8 +16,7 @@ use systemprompt_cli::session::creation::admin_bootstrap::{
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,
-    test_db_pool,
+    closed_db_pool, ensure_test_bootstrap, seed_user_row_with_roles, test_db_pool,
 };
 use uuid::Uuid;
 
@@ -175,7 +174,6 @@ async fn a_missing_user_is_provisioned_as_an_admin_named_for_the_address() {
 #[tokio::test]
 async fn the_minted_token_names_its_user_and_is_not_empty() {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let (_name, email) = seed(&pool, &["admin"], "active").await;
     let user = get_or_create_admin(&pool, &email, "test")
@@ -183,8 +181,13 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
         .expect("resolve admin");
 
     let session_id = SessionId::generate();
-    let token = generate_admin_token("https://issuer.invalid", &user, &session_id)
-        .expect("minting an admin token should succeed");
+    let token = generate_admin_token(
+        "https://issuer.invalid",
+        systemprompt_test_fixtures::test_signing_keys(),
+        &user,
+        &session_id,
+    )
+    .expect("minting an admin token should succeed");
 
     assert!(
         !token.as_str().is_empty(),

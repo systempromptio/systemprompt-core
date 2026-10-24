@@ -14,8 +14,7 @@ use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, install_test_signing_key, test_app_context, test_database_url,
-    test_db_pool,
+    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
 
 #[derive(Debug, Parser)]
@@ -32,7 +31,6 @@ fn parse(args: &[&str]) -> ServicesCommands {
 
 async fn app() -> Arc<AppContext> {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let url = test_database_url();
     let pool = test_db_pool().await;
     test_app_context(&pool, &url)

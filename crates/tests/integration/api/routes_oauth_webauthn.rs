@@ -26,8 +26,8 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{WebAuthnService, generate_secure_token};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key, pkce_pair,
-    seed_oauth_client, seed_user_row_with_roles, seed_user_session, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, pkce_pair, seed_oauth_client,
+    seed_user_row_with_roles, seed_user_session, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -54,7 +54,6 @@ fn ensure_config() {
 
 async fn webauthn_app() -> anyhow::Result<Router> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let webauthn = WebAuthnService::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -66,6 +65,7 @@ async fn webauthn_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     )
     .with_webauthn(std::sync::Arc::new(webauthn));
     Ok(public_router(std::sync::Arc::new(
@@ -258,7 +258,6 @@ async fn inject_verified_auth(user: &UserId) -> anyhow::Result<String> {
 #[tokio::test]
 async fn webauthn_complete_success_issues_authorization_code() -> anyhow::Result<()> {
     ensure_config();
-    install_test_signing_key();
     let (user, client) = seed_user_and_client().await?;
     let token = inject_verified_auth(&user).await?;
     let app = webauthn_app().await?;
@@ -290,7 +289,6 @@ async fn webauthn_complete_success_issues_authorization_code() -> anyhow::Result
 #[tokio::test]
 async fn webauthn_complete_user_mismatch_returns_access_denied() -> anyhow::Result<()> {
     ensure_config();
-    install_test_signing_key();
     let (user, client) = seed_user_and_client().await?;
     let token = inject_verified_auth(&user).await?;
     let app = webauthn_app().await?;
@@ -437,7 +435,6 @@ async fn complete_uri_for(
     extra: &str,
 ) -> anyhow::Result<(UserId, OAuthClientFixture, String)> {
     ensure_config();
-    install_test_signing_key();
     let (user, client) = seed_user_and_client().await?;
     let token = inject_verified_auth(&user).await?;
     let redirect: String = url::form_urlencoded::byte_serialize(
@@ -597,7 +594,6 @@ async fn webauthn_complete_redirects_a_browser_and_carries_the_state_back() -> a
 #[tokio::test]
 async fn webauthn_complete_without_a_client_id_is_rejected() -> anyhow::Result<()> {
     ensure_config();
-    install_test_signing_key();
     let (user, _client) = seed_user_and_client().await?;
     let token = inject_verified_auth(&user).await?;
     let app = webauthn_app().await?;

@@ -48,8 +48,13 @@ fn hs256_token_yields_alg_mismatch() {
     )
     .expect("encode hs256");
 
-    let err = validate_jwt_token(&token, "issuer", &[JwtAudience::Api])
-        .expect_err("HS256 must be rejected before signature check");
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &token,
+        "issuer",
+        &[JwtAudience::Api],
+    )
+    .expect_err("HS256 must be rejected before signature check");
     match err {
         OauthError::TokenAlgMismatch { got, expected } => {
             assert_eq!(expected, "RS256");

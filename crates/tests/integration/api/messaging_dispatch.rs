@@ -16,8 +16,8 @@ use systemprompt_governance::authz::{DenyAllHook, EntityRef};
 use systemprompt_identifiers::{AgentName, SlackChannelId, SlackUserId, SlackWorkspaceId};
 use systemprompt_test_fixtures::{
     TEST_SLACK_WORKSPACE_ID, agent_error_response_json, agent_reply_response_json,
-    ensure_messaging_bootstrap, fixture_app_context_with_hook, install_test_signing_key,
-    seed_agent_backend, test_app_context, test_db_pool, test_messaging_agent,
+    ensure_messaging_bootstrap, fixture_app_context_with_hook, seed_agent_backend,
+    test_app_context, test_db_pool, test_messaging_agent,
 };
 use systemprompt_traits::SenderIdentity;
 use uuid::Uuid;
@@ -55,7 +55,6 @@ async fn mount_reply(mock: &MockServer, text: &str) {
 #[tokio::test]
 async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
 
@@ -77,7 +76,6 @@ async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
 #[tokio::test]
 async fn deny_hook_short_circuits_to_denied() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = fixture_app_context_with_hook(
         &pool,
@@ -99,7 +97,6 @@ async fn deny_hook_short_circuits_to_denied() -> anyhow::Result<()> {
 #[tokio::test]
 async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
 
@@ -127,7 +124,6 @@ async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()>
 #[tokio::test]
 async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
 

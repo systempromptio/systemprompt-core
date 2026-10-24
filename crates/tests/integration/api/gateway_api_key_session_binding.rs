@@ -20,7 +20,7 @@ use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExt
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{AiRequestId, SessionId};
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{AuthedFixture, install_test_signing_key, seed_admin_credential};
+use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
 use systemprompt_traits::AppContext as _;
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, NewApiKey};
 
@@ -36,6 +36,7 @@ pub(super) fn jwt_extractor(ctx: &AppContext) -> JwtContextExtractor {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     )
 }
 
@@ -78,7 +79,6 @@ async fn key_for(ctx: &AppContext, cred: &AuthedFixture) -> Result<NewApiKey> {
 #[tokio::test]
 async fn a_key_without_a_session_header_gets_one_minted_and_bound() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "bind-mint@example.invalid").await?;
     let issued = key_for(&ctx, &cred).await?;
     let extractor = jwt_extractor(&ctx);
@@ -118,7 +118,6 @@ async fn a_key_without_a_session_header_gets_one_minted_and_bound() -> Result<()
 #[tokio::test]
 async fn a_client_session_header_is_recorded_and_never_rejected() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "bind-client@example.invalid").await?;
     let issued = key_for(&ctx, &cred).await?;
     let extractor = jwt_extractor(&ctx);
@@ -181,7 +180,6 @@ async fn a_client_session_header_is_recorded_and_never_rejected() -> Result<()> 
 #[tokio::test]
 async fn a_jwt_header_naming_a_gateway_session_other_than_its_claim_is_refused() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "bind-jwt@example.invalid").await?;
     let other = seed_admin_credential(&pool, "bind-jwt-other@example.invalid").await?;
     let extractor = jwt_extractor(&ctx);
@@ -210,7 +208,6 @@ async fn a_jwt_header_naming_a_gateway_session_other_than_its_claim_is_refused()
 #[tokio::test]
 async fn a_jwt_header_matching_its_claim_or_absent_uses_the_claim() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "bind-jwt-claim@example.invalid").await?;
     let extractor = jwt_extractor(&ctx);
     let providers = SubjectProviderSet::default();
@@ -228,7 +225,6 @@ async fn a_jwt_header_matching_its_claim_or_absent_uses_the_claim() -> Result<()
 #[tokio::test]
 async fn a_jwt_clients_own_session_header_is_recorded_and_never_rejected() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "bind-jwt-client@example.invalid").await?;
     let extractor = jwt_extractor(&ctx);
     let opencode = SessionId::new("ses_e8d6opencodeownsession");

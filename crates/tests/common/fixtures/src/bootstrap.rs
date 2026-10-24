@@ -238,10 +238,8 @@ fn init_bootstrap_inner_expecting(
         std::fs::create_dir_all(dir).expect("mkdir bootstrap path");
     }
 
-    // Why: AppContext bootstrap loads the configured signing key and refuses
-    // one that differs from a key already installed in the process-wide
-    // authority, so the profile's key file must hold the fixture authority key
-    // that `install_test_signing_key` installs.
+    // Why: AppContext bootstrap loads the configured signing key, so the
+    // profile's key file must hold the fixture key `test_signing_keys` builds.
     std::fs::write(
         system_path.join("signing_key.pem"),
         crate::keys::authority_key_pem(),

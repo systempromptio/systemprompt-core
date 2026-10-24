@@ -19,7 +19,7 @@ use systemprompt_governance::authz::{
 };
 use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_identifiers::{ContextId, ProviderId, RouteId, UserId};
-use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
+use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;
@@ -108,7 +108,6 @@ async fn allowed_for(
 #[tokio::test]
 async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_route() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "parity@example.invalid").await?;
     sqlx::query("UPDATE users SET roles = ARRAY['user', 'eng'] WHERE id = $1")
         .bind(cred.user_id.as_str())

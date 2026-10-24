@@ -275,6 +275,7 @@ async fn session_list_recent_and_active_for_seeded_user() {
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+        systemprompt_test_fixtures::test_signing_keys(),
     )
     .await
     .unwrap();

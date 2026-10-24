@@ -94,6 +94,7 @@ async fn consent_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     Ok(authenticated_router().with_state(state))
 }

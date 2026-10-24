@@ -8,10 +8,6 @@ use systemprompt_models::auth::{
 };
 use systemprompt_security::{AuthError, AuthValidationService};
 
-fn ensure_authority() {
-    systemprompt_test_fixtures::install_test_signing_key();
-}
-
 fn sample_claims(iss: &str) -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
@@ -54,7 +50,6 @@ fn auth_header(token: &str) -> HeaderMap {
 
 #[tokio::test]
 async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
-    ensure_authority();
     let mut header = Header::new(Algorithm::HS256);
     header.kid = Some("any".to_string());
     let token = encode(
@@ -64,7 +59,11 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
     )
     .expect("encode hs256");
 
-    let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
+    let svc = AuthValidationService::new(
+        "integration-issuer".to_string(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let err = svc
         .validate_request(&auth_header(&token))
         .expect_err("hs256 must be rejected");
@@ -76,14 +75,17 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
 
 #[tokio::test]
 async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
-    ensure_authority();
     let key = systemprompt_test_fixtures::next_test_key();
     let der = rsa::pkcs1::EncodeRsaPrivateKey::to_pkcs1_der(key.private_key()).expect("der");
     let enc = EncodingKey::from_rsa_der(der.as_bytes());
     let header = Header::new(Algorithm::RS256);
     let token = encode(&header, &sample_claims("integration-issuer"), &enc).expect("rs256 encode");
 
-    let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
+    let svc = AuthValidationService::new(
+        "integration-issuer".to_string(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let err = svc
         .validate_request(&auth_header(&token))
         .expect_err("missing kid must be rejected");
@@ -95,7 +97,6 @@ async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
 
 #[tokio::test]
 async fn rs256_token_with_unknown_kid_is_rejected_with_unknown_kid_error() {
-    ensure_authority();
     let foreign = systemprompt_test_fixtures::next_test_key();
     let der = rsa::pkcs1::EncodeRsaPrivateKey::to_pkcs1_der(foreign.private_key()).expect("der");
     let enc = EncodingKey::from_rsa_der(der.as_bytes());
@@ -103,7 +104,11 @@ async fn rs256_token_with_unknown_kid_is_rejected_with_unknown_kid_error() {
     header.kid = Some(foreign.kid().to_string());
     let token = encode(&header, &sample_claims("integration-issuer"), &enc).expect("rs256 encode");
 
-    let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
+    let svc = AuthValidationService::new(
+        "integration-issuer".to_string(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let err = svc
         .validate_request(&auth_header(&token))
         .expect_err("foreign kid must be rejected");

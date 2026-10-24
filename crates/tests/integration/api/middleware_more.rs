@@ -133,7 +133,14 @@ async fn drive_site_auth(uri: &str) -> StatusCode {
         .route("/{*rest}", get(|| async { "ok" }))
         .route("/login", get(|| async { "login" }))
         .layer(middleware::from_fn(move |req, next| async move {
-            site_auth_gate(req, next, config, "https://issuer.test").await
+            site_auth_gate(
+                req,
+                next,
+                config,
+                "https://issuer.test",
+                &systemprompt_test_fixtures::test_signing_keys(),
+            )
+            .await
         }));
     let resp = app
         .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())

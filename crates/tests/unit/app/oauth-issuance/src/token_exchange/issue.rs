@@ -68,6 +68,7 @@ async fn issue_id_jag_rejects_an_access_token_subject() {
     };
 
     let message = err(issue_id_jag(
+        &systemprompt_test_fixtures::test_signing_keys(),
         &ClientId::new("client-1"),
         &request,
         &config_with(trusted_issuer(true, vec![])),
@@ -94,6 +95,7 @@ async fn issue_id_jag_admits_both_id_token_and_jwt_subjects_to_oidc_validation()
             ..TokenExchangeRequest::default()
         };
         let message = err(issue_id_jag(
+            &systemprompt_test_fixtures::test_signing_keys(),
             &ClientId::new("client-1"),
             &request,
             &config,

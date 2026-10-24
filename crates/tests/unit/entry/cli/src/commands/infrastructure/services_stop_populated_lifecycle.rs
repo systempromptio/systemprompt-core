@@ -11,9 +11,7 @@ use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
-use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
-};
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
 
 const HELPER: &str =
     "commands::infrastructure::services_stop_populated_lifecycle::populated_stop_helper";
@@ -44,7 +42,6 @@ fn section<'a>(card: &'a Value, heading: &str) -> &'a Value {
 #[ignore = "re-executed by grouped_stop_reports_exact_counts_and_preserves_unselected_service"]
 async fn populated_stop_helper() {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_grouped_stop").await;
     let database_info_path =
         std::env::var_os("GROUPED_STOP_DATABASE_INFO").expect("private database info channel");

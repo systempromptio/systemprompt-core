@@ -13,7 +13,8 @@ async fn from_config_validates_authority_signed_token() {
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let token = mint_admin_jwt(&user_id, "jwtval@test.invalid", "https://issuer.test");
 
-    let validator = JwtTokenValidator::from_config().expect("from_config");
+    let validator = JwtTokenValidator::from_config(systemprompt_test_fixtures::test_signing_keys())
+        .expect("from_config");
     let user = validator
         .validate_token(token.as_str())
         .await
@@ -26,7 +27,11 @@ async fn from_config_validates_authority_signed_token() {
 #[tokio::test]
 async fn validate_token_rejects_garbage() {
     ensure_test_bootstrap();
-    let validator = JwtTokenValidator::new("test".to_owned(), vec![JwtAudience::Api]);
+    let validator = JwtTokenValidator::new(
+        "test".to_owned(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
 
     let err = validator
         .validate_token("not-a-jwt")
@@ -41,7 +46,11 @@ async fn validate_token_rejects_wrong_issuer() {
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let token = mint_admin_jwt(&user_id, "wrongiss@test.invalid", "other-issuer");
 
-    let validator = JwtTokenValidator::new("test".to_owned(), vec![JwtAudience::Api]);
+    let validator = JwtTokenValidator::new(
+        "test".to_owned(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let err = validator
         .validate_token(token.as_str())
         .await
@@ -55,7 +64,8 @@ async fn validate_token_accepts_non_uuid_subject() {
     let user_id = UserId::new("not-a-uuid-subject");
     let token = mint_admin_jwt(&user_id, "badsub@test.invalid", "https://issuer.test");
 
-    let validator = JwtTokenValidator::from_config().expect("from_config");
+    let validator = JwtTokenValidator::from_config(systemprompt_test_fixtures::test_signing_keys())
+        .expect("from_config");
     let user = validator
         .validate_token(token.as_str())
         .await
@@ -69,7 +79,8 @@ async fn validate_token_rejects_sentinel_subject() {
     let user_id = UserId::new("unset");
     let token = mint_admin_jwt(&user_id, "unset@test.invalid", "https://issuer.test");
 
-    let validator = JwtTokenValidator::from_config().expect("from_config");
+    let validator = JwtTokenValidator::from_config(systemprompt_test_fixtures::test_signing_keys())
+        .expect("from_config");
     let err = validator
         .validate_token(token.as_str())
         .await

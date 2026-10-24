@@ -12,7 +12,11 @@ use systemprompt_oauth::services::jwt::AuthenticationService;
 fn authenticate_returns_unauthorized_when_headers_empty() {
     let headers = HeaderMap::new();
 
-    let err = AuthenticationService::authenticate(&headers).expect_err("empty headers must reject");
+    let err = AuthenticationService::authenticate(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &headers,
+    )
+    .expect_err("empty headers must reject");
 
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
@@ -25,8 +29,11 @@ fn authenticate_returns_unauthorized_for_basic_auth_header() {
         "Basic dXNlcjpwYXNz".parse().expect("parse header"),
     );
 
-    let err = AuthenticationService::authenticate(&headers)
-        .expect_err("basic auth must be rejected by the bearer extractor");
+    let err = AuthenticationService::authenticate(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &headers,
+    )
+    .expect_err("basic auth must be rejected by the bearer extractor");
 
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
@@ -36,8 +43,11 @@ fn authenticate_returns_unauthorized_for_empty_bearer_value() {
     let mut headers = HeaderMap::new();
     headers.insert("authorization", "Bearer ".parse().expect("parse header"));
 
-    let err =
-        AuthenticationService::authenticate(&headers).expect_err("empty bearer must be rejected");
+    let err = AuthenticationService::authenticate(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &headers,
+    )
+    .expect_err("empty bearer must be rejected");
 
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
@@ -50,8 +60,11 @@ fn authenticate_returns_unauthorized_for_cookie_without_access_token() {
         "session_id=abc; csrf=xyz".parse().expect("parse header"),
     );
 
-    let err = AuthenticationService::authenticate(&headers)
-        .expect_err("cookie without access_token must reject");
+    let err = AuthenticationService::authenticate(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &headers,
+    )
+    .expect_err("cookie without access_token must reject");
 
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }

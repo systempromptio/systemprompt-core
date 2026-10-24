@@ -12,9 +12,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
 use systemprompt_security::HookTokenValidator;
-use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,
-};
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, seed_user_row_with_roles};
 
 const HELPER: &str = "commands::admin_plugin_token_lifecycle::plugin_token_helper";
 const PLUGIN: &str = "owned-coverage-plugin";
@@ -42,7 +40,6 @@ async fn plugin_token_helper() {
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
     ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = database.test_pool().await;
     let admin = UserId::new(uuid::Uuid::new_v4().to_string());
     let member = UserId::new(uuid::Uuid::new_v4().to_string());
@@ -158,7 +155,6 @@ fn bounded_output(mut command: Command) -> Output {
 #[test]
 fn plugin_token_requires_admin_and_persists_its_backing_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
     let output = bounded_output(command);
@@ -195,6 +191,7 @@ fn plugin_token_requires_admin_and_persists_its_backing_session() {
             .expect("fixture configuration")
             .jwt_issuer
             .clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     let govern = validator
         .validate_govern(&token, Some(&PluginId::new(PLUGIN)))

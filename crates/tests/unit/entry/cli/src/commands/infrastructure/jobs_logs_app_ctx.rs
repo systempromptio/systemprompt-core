@@ -18,8 +18,7 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
-    test_database_url, test_db_pool,
+    DisposableDb, ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
 
 const KNOWN_JOB: &str = "content_prerender";
@@ -50,7 +49,6 @@ fn parse_logs(args: &[&str]) -> LogsCommands {
 
 async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let url = test_database_url();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &url);
@@ -198,7 +196,6 @@ async fn logs_cleanup_honours_its_retention_window() {
 #[tokio::test]
 async fn logs_delete_clears_every_entry() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let database = DisposableDb::with_schema("cov_cli_logsdel").await;
     let url = database.url().to_owned();

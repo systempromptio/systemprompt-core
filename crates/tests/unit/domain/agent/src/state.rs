@@ -31,7 +31,10 @@ async fn make_state() -> AgentState {
     AgentState::new(
         pool,
         config,
-        stub_jwt(),
+        systemprompt_agent::AgentAuth {
+            jwt_provider: stub_jwt(),
+            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+        },
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
     )

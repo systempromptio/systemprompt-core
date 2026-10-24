@@ -8,7 +8,13 @@ use systemprompt_models::auth::JwtAudience;
 
 #[test]
 fn rejects_malformed_token() {
-    let err = validate_jwt_token("not-a-jwt", "issuer", &[JwtAudience::Mcp]).unwrap_err();
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        "not-a-jwt",
+        "issuer",
+        &[JwtAudience::Mcp],
+    )
+    .unwrap_err();
     let msg = err.to_string().to_lowercase();
     assert!(
         msg.contains("token") || msg.contains("header"),
@@ -18,7 +24,13 @@ fn rejects_malformed_token() {
 
 #[test]
 fn rejects_empty_token() {
-    validate_jwt_token("", "iss", &[JwtAudience::Mcp]).unwrap_err();
+    validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        "",
+        "iss",
+        &[JwtAudience::Mcp],
+    )
+    .unwrap_err();
 }
 
 #[test]
@@ -27,7 +39,13 @@ fn rejects_non_rs256_token() {
     // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 body and signature are arbitrary
     // placeholders.
     let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.signature";
-    let err = validate_jwt_token(token, "issuer", &[JwtAudience::Mcp]).unwrap_err();
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        token,
+        "issuer",
+        &[JwtAudience::Mcp],
+    )
+    .unwrap_err();
     let msg = err.to_string();
     assert!(
         msg.contains("RS256") || msg.contains("header") || msg.contains("kid"),
@@ -39,7 +57,13 @@ fn rejects_non_rs256_token() {
 fn rejects_rs256_token_without_kid() {
     // RS256 header without `kid`.
     let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.e30.signature";
-    let err = validate_jwt_token(token, "issuer", &[JwtAudience::Mcp]).unwrap_err();
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        token,
+        "issuer",
+        &[JwtAudience::Mcp],
+    )
+    .unwrap_err();
     let msg = err.to_string();
     assert!(
         msg.contains("kid") || msg.contains("signing key"),
@@ -51,7 +75,13 @@ fn rejects_rs256_token_without_kid() {
 fn rejects_rs256_token_with_unknown_kid() {
     // RS256 header with kid="nope". {"alg":"RS256","kid":"nope","typ":"JWT"}
     let token = "eyJhbGciOiJSUzI1NiIsImtpZCI6Im5vcGUiLCJ0eXAiOiJKV1QifQ.e30.signature";
-    let err = validate_jwt_token(token, "issuer", &[JwtAudience::Mcp]).unwrap_err();
+    let err = validate_jwt_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        token,
+        "issuer",
+        &[JwtAudience::Mcp],
+    )
+    .unwrap_err();
     let msg = err.to_string();
     assert!(
         msg.contains("kid") || msg.contains("signing key") || msg.contains("unknown"),

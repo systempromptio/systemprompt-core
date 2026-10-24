@@ -10,9 +10,7 @@ use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_identifiers::SourceId;
 use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context_with, install_test_signing_key,
-};
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, fixture_app_context_with};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -30,7 +28,6 @@ fn parse(args: &[&str]) -> CoreCommands {
 async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     let database = DisposableDb::with_schema("cli_content_mutation").await;
     let boot = ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = database.test_pool().await;
     let repository = ContentRepository::new(&pool);
     let source = SourceId::new("owned-source".to_owned());

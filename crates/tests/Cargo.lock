@@ -6906,6 +6906,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-provider-contracts",
+ "systemprompt-security",
  "systemprompt-traits",
  "systemprompt-users",
  "thiserror 2.0.21",

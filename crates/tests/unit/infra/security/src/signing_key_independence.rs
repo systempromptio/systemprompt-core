@@ -3,7 +3,6 @@ use std::sync::Once;
 use base64::Engine;
 use ed25519_dalek::SigningKey;
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_security::manifest_signing;
 
 const SEED_B64: &str = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
@@ -33,6 +32,16 @@ fn ensure_bootstrap() {
     });
 }
 
+fn manifest_keys()
+-> Result<systemprompt_security::keys::SigningKeys, systemprompt_config::SecretsBootstrapError> {
+    let seed = SecretsBootstrap::manifest_signing_secret_seed()?;
+    Ok(systemprompt_security::keys::SigningKeys::new(
+        systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX),
+        &seed,
+    )
+    .expect("build signing keys from the bootstrapped seed"))
+}
+
 fn expected_pubkey_b64() -> String {
     let raw = base64::engine::general_purpose::STANDARD
         .decode(SEED_B64)
@@ -46,7 +55,7 @@ fn expected_pubkey_b64() -> String {
 #[test]
 fn pubkey_derives_from_seed_not_jwt_secret() {
     ensure_bootstrap();
-    let actual = match manifest_signing::pubkey_b64() {
+    let actual = match manifest_keys().map(|keys| keys.manifest_pubkey_b64()) {
         Ok(k) => k,
         Err(e) => {
             // skip-ok: secrets bootstrap is process-global and another suite may own it
@@ -64,7 +73,7 @@ fn pubkey_derives_from_seed_not_jwt_secret() {
 #[test]
 fn pubkey_stable_across_jwt_secret_rotation() {
     ensure_bootstrap();
-    let before = match manifest_signing::pubkey_b64() {
+    let before = match manifest_keys().map(|keys| keys.manifest_pubkey_b64()) {
         Ok(k) => k,
         Err(e) => {
             // skip-ok: secrets bootstrap is process-global and another suite may own it
@@ -80,7 +89,9 @@ fn pubkey_stable_across_jwt_secret_rotation() {
         );
     }
 
-    let after = manifest_signing::pubkey_b64().expect("pubkey after rotation");
+    let after = manifest_keys()
+        .map(|keys| keys.manifest_pubkey_b64())
+        .expect("pubkey after rotation");
     assert_eq!(
         before, after,
         "rotating the JWT secret must not change the manifest signing pubkey"

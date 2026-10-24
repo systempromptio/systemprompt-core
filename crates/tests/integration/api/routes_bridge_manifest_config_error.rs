@@ -9,7 +9,7 @@ use http::StatusCode;
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential, test_db_pool};
+use systemprompt_test_fixtures::{seed_admin_credential, test_db_pool};
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -35,7 +35,6 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
-    install_test_signing_key();
     let app = gateway_router(&ctx).expect("gateway router builds");
     let cred = seed_admin_credential(&pool, "manifest-badcfg@example.invalid").await?;
 

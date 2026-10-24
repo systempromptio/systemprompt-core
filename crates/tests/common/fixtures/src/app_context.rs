@@ -341,6 +341,7 @@ fn fixture_app_context_assembled(
             system_admin: Arc::new(fixture_system_admin("admin")),
             logging: crate::fixture_logging_runtime(),
             authz_hook,
+            signing_keys: crate::jwt::test_signing_keys(),
             governance,
             services: fixture_services_watch(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),

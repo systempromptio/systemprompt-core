@@ -24,7 +24,7 @@ use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
 use systemprompt_oauth::services::hash_client_secret;
 use systemprompt_test_fixtures::{
     OAuthClientFixture, TEST_CLIENT_SECRET, TEST_REDIRECT_URI, ensure_test_bootstrap,
-    install_test_signing_key, seed_oauth_client, test_db_pool,
+    seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -109,13 +109,13 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
 
 async fn token_app() -> anyhow::Result<Router> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     let router = public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),

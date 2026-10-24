@@ -17,8 +17,10 @@ use systemprompt_security::keys::RsaSigningKey;
 const ISSUER: &str = "hook-issuer";
 const USER_9: &str = "00000000-0000-4000-8000-000000000009";
 
-fn ensure_authority() -> &'static RsaSigningKey {
-    systemprompt_test_fixtures::install_test_signing_key()
+fn ensure_authority() -> RsaSigningKey {
+    systemprompt_test_fixtures::test_signing_keys()
+        .signing_key()
+        .clone()
 }
 
 fn hook_claims(plugin_id: &str, subject: &str) -> JwtClaims {
@@ -69,7 +71,10 @@ fn validated_govern_claims_expose_typed_ids() {
     let _ = ensure_authority();
     let token = mint(&hook_claims("plugin-x", USER_9));
 
-    let validator = HookTokenValidator::new(ISSUER.to_string());
+    let validator = HookTokenValidator::new(
+        ISSUER.to_string(),
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let claims = validator
         .validate_govern(&token, Some(&PluginId::new("plugin-x")))
         .expect("hook token validates");
@@ -86,7 +91,10 @@ fn plugin_id_mismatch_is_rejected() {
     let _ = ensure_authority();
     let token = mint(&hook_claims("plugin-a", USER_9));
 
-    let validator = HookTokenValidator::new(ISSUER.to_string());
+    let validator = HookTokenValidator::new(
+        ISSUER.to_string(),
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let result = validator.validate_govern(&token, Some(&PluginId::new("plugin-b")));
     assert!(
         result.is_err(),
@@ -99,7 +107,10 @@ fn validate_track_accepts_a_track_scoped_token() {
     let _ = ensure_authority();
     let token = mint(&hook_claims("plugin-x", USER_9));
 
-    let validator = HookTokenValidator::new(ISSUER.to_string());
+    let validator = HookTokenValidator::new(
+        ISSUER.to_string(),
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let claims = validator
         .validate_track(&token, Some(&PluginId::new("plugin-x")))
         .expect("track-scoped hook token validates");
@@ -113,7 +124,10 @@ fn token_without_the_required_scope_is_rejected_by_name() {
     claims.custom.scope = vec![Permission::HookGovern];
     let token = mint(&claims);
 
-    let validator = HookTokenValidator::new(ISSUER.to_string());
+    let validator = HookTokenValidator::new(
+        ISSUER.to_string(),
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let err = validator
         .validate_track(&token, Some(&PluginId::new("plugin-x")))
         .expect_err("govern-only token cannot track");
@@ -127,7 +141,10 @@ fn token_without_a_plugin_id_claim_is_rejected() {
     claims.custom.plugin_id = None;
     let token = mint(&claims);
 
-    let validator = HookTokenValidator::new(ISSUER.to_string());
+    let validator = HookTokenValidator::new(
+        ISSUER.to_string(),
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let result = validator.validate_govern(&token, None);
     assert!(result.is_err(), "plugin_id claim is mandatory");
 }

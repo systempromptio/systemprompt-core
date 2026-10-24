@@ -25,6 +25,7 @@ async fn app() -> axum::Router {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     router(SsoRouteState::build(&ctx, &oauth))
 }

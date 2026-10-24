@@ -31,8 +31,10 @@ use systemprompt_security::keys::RsaSigningKey;
 const ISSUER: &str = "https://issuer.test";
 const SUBJECT: &str = "00000000-0000-4000-8000-0000000a0001";
 
-fn ensure_authority() -> &'static RsaSigningKey {
-    systemprompt_test_fixtures::install_test_signing_key()
+fn ensure_authority() -> RsaSigningKey {
+    systemprompt_test_fixtures::test_signing_keys()
+        .signing_key()
+        .clone()
 }
 
 fn base_claims() -> JwtClaims {
@@ -88,7 +90,11 @@ fn bearer_headers(token: &str) -> HeaderMap {
 }
 
 fn service() -> AuthValidationService {
-    AuthValidationService::new(ISSUER.to_string(), vec![JwtAudience::Api])
+    AuthValidationService::new(
+        ISSUER.to_string(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    )
 }
 
 #[test]
@@ -223,8 +229,11 @@ fn over_deep_act_chain_is_rejected() {
 
 #[test]
 fn wrong_issuer_is_rejected() {
-    let svc =
-        AuthValidationService::new("https://other.issuer".to_string(), vec![JwtAudience::Api]);
+    let svc = AuthValidationService::new(
+        "https://other.issuer".to_string(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let headers = bearer_headers(&sign(&base_claims()));
 
     let err = svc.validate_request(&headers).expect_err("issuer mismatch");
@@ -236,7 +245,11 @@ fn wrong_issuer_is_rejected() {
 
 #[test]
 fn wrong_audience_is_rejected() {
-    let svc = AuthValidationService::new(ISSUER.to_string(), vec![JwtAudience::Mcp]);
+    let svc = AuthValidationService::new(
+        ISSUER.to_string(),
+        vec![JwtAudience::Mcp],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let headers = bearer_headers(&sign(&base_claims()));
 
     let err = svc

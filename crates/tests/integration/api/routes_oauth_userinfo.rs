@@ -18,7 +18,7 @@ use systemprompt_api::routes::oauth::{public_router, wellknown_routes};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, mint_admin_jwt};
+use systemprompt_test_fixtures::{fixture_config, mint_admin_jwt};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -35,13 +35,13 @@ fn ensure_config() {
 
 async fn oauth_state() -> anyhow::Result<OAuthState> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     Ok(OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     ))
 }
 
@@ -85,6 +85,7 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     let app = systemprompt_api::routes::oauth::authenticated_router().with_state(state);
     let resp = app.oneshot(get_userinfo(None)).await?;

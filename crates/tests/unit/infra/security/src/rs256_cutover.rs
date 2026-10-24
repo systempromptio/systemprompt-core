@@ -15,10 +15,12 @@ use systemprompt_models::auth::{
     CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
     UserType,
 };
-use systemprompt_security::keys::{RsaSigningKey, authority};
+use systemprompt_security::keys::RsaSigningKey;
 
-fn ensure_authority() -> &'static RsaSigningKey {
-    systemprompt_test_fixtures::install_test_signing_key()
+fn ensure_authority() -> RsaSigningKey {
+    systemprompt_test_fixtures::test_signing_keys()
+        .signing_key()
+        .clone()
 }
 
 fn sample_claims(iss: &str) -> JwtClaims {
@@ -99,8 +101,8 @@ fn hs256_token_is_rejected_by_kid_lookup() {
 
 #[test]
 fn unknown_kid_is_rejected_by_authority() {
-    let _ = ensure_authority();
-    let lookup = authority::decoding_key_for_kid("bogus-kid").expect("authority callable");
+    let keys = systemprompt_test_fixtures::test_signing_keys();
+    let lookup = keys.decoding_key_for_kid("bogus-kid");
     assert!(lookup.is_none(), "unknown kid must not resolve");
 }
 
@@ -113,7 +115,8 @@ fn foreign_key_is_not_accepted_via_local_lookup() {
         foreign.kid(),
         "distinct RSA keys must produce distinct kids"
     );
-    let lookup = authority::decoding_key_for_kid(foreign.kid()).expect("authority callable");
+    let keys = systemprompt_test_fixtures::test_signing_keys();
+    let lookup = keys.decoding_key_for_kid(foreign.kid());
     assert!(
         lookup.is_none(),
         "tokens signed under a foreign issuer's key cannot be verified by the local authority"
@@ -123,7 +126,8 @@ fn foreign_key_is_not_accepted_via_local_lookup() {
 #[test]
 fn active_decoding_key_verifies_locally_minted_token() {
     let key = ensure_authority();
-    let decoding = authority::decoding_key().expect("decoding key available");
+    let keys = systemprompt_test_fixtures::test_signing_keys();
+    let decoding = keys.decoding_key();
 
     let token = encode(
         &{
@@ -144,31 +148,4 @@ fn active_decoding_key_verifies_locally_minted_token() {
     let decoded = jsonwebtoken::decode::<JwtClaims>(&token, decoding, &validation)
         .expect("active decoding key must verify a token minted by the active signing key");
     assert_eq!(decoded.claims.registered.sub, "user-1");
-}
-
-#[test]
-fn install_accepts_the_installed_key_again() {
-    let key = ensure_authority();
-    authority::install(key.clone()).expect("reinstalling the same key is accepted");
-    assert_eq!(
-        authority::signing_key().expect("installed").kid(),
-        key.kid()
-    );
-}
-
-#[test]
-fn install_refuses_a_different_key() {
-    let first = ensure_authority();
-    let foreign = systemprompt_test_fixtures::next_test_key();
-
-    let err = authority::install(foreign).expect_err("a second, different key must be refused");
-    assert!(
-        matches!(err, authority::TokenAuthorityError::ConflictingKey { .. }),
-        "unexpected error: {err}"
-    );
-    assert_eq!(
-        authority::signing_key().expect("still installed").kid(),
-        first.kid(),
-        "a refused install must not replace the installed authority"
-    );
 }

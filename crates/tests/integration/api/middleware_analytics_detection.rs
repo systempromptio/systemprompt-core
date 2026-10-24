@@ -18,7 +18,7 @@ use axum::{Router, middleware};
 use systemprompt_api::services::middleware::{AnalyticsMiddleware, SessionMiddleware};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config, install_test_signing_key};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config};
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 
@@ -35,7 +35,6 @@ async fn boom_handler() -> StatusCode {
 async fn setup() -> Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
     let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
-    install_test_signing_key();
     setup_ctx().await
 }
 

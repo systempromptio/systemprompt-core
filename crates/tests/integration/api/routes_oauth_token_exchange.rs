@@ -3,7 +3,7 @@
 //! subject token, untrusted issuer, unsupported subject_token_type, missing
 //! client) are fully deterministic and need no network. We also attempt a
 //! self-issued exchange end to end: the subject token is signed by the
-//! process-wide test authority installed by `install_test_signing_key`, with
+//! fixture signing keys from `test_signing_keys`, with
 //! the issuer read from the live `Config` so it matches whichever config the
 //! shared `Once` installed first.
 
@@ -26,8 +26,7 @@ use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, install_test_signing_key, seed_oauth_client,
-    test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -116,13 +115,13 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
 
 async fn token_app() -> anyhow::Result<Router> {
     ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
@@ -181,7 +180,6 @@ fn enc(s: &str) -> String {
 }
 
 fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
-    install_test_signing_key();
     let issuer = Config::get().expect("config").jwt_issuer.clone();
     let user = AuthenticatedUser::new_with_roles(
         systemprompt_identifiers::UserId::generate(),
@@ -199,7 +197,11 @@ fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
         client_id: None,
         purpose: None,
     };
-    let signing = JwtSigningParams { issuer: &issuer };
+    let keys = systemprompt_test_fixtures::test_signing_keys();
+    let signing = JwtSigningParams {
+        issuer: &issuer,
+        keys: &keys,
+    };
     generate_jwt(
         &user,
         config,
@@ -427,10 +429,10 @@ async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
 // signed by the process-wide test authority. `aud` controls the audience
 // binding the consume path enforces against `jwt_issuer`.
 fn mint_id_jag_for(client_id: &str, aud: &str) -> String {
-    install_test_signing_key();
     let issuer = Config::get().expect("config").jwt_issuer.clone();
     let client_id = ClientId::new(client_id);
     mint_id_jag(&IdJagGrant {
+        keys: &systemprompt_test_fixtures::test_signing_keys(),
         sub: "id-jag-subject",
         email: Some("subj@tx.invalid"),
         email_verified: true,
@@ -602,10 +604,10 @@ async fn seeded_client_with_owner() -> anyhow::Result<(OAuthClientFixture, UserI
 }
 
 fn mint_id_jag_bound_to(client_id: &str, aud: &str, sub: &str, resource: Option<&str>) -> String {
-    install_test_signing_key();
     let issuer = Config::get().expect("config").jwt_issuer.clone();
     let client_id = ClientId::new(client_id);
     mint_id_jag(&IdJagGrant {
+        keys: &systemprompt_test_fixtures::test_signing_keys(),
         sub,
         email: Some("employee@tx.invalid"),
         email_verified: true,

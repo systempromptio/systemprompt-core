@@ -92,7 +92,10 @@ async fn state() -> Arc<AgentState> {
     let state = AgentState::new(
         pool.clone(),
         config,
-        Arc::new(StubJwt) as systemprompt_traits::DynJwtValidationProvider,
+        systemprompt_agent::AgentAuth {
+            jwt_provider: Arc::new(StubJwt) as systemprompt_traits::DynJwtValidationProvider,
+            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+        },
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
     );

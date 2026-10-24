@@ -13,10 +13,12 @@ use systemprompt_identifiers::ClientId;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
-use systemprompt_oauth_issuance::token_exchange::id_jag_subject::validate_id_jag_subject;
+use systemprompt_oauth_issuance::token_exchange::id_jag_subject::{
+    IdJagContext, validate_id_jag_subject,
+};
 use systemprompt_oauth_issuance::{IssuanceError, JwksCache};
 use systemprompt_test_fixtures::{
-    fixture_config, install_test_signing_key, test_database_url, test_db_pool,
+    fixture_config, test_database_url, test_db_pool, test_signing_keys,
 };
 use uuid::Uuid;
 
@@ -35,7 +37,8 @@ fn sign_id_jag(
     alg: Algorithm,
     claims: serde_json::Value,
 ) -> String {
-    let key = install_test_signing_key();
+    let keys = test_signing_keys();
+    let key = keys.signing_key();
     let mut header = Header::new(alg);
     header.kid = Some(key.kid().to_owned());
     header.typ = typ.map(ToOwned::to_owned);
@@ -64,12 +67,16 @@ async fn validate(
     config: &Config,
 ) -> Result<Vec<String>, IssuanceError> {
     let repo = OAuthRepository::new(pool);
+    let keys = test_signing_keys();
     validate_id_jag_subject(
         token,
         &ClientId::new(CLIENT),
-        &repo,
-        config,
-        &JwksCache::new(),
+        IdJagContext {
+            repo: &repo,
+            keys: &keys,
+            global: config,
+            jwks: &JwksCache::new(),
+        },
     )
     .await
     .map(|identity| {
@@ -103,7 +110,8 @@ async fn rejects_a_token_without_the_id_jag_typ() {
 async fn rejects_a_token_that_is_not_rs256() {
     let config = config();
     let pool = test_db_pool().await;
-    let key = install_test_signing_key();
+    let keys = test_signing_keys();
+    let key = keys.signing_key();
     let mut header = Header::new(Algorithm::HS256);
     header.kid = Some(key.kid().to_owned());
     header.typ = Some(ID_JAG_TYP.to_owned());
@@ -216,7 +224,6 @@ async fn an_id_jag_without_a_kid_cannot_be_verified() {
 
 #[tokio::test]
 async fn a_self_issued_id_jag_naming_an_unknown_kid_is_refused() {
-    install_test_signing_key();
     let config = config();
     let token = unsigned(
         &format!(r#"{{"alg":"RS256","typ":"{ID_JAG_TYP}","kid":"retired-key"}}"#),

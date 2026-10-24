@@ -8,7 +8,7 @@ use systemprompt_oauth_issuance::token_exchange::issue::issue_id_jag;
 use systemprompt_oauth_issuance::token_exchange::oidc::validate_oidc_subject;
 use systemprompt_oauth_issuance::token_exchange::subject::validate_subject_token;
 use systemprompt_oauth_issuance::{JwksCache, TokenExchangeRequest};
-use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, test_key};
+use systemprompt_test_fixtures::{fixture_config, test_key, test_signing_keys};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -50,6 +50,7 @@ fn sign(claims: &Value, key_index: usize) -> String {
 async fn coverage_federated_subject_accepts_verified_identity_and_preserves_delegation() {
     let (_server, config) = issuer().await;
     let subject = validate_subject_token(
+        &systemprompt_test_fixtures::test_signing_keys(),
         &sign(&claims(&config), 2),
         ID_TOKEN_TYPE,
         &config,
@@ -67,7 +68,8 @@ async fn coverage_federated_subject_accepts_verified_identity_and_preserves_dele
 #[tokio::test]
 async fn coverage_id_jag_issuance_binds_subject_client_resource_and_scope() {
     let (_server, config) = issuer().await;
-    let key = install_test_signing_key();
+    let keys = test_signing_keys();
+    let key = keys.signing_key();
     let token = sign(&claims(&config), 2);
     let client = ClientId::new("exchange-client");
     for audience in [
@@ -83,9 +85,15 @@ async fn coverage_id_jag_issuance_binds_subject_client_resource_and_scope() {
             scope: Some("mcp:read"),
             ..Default::default()
         };
-        let response = issue_id_jag(&client, &request, &config, &JwksCache::new())
-            .await
-            .unwrap();
+        let response = issue_id_jag(
+            &systemprompt_test_fixtures::test_signing_keys(),
+            &client,
+            &request,
+            &config,
+            &JwksCache::new(),
+        )
+        .await
+        .unwrap();
         assert_eq!(response.token_type, "N_A");
         assert_eq!(response.expires_in, config.id_jag_ttl_secs);
         assert_eq!(response.scope.as_deref(), Some("mcp:read"));
@@ -118,6 +126,7 @@ async fn coverage_id_jag_rejects_unapproved_audience_after_verifying_the_subject
         ..Default::default()
     };
     let err = issue_id_jag(
+        &systemprompt_test_fixtures::test_signing_keys(),
         &ClientId::new("exchange"),
         &request,
         &config,
@@ -159,11 +168,17 @@ async fn coverage_federated_signatures_and_required_claims_are_verified() {
             .contains("signature/claims rejected")
     );
     assert!(
-        validate_subject_token(&token, ID_TOKEN_TYPE, &config, &JwksCache::new())
-            .await
-            .unwrap_err()
-            .to_string()
-            .contains("signature/claims rejected")
+        validate_subject_token(
+            &systemprompt_test_fixtures::test_signing_keys(),
+            &token,
+            ID_TOKEN_TYPE,
+            &config,
+            &JwksCache::new()
+        )
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("signature/claims rejected")
     );
 }
 #[tokio::test]

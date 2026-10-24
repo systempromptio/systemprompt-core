@@ -54,6 +54,7 @@ async fn end_specific_session_succeeds() {
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+        systemprompt_test_fixtures::test_signing_keys(),
     )
     .await
     .unwrap();
@@ -89,6 +90,7 @@ async fn end_all_sessions_for_user() {
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+        systemprompt_test_fixtures::test_signing_keys(),
     )
     .await
     .unwrap();
@@ -96,6 +98,7 @@ async fn end_all_sessions_for_user() {
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+        systemprompt_test_fixtures::test_signing_keys(),
     )
     .await
     .unwrap();

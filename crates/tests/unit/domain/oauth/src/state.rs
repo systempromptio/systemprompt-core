@@ -175,6 +175,7 @@ async fn base_state() -> OAuthState {
         Arc::new(NullAnalytics),
         Arc::new(NullAnalytics),
         Arc::new(NullUsers),
+        systemprompt_test_fixtures::test_signing_keys(),
     )
 }
 

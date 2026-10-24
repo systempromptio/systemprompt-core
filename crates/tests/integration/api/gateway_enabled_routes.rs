@@ -23,8 +23,7 @@ use axum::http::{Request, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_test_fixtures::{
-    TestBootstrap, init_services_bootstrap, install_test_signing_key, seed_admin_credential,
-    test_app_context, test_db_pool,
+    TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -199,7 +198,6 @@ async fn zero_limit_is_an_explicit_empty_page_with_more_available() -> anyhow::R
 
 async fn app() -> anyhow::Result<Router> {
     let b = boot();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
     Ok(gateway_router(&ctx).expect("gateway router builds"))
@@ -207,7 +205,6 @@ async fn app() -> anyhow::Result<Router> {
 
 async fn authed_get(uri: &str, email: &str) -> anyhow::Result<Request<Body>> {
     boot();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let cred = seed_admin_credential(&pool, email).await?;
     Ok(Request::builder()
@@ -314,7 +311,6 @@ async fn a_request_with_no_credential_is_refused_before_anything_else() -> anyho
 async fn a_jwt_request_with_no_session_header_binds_to_its_claim() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-nosession@example.invalid").await?;
 
     let (status, body) = body_to_string(
@@ -341,7 +337,6 @@ async fn a_jwt_request_with_no_session_header_binds_to_its_claim() -> anyhow::Re
 async fn a_model_no_route_matches_is_denied_rather_than_billed() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-unrouted@example.invalid").await?;
 
     let (status, body) = body_to_string(
@@ -367,7 +362,6 @@ async fn a_model_no_route_matches_is_denied_rather_than_billed() -> anyhow::Resu
 async fn a_body_with_no_messages_cannot_derive_a_conversation() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-nomessages@example.invalid").await?;
 
     let (status, body) = body_to_string(
@@ -394,7 +388,6 @@ async fn a_body_with_no_messages_cannot_derive_a_conversation() -> anyhow::Resul
 async fn a_malformed_conversation_header_is_refused() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-badconv@example.invalid").await?;
 
     let (status, body) = body_to_string(
@@ -426,7 +419,6 @@ async fn a_malformed_conversation_header_is_refused() -> anyhow::Result<()> {
 async fn an_unparseable_body_is_refused_before_the_upstream_is_dialled() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-badbody@example.invalid").await?;
 
     let req = Request::builder()
@@ -451,7 +443,6 @@ async fn an_unparseable_body_is_refused_before_the_upstream_is_dialled() -> anyh
 async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-dispatch@example.invalid").await?;
 
     let (status, body) = body_to_string(
@@ -497,7 +488,6 @@ async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()
 async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-responses@example.invalid").await?;
 
     let req = Request::builder()
@@ -545,7 +535,6 @@ async fn a_garbage_bearer_token_is_refused_by_the_gateway() -> anyhow::Result<()
 async fn a_session_bound_token_cannot_be_replayed_under_another_session() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
-    install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-sessionbind@example.invalid").await?;
 
     let (status, body) = body_to_string(

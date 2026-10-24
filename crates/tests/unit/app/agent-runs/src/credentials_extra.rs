@@ -6,7 +6,7 @@ use systemprompt_agent_runs::credentials::{
 };
 use systemprompt_agent_runs::repository::RunCredentialRepositories;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{DisposableDb, install_test_signing_key};
+use systemprompt_test_fixtures::DisposableDb;
 
 const ISSUER: &str = "https://issuer.headless-extra.test";
 
@@ -49,7 +49,6 @@ async fn live_keys(pool: &systemprompt_database::DbPool, user: &UserId) -> i64 {
 
 #[tokio::test]
 async fn a_ttl_beyond_chrono_range_is_refused_before_anything_is_issued() {
-    install_test_signing_key();
     let database = DisposableDb::with_schema("agent_run_credentials_ttl").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
@@ -57,6 +56,7 @@ async fn a_ttl_beyond_chrono_range_is_refused_before_anything_is_issued() {
         RunCredentialRepositories::new(&pool),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
 
     let err = service
@@ -74,7 +74,6 @@ async fn a_ttl_beyond_chrono_range_is_refused_before_anything_is_issued() {
 
 #[tokio::test]
 async fn issue_without_purpose_mints_no_mcp_token() {
-    install_test_signing_key();
     let database = DisposableDb::with_schema("agent_run_credentials_nompc").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
@@ -82,6 +81,7 @@ async fn issue_without_purpose_mints_no_mcp_token() {
         RunCredentialRepositories::new(&pool),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
 
     let creds = service
@@ -101,7 +101,6 @@ async fn issue_without_purpose_mints_no_mcp_token() {
 
 #[tokio::test]
 async fn revoke_revokes_the_mcp_token_jti() {
-    install_test_signing_key();
     let database = DisposableDb::with_schema("agent_run_credentials_mcpjti").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
@@ -109,6 +108,7 @@ async fn revoke_revokes_the_mcp_token_jti() {
         RunCredentialRepositories::new(&pool),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
 
     let creds = service

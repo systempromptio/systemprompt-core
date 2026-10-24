@@ -19,8 +19,8 @@ use systemprompt_security::keys::RsaSigningKey;
 use systemprompt_test_fixtures::{
     TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
     TEST_TEAMS_UNRESOLVABLE_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
-    init_services_bootstrap, install_test_signing_key, messaging_config_yaml_with_teams_endpoints,
-    seed_agent_backend, test_app_context, test_db_pool,
+    init_services_bootstrap, messaging_config_yaml_with_teams_endpoints, seed_agent_backend,
+    test_app_context, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
@@ -146,7 +146,6 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
 
@@ -239,7 +238,6 @@ async fn an_unresolvable_app_password_is_service_unavailable_not_acked() -> anyh
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
 
@@ -282,7 +280,6 @@ async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::
         &format!("{}/openid", connector.uri()),
         &format!("{}/token", connector.uri()),
     ))));
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
 

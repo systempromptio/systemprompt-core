@@ -8,7 +8,7 @@ use systemprompt_cli::core::{self, CoreCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row, test_app_context,
+    DisposableDb, ensure_test_bootstrap, seed_user_row, test_app_context,
 };
 
 const HELPER: &str = "commands::core_files_ai_output_lifecycle::files_ai_output_helper";
@@ -31,7 +31,6 @@ async fn files_ai_output_helper() {
     let database = DisposableDb::with_schema("cli_files_ai_output").await;
     let pool = database.test_pool().await;
     ensure_test_bootstrap();
-    install_test_signing_key();
     let user = UserId::new(format!("ai-output-{}", uuid::Uuid::new_v4().simple()));
     seed_user_row(&pool, &user, &format!("{}@files.invalid", user.as_str()))
         .await

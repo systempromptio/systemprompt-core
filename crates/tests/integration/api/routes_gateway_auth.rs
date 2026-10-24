@@ -66,7 +66,6 @@ async fn pat_with_invalid_token_is_unauthorized() -> Result<()> {
 #[tokio::test]
 async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    systemprompt_test_fixtures::install_test_signing_key();
     let uniq = uuid::Uuid::new_v4();
     let user = systemprompt_identifiers::UserId::new(uniq.to_string());
     systemprompt_test_fixtures::seed_user_row(&pool, &user, &format!("pat-{uniq}@example.invalid"))
@@ -172,6 +171,7 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
         .await
@@ -191,6 +191,7 @@ fn jwt_extractor(
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     )))
 }
 
@@ -233,7 +234,6 @@ async fn session_pat_with_valid_code_mints_pat() -> Result<()> {
 #[tokio::test]
 async fn session_with_valid_code_issues_bridge_access() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    systemprompt_test_fixtures::install_test_signing_key();
     let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
     let resp = auth::session(
         (*ctx).clone(),
@@ -414,7 +414,6 @@ mod bridge_stream_auth {
 #[tokio::test]
 async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
     let (pool, auth_ctx) = setup_ctx().await?;
-    systemprompt_test_fixtures::install_test_signing_key();
     let cred = systemprompt_test_fixtures::seed_admin_credential(
         &pool,
         &format!("manifest-fallback-{}@example.invalid", uuid::Uuid::new_v4()),

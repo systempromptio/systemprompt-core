@@ -15,9 +15,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat, Sc
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
-use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
-};
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
 
 const HELPER: &str =
     "commands::infrastructure::services_cleanup_owned_lifecycle::cleanup_owned_helper";
@@ -54,7 +52,6 @@ async fn cleanup_owned_helper() {
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
     ensure_test_bootstrap();
-    install_test_signing_key();
     let shim = tempfile::tempdir().expect("command shim");
     let lsof = shim.path().join("lsof");
     let pkill = shim.path().join("pkill");

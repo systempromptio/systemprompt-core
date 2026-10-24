@@ -21,7 +21,6 @@ fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::User
 }
 
 fn ensure_runtime() {
-    systemprompt_test_fixtures::install_test_signing_key();
     // `Config::install` is a one-shot global; ignore the error when another
     // test in this binary already installed it.
     let _ = Config::install(test_config());
@@ -113,6 +112,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     );
 
     let result = issue_bridge_access(
+        &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
@@ -155,6 +155,7 @@ async fn bridge_session_captures_request_analytics() {
 
     let caller_ip = "203.0.113.7".parse().ok();
     let result = issue_bridge_access(
+        &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
@@ -202,6 +203,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
 
     let supplied = SessionId::generate();
     let result = issue_bridge_access(
+        &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
@@ -248,6 +250,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     // The bridge re-mints hourly with its stable session id; both mints must
     // succeed (idempotent upsert), not fail on the existing primary key.
     issue_bridge_access(
+        &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
@@ -256,6 +259,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     .await
     .expect("first mint");
     issue_bridge_access(
+        &systemprompt_test_fixtures::test_signing_keys(),
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),

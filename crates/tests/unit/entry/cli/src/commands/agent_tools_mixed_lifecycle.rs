@@ -16,8 +16,7 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, TestBootstrap, fixture_app_context_with, fixture_user_id,
-    init_services_bootstrap, install_test_signing_key,
+    DisposableDb, TestBootstrap, fixture_app_context_with, fixture_user_id, init_services_bootstrap,
 };
 use wiremock::matchers::{body_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -216,7 +215,6 @@ async fn mixed_agent_tools_helper() {
         .mount(&stopped)
         .await;
     let boot = init_services_bootstrap(&services_yaml(&healthy.uri(), &stopped.uri()));
-    install_test_signing_key();
     let project = tempfile::tempdir().expect("owned session project");
     std::fs::create_dir_all(project.path().join(".systemprompt")).expect("create .systemprompt");
     std::fs::create_dir_all(project.path().join("services")).expect("create services");

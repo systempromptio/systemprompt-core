@@ -14,6 +14,7 @@ use systemprompt_identifiers::{
 const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const FAKE_SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const FAKE_SHA_C: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
@@ -157,9 +158,21 @@ fn sample_manifest() -> SignedManifest {
     }
 }
 
+fn manifest_keys()
+-> Result<systemprompt_security::keys::SigningKeys, systemprompt_config::SecretsBootstrapError> {
+    let seed = SecretsBootstrap::manifest_signing_secret_seed()?;
+    Ok(systemprompt_security::keys::SigningKeys::new(
+        systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX),
+        &seed,
+    )
+    .expect("build signing keys from the bootstrapped seed"))
+}
+
 fn sealed_envelope(manifest: &SignedManifest) -> SignedManifestEnvelope {
     let payload = manifest_signing::canonicalize(manifest).expect("canonicalize manifest");
-    let signature = manifest_signing::sign_bytes(payload.as_bytes()).expect("sign payload bytes");
+    let signature = manifest_keys()
+        .expect("manifest keys from the bootstrapped seed")
+        .sign_manifest_bytes(payload.as_bytes());
     SignedManifestEnvelope {
         payload,
         signature: ManifestSignature::new(signature),
@@ -206,7 +219,7 @@ fn jcs_output_sorts_keys_alphabetically() {
 #[test]
 fn sign_bytes_round_trips_through_verifier() {
     ensure_bootstrap();
-    let pubkey = match manifest_signing::pubkey_b64() {
+    let pubkey = match manifest_keys().map(|keys| keys.manifest_pubkey_b64()) {
         Ok(k) => k,
         Err(e) => {
             // skip-ok: secrets bootstrap is process-global and another suite may own it
@@ -222,7 +235,7 @@ fn sign_bytes_round_trips_through_verifier() {
 #[test]
 fn tamper_with_payload_breaks_signature() {
     ensure_bootstrap();
-    let pubkey = match manifest_signing::pubkey_b64() {
+    let pubkey = match manifest_keys().map(|keys| keys.manifest_pubkey_b64()) {
         Ok(k) => k,
         Err(e) => {
             // skip-ok: secrets bootstrap is process-global and another suite may own it
@@ -239,22 +252,4 @@ fn tamper_with_payload_breaks_signature() {
 
     let result = verify_envelope(&envelope, &pubkey);
     assert!(result.is_err(), "tampered payload must fail verification");
-}
-
-#[test]
-fn signing_key_is_cached_across_calls() {
-    ensure_bootstrap();
-    let first = match manifest_signing::signing_key() {
-        Ok(k) => k,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
-    let second = manifest_signing::signing_key().expect("second call reuses the cached key");
-    assert!(
-        std::ptr::eq(first, second),
-        "the OnceLock-cached signing key must be returned by reference, not re-derived"
-    );
 }

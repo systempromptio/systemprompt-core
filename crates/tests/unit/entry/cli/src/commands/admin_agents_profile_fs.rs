@@ -61,9 +61,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     use std::sync::Arc;
     use systemprompt_cli::infrastructure::services::restart;
     use systemprompt_loader::subprocess::{self, ChildKind};
-    use systemprompt_test_fixtures::{
-        DisposableDb, fixture_app_context_with, install_test_signing_key,
-    };
+    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_with};
 
     let root = seed_agents();
     let listener = (9000..=9999)
@@ -92,7 +90,6 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     systemprompt_test_fixtures::refresh_services_config();
 
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_restart_failed").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {
@@ -361,9 +358,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     use std::sync::Arc;
     use systemprompt_cli::infrastructure::services::restart;
     use systemprompt_loader::subprocess::{self, ChildKind};
-    use systemprompt_test_fixtures::{
-        DisposableDb, fixture_app_context_with, install_test_signing_key,
-    };
+    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_with};
 
     let root = seed_agents();
     let listener = (9000..=9999)
@@ -393,7 +388,6 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     .unwrap();
     systemprompt_test_fixtures::refresh_services_config();
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_restart_all_agents").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {
@@ -466,15 +460,12 @@ const DELETE_ALL_HELPER: &str =
 #[ignore = "re-executed by delete_all_reports_exact_targets_and_preserves_unrelated_configuration"]
 async fn delete_all_agents_public_helper() {
     use std::sync::Arc;
-    use systemprompt_test_fixtures::{
-        DisposableDb, fixture_app_context_with, install_test_signing_key,
-    };
+    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_with};
 
     let root = seed_agents();
     let control = root.join("config/control.yaml");
     std::fs::write(&control, "control: preserved\n").expect("write unrelated control");
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_admin_delete_all").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {

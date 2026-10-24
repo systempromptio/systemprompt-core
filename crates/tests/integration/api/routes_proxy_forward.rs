@@ -30,8 +30,8 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId,
 use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_config, init_services_bootstrap,
-    install_test_signing_key, mint_admin_jwt, test_app_context, test_db_pool,
+    TestBootstrap, ensure_test_bootstrap, fixture_config, init_services_bootstrap, mint_admin_jwt,
+    test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -169,7 +169,6 @@ fn ctx_token() -> String {
     if !Config::is_initialized() {
         ensure_config();
     }
-    install_test_signing_key();
     let issuer = Config::get().expect("config installed").jwt_issuer.clone();
     let uid = UserId::new(Uuid::new_v4().to_string());
     mint_admin_jwt(&uid, "proxy-fwd@test.invalid", &issuer)

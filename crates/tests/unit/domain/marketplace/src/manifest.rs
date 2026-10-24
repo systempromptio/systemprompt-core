@@ -10,7 +10,6 @@ use systemprompt_marketplace::{
 };
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
-use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::fixture_user_id;
 
 use crate::helpers::{
@@ -635,14 +634,14 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
 #[test]
 fn seal_round_trips_against_published_pubkey() {
     ensure_bootstrap();
-    let pubkey_b64 = manifest_signing::pubkey_b64()
-        .expect("ensure_bootstrap installs the manifest signing secret");
+    let keys = systemprompt_test_fixtures::test_signing_keys();
+    let pubkey_b64 = keys.manifest_pubkey_b64();
 
     let version =
         ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
     let manifest = sample_manifest(&version);
 
-    let envelope = ManifestService::seal(&manifest).expect("seal manifest");
+    let envelope = ManifestService::seal(&keys, &manifest).expect("seal manifest");
 
     let pubkey_bytes: [u8; 32] = base64::engine::general_purpose::STANDARD
         .decode(&pubkey_b64)
@@ -671,12 +670,12 @@ fn seal_round_trips_against_published_pubkey() {
 #[test]
 fn seal_is_deterministic_for_identical_manifests() {
     ensure_bootstrap();
-    manifest_signing::pubkey_b64().expect("ensure_bootstrap installs the manifest signing secret");
 
     let version =
         ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
-    let first = ManifestService::seal(&sample_manifest(&version)).expect("first seal");
-    let second = ManifestService::seal(&sample_manifest(&version)).expect("second seal");
+    let keys = systemprompt_test_fixtures::test_signing_keys();
+    let first = ManifestService::seal(&keys, &sample_manifest(&version)).expect("first seal");
+    let second = ManifestService::seal(&keys, &sample_manifest(&version)).expect("second seal");
 
     assert_eq!(first.payload, second.payload);
     assert_eq!(

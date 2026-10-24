@@ -9,9 +9,7 @@ use systemprompt_cli::plugins::mcp::{self, McpCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_test_fixtures::{
-    DisposableDb, fixture_app_context_with, init_services_bootstrap, install_test_signing_key,
-};
+use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_with, init_services_bootstrap};
 
 const SERVER: &str = "cov_internal_status";
 const BINARY: &str = "cov-internal-mcp";
@@ -39,7 +37,6 @@ fn services_yaml() -> String {
 #[ignore = "re-executed by internal_status_reports_stopped_state_and_owned_binary_availability"]
 async fn internal_status_helper() {
     let boot = init_services_bootstrap(&services_yaml());
-    install_test_signing_key();
     let extension = boot.system_path.join("extensions").join(SERVER);
     std::fs::create_dir_all(&extension).expect("create owned extension directory");
     std::fs::write(

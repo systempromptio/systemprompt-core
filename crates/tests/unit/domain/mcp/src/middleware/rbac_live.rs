@@ -81,6 +81,7 @@ impl ServerHandler for RbacProbe {
                 &McpServerId::new(probe.server.as_str()),
                 &probe.hook,
                 &services,
+                &systemprompt_test_fixtures::test_signing_keys(),
             )
             .await
             {

@@ -1,8 +1,6 @@
 use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
 use systemprompt_identifiers::AgentName;
-use systemprompt_test_fixtures::{
-    init_services_bootstrap, install_test_signing_key, test_app_context, test_db_pool,
-};
+use systemprompt_test_fixtures::{init_services_bootstrap, test_app_context, test_db_pool};
 
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
     format!(
@@ -55,7 +53,6 @@ async fn coverage_required_agent_failure_is_retried_and_blocks_api_startup() {
     let port = listener.local_addr().unwrap().port();
     let name = format!("reconcile_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Required", true));
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &boot.database_url);
     let err = reconcile_agents(&ctx, None).await.unwrap_err();
@@ -74,7 +71,6 @@ async fn coverage_disabled_agent_does_not_block_api_startup_on_an_occupied_port(
     let port = listener.local_addr().unwrap().port();
     let name = format!("disabled_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Disabled", false));
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &boot.database_url);
     assert_eq!(reconcile_agents(&ctx, None).await.unwrap(), 0);
@@ -160,7 +156,6 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
         .port();
     let name = format!("reconcile_running_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Running cleanup", true));
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &boot.database_url);
     let owned = OwnedMarkedAgent::spawn(&name);
@@ -204,7 +199,6 @@ async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event
         "http://127.0.0.1",
         "agents: [not-a-registry]\n",
     );
-    install_test_signing_key();
     let database =
         systemprompt_test_fixtures::DisposableDb::with_schema("malformed_agent_registry_startup")
             .await;
