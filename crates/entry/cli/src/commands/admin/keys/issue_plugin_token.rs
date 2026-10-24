@@ -13,6 +13,7 @@ use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{AccessTokenId, PluginId};
+use systemprompt_oauth::services::JwtSigningParams;
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_users::{UserRepository, UserService};
 
@@ -92,17 +93,22 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         email: user.email,
     };
 
+    let keys = crate::session::api::load_signing_keys()?;
     let session_id = crate::session::api::create_local_session_row(
         &db_pool,
         &user.id,
         chrono::Duration::days(i64::from(args.duration_days)),
+        keys.clone(),
     )
     .await
     .context("Failed to create the session row backing the plugin token")?;
 
     let issued = PluginTokenService::issue(
         subject,
-        &profile.security.issuer,
+        &JwtSigningParams {
+            issuer: &profile.security.issuer,
+            keys: &keys,
+        },
         args.plugin_id.clone(),
         args.duration_days,
         &session_id,

@@ -18,6 +18,7 @@ use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::{Database, DbPool, PoolConfig};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{UserRepository, UserService};
 
@@ -111,10 +112,11 @@ pub async fn get_or_create_admin(
 
 pub fn generate_admin_token(
     issuer: &str,
+    keys: SigningKeys,
     user: &systemprompt_users::User,
     session_id: &SessionId,
 ) -> Result<SessionToken> {
-    let generator = SessionGenerator::new(issuer);
+    let generator = SessionGenerator::new(issuer, keys);
     generator
         .generate(&SessionParams {
             user_id: &user.id,

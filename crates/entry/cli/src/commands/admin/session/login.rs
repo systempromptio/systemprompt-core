@@ -22,13 +22,14 @@ use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::{Profile, Secrets};
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{User, UserRole};
 
 use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
 };
-use crate::session::api::create_local_session_row;
+use crate::session::api::{create_local_session_row, load_signing_keys};
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
@@ -116,10 +117,12 @@ pub async fn login_for_profile(
     ensure_interactive_admin(&admin_user)?;
 
     progress(args, "Creating session...");
+    let keys = load_signing_keys()?;
     let session_id = create_local_session_row(
         &db_pool,
         &admin_user.id,
         chrono::Duration::hours(args.duration_hours),
+        keys.clone(),
     )
     .await?;
 
@@ -128,7 +131,7 @@ pub async fn login_for_profile(
         create_cli_context(&db_pool, &admin_user.id, &session_id, profile_path).await?;
 
     progress(args, "Generating token...");
-    let session_token = generate_session_token(profile, args, &admin_user, &session_id)?;
+    let session_token = generate_session_token(profile, keys, args, &admin_user, &session_id)?;
 
     save_session_to_store(SessionStoreParams {
         sessions_dir: &sessions_dir,
@@ -194,11 +197,12 @@ async fn create_cli_context(
 
 fn generate_session_token(
     profile: &Profile,
+    keys: SigningKeys,
     args: &LoginArgs,
     admin_user: &User,
     session_id: &SessionId,
 ) -> Result<SessionToken> {
-    let session_generator = SessionGenerator::new(&profile.security.issuer);
+    let session_generator = SessionGenerator::new(&profile.security.issuer, keys);
     session_generator
         .generate(&SessionParams {
             user_id: &admin_user.id,

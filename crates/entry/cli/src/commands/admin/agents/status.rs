@@ -10,9 +10,9 @@ use std::sync::Arc;
 use super::types::{AgentStatusOutput, AgentStatusRow};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
+use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_oauth::JwtValidationProviderImpl;
 
@@ -31,12 +31,16 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
         .context("Failed to initialize application context")?;
 
     let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
+        JwtValidationProviderImpl::from_config(app.signing_keys().clone())
+            .context("Failed to create JWT provider")?,
     );
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(app.db_pool()),
         Arc::new(app.config().clone()),
-        jwt_provider,
+        AgentAuth {
+            jwt_provider,
+            signing_keys: app.signing_keys().clone(),
+        },
         Arc::clone(app.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(app.config())?),
     ));

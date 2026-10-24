@@ -7,9 +7,9 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::sync::Arc;
 
-use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
+use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_agent_runs::AgentRunsExtension;
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_identifiers::AgentName;
@@ -38,14 +38,18 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
     let db_pool = Arc::clone(ctx.db_pool());
 
     let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
+        JwtValidationProviderImpl::from_config(ctx.signing_keys().clone())
+            .context("Failed to create JWT provider")?,
     );
 
     let agent_state = Arc::new(
         AgentState::new(
             Arc::clone(&db_pool),
             Arc::new(ctx.config().clone()),
-            jwt_provider,
+            AgentAuth {
+                jwt_provider,
+                signing_keys: ctx.signing_keys().clone(),
+            },
             Arc::clone(ctx.a2a_repositories()),
             Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
         )

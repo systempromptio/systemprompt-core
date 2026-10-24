@@ -10,10 +10,10 @@
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
@@ -34,12 +34,16 @@ impl OrchestratorHandles {
 
 pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
     let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
+        JwtValidationProviderImpl::from_config(ctx.signing_keys().clone())
+            .context("Failed to create JWT provider")?,
     );
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
-        jwt_provider,
+        AgentAuth {
+            jwt_provider,
+            signing_keys: ctx.signing_keys().clone(),
+        },
         Arc::clone(ctx.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
     ));

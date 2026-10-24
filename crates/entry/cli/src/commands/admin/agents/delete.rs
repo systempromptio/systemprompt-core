@@ -15,10 +15,10 @@ use crate::CliConfig;
 use crate::context::CommandContext;
 use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
-use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
+use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigLoader;
@@ -163,7 +163,8 @@ pub fn delete_success_message(deleted: &[AgentName]) -> String {
 async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
     let app = ctx.app_context().await?;
     let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
+        JwtValidationProviderImpl::from_config(app.signing_keys().clone())
+            .context("Failed to create JWT provider")?,
     );
     let broadcaster = HttpWebhookBroadcaster::from_config(app.config())
         .context("Failed to initialize webhook broadcaster")?;
@@ -171,7 +172,10 @@ async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(app.db_pool()),
         Arc::new(app.config().clone()),
-        jwt_provider,
+        AgentAuth {
+            jwt_provider,
+            signing_keys: app.signing_keys().clone(),
+        },
         Arc::clone(app.a2a_repositories()),
         Arc::new(broadcaster),
     ));
