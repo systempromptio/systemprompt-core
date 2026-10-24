@@ -4,10 +4,7 @@
 use super::bootstrapped_pool;
 use serde_json::{Value, json};
 use systemprompt_ai::repository::{AiGatewayPolicyRepository, GatewayPolicyWrite};
-
-fn unique_name() -> String {
-    format!("policy-{}", uuid::Uuid::new_v4().simple())
-}
+use systemprompt_test_fixtures::unique_name;
 
 async fn upsert(
     pool: &systemprompt_database::DbPool,
@@ -34,7 +31,7 @@ async fn upsert(
 #[tokio::test]
 async fn upsert_inserts_then_updates_and_list_includes_disabled() {
     let pool = bootstrapped_pool().await;
-    let name = unique_name();
+    let name = unique_name("policy");
     upsert(&pool, &name, &json!({"a": 1}), true, 0).await;
     upsert(&pool, &name, &json!({"a": 2}), false, 42).await;
 
@@ -52,7 +49,11 @@ async fn upsert_inserts_then_updates_and_list_includes_disabled() {
 #[tokio::test]
 async fn find_for_global_returns_only_enabled_in_priority_order() {
     let pool = bootstrapped_pool().await;
-    let (low, high, off) = (unique_name(), unique_name(), unique_name());
+    let (low, high, off) = (
+        unique_name("policy"),
+        unique_name("policy"),
+        unique_name("policy"),
+    );
     upsert(&pool, &high, &json!({}), true, 20).await;
     upsert(&pool, &low, &json!({}), true, 10).await;
     upsert(&pool, &off, &json!({}), false, 0).await;
@@ -73,7 +74,7 @@ async fn find_for_global_returns_only_enabled_in_priority_order() {
 #[tokio::test]
 async fn delete_on_removes_the_policy() {
     let pool = bootstrapped_pool().await;
-    let name = unique_name();
+    let name = unique_name("policy");
     upsert(&pool, &name, &json!({}), true, 0).await;
     let mut conn = pool.write_pool().acquire().await.expect("conn");
     AiGatewayPolicyRepository::delete_on(&mut conn, &name)

@@ -4,24 +4,19 @@
 // already dead, and crash cleanup when no service record exists.
 
 use std::sync::Arc;
-use systemprompt_identifiers::{AgentName, InstanceId};
+use systemprompt_identifiers::InstanceId;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle;
 use systemprompt_config::paths::AppPaths;
-use uuid::Uuid;
 
-use systemprompt_test_fixtures::{test_db_pool, unique_instance};
+use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
-
-fn unique_name(prefix: &str) -> AgentName {
-    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
-}
 
 fn app_paths() -> Arc<AppPaths> {
     let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -49,7 +44,7 @@ async fn start_agent_unknown_agent_fails_before_spawn() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool, &instance);
 
-    let name = unique_name("lc_missing");
+    let name = unique_agent_name("lc_missing");
     let result = lifecycle.start_agent(&name, None).await;
     assert!(result.is_err(), "unregistered agent must not start");
 }
@@ -61,7 +56,7 @@ async fn start_agent_unknown_agent_creates_no_service_state() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool, &instance);
     let db = db_service(&pool, &instance);
-    let name = unique_name("lc_unknown_event");
+    let name = unique_agent_name("lc_unknown_event");
 
     let err = lifecycle
         .start_agent(&name, None)
@@ -86,7 +81,7 @@ async fn enable_agent_delegates_to_start() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool, &instance);
 
-    let name = unique_name("lc_enable");
+    let name = unique_agent_name("lc_enable");
     let result = lifecycle.enable_agent(&name, None).await;
     assert!(result.is_err(), "unregistered agent must not enable");
 }
@@ -99,7 +94,7 @@ async fn restart_agent_with_dead_pid_row_fails_on_missing_config() {
     let lifecycle = lifecycle(&pool, &instance);
     let db = db_service(&pool, &instance);
 
-    let name = unique_name("lc_restart");
+    let name = unique_agent_name("lc_restart");
     db.register_agent(&name, DEAD_PID, 9410)
         .await
         .expect("register");
@@ -121,7 +116,7 @@ async fn disable_agent_with_dead_pid_removes_service_row() {
     let lifecycle = lifecycle(&pool, &instance);
     let db = db_service(&pool, &instance);
 
-    let name = unique_name("lc_disable");
+    let name = unique_agent_name("lc_disable");
     db.register_agent(&name, DEAD_PID, 9411)
         .await
         .expect("register");
@@ -139,7 +134,7 @@ async fn cleanup_crashed_agent_without_record_is_noop() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool, &instance);
 
-    let name = unique_name("lc_cleanup");
+    let name = unique_agent_name("lc_cleanup");
     lifecycle
         .cleanup_crashed_agent(&name)
         .await
@@ -153,7 +148,7 @@ async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool, &instance);
     let db = db_service(&pool, &instance);
-    let name = unique_name("lc_crashed");
+    let name = unique_agent_name("lc_crashed");
 
     db.register_agent(&name, DEAD_PID, 9413)
         .await
@@ -191,7 +186,7 @@ async fn disable_removes_the_service_row() {
     let lifecycle = lifecycle(&pool, &instance);
     let db = db_service(&pool, &instance);
 
-    let name = unique_name("lc_bus_dis");
+    let name = unique_agent_name("lc_bus_dis");
     db.register_agent(&name, DEAD_PID, 9412)
         .await
         .expect("register");
@@ -214,7 +209,7 @@ async fn restart_unconfigured_agent_fails() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool, &instance);
 
-    let name = unique_name("lc_restart_missing");
+    let name = unique_agent_name("lc_restart_missing");
     let result = lifecycle.restart_agent(&name, None).await;
     assert!(result.is_err(), "unconfigured agent must not restart");
 }
@@ -225,7 +220,7 @@ async fn free_function_verbs_cover_missing_agent_paths() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     use systemprompt_agent::services::agent_orchestration::lifecycle as verbs;
 
-    let name = unique_name("lc_free");
+    let name = unique_agent_name("lc_free");
     let repo = systemprompt_agent::repository::agent_service::AgentServiceRepository::new(
         &pool,
         unique_instance(),

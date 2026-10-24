@@ -31,7 +31,7 @@ use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
     TestBootstrap, ensure_test_bootstrap, fixture_config, init_services_bootstrap, mint_admin_jwt,
-    test_app_context, test_db_pool,
+    test_app_context, test_db_pool, unique_name,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -47,10 +47,6 @@ fn ensure_config() {
         let b = ensure_test_bootstrap();
         let _ = Config::install(fixture_config(&b.database_url));
     });
-}
-
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
 }
 
 struct DeclaredBackend {

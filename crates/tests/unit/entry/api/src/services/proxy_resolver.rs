@@ -11,19 +11,12 @@ use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
+    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool, unique_name,
 };
 
 async fn live_pool() -> DbPool {
     ensure_test_bootstrap();
     test_db_pool().await
-}
-
-fn unique_name(prefix: &str) -> String {
-    format!(
-        "{prefix}_{}",
-        &uuid::Uuid::new_v4().simple().to_string()[..12]
-    )
 }
 
 async fn seed_service(pool: &DbPool, instance: &InstanceId, name: &str, status: &str) {

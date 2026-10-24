@@ -13,20 +13,7 @@ use systemprompt_manifest::ServiceType;
 use systemprompt_scheduler::{
     DesiredStatus, ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateVerifier,
 };
-use systemprompt_test_fixtures::{test_db_pool, unique_instance};
-
-fn unique_name(prefix: &str) -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-    let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    format!("{prefix}_{}_{}_{}", std::process::id(), n, nanos)
-}
+use systemprompt_test_fixtures::{test_db_pool, unique_instance, unique_name};
 
 async fn insert_service(
     pg: &sqlx::PgPool,

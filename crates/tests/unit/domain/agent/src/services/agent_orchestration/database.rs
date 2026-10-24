@@ -11,9 +11,8 @@ use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::{AgentStatus, OrchestrationError};
 use systemprompt_identifiers::{AgentName, InstanceId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, unique_instance};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, unique_agent_name, unique_instance};
 use systemprompt_traits::RepositoryError;
-use uuid::Uuid;
 
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -21,10 +20,6 @@ use systemprompt_test_fixtures::test_db_pool;
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
-
-fn unique_name(prefix: &str) -> AgentName {
-    AgentName::new(format!("{prefix}-{}", Uuid::new_v4()))
-}
 
 async fn service(
     pool: &systemprompt_database::DbPool,
@@ -41,7 +36,7 @@ async fn register_then_status_reconciles_dead_pid_to_failed() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
-    let name = unique_name("orch-dead");
+    let name = unique_agent_name("orch-dead");
 
     svc.register_agent(&name, DEAD_PID, 9300)
         .await
@@ -66,7 +61,7 @@ async fn status_no_record_is_failed() {
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
     let status = svc
-        .get_status(&unique_name("orch-missing"))
+        .get_status(&unique_agent_name("orch-missing"))
         .await
         .expect("status");
     match status {
@@ -80,7 +75,7 @@ async fn status_starting_is_failed_with_starting_reason() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
-    let name = unique_name("orch-starting");
+    let name = unique_agent_name("orch-starting");
     svc.register_agent_starting(&name, DEAD_PID, 9301)
         .await
         .expect("register starting");
@@ -99,7 +94,7 @@ async fn status_stopped_is_failed() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
-    let name = unique_name("orch-stopped");
+    let name = unique_agent_name("orch-stopped");
     svc.register_agent(&name, DEAD_PID, 9302)
         .await
         .expect("register");
@@ -116,7 +111,7 @@ async fn list_running_agents_includes_registered() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
-    let name = unique_name("orch-listrun");
+    let name = unique_agent_name("orch-listrun");
     svc.register_agent(&name, DEAD_PID, 9304)
         .await
         .expect("register");
@@ -132,7 +127,7 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
-    let name = unique_name("orch-lifecycle");
+    let name = unique_agent_name("orch-lifecycle");
 
     svc.register_agent_starting(&name, DEAD_PID, 9306)
         .await
@@ -171,7 +166,7 @@ async fn error_row_reads_as_failed_without_rewriting_it() {
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
     let raw = pool.pool();
-    let name = unique_name("orch-crash");
+    let name = unique_agent_name("orch-crash");
     svc.register_agent(&name, DEAD_PID, 9308)
         .await
         .expect("register");
@@ -201,7 +196,7 @@ async fn mcp_rows_are_invisible_to_agent_supervision() {
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
     let services = systemprompt_database::ServiceRepository::new(&pool, instance.clone());
-    let name = unique_name("orch-mcp-row");
+    let name = unique_agent_name("orch-mcp-row");
     let name_id = systemprompt_identifiers::ServiceName::new(name.as_str());
     services
         .upsert_service_process(systemprompt_database::UpsertServiceProcessInput {
@@ -272,7 +267,7 @@ async fn remove_unknown_service_is_ok() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
-    svc.remove_agent_service(&unique_name("orch-ghost"))
+    svc.remove_agent_service(&unique_agent_name("orch-ghost"))
         .await
         .expect("remove ok");
 }
@@ -283,7 +278,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
     let instance = unique_instance();
     let svc = service(&pool, &instance).await;
     let raw = pool.pool();
-    let name = unique_name("orch-corrupt-process");
+    let name = unique_agent_name("orch-corrupt-process");
     svc.register_agent(&name, std::process::id(), 9309)
         .await
         .expect("register owned process identity");
