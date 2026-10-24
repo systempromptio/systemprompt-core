@@ -41,10 +41,6 @@ pub fn block_on_secrets_init() -> Result<(), String> {
 // A provider without its api_key secret is withheld from the AI registry;
 // the harness mocks every provider endpoint, so placeholder credentials let
 // the mocked providers register.
-/// Register one more named secret for the subprocess-mode secrets singleton.
-///
-/// Must run before the secrets bootstrap initialises: it appends `name` to
-/// `SYSTEMPROMPT_CUSTOM_SECRETS` and exports the value under that name.
 pub fn install_named_secret(name: &str, value: &str) {
     let mut custom = env::var("SYSTEMPROMPT_CUSTOM_SECRETS").unwrap_or_default();
     if !custom.split(',').any(|existing| existing == name) {

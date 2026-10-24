@@ -104,14 +104,10 @@ fn build(turns: Vec<Turn>) -> Vec<CanonicalMessage> {
     out
 }
 
-/// Any history at all, well formed or not.
 pub fn arb_history() -> impl Strategy<Value = Vec<CanonicalMessage>> {
     prop::collection::vec((0u8..4, prop::collection::vec(any::<u8>(), 0..4)), 0..14).prop_map(build)
 }
 
-/// A history that is already strictly valid for the Messages API: user and
-/// assistant alternate, and every call is answered by the next turn, results
-/// first.
 pub fn arb_valid_history() -> impl Strategy<Value = Vec<CanonicalMessage>> {
     prop::collection::vec((0usize..3, any::<bool>(), any::<bool>()), 1..6).prop_map(|rounds| {
         let mut out = Vec::new();

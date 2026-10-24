@@ -242,10 +242,6 @@ mod anthropic_events_from_sse {
         }
     }
 
-    /// Anthropic packs the terminal `stop_reason` and the only real usage
-    /// report of the whole stream into the same `message_delta`. Returning just
-    /// the stop left every streamed gateway request costed from the
-    /// `message_start` placeholder — a few tokens instead of thousands.
     #[test]
     fn message_delta_with_stop_reason_still_emits_usage() {
         let events = AnthropicStreamState::new("msg_1").events_from_sse(&json!({
@@ -275,9 +271,6 @@ mod anthropic_events_from_sse {
         ));
     }
 
-    /// The frame that motivated `CanonicalUsageUpdate`: Anthropic reports
-    /// `output_tokens` alone here, and mapping the absent counts to zero let
-    /// the tap overwrite the input and cache totals `message_start` gave.
     #[test]
     fn message_delta_states_only_the_counts_it_carries() {
         let events = AnthropicStreamState::new("msg_1").events_from_sse(&json!({

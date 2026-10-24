@@ -78,11 +78,6 @@ fn leaves_are_reported_in_document_order() {
     );
 }
 
-/// Builds `{"n":{"n":...{"n":"<leaf>"}}}` nested `depth` deep, as text.
-///
-/// Written as a string rather than through `json!` because `serde_json::Value`
-/// drops recursively: constructing a deep value would overflow inside the test
-/// harness before the code under test ever ran.
 fn nested_body(depth: usize, leaf: &str) -> Vec<u8> {
     let mut s = String::new();
     for _ in 0..depth {

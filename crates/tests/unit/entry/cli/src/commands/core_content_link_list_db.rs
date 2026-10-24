@@ -42,8 +42,6 @@ fn ctx(pool: &DbPool) -> CommandContext {
     )
 }
 
-/// `campaign_links.source_content_id` is a real foreign key, so a link bound
-/// to content needs a content row to point at.
 async fn seed_content(pool: &DbPool) -> String {
     let repo = ContentRepository::new(pool);
     let slug = format!("ll-{}", Uuid::new_v4().simple());
@@ -63,7 +61,6 @@ async fn seed_content(pool: &DbPool) -> String {
         .to_owned()
 }
 
-/// Generate a link, optionally bound to a campaign and a source content id.
 async fn seed_link(
     ctx: &CommandContext,
     campaign: Option<&str>,

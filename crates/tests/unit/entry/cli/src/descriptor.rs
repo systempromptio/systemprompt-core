@@ -109,9 +109,6 @@ fn test_descriptor_with_remote_eligible() {
     assert_eq!(desc.routing_class(), RoutingClass::Mutating);
 }
 
-/// A remote-eligible command that only reads may fall back to local execution
-/// when routing is unavailable; one that mutates must not, so the two are
-/// separate flags.
 #[test]
 fn read_only_and_mutating_are_distinguishable() {
     let reads = CommandDescriptor::FULL.with_read_only();
@@ -123,8 +120,6 @@ fn read_only_and_mutating_are_distinguishable() {
     assert_eq!(local.routing_class(), RoutingClass::LocalOnly);
 }
 
-/// `with_read_only` on a command that never routes remotely must not promote
-/// it into the remote path.
 #[test]
 fn read_only_does_not_make_a_local_command_remote_eligible() {
     let desc = CommandDescriptor::PROFILE_ONLY.with_read_only();

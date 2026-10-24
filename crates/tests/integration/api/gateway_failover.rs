@@ -597,9 +597,6 @@ async fn mock_answering(status: u16, text: &str) -> MockServer {
     server
 }
 
-/// `MODEL` deployed on each `(provider, upstream)` in order — the order is the
-/// failover chain — every provider on its own platform credential resolving
-/// the pipeline's `anthropic` secret.
 fn chain_catalog(deployments: &[(&str, &MockServer)]) -> ResolvedCatalog {
     let with_secrets: Vec<(&str, &MockServer, &str)> = deployments
         .iter()

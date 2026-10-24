@@ -220,8 +220,6 @@ mod tenant_fallback {
         )
     }
 
-    /// `users.email` is `VARCHAR(255)`, so an over-long address fails to insert
-    /// and gives the fallback a deterministic failure to react to.
     fn unresolvable_email() -> String {
         format!("{}@toolong.invalid", "x".repeat(300))
     }
@@ -316,8 +314,6 @@ mod cli_context {
     use systemprompt_identifiers::{SessionId, UserId};
     use systemprompt_test_fixtures::seed_user_session;
 
-    /// `user_contexts.session_id` is a foreign key, so the session row has to
-    /// exist before a context can point at it.
     async fn session_for(pool: &DbPool, user_id: &UserId) -> SessionId {
         let session = SessionId::generate();
         seed_user_session(pool, user_id, &session)

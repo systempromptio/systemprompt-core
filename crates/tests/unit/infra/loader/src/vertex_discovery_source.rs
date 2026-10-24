@@ -62,8 +62,6 @@ async fn an_endpoint_with_no_secret_at_all_is_left_alone() {
     assert!(document.models.is_empty());
 }
 
-/// A source that claims the fixture endpoint on an API key and reports one
-/// model the embedded rate card already prices.
 struct FakeCatalog;
 
 #[async_trait]

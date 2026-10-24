@@ -11,7 +11,6 @@ use systemprompt_marketplace::managed::{
 };
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
-/// The provenance retained for a snapshot, read straight from its row.
 pub(super) async fn stored_provenance(
     db: &systemprompt_database::DbPool,
     owner: &UserId,

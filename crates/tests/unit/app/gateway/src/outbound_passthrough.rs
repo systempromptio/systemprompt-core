@@ -23,10 +23,6 @@ use systemprompt_identifiers::ModelId;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
-/// Builds the request body then sends it, mirroring what the gateway does.
-///
-/// The adapter splits the two so the gateway can inspect the exact bytes before
-/// they go on the wire; these tests exercise the pair together.
 async fn send_via<A: OutboundAdapter>(
     adapter: &A,
     ctx: OutboundCtx<'_>,
@@ -92,11 +88,6 @@ fn ok_body() -> Value {
     })
 }
 
-/// A body carrying beta-gated fields the canonical model does not describe.
-///
-/// `context_management` and `output_config` each pair with an `anthropic-beta`
-/// value; a gateway that forwards the header but drops the field produces a
-/// hard `400`, which is exactly the failure this guards against.
 fn raw_with_beta_fields() -> bytes::Bytes {
     bytes::Bytes::from(
         serde_json::to_vec(&json!({

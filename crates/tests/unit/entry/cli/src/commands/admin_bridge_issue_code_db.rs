@@ -211,11 +211,6 @@ mod enroll_cert {
     use systemprompt_database::DbPool;
     use uuid::Uuid;
 
-    /// `user_device_certs.fingerprint` is UNIQUE across the shared test
-    /// database, and fingerprints are normalised to lower case before storage.
-    /// A fixed value collides with any other suite using the same one — the
-    /// users-crate service tests enrol `'a' * 64`, which is what a seeded
-    /// constant here collided with.
     fn fingerprint() -> String {
         format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
     }

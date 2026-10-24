@@ -65,7 +65,6 @@ struct StoredKey {
     revoked_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-/// `execute` renders to stdout, so the row is where the outcome is visible.
 async fn stored_keys(pool: &DbPool, user: &str) -> Vec<StoredKey> {
     let p = pool.pool();
     sqlx::query_as::<

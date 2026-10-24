@@ -487,11 +487,6 @@ fn anthropic_upstream_body_omits_unsigned_thinking_and_empty_messages() {
     assert_eq!(messages[0]["content"][1]["text"], "answer");
 }
 
-/// Anthropic's gateway contract splits inbound headers into two classes: those
-/// a gateway must relay to the upstream byte-for-byte, and those it may consume
-/// for routing and attribution without forwarding. These tests pin that split
-/// so a new capability header is relayed by default and an identity header is
-/// not.
 #[test]
 fn anthropic_prefixed_headers_are_forwardable() {
     for name in [

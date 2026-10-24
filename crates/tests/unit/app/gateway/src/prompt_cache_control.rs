@@ -19,8 +19,6 @@ use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::protocol::outbound::anthropic::{AnthropicOutbound, request};
 use systemprompt_gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
 
-/// The shape Claude Code sends: breakpoints on the last system block, the last
-/// tool, and the last block of the newest user turn.
 fn cached_body() -> Value {
     json!({
         "model": "claude-x",

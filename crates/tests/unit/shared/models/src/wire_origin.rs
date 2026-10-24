@@ -18,9 +18,7 @@ use systemprompt_models::origin::{
 const CLAUDE_BODY: &[u8] = br#"{"metadata":{"user_id":"user_ab12_account_3f2504e0-4f89-11d3-9a0c-0305e82c3301_session_6ba7b810-9dad-11d1-80b4-00c04fd430c8"}}"#;
 const CODEX_BODY: &[u8] =
     br#"{"client_metadata":{"x-codex-turn-metadata":"{\"thread_id\":\"t\"}"}}"#;
-/// Claude Code ≥ 2.1.25x: the session rides as a JSON string.
 const CLAUDE_JSON_BODY: &[u8] = br#"{"metadata":{"user_id":"{\"account_uuid\":\"\",\"device_id\":\"3c2a1f\",\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#;
-/// A Cowork (Claude Desktop local agent) turn on a third-party gateway.
 const COWORK_BODY: &[u8] = br#"{"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.260.07b; cc_entrypoint=local-agent;\nYou are Claude Code"}],"metadata":{"user_id":"{\"account_uuid\":\"\",\"device_id\":\"3c2a1f\",\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#;
 const DESKTOP_BODY: &[u8] = br#"{"system":"x-anthropic-billing-header: cc_version=2.1.270.0e5; cc_entrypoint=claude-desktop-3p;","messages":[]}"#;
 const CLI_BODY: &[u8] = br#"{"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.274.1a2; cc_entrypoint=cli;"}],"messages":[]}"#;

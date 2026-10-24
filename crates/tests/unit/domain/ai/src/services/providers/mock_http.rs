@@ -17,8 +17,6 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 pub const FIXTURE_MODEL: &str = "fixture-model";
 
-/// Core's embedded default catalog, resolved: providers `anthropic`,
-/// `openai` and `gemini`, each with one `api` endpoint.
 pub fn default_catalog() -> ResolvedCatalog {
     DefaultCatalog::document()
         .expect("embedded default catalog parses")
@@ -26,7 +24,6 @@ pub fn default_catalog() -> ResolvedCatalog {
         .expect("embedded default catalog resolves")
 }
 
-/// The models the default catalog deploys on `<provider>/api`.
 pub fn seed_models(provider: &str) -> Vec<ServedModel> {
     let models = served_models_on(&default_catalog(), &EndpointRef::new(provider, "api"));
     assert!(
@@ -36,8 +33,6 @@ pub fn seed_models(provider: &str) -> Vec<ServedModel> {
     models
 }
 
-/// One platform credential `name`, one provider `name` with one `api`
-/// endpoint on `wire` at `url`, and [`FIXTURE_MODEL`] deployed on it.
 pub fn single_endpoint_catalog(name: &str, wire: WireProtocol, url: &str) -> ResolvedCatalog {
     CatalogFixture::new()
         .credential(name, platform(name))

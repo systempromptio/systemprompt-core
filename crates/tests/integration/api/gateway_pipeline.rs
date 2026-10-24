@@ -137,11 +137,6 @@ pub(super) fn provider_registry(
     catalog_fixture(endpoint, provider, wire, family).build()
 }
 
-/// The one-provider catalog every pipeline test dispatches through: provider
-/// `provider` with platform credential secret `anthropic` (resolved from
-/// `ANTHROPIC_API_KEY`), endpoint `api` on `wire` at `endpoint`, and
-/// [`MODEL`] deployed on it, unpriced (the gateway is not enabled in the
-/// catalog, so pricing is not demanded).
 pub(super) fn catalog_fixture(
     endpoint: &str,
     provider: &str,

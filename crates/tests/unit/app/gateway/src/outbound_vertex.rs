@@ -318,8 +318,6 @@ async fn an_undeclared_beta_is_not_forwarded_to_vertex() {
     );
 }
 
-/// What Claude Code 2.1.283 sends: the context-management flag and the body
-/// field it gates, together.
 fn raw_with_context_management() -> bytes::Bytes {
     bytes::Bytes::from(
         serde_json::to_vec(&json!({

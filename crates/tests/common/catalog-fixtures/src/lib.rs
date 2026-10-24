@@ -98,7 +98,6 @@ impl CatalogFixture {
         }
     }
 
-    /// Core's embedded default catalog (`DefaultCatalog`) as a fixture to edit.
     #[must_use]
     pub fn embedded_default() -> Self {
         Self::from_document(
@@ -237,7 +236,6 @@ impl CatalogFixture {
     }
 }
 
-/// A deployment target written as `"provider/endpoint"` or given in full.
 pub struct FixtureTarget(DeploymentTarget);
 
 impl From<&str> for FixtureTarget {
@@ -262,8 +260,6 @@ pub fn endpoints(entries: &[(&str, EndpointConfig)]) -> BTreeMap<EndpointId, End
         .collect()
 }
 
-/// Reads the catalog files of a `services/ai` directory, in
-/// [`CATALOG_FILES`] order, into one merged document.
 pub fn read_ai_dir(dir: &std::path::Path) -> Result<CatalogDocument, String> {
     let mut merged = CatalogDocument::default();
     for file in CATALOG_FILES {
@@ -283,9 +279,6 @@ fn render(error: CatalogDocumentError) -> String {
     error.to_string()
 }
 
-/// One resolved hop for a test that needs an outbound target: provider
-/// `provider` with a platform credential of the same name, one endpoint `api`
-/// on `wire` at `url`, serving model `model` as `upstream_model`.
 #[must_use]
 pub fn hop(
     provider: &str,

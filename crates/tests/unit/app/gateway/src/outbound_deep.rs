@@ -22,10 +22,6 @@ use systemprompt_identifiers::ModelId;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-/// Builds the request body then sends it, mirroring what the gateway does.
-///
-/// The adapter splits the two so the gateway can inspect the exact bytes before
-/// they go on the wire; these tests exercise the pair together.
 async fn send_via<A: OutboundAdapter>(
     adapter: &A,
     ctx: OutboundCtx<'_>,

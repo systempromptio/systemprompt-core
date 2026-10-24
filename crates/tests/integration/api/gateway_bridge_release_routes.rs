@@ -30,8 +30,6 @@ use super::common::body_to_string;
 static SERVER: OnceLock<MockServer> = OnceLock::new();
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
-/// The stub is started once and its address baked into the profile, because
-/// `init_services_bootstrap` writes the services config before any test runs.
 async fn server() -> &'static MockServer {
     if let Some(s) = SERVER.get() {
         return s;

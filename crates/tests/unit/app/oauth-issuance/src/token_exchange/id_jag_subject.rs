@@ -29,8 +29,6 @@ fn config() -> Config {
 }
 
 
-/// Sign an ID-JAG with the authority key the fixture installs, so the
-/// self-issued verification path resolves it by `kid`.
 fn sign_id_jag(
     config: &Config,
     typ: Option<&str>,

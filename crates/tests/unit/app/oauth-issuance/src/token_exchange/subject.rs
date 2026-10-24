@@ -25,8 +25,6 @@ fn config() -> Config {
     fixture_config("postgres://unused/unused")
 }
 
-/// A syntactically valid JWT with the given header and payload and a bogus
-/// signature — enough to reach every check that runs before verification.
 fn unsigned_jwt(header: &str, payload: &str) -> String {
     format!(
         "{}.{}.c2ln",

@@ -39,7 +39,6 @@ fn route() -> systemprompt_manifest::services::catalog::ResolvedHop {
     )
 }
 
-/// A canonical request whose modelled content is entirely innocuous.
 fn clean_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
@@ -53,7 +52,6 @@ fn clean_request() -> CanonicalRequest {
     }
 }
 
-/// A raw body carrying a credential only in places the canonical parse drops.
 fn raw_body_hiding_a_secret() -> bytes::Bytes {
     bytes::Bytes::from(
         serde_json::to_vec(&json!({

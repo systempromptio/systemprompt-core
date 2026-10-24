@@ -285,10 +285,6 @@ mod geoip_carry_forward {
     use systemprompt_cli::cloud::profile::templates::existing_geoip_database;
     use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-    /// Profiles are built from the bootstrap fixture's own file rather than
-    /// hand-written YAML: `Profile` denies unknown fields and resolves paths
-    /// relative to the profile, so a hand-rolled minimal document would test
-    /// the parser's tolerance rather than this function.
     fn profile_with(dir: &Path, mutate: impl FnOnce(&mut serde_yaml::Value)) -> std::path::PathBuf {
         let source = &ensure_test_bootstrap().profile_path;
         let raw = std::fs::read_to_string(source).expect("read bootstrap profile");
