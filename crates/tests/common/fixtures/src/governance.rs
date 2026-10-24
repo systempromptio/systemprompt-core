@@ -3,7 +3,8 @@
 //!
 //! The engine reads `governance_config`, never a `services/governance` file,
 //! so a test that needs a declared chain writes the plane's rows and then
-//! drives the context's governance watch through one epoch reload.
+//! drives the context's governance watch through one epoch reload. A test
+//! whose plane is deliberately empty records the plane as applied instead.
 
 use std::time::Duration;
 
@@ -46,6 +47,14 @@ pub async fn apply_governance_plane(pool: &DbPool, yaml: &str) -> anyhow::Result
         .write(&ctx, &mut PlaneTx::new(&mut tx), &resolved)
         .await?;
     tx.commit().await?;
+    Ok(())
+}
+
+// Records `plane` as applied the way `config apply` does, for a test whose
+// declaration is deliberately empty.
+pub async fn record_plane_applied(pool: &DbPool, plane: &str) -> anyhow::Result<()> {
+    let mut conn = pool.write_pool().acquire().await?;
+    systemprompt_database::record_config_plane_applied(&mut conn, plane).await?;
     Ok(())
 }
 

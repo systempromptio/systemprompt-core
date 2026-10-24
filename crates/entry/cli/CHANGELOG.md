@@ -4,6 +4,8 @@
 
 ### Breaking
 
+- `admin config planes list` adds an `applied` column and titles the table NOT APPLIED, naming `systemprompt admin config apply`, while any plane was never applied.
+
 - `admin config migrate` folds `access-control/roles.yaml` into `rules.yaml`, and `--data` moves access rules from legacy route ids to declared ones; `admin access-control export-yaml` renders `rules.yaml`.
 - `systemprompt admin config apply` is the deploy pipeline's explicit code-to-database step (three-way merge per entity; conflicts exit non-zero), and `systemprompt cloud sync export` writes the console's database changes as declaration files. Boot applies nothing.
 - `systemprompt admin config migrate [--check] [--data] [--services <dir>]` rewrites a pre-0.73 services tree to the catalog shape (replaying 0.72.1 dispatch into deployments), refuses undecidable shapes naming file and keys, writes only after the result loads, emits `services/ai/legacy_map.yaml`, and with `--data` moves personal keys, `ai_requests.credential`/`endpoint` and host-filter tags through it.

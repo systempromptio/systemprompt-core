@@ -11,8 +11,10 @@
 //! written entity is audited in `config_change_audit` with mode `merge`,
 //! entities both sides changed are recorded in `config_conflicts` and left
 //! alone, the base moves for every entity the apply settled, and the plane's
-//! `last_apply_*` columns are stamped. A dry run does all of that and rolls it
-//! back.
+//! `last_apply_*` columns are stamped. Every plane the apply ran, declared or
+//! not, is recorded in `config_plane_applied`, so its runtime reader serves a
+//! declared absence instead of failing closed as unapplied. A dry run does all
+//! of that and rolls it back.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

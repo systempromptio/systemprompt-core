@@ -39,7 +39,12 @@ fn test_database_extension_dependencies() {
 fn test_database_extension_schemas() {
     let ext = DatabaseExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 10);
+    assert_eq!(schemas.len(), 11);
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("config_plane_applied"))
+    );
     assert!(
         schemas
             .iter()

@@ -9,6 +9,12 @@
 //! listening the TTL drops to a few seconds, since a write elsewhere cannot
 //! reach this cache.
 //!
+//! An empty policy table on a database where the `gateway_policies` plane was
+//! never applied is [`PolicyUnavailable::NotApplied`] whatever the fault
+//! mode: the declared scanners and quotas are unknown, so the request is
+//! denied rather than served permissively. An applied plane that declares no
+//! policy is the permissive spec.
+//!
 //! A DB error is a fault governed by [`QuotaFaultMode`]: under `Open` the
 //! resolver degrades to a permissive policy, which drops quota windows *and*
 //! safety scanning for the request; under `Closed` it returns
@@ -31,6 +37,7 @@ use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_traits::{CacheDomain, CacheEpochs};
 
 use super::GatewayPolicySpec;
+use super::plane::GATEWAY_POLICIES_PLANE;
 
 const CACHE_TTL: Duration = Duration::from_secs(60);
 const UNRELAYED_CACHE_TTL: Duration = Duration::from_secs(5);
@@ -39,6 +46,11 @@ const UNRELAYED_CACHE_TTL: Duration = Duration::from_secs(5);
 pub enum PolicyUnavailable {
     #[error("gateway policy unavailable: the policy store could not be read")]
     Read(#[source] systemprompt_traits::BoxedSource),
+    #[error(
+        "gateway policy unavailable: the gateway_policies plane is not applied — run \
+         `systemprompt admin config apply`"
+    )]
+    NotApplied,
     #[error("gateway policy unavailable: policy '{name}' is malformed")]
     Malformed {
         name: String,
@@ -115,6 +127,9 @@ impl PolicyResolver {
             },
         };
 
+        if rows.is_empty() {
+            self.require_applied().await?;
+        }
         let spec = merge_policy_rows(rows).map_err(|malformed| {
             tracing::error!(
                 policy_id = %malformed.policy_id,
@@ -135,6 +150,23 @@ impl PolicyResolver {
             });
         }
         Ok(spec)
+    }
+
+    async fn require_applied(&self) -> Result<(), PolicyUnavailable> {
+        match self.repo.find_plane_applied(GATEWAY_POLICIES_PLANE).await {
+            Ok(true) => Ok(()),
+            Ok(false) => {
+                tracing::error!(
+                    "gateway_policies plane not applied; denying the request until \
+                     `systemprompt admin config apply` writes it"
+                );
+                Err(PolicyUnavailable::NotApplied)
+            },
+            Err(error) => {
+                tracing::error!(%error, "gateway_policies apply state unreadable; denying the request");
+                Err(PolicyUnavailable::Read(error.into()))
+            },
+        }
     }
 }
 

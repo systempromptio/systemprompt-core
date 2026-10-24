@@ -71,3 +71,43 @@ async fn config_apply_writes_governance_and_gateway_policies_once() {
     assert_eq!(names, ["base"]);
     db.drop_now().await;
 }
+
+#[tokio::test]
+async fn the_governance_engine_is_unapplied_until_config_apply_runs() {
+    let db = DisposableDb::with_schema("coreplanesempty").await;
+    let pool = db.test_pool().await;
+    let root = tempfile::tempdir().expect("tempdir");
+    let planes: Vec<Arc<dyn ConfigPlane>> =
+        vec![Arc::new(GovernancePlane), Arc::new(GatewayPoliciesPlane)];
+    let set =
+        ConfigPlaneSet::new(planes, Default::default(), root.path().to_path_buf()).expect("set");
+    let service = ConfigApplyService::new(ConfigReconcileService::new(
+        set,
+        ConfigReconcileRepository::new(&pool),
+        Dependencies::new(),
+    ));
+    let raw = pool.pool();
+    let load = || {
+        GovernanceEngine::load(
+            raw.as_ref(),
+            Some(systemprompt_test_fixtures::offline_rate_windows()),
+        )
+    };
+
+    assert!(!load().await.expect("engine").is_applied());
+
+    let options = ApplyOptions {
+        planes: &[],
+        actor: ChangeActor::Cli,
+        reason: "deploy",
+        dry_run: false,
+        wait: Duration::from_secs(30),
+    };
+    service.apply(&options).await.expect("apply");
+
+    assert!(
+        load().await.expect("engine").is_applied(),
+        "an applied plane that declares no chain is applied, not denied"
+    );
+    db.drop_now().await;
+}

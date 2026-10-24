@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_database::with_change_context;
+use systemprompt_database::{record_config_plane_applied, with_change_context};
 use systemprompt_provider_contracts::{
     ApplyOutcome, ChangeSource, ConfigPlane, ConfigPlaneError, DeclaredEntities, DeclaredState,
     PlaneSnapshot, PlaneTx, ResolvedEntities, ResolvedEntity, entity_hash,
@@ -42,6 +42,7 @@ impl ConfigApplyService {
         };
         let Some(declared) = plane.sources(set.services_root())? else {
             result.undeclared = true;
+            self.stamp_undeclared(plane, options).await?;
             return Ok(result);
         };
         let declared_hash = plane_hash(&declared);
@@ -91,12 +92,28 @@ impl ConfigApplyService {
             },
         )
         .await?;
+        record_config_plane_applied(&mut tx, plane.name()).await?;
         if options.dry_run {
             tx.rollback().await?;
         } else {
             tx.commit().await?;
         }
         Ok(result)
+    }
+
+    async fn stamp_undeclared(
+        &self,
+        plane: &dyn ConfigPlane,
+        options: &ApplyOptions<'_>,
+    ) -> SchedulerResult<()> {
+        let mut tx = self.reconcile.repository().begin().await?;
+        record_config_plane_applied(&mut tx, plane.name()).await?;
+        if options.dry_run {
+            tx.rollback().await?;
+        } else {
+            tx.commit().await?;
+        }
+        Ok(())
     }
 
     async fn settle(

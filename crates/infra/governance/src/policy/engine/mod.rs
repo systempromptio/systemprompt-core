@@ -14,7 +14,11 @@
 //! so every replica charges the same counter and no caller can evaluate an
 //! uncharged call by forgetting a step. The engine is built from the
 //! `governance` config plane's rows ([`GovernanceEngine::load`]) at the
-//! composition root and rebuilt whenever another node changes them. A chain
+//! composition root and rebuilt whenever another node changes them. An empty
+//! table on a database where `config apply` never recorded the plane fails
+//! closed: the engine denies every call with
+//! [`DenyReason::PlaneNotApplied`](crate::authz::types::DenyReason::PlaneNotApplied)
+//! and never falls back to the warn-only chain. A chain
 //! that arms a rate window without a [`super::RateWindowRepository`] is a
 //! construction error.
 //!
@@ -43,7 +47,7 @@ use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
 use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
 use super::governed::GovernedInput;
-use super::plane::{config_from_entities, list_governance_config};
+use super::plane::{GOVERNANCE_PLANE, config_from_entities, list_governance_config};
 use super::rate_window::RateWindowRepository;
 use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 use super::secrets::{SecretFinding, SecretScanner};
@@ -89,6 +93,7 @@ struct ChainEntry {
 
 pub struct GovernanceEngine {
     enabled: bool,
+    applied: bool,
     entries: Vec<ChainEntry>,
     rate_windows: Option<RateWindowRepository>,
 }
@@ -97,6 +102,7 @@ impl std::fmt::Debug for GovernanceEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GovernanceEngine")
             .field("enabled", &self.enabled)
+            .field("applied", &self.applied)
             .field(
                 "policies",
                 &self
@@ -118,15 +124,32 @@ impl GovernanceEngine {
         let rows = list_governance_config(pool)
             .await
             .map_err(GovernanceEngineError::ConfigUnreadable)?;
-        let config = config_from_entities(&rows)
-            .map_err(GovernanceEngineError::ConfigRejected)?
-            .unwrap_or_else(|| {
-                tracing::warn!(
-                    "governance_config is empty; running the vendor-neutral warn-only chain until                      `config apply` writes the governance plane"
-                );
-                GovernanceConfig::defaults()
-            });
-        Self::from_config(&config, rate_windows)
+        if let Some(config) =
+            config_from_entities(&rows).map_err(GovernanceEngineError::ConfigRejected)?
+        {
+            return Self::from_config(&config, rate_windows);
+        }
+        if plane_applied(pool).await {
+            tracing::warn!(
+                "the applied governance plane declares no chain; running the vendor-neutral \
+                 warn-only chain"
+            );
+            return Self::from_config(&GovernanceConfig::defaults(), rate_windows);
+        }
+        tracing::error!(
+            "governance plane not applied: every governed request is denied until `systemprompt \
+             admin config apply` writes it"
+        );
+        let mut unapplied = GovernanceConfig::defaults();
+        unapplied.policies.clear();
+        let mut engine = Self::from_config(&unapplied, rate_windows)?;
+        engine.applied = false;
+        Ok(engine)
+    }
+
+    #[must_use]
+    pub const fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn from_config(
@@ -184,6 +207,7 @@ impl GovernanceEngine {
 
         Ok(Self {
             enabled: config.enabled,
+            applied: true,
             entries,
             rate_windows,
         })
@@ -192,6 +216,7 @@ impl GovernanceEngine {
     #[must_use]
     pub fn enforces_prompt_secrets(&self) -> bool {
         self.enabled
+            && self.applied
             && self.entries.iter().any(|entry| {
                 entry.config.enabled
                     && !entry.config.mode.is_warn()
@@ -247,6 +272,16 @@ fn reject_toothless_enforcement(
         });
     }
     Ok(())
+}
+
+async fn plane_applied(pool: &PgPool) -> bool {
+    match systemprompt_database::find_config_plane_applied(pool, GOVERNANCE_PLANE).await {
+        Ok(applied) => applied,
+        Err(error) => {
+            tracing::error!(%error, "governance plane apply state unreadable; treating it as not applied");
+            false
+        },
+    }
 }
 
 fn reject_uncounted_rate_window(

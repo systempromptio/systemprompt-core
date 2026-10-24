@@ -13,6 +13,7 @@ use crate::authz::types::{Decision, DenyReason, MatchedBy};
 use crate::policy::audit::{ChainEntryOutcome, ChainEntryResult};
 use crate::policy::config::PolicyConfig;
 use crate::policy::governed::{GovernedInput, GovernedTarget};
+use crate::policy::plane::GOVERNANCE_PLANE;
 use crate::policy::secrets::{MAX_RECOVERY_FINDINGS, SecretFinding};
 use crate::policy::types::PolicyContext;
 
@@ -30,6 +31,9 @@ impl GovernanceEngine {
         ctx: &PolicyContext<'_>,
         mut recover: Option<PromptRecovery<'_>>,
     ) -> Evaluation {
+        if !self.applied {
+            return self.plane_not_applied();
+        }
         if !self.enabled {
             return self.master_switch_off();
         }
@@ -86,6 +90,21 @@ impl GovernanceEngine {
             )
         });
         Evaluation { decision, chain }
+    }
+
+    fn plane_not_applied(&self) -> Evaluation {
+        let reason = DenyReason::PlaneNotApplied {
+            plane: GOVERNANCE_PLANE.to_owned(),
+        };
+        let detail = reason.to_string();
+        Evaluation {
+            chain: self
+                .entries
+                .iter()
+                .map(|entry| chain_entry(&entry.config, ChainEntryResult::Skip, &detail))
+                .collect(),
+            decision: Decision::Deny { reason },
+        }
     }
 
     fn master_switch_off(&self) -> Evaluation {

@@ -106,19 +106,23 @@ fn scope_check_mode(engine: &GovernanceEngine) -> Option<EnforcementMode> {
 }
 
 #[tokio::test]
-async fn the_engine_falls_back_when_empty_and_follows_the_applied_rows() {
+async fn the_engine_is_unapplied_when_empty_and_follows_the_applied_rows() {
     let db = DisposableDb::with_schema("govplane").await;
     let pool = db.test_pool().await;
 
     let empty = GovernanceEngine::load(pool.pool().as_ref(), Some(crate::offline_rate_windows()))
         .await
-        .expect("fallback");
-    assert_eq!(scope_check_mode(&empty), Some(EnforcementMode::Warn));
+        .expect("unapplied engine");
+    assert!(
+        !empty.is_applied(),
+        "an empty, never-applied plane is unapplied"
+    );
 
     write_declared(&pool, CHAIN).await;
     let applied = GovernanceEngine::load(pool.pool().as_ref(), Some(crate::offline_rate_windows()))
         .await
         .expect("declared chain");
+    assert!(applied.is_applied());
     assert_eq!(scope_check_mode(&applied), Some(EnforcementMode::Enforce));
     let source: String =
         sqlx::query_scalar("SELECT source FROM governance_config WHERE entity = 'governance'")
@@ -160,7 +164,7 @@ async fn a_governance_epoch_swaps_in_the_rebuilt_engine() {
         move || load(Arc::clone(&reload_pool)),
         cancel.clone(),
     ));
-    assert_eq!(scope_check_mode(&watch.get()), Some(EnforcementMode::Warn));
+    assert!(!watch.get().is_applied());
 
     write_declared(&pool, CHAIN).await;
     tokio::time::sleep(Duration::from_millis(50)).await;

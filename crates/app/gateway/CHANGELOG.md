@@ -4,6 +4,8 @@
 
 ### Breaking
 
+- `PolicyResolver::resolve` returns `PolicyUnavailable::NotApplied` when `ai_gateway_policies` is empty and the `gateway_policies` plane was never applied, in either fault mode.
+
 - `GatewayPoliciesPlane` and the `gateway` extension replace the boot ingest (`load_from_yaml`, `GatewayPolicyIngestionService` and its options and report are deleted; `GatewayPolicyError` keeps only `Invalid`).
 - `GatewayService::dispatch(&GatewayConfig, &ResolvedCatalog, …)` replaces the `ProviderRegistry` argument. `routing::{resolve_route, RouteSource, RouteResolution}` resolve a request's model through the catalog with its scope attribution and body; by_scope chains, `ChainSelection` and glob routing are gone.
 - `OutboundCtx.target: &ResolvedHop` replaces `route`; route-level `extra_headers` are deleted (provider headers travel in the `UpstreamCall`). Learned Anthropic beta and field refusals are keyed per `provider/endpoint`.

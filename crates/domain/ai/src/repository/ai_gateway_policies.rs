@@ -36,6 +36,10 @@ impl AiGatewayPolicyRepository {
         Self { pool: db.pool() }
     }
 
+    pub async fn find_plane_applied(&self, plane: &str) -> Result<bool, RepositoryError> {
+        systemprompt_database::find_config_plane_applied(&self.pool, plane).await
+    }
+
     pub async fn list_for_global(&self) -> Result<Vec<GatewayPolicyRow>, RepositoryError> {
         let rows = sqlx::query!(
             r#"

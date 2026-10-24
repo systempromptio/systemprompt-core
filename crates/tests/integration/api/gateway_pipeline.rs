@@ -459,6 +459,7 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
     let database =
         systemprompt_test_fixtures::DisposableDb::with_schema("gateway_audit_admission").await;
     let pool = database.test_pool().await;
+    systemprompt_test_fixtures::record_plane_applied(&pool, "gateway_policies").await?;
     let credential = seed_admin_credential(&pool, "audit-admission@example.invalid").await?;
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
@@ -1573,6 +1574,7 @@ pub(super) async fn admitted_receipt_fixture(
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     let pool = database.test_pool().await;
+    systemprompt_test_fixtures::record_plane_applied(&pool, "gateway_policies").await?;
     let credential = seed_admin_credential(&pool, &format!("{label}@journal.invalid")).await?;
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
@@ -1693,6 +1695,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         systemprompt_test_fixtures::DisposableDb::with_schema("gateway_journal_settlement_retry")
             .await;
     let pool = database.test_pool().await;
+    systemprompt_test_fixtures::record_plane_applied(&pool, "gateway_policies").await?;
     let credential = seed_admin_credential(&pool, "journal-retry@example.invalid").await?;
     let write = pool.write_pool();
     // The fault is scoped to the status transition settlement performs:

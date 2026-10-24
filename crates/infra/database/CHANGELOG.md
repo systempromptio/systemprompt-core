@@ -9,6 +9,7 @@
 ### Added
 
 - `config_version` (one row) and the trigger functions `sp_stamp_change()` (copies the transaction-local `systemprompt.actor`/`reason`/`source` into `changed_by`/`reason`/`source`, stamps `changed_at`) and `sp_bump_config_version(<plane>)` (bumps the row, notifies `config:<plane>` on `systemprompt_cache`). Declarative schema only; no migration.
+- `config_plane_applied` (declarative schema, no migration), `record_config_plane_applied`, `find_config_plane_applied` and `PLANE_NOT_APPLIED_HINT`: whether `config apply` has recorded a plane.
 - `with_change_context`, the one helper a config writer calls on its transaction, and `PgConfigVersion`.
 
 ## [0.72.0] - 2026-10-22
