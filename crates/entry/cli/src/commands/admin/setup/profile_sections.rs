@@ -126,5 +126,6 @@ pub(super) fn governance(api_internal_url: &str) -> GovernanceConfig {
         }),
         audit: AuditConfig::default(),
         quota: QuotaConfig::default(),
+        unapplied_planes: systemprompt_manifest::profile::UnappliedPlaneMode::default(),
     }
 }

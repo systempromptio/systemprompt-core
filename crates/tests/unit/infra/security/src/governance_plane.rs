@@ -110,18 +110,26 @@ async fn the_engine_is_unapplied_when_empty_and_follows_the_applied_rows() {
     let db = DisposableDb::with_schema("govplane").await;
     let pool = db.test_pool().await;
 
-    let empty = GovernanceEngine::load(pool.pool().as_ref(), Some(crate::offline_rate_windows()))
-        .await
-        .expect("unapplied engine");
+    let empty = GovernanceEngine::load(
+        pool.pool().as_ref(),
+        Some(crate::offline_rate_windows()),
+        Default::default(),
+    )
+    .await
+    .expect("unapplied engine");
     assert!(
         !empty.is_applied(),
         "an empty, never-applied plane is unapplied"
     );
 
     write_declared(&pool, CHAIN).await;
-    let applied = GovernanceEngine::load(pool.pool().as_ref(), Some(crate::offline_rate_windows()))
-        .await
-        .expect("declared chain");
+    let applied = GovernanceEngine::load(
+        pool.pool().as_ref(),
+        Some(crate::offline_rate_windows()),
+        Default::default(),
+    )
+    .await
+    .expect("declared chain");
     assert!(applied.is_applied());
     assert_eq!(scope_check_mode(&applied), Some(EnforcementMode::Enforce));
     let source: String =
@@ -147,7 +155,12 @@ async fn a_governance_epoch_swaps_in_the_rebuilt_engine() {
     let db = DisposableDb::with_schema("govwatch").await;
     let pool = db.test_pool().await;
     let load = |pool: DbPool| async move {
-        GovernanceEngine::load(pool.pool().as_ref(), Some(crate::offline_rate_windows())).await
+        GovernanceEngine::load(
+            pool.pool().as_ref(),
+            Some(crate::offline_rate_windows()),
+            Default::default(),
+        )
+        .await
     };
     let watch = ConfigWatch::new(load(Arc::clone(&pool)).await.expect("initial"));
     let epochs = CacheEpochs::new();

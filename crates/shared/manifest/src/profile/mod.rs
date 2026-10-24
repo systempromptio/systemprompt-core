@@ -45,7 +45,7 @@ pub use error::{ProfileError, ProfileResult};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 pub use governance::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
-    UNRESTRICTED_ACKNOWLEDGEMENT,
+    UNRESTRICTED_ACKNOWLEDGEMENT, UnappliedPlaneMode,
 };
 pub use info::ProfileInfo;
 pub use judge::JudgeProfile;
@@ -268,6 +268,14 @@ impl Profile {
         self.governance
             .as_ref()
             .map_or_else(QuotaConfig::default, |governance| governance.quota)
+    }
+
+    pub fn unapplied_plane_mode(&self) -> UnappliedPlaneMode {
+        self.governance
+            .as_ref()
+            .map_or_else(UnappliedPlaneMode::default, |governance| {
+                governance.unapplied_planes
+            })
     }
 
     pub fn profile_style(&self) -> ProfileStyle {

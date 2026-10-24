@@ -4,7 +4,7 @@
 
 ### Breaking
 
-- `/readyz` reports a never-applied governance plane under `config.unapplied` with the apply command; the replica stays ready and denies governed requests.
+- `/readyz` reports a never-applied governance plane under `config.unapplied` (mode, effect, apply command) and `/health` answers `degraded` with the same block under `governance`; the replica stays ready.
 
 - `enforce_authz_pre_dispatch` takes a `DispatchTarget` (route, model, serving provider); `GatewayAuthzRequestInput` gains `provider`; `bridge_admission::probe_route` returns the serving provider with the route id.
 - Gateway request extraction resolves the route through `systemprompt_gateway::resolve_route` (scope attribution included); `extract::authz::enforce_authz_pre_dispatch` takes the access `RouteId`; `extract::signatures::route_needs_thought_signatures(&RouteResolution)`.

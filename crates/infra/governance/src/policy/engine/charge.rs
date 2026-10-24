@@ -38,7 +38,7 @@ impl GovernanceEngine {
 
     async fn charge_rate_windows(&self, request: &PolicyRequest<'_>) -> RateCounts {
         let mut counts = RateCounts::empty();
-        if !self.enabled || !self.applied {
+        if !self.enabled || self.unapplied.is_some() {
             return counts;
         }
         let Some(repository) = self.rate_windows.as_ref() else {

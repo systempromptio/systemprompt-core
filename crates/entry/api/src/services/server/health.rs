@@ -1,6 +1,8 @@
 //! Health probe and system-statistics endpoints.
 //!
 //! [`handle_health`] is the lightweight liveness probe (a single `SELECT 1`).
+//! It answers `degraded` with a `governance` block while the governance plane
+//! was never applied, naming the `unapplied_planes` mode and the fix.
 //! `get_system_stats` gathers database, disk, and audit-log statistics for
 //! the detailed health surface, with platform-specific process-memory and
 //! disk-usage helpers.
@@ -230,9 +232,10 @@ pub async fn handle_health(
     let relay_status = ctx.event_bridge().status();
     let relay_listening = relay_status.is_listening();
 
+    let unapplied = super::probes::unapplied_governance(&ctx);
     let (status, http_status) = if !db_healthy {
         ("unhealthy", StatusCode::SERVICE_UNAVAILABLE)
-    } else if degraded_jobs.is_empty() && relay_listening {
+    } else if degraded_jobs.is_empty() && relay_listening && unapplied.is_none() {
         ("healthy", StatusCode::OK)
     } else {
         ("degraded", StatusCode::OK)
@@ -244,6 +247,9 @@ pub async fn handle_health(
     }
     if !relay_listening {
         body["events"] = json!({ "relay": relay_label(relay_status) });
+    }
+    if let Some(block) = unapplied {
+        body["governance"] = block;
     }
 
     (http_status, Json(body))

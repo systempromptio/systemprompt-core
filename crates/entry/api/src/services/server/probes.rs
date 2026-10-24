@@ -9,8 +9,8 @@
 //! change reaches the runtime only after a restart; absent for a plane this
 //! binary does not register). Drift never makes a replica unready. A replica
 //! whose governance plane was never applied says so under `config.unapplied`
-//! with the command that applies it; it stays ready, and denies every
-//! governed request until the apply lands.
+//! with the profile's `unapplied_planes` mode, its effect and the command that
+//! applies it; it stays ready either way.
 //! It also carries `fingerprint`, this replica's configuration fingerprint,
 //! so replicas running different configuration are visible.
 //! A node whose database a newer release has migrated stays ready and says so
@@ -166,21 +166,27 @@ async fn config_block(
     }
 }
 
-// JSON: the `/readyz` body is assembled as an open JSON object.
+// JSON: the `/readyz` config block is an open JSON object.
 fn flag_unapplied_governance(ctx: &AppContext, config: &mut serde_json::Value) {
-    if ctx.governance().is_applied() {
-        return;
+    if let (Some(block), Some(fields)) = (unapplied_governance(ctx), config.as_object_mut()) {
+        fields.insert("unapplied".to_owned(), block);
     }
-    if let Some(fields) = config.as_object_mut() {
-        fields.insert(
-            "unapplied".to_owned(),
-            json!({
-                "planes": ["governance"],
-                "effect": "every governed request is denied",
-                "fix": PLANE_NOT_APPLIED_HINT,
-            }),
-        );
-    }
+}
+
+// JSON: `/readyz` and `/health` carry this block as an open JSON object.
+pub(super) fn unapplied_governance(ctx: &AppContext) -> Option<serde_json::Value> {
+    let mode = ctx.governance().unapplied_mode()?;
+    let effect = if mode.denies() {
+        "every governed request is denied"
+    } else {
+        "governed requests pass ungoverned, with a warning on each"
+    };
+    Some(json!({
+        "planes": ["governance"],
+        "unapplied_planes": mode.as_str(),
+        "effect": effect,
+        "fix": PLANE_NOT_APPLIED_HINT,
+    }))
 }
 
 pub(crate) struct ExtensionReadiness {

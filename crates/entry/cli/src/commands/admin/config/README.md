@@ -18,9 +18,9 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ## Upgrading to 0.73: migrate, then apply
 
-`config apply` is mandatory after every upgrade, after `admin config migrate`
-and the database migrations, before the node serves traffic. Run it once on a
-fresh install too:
+`config apply` is required after every upgrade, after `admin config migrate`
+and the database migrations, and once on a fresh install. Until it runs,
+governance and gateway policies are not enforced:
 
 ```bash
 sp admin config migrate            # rewrite a 0.72 services tree (once)
@@ -28,20 +28,27 @@ sp admin config migrate --data     # move personal keys and audit columns (once)
 sp admin config apply --reason "upgrade to 0.73"
 ```
 
-Config planes fail closed until they are applied. If you skip the apply:
+What a node does with a plane that was never applied is the profile setting
+`governance.unapplied_planes`:
 
-| plane | unapplied behaviour |
-|---|---|
-| `governance` | every governed tool and gateway request is denied with `governance plane not applied — run \`systemprompt admin config apply\`` |
-| `gateway_policies` | every gateway request is refused (503 `gateway policy unavailable`); the log names the apply command |
-| `access_control` | every entity defaults to closed, so nothing is entitled |
+```yaml
+governance:
+  unapplied_planes: warn   # default; or deny
+```
 
-Boot logs the unapplied governance plane at error, `/readyz` lists it under
-`config.unapplied`, and `sp admin config planes list` shows `applied: NO` and a
-NOT APPLIED title. A plane the services tree does not declare is applied
-as declared-empty: governance runs the warn-only chain, gateway policies run
-the permissive policy. A plane applied with `mode: warn` records findings and
-refuses nothing.
+| plane | `warn` (default) | `deny` |
+|---|---|---|
+| `governance` | requests pass ungoverned, with a warning on each | every governed request is denied: `governance plane not applied — run \`systemprompt admin config apply\`` |
+| `gateway_policies` | requests pass with no quota or safety policy, with a warning on each | every gateway request is refused (503) |
+| `access_control` | every entity defaults to closed | the same |
+
+The server stays up in both modes. Boot warns, `/readyz` lists the plane under
+`config.unapplied`, `/health` answers `degraded` with a `governance` block,
+`sp cloud doctor` reports the mode and each plane's applied state, and
+`sp admin config planes list` shows `applied: NO` with a NOT APPLIED title. An
+unknown value is refused when the profile is read. A plane the services tree
+does not declare counts as applied after an apply: governance runs the
+warn-only chain, gateway policies the permissive policy.
 
 ## Command Groups
 

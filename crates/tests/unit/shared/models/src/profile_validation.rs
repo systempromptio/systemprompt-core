@@ -22,6 +22,7 @@ fn webhook_governance() -> GovernanceConfig {
             },
         }),
         audit: AuditConfig::default(),
+        unapplied_planes: Default::default(),
     }
 }
 
@@ -567,6 +568,7 @@ mod governance_validation {
             quota: Default::default(),
             authz: None,
             audit: AuditConfig::default(),
+            unapplied_planes: Default::default(),
         });
         assert!(errors_of(&p).contains("governance.authz is required"));
     }
@@ -594,6 +596,7 @@ mod governance_validation {
                 },
             }),
             audit: AuditConfig::default(),
+            unapplied_planes: Default::default(),
         });
         assert!(errors_of(&p).contains("requires acknowledgement"));
     }
@@ -612,6 +615,7 @@ mod governance_validation {
                 },
             }),
             audit: AuditConfig::default(),
+            unapplied_planes: Default::default(),
         });
         assert!(p.validate().is_ok());
     }

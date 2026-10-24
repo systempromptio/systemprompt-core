@@ -22,6 +22,7 @@ use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 fn extension_governance() -> GovernanceConfig {
     GovernanceConfig {
         quota: Default::default(),
+        unapplied_planes: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Extension,

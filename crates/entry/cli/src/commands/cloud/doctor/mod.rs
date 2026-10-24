@@ -4,17 +4,20 @@
 //! valid profile (incl. `governance.authz`), a reachable secrets source with
 //! the required keys and provider credentials, a
 //! `trusted_proxies` set that covers the Fly peer range — and probes
-//! database/hook reachability. The preflight runs automatically before
-//! `cloud deploy` builds an image, and is exposed standalone (`cloud doctor`)
-//! so an operator can check a profile without deploying. The profile-only
-//! checks (`profile_checks`) never fail a profile that `Profile::validate`
-//! accepts, so the two cannot disagree about what is deployable.
+//! database/hook reachability, and reports the profile's `unapplied_planes`
+//! mode with whether each runtime config plane has been applied. The preflight
+//! runs automatically before `cloud deploy` builds an image, and is exposed
+//! standalone (`cloud doctor`) so an operator can check a profile without
+//! deploying. The profile-only checks (`profile_checks`) never fail a profile
+//! that `Profile::validate` accepts, so the two cannot disagree about what is
+//! deployable.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod checks;
 pub mod distributed;
+mod plane_checks;
 pub mod vault_checks;
 
 pub(in crate::commands::cloud) use checks::resolve_signing_key_path;
@@ -162,6 +165,7 @@ pub(in crate::commands::cloud) async fn run(
     }
     checks.push(check_extension_configs(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
+    checks.push(plane_checks::check_config_planes(profile, &secrets).await);
     if distributed {
         checks.extend(distributed::run(profile, &secrets).await);
     }

@@ -4,7 +4,7 @@
 
 ### Breaking
 
-- `admin config planes list` adds an `applied` column and titles the table NOT APPLIED, naming `systemprompt admin config apply`, while any plane was never applied.
+- `admin config planes list` adds an `applied` column and titles the table NOT APPLIED with the `unapplied_planes` mode while any plane was never applied; `cloud doctor` adds a `config-planes` check reporting the mode and whether `governance`, `gateway_policies` and `access_control` are applied.
 
 - `admin config migrate` folds `access-control/roles.yaml` into `rules.yaml`, and `--data` moves access rules from legacy route ids to declared ones; `admin access-control export-yaml` renders `rules.yaml`.
 - `systemprompt admin config apply` is the deploy pipeline's explicit code-to-database step (three-way merge per entity; conflicts exit non-zero), and `systemprompt cloud sync export` writes the console's database changes as declaration files. Boot applies nothing.

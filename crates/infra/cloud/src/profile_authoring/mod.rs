@@ -17,7 +17,7 @@ pub use local_builder::LocalProfileBuilder;
 
 use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
-    TrustedIssuer, default_resource_audiences,
+    TrustedIssuer, UnappliedPlaneMode, default_resource_audiences,
 };
 use systemprompt_manifest::{Environment, LogLevel, OutputFormat, RuntimeConfig, SecurityConfig};
 use systemprompt_models::auth::JwtAudience;
@@ -56,6 +56,7 @@ fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
         }),
         audit: AuditConfig::default(),
         quota: QuotaConfig::default(),
+        unapplied_planes: UnappliedPlaneMode::default(),
     }
 }
 

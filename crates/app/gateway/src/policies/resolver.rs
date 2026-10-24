@@ -10,10 +10,10 @@
 //! reach this cache.
 //!
 //! An empty policy table on a database where the `gateway_policies` plane was
-//! never applied is [`PolicyUnavailable::NotApplied`] whatever the fault
-//! mode: the declared scanners and quotas are unknown, so the request is
-//! denied rather than served permissively. An applied plane that declares no
-//! policy is the permissive spec.
+//! never applied follows the profile's `governance.unapplied_planes`: `deny`
+//! refuses with [`PolicyUnavailable::NotApplied`] whatever the fault mode,
+//! `warn` (the default) serves the permissive spec and warns on every request.
+//! An applied plane that declares no policy is the permissive spec.
 //!
 //! A DB error is a fault governed by [`QuotaFaultMode`]: under `Open` the
 //! resolver degrades to a permissive policy, which drops quota windows *and*
@@ -32,7 +32,9 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::AiGatewayPolicyId;
+use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_traits::{CacheDomain, CacheEpochs};
 
@@ -64,6 +66,7 @@ pub struct PolicyResolver {
     repo: Arc<AiGatewayPolicyRepository>,
     cache: Arc<RwLock<Option<CachedEntry>>>,
     epochs: CacheEpochs,
+    unapplied: UnappliedPlaneMode,
 }
 
 impl std::fmt::Debug for PolicyResolver {
@@ -75,17 +78,29 @@ impl std::fmt::Debug for PolicyResolver {
 #[derive(Clone)]
 struct CachedEntry {
     spec: GatewayPolicySpec,
+    unapplied: bool,
     fetched_at: Instant,
     epoch: u64,
 }
 
 impl PolicyResolver {
     pub fn from_repository(repo: AiGatewayPolicyRepository, epochs: CacheEpochs) -> Self {
+        let unapplied = ProfileBootstrap::get().map_or_else(
+            |_| UnappliedPlaneMode::default(),
+            systemprompt_manifest::Profile::unapplied_plane_mode,
+        );
         Self {
             repo: Arc::new(repo),
             cache: Arc::new(RwLock::new(None)),
             epochs,
+            unapplied,
         }
+    }
+
+    #[must_use]
+    pub const fn with_unapplied_mode(mut self, mode: UnappliedPlaneMode) -> Self {
+        self.unapplied = mode;
+        self
     }
 
     pub async fn resolve(
@@ -103,6 +118,9 @@ impl PolicyResolver {
             && entry.fetched_at.elapsed() < ttl
             && entry.epoch == epoch
         {
+            if entry.unapplied {
+                warn_unapplied();
+            }
             return Ok(entry.spec.clone());
         }
 
@@ -127,9 +145,7 @@ impl PolicyResolver {
             },
         };
 
-        if rows.is_empty() {
-            self.require_applied().await?;
-        }
+        let unapplied = rows.is_empty() && !self.plane_applied().await?;
         let spec = merge_policy_rows(rows).map_err(|malformed| {
             tracing::error!(
                 policy_id = %malformed.policy_id,
@@ -145,6 +161,7 @@ impl PolicyResolver {
         if let Ok(mut cache) = self.cache.write() {
             *cache = Some(CachedEntry {
                 spec: spec.clone(),
+                unapplied,
                 fetched_at: Instant::now(),
                 epoch,
             });
@@ -152,21 +169,26 @@ impl PolicyResolver {
         Ok(spec)
     }
 
-    async fn require_applied(&self) -> Result<(), PolicyUnavailable> {
-        match self.repo.find_plane_applied(GATEWAY_POLICIES_PLANE).await {
-            Ok(true) => Ok(()),
-            Ok(false) => {
-                tracing::error!(
-                    "gateway_policies plane not applied; denying the request until \
-                     `systemprompt admin config apply` writes it"
-                );
-                Err(PolicyUnavailable::NotApplied)
-            },
+    async fn plane_applied(&self) -> Result<bool, PolicyUnavailable> {
+        let applied = match self.repo.find_plane_applied(GATEWAY_POLICIES_PLANE).await {
+            Ok(applied) => applied,
             Err(error) => {
                 tracing::error!(%error, "gateway_policies apply state unreadable; denying the request");
-                Err(PolicyUnavailable::Read(error.into()))
+                return Err(PolicyUnavailable::Read(error.into()));
             },
+        };
+        if applied {
+            return Ok(true);
         }
+        if self.unapplied.denies() {
+            tracing::error!(
+                "gateway_policies plane not applied (unapplied_planes: deny); denying the \
+                 request until `systemprompt admin config apply` writes it"
+            );
+            return Err(PolicyUnavailable::NotApplied);
+        }
+        warn_unapplied();
+        Ok(false)
     }
 }
 
@@ -225,4 +247,11 @@ pub fn merge_policy_rows(
         }
     }
     Ok(merged)
+}
+
+fn warn_unapplied() {
+    tracing::warn!(
+        "gateway_policies plane not applied (unapplied_planes: warn); serving this request \
+         with no quota or safety policy until `systemprompt admin config apply` writes it"
+    );
 }

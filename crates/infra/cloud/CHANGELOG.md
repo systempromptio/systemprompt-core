@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Authored profiles carry `governance.unapplied_planes` at its default (`warn`).
 - Return cloud credentials from the bootstrap instead of a process cell.
 - One task-state parser, no serde aliases, shared port defaults.
 

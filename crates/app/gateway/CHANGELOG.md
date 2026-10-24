@@ -4,7 +4,7 @@
 
 ### Breaking
 
-- `PolicyResolver::resolve` returns `PolicyUnavailable::NotApplied` when `ai_gateway_policies` is empty and the `gateway_policies` plane was never applied, in either fault mode.
+- `PolicyResolver` follows the profile's `governance.unapplied_planes` (`with_unapplied_mode`): with `ai_gateway_policies` empty and the `gateway_policies` plane never applied, `deny` returns `PolicyUnavailable::NotApplied` in either fault mode and `warn` serves the permissive spec with a warning per request.
 
 - `GatewayPoliciesPlane` and the `gateway` extension replace the boot ingest (`load_from_yaml`, `GatewayPolicyIngestionService` and its options and report are deleted; `GatewayPolicyError` keeps only `Invalid`).
 - `GatewayService::dispatch(&GatewayConfig, &ResolvedCatalog, …)` replaces the `ProviderRegistry` argument. `routing::{resolve_route, RouteSource, RouteResolution}` resolve a request's model through the catalog with its scope attribution and body; by_scope chains, `ChainSelection` and glob routing are gone.

@@ -1,6 +1,7 @@
-//! The `governance` plane fails closed until it is applied: an empty,
-//! never-applied `governance_config` builds an engine that denies every
-//! governed call with the apply hint, and a freshly applied chain enforces.
+//! An empty, never-applied `governance` plane follows the profile's
+//! `unapplied_planes`: the default `warn` passes every call as a `Warn`
+//! carrying the apply hint, `deny` refuses it with that hint, and a freshly
+//! applied chain enforces whatever the mode.
 
 use serde_json::json;
 use systemprompt_database::DbPool;
@@ -9,6 +10,7 @@ use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, M
 use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
 use systemprompt_governance::policy::{GovernanceEngine, RateCounts};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
+use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_test_fixtures::{DisposableDb, apply_governance_plane};
 
 const ENFORCED_SECRET_SCAN: &str = "governance:
@@ -24,10 +26,20 @@ const ENFORCED_SECRET_SCAN: &str = "governance:
 
 static NO_RATE_COUNTS: RateCounts = RateCounts::empty();
 
-async fn load(pool: &DbPool) -> GovernanceEngine {
-    GovernanceEngine::load(pool.pool().as_ref(), Some(crate::offline_rate_windows()))
-        .await
-        .expect("engine loads")
+async fn load(pool: &DbPool, mode: UnappliedPlaneMode) -> GovernanceEngine {
+    GovernanceEngine::load(
+        pool.pool().as_ref(),
+        Some(crate::offline_rate_windows()),
+        mode,
+    )
+    .await
+    .expect("engine loads")
+}
+
+fn not_applied() -> DenyReason {
+    DenyReason::PlaneNotApplied {
+        plane: "governance".to_owned(),
+    }
 }
 
 fn decide(engine: &GovernanceEngine, arguments: serde_json::Value) -> Decision {
@@ -54,22 +66,35 @@ fn decide(engine: &GovernanceEngine, arguments: serde_json::Value) -> Decision {
 }
 
 #[tokio::test]
-async fn an_empty_unapplied_plane_denies_every_call_with_the_apply_hint() {
-    let db = DisposableDb::with_schema("govunapplied").await;
+async fn the_default_mode_passes_an_unapplied_plane_with_a_warning() {
+    let db = DisposableDb::with_schema("govunappliedwarn").await;
     let pool = db.test_pool().await;
 
-    let engine = load(&pool).await;
+    let engine = load(&pool, UnappliedPlaneMode::default()).await;
+    assert_eq!(engine.unapplied_mode(), Some(UnappliedPlaneMode::Warn));
+    let decision = decide(&engine, json!({"key": "AKIAIOSFODNN7EXAMPLE"}));
+    assert!(decision.permits(), "warn mode lets the call through");
+    assert_eq!(
+        decision,
+        Decision::Warn {
+            reason: not_applied()
+        }
+    );
+    db.drop_now().await;
+}
+
+#[tokio::test]
+async fn deny_mode_refuses_an_unapplied_plane_with_the_apply_hint() {
+    let db = DisposableDb::with_schema("govunapplieddeny").await;
+    let pool = db.test_pool().await;
+
+    let engine = load(&pool, UnappliedPlaneMode::Deny).await;
     assert!(!engine.is_applied());
     assert!(!engine.enforces_prompt_secrets());
     let Decision::Deny { reason } = decide(&engine, json!({"key": "harmless"})) else {
-        panic!("an unapplied plane must deny");
+        panic!("deny mode must refuse");
     };
-    assert_eq!(
-        reason,
-        DenyReason::PlaneNotApplied {
-            plane: "governance".to_owned()
-        }
-    );
+    assert_eq!(reason, not_applied());
     assert_eq!(
         reason.to_string(),
         "governance plane not applied — run `systemprompt admin config apply`"
@@ -85,7 +110,7 @@ async fn a_freshly_applied_plane_enforces_its_chain() {
         .await
         .expect("apply");
 
-    let engine = load(&pool).await;
+    let engine = load(&pool, UnappliedPlaneMode::Deny).await;
     assert!(engine.is_applied());
     assert!(decide(&engine, json!({"key": "harmless"})).permits());
     assert!(matches!(

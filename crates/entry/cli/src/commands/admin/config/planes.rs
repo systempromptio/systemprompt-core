@@ -19,8 +19,10 @@ use std::sync::Arc;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand, ValueEnum};
 use serde::Serialize;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{PLANE_NOT_APPLIED_HINT, find_config_plane_applied};
 use systemprompt_extension::prelude::{ApplyMode, ChangeActor, ChangeRequest, EntityScope};
+use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::ConfigReconcileService;
 
@@ -189,9 +191,19 @@ fn planes_title(unapplied: &[&str]) -> String {
     if unapplied.is_empty() {
         return "Config planes".to_owned();
     }
+    let mode = ProfileBootstrap::get().map_or_else(
+        |_| UnappliedPlaneMode::default(),
+        systemprompt_manifest::Profile::unapplied_plane_mode,
+    );
+    let effect = if mode.denies() {
+        "their requests are denied"
+    } else {
+        "their requests pass ungoverned"
+    };
     format!(
-        "Config planes — NOT APPLIED: {}; governed requests are denied until you {}",
+        "Config planes — NOT APPLIED: {} (unapplied_planes: {}, {effect}); {}",
         unapplied.join(", "),
+        mode.as_str(),
         PLANE_NOT_APPLIED_HINT
     )
 }

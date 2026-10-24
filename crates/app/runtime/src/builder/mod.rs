@@ -242,6 +242,10 @@ pub(crate) async fn load_governance(
         Some(systemprompt_governance::policy::RateWindowRepository::new(
             database.write_pool().as_ref().clone(),
         )),
+        systemprompt_config::ProfileBootstrap::get().map_or_else(
+            |_| systemprompt_manifest::profile::UnappliedPlaneMode::default(),
+            systemprompt_manifest::Profile::unapplied_plane_mode,
+        ),
     )
     .await
 }

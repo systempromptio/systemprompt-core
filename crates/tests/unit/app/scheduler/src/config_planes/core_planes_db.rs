@@ -58,7 +58,7 @@ async fn config_apply_writes_governance_and_gateway_policies_once() {
     let second = service.apply(&options).await.expect("second apply");
     assert_eq!(second.applied(), 0, "{second:?}");
 
-    let engine = GovernanceEngine::load(pool.pool().as_ref(), None)
+    let engine = GovernanceEngine::load(pool.pool().as_ref(), None, Default::default())
         .await
         .expect("engine");
     let (cfg, _) = engine.policies().next().expect("first policy");
@@ -91,6 +91,7 @@ async fn the_governance_engine_is_unapplied_until_config_apply_runs() {
         GovernanceEngine::load(
             raw.as_ref(),
             Some(systemprompt_test_fixtures::offline_rate_windows()),
+            Default::default(),
         )
     };
 
