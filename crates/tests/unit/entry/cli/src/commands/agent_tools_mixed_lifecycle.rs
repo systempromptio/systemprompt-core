@@ -1,8 +1,7 @@
 //! Mixed MCP availability through the public agent-tools command.
 
-use std::process::{Command, Output, Stdio};
+use std::process::Command;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
@@ -16,7 +15,8 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, TestBootstrap, fixture_app_context_with, fixture_user_id, init_services_bootstrap,
+    DisposableDb, TestBootstrap, bounded_output, fixture_app_context_with, fixture_user_id,
+    init_services_bootstrap,
 };
 use wiremock::matchers::{body_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -271,41 +271,11 @@ async fn mixed_agent_tools_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().expect("mixed-tools stdout");
-    let stderr = tempfile::NamedTempFile::new().expect("mixed-tools stderr");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn mixed-tools helper");
-    let deadline = Instant::now() + Duration::from_secs(20);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll mixed-tools helper") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).expect("read stdout"),
-                stderr: std::fs::read(stderr.path()).expect("read stderr"),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap mixed-tools helper");
-            panic!(
-                "mixed-tools helper timed out ({status})\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&std::fs::read(stdout.path()).unwrap()),
-                String::from_utf8_lossy(&std::fs::read(stderr.path()).unwrap())
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 #[test]
 fn healthy_tools_survive_a_stopped_configured_server() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "agent tools mixed lifecycle");
     assert!(
         output.status.success(),
         "mixed-tools helper failed\nstdout:\n{}\nstderr:\n{}",

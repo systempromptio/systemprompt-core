@@ -1,16 +1,16 @@
 //! Public user deletion preview projects owned rows without mutating either
 //! user.
 
-use std::io::{Read, Seek, SeekFrom};
-use std::process::{Command, Output, Stdio};
+use std::process::Command;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::create_local_session_row;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
+use systemprompt_test_fixtures::{
+    DisposableDb, bounded_output, ensure_test_bootstrap, test_app_context,
+};
 use systemprompt_users::{UserRepository, UserService};
 
 const HELPER: &str = "commands::admin_users_delete_preview_lifecycle::delete_preview_helper";
@@ -119,43 +119,11 @@ async fn delete_preview_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let mut stdout = tempfile::NamedTempFile::new().expect("stdout");
-    let mut stderr = tempfile::NamedTempFile::new().expect("stderr");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn helper");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(s) = child.try_wait().expect("poll helper") {
-            break s;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            break child.wait().expect("reap helper");
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let read = |f: &mut tempfile::NamedTempFile| {
-        f.seek(SeekFrom::Start(0)).expect("rewind");
-        let mut b = Vec::new();
-        f.read_to_end(&mut b).expect("read");
-        b
-    };
-    Output {
-        status,
-        stdout: read(&mut stdout),
-        stderr: read(&mut stderr),
-    }
-}
-
 #[test]
 fn deletion_preview_reports_owned_rows_and_preserves_target_and_sibling() {
     let mut command = Command::new(std::env::current_exe().expect("unit binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "admin users delete preview lifecycle");
     let sanitize = |bytes: &[u8]| {
         String::from_utf8_lossy(bytes)
             .split_whitespace()

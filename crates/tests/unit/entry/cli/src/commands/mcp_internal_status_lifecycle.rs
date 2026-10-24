@@ -1,15 +1,16 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::process::{Command, Output, Stdio};
+use std::process::Command;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use clap::Parser;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_with, init_services_bootstrap};
+use systemprompt_test_fixtures::{
+    DisposableDb, bounded_output, fixture_app_context_with, init_services_bootstrap,
+};
 
 const SERVER: &str = "cov_internal_status";
 const BINARY: &str = "cov-internal-mcp";
@@ -95,36 +96,6 @@ async fn internal_status_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().expect("status stdout capture");
-    let stderr = tempfile::NamedTempFile::new().expect("status stderr capture");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().unwrap()))
-        .stderr(Stdio::from(stderr.reopen().unwrap()));
-    let mut child = command.spawn().expect("spawn status helper");
-    let deadline = Instant::now() + Duration::from_secs(20);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll status helper") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap status helper");
-            panic!(
-                "status helper timed out ({status})\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&std::fs::read(stdout.path()).unwrap()),
-                String::from_utf8_lossy(&std::fs::read(stderr.path()).unwrap())
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 fn marked_json(stdout: &str, start: &str, end: &str) -> serde_json::Value {
     let json = stdout
         .split_once(start)
@@ -139,7 +110,7 @@ fn marked_json(stdout: &str, start: &str, end: &str) -> serde_json::Value {
 fn internal_status_reports_stopped_state_and_owned_binary_availability() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "mcp internal status lifecycle");
     assert!(
         output.status.success(),
         "status helper failed\nstdout:\n{}\nstderr:\n{}",

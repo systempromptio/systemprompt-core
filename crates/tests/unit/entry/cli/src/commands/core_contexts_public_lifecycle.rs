@@ -1,10 +1,8 @@
 //! Public context command lifecycle with durable session switching.
 
-use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
-use std::process::{Command, Output, Stdio};
+use std::process::Command;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use clap::Parser;
 use systemprompt_agent::models::context::ContextKind;
@@ -18,7 +16,8 @@ use systemprompt_loader::ProfileLoader;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context_with, seed_user_row, seed_user_session,
+    DisposableDb, bounded_output, ensure_test_bootstrap, fixture_app_context_with, seed_user_row,
+    seed_user_session,
 };
 
 const HELPER: &str = "commands::core_contexts_public_lifecycle::public_context_lifecycle_helper";
@@ -216,38 +215,6 @@ async fn public_context_lifecycle_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let mut stdout = tempfile::NamedTempFile::new().expect("contexts stdout");
-    let mut stderr = tempfile::NamedTempFile::new().expect("contexts stderr");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn contexts helper");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("poll contexts helper") {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            break child.wait().expect("reap contexts helper");
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let read = |file: &mut tempfile::NamedTempFile| {
-        file.seek(SeekFrom::Start(0)).expect("rewind capture");
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes).expect("read capture");
-        bytes
-    };
-    Output {
-        status,
-        stdout: read(&mut stdout),
-        stderr: read(&mut stderr),
-    }
-}
-
 fn marked_json(stdout: &str, label: &str) -> serde_json::Value {
     let begin = format!("BEGIN_{label}\n");
     let end = format!("\nEND_{label}");
@@ -263,7 +230,7 @@ fn marked_json(stdout: &str, label: &str) -> serde_json::Value {
 fn public_context_commands_switch_persist_and_protect_the_active_context() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "core contexts public lifecycle");
     assert!(output.status.success(), "public contexts helper failed");
     let stdout = String::from_utf8(output.stdout).expect("UTF-8 contexts output");
     for (label, title) in [

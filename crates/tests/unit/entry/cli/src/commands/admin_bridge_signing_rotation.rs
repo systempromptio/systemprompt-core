@@ -1,7 +1,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
+use systemprompt_test_fixtures::bounded_output;
 
 use base64::Engine;
 use clap::Parser;
@@ -90,41 +90,6 @@ async fn signing_rotation_helper() {
     );
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().unwrap();
-    let stderr = tempfile::NamedTempFile::new().unwrap();
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().unwrap()))
-        .stderr(Stdio::from(stderr.reopen().unwrap()));
-    let mut child = command.spawn().expect("spawn signing rotation helper");
-    let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll rotation helper") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap rotation helper");
-            let output = Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-            panic!(
-                "rotation helper timed out\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 fn marked<'a>(stdout: &'a str, marker: &str) -> &'a str {
     stdout
         .split_once(&format!("BEGIN_{marker}"))
@@ -149,7 +114,7 @@ fn pubkey(artifact: &serde_json::Value) -> String {
 fn rotation_changes_public_identity_and_persists_the_latest_seed() {
     let mut command = Command::new(std::env::current_exe().expect("unit test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "admin bridge signing rotation");
     assert!(
         output.status.success(),
         "rotation helper failed\nstdout:\n{}\nstderr:\n{}",

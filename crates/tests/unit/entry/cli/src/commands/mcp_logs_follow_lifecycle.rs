@@ -2,8 +2,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::os::unix::fs::PermissionsExt;
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
+use systemprompt_test_fixtures::bounded_output;
 
 use clap::Parser;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
@@ -105,46 +105,11 @@ async fn mcp_logs_follow_helper() {
     );
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().expect("create follow stdout capture");
-    let stderr = tempfile::NamedTempFile::new().expect("create follow stderr capture");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().unwrap()))
-        .stderr(Stdio::from(stderr.reopen().unwrap()));
-    let mut child = command.spawn().expect("spawn follow helper");
-    let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll follow helper") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap follow helper");
-            let output = Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-            panic!(
-                "follow helper timed out\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 #[test]
 fn mcp_follow_uses_the_resolved_server_log_and_surfaces_tail_failure() {
     let mut command = Command::new(std::env::current_exe().expect("unit test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "mcp logs follow lifecycle");
     assert!(
         output.status.success(),
         "follow helper failed\nstdout:\n{}\nstderr:\n{}",

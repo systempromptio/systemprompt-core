@@ -1,6 +1,6 @@
 #![cfg(unix)]
 
-use std::process::{Child, Command, Output, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use nix::sys::signal::{Signal, kill};
@@ -9,7 +9,7 @@ use systemprompt_cli_integration_tests::full_bootstrap::{
     TEST_MANIFEST_SIGNING_SEED, TEST_OAUTH_AT_REST_PEPPER, isolated_fixture,
 };
 use systemprompt_loader::subprocess;
-use systemprompt_test_fixtures::{DisposableDb, seed_user_row_with_roles};
+use systemprompt_test_fixtures::{DisposableDb, bounded_output, seed_user_row_with_roles};
 
 const TEST_ENCRYPTION_MASTER_KEY: &str =
     "1111111111111111111111111111111111111111111111111111111111111111";
@@ -104,47 +104,6 @@ fn agent_pids(name: &str) -> Vec<u32> {
             )
         })
         .collect()
-}
-
-fn bounded_output(mut command: Command, label: &str) -> Output {
-    let stdout = tempfile::NamedTempFile::new().expect("create bounded CLI stdout capture");
-    let stderr = tempfile::NamedTempFile::new().expect("create bounded CLI stderr capture");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(
-            stdout.reopen().expect("open CLI stdout capture"),
-        ))
-        .stderr(Stdio::from(
-            stderr.reopen().expect("open CLI stderr capture"),
-        ));
-    let mut child = command
-        .spawn()
-        .unwrap_or_else(|error| panic!("{label}: {error}"));
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll bounded CLI child") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).expect("read bounded CLI stdout"),
-                stderr: std::fs::read(stderr.path()).expect("read bounded CLI stderr"),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap timed-out CLI child");
-            let output = Output {
-                status,
-                stdout: std::fs::read(stdout.path()).expect("read timed-out CLI stdout"),
-                stderr: std::fs::read(stderr.path()).expect("read timed-out CLI stderr"),
-            };
-            panic!(
-                "{label} timed out\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
 }
 
 fn cli(profile: &std::path::Path, database_url: &str) -> Command {

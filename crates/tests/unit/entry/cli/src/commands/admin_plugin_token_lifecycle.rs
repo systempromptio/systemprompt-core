@@ -1,8 +1,6 @@
 //! Public plugin-token admission and backing-session persistence.
 
-use std::io::{Read, Seek, SeekFrom};
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 use systemprompt_identifiers::PluginId;
 
 use base64::Engine;
@@ -12,7 +10,9 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
 use systemprompt_security::HookTokenValidator;
-use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, seed_user_row_with_roles};
+use systemprompt_test_fixtures::{
+    DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row_with_roles,
+};
 
 const HELPER: &str = "commands::admin_plugin_token_lifecycle::plugin_token_helper";
 const PLUGIN: &str = "owned-coverage-plugin";
@@ -120,44 +120,12 @@ async fn plugin_token_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let mut stdout = tempfile::NamedTempFile::new().expect("plugin-token stdout");
-    let mut stderr = tempfile::NamedTempFile::new().expect("plugin-token stderr");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn plugin-token helper");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("poll plugin-token helper") {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            break child.wait().expect("reap plugin-token helper");
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let read = |file: &mut tempfile::NamedTempFile| {
-        file.seek(SeekFrom::Start(0)).expect("rewind capture");
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes).expect("read capture");
-        bytes
-    };
-    Output {
-        status,
-        stdout: read(&mut stdout),
-        stderr: read(&mut stderr),
-    }
-}
-
 #[test]
 fn plugin_token_requires_admin_and_persists_its_backing_session() {
     ensure_test_bootstrap();
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "admin plugin token lifecycle");
     assert!(output.status.success(), "plugin-token helper failed");
     let stdout = String::from_utf8(output.stdout).expect("UTF-8 plugin-token output");
     let artifact = stdout

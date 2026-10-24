@@ -1,15 +1,15 @@
 //! Public access-control export and lint against durable database state.
 
-use std::io::{Read, Seek, SeekFrom};
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 
 use systemprompt_cli::admin::access_control::{
     self, AccessControlCommands, ExportYamlArgs, LintArgs,
 };
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, seed_user_row_with_roles};
+use systemprompt_test_fixtures::{
+    DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row_with_roles,
+};
 
 const HELPER: &str = "commands::admin_access_control_public_lifecycle::access_control_helper";
 
@@ -79,38 +79,6 @@ async fn access_control_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let mut stdout = tempfile::NamedTempFile::new().expect("stdout capture");
-    let mut stderr = tempfile::NamedTempFile::new().expect("stderr capture");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn access-control helper");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("poll helper") {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            break child.wait().expect("reap timed-out helper");
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let read = |file: &mut tempfile::NamedTempFile| {
-        file.seek(SeekFrom::Start(0)).expect("rewind capture");
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes).expect("read capture");
-        bytes
-    };
-    Output {
-        status,
-        stdout: read(&mut stdout),
-        stderr: read(&mut stderr),
-    }
-}
-
 fn marked<'a>(stdout: &'a str, begin: &str, end: &str) -> &'a str {
     stdout
         .split_once(begin)
@@ -123,7 +91,7 @@ fn marked<'a>(stdout: &'a str, begin: &str, end: &str) -> &'a str {
 fn public_export_round_trips_roles_and_lint_reports_unreachable_entities() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "admin access control public lifecycle");
     let sanitize = |bytes: &[u8]| {
         String::from_utf8_lossy(bytes)
             .split_whitespace()
