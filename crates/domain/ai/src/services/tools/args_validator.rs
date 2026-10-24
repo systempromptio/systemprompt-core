@@ -49,23 +49,21 @@ impl ToolArgsValidator {
         self.tools.is_empty()
     }
 
-    pub fn check_raw(&self, tool_name: &str, raw_input: &str) -> ArgsCheck {
+    pub fn check_raw(&self, tool: &str, raw_input: &str) -> ArgsCheck {
         let trimmed = raw_input.trim();
         if trimmed.is_empty() {
-            return self.check(tool_name, &Value::Object(serde_json::Map::new()));
+            return self.check(tool, &Value::Object(serde_json::Map::new()));
         }
         match serde_json::from_str::<Value>(trimmed) {
-            Ok(input) => self.check(tool_name, &input),
-            Err(_) if !self.tools.contains_key(tool_name) => {
-                ArgsCheck::of(ArgsValidity::UnknownTool)
-            },
+            Ok(input) => self.check(tool, &input),
+            Err(_) if !self.tools.contains_key(tool) => ArgsCheck::of(ArgsValidity::UnknownTool),
             Err(_) => ArgsCheck::of(ArgsValidity::Unparseable),
         }
     }
 
     // JSON: tool arguments are whatever object the model emitted.
-    pub fn check(&self, tool_name: &str, input: &Value) -> ArgsCheck {
-        let Some(entry) = self.tools.get(tool_name) else {
+    pub fn check(&self, tool: &str, input: &Value) -> ArgsCheck {
+        let Some(entry) = self.tools.get(tool) else {
             return ArgsCheck::of(ArgsValidity::UnknownTool);
         };
         let Some(validator) = entry else {

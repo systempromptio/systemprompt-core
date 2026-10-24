@@ -126,6 +126,7 @@ fn decide(index: &ParentChainIndex, kind: EntityKind, id: &str, roles: &[&str]) 
             default_included: Some(false),
             attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
             dimensions: &[],
+            facts: systemprompt_governance::authz::DecisionFacts::default(),
         },
     )
 }
@@ -435,6 +436,7 @@ fn entity_level_deny_beats_every_owning_marketplace() {
             default_included: Some(true),
             attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
             dimensions: &[],
+            facts: systemprompt_governance::authz::DecisionFacts::default(),
         },
     );
     assert!(matches!(decision, Decision::Deny { .. }));

@@ -9,7 +9,7 @@ use std::path::Path;
 use systemprompt_logging::CliService;
 
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
-use super::{SetupArgs, common, profile};
+use super::{SetupArgs, postgres_access, profile};
 
 pub(super) fn execute_dry_run(
     args: &SetupArgs,
@@ -25,7 +25,7 @@ pub(super) fn execute_dry_run(
 
     let connection_status = if args.docker {
         "docker_pending"
-    } else if common::detect_postgresql(&args.db_host, args.db_port) {
+    } else if postgres_access::detect_postgresql(&args.db_host, args.db_port) {
         "reachable"
     } else {
         "unreachable"

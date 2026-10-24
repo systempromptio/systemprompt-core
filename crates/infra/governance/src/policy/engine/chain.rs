@@ -13,8 +13,10 @@ use crate::authz::types::{Decision, DenyReason, MatchedBy};
 use crate::policy::audit::{ChainEntryOutcome, ChainEntryResult};
 use crate::policy::config::PolicyConfig;
 use crate::policy::governed::{GovernedInput, GovernedTarget};
+use crate::policy::plane::GOVERNANCE_PLANE;
 use crate::policy::secrets::{MAX_RECOVERY_FINDINGS, SecretFinding};
 use crate::policy::types::PolicyContext;
+use systemprompt_manifest::profile::UnappliedPlaneMode;
 
 type PromptRecovery<'a> = &'a mut dyn FnMut(&[SecretFinding]) -> Option<GovernedInput>;
 
@@ -30,6 +32,9 @@ impl GovernanceEngine {
         ctx: &PolicyContext<'_>,
         mut recover: Option<PromptRecovery<'_>>,
     ) -> Evaluation {
+        if let Some(mode) = self.unapplied {
+            return self.plane_not_applied(mode);
+        }
         if !self.enabled {
             return self.master_switch_off();
         }
@@ -85,6 +90,25 @@ impl GovernanceEngine {
                 |reason| Decision::Warn { reason },
             )
         });
+        Evaluation { decision, chain }
+    }
+
+    fn plane_not_applied(&self, mode: UnappliedPlaneMode) -> Evaluation {
+        let reason = DenyReason::PlaneNotApplied {
+            plane: GOVERNANCE_PLANE.to_owned(),
+        };
+        let detail = reason.to_string();
+        let chain = self
+            .entries
+            .iter()
+            .map(|entry| chain_entry(&entry.config, ChainEntryResult::Skip, &detail))
+            .collect();
+        let decision = if mode.denies() {
+            Decision::Deny { reason }
+        } else {
+            tracing::warn!(%reason, "governance plane not applied; allowing this call ungoverned");
+            Decision::Warn { reason }
+        };
         Evaluation { decision, chain }
     }
 

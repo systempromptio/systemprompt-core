@@ -12,11 +12,12 @@ mod ai_service;
 mod assembly;
 mod composition;
 mod core_layer;
+mod events;
 
 pub use composition::owner_reassignments;
-use composition::{build_data_plane, build_repositories, ensure_legacy_context};
+use composition::{build_data_plane, build_plugins, build_repositories, ensure_legacy_context};
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
@@ -25,13 +26,14 @@ use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_traits::BackgroundTasks;
+use systemprompt_traits::{BackgroundTasks, ConfigWatch};
 use systemprompt_users::UserService;
 
-use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
+use crate::context::{AppContext, ConfigPlane, DataPlane, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
 pub use core_layer::discover_vertex_models;
 use core_layer::{CoreLayer, SchemaPolicy, init_core, init_extensions};
+use events::event_plane;
 
 /// Assembles an [`AppContext`], owning the bootstrap order described on the
 /// module.
@@ -153,7 +155,6 @@ impl AppContextBuilder {
             files_config,
             database,
             authz_hook,
-            governance,
             file_storage,
             cache_epochs,
             log_sink,
@@ -167,6 +168,7 @@ impl AppContextBuilder {
             &database,
         )
         .await?;
+        let governance = ConfigWatch::new(load_governance(&database).await?);
 
         let content = assembly::assemble_content_analytics(
             &config,
@@ -178,23 +180,21 @@ impl AppContextBuilder {
         let (repositories, user_service, system_admin, mcp_registry) =
             build_domain_layer(&config, &database, content.analytics_repositories, policy).await?;
 
-        let marketplace_filter = self
-            .marketplace_filter
-            .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
-
         let (ai_service, connector_tokens) =
             ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
+        let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let subsystems = Subsystems {
             ai_service,
-            artifact_ingest: build_artifact_ingest(&database, &governance),
+            artifact_ingest: build_artifact_ingest(&database, &governance.get()),
             logging: systemprompt_logging::LoggingRuntime::new(log_sink, Arc::clone(&system_admin)),
             system_admin,
             authz_hook,
             governance,
+            services: ConfigWatch::new(systemprompt_loader::ServicesBootstrap::get()?.clone()),
             cache_epochs,
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
-            event_bridge: Arc::new(OnceLock::new()),
-            event_router: event_router_or_outbox(self.event_router, &database, &config),
+            event_bridge: Arc::new(bridge),
+            event_router: router,
             geoip_reader: content.geoip_reader,
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
@@ -202,6 +202,13 @@ impl AppContextBuilder {
             publish_guard: Arc::default(),
             connector_tokens,
         };
+
+        let plugins = build_plugins(
+            extension_registry,
+            mcp_registry,
+            self.marketplace_filter,
+            &database,
+        );
 
         Ok(AppContext::from_parts(
             build_data_plane(
@@ -218,42 +225,37 @@ impl AppContextBuilder {
                 content_config: content.content_config,
                 route_classifier: content.route_classifier,
             },
-            Plugins {
-                extension_registry,
-                mcp_registry,
-                marketplace_filter,
-                marketplace_cache: Arc::default(),
-            },
+            plugins,
             subsystems,
         ))
     }
 }
 
-fn event_router_or_outbox(
-    configured: Option<EventRouter>,
+pub(crate) async fn load_governance(
     database: &systemprompt_database::DbPool,
-    config: &Config,
-) -> EventRouter {
-    configured.unwrap_or_else(|| {
-        EventRouter::with_outbox(
+) -> Result<
+    systemprompt_governance::policy::GovernanceEngine,
+    systemprompt_governance::policy::GovernanceEngineError,
+> {
+    systemprompt_governance::policy::GovernanceEngine::load(
+        database.pool().as_ref(),
+        Some(systemprompt_governance::policy::RateWindowRepository::new(
             database.write_pool().as_ref().clone(),
-            config.instance_id.clone(),
-            Arc::new(systemprompt_events::EventBroadcasters::new()),
-        )
-    })
+        )),
+        systemprompt_config::ProfileBootstrap::get().map_or_else(
+            |_| systemprompt_manifest::profile::UnappliedPlaneMode::default(),
+            systemprompt_manifest::Profile::unapplied_plane_mode,
+        ),
+    )
+    .await
 }
 
 fn build_artifact_ingest(
     database: &systemprompt_database::DbPool,
     governance: &systemprompt_governance::policy::GovernanceEngine,
 ) -> Arc<systemprompt_mcp::ArtifactIngest> {
-    let ingest = systemprompt_mcp::ArtifactIngest::from_db(
-        database,
-        governance
-            .secret_scanner()
-            .map(|scanner| Arc::new(scanner.clone())),
-    );
-    Arc::new(ingest)
+    let scanner = governance.secret_scanner().map(|s| Arc::new(s.clone()));
+    Arc::new(systemprompt_mcp::ArtifactIngest::from_db(database, scanner))
 }
 
 async fn build_domain_layer(

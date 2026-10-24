@@ -184,9 +184,7 @@ pub(super) fn bridge_profile_routes(
     let ctx_manifest = ctx.clone();
     let ctx_enabled_hosts = ctx.clone();
     let ctx_host_model_filter = ctx.clone();
-    let ctx_plugin_file = ctx.clone();
     let ctx_device = ctx.clone();
-    let jwt_plugin_file = Arc::clone(jwt_extractor);
     let jwt_device = Arc::clone(jwt_extractor);
     let jwt_whoami = Arc::clone(jwt_extractor);
     let jwt_manifest = Arc::clone(jwt_extractor);
@@ -222,11 +220,7 @@ pub(super) fn bridge_profile_routes(
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PLUGIN_FILE_ROUTE),
-            get(move |headers, path| {
-                let extractor = Arc::clone(&jwt_plugin_file);
-                let context = ctx_plugin_file.clone();
-                async move { bridge_plugin_file::handle(extractor, context, headers, path).await }
-            }),
+            bridge_plugin_file::route(ctx, jwt_extractor),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DEVICE),

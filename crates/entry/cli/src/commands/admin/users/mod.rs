@@ -35,7 +35,14 @@ use anyhow::{Result, bail};
 use clap::Subcommand;
 
 pub use apikey::{ApiKeyCommands, IssueArgs as ApiKeyIssueArgs};
-pub use types::*;
+pub use types::{
+    BanAddOutput, BanCheckOutput, BanCleanupOutput, BanListOutput, BanRemoveOutput, BanSummary,
+    BulkDeleteOutput, BulkUpdateOutput, RoleAssignOutput, SessionCleanupOutput, SessionEndOutput,
+    SessionListOutput, SessionSummary, UserActivityOutput, UserCountBreakdownOutput,
+    UserCountOutput, UserCreatedOutput, UserDeletedOutput, UserDetailOutput, UserExportItem,
+    UserExportOutput, UserListOutput, UserMergeOutput, UserStatsOutput, UserSummary,
+    UserUpdatedOutput, WebauthnSetupTokenOutput,
+};
 
 #[derive(Debug, Subcommand)]
 pub enum UsersCommands {

@@ -112,6 +112,8 @@ pub enum DenyReason {
     },
     #[error("tool {tool} blocked by list {list_id}")]
     ToolBlocked { tool: McpToolName, list_id: String },
+    #[error("{plane} plane not applied — run `systemprompt admin config apply`")]
+    PlaneNotApplied { plane: String },
     #[error("rate limit {window:?} exceeded; retry after {retry_after_ms}ms")]
     RateLimitExceeded {
         window: RateLimitWindow,

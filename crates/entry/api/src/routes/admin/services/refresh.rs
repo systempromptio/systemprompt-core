@@ -2,10 +2,11 @@
 //!
 //! Re-resolves the configured sources, recomposes the tree and — when the
 //! composition changed — projects the new composition into the authz tables
-//! and refreshes the skill inventory, all in-process. The routes that hand
-//! marketplaces, plugins and skills to clients reload the services tree per
-//! request through the `current` link the recompose just swapped, so a
-//! marketplace-only kit is live the moment this returns. `restart=true`
+//! and refreshes the skill inventory, all in-process. It then advances the
+//! `services` epoch, and the services watch re-reads the tree through the
+//! `current` link the recompose just swapped, so the routes that hand
+//! marketplaces, plugins and skills to clients serve a marketplace-only kit
+//! without a restart. `restart=true`
 //! remains an explicit opt-in for the one thing a running process cannot
 //! re-read: the static services config behind governance hooks.
 //!
@@ -38,6 +39,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_runtime::managed::inventory::publish_latest;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
 use systemprompt_runtime::{AppContext, RuntimeError};
+use systemprompt_traits::CacheDomain;
 
 use super::{
     RefreshLock, ServicesRefreshResponse, composed_hash_of, provenance_view, source_views,
@@ -154,6 +156,7 @@ async fn run_refresh(
             .await
             .map_err(RefreshError::Reconcile)?;
         reconciled = outcome == ReconcileOutcome::Projected;
+        ctx.cache_epochs().advance(CacheDomain::Services);
 
         let system_admin = ctx.system_admin().id().clone();
         if let Err(error) = publish_latest(ctx, &system_admin, actor).await {

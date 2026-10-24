@@ -23,7 +23,7 @@ fn fixture() -> AuthzRequest {
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new("trace-1"),
         session_id: None,
-        context: AuthzContext::gateway_invocation(&ModelId::new("claude-3")),
+        context: AuthzContext::gateway_invocation(&ModelId::new("claude-3"), None),
         context_id: None,
         task_id: None,
         act_chain: Vec::new(),

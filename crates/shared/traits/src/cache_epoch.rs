@@ -17,6 +17,10 @@
 //! [`crate::ConfigWatch`]) waits on [`CacheEpochs::subscribe`] instead of
 //! polling the counter.
 //!
+//! [`CacheDomain::Services`] is no database plane: it is advanced in-process
+//! when a services refresh swaps the composed tree, and its watcher re-reads
+//! that tree.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -26,7 +30,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tokio::sync::watch;
 
 const CONFIG_PREFIX: &str = "config:";
-const DOMAINS: usize = 8;
+const DOMAINS: usize = 9;
 
 /// A family of cached rows invalidated together.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -39,6 +43,7 @@ pub enum CacheDomain {
     Groups,
     AccessControl,
     GatewayPolicies,
+    Services,
 }
 
 impl CacheDomain {
@@ -51,6 +56,7 @@ impl CacheDomain {
         Self::Groups,
         Self::AccessControl,
         Self::GatewayPolicies,
+        Self::Services,
     ];
 
     #[must_use]
@@ -64,13 +70,14 @@ impl CacheDomain {
             Self::Groups => "groups",
             Self::AccessControl => "access_control",
             Self::GatewayPolicies => "gateway_policies",
+            Self::Services => "services",
         }
     }
 
     #[must_use]
     pub const fn config_plane(self) -> Option<&'static str> {
         match self {
-            Self::GatewayPolicy | Self::Authz | Self::JtiRevocation => None,
+            Self::GatewayPolicy | Self::Authz | Self::JtiRevocation | Self::Services => None,
             Self::GatewayRoutes
             | Self::Governance
             | Self::Groups
@@ -106,6 +113,7 @@ impl CacheDomain {
             Self::Groups => 5,
             Self::AccessControl => 6,
             Self::GatewayPolicies => 7,
+            Self::Services => 8,
         }
     }
 }

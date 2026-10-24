@@ -171,9 +171,7 @@ pub async fn join_within_drain_grace(
 
 pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
     let timings = ctx.config().shutdown;
-    if let Some(handle) = ctx.event_bridge().get() {
-        handle.shutdown().await;
-    }
+    ctx.event_bridge().shutdown().await;
 
     if let Some(handle) = scheduler
         && let Err(e) = handle.shutdown().await

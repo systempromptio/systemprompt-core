@@ -19,7 +19,10 @@ use std::sync::Arc;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand, ValueEnum};
 use serde::Serialize;
+use systemprompt_config::ProfileBootstrap;
+use systemprompt_database::{PLANE_NOT_APPLIED_HINT, find_config_plane_applied};
 use systemprompt_extension::prelude::{ApplyMode, ChangeActor, ChangeRequest, EntityScope};
+use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::ConfigReconcileService;
 
@@ -106,6 +109,7 @@ struct PlaneListRow {
     declared_path: &'static str,
     authority: &'static str,
     effect: &'static str,
+    applied: &'static str,
     hash: Option<String>,
     drift_rows: Option<i32>,
     outcome: Option<String>,
@@ -125,14 +129,14 @@ pub async fn run(command: PlanesCommands, ctx: &Arc<AppContext>) -> Result<Comma
         systemprompt_scheduler::repository::ConfigReconcileRepository::new(ctx.db_pool()),
     )?;
     match command {
-        PlanesCommands::List => list(&service).await,
+        PlanesCommands::List => list(ctx, &service).await,
         PlanesCommands::Diff(args) => diff(&service, &args.plane).await,
         PlanesCommands::Apply(args) => apply(&service, &args).await,
         PlanesCommands::Export(args) => export(&service, &args).await,
     }
 }
 
-async fn list(service: &ConfigReconcileService) -> Result<CommandOutput> {
+async fn list(ctx: &AppContext, service: &ConfigReconcileService) -> Result<CommandOutput> {
     let mut states: HashMap<String, _> = service
         .repository()
         .list_states()
@@ -142,7 +146,13 @@ async fn list(service: &ConfigReconcileService) -> Result<CommandOutput> {
         .collect();
     let set = service.planes();
     let mut rows = Vec::new();
+    let mut unapplied = Vec::new();
     for plane in set.planes() {
+        let applied =
+            find_config_plane_applied(ctx.db_pool().pool().as_ref(), plane.name()).await?;
+        if !applied {
+            unapplied.push(plane.name());
+        }
         let state = states.remove(plane.name());
         let hash = match plane.load_declared(set.services_root()) {
             Ok(declared) => declared.map(|d| d.hash),
@@ -153,6 +163,7 @@ async fn list(service: &ConfigReconcileService) -> Result<CommandOutput> {
             declared_path: plane.declared_path(),
             authority: set.authority_of(plane.as_ref()).as_str(),
             effect: plane.effect().as_str(),
+            applied: if applied { "yes" } else { "NO" },
             hash,
             drift_rows: state.as_ref().map(|s| s.drift_rows),
             outcome: state.as_ref().map(|s| s.outcome.clone()),
@@ -165,6 +176,7 @@ async fn list(service: &ConfigReconcileService) -> Result<CommandOutput> {
             "declared_path",
             "authority",
             "effect",
+            "applied",
             "hash",
             "drift_rows",
             "outcome",
@@ -172,7 +184,28 @@ async fn list(service: &ConfigReconcileService) -> Result<CommandOutput> {
         ],
         &rows,
     )
-    .with_title("Config planes"))
+    .with_title(planes_title(&unapplied)))
+}
+
+fn planes_title(unapplied: &[&str]) -> String {
+    if unapplied.is_empty() {
+        return "Config planes".to_owned();
+    }
+    let mode = ProfileBootstrap::get().map_or_else(
+        |_| UnappliedPlaneMode::default(),
+        systemprompt_manifest::Profile::unapplied_plane_mode,
+    );
+    let effect = if mode.denies() {
+        "their requests are denied"
+    } else {
+        "their requests pass ungoverned"
+    };
+    format!(
+        "Config planes — NOT APPLIED: {} (unapplied_planes: {}, {effect}); {}",
+        unapplied.join(", "),
+        mode.as_str(),
+        PLANE_NOT_APPLIED_HINT
+    )
 }
 
 async fn diff(service: &ConfigReconcileService, plane: &str) -> Result<CommandOutput> {

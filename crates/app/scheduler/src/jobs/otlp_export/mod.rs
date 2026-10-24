@@ -21,6 +21,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod attrs;
+mod child_spans;
 mod ids;
 mod logs;
 mod report;

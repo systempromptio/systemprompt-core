@@ -130,6 +130,11 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
         )
         .with_required_columns(columns(&["bucket", "user_id", "request_count"])),
         SchemaDefinition::new(
+            "ai_context_rollup_hourly",
+            include_str!("../schema/ai_context_rollup_hourly.sql"),
+        )
+        .with_required_columns(columns(&["bucket", "context_id", "request_count"])),
+        SchemaDefinition::new(
             "user_provider_credentials",
             include_str!("../schema/user_provider_credentials.sql"),
         )

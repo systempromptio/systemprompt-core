@@ -8,14 +8,19 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{
-    AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId, SlackChannelId,
-    SlackWorkspaceId, TeamsConversationId, TeamsTenantId,
+    AgentId, HookId, MarketplaceId, McpServerId, ModelId, PluginId, ProviderId, RouteId, SkillId,
+    SlackChannelId, SlackWorkspaceId, TeamsConversationId, TeamsTenantId,
 };
 
 use super::kinds::EntityKind;
 
 /// Tagged-union reference to an authz target. Bundles the discriminator
 /// (`EntityKind`) and the typed id so they can never drift apart on the wire.
+///
+/// `Model` and `Provider` are entitlement entities: their ids may be globs
+/// (`claude-*`) and they are never requested directly. A gateway decision
+/// consults the ones matching the request's model and provider as parent
+/// levels of the route (see `ParentChainIndex::resolve`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "id", rename_all = "snake_case")]
 pub enum EntityRef {
@@ -30,6 +35,8 @@ pub enum EntityRef {
     SlackChannel(SlackChannelId),
     TeamsTenant(TeamsTenantId),
     TeamsConversation(TeamsConversationId),
+    Model(ModelId),
+    Provider(ProviderId),
 }
 
 impl EntityRef {
@@ -46,6 +53,8 @@ impl EntityRef {
             EntityKind::SlackChannel => Self::SlackChannel(SlackChannelId::new(id)),
             EntityKind::TeamsTenant => Self::TeamsTenant(TeamsTenantId::new(id)),
             EntityKind::TeamsConversation => Self::TeamsConversation(TeamsConversationId::new(id)),
+            EntityKind::Model => Self::Model(ModelId::new(id)),
+            EntityKind::Provider => Self::Provider(ProviderId::new(id)),
         })
     }
 
@@ -63,6 +72,8 @@ impl EntityRef {
             Self::SlackChannel(_) => EntityKind::SlackChannel,
             Self::TeamsTenant(_) => EntityKind::TeamsTenant,
             Self::TeamsConversation(_) => EntityKind::TeamsConversation,
+            Self::Model(_) => EntityKind::Model,
+            Self::Provider(_) => EntityKind::Provider,
         }
     }
 
@@ -80,6 +91,8 @@ impl EntityRef {
             Self::SlackChannel(id) => id.as_str(),
             Self::TeamsTenant(id) => id.as_str(),
             Self::TeamsConversation(id) => id.as_str(),
+            Self::Model(id) => id.as_str(),
+            Self::Provider(id) => id.as_str(),
         }
     }
 }

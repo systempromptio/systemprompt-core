@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                ctx.context_id as \"context_id!: ContextId\",\n                ctx.last_activity as \"last_activity!\",\n                ctx.ai_requests as \"ai_requests!\",\n                NULLIF(last_row.model, '') as \"model?\",\n                NULLIF(last_row.agent_name, '') as \"agent_name?\",\n                NULL::text as \"context_name?\"\n            FROM (\n                SELECT\n                    context_id,\n                    MAX(last_activity) AS last_activity,\n                    SUM(request_count)::bigint AS ai_requests\n                FROM report_ai_context_hourly\n                WHERE user_id = $1\n                  AND bucket < $2\n                  AND traffic = 'production'\n                GROUP BY context_id\n                ORDER BY MAX(last_activity) DESC NULLS LAST\n                LIMIT $3\n            ) ctx\n            LEFT JOIN LATERAL (\n                SELECT model, agent_name FROM report_ai_context_hourly\n                WHERE context_id = ctx.context_id\n                ORDER BY last_activity DESC NULLS LAST\n                LIMIT 1\n            ) last_row ON TRUE\n            ORDER BY ctx.last_activity DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "context_id!: ContextId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "report_ai_context_hourly",
+            "name": "context_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_activity!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "ai_requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "model?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "agent_name?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "context_name?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "9fd0cd4ec006e4910215629c3524711783db0bd5393840ad326ae12add98a2b9"
+}

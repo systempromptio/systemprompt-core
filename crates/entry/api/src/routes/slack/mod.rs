@@ -68,14 +68,14 @@ async fn handle_events(
 
     match envelope {
         EventsApiEnvelope::UrlVerification { challenge } => {
-            if verify_any_app(&headers, &body) {
+            if verify_any_app(&ctx.services_config(), &headers, &body) {
                 challenge.into_response()
             } else {
                 StatusCode::UNAUTHORIZED.into_response()
             }
         },
         EventsApiEnvelope::EventCallback { team_id, event } => {
-            let Some(app) = resolve_app(&team_id) else {
+            let Some(app) = resolve_app(&ctx.services_config(), &team_id) else {
                 return StatusCode::OK.into_response();
             };
             if !verify_app(&app, &headers, &body) {
@@ -122,7 +122,7 @@ async fn handle_commands(
     let Some(cmd) = slash_command_from_form(&form) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
-    let Some(app) = resolve_app(&cmd.team_id) else {
+    let Some(app) = resolve_app(&ctx.services_config(), &cmd.team_id) else {
         return StatusCode::OK.into_response();
     };
     if !verify_app(&app, &headers, &body) {
@@ -169,7 +169,7 @@ async fn handle_interactivity(
         Ok(p) => p,
         Err(_) => return StatusCode::BAD_REQUEST.into_response(),
     };
-    let Some(app) = resolve_app(&payload.team.id) else {
+    let Some(app) = resolve_app(&ctx.services_config(), &payload.team.id) else {
         return StatusCode::OK.into_response();
     };
     if !verify_app(&app, &headers, &body) {

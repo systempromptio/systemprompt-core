@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `AppContext::governance()` returns the current engine from a `ConfigWatch`; `governance_arc()` is removed; `governance_watch()` and `load_governance()` are new.
 - `builder::core_layer::discover_vertex_models(&mut CatalogDocument)` replaces the `ProviderRegistry` argument; the runtime's `AiService` is built from `ServicesBootstrap::catalog()`.
 
 ## [0.71.0] - 2026-10-21

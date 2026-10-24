@@ -21,7 +21,6 @@ crates/domain/agent/src/repository/context/message/queries.rs#1b1b181983
 crates/domain/ai/src/repository/ai_requests/queries.rs#5af296e7d6
 crates/domain/ai/src/repository/ai_requests/queries.rs#e0b1df6373
 crates/domain/ai/src/repository/ai_requests/trace.rs#ecf42d4434
-crates/domain/ai/src/repository/ai_usage_anomaly.rs#182ad417f9
 crates/domain/analytics/src/repository/agents/detail_queries.rs#31eb9d4e78
 crates/domain/analytics/src/repository/cli_sessions.rs#61693a9011
 crates/domain/analytics/src/repository/cli_sessions.rs#fc4d01a5bd
@@ -34,11 +33,6 @@ crates/domain/analytics/src/repository/conversations.rs#6258af892e
 crates/domain/analytics/src/repository/conversations.rs#66f31232b1
 crates/domain/analytics/src/repository/conversations.rs#79df5d63a3
 crates/domain/analytics/src/repository/conversations.rs#bdcfaef331
-crates/domain/analytics/src/repository/costs/per_user.rs#56bbf4861c
-crates/domain/analytics/src/repository/costs/per_user.rs#6783297fad
-crates/domain/analytics/src/repository/costs/per_user.rs#83dff54a9d
-crates/domain/analytics/src/repository/costs/per_user.rs#d9cbdddd57
-crates/domain/analytics/src/repository/costs/platform.rs#a6e02a7d16
 crates/domain/analytics/src/repository/overview.rs#61693a9011
 crates/domain/analytics/src/repository/overview.rs#bdcfaef331
 crates/domain/analytics/src/repository/overview.rs#e65f333cfe

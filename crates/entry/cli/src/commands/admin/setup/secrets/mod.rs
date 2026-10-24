@@ -128,7 +128,7 @@ fn validate_secrets(secrets: &SecretsData) -> Result<()> {
 }
 
 pub(super) fn save(secrets: &SecretsData, secrets_path: &Path) -> Result<()> {
-    let content = serde_json::to_string_pretty(secrets).context("Failed to serialize secrets")?;
+    let content = CliService::json_string(secrets).context("Failed to serialize secrets")?;
     if let Some(parent) = secrets_path.parent().filter(|p| !p.as_os_str().is_empty()) {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create {}", parent.display()))?;

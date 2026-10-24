@@ -28,20 +28,20 @@ pub fn validate_audience(
     claims: &JwtClaims,
     oauth_config: &crate::OAuthRequirement,
 ) -> Result<(), McpError> {
-    if claims.aud.contains(&oauth_config.audience) {
+    if claims.registered.aud.contains(&oauth_config.audience) {
         return Ok(());
     }
 
     tracing::error!(
         server = %server_id,
         expected = %oauth_config.audience,
-        actual = ?claims.aud,
+        actual = ?claims.registered.aud,
         "Invalid audience"
     );
     Err(McpError::invalid_request(
         format!(
             "Invalid audience. Expected '{}', got: {:?}",
-            oauth_config.audience, claims.aud
+            oauth_config.audience, claims.registered.aud
         ),
         None,
     ))

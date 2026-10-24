@@ -26,6 +26,7 @@ systemprompt-api = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-runtime = { workspace = true }
+systemprompt-loader = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }

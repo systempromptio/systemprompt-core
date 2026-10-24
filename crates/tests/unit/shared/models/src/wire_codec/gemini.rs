@@ -16,9 +16,9 @@ use super::{
 #[test]
 fn gemini_request_emits_max_output_tokens_and_sampling() {
     let mut req = base_request();
-    req.temperature = Some(0.5);
-    req.top_p = Some(0.25);
-    req.top_k = Some(40);
+    req.sampling.temperature = Some(0.5);
+    req.sampling.top_p = Some(0.25);
+    req.sampling.top_k = Some(40);
     let body = gemini::build_request_body(&req, None);
     let cfg = &body["generationConfig"];
     assert_eq!(cfg["maxOutputTokens"], json!(32));
@@ -68,8 +68,8 @@ fn gemini_tool_config_modes() {
     ];
     for (choice, mode, allowed) in cases {
         let mut req = base_request();
-        req.tools = vec![plain_tool()];
-        req.tool_choice = Some(choice);
+        req.tooling.tools = vec![plain_tool()];
+        req.tooling.tool_choice = Some(choice);
         let body = gemini::build_request_body(&req, None);
         let cfg = &body["toolConfig"]["functionCallingConfig"];
         assert_eq!(cfg["mode"], mode);
@@ -83,7 +83,7 @@ fn gemini_tool_config_modes() {
 #[test]
 fn gemini_request_adds_search_and_url_context_tools() {
     let mut req = base_request();
-    req.search = Some(SearchConfig {
+    req.tooling.search = Some(SearchConfig {
         max_uses: None,
         context_size: None,
         urls: vec!["https://example.com".to_owned()],
@@ -97,7 +97,7 @@ fn gemini_request_adds_search_and_url_context_tools() {
 #[test]
 fn gemini_request_adds_code_execution_tool() {
     let mut req = base_request();
-    req.code_execution = true;
+    req.tooling.code_execution = true;
     let body = gemini::build_request_body(&req, None);
     let tools = body["tools"].as_array().expect("tools");
     assert!(tools.iter().any(|t| t.get("codeExecution").is_some()));
@@ -172,7 +172,7 @@ fn gemini_response_schema_is_shaped_to_the_openapi_subset() {
 #[test]
 fn gemini_tools_strip_unsupported_schema_keywords() {
     let mut req = base_request();
-    req.tools = vec![tool_with_unsupported_keywords()];
+    req.tooling.tools = vec![tool_with_unsupported_keywords()];
     let body = gemini::build_request_body(
         &req,
         Some(ModelLimits {
@@ -207,7 +207,7 @@ fn gemini_tools_strip_unsupported_schema_keywords() {
 #[test]
 fn gemini_tools_flatten_nested_tuple_arrays_claude_code_sends() {
     let mut req = base_request();
-    req.tools = vec![claude_code_shaped_tool()];
+    req.tooling.tools = vec![claude_code_shaped_tool()];
     let body = gemini::build_request_body(&req, None);
     let params = &body["tools"][0]["functionDeclarations"][0]["parameters"];
     let where_items = &params["properties"]["query"]["properties"]["where"]["items"];
@@ -239,7 +239,7 @@ fn gemini_tools_flatten_nested_tuple_arrays_claude_code_sends() {
 #[test]
 fn gemini_clamps_thinking_budget_to_model_card_cap() {
     let mut req = base_request();
-    req.thinking = Some(ThinkingConfig {
+    req.reasoning.thinking = Some(ThinkingConfig {
         enabled: true,
         budget_tokens: Some(31999),
     });
@@ -259,7 +259,7 @@ fn gemini_clamps_thinking_budget_to_model_card_cap() {
 #[test]
 fn gemini_leaves_thinking_budget_unclamped_without_cap() {
     let mut req = base_request();
-    req.thinking = Some(ThinkingConfig {
+    req.reasoning.thinking = Some(ThinkingConfig {
         enabled: true,
         budget_tokens: Some(8192),
     });
@@ -732,7 +732,7 @@ fn gemini_function_response_name_recovered_from_matching_tool_use() {
 #[test]
 fn gemini_thinking_enabled_requests_thought_summaries() {
     let mut req = base_request();
-    req.thinking = Some(ThinkingConfig {
+    req.reasoning.thinking = Some(ThinkingConfig {
         enabled: true,
         budget_tokens: None,
     });
@@ -1027,7 +1027,7 @@ fn gemini_default_thinking_headroom_stays_under_the_model_output_cap() {
 #[test]
 fn gemini_explicit_client_thinking_leaves_max_output_tokens_untouched() {
     let mut req = base_request();
-    req.thinking = Some(ThinkingConfig {
+    req.reasoning.thinking = Some(ThinkingConfig {
         enabled: true,
         budget_tokens: Some(1024),
     });

@@ -45,6 +45,7 @@ mod ai_extension_tests {
                 "ai_gateway_policies",
                 "ai_gateway_thought_signatures",
                 "ai_usage_rollup_hourly",
+                "ai_context_rollup_hourly",
                 "user_provider_credentials",
                 "ai_catalog_legacy_map",
             ]

@@ -21,7 +21,10 @@ use crate::shared::render_result;
 use anyhow::Result;
 use clap::Subcommand;
 
-pub use types::*;
+pub use types::{
+    ContextCreatedOutput, ContextDeletedOutput, ContextListOutput, ContextSummary,
+    ContextSwitchedOutput, ContextUpdatedOutput,
+};
 
 #[derive(Debug, Subcommand)]
 pub enum ContextsCommands {

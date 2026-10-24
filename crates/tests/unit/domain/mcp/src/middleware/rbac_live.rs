@@ -74,10 +74,13 @@ impl ServerHandler for RbacProbe {
             parts.extensions.insert(sys_ctx());
             context.extensions.insert(parts);
 
+            let services =
+                systemprompt_loader::ConfigLoader::load().expect("services config loads");
             let outcome = match enforce_rbac_from_registry(
                 &context,
                 &McpServerId::new(probe.server.as_str()),
                 &probe.hook,
+                &services,
             )
             .await
             {

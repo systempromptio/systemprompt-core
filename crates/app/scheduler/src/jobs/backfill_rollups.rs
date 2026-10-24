@@ -1,10 +1,10 @@
-//! Every-minute job draining the three hourly usage rollups' backlogs
-//! (`ai_usage_rollup_hourly`, `tool_usage_rollup_hourly`,
-//! `agent_task_rollup_hourly`): the hours an upgrade queued before the
-//! rollup tables existed. Each key is one UTC hour, rebuilt whole from the
-//! ledger by the rollup's `refresh_*` function. New rows are rolled up by the
-//! statement triggers, so once the backlog is empty a tick costs three depth
-//! reads.
+//! Every-minute job draining the four hourly usage rollups' backlogs
+//! (`ai_usage_rollup_hourly`, `ai_context_rollup_hourly`,
+//! `tool_usage_rollup_hourly`, `agent_task_rollup_hourly`): the hours an
+//! upgrade queued before the rollup tables existed. Each key is one UTC hour,
+//! rebuilt whole from the ledger by the rollup's `refresh_*` function. New rows
+//! are rolled up by the statement triggers, so once the backlog is empty a tick
+//! costs four depth reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,8 +16,12 @@ use systemprompt_database::{DbPool, projection};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
-const ROLLUPS: [(&str, &str); 3] = [
+const ROLLUPS: [(&str, &str); 4] = [
     ("ai_usage_rollup_hourly", "refresh_ai_usage_rollup_hourly"),
+    (
+        "ai_context_rollup_hourly",
+        "refresh_ai_context_rollup_hourly",
+    ),
     (
         "tool_usage_rollup_hourly",
         "refresh_tool_usage_rollup_hourly",

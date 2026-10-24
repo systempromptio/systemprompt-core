@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM config_plane_base WHERE plane = $1 AND entity = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "183efc31a783fe24e765c43e36df1570df71a89179483bd03cf1a1a0741c2253"
+}

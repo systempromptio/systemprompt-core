@@ -9,7 +9,7 @@
 //! [`test_app_context`] panics when the context cannot be assembled: a test
 //! whose context is missing fails rather than skips (see [`crate::db`]).
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
@@ -254,9 +254,9 @@ fn fixture_app_context_assembled(
         user_repository,
         extension_registry,
     } = seams;
-    let governance = Arc::new(
-        systemprompt_governance::policy::GovernanceEngine::from_services_root(
-            std::path::Path::new(&paths.services),
+    let governance = systemprompt_traits::ConfigWatch::new(
+        systemprompt_governance::policy::GovernanceEngine::from_config(
+            &systemprompt_governance::policy::GovernanceConfig::defaults(),
             Some(systemprompt_governance::policy::RateWindowRepository::new(
                 pool.write_pool().as_ref().clone(),
             )),
@@ -343,13 +343,14 @@ fn fixture_app_context_assembled(
             logging: crate::fixture_logging_runtime(),
             authz_hook,
             governance,
+            services: fixture_services_watch(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             ai_service: None,
             artifact_ingest: fixture_artifact_ingest(pool)?,
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
-            event_bridge: Arc::new(OnceLock::new()),
+            event_bridge: fixture_event_bridge(pool),
             event_router: systemprompt_events::EventRouter::local_only(Arc::new(
                 systemprompt_events::EventBroadcasters::new(),
             )),
@@ -369,6 +370,18 @@ fn fixture_app_context_assembled(
 
 // An ingest over the fixture pool with no scanners: the narrow waist itself,
 // not the installation's policy.
+pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBridgeHandle> {
+    Arc::new(
+        systemprompt_events::PostgresEventBridge::new(
+            pool.write_pool().as_ref().clone(),
+            crate::unique_instance(),
+            systemprompt_traits::CacheEpochs::new(),
+            Arc::new(systemprompt_events::EventBroadcasters::new()),
+        )
+        .into_idle_handle(),
+    )
+}
+
 pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
     Ok(Arc::new(systemprompt_mcp::ArtifactIngest::from_db(
         db, None,
@@ -396,5 +409,25 @@ pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::Gover
             Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),
+    )
+}
+
+pub fn default_governance_watch(
+) -> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
+    systemprompt_traits::ConfigWatch::new(
+        systemprompt_governance::policy::GovernanceEngine::from_config(
+            &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            Some(offline_rate_windows()),
+        )
+        .expect("the default governance chain always builds"),
+    )
+}
+
+// The services config the test bootstrap serves, or an empty one when the
+// test runs without a services tree.
+pub fn fixture_services_watch(
+) -> systemprompt_traits::ConfigWatch<systemprompt_manifest::services::ServicesConfig> {
+    systemprompt_traits::ConfigWatch::new(
+        systemprompt_loader::ConfigLoader::load().unwrap_or_default(),
     )
 }

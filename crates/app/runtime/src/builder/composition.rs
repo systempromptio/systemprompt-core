@@ -3,7 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{Arc, DataPlane, RuntimeResult, UserService};
+use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
+use crate::context::Plugins;
+use systemprompt_database::DbPool;
+use systemprompt_extension::ExtensionRegistry;
+use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_mcp::services::registry::RegistryService;
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
@@ -78,7 +83,7 @@ impl RepositoryBundles {
 }
 
 pub(super) fn build_repositories(
-    database: &systemprompt_database::DbPool,
+    database: &DbPool,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     instance_id: systemprompt_identifiers::InstanceId,
     publication: systemprompt_marketplace::managed::PublicationPolicy,
@@ -131,9 +136,7 @@ pub(super) fn build_repositories(
     }
 }
 
-pub fn owner_reassignments(
-    database: &systemprompt_database::DbPool,
-) -> Vec<systemprompt_traits::DynOwnerReassignment> {
+pub fn owner_reassignments(database: &DbPool) -> Vec<systemprompt_traits::DynOwnerReassignment> {
     let logging = systemprompt_logging::LoggingOwnerReassignment::new(database);
     let events =
         systemprompt_events::EventsOwnerReassignment::new(database.write_pool().as_ref().clone());
@@ -153,4 +156,19 @@ pub fn owner_reassignments(
         Arc::new(logging),
         Arc::new(events),
     ]
+}
+
+pub(super) fn build_plugins(
+    extension_registry: Arc<ExtensionRegistry>,
+    mcp_registry: RegistryService,
+    marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
+    database: &DbPool,
+) -> Plugins {
+    Plugins {
+        extension_registry,
+        mcp_registry,
+        marketplace_filter: marketplace_filter
+            .unwrap_or_else(|| assembly::build_marketplace_filter(database)),
+        marketplace_cache: Arc::default(),
+    }
 }

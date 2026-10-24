@@ -1,7 +1,10 @@
+mod apply_race_db;
+mod core_planes_db;
 mod db_plane;
 mod e2e;
 mod fake_plane;
 mod guard;
+mod merge;
 mod reconcile_db;
 mod reconcile_ops_db;
 

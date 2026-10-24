@@ -19,7 +19,7 @@ fn close(a: f64, b: f64) -> bool {
 
 #[test]
 fn a_model_resolves_through_its_deployment_to_endpoint_and_credential() {
-    let catalog = opencode_go().install("dynapps").build();
+    let catalog = opencode_go().install("example").build();
     let target = catalog
         .resolve(&ModelRequest::new("go-kimi-k3"))
         .expect("resolves");
@@ -52,11 +52,11 @@ fn a_model_resolves_through_its_deployment_to_endpoint_and_credential() {
 
 #[test]
 fn install_placeholders_are_expanded_from_the_profile() {
-    let catalog = opencode_go().install("dynapps").build();
+    let catalog = opencode_go().install("example").build();
     let provider = catalog.provider("opencode-go").expect("declared");
     assert_eq!(
         provider.user_agent.as_deref(),
-        Some("systemprompt-gateway (opencode-go; dynapps)")
+        Some("systemprompt-gateway (opencode-go; example)")
     );
     assert!(provider.forwards_header("X-OpenCode-Session"));
 }

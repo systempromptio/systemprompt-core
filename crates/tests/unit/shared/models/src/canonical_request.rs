@@ -1,8 +1,9 @@
 use serde_json::json;
 use systemprompt_identifiers::ModelId;
 use systemprompt_wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalStopReason, ImageDetail,
-    ImageSource, ReasoningEffort, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalStopReason, CanonicalTooling, ImageDetail, ImageSource, ReasoningEffort, Role,
+    SystemBlock,
 };
 
 fn empty_request() -> CanonicalRequest {
@@ -12,22 +13,28 @@ fn empty_request() -> CanonicalRequest {
         system: Vec::new(),
         messages: Vec::new(),
         max_tokens: 16,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

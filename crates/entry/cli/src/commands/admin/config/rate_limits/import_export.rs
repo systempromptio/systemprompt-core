@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use anyhow::{Context, Result, bail};
 use std::fs;
@@ -9,7 +10,7 @@ use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use super::helpers::{load_profile_for_edit, save_profile};
+use super::profile_edit::{load_profile_for_edit, save_profile};
 use super::{ExportArgs, ImportArgs};
 use crate::CliConfig;
 use crate::interactive::{Prompter, require_confirmation};
@@ -25,8 +26,9 @@ pub(super) fn execute_export(args: &ExportArgs, _config: &CliConfig) -> Result<C
         "yaml" | "yml" => {
             serde_yaml::to_string(limits).context("Failed to serialize rate limits to YAML")?
         },
-        "json" => serde_json::to_string_pretty(limits)
-            .context("Failed to serialize rate limits to JSON")?,
+        "json" => {
+            CliService::json_string(limits).context("Failed to serialize rate limits to JSON")?
+        },
         _ => bail!("Unknown format: {}. Valid formats: yaml, json", args.format),
     };
 

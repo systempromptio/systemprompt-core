@@ -9,12 +9,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod catalog;
-pub mod common;
 pub mod ddl;
 pub mod docker;
 pub mod docker_compose;
 mod docker_database;
 pub mod postgres;
+pub mod postgres_access;
 mod profile;
 mod profile_sections;
 pub mod secrets;
@@ -32,7 +32,7 @@ use systemprompt_manifest::none_if_blank;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
 pub use secrets::SecretsData;
-pub use types::*;
+pub use types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
 
 #[derive(Debug, Args)]
 #[expect(

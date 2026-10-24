@@ -180,6 +180,8 @@ pub enum EntityKind {
     SlackChannel,
     TeamsTenant,
     TeamsConversation,
+    Model,
+    Provider,
 }
 
 impl EntityKind {
@@ -195,6 +197,8 @@ impl EntityKind {
         Self::SlackChannel,
         Self::TeamsTenant,
         Self::TeamsConversation,
+        Self::Model,
+        Self::Provider,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -210,6 +214,8 @@ impl EntityKind {
             Self::SlackChannel => "slack_channel",
             Self::TeamsTenant => "teams_tenant",
             Self::TeamsConversation => "teams_conversation",
+            Self::Model => "model",
+            Self::Provider => "provider",
         }
     }
 }
@@ -230,6 +236,8 @@ impl FromStr for EntityKind {
             "slack_channel" => Ok(Self::SlackChannel),
             "teams_tenant" => Ok(Self::TeamsTenant),
             "teams_conversation" => Ok(Self::TeamsConversation),
+            "model" => Ok(Self::Model),
+            "provider" => Ok(Self::Provider),
             other => Err(AuthzError::UnknownEntityKind(other.to_owned())),
         }
     }

@@ -15,7 +15,7 @@ use std::time::Duration;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
-use super::common::{
+use super::postgres_access::{
     PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
 };
 use crate::CliConfig;

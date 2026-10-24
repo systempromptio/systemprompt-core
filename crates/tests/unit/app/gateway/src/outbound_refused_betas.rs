@@ -9,7 +9,8 @@ use std::collections::BTreeSet;
 
 use serde_json::json;
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalToolChoice, CanonicalTooling, Role,
 };
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_gateway::protocol::outbound::anthropic::rejected_betas::{
@@ -48,22 +49,28 @@ fn request() -> CanonicalRequest {
             content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 64,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None::<CanonicalToolChoice>,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None::<CanonicalToolChoice>,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

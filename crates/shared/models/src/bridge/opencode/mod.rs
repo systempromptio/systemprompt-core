@@ -69,8 +69,8 @@ impl OpenCodeConfig {
     }
 
     #[must_use]
-    pub fn with_model(mut self, provider_id: &str, alias: &str) -> Self {
-        self.model = Some(format!("{provider_id}/{alias}"));
+    pub fn with_model(mut self, provider: &str, alias: &str) -> Self {
+        self.model = Some(format!("{provider}/{alias}"));
         self
     }
 
@@ -117,7 +117,7 @@ pub struct ProviderSettings {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelEntry {
     #[serde(rename = "modelID")]
-    pub model_id: String,
+    pub model: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<ModelLimit>,
 }

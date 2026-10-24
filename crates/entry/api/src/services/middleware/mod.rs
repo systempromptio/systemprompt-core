@@ -27,25 +27,30 @@ pub mod site_auth;
 pub mod trace;
 pub mod trailing_slash;
 
-pub use analytics::*;
+pub use analytics::{AnalyticsEventParams, AnalyticsMiddleware};
 pub use authz::{AuthzPolicy, authz_gate};
-pub use bot_detector::*;
+pub use bot_detector::{
+    BotMarker, BotType, detect_bots_early, is_datacenter_ip, is_known_bot, is_outdated_browser,
+    is_scanner_request,
+};
 pub use caller_purpose::strip_caller_purpose;
 pub use context::{
     A2AContextMiddleware, ContextExtractor, McpContextMiddleware, PublicContextMiddleware,
     UserOnlyContextMiddleware,
 };
-pub use cors::*;
-pub use ip_ban::*;
+pub use cors::{CorsError, CorsMiddleware};
+pub use ip_ban::ip_ban_middleware;
 pub use jwt::{JtiRevocationChecker, JwtContextExtractor, JwtUserContext};
 pub use load_shed::LoadShed;
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };
-pub use rate_limit::*;
-pub use security_headers::*;
-pub use served_by::*;
-pub use session::*;
-pub use site_auth::*;
-pub use trace::*;
-pub use trailing_slash::*;
+pub use rate_limit::{ContextLayer, IdentityOrTrustedIpKey, RateLimitState, RouterExt};
+pub use security_headers::inject_security_headers;
+pub use served_by::inject_served_by;
+pub use session::{
+    SessionAttestationError, SessionMiddleware, attest_session, should_skip_session_tracking,
+};
+pub use site_auth::{login_redirect, site_auth_gate};
+pub use trace::inject_trace_header;
+pub use trailing_slash::{remove_trailing_slash, should_redirect};

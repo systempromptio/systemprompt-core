@@ -55,7 +55,7 @@ impl TokenValidator for JwtTokenValidator {
                 }
             })?;
 
-        let user_id = UserId::try_new(claims.sub.as_str())
+        let user_id = UserId::try_new(claims.registered.sub.as_str())
             .map_err(|_invalid| AuthRequestError::InvalidTokenFormat)?;
 
         let permissions = claims.get_permissions();
@@ -63,8 +63,8 @@ impl TokenValidator for JwtTokenValidator {
 
         Ok(AuthenticatedUser::new_with_roles(
             user_id,
-            claims.username.clone(),
-            claims.email,
+            claims.custom.username.clone(),
+            claims.custom.email,
             permissions,
             roles,
         ))

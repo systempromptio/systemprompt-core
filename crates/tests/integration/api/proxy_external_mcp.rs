@@ -1,4 +1,4 @@
-//! External-MCP proxying through `ProxyEngine::proxy_request` — the registry
+//! External-MCP proxying through `ProxyService::proxy_request` — the registry
 //! diverts external servers to `proxy_external_mcp`, which mints a per-user
 //! provider bearer via the `external_auth` accessor, forwards the MCP frame to
 //! the provider, audits client-mediated `tools/call`s, and maps resolver
@@ -105,7 +105,11 @@ async fn harness() -> anyhow::Result<Harness> {
 }
 
 async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Result<Harness> {
-    harness_with_database(governance_yaml, None, None).await
+    let database = match governance_yaml {
+        Some(_) => Some(systemprompt_test_fixtures::DisposableDb::with_schema("proxygov").await),
+        None => None,
+    };
+    harness_with_database(governance_yaml, database, None).await
 }
 
 async fn private_harness(label: &str) -> anyhow::Result<Harness> {
@@ -139,11 +143,6 @@ async fn harness_with_database(
         backend.address().port(),
     );
     let b = systemprompt_test_fixtures::bootstrap::init_isolated_bootstrap(&server.uri(), &yaml);
-    if let Some(governance) = governance_yaml {
-        let governance_dir = b.services_path.join("governance");
-        std::fs::create_dir_all(&governance_dir)?;
-        std::fs::write(governance_dir.join("config.yaml"), governance)?;
-    }
 
     let manifest_dir = b.system_path.join("extensions").join(&int_name);
     std::fs::create_dir_all(&manifest_dir)?;
@@ -178,6 +177,9 @@ async fn harness_with_database(
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
+    if let Some(governance) = governance_yaml {
+        systemprompt_test_fixtures::apply_governance(&ctx, governance).await?;
+    }
     let app = systemprompt_api::routes::proxy::mcp::router(&ctx);
     Ok(Harness {
         app,

@@ -107,5 +107,6 @@ pub(super) fn governance() -> GovernanceConfig {
         }),
         audit: AuditConfig::default(),
         quota: QuotaConfig::default(),
+        unapplied_planes: systemprompt_manifest::profile::UnappliedPlaneMode::default(),
     }
 }

@@ -72,7 +72,7 @@ async fn handle_get_execution(
         Ok(_) => return not_found(),
         Err(e) => {
             tracing::error!(execution_id = %execution_id, error = %e, "Failed to get execution");
-            return ApiHttpError::internal_error("Failed to get execution").into_response();
+            return ApiHttpError::internal("Failed to get execution", e).into_response();
         },
     };
 
@@ -80,7 +80,7 @@ async fn handle_get_execution(
         Ok(v) => v,
         Err(e) => {
             tracing::error!(execution_id = %execution_id, error = %e, "Invalid input JSON");
-            return ApiHttpError::internal_error("Stored execution input is not valid JSON")
+            return ApiHttpError::internal("Stored execution input is not valid JSON", e)
                 .into_response();
         },
     };

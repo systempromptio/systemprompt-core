@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 
 use systemprompt_agent::repository::A2ARepositories;
@@ -26,7 +26,7 @@ use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
-use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_manifest::services::{ServicesConfig, SystemAdmin};
 use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
@@ -35,7 +35,7 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
-use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
 mod accessors;
@@ -95,12 +95,13 @@ pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub logging: LoggingRuntime,
     pub authz_hook: SharedAuthzHook,
-    pub governance: Arc<GovernanceEngine>,
+    pub governance: ConfigWatch<GovernanceEngine>,
+    pub services: ConfigWatch<ServicesConfig>,
     pub cache_epochs: CacheEpochs,
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<crate::SchemaState>,
-    pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
+    pub event_bridge: Arc<EventBridgeHandle>,
     pub event_router: EventRouter,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
@@ -242,7 +243,7 @@ impl AppContext {
         &self.plugins.marketplace_cache
     }
 
-    pub const fn event_bridge(&self) -> &Arc<OnceLock<EventBridgeHandle>> {
+    pub const fn event_bridge(&self) -> &Arc<EventBridgeHandle> {
         &self.subsystems.event_bridge
     }
 

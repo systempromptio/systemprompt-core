@@ -15,6 +15,7 @@ pub mod catalog;
 pub mod credential;
 pub mod db;
 pub mod disposable_db;
+pub mod governance;
 pub mod instance;
 pub mod jwt;
 pub mod keys;
@@ -37,11 +38,11 @@ pub use agent::{
     NotManagedSkills, ScriptedSkills, ToolExecutionLedger,
 };
 pub use app_context::{
-    default_governance_engine, fixture_analytics_repositories, fixture_app_context_with,
-    fixture_app_context_with_config, fixture_app_context_with_extensions,
+    default_governance_engine, default_governance_watch, fixture_analytics_repositories,
+    fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
     fixture_app_context_with_hook, fixture_app_context_with_user_repository,
-    fixture_artifact_ingest, fixture_config, fixture_fingerprint_repository, offline_rate_windows,
-    test_app_context, FIXTURE_JWT_ISSUER,
+    fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_fingerprint_repository,
+    fixture_services_watch, offline_rate_windows, test_app_context, FIXTURE_JWT_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
@@ -57,6 +58,7 @@ pub use credential::{
 };
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
+pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
 pub use instance::unique_instance;
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};

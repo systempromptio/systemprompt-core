@@ -22,6 +22,7 @@ use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 fn extension_governance() -> GovernanceConfig {
     GovernanceConfig {
         quota: Default::default(),
+        unapplied_planes: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Extension,
@@ -91,7 +92,7 @@ async fn extension_hook_evaluated_and_audited() {
     )
     .bind("gateway_route")
     .bind(&route)
-    .bind("test:extension_hook")
+    .bind("code:extension_hook")
     .execute(write_pool.as_ref())
     .await
     .expect("seed entity row");

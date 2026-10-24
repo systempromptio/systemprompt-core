@@ -1,5 +1,7 @@
-//! Doctor checks for `OpenCode`: which tier owns the provider, and whether
-//! the installed client reads the V2 config the bridge writes. The version
+//! Doctor checks for `OpenCode`.
+//!
+//! Which tier owns the provider, and whether the installed client reads the
+//! V2 config the bridge writes. The version
 //! is probed only when the last sync enabled an `OpenCode` packaging: an
 //! `OpenCode` the bridge does not drive is not this device's fault.
 //!

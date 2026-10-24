@@ -6,7 +6,7 @@
 //! pass through unchanged. The gateway applies the first non-pass-through
 //! action at dispatch, before the request is forwarded upstream.
 //!
-//! Two sources feed the [`engine::OverrideEngine`]: declarative
+//! Two sources feed the [`engine::OverridePolicy`]: declarative
 //! [`SystemPromptRule`](systemprompt_manifest::services::SystemPromptRule)
 //! rules from the profile (evaluated first), then extension overrides
 //! contributed through the
@@ -24,7 +24,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_identifiers::{ModelId, ProviderId};
 
-pub use engine::OverrideEngine;
+pub use engine::OverridePolicy;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OverrideAction {

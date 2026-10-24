@@ -25,6 +25,10 @@ mod error_display;
 #[cfg(test)]
 mod extraction;
 #[cfg(test)]
+mod governance_plane;
+#[cfg(test)]
+mod governance_plane_unapplied;
+#[cfg(test)]
 mod hook_token_typed_ids;
 #[cfg(test)]
 mod jwks_fetch;

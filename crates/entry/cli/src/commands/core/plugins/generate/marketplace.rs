@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use anyhow::Result;
 use serde::Serialize;
@@ -43,7 +44,7 @@ pub(super) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path
         }
 
         let json = render_marketplace(id.as_str(), marketplace, &services);
-        let content = serde_json::to_string_pretty(&json)?;
+        let content = CliService::json_string(&json)?;
 
         let file_name = format!("marketplace-{}.json", id.as_str());
         std::fs::write(marketplace_dir.join(&file_name), &content)?;
@@ -140,7 +141,7 @@ pub fn generate_plugin_json(
     };
 
     let plugin_json_path = claude_plugin_dir.join("plugin.json");
-    let content = serde_json::to_string_pretty(&manifest)?;
+    let content = CliService::json_string(&manifest)?;
     std::fs::write(&plugin_json_path, content)?;
     files_generated.push(plugin_json_path.to_string_lossy().to_string());
 

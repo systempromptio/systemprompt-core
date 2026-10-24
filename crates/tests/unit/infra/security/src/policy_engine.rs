@@ -298,11 +298,21 @@ fn skipped_entries_carry_zero_duration() {
 static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
     systemprompt_governance::policy::RateCounts::empty();
 
+fn engine_from(yaml: &str) -> GovernanceEngine {
+    GovernanceEngine::from_config(
+        &systemprompt_governance::policy::GovernanceConfig::parse(yaml).expect("parses"),
+        Some(crate::offline_rate_windows()),
+    )
+    .expect("valid config")
+}
+
 #[test]
-fn from_services_root_without_a_config_falls_back_to_the_warn_only_defaults() {
-    let root = tempfile::TempDir::new().expect("tempdir");
-    let e = GovernanceEngine::from_services_root(root.path(), Some(crate::offline_rate_windows()))
-        .expect("missing config is the documented default chain");
+fn the_default_chain_is_warn_only() {
+    let e = GovernanceEngine::from_config(
+        &systemprompt_governance::policy::GovernanceConfig::defaults(),
+        Some(crate::offline_rate_windows()),
+    )
+    .expect("defaults build");
     assert!(
         e.policies()
             .filter(
@@ -315,38 +325,8 @@ fn from_services_root_without_a_config_falls_back_to_the_warn_only_defaults() {
 }
 
 #[test]
-fn from_services_root_names_the_rejected_file() {
-    let root = tempfile::TempDir::new().expect("tempdir");
-    std::fs::create_dir_all(root.path().join("governance")).expect("mkdir");
-    std::fs::write(
-        root.path().join("governance/config.yaml"),
-        "governance:\n  enabled: true\n",
-    )
-    .expect("write config");
-    let err =
-        GovernanceEngine::from_services_root(root.path(), Some(crate::offline_rate_windows()))
-            .expect_err("a config without policies is rejected");
-    assert!(
-        matches!(
-            &err,
-            systemprompt_governance::policy::GovernanceEngineError::ConfigRejected { path, .. }
-            if path.ends_with("governance/config.yaml")
-        ),
-        "{err}"
-    );
-}
-
-#[test]
-fn from_services_root_loads_the_declared_chain() {
-    let root = tempfile::TempDir::new().expect("tempdir");
-    std::fs::create_dir_all(root.path().join("governance")).expect("mkdir");
-    std::fs::write(
-        root.path().join("governance/config.yaml"),
-        "governance:\n  policies:\n    - id: t_deny\n",
-    )
-    .expect("write config");
-    let e = GovernanceEngine::from_services_root(root.path(), Some(crate::offline_rate_windows()))
-        .expect("valid config");
+fn a_declared_chain_builds_with_its_policy_first() {
+    let e = engine_from("governance:\n  policies:\n    - id: t_deny\n");
     let rendered = format!("{e:?}");
     assert!(
         rendered.contains("t_deny") && rendered.contains("rate_windows: true"),

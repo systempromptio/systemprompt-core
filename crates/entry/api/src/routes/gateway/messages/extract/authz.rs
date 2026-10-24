@@ -13,7 +13,7 @@ use systemprompt_governance::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,
 };
 use systemprompt_identifiers::{
-    Actor, ClientId, ContextId, ModelId, RouteId, SessionId, TraceId, UserId,
+    Actor, ClientId, ContextId, ModelId, ProviderId, RouteId, SessionId, TraceId, UserId,
 };
 
 use super::super::auth::AuthedPrincipal;
@@ -35,6 +35,7 @@ pub struct GatewayAuthzRequestInput {
     pub trace_id: TraceId,
     pub route_id: RouteId,
     pub model: ModelId,
+    pub provider: Option<ProviderId>,
     pub session_id: Option<SessionId>,
     pub client_id: Option<ClientId>,
     pub context_id: ContextId,
@@ -50,6 +51,7 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         trace_id,
         route_id,
         model,
+        provider,
         session_id,
         client_id,
         context_id,
@@ -64,21 +66,39 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         attributes,
         trace_id,
         session_id,
-        context: AuthzContext::gateway_invocation(&model),
+        context: AuthzContext::gateway_invocation(&model, provider.as_ref()),
         act_chain,
         context_id: Some(context_id),
         task_id: None,
     }
 }
 
+/// What a pre-dispatch decision is about: the route the request resolved to,
+/// the model it asked for and the provider serving that model first.
+#[derive(Debug, Clone, Copy)]
+pub struct DispatchTarget<'a> {
+    pub route_id: &'a RouteId,
+    pub model: &'a str,
+    pub provider: &'a ProviderId,
+}
+
+impl<'a> DispatchTarget<'a> {
+    #[must_use]
+    pub const fn new(route_id: &'a RouteId, model: &'a str, provider: &'a ProviderId) -> Self {
+        Self {
+            route_id,
+            model,
+            provider,
+        }
+    }
+}
+
 pub async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
-    route_id: &RouteId,
-    model: &str,
+    target: DispatchTarget<'_>,
     context_id: &ContextId,
     hook: &SharedAuthzHook,
 ) -> Result<(), RejectionError> {
-    let route_id = route_id.clone();
     let (roles, attributes, act_chain) = principal.authz_attributes();
     let req = build_gateway_authz_request(GatewayAuthzRequestInput {
         user_id: principal.user_id().clone(),
@@ -86,8 +106,9 @@ pub async fn enforce_authz_pre_dispatch(
         attributes,
         act_chain,
         trace_id: principal.trace_id().clone(),
-        route_id,
-        model: ModelId::new(model),
+        route_id: target.route_id.clone(),
+        model: ModelId::new(target.model),
+        provider: Some(target.provider.clone()),
         session_id: Some(principal.session_id().clone()),
         client_id: principal.client_id().cloned(),
         context_id: context_id.clone(),

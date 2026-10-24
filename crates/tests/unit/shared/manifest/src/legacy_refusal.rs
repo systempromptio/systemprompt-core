@@ -17,7 +17,7 @@ fn fixture_ai(name: &str) -> std::path::PathBuf {
 
 #[test]
 fn every_committed_legacy_tree_is_refused_with_the_migrate_hint() {
-    for fixture in ["core-default", "dynapps", "astound"] {
+    for fixture in ["core-default", "byok-gateway", "vertex-multiregion"] {
         let path = fixture_ai(fixture).join("providers.yaml");
         let text = std::fs::read_to_string(&path).expect("legacy fixture present");
         let error = CatalogDocument::from_yaml_str("providers.yaml", &text)

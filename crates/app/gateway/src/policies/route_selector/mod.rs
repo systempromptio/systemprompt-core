@@ -67,25 +67,25 @@ macro_rules! register_route_selector {
     };
 }
 
-pub struct RouteSelectorEngine {
+pub struct RouteSelectorChain {
     selectors: Vec<Arc<dyn RouteSelector>>,
 }
 
-impl Default for RouteSelectorEngine {
+impl Default for RouteSelectorChain {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl std::fmt::Debug for RouteSelectorEngine {
+impl std::fmt::Debug for RouteSelectorChain {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RouteSelectorEngine")
+        f.debug_struct("RouteSelectorChain")
             .field("selectors", &self.selectors.len())
             .finish()
     }
 }
 
-impl RouteSelectorEngine {
+impl RouteSelectorChain {
     #[must_use]
     pub fn new() -> Self {
         Self {

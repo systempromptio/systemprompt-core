@@ -15,7 +15,9 @@ use serde_json::Value;
 use systemprompt_identifiers::ModelId;
 use systemprompt_wire::inspect::ForwardedSurface;
 
-use super::super::super::canonical::CanonicalRequest;
+use super::super::super::canonical::{
+    CanonicalReasoning, CanonicalRequest, CanonicalSampling, CanonicalTooling,
+};
 use super::super::InboundParseError;
 use content::{parse_message, parse_system};
 use tools::{parse_thinking, parse_tool, parse_tool_choice};
@@ -47,22 +49,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .map(parse_message)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let temperature = value
-        .get("temperature")
-        .and_then(Value::as_f64)
-        .map(|v| v as f32);
-    let top_p = value.get("top_p").and_then(Value::as_f64).map(|v| v as f32);
-    let top_k = value.get("top_k").and_then(Value::as_i64).map(|v| v as i32);
-
-    let stop_sequences = value
-        .get("stop_sequences")
-        .and_then(Value::as_array)
-        .map_or_else(Vec::new, |arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(str::to_owned))
-                .collect::<Vec<_>>()
-        });
-
+    let sampling = parse_sampling(value);
     let tools = value
         .get("tools")
         .and_then(Value::as_array)
@@ -89,21 +76,47 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         system,
         messages,
         max_tokens,
+        stream,
+        metadata,
+        response_format: None,
+        forwarded_surface: ForwardedSurface::default(),
+        sampling,
+        tooling: CanonicalTooling {
+            tools,
+            tool_choice,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking,
+            reasoning_effort: None,
+        },
+    })
+}
+
+// JSON: inbound wire JSON, parsed leniently into canonical form.
+fn parse_sampling(value: &Value) -> CanonicalSampling {
+    let temperature = value
+        .get("temperature")
+        .and_then(Value::as_f64)
+        .map(|v| v as f32);
+    let top_p = value.get("top_p").and_then(Value::as_f64).map(|v| v as f32);
+    let top_k = value.get("top_k").and_then(Value::as_i64).map(|v| v as i32);
+
+    let stop_sequences = value
+        .get("stop_sequences")
+        .and_then(Value::as_array)
+        .map_or_else(Vec::new, |arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect::<Vec<_>>()
+        });
+    CanonicalSampling {
         temperature,
         top_p,
         top_k,
         stop_sequences,
-        tools,
-        tool_choice,
-        stream,
-        thinking,
-        metadata,
-        response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
         presence_penalty: None,
         frequency_penalty: None,
-        forwarded_surface: ForwardedSurface::default(),
-    })
+    }
 }

@@ -44,7 +44,7 @@ impl OpenCodePaths {
     pub fn new(layout: &RunLayout) -> Self {
         let home = layout.home.clone();
         let config_home = home.join(".config");
-        let config_dir = config_home.join("opencode");
+        let config_dir = config_home.join(PROGRAM);
         Self {
             data_home: home.join(".local/share"),
             state_home: home.join(".local/state"),

@@ -7,7 +7,8 @@ use std::sync::Arc;
 use systemprompt_identifiers::ModelId;
 
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalResponse, CanonicalUsage, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
+    CanonicalSampling, CanonicalTooling, CanonicalUsage, Role,
 };
 use systemprompt_gateway::registry::SafetyScannerRegistry;
 use systemprompt_gateway::{
@@ -26,22 +27,28 @@ fn req_with(text: &str) -> CanonicalRequest {
             content: vec![CanonicalContent::text(text)],
         }],
         max_tokens: 1,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

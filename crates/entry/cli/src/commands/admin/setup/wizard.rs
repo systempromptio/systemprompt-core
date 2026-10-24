@@ -15,14 +15,14 @@ use crate::shared::CommandOutput;
 use anyhow::Result;
 use systemprompt_logging::CliService;
 
-use super::common::PostgresConfig;
+use super::postgres_access::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
 use super::wizard_dry_run::execute_dry_run;
 use super::wizard_prompts::{
     collect_secrets, detect_project_root, get_environment_name, print_summary, resolve_admin_email,
     setup_postgres, should_run_migrations,
 };
-use super::{SetupArgs, common, profile, secrets, services_files};
+use super::{SetupArgs, postgres_access, profile, secrets, services_files};
 use crate::CliConfig;
 
 pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
@@ -71,7 +71,7 @@ pub(super) async fn execute(
 
     let pg_config = setup_postgres(&args, prompter, config, &env_name).await?;
 
-    let connection_status = if common::test_connection(&pg_config).await {
+    let connection_status = if postgres_access::test_connection(&pg_config).await {
         "connected"
     } else {
         "unreachable"

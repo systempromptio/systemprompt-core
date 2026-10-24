@@ -10,9 +10,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod diff;
-mod helpers;
 mod import_export;
 pub mod preset;
+mod profile_edit;
 mod reset;
 mod set;
 mod show;

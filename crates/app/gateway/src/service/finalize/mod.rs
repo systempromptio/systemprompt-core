@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use crate::policies::{OverrideAction, OverrideContext, OverrideEngine};
+use crate::policies::{OverrideAction, OverrideContext, OverridePolicy};
 use axum::body::Body;
 use axum::response::Response;
 use http::HeaderValue;
@@ -61,7 +61,7 @@ pub(super) struct FinalizeCtx {
 }
 
 pub async fn apply_system_prompt_override(
-    engine: &OverrideEngine,
+    engine: &OverridePolicy,
     config: &GatewayConfig,
     provider: &ProviderId,
     upstream_model: &str,

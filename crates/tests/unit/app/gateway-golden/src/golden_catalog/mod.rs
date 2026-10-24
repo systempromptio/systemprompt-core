@@ -20,7 +20,7 @@ use serde_json::{Map, Value, json};
 use systemprompt_catalog_fixtures::read_ai_dir;
 use systemprompt_manifest::services::catalog::CatalogContext;
 
-const FIXTURES: [&str; 3] = ["core-default", "dynapps", "astound"];
+const FIXTURES: [&str; 3] = ["core-default", "byok-gateway", "vertex-multiregion"];
 
 fn fixtures_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../common/fixtures/catalog")

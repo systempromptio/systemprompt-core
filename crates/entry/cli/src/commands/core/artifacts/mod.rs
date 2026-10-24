@@ -16,7 +16,7 @@ use crate::shared::render_result;
 use anyhow::Result;
 use clap::Subcommand;
 
-pub use types::*;
+pub use types::{ArtifactListOutput, ArtifactPartOutput, ArtifactSummary};
 
 #[derive(Debug, Subcommand)]
 pub enum ArtifactsCommands {

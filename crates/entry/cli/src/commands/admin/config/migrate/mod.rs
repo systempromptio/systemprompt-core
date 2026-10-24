@@ -9,7 +9,9 @@
 //! ([`write`](mod@write)). Anything it cannot decide aborts with the file and
 //! keys ([`abort`]); a second run finds no legacy shape and writes nothing.
 //! `--check` reports what would change and fails while a migration is pending.
-//! `--data` then moves stored data through the legacy map ([`data`]).
+//! `--data` then moves stored data through the legacy map ([`data`]),
+//! including access rules addressed to a legacy route id. The retired
+//! `access-control/roles.yaml` is folded into `rules.yaml` ([`roles`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +26,7 @@ mod legacy_wire;
 pub mod models;
 pub mod plan;
 pub mod replay;
+pub mod roles;
 pub mod routes;
 pub mod write;
 
@@ -99,6 +102,13 @@ pub async fn execute(args: &MigrateArgs, config: &CliConfig) -> Result<()> {
     let services = services_dir(args)?;
     let pending = plan(&services)?;
     if args.check {
+        if roles::pending(&services) {
+            bail!(
+                "{} is retired; run `systemprompt admin config migrate` to fold it into {}",
+                roles::ROLES_FILE,
+                systemprompt_governance::authz::rules_file::RULES_FILE
+            );
+        }
         let Some(plan) = pending else {
             render(
                 config,
@@ -122,6 +132,13 @@ pub async fn execute(args: &MigrateArgs, config: &CliConfig) -> Result<()> {
             "nothing to migrate: the services tree is already in the 0.73 shape".to_owned(),
         ),
     }
+    if let Some(rules) = roles::migrate(&services)? {
+        render(
+            config,
+            "Access Control Migrated",
+            format!("folded {} into {}", roles::ROLES_FILE, rules.display()),
+        );
+    }
     if args.data {
         let map = data::read_map(&services)?;
         let report = data::apply(&map).await?;
@@ -129,11 +146,12 @@ pub async fn execute(args: &MigrateArgs, config: &CliConfig) -> Result<()> {
             config,
             "Catalog Data Migrated",
             format!(
-                "{} legacy entries recorded, {} personal keys moved, {} audit rows backfilled, {} host filters rewritten",
+                "{} legacy entries recorded, {} personal keys moved, {} audit rows backfilled, {} host filters rewritten, {} legacy route ids rewritten",
                 report.legacy_entries,
                 report.personal_keys_moved,
                 report.audit_rows_backfilled,
-                report.host_filters_rewritten
+                report.host_filters_rewritten,
+                report.route_ids_rewritten
             ),
         );
     }

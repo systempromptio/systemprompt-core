@@ -71,6 +71,8 @@ mod services_loader;
 #[cfg(test)]
 mod services_root_cell;
 #[cfg(test)]
+mod services_watch;
+#[cfg(test)]
 mod subprocess;
 #[cfg(all(test, unix))]
 mod subprocess_control;

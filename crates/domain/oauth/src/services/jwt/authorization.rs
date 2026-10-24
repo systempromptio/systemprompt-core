@@ -41,10 +41,10 @@ impl AuthorizationService {
             return Err(StatusCode::UNAUTHORIZED);
         };
 
-        if !audience::validate_service_access(&claims.aud) {
+        if !audience::validate_service_access(&claims.registered.aud) {
             tracing::warn!(
                 service = %service_name,
-                audiences = ?claims.aud,
+                audiences = ?claims.registered.aud,
                 "Token lacks required audience"
             );
             return Err(StatusCode::FORBIDDEN);
@@ -70,7 +70,7 @@ impl AuthorizationService {
         let required_aud =
             JwtAudience::from_str(required_audience).map_err(|_e| StatusCode::BAD_REQUEST)?;
 
-        if !audience::validate_required_audience(&claims.aud, &required_aud) {
+        if !audience::validate_required_audience(&claims.registered.aud, &required_aud) {
             return Err(StatusCode::FORBIDDEN);
         }
 
@@ -102,7 +102,7 @@ impl AuthorizationService {
             })
             .collect();
 
-        if !audience::validate_any_audience(&claims.aud, &allowed_auds) {
+        if !audience::validate_any_audience(&claims.registered.aud, &allowed_auds) {
             return Err(StatusCode::FORBIDDEN);
         }
 
@@ -112,15 +112,15 @@ impl AuthorizationService {
     fn create_authenticated_user_from_claims(
         claims: JwtClaims,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let user_id =
-            UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let user_id = UserId::try_new(claims.registered.sub.as_str())
+            .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 
         Ok(AuthenticatedUser::new_with_roles(
             user_id,
-            claims.username.clone(),
-            claims.email,
+            claims.custom.username.clone(),
+            claims.custom.email,
             permissions,
             roles,
         ))

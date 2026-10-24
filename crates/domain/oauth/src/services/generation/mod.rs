@@ -15,7 +15,8 @@ use crate::models::JwtClaims;
 use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{
-    ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
+    ActClaim, AuthenticatedUser, CustomClaims, JwtAudience, Permission, RateLimitTier,
+    RegisteredClaims, TokenType, UserType,
 };
 use systemprompt_security::keys::authority;
 
@@ -111,7 +112,7 @@ pub fn generate_jwt_with_act(params: DelegatedJwtParams<'_>) -> Result<String> {
         params.session_id,
         params.signing,
     )?;
-    token.act = Some(params.act);
+    token.custom.act = Some(params.act);
     encode_claims(&token, params.signing)
 }
 
@@ -136,27 +137,31 @@ fn build_claims(
         audience.push(JwtAudience::Resource(resource.clone()));
     }
     Ok(JwtClaims {
-        sub: user.id.to_string(),
-        iat: now,
-        exp: expiration,
-        nbf: Some(now),
-        iss: signing.issuer.to_owned(),
-        aud: audience,
-        jti: String::from(jti),
-        scope: config.permissions,
-        username: user.username.clone(),
-        email: user.email.clone(),
-        user_type,
-        roles: user.roles().to_vec(),
-        attributes: user.attributes().clone(),
-        client_id: config.client_id,
-        token_type: TokenType::Bearer,
-        auth_time: now,
-        session_id: Some(session_id.clone()),
-        rate_limit_tier: Some(user_type.rate_tier()),
-        plugin_id: config.plugin_id,
-        act: None,
-        purpose: config.purpose,
+        registered: RegisteredClaims {
+            sub: user.id.to_string(),
+            iat: now,
+            exp: expiration,
+            nbf: Some(now),
+            iss: signing.issuer.to_owned(),
+            aud: audience,
+            jti: String::from(jti),
+        },
+        custom: CustomClaims {
+            scope: config.permissions,
+            username: user.username.clone(),
+            email: user.email.clone(),
+            user_type,
+            roles: user.roles().to_vec(),
+            attributes: user.attributes().clone(),
+            client_id: config.client_id,
+            token_type: TokenType::Bearer,
+            auth_time: now,
+            session_id: Some(session_id.clone()),
+            rate_limit_tier: Some(user_type.rate_tier()),
+            plugin_id: config.plugin_id,
+            act: None,
+            purpose: config.purpose,
+        },
     })
 }
 
@@ -224,27 +229,31 @@ pub fn generate_anonymous_jwt_with_expiry(
     let now = Utc::now().timestamp();
 
     let claims = JwtClaims {
-        sub: user_id.to_string(),
-        iat: now,
-        exp: expiration,
-        nbf: Some(now),
-        iss: signing.issuer.to_owned(),
-        aud: JwtAudience::standard(),
-        jti: String::from(AccessTokenId::generate()),
-        scope: vec![Permission::Anonymous],
-        username: user_id.to_string(),
-        email: user_id.to_string(),
-        user_type: UserType::Anon,
-        roles: vec!["anonymous".to_owned()],
-        attributes: std::collections::BTreeMap::new(),
-        client_id: Some(client_id.clone()),
-        token_type: TokenType::Bearer,
-        auth_time: now,
-        session_id: Some(session_id.clone()),
-        rate_limit_tier: Some(RateLimitTier::Anon),
-        plugin_id: None,
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: user_id.to_string(),
+            iat: now,
+            exp: expiration,
+            nbf: Some(now),
+            iss: signing.issuer.to_owned(),
+            aud: JwtAudience::standard(),
+            jti: String::from(AccessTokenId::generate()),
+        },
+        custom: CustomClaims {
+            scope: vec![Permission::Anonymous],
+            username: user_id.to_string(),
+            email: user_id.to_string(),
+            user_type: UserType::Anon,
+            roles: vec!["anonymous".to_owned()],
+            attributes: std::collections::BTreeMap::new(),
+            client_id: Some(client_id.clone()),
+            token_type: TokenType::Bearer,
+            auth_time: now,
+            session_id: Some(session_id.clone()),
+            rate_limit_tier: Some(RateLimitTier::Anon),
+            plugin_id: None,
+            act: None,
+            purpose: None,
+        },
     };
 
     encode_with_authority(&claims)

@@ -19,7 +19,6 @@ use axum::routing::get;
 use std::path::{Path, PathBuf};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{MarketplaceId, PluginId};
-use systemprompt_loader::ConfigLoader;
 use systemprompt_marketplace::{
     MarketplaceService, render_marketplace_json, render_marketplace_list,
 };
@@ -63,9 +62,9 @@ impl From<MarketplaceRouteError> for ApiHttpError {
 }
 
 async fn serve_default_marketplace_json(
-    State(_ctx): State<AppContext>,
+    State(ctx): State<AppContext>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let services = ConfigLoader::load()?;
+    let services = ctx.services_config();
     let service = MarketplaceService::new(&services);
 
     let (id, marketplace) = service.resolve_default()?;
@@ -84,9 +83,9 @@ async fn serve_default_marketplace_json(
 }
 
 async fn list_marketplaces(
-    State(_ctx): State<AppContext>,
+    State(ctx): State<AppContext>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let services = ConfigLoader::load()?;
+    let services = ctx.services_config();
     let service = MarketplaceService::new(&services);
 
     let body = serde_json::to_vec_pretty(&render_marketplace_list(service.list()))
@@ -103,11 +102,11 @@ async fn list_marketplaces(
 }
 
 async fn get_marketplace(
-    State(_ctx): State<AppContext>,
+    State(ctx): State<AppContext>,
     AxumPath(id): AxumPath<String>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let id = MarketplaceId::try_new(id).map_err(ApiError::from)?;
-    let services = ConfigLoader::load()?;
+    let services = ctx.services_config();
     let service = MarketplaceService::new(&services);
 
     let marketplace = service.get(&id)?;
@@ -168,7 +167,7 @@ async fn serve_plugin_file(
     State(ctx): State<AppContext>,
     AxumPath((plugin_id, file_path)): AxumPath<(String, String)>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let services = ConfigLoader::load()?;
+    let services = ctx.services_config();
     let profile = ProfileBootstrap::get()?;
     let api_external_url = &profile.server.api_external_url;
     let services_root = ctx.app_paths().system().services();

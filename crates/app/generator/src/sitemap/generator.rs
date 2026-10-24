@@ -5,21 +5,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
-use systemprompt_identifiers::{LocaleCode, SourceId};
+
 use systemprompt_manifest::{Config, WebConfig};
 use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 
+use super::database_urls::{FetchParams, fetch_urls_from_database};
 use super::xml::{SitemapUrl, SitemapUrlAlternate, build_sitemap_index, build_sitemap_xml};
 use crate::error::{GeneratorResult as Result, PublishError};
 use crate::templates::load_web_config;
 
 const MAX_URLS_PER_SITEMAP: usize = 50_000;
-const SLUG_PLACEHOLDER: &str = "{slug}";
 
 struct SitemapContext {
     config: ContentConfigRaw,
@@ -232,63 +231,4 @@ async fn write_sitemap_index(
     crate::atomic::write_atomic(&path, index_xml.as_bytes()).await?;
     tracing::debug!(file_count = chunks.len(), "Generated sitemap index");
     Ok(())
-}
-
-struct FetchParams<'a> {
-    content_repo: &'a ContentRepository,
-    web_config: &'a WebConfig,
-    source_id: &'a SourceId,
-    url_pattern: &'a str,
-    priority: f32,
-    changefreq: &'a str,
-    base_url: &'a str,
-}
-
-async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<SitemapUrl>> {
-    let repo = params.content_repo;
-
-    let pairs = repo
-        .list_slugs_with_locales_by_source(params.source_id)
-        .await
-        .map_err(|e| PublishError::content("Failed to fetch content for sitemap", e))?;
-
-    let mut by_slug: HashMap<String, Vec<LocaleCode>> = HashMap::new();
-    for (slug, locale) in pairs {
-        by_slug.entry(slug).or_default().push(locale);
-    }
-
-    let i18n = &params.web_config.i18n;
-    let lastmod = Utc::now().format("%Y-%m-%d").to_string();
-
-    let mut urls = Vec::new();
-    for (slug, locales) in by_slug {
-        let relative = params.url_pattern.replace(SLUG_PLACEHOLDER, &slug);
-        let default_url = format!("{}{}", params.base_url, relative);
-
-        for locale in &locales {
-            let prefix = i18n.locale_prefix(locale);
-            let alternates = locales
-                .iter()
-                .filter(|alt| i18n.supported_locales.contains(alt))
-                .map(|alt| SitemapUrlAlternate {
-                    hreflang: alt.to_string(),
-                    href: format!("{}{}{}", params.base_url, i18n.locale_prefix(alt), relative),
-                })
-                .chain(std::iter::once(SitemapUrlAlternate {
-                    hreflang: "x-default".to_owned(),
-                    href: default_url.clone(),
-                }))
-                .collect();
-
-            urls.push(SitemapUrl {
-                loc: format!("{}{}{}", params.base_url, prefix, relative),
-                lastmod: lastmod.clone(),
-                changefreq: params.changefreq.to_owned(),
-                priority: params.priority,
-                alternates,
-            });
-        }
-    }
-
-    Ok(urls)
 }

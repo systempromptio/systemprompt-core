@@ -38,8 +38,8 @@ pub fn extraction_error_to_api_error(error: &ContextExtractionError) -> ApiError
         ContextExtractionError::InvalidUserId(reason) => {
             ApiError::bad_request(format!("Invalid user_id: {reason}"))
         },
-        ContextExtractionError::DatabaseError { .. } => {
-            ApiError::internal_error("Internal server error")
+        ContextExtractionError::DatabaseError { source, .. } => {
+            ApiError::internal("Internal server error", source.to_string())
         },
         ContextExtractionError::ForbiddenHeader { header, reason } => ApiError::bad_request(
             format!("Header '{header}' is not allowed: {reason}. Use JWT authentication instead."),

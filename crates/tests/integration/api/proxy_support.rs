@@ -2,7 +2,7 @@
 //! reading rows directly so the suites can assert on cache state.
 
 use axum::http::HeaderMap;
-use systemprompt_api::services::proxy::engine::mcp_session::{self, McpResponseCtx};
+use systemprompt_api::services::proxy::service::mcp_session::{self, McpResponseCtx};
 use systemprompt_identifiers::{JwtToken, ServiceName, SessionId, UserId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;

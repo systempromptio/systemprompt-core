@@ -23,7 +23,7 @@ use crate::error::SchedulerResult;
 
 const RECONCILE_LOCK: &str = "config_reconcile";
 
-pub type PlaneTransaction = sqlx::Transaction<'static, sqlx::Postgres>;
+pub use systemprompt_database::PlaneTransaction;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PlaneStateRow {
@@ -45,7 +45,6 @@ pub struct PlaneStateUpdate<'a> {
     pub drift_rows: i32,
     pub outcome: &'a str,
     pub last_error: Option<&'a str>,
-    pub corrected: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -92,6 +91,10 @@ impl ConfigReconcileRepository {
         }
     }
 
+    pub(super) const fn read_pool(&self) -> &Arc<PgPool> {
+        &self.pool
+    }
+
     pub(crate) async fn acquire_reconcile_lock(
         &self,
         wait: Duration,
@@ -105,23 +108,21 @@ impl ConfigReconcileRepository {
         sqlx::query!(
             r"INSERT INTO config_plane_state
                   (plane, authority, declared_hash, drift_rows, outcome, last_error,
-                   reconciled_at, corrected_at)
-              VALUES ($1, $2, $3, $4, $5, $6, NOW(), CASE WHEN $7 THEN NOW() END)
+                   reconciled_at)
+              VALUES ($1, $2, $3, $4, $5, $6, NOW())
               ON CONFLICT (plane) DO UPDATE
                  SET authority = EXCLUDED.authority,
                      declared_hash = EXCLUDED.declared_hash,
                      drift_rows = EXCLUDED.drift_rows,
                      outcome = EXCLUDED.outcome,
                      last_error = EXCLUDED.last_error,
-                     reconciled_at = NOW(),
-                     corrected_at = COALESCE(EXCLUDED.corrected_at, config_plane_state.corrected_at)",
+                     reconciled_at = NOW()",
             update.plane,
             update.authority,
             update.declared_hash,
             update.drift_rows,
             update.outcome,
             update.last_error,
-            update.corrected,
         )
         .execute(&*self.write_pool)
         .await?;

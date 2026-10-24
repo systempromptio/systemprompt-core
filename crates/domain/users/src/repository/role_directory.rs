@@ -1,5 +1,6 @@
-//! The users domain's answer to the authz ingestion's "does anybody hold
-//! this role?" question, registered with the security crate at link time.
+//! The users domain's answer to "does anybody hold this role?" and "which
+//! roles does this user hold?", registered with the security crate at link
+//! time.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,6 +10,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use sqlx::PgPool;
 use systemprompt_governance::authz::{AuthzError, RoleDirectory, SharedRoleDirectory};
+use systemprompt_identifiers::UserId;
 
 #[derive(Debug)]
 pub struct UsersRoleDirectory {
@@ -38,6 +40,13 @@ impl RoleDirectory for UsersRoleDirectory {
         .fetch_all(&*self.pool)
         .await?;
         Ok(rows.into_iter().map(|row| row.candidate).collect())
+    }
+
+    async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError> {
+        let roles = sqlx::query_scalar!("SELECT roles FROM users WHERE id=$1", user.as_str())
+            .fetch_optional(&*self.pool)
+            .await?;
+        Ok(roles.unwrap_or_default())
     }
 }
 

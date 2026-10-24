@@ -141,7 +141,7 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
     }
 
     if secrets_changed {
-        let content = serde_json::to_string_pretty(&secrets)?;
+        let content = CliService::json_string(&secrets)?;
         write_private_atomic(&secrets_path, content.as_bytes())
             .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
     }

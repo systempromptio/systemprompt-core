@@ -31,7 +31,7 @@ use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 use super::RequestContext;
 use super::auth::{AuthInputs, AuthedPrincipal, authenticate};
 use super::error::RejectionError;
-use authz::enforce_authz_pre_dispatch;
+use authz::{DispatchTarget, enforce_authz_pre_dispatch};
 use headers::{
     classify_client_headers, optional_gateway_conversation_id, optional_session_id,
     read_gateway_body,
@@ -126,14 +126,12 @@ pub(super) async fn extract_request_context(
     let upstream_model = primary.upstream_model.clone();
     let provider = primary.provider.as_str().to_owned();
 
-    enforce_authz_pre_dispatch(
-        &principal,
+    let target = DispatchTarget::new(
         resolution.access_route_id(),
         gateway_request.model.as_str(),
-        &context_id,
-        rc.ctx.authz_hook(),
-    )
-    .await?;
+        &primary.provider,
+    );
+    enforce_authz_pre_dispatch(&principal, target, &context_id, rc.ctx.authz_hook()).await?;
 
     Ok(PreparedRequest {
         origin: partial.origin,

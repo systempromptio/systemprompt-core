@@ -212,6 +212,16 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
+CREATE OR REPLACE VIEW report_ai_context_hourly AS
+SELECT
+    src.bucket, src.user_id, src.context_id, src.model, src.agent_name,
+    src.traffic, src.status, src.request_count, src.tokens,
+    src.cost_microdollars, src.last_activity
+FROM ai_context_rollup_hourly src
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
+);
+
 CREATE OR REPLACE VIEW report_tool_usage_hourly AS
 SELECT
     src.bucket, src.user_id, src.tool_name, src.server_name, src.agent_name,

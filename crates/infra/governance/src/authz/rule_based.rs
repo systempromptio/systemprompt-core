@@ -28,12 +28,15 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use sqlx::PgPool;
+use systemprompt_identifiers::{ModelId, ProviderId};
 use systemprompt_traits::CacheEpochs;
 
 use super::audit::{AuthzAuditSink, AuthzSource};
 use super::error::{AuthzError, AuthzResult};
 use super::hook::AuthzDecisionHook;
-use super::parent_chain::{ChainIndexCache, ChainSources, ParentChainIndex, ResolveBase};
+use super::parent_chain::{
+    ChainIndexCache, ChainSources, DecisionFacts, ParentChainIndex, ResolveBase,
+};
 use super::registry::AuthzHookContext;
 use super::repository::AccessControlRepository;
 use super::rule_based_cache::{EntityRules, EntityRulesCache};
@@ -129,6 +132,8 @@ impl RuleBasedHook {
         let cached = self.entity_rules(&index, kind, id).await?;
         let EntityRules { entity, rules } = cached.as_ref();
         let attributes = gather_subject_attributes(&self.providers, &req.user_id).await?;
+        let model = req.context.gateway_invocation_model();
+        let provider = req.context.gateway_invocation_provider();
         let decision = index.resolve(
             kind,
             id,
@@ -139,6 +144,10 @@ impl RuleBasedHook {
                 default_included: entity.as_ref().map(|e| e.default_included),
                 attributes: &attributes,
                 dimensions: &self.dimensions,
+                facts: DecisionFacts {
+                    model: model.as_ref().map(ModelId::as_str),
+                    provider: provider.as_ref().map(ProviderId::as_str),
+                },
             },
         );
         Ok(to_authz_decision(req, decision))

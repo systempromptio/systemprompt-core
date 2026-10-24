@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS config_change_audit (
     change_kind TEXT NOT NULL CHECK (change_kind IN ('missing', 'changed', 'extra')),
     before_value TEXT,
     after_value TEXT,
-    mode TEXT NOT NULL CHECK (mode IN ('insert_only', 'overwrite', 'seed_if_empty')),
+    mode TEXT NOT NULL CHECK (mode IN ('insert_only', 'overwrite', 'seed_if_empty', 'merge')),
     actor TEXT NOT NULL,
     reason TEXT NOT NULL,
     declared_hash TEXT NOT NULL,

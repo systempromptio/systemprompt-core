@@ -157,3 +157,76 @@ async fn data_migration_moves_keys_backfills_audit_and_is_idempotent() {
     assert_eq!(again.host_filters_rewritten, 0);
     db.drop_now().await;
 }
+
+#[tokio::test]
+async fn data_migration_moves_access_rules_from_legacy_route_ids() {
+    let db = DisposableDb::with_schema("cfgmigroute").await;
+    let pool = db.test_pool().await;
+    let pg = pool.write_pool();
+    for (route, source) in [
+        ("star-abc123", "code:services"),
+        ("catalog", "code:services"),
+    ] {
+        sqlx::query(
+            "INSERT INTO access_control_entities (entity_type, entity_id, default_included, \
+             source) VALUES ('gateway_route', $1, false, $2)",
+        )
+        .bind(route)
+        .bind(source)
+        .execute(pg.as_ref())
+        .await
+        .unwrap();
+    }
+    for (route, value) in [
+        ("star-abc123", "eng"),
+        ("star-abc123", "admin"),
+        ("catalog", "admin"),
+    ] {
+        sqlx::query(
+            "INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, \
+             access, source) VALUES ('gateway_route', $1, 'role', $2, 'allow', 'code:services')",
+        )
+        .bind(route)
+        .bind(value)
+        .execute(pg.as_ref())
+        .await
+        .unwrap();
+    }
+    let mut routed = map();
+    routed
+        .routes
+        .insert("star-abc123".to_owned(), "catalog".to_owned());
+    routed.routes.insert("same".to_owned(), "same".to_owned());
+
+    let report = apply_with(&pool, &routed).await.expect("data migration");
+
+    assert_eq!(
+        report.route_ids_rewritten, 1,
+        "the duplicate admin grant is dropped"
+    );
+    let rules: Vec<(String, String)> = sqlx::query_as(
+        "SELECT entity_id, rule_value FROM access_control_rules \
+         WHERE entity_type = 'gateway_route' ORDER BY rule_value",
+    )
+    .fetch_all(pg.as_ref())
+    .await
+    .unwrap();
+    assert_eq!(
+        rules,
+        vec![
+            ("catalog".to_owned(), "admin".to_owned()),
+            ("catalog".to_owned(), "eng".to_owned())
+        ]
+    );
+    let legacy: (i64,) = sqlx::query_as(
+        "SELECT count(*) FROM access_control_entities WHERE entity_id = 'star-abc123'",
+    )
+    .fetch_one(pg.as_ref())
+    .await
+    .unwrap();
+    assert_eq!(legacy.0, 0);
+
+    let again = apply_with(&pool, &routed).await.expect("second run");
+    assert_eq!(again.route_ids_rewritten, 0);
+    db.drop_now().await;
+}

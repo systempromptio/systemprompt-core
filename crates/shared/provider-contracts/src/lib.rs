@@ -71,7 +71,7 @@ pub use config_plane::{
     ChangeSourceError, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet,
     DeclaredEntities, DeclaredEntity, DeclaredState, DriftKind, DriftRow, EffectiveAuthority,
     EntityScope, PlaneAuthority, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx, PlaneWriter,
-    ResolvedEntities, ResolvedEntity, diff_snapshots, entity_hash,
+    ResolvedEntities, ResolvedEntity, diff_snapshots, entity_hash, resolve_apply,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, MissingDependency};

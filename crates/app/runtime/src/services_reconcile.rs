@@ -105,7 +105,7 @@ pub async fn reconcile_fetched_services(
         .map(|(name, signed)| (name.as_str(), &signed.manifest))
         .collect();
 
-    let reports = reconcile_composed_bundles(database, services, &root.path, &bundles)
+    let reports = reconcile_composed_bundles(database, services, &bundles)
         .await
         .map_err(RuntimeError::ServicesReconcile)?;
 

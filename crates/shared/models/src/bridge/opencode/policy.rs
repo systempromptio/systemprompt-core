@@ -53,7 +53,7 @@ impl Policy {
 /// What [`lockdown_policies`] confines a client to.
 #[derive(Debug, Clone, Copy)]
 pub struct Lockdown<'a> {
-    pub provider_id: &'a str,
+    pub provider: &'a str,
     pub allowed_tools: &'a [String],
     pub denied_tools: &'a [String],
     pub allowed_mcp: &'a [String],
@@ -63,7 +63,7 @@ pub struct Lockdown<'a> {
 pub fn lockdown_policies(lockdown: &Lockdown<'_>) -> Vec<Policy> {
     let mut out = vec![
         Policy::deny(PolicyAction::Provider, "*"),
-        Policy::allow(PolicyAction::Provider, lockdown.provider_id),
+        Policy::allow(PolicyAction::Provider, lockdown.provider),
         Policy::deny(PolicyAction::Integration, "mcp:*"),
         Policy::deny(PolicyAction::Integration, "plugin:*"),
     ];

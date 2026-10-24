@@ -31,7 +31,7 @@ use std::time::Duration;
 
 use sqlx::PgPool;
 use sqlx::postgres::PgListener;
-use systemprompt_traits::{CacheEpochs, OwnedTask};
+use systemprompt_traits::CacheEpochs;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
@@ -95,17 +95,15 @@ impl PostgresEventBridge {
         EventRouter::from_outbox(self.outbox.clone(), Arc::clone(&self.broadcasters))
     }
 
+    #[must_use]
+    pub fn into_idle_handle(self) -> EventBridgeHandle {
+        EventBridgeHandle::idle(self)
+    }
+
     pub fn start(self) -> EventBridgeHandle {
-        let status = Arc::new(StatusCell::default());
-        let cancel = CancellationToken::new();
-        let task = OwnedTask::spawn("event_bridge", {
-            let status = Arc::clone(&status);
-            let cancel = cancel.clone();
-            async move {
-                self.run(&status, cancel).await;
-            }
-        });
-        EventBridgeHandle::new(task, status, cancel)
+        let handle = self.into_idle_handle();
+        handle.start();
+        handle
     }
 
     async fn open_listener(&self) -> Result<PgListener, sqlx::Error> {
@@ -137,7 +135,7 @@ impl PostgresEventBridge {
         }
     }
 
-    async fn run(self, status: &StatusCell, cancel: CancellationToken) {
+    pub(super) async fn run(self, status: &StatusCell, cancel: CancellationToken) {
         let mut prune_tick = tokio::time::interval(PRUNE_INTERVAL);
         prune_tick.tick().await;
         let mut backoff = RETRY_MIN;

@@ -6,13 +6,15 @@
 # that backfills.
 # agent 016 rewrites the two retired A2A 0.3 task states (PENDING → SUBMITTED, UNKNOWN → FAILED) before tightening the CHECK constraint.
 agent=016
-ai=038
+# ai 052 rewrites the retired `synthetic` flag to the 'evaluation' traffic class before dropping the column.
+ai=052
 analytics=017
 content=005
 database=001
 events=009
 files=002
-governance=021
+# governance 027 rewrites access_control_* source labels to the closed provenance vocabulary before constraining them.
+governance=027
 logging=009
 marketplace=016
 mcp=017

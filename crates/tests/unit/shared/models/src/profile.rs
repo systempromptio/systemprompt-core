@@ -943,6 +943,7 @@ fn validate_rejects_governance_webhook_malformed_url() {
             },
         }),
         audit: AuditConfig::default(),
+        unapplied_planes: Default::default(),
     });
     let err = profile
         .validate()

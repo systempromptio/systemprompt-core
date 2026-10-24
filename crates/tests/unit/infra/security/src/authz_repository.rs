@@ -55,7 +55,7 @@ async fn upsert_entity_then_get_roundtrips() {
         "unknown entity has no catalog row"
     );
 
-    repo.upsert_entity(KIND, &id, true, "test-source")
+    repo.upsert_entity(KIND, &id, true, "code:test-source")
         .await
         .expect("upsert entity");
 
@@ -67,9 +67,9 @@ async fn upsert_entity_then_get_roundtrips() {
     assert_eq!(row.kind, KIND);
     assert_eq!(row.id, id);
     assert!(row.default_included);
-    assert_eq!(row.source, "test-source");
+    assert_eq!(row.source, "code:test-source");
 
-    repo.upsert_entity(KIND, &id, false, "second-source")
+    repo.upsert_entity(KIND, &id, false, "code:second-source")
         .await
         .expect("re-upsert entity");
     let row = repo.get_entity(KIND, &id).await.expect("get").expect("row");
@@ -77,7 +77,7 @@ async fn upsert_entity_then_get_roundtrips() {
         !row.default_included,
         "the most recent bootstrap pass overwrites default_included"
     );
-    assert_eq!(row.source, "second-source");
+    assert_eq!(row.source, "code:second-source");
 
     cleanup(&db, &id).await;
 }
@@ -95,7 +95,7 @@ async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
             rule_value: "admin",
             access: Access::Allow,
             justification: Some("ops"),
-            source: "yaml",
+            source: "code:services",
         })
         .await;
     assert!(
@@ -103,7 +103,7 @@ async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
         "a rule without a catalog entity must hit the foreign-key constraint"
     );
 
-    repo.upsert_entity(KIND, &id, false, "test")
+    repo.upsert_entity(KIND, &id, false, "code:test")
         .await
         .expect("register entity");
 
@@ -115,7 +115,7 @@ async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
             rule_value: "admin",
             access: Access::Allow,
             justification: Some("ops"),
-            source: "yaml",
+            source: "code:services",
         })
         .await
         .expect("upsert rule");
@@ -138,7 +138,7 @@ async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
 async fn upsert_rule_conflict_updates_access_in_place() {
     let (repo, db) = fixture_repository().await;
     let id = unique_entity();
-    repo.upsert_entity(KIND, &id, false, "test")
+    repo.upsert_entity(KIND, &id, false, "code:test")
         .await
         .expect("entity");
 
@@ -150,7 +150,7 @@ async fn upsert_rule_conflict_updates_access_in_place() {
             rule_value: "alice",
             access: Access::Allow,
             justification: None,
-            source: "yaml",
+            source: "code:services",
         })
         .await
         .expect("first");
@@ -163,7 +163,7 @@ async fn upsert_rule_conflict_updates_access_in_place() {
             rule_value: "alice",
             access: Access::Deny,
             justification: Some("revoked"),
-            source: "yaml",
+            source: "code:services",
         })
         .await
         .expect("conflict upsert");
@@ -187,7 +187,7 @@ async fn list_rules_bulk_groups_by_entity_and_seeds_empty_ids() {
     let (repo, db) = fixture_repository().await;
     let with_rule = unique_entity();
     let without_rule = unique_entity();
-    repo.upsert_entity(KIND, &with_rule, false, "test")
+    repo.upsert_entity(KIND, &with_rule, false, "code:test")
         .await
         .expect("entity");
     repo.upsert_rule(UpsertRuleParams {
@@ -197,7 +197,7 @@ async fn list_rules_bulk_groups_by_entity_and_seeds_empty_ids() {
         rule_value: "viewer",
         access: Access::Allow,
         justification: None,
-        source: "yaml",
+        source: "code:services",
     })
     .await
     .expect("rule");
@@ -228,7 +228,7 @@ async fn list_rules_bulk_groups_by_entity_and_seeds_empty_ids() {
 async fn set_justification_and_delete_rule_report_affected_rows() {
     let (repo, db) = fixture_repository().await;
     let id = unique_entity();
-    repo.upsert_entity(KIND, &id, false, "test")
+    repo.upsert_entity(KIND, &id, false, "code:test")
         .await
         .expect("entity");
     let rule = repo
@@ -239,7 +239,7 @@ async fn set_justification_and_delete_rule_report_affected_rows() {
             rule_value: "editor",
             access: Access::Allow,
             justification: Some("initial"),
-            source: "yaml",
+            source: "code:services",
         })
         .await
         .expect("rule");
@@ -292,7 +292,7 @@ async fn set_justification_and_delete_rule_report_affected_rows() {
 async fn list_role_rules_for_export_includes_role_grants_only() {
     let (repo, db) = fixture_repository().await;
     let id = unique_entity();
-    repo.upsert_entity(KIND, &id, false, "test")
+    repo.upsert_entity(KIND, &id, false, "code:test")
         .await
         .expect("entity");
     repo.upsert_rule(UpsertRuleParams {
@@ -302,7 +302,7 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
         rule_value: "auditor",
         access: Access::Allow,
         justification: None,
-        source: "yaml",
+        source: "code:services",
     })
     .await
     .expect("role rule");
@@ -313,7 +313,7 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
         rule_value: "bob",
         access: Access::Allow,
         justification: None,
-        source: "yaml",
+        source: "code:services",
     })
     .await
     .expect("user rule");
@@ -335,7 +335,7 @@ async fn chain_fingerprint_moves_with_rule_and_entity_writes() {
     let id = unique_entity();
 
     let empty = repo.chain_fingerprint().await.expect("fingerprint");
-    repo.upsert_entity(KIND, &id, false, "test")
+    repo.upsert_entity(KIND, &id, false, "code:test")
         .await
         .expect("entity");
     let with_entity = repo.chain_fingerprint().await.expect("fingerprint");
@@ -351,7 +351,7 @@ async fn chain_fingerprint_moves_with_rule_and_entity_writes() {
         rule_value: "admin",
         access: Access::Allow,
         justification: None,
-        source: "yaml",
+        source: "code:services",
     })
     .await
     .expect("rule");

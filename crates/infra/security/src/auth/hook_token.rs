@@ -79,10 +79,11 @@ impl HookTokenValidator {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, &[JwtAudience::Hook]);
         let claims = decode_rs256_claims(token, &policy)?;
 
-        if !claims.scope.contains(&required_scope) {
+        if !claims.custom.scope.contains(&required_scope) {
             return Err(AuthError::HookScopeMissing(required_scope_name));
         }
         let plugin_id = claims
+            .custom
             .plugin_id
             .clone()
             .ok_or(AuthError::HookPluginIdMissing)?;
@@ -97,8 +98,8 @@ impl HookTokenValidator {
 
         Ok(ValidatedHookClaims {
             plugin_id,
-            subject: UserId::try_new(claims.sub).map_err(AuthError::InvalidSubject)?,
-            scopes: claims.scope,
+            subject: UserId::try_new(claims.registered.sub).map_err(AuthError::InvalidSubject)?,
+            scopes: claims.custom.scope,
         })
     }
 }

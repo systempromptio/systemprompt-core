@@ -1,10 +1,15 @@
 //! Repository for `ai_gateway_policies` rows.
 //!
+//! The pool-backed methods serve the request path. The `*_on` associated
+//! functions run on a caller's connection: the `gateway_policies` config
+//! plane reads and writes through them inside the applier's transaction, so
+//! the rows, their change context and the audit commit together.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::Value;
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiGatewayPolicyId;
@@ -14,7 +19,6 @@ use systemprompt_traits::RepositoryError;
 #[derive(Debug, Clone)]
 pub struct AiGatewayPolicyRepository {
     pool: Arc<PgPool>,
-    write_pool: Arc<PgPool>,
 }
 
 #[derive(Debug, Clone)]
@@ -29,9 +33,11 @@ pub struct GatewayPolicyRow {
 
 impl AiGatewayPolicyRepository {
     pub fn new(db: &DbPool) -> Self {
-        let pool = db.pool();
-        let write_pool = db.write_pool();
-        Self { pool, write_pool }
+        Self { pool: db.pool() }
+    }
+
+    pub async fn find_plane_applied(&self, plane: &str) -> Result<bool, RepositoryError> {
+        systemprompt_database::find_config_plane_applied(&self.pool, plane).await
     }
 
     pub async fn list_for_global(&self) -> Result<Vec<GatewayPolicyRow>, RepositoryError> {
@@ -58,48 +64,74 @@ impl AiGatewayPolicyRepository {
             .collect())
     }
 
-    // JSON: JSONB `spec` column — the serialised policy spec, stored as written.
-    pub async fn upsert(
-        &self,
-        name: &str,
-        spec: &Value,
-        enabled: bool,
-        priority: i32,
-    ) -> Result<AiGatewayPolicyId, RepositoryError> {
-        let id = AiGatewayPolicyId::generate();
-        let row = sqlx::query!(
+    pub async fn list_all_on(
+        conn: &mut PgConnection,
+    ) -> Result<Vec<GatewayPolicyRow>, RepositoryError> {
+        let rows = sqlx::query!(
             r#"
-            INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            SELECT id as "id!: AiGatewayPolicyId", name, spec, enabled, priority
+            FROM ai_gateway_policies
+            ORDER BY name
+            "#,
+        )
+        .fetch_all(conn)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| GatewayPolicyRow {
+                id: r.id,
+                name: r.name,
+                spec: r.spec,
+                enabled: r.enabled,
+                priority: r.priority,
+            })
+            .collect())
+    }
+
+    // JSON: JSONB `spec` column — the serialised policy spec, stored as written.
+    pub async fn upsert_on(
+        conn: &mut PgConnection,
+        row: &GatewayPolicyWrite<'_>,
+    ) -> Result<(), RepositoryError> {
+        let id = AiGatewayPolicyId::generate();
+        sqlx::query!(
+            r#"
+            INSERT INTO ai_gateway_policies
+                (id, name, spec, enabled, priority, source, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT (name) DO UPDATE
             SET spec = EXCLUDED.spec,
                 enabled = EXCLUDED.enabled,
                 priority = EXCLUDED.priority,
+                source = EXCLUDED.source,
                 updated_at = CURRENT_TIMESTAMP
-            RETURNING id as "id!: AiGatewayPolicyId"
             "#,
             id.as_str(),
-            name,
-            spec,
-            enabled,
-            priority
+            row.name,
+            row.spec,
+            row.enabled,
+            row.priority,
+            row.source,
         )
-        .fetch_one(self.write_pool.as_ref())
+        .execute(conn)
         .await?;
-        Ok(row.id)
+        Ok(())
     }
 
-    pub async fn list_all_names(&self) -> Result<Vec<String>, RepositoryError> {
-        let names: Vec<String> = sqlx::query_scalar!("SELECT name FROM ai_gateway_policies")
-            .fetch_all(self.pool.as_ref())
-            .await?;
-        Ok(names)
-    }
-
-    pub async fn delete_by_name(&self, name: &str) -> Result<(), RepositoryError> {
+    pub async fn delete_on(conn: &mut PgConnection, name: &str) -> Result<(), RepositoryError> {
         sqlx::query!("DELETE FROM ai_gateway_policies WHERE name = $1", name)
-            .execute(self.write_pool.as_ref())
+            .execute(conn)
             .await?;
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GatewayPolicyWrite<'a> {
+    pub name: &'a str,
+    // JSON: JSONB `spec` column — the serialised policy spec, stored as written.
+    pub spec: &'a Value,
+    pub enabled: bool,
+    pub priority: i32,
+    pub source: &'a str,
 }

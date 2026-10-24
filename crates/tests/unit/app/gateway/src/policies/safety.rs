@@ -4,8 +4,8 @@
 use systemprompt_gateway::{HeuristicScanner, NullScanner, SafetyScanner, Severity};
 use systemprompt_identifiers::ModelId;
 use systemprompt_wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalResponse, CanonicalUsage, Role,
-    SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
+    CanonicalSampling, CanonicalTooling, CanonicalUsage, Role, SystemBlock,
 };
 use systemprompt_wire::inspect::{SurfaceBudget, string_leaves};
 
@@ -22,22 +22,28 @@ fn request(system: Option<&str>, texts: &[&str]) -> CanonicalRequest {
             })
             .collect(),
         max_tokens: 16,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

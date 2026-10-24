@@ -175,7 +175,7 @@ fn nested_canonical_tool_state_and_forwarded_json_are_repaired_together() {
         }],
         1024,
     );
-    request.tools.push(CanonicalTool {
+    request.tooling.tools.push(CanonicalTool {
         anthropic_definition: None,
         name: "lookup".to_owned(),
         description: Some(format!("Use {KEY}")),
@@ -200,11 +200,11 @@ fn nested_canonical_tool_state_and_forwarded_json_are_repaired_together() {
         REDACTION_MARKER
     );
     assert_eq!(
-        request.tools[0].description,
+        request.tooling.tools[0].description,
         Some(format!("Use {REDACTION_MARKER}"))
     );
     assert_eq!(
-        request.tools[0].input_schema["properties"]["credential"]["example"],
+        request.tooling.tools[0].input_schema["properties"]["credential"]["example"],
         REDACTION_MARKER
     );
     match &request.messages[0].content[0] {

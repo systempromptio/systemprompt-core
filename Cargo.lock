@@ -4980,6 +4980,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-gateway",
  "systemprompt-generator",
  "systemprompt-governance",
  "systemprompt-identifiers",

@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use anyhow::Result;
 use serde::Deserialize;
@@ -43,7 +44,7 @@ pub fn generate_mcp_json(
 
     let mcp_json = serde_json::json!({ "mcpServers": mcp_servers });
     let mcp_path = output_dir.join(".mcp.json");
-    let content = serde_json::to_string_pretty(&mcp_json)?;
+    let content = CliService::json_string(&mcp_json)?;
     std::fs::write(&mcp_path, content)?;
     files_generated.push(mcp_path.to_string_lossy().to_string());
 

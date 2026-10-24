@@ -1,3 +1,4 @@
+-- @supersedes-checksum: d6781c409d871601
 -- Cohort publication: a publication may select a revision for one cohort
 -- (a role or a subject-attribute value) instead of the resource's base
 -- selection. Reviews record the cohort they targeted.
@@ -5,7 +6,8 @@ ALTER TABLE managed_publication_reviews ADD COLUMN IF NOT EXISTS cohort_dimensio
 ALTER TABLE managed_publication_reviews ADD COLUMN IF NOT EXISTS cohort_value TEXT;
 ALTER TABLE managed_publication_reviews DROP CONSTRAINT IF EXISTS managed_publication_reviews_cohort_pair;
 ALTER TABLE managed_publication_reviews ADD CONSTRAINT managed_publication_reviews_cohort_pair
-    CHECK ((cohort_dimension IS NULL) = (cohort_value IS NULL));
+    CHECK ((cohort_dimension IS NULL) = (cohort_value IS NULL)) NOT VALID;
+ALTER TABLE managed_publication_reviews VALIDATE CONSTRAINT managed_publication_reviews_cohort_pair;
 CREATE TABLE IF NOT EXISTS managed_publication_cohort_selections (
     owner_id TEXT NOT NULL,
     resource_id TEXT NOT NULL,

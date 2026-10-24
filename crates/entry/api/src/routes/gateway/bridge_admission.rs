@@ -18,7 +18,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_governance::authz::{AuthzDecision, SharedAuthzHook};
-use systemprompt_identifiers::{ClientId, ContextId, ModelId, RouteId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ClientId, ContextId, ModelId, ProviderId, RouteId, SessionId, TraceId, UserId,
+};
 use systemprompt_manifest::services::catalog::{ModelRequest, ResolvedCatalog};
 
 use super::messages::{GatewayAuthzRequestInput, build_gateway_authz_request};
@@ -49,7 +51,7 @@ impl std::fmt::Debug for ModelAdmission<'_> {
 
 impl ModelAdmission<'_> {
     pub async fn admits(&self, model: &str) -> bool {
-        let Some(route_id) = probe_route(self.catalog, model) else {
+        let Some((route_id, provider)) = probe_route(self.catalog, model) else {
             return false;
         };
         let principal = self.principal;
@@ -61,6 +63,7 @@ impl ModelAdmission<'_> {
             trace_id: TraceId::generate(),
             route_id,
             model: ModelId::new(model),
+            provider,
             session_id: Some(principal.session_id.clone()),
             client_id: principal.client_id.clone(),
             context_id: ContextId::derived_from_session(&principal.session_id),
@@ -79,9 +82,15 @@ impl ModelAdmission<'_> {
     }
 }
 
-pub fn probe_route(catalog: &ResolvedCatalog, model: &str) -> Option<RouteId> {
+pub fn probe_route(
+    catalog: &ResolvedCatalog,
+    model: &str,
+) -> Option<(RouteId, Option<ProviderId>)> {
     catalog
         .resolve(&ModelRequest::new(model))
         .ok()
-        .map(|target| target.access_route_id)
+        .map(|target| {
+            let provider = target.primary().map(|hop| hop.provider.clone());
+            (target.access_route_id, provider)
+        })
 }

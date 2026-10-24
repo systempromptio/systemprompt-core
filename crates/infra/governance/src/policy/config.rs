@@ -4,12 +4,13 @@
 //! enabled, ...params}]`) declares whether the chain runs at all, which
 //! policies it contains, in what order, and with what per-policy parameters.
 //!
-//! [`GovernanceConfig::load`] reads the installation's file: a missing file is
-//! the documented warn-only fallback ([`GovernanceConfig::defaults`]), while a
-//! file that exists but is rejected — unreadable, invalid YAML, an unknown
-//! mode, a bad secret catalog — is an error the engine refuses to start on,
-//! so a typo can never silently downgrade enforcement.
-//! [`GovernanceConfig::parse`] is the strict form over a string.
+//! [`GovernanceConfig::parse`] is the one strict reader: the `governance`
+//! config plane runs it on the file before an apply and again on the
+//! document reassembled from `governance_config`, so a declaration that is
+//! rejected — invalid YAML, an unknown mode, a bad secret catalog — is never
+//! applied and never builds an engine; a typo can never silently downgrade
+//! enforcement. No rows is the documented warn-only fallback
+//! ([`GovernanceConfig::defaults`]).
 //!
 //! Each policy also carries an [`EnforcementMode`]. A declared policy without a
 //! mode defaults to `enforce`, while the vendor-neutral fallback chain is
@@ -25,13 +26,8 @@
 //! The fallback chain runs every policy in warn mode. Its secret scanner has no
 //! signatures because credential applicability belongs to the installation.
 //!
-//! Path resolution is the caller's concern: core takes a path, extensions
-//! resolve it from their profile (`<services>/governance/config.yaml`).
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-use std::path::Path;
 
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
@@ -50,8 +46,6 @@ pub enum GovernanceConfigError {
     MissingPolicies,
     #[error("governance config policy entry {index} has no non-empty string `id`")]
     MissingPolicyId { index: usize },
-    #[error("governance config exists but could not be read: {0}")]
-    Unreadable(#[from] std::io::Error),
     #[error(
         "governance config has an unknown mode `{value}` at {location}; expected `enforce` or `warn`"
     )]
@@ -63,6 +57,10 @@ pub enum GovernanceConfigError {
     },
     #[error("governance secret pattern catalog is invalid: {0}")]
     InvalidSecretPatterns(#[from] SecretPatternError),
+    #[error("governance config declares policy `{id}` more than once")]
+    DuplicatePolicyId { id: String },
+    #[error("governance config could not be encoded as a plane entity: {0}")]
+    Canonical(#[source] serde_json::Error),
 }
 
 fn read_mode(
@@ -166,24 +164,5 @@ impl GovernanceConfig {
             mode: default_mode,
             policies: out,
         })
-    }
-
-    fn read(path: &Path) -> Result<Option<Self>, GovernanceConfigError> {
-        match std::fs::read_to_string(path) {
-            Ok(text) => Self::parse(&text).map(Some),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(GovernanceConfigError::Unreadable(e)),
-        }
-    }
-
-    pub fn load(path: &Path) -> Result<Self, GovernanceConfigError> {
-        let config = Self::read(path)?;
-        Ok(config.unwrap_or_else(|| {
-            tracing::warn!(
-                path = %path.display(),
-                "governance config not found; falling back to the vendor-neutral warn-only chain"
-            );
-            Self::defaults()
-        }))
     }
 }

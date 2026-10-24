@@ -16,7 +16,9 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use systemprompt_ai::models::RequestStatus;
 use systemprompt_api::routes::gateway::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
-use systemprompt_api::routes::gateway::messages::extract::authz::enforce_authz_pre_dispatch;
+use systemprompt_api::routes::gateway::messages::extract::authz::{
+    DispatchTarget, enforce_authz_pre_dispatch,
+};
 use systemprompt_api::routes::gateway::messages::extract::headers::{
     optional_gateway_conversation_id, optional_session_id, read_gateway_body,
 };
@@ -27,11 +29,14 @@ use systemprompt_api::routes::gateway::messages::rejection::{
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, InboundAdapter, Role,
 };
 use systemprompt_governance::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
-use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AiRequestId, ContextId, ModelId, ProviderId, SessionId, TraceId, UserId,
+};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
@@ -100,22 +105,28 @@ fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
         system: Vec::new(),
         messages,
         max_tokens: 128,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -295,8 +306,7 @@ async fn enforce_authz_allows_under_allow_all_hook() {
     let principal = api_key_principal("authz-allow-user");
     enforce_authz_pre_dispatch(
         &principal,
-        &route,
-        "claude-test",
+        DispatchTarget::new(&route, "claude-test", &ProviderId::new("anthropic")),
         &ContextId::generate(),
         &hook,
     )
@@ -315,8 +325,7 @@ async fn enforce_authz_denies_under_deny_all_hook() {
         ..
     } = enforce_authz_pre_dispatch(
         &principal,
-        &route,
-        "claude-test",
+        DispatchTarget::new(&route, "claude-test", &ProviderId::new("anthropic")),
         &ContextId::generate(),
         &hook,
     )

@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod helpers;
+pub mod admin_bootstrap;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CliSession, CloudCredentials, SessionKey};
@@ -18,7 +18,7 @@ use systemprompt_manifest::Profile;
 use super::api::create_local_session_row;
 use super::resolution::ProfileContext;
 use crate::CliConfig;
-use helpers::{
+use admin_bootstrap::{
     SessionComponents, build_cli_session, connect_database, create_cli_context,
     generate_admin_token, load_secrets, resolve_admin_with_fallback,
     resolve_credentialed_user_email, resolve_local_admin, resolve_tenant_admin_with_fallback,

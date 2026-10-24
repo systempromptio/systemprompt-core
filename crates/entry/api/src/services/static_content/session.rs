@@ -35,8 +35,8 @@ pub async fn ensure_session(
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers)
         && let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-        && let Some(session_id) = claims.session_id
-        && let Ok(user_id) = UserId::try_new(claims.sub)
+        && let Some(session_id) = claims.custom.session_id
+        && let Ok(user_id) = UserId::try_new(claims.registered.sub)
     {
         return Ok(SessionInfo {
             session_id: SessionId::new(session_id),

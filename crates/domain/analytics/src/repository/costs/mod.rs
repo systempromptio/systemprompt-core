@@ -2,11 +2,13 @@
 //!
 //! Aggregates microdollar-precision AI request costs from `ai_requests`.
 //! [`platform`] holds platform-wide rollups; [`per_user`] holds the
-//! user-scoped cost and conversation-context queries.
+//! user-scoped cost queries; [`conversations`] holds the distinct
+//! conversation counts and the recent-conversation list.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod conversations;
 mod per_user;
 mod platform;
 

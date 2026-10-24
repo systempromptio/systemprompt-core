@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
     entity_type TEXT NOT NULL
         CONSTRAINT access_control_rules_entity_type_check
-        CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook','slack_workspace','teams_tenant')),
+        CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook','slack_workspace','teams_tenant','model','provider')),
     entity_id TEXT NOT NULL,
     -- Open vocabulary, validated at the Rust boundary by authz::RuleType (the
     -- same stance AuthzContext.kind takes). Core mints 'user' and 'role';
@@ -19,11 +19,14 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
     -- access matrix tooltip and copied into governance_decisions.evaluated_rules
     -- when a rule decides. NULL is distinct from empty string.
     justification TEXT,
-    -- Provenance: 'yaml' (the baked services tree), 'bundle:<name>' (a fetched
-    -- services bundle) or 'dashboard' (an operator edit). Ingestion prunes and
-    -- overwrites only rows carrying its own source; 'dashboard' rows are never
-    -- touched by any ingestion pass.
-    source TEXT NOT NULL DEFAULT 'yaml',
+    -- Provenance, one closed vocabulary: 'code:<file>' (the baked services
+    -- tree), 'bundle:<name>' (a fetched services bundle), 'console:<user>'
+    -- (an operator edit) or 'migration'. Ingestion prunes and overwrites only
+    -- rows carrying its own source; 'console:' rows are never touched by any
+    -- ingestion pass.
+    source TEXT NOT NULL
+        CONSTRAINT access_control_rules_source_check
+        CHECK (source ~ '^(code:.+|bundle:.+|console:.+|migration)$'),
     -- Last writer, from the transaction's change context (sp_stamp_change).
     changed_by TEXT,
     changed_at TIMESTAMPTZ,

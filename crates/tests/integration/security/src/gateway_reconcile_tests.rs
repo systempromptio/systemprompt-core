@@ -24,9 +24,8 @@ use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::resolver::{ResolveInput, resolve};
 use systemprompt_governance::authz::{
-    Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository, Decision,
-    DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, RuleEntry, RuleTarget,
-    reconcile_gateway_entities_exact,
+    Access, AccessControlRepository, Decision, DenyReason, EntityKind, EntityRef, RuleType,
+    UpsertRuleParams, reconcile_gateway_entities_exact,
 };
 use systemprompt_identifiers::{RouteId, UserId};
 use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
@@ -90,19 +89,6 @@ fn catalog_with_default(provider: &str) -> ResolvedCatalog {
         .build()
 }
 
-fn wildcard_gateway_rule(roles: &[&str]) -> AccessControlConfig {
-    AccessControlConfig {
-        rules: vec![RuleEntry {
-            entity_type: EntityKind::GatewayRoute,
-            target: RuleTarget::Match("*".to_owned()),
-            access: Access::Allow,
-            default_included: true,
-            roles: roles.iter().map(|r| (*r).to_owned()).collect(),
-            justification: None,
-        }],
-    }
-}
-
 async fn role_values(pg: &PgPool, id: &RouteId) -> Vec<String> {
     sqlx::query_scalar::<_, String>(
         "SELECT rule_value FROM access_control_rules WHERE entity_type='gateway_route' AND \
@@ -128,7 +114,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         f.default_route_id.as_str()
     );
     let id_refs: Vec<&str> = ids.iter().map(RouteId::as_str).collect();
-    reconcile_gateway_entities_exact(&repo, &id_refs, "test:gateway_reconcile")
+    reconcile_gateway_entities_exact(&repo, &id_refs, "code:test")
         .await
         .expect("reconcile");
 
@@ -144,20 +130,24 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         "reconcile registers gateway routes default_included=false"
     );
 
-    // 2. Ingest the wildcard rule; it must expand onto the synthesized id.
-    let service = AccessControlIngestionService::new(&f.db);
-    service
-        .ingest_config(
-            &wildcard_gateway_rule(&["user", "admin"]),
-            IngestOptions::default(),
-            &RegisteredEntities::default(),
-        )
+    // 2. Grant the synthesized id directly.
+    for role in ["user", "admin"] {
+        repo.upsert_rule(UpsertRuleParams {
+            entity_type: EntityKind::GatewayRoute,
+            entity_id: f.default_route_id.as_str(),
+            rule_type: RuleType::ROLE,
+            rule_value: role,
+            access: Access::Allow,
+            justification: None,
+            source: "code:test",
+        })
         .await
-        .expect("ingest wildcard");
+        .expect("grant role");
+    }
     assert_eq!(
         role_values(&f.pg, &f.default_route_id).await,
         vec!["admin", "user"],
-        "entity_match: \"*\" must grant the code-synthesized route id"
+        "the grant lands on the code-synthesized route id"
     );
 
     // 3. Resolver: an admin is allowed on the synthesized route…
@@ -216,19 +206,6 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
     cleanup(&f.pg, &f.default_route_id).await;
 }
 
-fn literal_gateway_rule(id: &str, roles: &[&str]) -> AccessControlConfig {
-    AccessControlConfig {
-        rules: vec![RuleEntry {
-            entity_type: EntityKind::GatewayRoute,
-            target: RuleTarget::Id(id.to_owned()),
-            access: Access::Allow,
-            default_included: true,
-            roles: roles.iter().map(|r| (*r).to_owned()).collect(),
-            justification: None,
-        }],
-    }
-}
-
 async fn entity_exists(pg: &PgPool, id: &str) -> bool {
     sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM access_control_entities WHERE entity_type='gateway_route' AND \
@@ -244,98 +221,8 @@ async fn entity_exists(pg: &PgPool, id: &str) -> bool {
 // A hand-written route id must not be accepted: it would mint its own catalog
 // row and leave a grant on a route that can never dispatch, and every boot
 // would make it look real.
-#[tokio::test]
-async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_writes_nothing() {
-    let f = setup().await;
-    let repo = AccessControlRepository::new(&f.db);
-
-    let registry_ids = catalog_with_default(&f.provider).route_ids();
-    let real_id = registry_ids.first().expect("one route").clone();
-    let id_refs: Vec<&str> = registry_ids.iter().map(RouteId::as_str).collect();
-    reconcile_gateway_entities_exact(&repo, &id_refs, "profile:test")
-        .await
-        .expect("reconcile");
-
-    let phantom = format!("claude-opus-4-8-gemini-{}", f.provider);
-    let registered =
-        RegisteredEntities::new().with_kind(EntityKind::GatewayRoute, id_refs.iter().copied());
-
-    let svc = AccessControlIngestionService::from_pool(Arc::clone(&f.pg));
-    let err = svc
-        .ingest_config(
-            &literal_gateway_rule(&phantom, &["user"]),
-            IngestOptions {
-                override_existing: true,
-                delete_orphans: false,
-                ..IngestOptions::default()
-            },
-            &registered,
-        )
-        .await
-        .expect_err("a route id no profile route provides must be rejected");
-
-    let msg = err.to_string();
-    assert!(msg.contains(&phantom), "error must name the id: {msg}");
-    assert!(
-        msg.contains("gateway.catalog_route_id"),
-        "error must say what to do instead: {msg}"
-    );
-
-    // The point of failing rather than minting: nothing persisted, so the id
-    // does not look real on the next run.
-    assert!(
-        !entity_exists(&f.pg, &phantom).await,
-        "rejected id must not leave a catalog row behind"
-    );
-    assert!(
-        role_values(&f.pg, &RouteId::new(phantom.clone()))
-            .await
-            .is_empty(),
-        "rejected id must not leave a grant behind"
-    );
-
-    // A real route in the same shape still ingests, so the check rejects the id
-    // and not the rule form.
-    svc.ingest_config(
-        &literal_gateway_rule(real_id.as_str(), &["user"]),
-        IngestOptions {
-            override_existing: true,
-            delete_orphans: false,
-            ..IngestOptions::default()
-        },
-        &registered,
-    )
-    .await
-    .expect("a registered route id must still be accepted");
-    assert_eq!(role_values(&f.pg, &real_id).await, vec!["user".to_owned()]);
-
-    cleanup(&f.pg, &real_id).await;
-}
-
 // Unenforced kinds keep the old behaviour, so adopting this is opt-in per
 // kind.
-#[tokio::test]
-async fn ingest_still_self_materializes_when_the_kind_is_not_enforced() {
-    let f = setup().await;
-    let phantom = RouteId::new(format!("unenforced-{}", f.provider));
-
-    let svc = AccessControlIngestionService::from_pool(Arc::clone(&f.pg));
-    svc.ingest_config(
-        &literal_gateway_rule(phantom.as_str(), &["user"]),
-        IngestOptions {
-            override_existing: true,
-            delete_orphans: false,
-            ..IngestOptions::default()
-        },
-        &RegisteredEntities::default(),
-    )
-    .await
-    .expect("an unenforced kind must keep self-materialising");
-
-    assert!(entity_exists(&f.pg, phantom.as_str()).await);
-    cleanup(&f.pg, &phantom).await;
-}
-
 // `reconcile_gateway_entities_exact` must remove catalog rows no route claims,
 // and must refuse to do so from an empty set (which would empty the catalog).
 #[tokio::test]
@@ -347,12 +234,12 @@ async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
     let id_refs: Vec<&str> = ids.iter().map(RouteId::as_str).collect();
 
     let stale = RouteId::new(format!("stale-{}", f.provider));
-    repo.ensure_entity(EntityKind::GatewayRoute, stale.as_str(), "profile:old")
+    repo.ensure_entity(EntityKind::GatewayRoute, stale.as_str(), "code:old")
         .await
         .expect("seed a stale row");
     assert!(entity_exists(&f.pg, stale.as_str()).await);
 
-    let report = reconcile_gateway_entities_exact(&repo, &id_refs, "profile:test")
+    let report = reconcile_gateway_entities_exact(&repo, &id_refs, "code:test")
         .await
         .expect("exact reconcile");
     assert_eq!(report.registered, id_refs.len());
@@ -366,7 +253,7 @@ async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
         "a live route must survive"
     );
 
-    reconcile_gateway_entities_exact(&repo, &[], "profile:test")
+    reconcile_gateway_entities_exact(&repo, &[], "code:test")
         .await
         .expect_err("an empty route set must be refused, not obeyed");
     assert!(
@@ -385,7 +272,7 @@ async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
     let repo = AccessControlRepository::new(&f.db);
     let id = RouteId::new(format!("ensure-{}", f.provider));
 
-    repo.ensure_entity(EntityKind::GatewayRoute, id.as_str(), "test:ensure")
+    repo.ensure_entity(EntityKind::GatewayRoute, id.as_str(), "code:ensure")
         .await
         .expect("ensure absent");
     let created = repo
@@ -398,10 +285,10 @@ async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
         "an ensured row must start closed"
     );
 
-    repo.upsert_entity(EntityKind::GatewayRoute, id.as_str(), true, "test:open")
+    repo.upsert_entity(EntityKind::GatewayRoute, id.as_str(), true, "code:open")
         .await
         .expect("open it");
-    repo.ensure_entity(EntityKind::GatewayRoute, id.as_str(), "test:ensure")
+    repo.ensure_entity(EntityKind::GatewayRoute, id.as_str(), "code:ensure")
         .await
         .expect("ensure present");
     let kept = repo
@@ -414,7 +301,7 @@ async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
         "ensure_entity must leave an existing default_included alone"
     );
     assert_eq!(
-        kept.source, "test:open",
+        kept.source, "code:open",
         "ensure_entity must not relabel a present row"
     );
 
@@ -433,15 +320,15 @@ async fn reconcile_never_overwrites_an_entitys_declared_default_included() {
         EntityKind::GatewayRoute,
         declared.as_str(),
         true,
-        "access-plane",
+        "code:access-control/rules.yaml",
     )
     .await
     .expect("declare default_included = true");
     let keep = [declared.as_str(), catalog_only.as_str()];
-    repo.reconcile_entities(EntityKind::GatewayRoute, &keep, false, "gateway")
+    repo.reconcile_entities(EntityKind::GatewayRoute, &keep, false, "code:services")
         .await
         .expect("first reconcile");
-    repo.reconcile_entities(EntityKind::GatewayRoute, &keep, true, "gateway")
+    repo.reconcile_entities(EntityKind::GatewayRoute, &keep, true, "code:services")
         .await
         .expect("second reconcile with the opposite flag");
 
@@ -455,7 +342,7 @@ async fn reconcile_never_overwrites_an_entitys_declared_default_included() {
         "a catalog reconcile must not flip the access plane's default_included"
     );
     assert_eq!(
-        declared_row.source, "access-plane",
+        declared_row.source, "code:access-control/rules.yaml",
         "source stays the declarer's"
     );
 
@@ -482,13 +369,13 @@ async fn gateway_route_reconcile_keeps_a_console_edited_default_included() {
     let id = f.default_route_id.clone();
     cleanup(&f.pg, &id).await;
 
-    reconcile_gateway_entities_exact(&repo, &[id.as_str()], "profile:test")
+    reconcile_gateway_entities_exact(&repo, &[id.as_str()], "code:test")
         .await
         .expect("first reconcile");
-    repo.upsert_entity(EntityKind::GatewayRoute, id.as_str(), true, "dashboard")
+    repo.upsert_entity(EntityKind::GatewayRoute, id.as_str(), true, "console:admin")
         .await
         .expect("console opens the route");
-    reconcile_gateway_entities_exact(&repo, &[id.as_str()], "profile:test")
+    reconcile_gateway_entities_exact(&repo, &[id.as_str()], "code:test")
         .await
         .expect("reconcile on the next boot");
 
@@ -501,7 +388,10 @@ async fn gateway_route_reconcile_keeps_a_console_edited_default_included() {
         row.default_included,
         "a boot reconcile must not close a route the console opened"
     );
-    assert_eq!(row.source, "dashboard", "the console's provenance is kept");
+    assert_eq!(
+        row.source, "console:admin",
+        "the console's provenance is kept"
+    );
 
     cleanup(&f.pg, &id).await;
 }

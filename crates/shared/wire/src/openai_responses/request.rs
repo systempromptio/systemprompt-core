@@ -10,9 +10,12 @@
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
 
+use super::options::{
+    reasoning_effort, response_format_to_responses, tool_choice_to_responses, web_search_tool,
+};
 use crate::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
-    ResponseFormat, Role, SearchConfig, TurnMerge, normalize_turns,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, ImageSource, Role, TurnMerge,
+    normalize_turns,
 };
 use crate::schema::SchemaSanitizer;
 use crate::{ModelLimits, WireProtocol};
@@ -46,10 +49,10 @@ pub fn build_request_body(
     if let Some(sys) = request.system_text() {
         obj.insert("instructions".into(), Value::String(sys));
     }
-    if let Some(t) = request.temperature {
+    if let Some(t) = request.sampling.temperature {
         obj.insert("temperature".into(), json!(t));
     }
-    if let Some(p) = request.top_p {
+    if let Some(p) = request.sampling.top_p {
         obj.insert("top_p".into(), json!(p));
     }
     if request.stream {
@@ -57,6 +60,7 @@ pub fn build_request_body(
     }
     let sanitizer = SchemaSanitizer::new(WireProtocol::OpenAiResponses.schema_capabilities());
     let mut tools: Vec<Value> = request
+        .tooling
         .tools
         .iter()
         .map(|t| {
@@ -68,13 +72,13 @@ pub fn build_request_body(
             })
         })
         .collect();
-    if let Some(search) = &request.search {
+    if let Some(search) = &request.tooling.search {
         tools.push(web_search_tool(search));
     }
     if !tools.is_empty() {
         obj.insert("tools".into(), Value::Array(tools));
     }
-    if let Some(tc) = &request.tool_choice {
+    if let Some(tc) = &request.tooling.tool_choice {
         obj.insert("tool_choice".into(), tool_choice_to_responses(tc));
     }
     if let Some(effort) = reasoning_effort(request) {
@@ -91,49 +95,6 @@ pub fn build_request_body(
         );
     }
     Value::Object(obj)
-}
-
-fn reasoning_effort(request: &CanonicalRequest) -> Option<&'static str> {
-    if let Some(effort) = request.reasoning_effort {
-        return Some(effort.as_str());
-    }
-    let thinking = request.thinking?;
-    if !thinking.enabled {
-        return None;
-    }
-    Some(match thinking.budget_tokens {
-        Some(b) if b >= 16384 => "high",
-        Some(b) if b >= 4096 => "medium",
-        Some(_) => "low",
-        None => "medium",
-    })
-}
-
-// JSON: OpenAI Responses API request body; upstream JSON is the contract.
-fn response_format_to_responses(format: &ResponseFormat) -> Value {
-    match format {
-        ResponseFormat::JsonObject => json!({ "type": "json_object" }),
-        ResponseFormat::JsonSchema {
-            name,
-            schema,
-            strict,
-        } => json!({
-            "type": "json_schema",
-            "name": name,
-            "strict": strict,
-            "schema": schema,
-        }),
-    }
-}
-
-// JSON: OpenAI Responses API request body; upstream JSON is the contract.
-fn web_search_tool(search: &SearchConfig) -> Value {
-    let mut t = Map::new();
-    t.insert("type".into(), Value::String("web_search".into()));
-    if let Some(size) = &search.context_size {
-        t.insert("search_context_size".into(), Value::String(size.clone()));
-    }
-    Value::Object(t)
 }
 
 // JSON: OpenAI Responses API request body; upstream JSON is the contract.
@@ -282,19 +243,4 @@ fn flatten_text_parts(parts: &[CanonicalContent]) -> String {
         }
     }
     out
-}
-
-// JSON: OpenAI Responses API request body; upstream JSON is the contract.
-fn tool_choice_to_responses(tc: &CanonicalToolChoice) -> Value {
-    match tc {
-        CanonicalToolChoice::Auto => Value::String("auto".into()),
-        CanonicalToolChoice::None => Value::String("none".into()),
-        CanonicalToolChoice::Any | CanonicalToolChoice::Required => {
-            Value::String("required".into())
-        },
-        CanonicalToolChoice::Tool(name) => json!({
-            "type": "function",
-            "name": name,
-        }),
-    }
 }

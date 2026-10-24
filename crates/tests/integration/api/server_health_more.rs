@@ -283,29 +283,20 @@ async fn handle_health_is_degraded_until_the_event_relay_listens() -> anyhow::Re
 #[tokio::test]
 async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let instance_id = ctx.config().instance_id.clone();
-    let handle = systemprompt_events::PostgresEventBridge::new(
-        ctx.db_pool().write_pool().as_ref().clone(),
-        instance_id,
-        systemprompt_traits::CacheEpochs::new(),
-        Arc::clone(ctx.event_broadcasters()),
-    )
-    .start();
-    let listening = tokio::time::timeout(Duration::from_secs(10), handle.listening())
+    assert!(
+        ctx.event_bridge().start(),
+        "a fresh fixture context has no relay"
+    );
+    let listening = tokio::time::timeout(Duration::from_secs(10), ctx.event_bridge().listening())
         .await
         .expect("the relay starts listening within 10s");
     assert!(listening, "the relay stopped before it was listening");
-    ctx.event_bridge()
-        .set(handle)
-        .expect("a fresh fixture context has no relay");
     let app = Router::new()
         .route("/health", get(handle_health))
         .layer(axum::Extension(Arc::new(SchedulerHealth::new())))
         .with_state((*ctx).clone());
     let (status, body) = body_json(app, "/health").await;
-    if let Some(handle) = ctx.event_bridge().get() {
-        handle.shutdown().await;
-    }
+    ctx.event_bridge().shutdown().await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "healthy");
     Ok(())

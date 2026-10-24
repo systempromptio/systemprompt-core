@@ -18,6 +18,7 @@ use systemprompt_marketplace::managed::{
     PublicationGate, PublicationGateError, PublicationPolicy, PublicationRequest, ResourceKind,
 };
 use systemprompt_test_fixtures::{seed_user_row_with_roles, test_db_pool};
+use systemprompt_users as _;
 use uuid::Uuid;
 
 use crate::managed_resolution::{Fixture, fixture, publish, skill_files};

@@ -11,8 +11,8 @@ What the unmodified 0.72.1 catalog resolves every model id to, recorded so the
 | fixture        | source                                                      |
 |----------------|-------------------------------------------------------------|
 | `core-default` | `crates/shared/manifest/src/services/providers/default_catalog.yaml` at 0.72.1, no gateway |
-| `dynapps`      | systemprompt-dynapps `origin/next` 775811f0427a `services/ai` |
-| `astound`      | systemprompt-astound `origin/next` 6d81f285b757 `services/ai` |
+| `byok-gateway` | Gateway with personal (BYOK) credentials and OpenCode Go; recorded from a production services/ai tree, names neutralised |
+| `vertex-multiregion` | Claude and Gemini on Vertex AI across global and regional endpoints, with API-key failovers and per-scope chains; names neutralised |
 
 Recorder: `crates/tests/unit/app/gateway-golden/src/golden_catalog/`, run with
 `cargo test -p systemprompt-gateway-golden-tests -- --ignored record_golden_catalog`.

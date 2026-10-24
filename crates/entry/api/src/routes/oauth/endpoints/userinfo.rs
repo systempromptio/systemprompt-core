@@ -60,10 +60,10 @@ fn get_userinfo(token: &str) -> anyhow::Result<UserinfoResponse> {
     let claims = validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences)?;
 
     Ok(UserinfoResponse {
-        sub: claims.sub.clone(),
-        username: Some(claims.username.clone()),
-        email: Some(claims.email.clone()),
-        user_type: Some(claims.user_type.to_string()),
+        sub: claims.registered.sub.clone(),
+        username: Some(claims.custom.username.clone()),
+        email: Some(claims.custom.email.clone()),
+        user_type: Some(claims.custom.user_type.to_string()),
         roles: Some(claims.roles().to_vec()),
     })
 }

@@ -32,8 +32,7 @@ use axum::routing::post;
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_governance::authz::EntityRef;
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
-use systemprompt_loader::ConfigLoader;
-use systemprompt_manifest::services::TeamsAppConfig;
+use systemprompt_manifest::services::{ServicesConfig, TeamsAppConfig};
 use systemprompt_runtime::AppContext;
 use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
@@ -64,13 +63,8 @@ async fn handle_messages(
         return StatusCode::OK.into_response();
     };
 
-    let app = match resolve_app(&normalized.tenant_id) {
-        Ok(Some(app)) => app,
-        Ok(None) => return StatusCode::OK.into_response(),
-        Err(err) => {
-            tracing::error!(error = %err, "teams app config unavailable");
-            return StatusCode::SERVICE_UNAVAILABLE.into_response();
-        },
+    let Some(app) = resolve_app(&state.ctx.services_config(), &normalized.tenant_id) else {
+        return StatusCode::OK.into_response();
     };
 
     let Some(token) = bearer(&headers) else {
@@ -178,12 +172,12 @@ fn non_empty(text: String) -> String {
     }
 }
 
-fn resolve_app(tenant_id: &TeamsTenantId) -> anyhow::Result<Option<TeamsAppConfig>> {
-    let config = ConfigLoader::load().context("services config")?;
-    Ok(config
+fn resolve_app(services: &ServicesConfig, tenant_id: &TeamsTenantId) -> Option<TeamsAppConfig> {
+    services
         .teams_apps
-        .into_values()
-        .find(|app| app.enabled && app.tenant_id == *tenant_id))
+        .values()
+        .find(|app| app.enabled && app.tenant_id == *tenant_id)
+        .cloned()
 }
 
 fn app_password(app: &TeamsAppConfig) -> anyhow::Result<String> {

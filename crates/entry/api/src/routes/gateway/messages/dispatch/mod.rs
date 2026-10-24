@@ -97,7 +97,7 @@ pub(super) async fn dispatch_to_provider(
             forward_headers: client_headers.forward,
             identity_headers: client_headers.identity,
             trace_sampled,
-            governance: rc.ctx.governance_arc(),
+            governance: rc.ctx.governance(),
             engines: Arc::clone(rc.engines),
         },
     ))

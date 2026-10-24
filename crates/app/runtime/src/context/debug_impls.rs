@@ -19,10 +19,7 @@ impl std::fmt::Debug for AppContext {
             .field("user_service", &self.data.user_service.is_some())
             .field("app_paths", &"AppPaths")
             .field("marketplace_filter", &self.plugins.marketplace_filter)
-            .field(
-                "event_bridge",
-                &self.subsystems.event_bridge.get().is_some(),
-            )
+            .field("event_bridge", &self.subsystems.event_bridge.status())
             .field("system_admin", &self.subsystems.system_admin.username())
             .field("mcp_registry", &"RegistryService")
             .field("authz_hook", &"SharedAuthzHook")
@@ -83,6 +80,7 @@ impl std::fmt::Debug for Subsystems {
             .field("logging", &self.logging)
             .field("authz_hook", &"SharedAuthzHook")
             .field("governance", &self.governance)
+            .field("services", &self.services)
             .field("cache_epochs", &self.cache_epochs)
             .field("ai_service", &self.ai_service.is_some())
             .field("artifact_ingest", &self.artifact_ingest)
@@ -90,7 +88,7 @@ impl std::fmt::Debug for Subsystems {
                 "schema_install_clean",
                 &self.schema_install.boot().is_clean(),
             )
-            .field("event_bridge", &self.event_bridge.get().is_some())
+            .field("event_bridge", &self.event_bridge.status())
             .field("event_router", &self.event_router)
             .field("geoip_reader", &self.geoip_reader.is_some())
             .field("file_storage", &"FileStorage")

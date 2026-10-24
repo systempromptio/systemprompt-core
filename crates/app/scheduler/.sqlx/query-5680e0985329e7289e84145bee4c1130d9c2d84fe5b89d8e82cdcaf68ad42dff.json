@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE config_conflicts\n                 SET resolved_by = $3, resolved_at = NOW(), resolution = 'edited'\n               WHERE plane = $1 AND entity = $2 AND resolved_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5680e0985329e7289e84145bee4c1130d9c2d84fe5b89d8e82cdcaf68ad42dff"
+}

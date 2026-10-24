@@ -6,9 +6,9 @@
 use bytes::Bytes;
 use futures::StreamExt;
 use systemprompt_gateway::protocol::{
-    CanonicalContent, CanonicalEvent, CanonicalRequest, CanonicalStopReason, ContentBlockKind,
-    Role, SystemBlock, anthropic_messages, openai_responses as openai_responses_in,
-    outbound_anthropic,
+    CanonicalContent, CanonicalEvent, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalStopReason, CanonicalTooling, ContentBlockKind, Role, SystemBlock, anthropic_messages,
+    openai_responses as openai_responses_in, outbound_anthropic,
 };
 use systemprompt_identifiers::ModelId;
 use systemprompt_wire::error::WireStreamError;
@@ -51,7 +51,7 @@ fn anthropic_messages_parses_system_prompt_and_temperature() {
     });
     let req = anthropic_messages::parse::parse(&body).expect("parse");
     assert_eq!(req.system_text().as_deref(), Some("You are helpful"));
-    assert!((req.temperature.unwrap() - 0.7).abs() < 1e-5);
+    assert!((req.sampling.temperature.unwrap() - 0.7).abs() < 1e-5);
 }
 
 #[test]
@@ -81,22 +81,28 @@ fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
             content: vec![CanonicalContent::text("hello".to_owned())],
         }],
         max_tokens: 256,
-        temperature: Some(0.5),
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: Some(0.5),
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

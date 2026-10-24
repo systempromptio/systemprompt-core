@@ -2,6 +2,10 @@
 
 ## [0.73.0] - Unreleased
 
+### Breaking
+
+- The prelude exports `ChangeSource`, `DeclaredEntities`, `DeclaredEntity`, `ResolvedEntities` and `ResolvedEntity` for config planes.
+
 ### Changed
 
 - Compile-time inventory is the only extension registration path.

@@ -1,12 +1,12 @@
 //! Gateway policies: the declarative spec, its bootstrap and its resolution.
 //!
 //! Gateway policies (per-call ceilings, quota windows, safety config) live in
-//! `ai_gateway_policies`. This module gives them the same config-driven
-//! bootstrap path that access-control rules already have: a committed
-//! `services/gateway/policies.yaml` is ingested into the DB via
-//! [`load_from_yaml`]. Model exposure is owned by the profile catalog, not by
-//! this spec. [`PolicyResolver`] merges the stored rows into the effective
-//! [`GatewayPolicySpec`] a request is governed by.
+//! `ai_gateway_policies`, read on every request. A committed
+//! `services/gateway/policies.yaml` reaches the database only through the
+//! `gateway_policies` config plane ([`GatewayPoliciesPlane`]), applied by
+//! `config apply`; boot never writes it. Model exposure is owned by the
+//! profile catalog, not by this spec. [`PolicyResolver`] merges the stored rows
+//! into the effective [`GatewayPolicySpec`] a request is governed by.
 //!
 //! The extension contracts a policy selects by name live here too: safety
 //! scanners ([`register_safety_scanner!`](crate::register_safety_scanner)),
@@ -17,9 +17,8 @@
 
 mod config;
 mod error;
-mod ingestion;
-mod loader;
 pub mod overrides;
+mod plane;
 mod resolver;
 pub mod route_selector;
 pub mod safety;
@@ -27,17 +26,16 @@ mod spec;
 
 pub use config::{GatewayPolicyConfig, GatewayPolicyEntry};
 pub use error::GatewayPolicyError;
-pub use ingestion::{GatewayPolicyIngestionService, IngestOptions, IngestReport};
-pub use loader::{GATEWAY_POLICIES_FILE, load_from_yaml};
 pub use overrides::{
-    OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine, OverrideError,
+    OverrideAction, OverrideContext, OverrideContextBuilder, OverrideError, OverridePolicy,
     OverrideResolution, OverrideSource, SystemPromptOverride, SystemPromptOverrideRegistration,
 };
+pub use plane::{GATEWAY_POLICIES_FILE, GATEWAY_POLICIES_PLANE, GatewayPoliciesPlane};
 pub use resolver::{
     MalformedPolicy, MalformedSpec, PolicyResolver, PolicyUnavailable, merge_policy_rows,
 };
 pub use route_selector::{
-    RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
+    RouteSelector, RouteSelectorChain, RouteSelectorError, RouteSelectorRegistration,
 };
 pub use safety::{
     CATEGORY_SCANNER_FAILURE, Finding, FindingSpan, HeuristicScanner, NullScanner, PHASE_REQUEST,

@@ -10,6 +10,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use std::path::Path;
 
@@ -109,7 +110,7 @@ pub fn set_secret(secrets_file: &Path, name: &str, value: &str) -> Result<()> {
     })?;
     object.insert(name.to_owned(), serde_json::Value::String(value.to_owned()));
 
-    let serialized = serde_json::to_string_pretty(&doc).context("Failed to serialize secrets")?;
+    let serialized = CliService::json_string(&doc).context("Failed to serialize secrets")?;
     write_private_atomic(secrets_file, serialized.as_bytes())
         .with_context(|| format!("Failed to write {}", secrets_file.display()))
 }

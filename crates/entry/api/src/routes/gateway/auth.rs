@@ -93,7 +93,9 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
     let result = issue_bridge_access(
         analytics.as_ref(),
         ctx.session_provider()
-            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .ok_or_else(|| {
+                ApiHttpError::internal("Session provider unavailable", "provider is not registered")
+            })?
             .as_ref(),
         users.as_ref(),
         BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id)
@@ -120,7 +122,9 @@ pub async fn session(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         ctx.session_provider()
-            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .ok_or_else(|| {
+                ApiHttpError::internal("Session provider unavailable", "provider is not registered")
+            })?
             .as_ref(),
         users.as_ref(),
         BridgeExchangeRequest {
@@ -175,7 +179,7 @@ async fn mint_device_pat(
         .await
         .map_err(|error| {
             tracing::warn!(%error, "user lookup for the session PAT failed");
-            ApiHttpError::internal_error("user lookup failed")
+            ApiHttpError::internal("user lookup failed", error)
         })?
         .ok_or_else(|| ApiHttpError::unauthorized("exchange code user no longer exists"))?;
     refuse_service_account(user.is_service_account, &user_id)?;
@@ -248,8 +252,12 @@ fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
               propagate to every caller for negligible gain"
 )]
 fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, ApiHttpError> {
-    ctx.analytics_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("analytics provider unavailable"))
+    ctx.analytics_provider().ok_or_else(|| {
+        ApiHttpError::internal(
+            "analytics provider unavailable",
+            "provider is not registered",
+        )
+    })
 }
 
 #[expect(
@@ -258,6 +266,7 @@ fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, Api
               propagate to every caller for negligible gain"
 )]
 fn require_user_provider(ctx: &AppContext) -> Result<Arc<dyn UserProvider>, ApiHttpError> {
-    ctx.user_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("User provider unavailable"))
+    ctx.user_provider().ok_or_else(|| {
+        ApiHttpError::internal("User provider unavailable", "provider is not registered")
+    })
 }

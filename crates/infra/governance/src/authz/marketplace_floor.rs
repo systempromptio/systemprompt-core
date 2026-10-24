@@ -72,7 +72,9 @@ const fn member_scope(kind: EntityKind) -> MemberScope {
         | EntityKind::SlackWorkspace
         | EntityKind::SlackChannel
         | EntityKind::TeamsTenant
-        | EntityKind::TeamsConversation => MemberScope::Unsupported,
+        | EntityKind::TeamsConversation
+        | EntityKind::Model
+        | EntityKind::Provider => MemberScope::Unsupported,
     }
 }
 

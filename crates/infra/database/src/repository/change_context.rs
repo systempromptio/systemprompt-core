@@ -12,6 +12,10 @@
 //! [`PgConfigVersion`] reads the one `config_version` row that
 //! `sp_bump_config_version()` bumps on every committed plane write.
 //!
+//! [`PlaneTransaction`] names the transaction the host hands every config
+//! plane through `PlaneTx`, so a plane in a crate without a direct `sqlx`
+//! dependency can recover it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +26,8 @@ use sqlx::{PgConnection, PgPool};
 use systemprompt_traits::{ChangeActor, ChangeSource, ConfigVersionSource, RepositoryError};
 
 use crate::DbPool;
+
+pub type PlaneTransaction = sqlx::Transaction<'static, sqlx::Postgres>;
 
 pub async fn with_change_context(
     conn: &mut PgConnection,

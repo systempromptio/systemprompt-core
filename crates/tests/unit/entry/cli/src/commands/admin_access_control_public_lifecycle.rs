@@ -51,13 +51,13 @@ async fn access_control_helper() {
         .execute(raw.as_ref())
         .await
         .expect("clear catalog");
-    sqlx::query("INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) VALUES ('agent', 'true', false, 'owned')")
+    sqlx::query("INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) VALUES ('agent', 'true', false, 'code:owned')")
         .execute(raw.as_ref()).await.expect("seed governed entity");
-    sqlx::query("INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) VALUES ('agent', 'unreachable-owned', false, 'owned')")
+    sqlx::query("INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) VALUES ('agent', 'unreachable-owned', false, 'code:owned')")
         .execute(raw.as_ref()).await.expect("seed unreachable entity");
-    sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification) VALUES ('agent', 'true', 'role', '123', 'allow', 'owned: role')")
+    sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification, source) VALUES ('agent', 'true', 'role', '123', 'allow', 'owned: role', 'code:owned')")
         .execute(raw.as_ref()).await.expect("seed role rule");
-    sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification) VALUES ('agent', 'true', 'user', 'omitted-user', 'deny', NULL)")
+    sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification, source) VALUES ('agent', 'true', 'user', 'omitted-user', 'deny', NULL, 'console:admin')")
         .execute(raw.as_ref()).await.expect("seed omitted user rule");
     let context = CommandContext::new(
         CliConfig::new()
@@ -154,18 +154,20 @@ fn public_export_round_trips_roles_and_lint_reports_unreachable_entities() {
     assert_eq!(export["x-artifact-type"], "text", "{export}");
     assert_eq!(
         export["title"],
-        "Access-control baseline (paste into services/access-control YAML)"
+        "Access control (paste into services/access-control/rules.yaml)"
     );
     let yaml = export["content"].as_str().expect("export YAML text");
     let snapshot: serde_yaml::Value = serde_yaml::from_str(yaml).expect("parse exported YAML");
-    let rules = snapshot["rules"].as_sequence().expect("exported rules");
-    assert_eq!(rules.len(), 1, "role rules only: {snapshot:?}");
-    let owned = rules
+    let entities = snapshot["entities"]
+        .as_sequence()
+        .expect("exported entities");
+    assert_eq!(entities.len(), 1, "role rules only: {snapshot:?}");
+    let owned = entities
         .iter()
-        .find(|rule| rule["entity_id"] == "true")
-        .expect("owned rule");
-    assert_eq!(owned["roles"][0], "123");
-    assert_eq!(owned["justification"], "owned: role");
+        .find(|entity| entity["entity"] == "agent/true")
+        .expect("owned entity");
+    assert_eq!(owned["allow"]["role"][0], "123");
+    assert_eq!(owned["why"], "owned: role");
     assert!(!yaml.contains("omitted-user"));
     let lint: serde_json::Value =
         serde_json::from_str(marked(&stdout, "BEGIN_LINT", "END_LINT")).expect("lint artifact");

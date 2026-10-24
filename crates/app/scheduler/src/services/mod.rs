@@ -1,6 +1,8 @@
 //! Service layer for the scheduler crate.
 //!
-//! Five concerns live here: [`scheduling`] owns the cron scheduler and job
+//! [`config_apply`] is the explicit three-way-merge apply of declared config
+//! planes and [`config_reconcile`] the report-only drift pass. Five more
+//! concerns live here: [`scheduling`] owns the cron scheduler and job
 //! dispatch, `job_execution` runs jobs on demand outside the cron loop,
 //! [`orchestration`] holds the service-lifecycle reconciler and process/port
 //! primitives, `service_management` wraps service-record start/stop
@@ -10,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod config_apply;
 pub mod config_reconcile;
 mod job_execution;
 pub mod job_metrics;
@@ -18,6 +21,10 @@ mod plans;
 pub mod scheduling;
 mod service_management;
 
+pub use config_apply::{
+    APPLY_MODE, ApplyOptions, ConfigApplyService, EntityMerge, MergeReport, PlaneMerge, PlanePatch,
+    Verdict, merge_plane, verdict,
+};
 pub use config_reconcile::{
     AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneOutcome, PlaneReport,
     RECONCILE_LOCK_WAIT, ReconcileReport, ReconcileTrigger,

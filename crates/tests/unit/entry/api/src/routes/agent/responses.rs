@@ -96,7 +96,7 @@ async fn test_api_error_response_bad_request_returns_400() {
 
 #[tokio::test]
 async fn test_api_error_response_internal_error_returns_500() {
-    let error = ApiError::internal_error("Something broke");
+    let error = ApiError::internal("Something broke", "cause");
     let response = api_error_response(error);
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }

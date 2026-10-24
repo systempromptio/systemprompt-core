@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM governance_config WHERE entity = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1cc986c8b0e2f80e47aa0c286d361fc9ab94a3ca7ae7557a82909f98a1f9898e"
+}

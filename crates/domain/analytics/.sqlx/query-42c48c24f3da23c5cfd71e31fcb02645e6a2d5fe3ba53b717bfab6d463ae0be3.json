@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                COUNT(DISTINCT context_id)::bigint as \"conversations!\",\n                COALESCE(SUM(request_count), 0)::bigint as \"ai_requests!\"\n            FROM report_ai_context_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2\n              AND traffic = 'production'\n              AND user_id = $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "conversations!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "ai_requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "42c48c24f3da23c5cfd71e31fcb02645e6a2d5fe3ba53b717bfab6d463ae0be3"
+}

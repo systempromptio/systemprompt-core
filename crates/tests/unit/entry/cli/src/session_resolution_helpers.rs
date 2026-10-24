@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_cli::EnvOverrides;
 use systemprompt_cli::paths::ResolvedPaths;
-use systemprompt_cli::session::resolution::helpers::{
+use systemprompt_cli::session::resolution::context_resolver::{
     extract_profile_name, resolve_profile_path_from_session, resolve_profile_path_without_session,
     try_session_from_env,
 };

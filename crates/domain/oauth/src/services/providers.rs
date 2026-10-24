@@ -46,16 +46,27 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             })?;
 
         let is_admin = claims.is_admin();
-        let subject = UserId::try_new(claims.sub).map_err(|_e| JwtProviderError::InvalidToken)?;
+        let subject =
+            UserId::try_new(claims.registered.sub).map_err(|_e| JwtProviderError::InvalidToken)?;
         Ok(AgentJwtClaims {
             subject,
-            username: claims.username,
-            user_type: claims.user_type.to_string(),
-            audiences: claims.aud.iter().map(ToString::to_string).collect(),
-            permissions: claims.scope.iter().map(ToString::to_string).collect(),
+            username: claims.custom.username,
+            user_type: claims.custom.user_type.to_string(),
+            audiences: claims
+                .registered
+                .aud
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+            permissions: claims
+                .custom
+                .scope
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
             is_admin,
-            expires_at: claims.exp,
-            issued_at: claims.iat,
+            expires_at: claims.registered.exp,
+            issued_at: claims.registered.iat,
         })
     }
 

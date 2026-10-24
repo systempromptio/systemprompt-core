@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod content;
+mod groups;
 mod options;
 mod turns;
 
@@ -14,6 +15,7 @@ pub use content::{
     CacheControl, CacheTtl, CanonicalContent, CanonicalMessage, ImageDetail, ImageSource, Role,
     SystemBlock,
 };
+pub use groups::{CanonicalReasoning, CanonicalSampling, CanonicalTooling};
 pub use options::{
     CanonicalTool, CanonicalToolChoice, ReasoningEffort, ResponseFormat, SearchConfig,
     ThinkingConfig,
@@ -35,22 +37,13 @@ pub struct CanonicalRequest {
     pub system: Vec<SystemBlock>,
     pub messages: Vec<CanonicalMessage>,
     pub max_tokens: u32,
-    pub temperature: Option<f32>,
-    pub top_p: Option<f32>,
-    pub top_k: Option<i32>,
-    pub stop_sequences: Vec<String>,
-    pub tools: Vec<CanonicalTool>,
-    pub tool_choice: Option<CanonicalToolChoice>,
+    pub sampling: CanonicalSampling,
+    pub tooling: CanonicalTooling,
+    pub reasoning: CanonicalReasoning,
     pub stream: bool,
-    pub thinking: Option<ThinkingConfig>,
     // JSON: Free-form request metadata mirrored to `ai_requests.metadata` (JSONB).
     pub metadata: Option<Value>,
     pub response_format: Option<ResponseFormat>,
-    pub reasoning_effort: Option<ReasoningEffort>,
-    pub search: Option<SearchConfig>,
-    pub code_execution: bool,
-    pub presence_penalty: Option<f32>,
-    pub frequency_penalty: Option<f32>,
     pub forwarded_surface: ForwardedSurface,
 }
 
@@ -63,21 +56,12 @@ impl CanonicalRequest {
             system: Vec::new(),
             messages,
             max_tokens,
-            temperature: None,
-            top_p: None,
-            top_k: None,
-            stop_sequences: Vec::new(),
-            tools: Vec::new(),
-            tool_choice: None,
+            sampling: CanonicalSampling::default(),
+            tooling: CanonicalTooling::default(),
+            reasoning: CanonicalReasoning::default(),
             stream: false,
-            thinking: None,
             metadata: None,
             response_format: None,
-            reasoning_effort: None,
-            search: None,
-            code_execution: false,
-            presence_penalty: None,
-            frequency_penalty: None,
             forwarded_surface: ForwardedSurface::default(),
         }
     }
@@ -109,7 +93,11 @@ impl CanonicalRequest {
                 .system
                 .iter()
                 .any(|block| block.cache_control.is_some())
-            || self.tools.iter().any(|tool| tool.cache_control.is_some())
+            || self
+                .tooling
+                .tools
+                .iter()
+                .any(|tool| tool.cache_control.is_some())
             || self.messages.iter().any(|message| {
                 message
                     .content

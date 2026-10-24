@@ -30,7 +30,7 @@ pub fn build_request_body(request: &CanonicalRequest, limits: Option<ModelLimits
         }),
         generation_config: Some(generation_config(request, limits)),
         tools: tools(request),
-        tool_config: request.tool_choice.as_ref().map(tool_config),
+        tool_config: request.tooling.tool_choice.as_ref().map(tool_config),
     };
     serde_json::to_value(&body).unwrap_or(Value::Null)
 }
@@ -54,14 +54,14 @@ fn generation_config(
     };
     let (thinking_config, max_output_tokens) = super::thinking::thinking_config(request, limits);
     GeminiGenerationConfig {
-        temperature: request.temperature,
-        top_p: request.top_p,
-        top_k: request.top_k,
+        temperature: request.sampling.temperature,
+        top_p: request.sampling.top_p,
+        top_k: request.sampling.top_k,
         max_output_tokens: Some(max_output_tokens),
-        stop_sequences: if request.stop_sequences.is_empty() {
+        stop_sequences: if request.sampling.stop_sequences.is_empty() {
             None
         } else {
-            Some(request.stop_sequences.clone())
+            Some(request.sampling.stop_sequences.clone())
         },
         response_mime_type,
         response_schema,
@@ -73,9 +73,10 @@ fn generation_config(
 
 fn tools(request: &CanonicalRequest) -> Option<Vec<GeminiTool>> {
     let mut tools: Vec<GeminiTool> = Vec::new();
-    if !request.tools.is_empty() {
+    if !request.tooling.tools.is_empty() {
         let sanitizer = SchemaSanitizer::new(WireProtocol::Gemini.schema_capabilities());
         let declarations = request
+            .tooling
             .tools
             .iter()
             .map(|t| GeminiFunctionDeclaration {
@@ -88,7 +89,7 @@ fn tools(request: &CanonicalRequest) -> Option<Vec<GeminiTool>> {
             function_declarations: declarations,
         });
     }
-    if let Some(search) = &request.search {
+    if let Some(search) = &request.tooling.search {
         tools.push(GeminiTool::GoogleSearch {
             google_search: GeminiEmpty {},
         });
@@ -98,7 +99,7 @@ fn tools(request: &CanonicalRequest) -> Option<Vec<GeminiTool>> {
             });
         }
     }
-    if request.code_execution {
+    if request.tooling.code_execution {
         tools.push(GeminiTool::CodeExecution {
             code_execution: GeminiEmpty {},
         });

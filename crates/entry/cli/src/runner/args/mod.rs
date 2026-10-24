@@ -179,6 +179,9 @@ impl Commands {
             Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.descriptor(),
             Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(_)))
             | Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
+            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
+                args,
+            ))) if !args.data => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Admin(admin::AdminCommands::Setup(_))
             | Self::Core(
                 core::CoreCommands::Marketplace(core::marketplace::MarketplaceCommands::Import(_))

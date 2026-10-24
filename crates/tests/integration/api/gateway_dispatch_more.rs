@@ -13,10 +13,11 @@ use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     build_error_response, classify_dispatch_error, map_dispatch_error,
 };
 use systemprompt_api::routes::gateway::messages::error::RejectionError;
-use systemprompt_gateway::OverrideEngine;
+use systemprompt_gateway::OverridePolicy;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::protocol::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, Role, SystemBlock,
 };
 use systemprompt_gateway::service::finalize::{apply_system_prompt_override, attach_request_id};
 use systemprompt_gateway::service::{
@@ -156,22 +157,28 @@ fn canonical() -> CanonicalRequest {
             content: vec![CanonicalContent::text("hi".to_owned())],
         }],
         max_tokens: 32,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -185,7 +192,7 @@ async fn apply_system_prompt_override_is_noop_without_overrides() {
     let mut request = canonical();
     let before = request.system.clone();
     let descriptor = apply_system_prompt_override(
-        &OverrideEngine::new(),
+        &OverridePolicy::new(),
         &config,
         &provider,
         "claude-test-upstream",
@@ -214,7 +221,7 @@ async fn apply_system_prompt_override_replace_swaps_system_prompt() {
     });
     let mut request = canonical();
     let descriptor = apply_system_prompt_override(
-        &OverrideEngine::new(),
+        &OverridePolicy::new(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",
@@ -239,7 +246,7 @@ async fn apply_system_prompt_override_strip_clears_system_prompt() {
     let mut request = canonical();
     request.system = vec![SystemBlock::text("to be removed".to_owned())];
     let descriptor = apply_system_prompt_override(
-        &OverrideEngine::new(),
+        &OverridePolicy::new(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",
@@ -264,7 +271,7 @@ async fn apply_system_prompt_override_non_matching_provider_passes_through() {
     let mut request = canonical();
     let before = request.system.clone();
     apply_system_prompt_override(
-        &OverrideEngine::new(),
+        &OverridePolicy::new(),
         &config,
         &ProviderId::new("anthropic"),
         "claude-test-upstream",

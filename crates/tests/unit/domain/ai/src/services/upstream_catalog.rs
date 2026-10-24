@@ -15,7 +15,7 @@ use systemprompt_test_fixtures::catalog::{
 use systemprompt_wire::{Hosting, WireProtocol};
 
 fn personal(endpoint: &str, user: &str) -> UpstreamTarget {
-    let catalog = opencode_go().install("dynapps").build();
+    let catalog = opencode_go().install("example").build();
     let binding =
         EndpointBinding::of_endpoint(&catalog, &EndpointRef::new("opencode-go", endpoint))
             .expect("endpoint in catalog");
@@ -51,7 +51,7 @@ async fn provider_headers_and_user_agent_reach_every_endpoint() {
         assert!(
             headers.contains(&(
                 "user-agent".to_owned(),
-                "systemprompt-gateway (opencode-go; dynapps)".to_owned()
+                "systemprompt-gateway (opencode-go; example)".to_owned()
             )),
             "{endpoint}: {headers:?}"
         );

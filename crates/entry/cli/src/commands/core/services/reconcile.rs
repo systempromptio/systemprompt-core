@@ -72,7 +72,7 @@ pub async fn reconcile_after_swap(
         .await
         .context("services refresh needs a database to project access rules into")?;
 
-    let reports = reconcile_composed_bundles(&pool, &services, &root.path, &bundles)
+    let reports = reconcile_composed_bundles(&pool, &services, &bundles)
         .await
         .context("Failed to reconcile the new composition's access rules")?;
 
@@ -84,11 +84,7 @@ pub async fn reconcile_after_swap(
 }
 
 fn summarise((name, report): &(String, ReconcileReport)) -> ReconcileRow {
-    let ingests: Vec<&IngestReport> = report
-        .roles
-        .iter()
-        .chain(report.marketplaces.iter())
-        .collect();
+    let ingests: Vec<&IngestReport> = report.marketplaces.iter().collect();
     let total = |pick: fn(&IngestReport) -> usize| ingests.iter().map(|r| pick(r)).sum();
 
     let inert: Vec<String> = ingests

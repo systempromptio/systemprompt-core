@@ -309,6 +309,8 @@ mod profile_config_planes;
 #[cfg(test)]
 mod profile_layering;
 #[cfg(test)]
+mod profile_unapplied_planes;
+#[cfg(test)]
 mod profile_validation;
 
 #[cfg(test)]

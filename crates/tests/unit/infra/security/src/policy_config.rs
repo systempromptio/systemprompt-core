@@ -1,8 +1,5 @@
-use std::path::Path;
-
 use systemprompt_governance::policy::{GovernanceConfig, GovernanceConfigError};
 use systemprompt_manifest::EnforcementMode;
-use tempfile::{NamedTempFile, tempdir};
 
 #[test]
 fn defaults_declare_the_four_builtins_in_order() {
@@ -122,74 +119,40 @@ fn parse_rejects_invalid_yaml() {
 }
 
 #[test]
-fn load_falls_back_to_the_warn_only_chain_only_when_the_file_is_absent() {
-    let cfg = GovernanceConfig::load(Path::new("/nonexistent/governance/config.yaml"))
-        .expect("an absent file is the documented fallback");
+fn the_defaults_are_the_warn_only_chain() {
+    let cfg = GovernanceConfig::defaults();
     assert_eq!(cfg.mode, EnforcementMode::Warn);
-    assert_eq!(
-        cfg.policies.len(),
-        GovernanceConfig::defaults().policies.len()
-    );
+    assert!(cfg.policies.iter().all(|p| p.mode == EnforcementMode::Warn));
 }
 
 #[test]
-fn load_rejects_a_present_but_broken_file_instead_of_downgrading_enforcement() {
-    let dir = std::env::temp_dir().join(format!("gov-cfg-load-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-
-    let malformed = dir.join("malformed.yaml");
-    std::fs::write(&malformed, ": : :").unwrap();
+fn parse_rejects_a_broken_declaration_instead_of_downgrading_enforcement() {
     assert!(matches!(
-        GovernanceConfig::load(&malformed),
-        Err(GovernanceConfigError::Yaml(_))
-    ));
-
-    let no_policies = dir.join("no-policies.yaml");
-    std::fs::write(&no_policies, "governance: {}").unwrap();
-    assert!(matches!(
-        GovernanceConfig::load(&no_policies),
+        GovernanceConfig::parse("governance: {}"),
         Err(GovernanceConfigError::MissingPolicies)
     ));
-
-    let bad_mode = dir.join("bad-mode.yaml");
-    std::fs::write(
-        &bad_mode,
-        "governance:\n  mode: warnn\n  policies:\n    - id: secret_scan\n",
-    )
-    .unwrap();
     assert!(matches!(
-        GovernanceConfig::load(&bad_mode),
+        GovernanceConfig::parse("governance:\n  mode: warnn\n  policies:\n    - id: secret_scan\n"),
         Err(GovernanceConfigError::InvalidMode { .. })
     ));
-
-    let bad_regex = dir.join("bad-regex.yaml");
-    std::fs::write(
-        &bad_regex,
-        "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: broken\n          name: Broken\n          regex: '('\n",
-    )
-    .unwrap();
     assert!(matches!(
-        GovernanceConfig::load(&bad_regex),
+        GovernanceConfig::parse(
+            "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: broken\n          name: Broken\n          regex: '('\n"
+        ),
         Err(GovernanceConfigError::InvalidSecretPatterns(_))
     ));
-
-    let good = dir.join("good.yaml");
-    std::fs::write(&good, "governance:\n  policies:\n    - id: secret_scan\n").unwrap();
-    let cfg = GovernanceConfig::load(&good).expect("valid file loads");
+    let cfg = GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n")
+        .expect("valid declaration parses");
     assert_eq!(cfg.mode, EnforcementMode::Enforce);
-
-    std::fs::remove_dir_all(&dir).ok();
 }
 
 #[test]
-fn engine_uses_defaults_when_services_root_has_no_governance_config() {
-    let root = tempdir().unwrap();
-
-    let engine = systemprompt_governance::policy::GovernanceEngine::from_services_root(
-        root.path(),
+fn engine_built_from_the_defaults_runs_every_builtin_in_warn() {
+    let engine = systemprompt_governance::policy::GovernanceEngine::from_config(
+        &GovernanceConfig::defaults(),
         Some(crate::offline_rate_windows()),
     )
-    .expect("an absent config uses the documented warn-only defaults");
+    .expect("the defaults build");
     let policies: Vec<_> = engine
         .policies()
         .filter(|(config, _)| config.enabled)
@@ -204,19 +167,4 @@ fn engine_uses_defaults_when_services_root_has_no_governance_config() {
             ("rate_limit", true, EnforcementMode::Warn),
         ]
     );
-}
-
-#[test]
-fn engine_reports_non_directory_services_root_without_falling_back() {
-    let root = NamedTempFile::new().unwrap();
-
-    let error = systemprompt_governance::policy::GovernanceEngine::from_services_root(
-        root.path(),
-        Some(crate::offline_rate_windows()),
-    )
-    .expect_err("a non-directory services root must not silently use defaults");
-    assert!(matches!(
-        error,
-        systemprompt_governance::policy::GovernanceEngineError::ConfigRejected { .. }
-    ));
 }

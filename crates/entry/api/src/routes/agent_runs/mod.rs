@@ -1,8 +1,9 @@
 //! `/api/v1/agent-runs`: queue, read, cancel and observe headless runs.
 //!
-//! A caller queues a [`RunRequest`] under a registered origin with an
-//! idempotency key; the origin's claim loop executes it. Every route is
-//! scoped to the caller: a run another user queued is 404. The server owns
+//! A caller queues a [`RunRequest`](systemprompt_agent_runs::RunRequest)
+//! under a registered origin with an idempotency key; the origin's claim
+//! loop executes it. Every route is scoped to the caller: a run another user
+//! queued is 404. The server owns
 //! the run's filesystem: the request's `workspace` is replaced with the run
 //! layout's, and a request naming server paths (`add_dirs`, `plugin_dirs`)
 //! or a stdio MCP server is refused.

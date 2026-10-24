@@ -8,7 +8,8 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
 use systemprompt_identifiers::{ClientId, PluginId, SessionId, UserId};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
+    UserType,
 };
 use systemprompt_security::HookTokenValidator;
 use systemprompt_security::keys::RsaSigningKey;
@@ -23,27 +24,31 @@ fn ensure_authority() -> &'static RsaSigningKey {
 fn hook_claims(plugin_id: &str, subject: &str) -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
-        sub: subject.to_string(),
-        iat: now.timestamp(),
-        exp: (now + Duration::hours(1)).timestamp(),
-        nbf: Some(now.timestamp()),
-        iss: ISSUER.to_string(),
-        aud: vec![JwtAudience::Hook],
-        jti: "jti-hook".to_string(),
-        scope: vec![Permission::HookGovern, Permission::HookTrack],
-        username: "hook".to_string(),
-        email: "hook@example.com".to_string(),
-        user_type: UserType::Service,
-        roles: vec!["service".to_string()],
-        attributes: std::collections::BTreeMap::new(),
-        client_id: Some(ClientId::new("c")),
-        token_type: TokenType::Bearer,
-        auth_time: now.timestamp(),
-        session_id: Some(SessionId::new("s")),
-        rate_limit_tier: Some(RateLimitTier::User),
-        plugin_id: Some(PluginId::new(plugin_id)),
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: subject.to_string(),
+            iat: now.timestamp(),
+            exp: (now + Duration::hours(1)).timestamp(),
+            nbf: Some(now.timestamp()),
+            iss: ISSUER.to_string(),
+            aud: vec![JwtAudience::Hook],
+            jti: "jti-hook".to_string(),
+        },
+        custom: CustomClaims {
+            scope: vec![Permission::HookGovern, Permission::HookTrack],
+            username: "hook".to_string(),
+            email: "hook@example.com".to_string(),
+            user_type: UserType::Service,
+            roles: vec!["service".to_string()],
+            attributes: std::collections::BTreeMap::new(),
+            client_id: Some(ClientId::new("c")),
+            token_type: TokenType::Bearer,
+            auth_time: now.timestamp(),
+            session_id: Some(SessionId::new("s")),
+            rate_limit_tier: Some(RateLimitTier::User),
+            plugin_id: Some(PluginId::new(plugin_id)),
+            act: None,
+            purpose: None,
+        },
     }
 }
 
@@ -105,7 +110,7 @@ fn validate_track_accepts_a_track_scoped_token() {
 fn token_without_the_required_scope_is_rejected_by_name() {
     let _ = ensure_authority();
     let mut claims = hook_claims("plugin-x", USER_9);
-    claims.scope = vec![Permission::HookGovern];
+    claims.custom.scope = vec![Permission::HookGovern];
     let token = mint(&claims);
 
     let validator = HookTokenValidator::new(ISSUER.to_string());
@@ -119,7 +124,7 @@ fn token_without_the_required_scope_is_rejected_by_name() {
 fn token_without_a_plugin_id_claim_is_rejected() {
     let _ = ensure_authority();
     let mut claims = hook_claims("plugin-x", USER_9);
-    claims.plugin_id = None;
+    claims.custom.plugin_id = None;
     let token = mint(&claims);
 
     let validator = HookTokenValidator::new(ISSUER.to_string());

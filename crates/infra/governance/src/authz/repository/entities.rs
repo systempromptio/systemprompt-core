@@ -55,6 +55,21 @@ impl AccessControlRepository {
         Ok(rows.into_iter().map(|row| (row.id.clone(), row)).collect())
     }
 
+    pub async fn list_pattern_entities(&self) -> AuthzResult<Vec<EntityRow>> {
+        let rows = sqlx::query_as!(
+            EntityRow,
+            r#"
+            SELECT entity_type AS "kind: EntityKind", entity_id AS id, default_included, source
+            FROM access_control_entities
+            WHERE entity_type IN ('model', 'provider') OR position('*' in entity_id) > 0
+            ORDER BY entity_type, entity_id
+            "#,
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows)
+    }
+
     pub async fn upsert_entity(
         &self,
         entity_type: EntityKind,
@@ -117,6 +132,7 @@ impl AccessControlRepository {
             DELETE FROM access_control_entities
             WHERE entity_type = $1
               AND entity_id <> ALL($2::text[])
+              AND position('*' in entity_id) = 0
             "#,
             entity_type.as_str(),
             &keep_owned,

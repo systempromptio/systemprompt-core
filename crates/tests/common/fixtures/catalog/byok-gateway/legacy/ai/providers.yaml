@@ -1,0 +1,447 @@
+# Provider catalog — every upstream this deployment can dispatch to, with the
+# models it serves, their pricing, capabilities, limits and governance flags.
+# Implementation configuration shipped in the image: the same file boots every
+# environment. Credentials are NOT here — each entry names its key by
+# api_key_secret, and the profile secret store supplies it.
+# Edit by hand or with: systemprompt admin config catalog ...
+#
+# Claude is served only through the customer's Anthropic API key (a customer
+# requirement). DeepSeek is a second live upstream for a cost comparison
+# against Claude: it is reachable only by asking for a deepseek-* id, and its
+# key is the `deepseek` secret in the profile secret stores. Adding another
+# provider also needs its secret, a gateway route (services/ai/gateway.yaml)
+# and an ai.providers entry (services/ai/config.yaml).
+providers:
+- name: anthropic
+  # Claude on Anthropic's own API, by the customer's API key. Every bare
+  # `claude-*` id routes here (services/ai/gateway.yaml), with no failover.
+  #
+  # These are the bare `claude-*` ids, listed to every client: Claude
+  # Desktop only accepts `claude-*` ids from an `anthropic`-surface provider.
+  # A model id must be unique across the catalog (ProviderRegistry::validate).
+  display_name: Anthropic
+  description: >-
+    Claude models on Anthropic's own API, authenticated with the anthropic key. Serves every claude-* request on this installation.
+  wire: anthropic
+  surface: anthropic
+  endpoint: https://api.anthropic.com/v1
+  api_key_secret: anthropic
+  governance:
+    european: false
+    no_retain: true
+  models:
+  - id: claude-opus-5-5
+    upstream_model: claude-opus-5-5
+    pricing:
+      input_per_million: 4.0
+      output_per_million: 20.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 5.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: claude-sonnet-5-5
+    upstream_model: claude-sonnet-5-5
+    pricing:
+      input_per_million: 2.0
+      output_per_million: 10.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 2.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: claude-haiku-5-5
+    upstream_model: claude-haiku-5-5
+    pricing:
+      input_per_million: 0.1
+      output_per_million: 0.5
+      cache_read_per_million: 0.01
+      cache_write_per_million: 0.125
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+- name: deepseek
+  # DeepSeek on its own API, through its Anthropic-compatible endpoint: the
+  # anthropic wire streams, calls tools and returns thinking blocks there
+  # unchanged. Not European, and DeepSeek's terms allow it to retain prompts.
+  #
+  # Ids and limits are DeepSeek's own `GET /models` answer:
+  # `deepseek-flash` (DeepSeek-V4.1-Flash, text+image) and `deepseek-v4-pro`.
+  # Why: DeepSeek prices by time of day, and the rates here are the PEAK list
+  # rates (as republished by benchlm.ai/deepseek/api-pricing); off-peak is half.
+  # Peak overstates cost, which keeps the Claude comparison conservative.
+  # DeepSeek bills no cache write, so a write costs the cache-miss rate.
+  #
+  # Why: `surface: openai` advertises these ids to OpenCode (which takes every
+  # surface) and keeps them out of Claude Desktop and Claude Code, which accept
+  # only the anthropic surface. A `backend` surface is never advertised, which
+  # left deepseek-* callable but invisible in every client.
+  display_name: DeepSeek
+  description: >-
+    DeepSeek models on DeepSeek's own API (Anthropic-compatible endpoint), authenticated with the deepseek key. Served only when a deepseek-* id is requested.
+  wire: anthropic
+  surface: openai
+  endpoint: https://api.deepseek.com/anthropic/v1
+  api_key_secret: deepseek
+  governance:
+    european: false
+    no_retain: false
+  models:
+  - id: deepseek-flash
+    upstream_model: deepseek-flash
+    pricing:
+      input_per_million: 0.3
+      output_per_million: 1.2
+      cache_read_per_million: 0.006
+      cache_write_per_million: 0.3
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1048576
+      max_output_tokens: 393216
+  - id: deepseek-v4-pro
+    upstream_model: deepseek-v4-pro
+    pricing:
+      input_per_million: 1.32
+      output_per_million: 3.96
+      cache_read_per_million: 0.044
+      cache_write_per_million: 1.32
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1048576
+      max_output_tokens: 393216
+- name: opencode-go
+  # OpenCode Go, by each member's OWN subscription key (`credential: user`):
+  # no platform secret; a member adds their key on /admin/profile or in the
+  # bridge, and a member without one is refused. Billing is the member's Go
+  # subscription, so the rates below are OpenCode's published per-token list
+  # prices (opencode.ai/docs/go, peak where tiered) kept only for cost
+  # comparison in analytics. Cache rates are estimates (10% read, write at
+  # input). Limits are estimates: the Go docs publish none.
+  #
+  # Ids are namespaced `go-<upstream>` so they never clash with our own
+  # deepseek-* route. This entry is the Chat Completions endpoint; the
+  # Anthropic-Messages family is opencode-go-anthropic below. Responses- and
+  # Google-wire Go models are left out of v1. Both Go entries take
+  # `surface: openai` for the same reason as deepseek: OpenCode lists them,
+  # the Claude hosts do not.
+  display_name: OpenCode Go
+  description: >-
+    OpenCode Go models (GLM, Kimi, DeepSeek, MiMo) on the Chat Completions endpoint, authenticated with the member's own Go subscription key.
+  wire: openai-chat
+  surface: openai
+  endpoint: https://opencode.ai/inference/go/openai/v1
+  credential: user
+  user_agent: "systemprompt-gateway (opencode-go; example)"
+  forward_headers: [x-opencode-session]
+  governance:
+    european: false
+    no_retain: false
+  models:
+  - id: go-glm-5.3
+    upstream_model: glm-5.3
+    pricing:
+      input_per_million: 1.4
+      output_per_million: 4.4
+      cache_read_per_million: 0.14
+      cache_write_per_million: 1.4
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 200000
+      max_output_tokens: 131072
+  - id: go-kimi-k3
+    upstream_model: kimi-k3
+    pricing:
+      input_per_million: 3.0
+      output_per_million: 15.0
+      cache_read_per_million: 0.3
+      cache_write_per_million: 3.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 65536
+  - id: go-deepseek-v4-pro
+    upstream_model: deepseek-v4-pro
+    pricing:
+      input_per_million: 1.32
+      output_per_million: 3.96
+      cache_read_per_million: 0.132
+      cache_write_per_million: 1.32
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1048576
+      max_output_tokens: 393216
+  - id: go-deepseek-v4.1-flash
+    upstream_model: deepseek-v4.1-flash
+    pricing:
+      input_per_million: 0.3
+      output_per_million: 1.2
+      cache_read_per_million: 0.03
+      cache_write_per_million: 0.3
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1048576
+      max_output_tokens: 393216
+  - id: go-mimo-v2.6-pro
+    upstream_model: mimo-v2.6-pro
+    pricing:
+      input_per_million: 0.435
+      output_per_million: 0.87
+      cache_read_per_million: 0.0435
+      cache_write_per_million: 0.435
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 65536
+  - id: go-mimo-v2.6-flash
+    upstream_model: mimo-v2.6-flash
+    pricing:
+      input_per_million: 0.14
+      output_per_million: 0.28
+      cache_read_per_million: 0.014
+      cache_write_per_million: 0.14
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 65536
+- name: opencode-go-anthropic
+  # The Anthropic-Messages half of OpenCode Go (MiniMax, Qwen); same member
+  # key, same billing note as opencode-go. Go forwards no Anthropic betas.
+  display_name: OpenCode Go (Anthropic)
+  description: >-
+    OpenCode Go models (MiniMax, Qwen) on the Anthropic Messages endpoint, authenticated with the member's own Go subscription key.
+  wire: anthropic
+  surface: openai
+  endpoint: https://opencode.ai/inference/go/anthropic/v1
+  accepted_betas: []
+  credential: user
+  user_agent: "systemprompt-gateway (opencode-go; example)"
+  forward_headers: [x-opencode-session]
+  governance:
+    european: false
+    no_retain: false
+  models:
+  - id: go-minimax-m3
+    upstream_model: minimax-m3
+    pricing:
+      input_per_million: 0.3
+      output_per_million: 1.2
+      cache_read_per_million: 0.03
+      cache_write_per_million: 0.3
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 131072
+  - id: go-qwen3.8-max
+    upstream_model: qwen3.8-max
+    pricing:
+      input_per_million: 2.0
+      output_per_million: 6.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 2.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 65536
+  - id: go-qwen3.8-flash
+    upstream_model: qwen3.8-flash
+    pricing:
+      input_per_million: 0.15
+      output_per_million: 0.47
+      cache_read_per_million: 0.015
+      cache_write_per_million: 0.15
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 65536
+- name: e2e-mock
+  display_name: E2E mock (loopback)
+  description: >-
+    Loopback Anthropic-wire mock for the Playwright suite on 127.0.0.1; never advertised to clients and unreachable on hosts without the mock running.
+  wire: anthropic
+  surface: backend
+  endpoint: http://127.0.0.1:18091/v1
+  api_key_secret: anthropic
+  governance:
+    european: false
+    no_retain: true
+  models:
+  # Why: the mock never reports cached tokens, so both cache rates are an
+  # explicit 0.0 -- present because boot refuses an absent cache_read rate.
+  - id: e2e-mock-sonnet
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 2.0
+      cache_read_per_million: 0.0
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: false
+      structured_output: false
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 128000
+      max_output_tokens: 8192

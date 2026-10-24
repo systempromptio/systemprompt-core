@@ -3,9 +3,11 @@
 //! Reads `services/ai/legacy_map.yaml` (written by the config half), records
 //! it in `ai_catalog_legacy_map`, moves personal keys stored under a legacy
 //! entry name onto its credential id, backfills `ai_requests.credential` and
-//! `endpoint` in batches of `BATCH` rows until none is left, and rewrites
-//! the 0.72 `anthropic` host-filter tag to the `claude` client family. Every
-//! step is idempotent; `ai_requests.provider` keeps its historical values.
+//! `endpoint` in batches of `BATCH` rows until none is left, rewrites
+//! the 0.72 `anthropic` host-filter tag to the `claude` client family, and
+//! moves access rules addressed to a generated legacy route id onto the
+//! declared id the map names. Every step is idempotent;
+//! `ai_requests.provider` keeps its historical values.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +18,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use systemprompt_ai::repository::{CatalogMigrationRepository, LegacyMapRow};
 use systemprompt_database::{Database, DbPool};
+use systemprompt_governance::authz::AccessControlRepository;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::BridgeHostPrefsRepository;
 
@@ -29,6 +32,7 @@ pub struct DataReport {
     pub personal_keys_moved: u64,
     pub audit_rows_backfilled: u64,
     pub host_filters_rewritten: u64,
+    pub route_ids_rewritten: u64,
 }
 
 pub fn read_map(services: &Path) -> Result<LegacyMap> {
@@ -93,6 +97,15 @@ pub async fn apply_with(db: &DbPool, map: &LegacyMap) -> Result<DataReport> {
     }
     report.host_filters_rewritten = BridgeHostPrefsRepository::new(db)
         .update_model_protocol_tag("anthropic", "claude")
+        .await?;
+    let renames: Vec<(&str, &str)> = map
+        .routes
+        .iter()
+        .filter(|(legacy, declared)| legacy != declared)
+        .map(|(legacy, declared)| (legacy.as_str(), declared.as_str()))
+        .collect();
+    report.route_ids_rewritten = AccessControlRepository::new(db)
+        .update_route_ids(&renames)
         .await?;
     Ok(report)
 }

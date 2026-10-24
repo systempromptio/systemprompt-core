@@ -41,6 +41,7 @@
 //!     payload_cap_bytes: 4194304
 //!   quota:
 //!     shared_subject_shards: 8
+//!   unapplied_planes: warn   # or deny
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -59,6 +60,39 @@ pub struct GovernanceConfig {
     pub audit: AuditConfig,
     #[serde(default)]
     pub quota: QuotaConfig,
+    #[serde(default)]
+    pub unapplied_planes: UnappliedPlaneMode,
+}
+
+/// What a node does while a config plane has never been applied.
+///
+/// Covers `governance` and `gateway_policies` until `systemprompt admin
+/// config apply` records them: `warn` lets requests through and warns at
+/// boot, in `doctor`, `/readyz` and on every request; `deny` refuses every
+/// governed and gateway request.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum UnappliedPlaneMode {
+    #[default]
+    Warn,
+    Deny,
+}
+
+impl UnappliedPlaneMode {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Warn => "warn",
+            Self::Deny => "deny",
+        }
+    }
+
+    #[must_use]
+    pub const fn denies(self) -> bool {
+        matches!(self, Self::Deny)
+    }
 }
 
 /// Row sharding for gateway quota windows.

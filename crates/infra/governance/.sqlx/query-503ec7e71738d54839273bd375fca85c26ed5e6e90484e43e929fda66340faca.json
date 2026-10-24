@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO governance_config (entity, value, source)\n          VALUES ($1, $2, $3)\n          ON CONFLICT (entity) DO UPDATE\n             SET value = EXCLUDED.value, source = EXCLUDED.source, updated_at = NOW()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "503ec7e71738d54839273bd375fca85c26ed5e6e90484e43e929fda66340faca"
+}

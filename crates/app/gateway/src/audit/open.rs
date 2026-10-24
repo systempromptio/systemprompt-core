@@ -70,7 +70,7 @@ impl GatewayAudit {
         let record = self.build_record();
         if self
             .tool_validators
-            .set(self.tool_validity.validators_for(&request.tools))
+            .set(self.tool_validity.validators_for(&request.tooling.tools))
             .is_err()
         {
             tracing::debug!(request_id = %self.ctx.ai_request_id, "tool validators already bound");
