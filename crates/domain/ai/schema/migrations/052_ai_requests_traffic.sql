@@ -1,4 +1,6 @@
 -- @supersedes-checksum: 59aded89aa904ec0
+-- @supersedes-checksum: 3557bdf9e955a0c2
+-- @supersedes-checksum: ed91b66d199d1272
 -- @cost: rows=300000 measured=130ms triggers=suspended
 -- @compat: breaking
 -- Gateway traffic carries a canonical class (schema/ai_requests.sql): the
