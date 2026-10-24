@@ -34,6 +34,8 @@ mod cloud_tenant_local_guards;
 #[cfg(test)]
 mod commands;
 #[cfg(test)]
+mod config_migrate_descriptor;
+#[cfg(test)]
 mod deploy_vault_secrets;
 #[cfg(test)]
 mod descriptor;
