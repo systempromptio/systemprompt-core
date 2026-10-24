@@ -17,8 +17,6 @@ pub enum ReconcileTrigger {
 #[serde(rename_all = "snake_case")]
 pub enum PlaneOutcome {
     InSync,
-    Corrected,
-    Seeded,
     DriftReported,
     Undeclared,
     Failed,
@@ -29,8 +27,6 @@ impl PlaneOutcome {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::InSync => "in_sync",
-            Self::Corrected => "corrected",
-            Self::Seeded => "seeded",
             Self::DriftReported => "drift_reported",
             Self::Undeclared => "undeclared",
             Self::Failed => "failed",
@@ -40,15 +36,14 @@ impl PlaneOutcome {
 
 /// One plane's result in a reconcile pass.
 ///
-/// `drift_rows` is the drift left after the pass: zero for a corrected or
-/// seeded plane, the reported count for a `db` plane.
+/// `drift_rows` is how many entities differ between the declaration and the
+/// database; the pass reports them and writes nothing.
 #[derive(Debug, Clone, Serialize)]
 pub struct PlaneReport {
     pub plane: String,
     pub authority: EffectiveAuthority,
     pub declared_hash: Option<String>,
     pub drift_rows: usize,
-    pub changes: usize,
     pub outcome: PlaneOutcome,
     pub error: Option<String>,
 }
@@ -68,8 +63,8 @@ impl ReconcileReport {
     }
 
     #[must_use]
-    pub fn changes(&self) -> usize {
-        self.planes.iter().map(|p| p.changes).sum()
+    pub fn drift_rows(&self) -> usize {
+        self.planes.iter().map(|p| p.drift_rows).sum()
     }
 }
 

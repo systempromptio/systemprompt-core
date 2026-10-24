@@ -3,13 +3,15 @@
 //! [`ConfigCommands`] dispatches to the show, list, and validate handlers plus
 //! the rate-limit, server, runtime, security and paths sub-trees, the model
 //! catalog editors (credential, provider, endpoint, model, deployment,
-//! gateway) and `migrate`, the one reader of the pre-0.73 shape.
+//! gateway), `migrate`, the one reader of the pre-0.73 shape, and `apply`, the
+//! deploy pipeline's explicit code-to-database step.
 //! Each sub-module owns its clap surface and renders results through
 //! [`crate::shared::render_result`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod apply;
 pub mod catalog;
 pub mod catalog_discovery;
 pub mod catalog_edit;
@@ -123,6 +125,12 @@ pub enum ConfigCommands {
         about = "Declared config planes: list, diff, export and apply (file vs database authority)"
     )]
     Planes(planes::PlanesCommands),
+
+    #[command(
+        about = "Apply declared config to the database: three-way merge, conflicts left for \
+                 /admin/sync (run by the deploy pipeline)"
+    )]
+    Apply(apply::ApplyArgs),
 }
 
 pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()> {
@@ -162,5 +170,6 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
         ConfigCommands::Migrate(ref args) => migrate::execute(args, &ctx.cli).await,
         ConfigCommands::Secret(ref cmd) => secret::execute(cmd, &ctx.cli).await,
         ConfigCommands::Planes(cmd) => planes::execute(cmd, &ctx.cli).await,
+        ConfigCommands::Apply(ref args) => apply::execute(args, &ctx.cli).await,
     }
 }

@@ -15,6 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod analytics;
+mod config_apply;
 mod config_reconcile;
 mod job_lock;
 mod jobs;
@@ -22,6 +23,7 @@ pub mod otlp;
 mod security;
 
 pub use analytics::AnalyticsRepository;
+pub use config_apply::{BaseRecord, ConflictRecord, ConflictRow, LastApply};
 pub use config_reconcile::{
     ConfigChangeRecord, ConfigChangeRow, ConfigReconcileRepository, PlaneStateRow,
     PlaneStateUpdate, PlaneTransaction,

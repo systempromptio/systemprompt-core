@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_provider_contracts::{
     ApplyMode, ApplyOutcome, ApplyRequest, ConfigPlane, ConfigPlaneError, ConfigPlaneResult,
-    DeclaredState, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx,
+    DeclaredState, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx, ResolvedEntities,
 };
 use systemprompt_scheduler::repository::PlaneTransaction;
 
@@ -210,5 +210,52 @@ impl ConfigPlane for DbPlane {
         Ok(Some(
             current.iter().map(|(k, v)| format!("{k}={v}\n")).collect(),
         ))
+    }
+
+    async fn write(
+        &self,
+        _ctx: &PlaneContext<'_>,
+        tx: &mut PlaneTx<'_>,
+        entities: &ResolvedEntities,
+    ) -> ConfigPlaneResult<ApplyOutcome> {
+        self.log.lock().expect("lock").push(self.name);
+        let tx = tx.get::<PlaneTransaction>()?;
+        let mut outcome = ApplyOutcome::default();
+        for (entity, resolved) in entities {
+            match &resolved.value {
+                Some(value) => {
+                    let value = if self.corrupt {
+                        "corrupted"
+                    } else {
+                        value.as_str()
+                    };
+                    sqlx::query(
+                        "INSERT INTO plane_e2e_rows (plane, entity, value) VALUES ($1, $2, $3) \
+                         ON CONFLICT (plane, entity) DO UPDATE SET value = EXCLUDED.value",
+                    )
+                    .bind(self.name)
+                    .bind(entity)
+                    .bind(value)
+                    .execute(&mut **tx)
+                    .await
+                    .map_err(|e| self.backend(e))?;
+                    outcome.updated += 1;
+                },
+                None => {
+                    sqlx::query("DELETE FROM plane_e2e_rows WHERE plane = $1 AND entity = $2")
+                        .bind(self.name)
+                        .bind(entity)
+                        .execute(&mut **tx)
+                        .await
+                        .map_err(|e| self.backend(e))?;
+                    outcome.deleted += 1;
+                },
+            }
+        }
+        Ok(outcome)
+    }
+
+    fn render_declarations(&self, entities: &PlaneSnapshot) -> ConfigPlaneResult<String> {
+        Ok(entities.iter().map(|(k, v)| format!("{k}={v}\n")).collect())
     }
 }

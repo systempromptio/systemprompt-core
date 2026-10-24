@@ -1,4 +1,4 @@
-//! Job reconciling every declared configuration plane to its authority (see
+//! Job reporting every declared configuration plane's drift (see
 //! [`crate::services::ConfigReconcileService`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -24,7 +24,7 @@ impl Job for ConfigReconcileJob {
     }
 
     fn description(&self) -> &'static str {
-        "Overwrites database drift on file-authority config planes and reports drift on the rest"
+        "Reports drift between each declared config plane and the database; writes nothing"
     }
 
     fn schedule(&self) -> &'static str {
@@ -43,7 +43,7 @@ impl Job for ConfigReconcileJob {
         let duration_ms = started.elapsed().as_millis() as u64;
         if failures.is_empty() {
             return Ok(JobResult::success()
-                .with_stats(report.changes() as u64, 0)
+                .with_stats(report.drift_rows() as u64, 0)
                 .with_duration(duration_ms));
         }
         let planes: Vec<&str> = failures.iter().map(|p| p.plane.as_str()).collect();
@@ -51,7 +51,7 @@ impl Job for ConfigReconcileJob {
             "config planes failed to reconcile: {}",
             planes.join(", ")
         ))
-        .with_stats(report.changes() as u64, failures.len() as u64)
+        .with_stats(report.drift_rows() as u64, failures.len() as u64)
         .with_duration(duration_ms))
     }
 }

@@ -73,8 +73,8 @@ async fn reconcile_config_planes(ctx: &AppContext) -> Result<()> {
     }
     tracing::info!(
         planes = report.planes.len(),
-        changes = report.changes(),
-        "config planes reconciled at boot"
+        drift_rows = report.drift_rows(),
+        "config planes checked at boot; nothing applied"
     );
     Ok(())
 }

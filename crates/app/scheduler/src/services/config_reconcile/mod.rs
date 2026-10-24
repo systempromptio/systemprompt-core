@@ -1,21 +1,18 @@
-//! Desired-state reconciliation of declared configuration planes.
+//! Drift reporting for declared configuration planes.
 //!
 //! [`ConfigReconcileService`] walks every registered
 //! [`systemprompt_provider_contracts::ConfigPlane`] in dependency order (see
-//! [`ConfigPlaneSet`]). A plane under `file` authority whose declaration
-//! exists is overwritten back to the declaration whenever the database
-//! drifts; a `db` plane is seeded from its file (mode `seed_if_empty`, actor
-//! `seed`) only while its projection is empty and otherwise only reported; a
-//! plane with no declaration file is reported as `undeclared` and never
-//! written. Each plane's read, apply and audit share one transaction: every
-//! apply re-reads the database and records one `config_change_audit` row per
-//! entity whose value actually changed, with the before and after values; an
-//! overwrite that leaves drift behind is a failure, not a correction, and is
-//! rolled back.
+//! [`ConfigPlaneSet`]), diffs each declaration against the database and
+//! reports the drift. It never writes a plane's rows: at runtime the database
+//! is authoritative and the only way a declaration reaches it is an explicit
+//! apply ([`crate::services::ConfigApplyService`], `config apply` in the
+//! deploy pipeline or `/admin/sync`) or the operator's `admin config planes
+//! apply`. A plane with no declaration file is reported as `undeclared`.
 //!
-//! The pass runs at boot (a failed plane fails the boot) and as the
-//! `config_reconcile` job. Each pass rewrites `config_plane_state` and the
-//! `systemprompt_config_drift_rows` / `systemprompt_config_plane_info` gauges.
+//! The pass runs at boot (a plane whose declaration does not load fails the
+//! boot) and as the `config_reconcile` job. Each pass rewrites
+//! `config_plane_state` and the `systemprompt_config_drift_rows` /
+//! `systemprompt_config_plane_info` gauges.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,11 +25,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_provider_contracts::{
-    ApplyMode, ChangeActor, ChangeRequest, ConfigPlane, ConfigPlaneError, DeclaredState,
-    Dependencies, DriftRow, EntityScope, PlaneSnapshot,
-};
-use systemprompt_runtime::{AppContext, ConfigPlaneSet, EffectiveAuthority};
+use systemprompt_provider_contracts::{ConfigPlane, Dependencies};
+use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::repository::{ConfigReconcileRepository, PlaneStateRow, PlaneStateUpdate};
@@ -42,8 +36,6 @@ pub use report::{
     AppliedPlane, PlaneDiff, PlaneOutcome, PlaneReport, ReconcileReport, ReconcileTrigger,
 };
 
-const RECONCILE_REASON: &str = "declared file is authoritative; database drift overwritten";
-const SEED_REASON: &str = "empty projection seeded from its declaration";
 pub const RECONCILE_LOCK_WAIT: Duration = Duration::from_secs(120);
 
 #[derive(Debug, Clone)]
@@ -134,12 +126,16 @@ impl ConfigReconcileService {
             authority,
             declared_hash: None,
             drift_rows: 0,
-            changes: 0,
             outcome: PlaneOutcome::Undeclared,
             error: None,
         };
-        if let Err(error) = self.reconcile_into(plane, trigger, &mut report).await {
-            tracing::error!(plane = plane.name(), error = %error, "config plane reconcile failed");
+        if let Err(error) = self.reconcile_into(plane, &mut report).await {
+            tracing::error!(
+                plane = plane.name(),
+                trigger = ?trigger,
+                error = %error,
+                "config plane reconcile failed"
+            );
             report.outcome = PlaneOutcome::Failed;
             report.error = Some(error.to_string());
         }
@@ -149,7 +145,6 @@ impl ConfigReconcileService {
     async fn reconcile_into(
         &self,
         plane: &dyn ConfigPlane,
-        trigger: ReconcileTrigger,
         report: &mut PlaneReport,
     ) -> SchedulerResult<()> {
         let Some(declared) = plane.load_declared(self.planes.services_root())? else {
@@ -158,50 +153,19 @@ impl ConfigReconcileService {
         report.declared_hash = Some(declared.hash.clone());
         let mut tx = self.repository.begin().await?;
         let current = self.read_current(plane, &mut tx).await?;
+        tx.rollback().await?;
         let drift = plane.diff(&declared, &current);
         report.drift_rows = drift.len();
-        refuse_unattended_wipe(plane, report.authority, &declared, &current)?;
-        let Some(step) = decide(report.authority, trigger, &declared, &current, &drift) else {
-            report.outcome = if drift.is_empty() {
-                PlaneOutcome::InSync
-            } else {
-                tracing::warn!(
-                    plane = plane.name(),
-                    drift_rows = drift.len(),
-                    "config plane drift reported; database authority, nothing written"
-                );
-                PlaneOutcome::DriftReported
-            };
-            return Ok(());
+        report.outcome = if drift.is_empty() {
+            PlaneOutcome::InSync
+        } else {
+            tracing::warn!(
+                plane = plane.name(),
+                drift_rows = drift.len(),
+                "config plane drift reported; nothing written (run `config apply`)"
+            );
+            PlaneOutcome::DriftReported
         };
-        let change = ChangeRequest {
-            actor: step.actor,
-            reason: step.reason,
-        };
-        let observed = apply::Observed {
-            declared: &declared,
-            current: &current,
-            drift: &drift,
-        };
-        let planned = apply::Planned {
-            mode: step.mode,
-            change: &change,
-            scope: EntityScope::All,
-        };
-        let applied = self
-            .apply_recorded(plane, &mut tx, observed, planned)
-            .await?;
-        tx.commit().await?;
-        tracing::info!(
-            plane = plane.name(),
-            outcome = step.outcome.as_str(),
-            changes = applied.changes,
-            hash = %declared.hash,
-            "config plane reconciled to its declaration"
-        );
-        report.outcome = step.outcome;
-        report.changes = applied.changes;
-        report.drift_rows = 0;
         Ok(())
     }
 
@@ -213,68 +177,9 @@ impl ConfigReconcileService {
             drift_rows: i32::try_from(report.drift_rows).unwrap_or(i32::MAX),
             outcome: report.outcome.as_str(),
             last_error: report.error.as_deref(),
-            corrected: report.changes > 0,
         };
         if let Err(error) = self.repository.upsert_state(&update).await {
             tracing::warn!(plane = %report.plane, error = %error, "config_plane_state not recorded");
         }
     }
-}
-
-struct Step {
-    outcome: PlaneOutcome,
-    mode: ApplyMode,
-    actor: ChangeActor,
-    reason: &'static str,
-}
-
-fn decide(
-    authority: EffectiveAuthority,
-    trigger: ReconcileTrigger,
-    declared: &DeclaredState,
-    current: &PlaneSnapshot,
-    drift: &[DriftRow],
-) -> Option<Step> {
-    match authority {
-        EffectiveAuthority::File if !drift.is_empty() => Some(Step {
-            outcome: PlaneOutcome::Corrected,
-            mode: ApplyMode::Overwrite,
-            actor: match trigger {
-                ReconcileTrigger::Boot => ChangeActor::Boot,
-                ReconcileTrigger::Scheduled => ChangeActor::Reconciler,
-            },
-            reason: RECONCILE_REASON,
-        }),
-        EffectiveAuthority::Db | EffectiveAuthority::Undeclared
-            if current.is_empty() && !declared.entries.is_empty() =>
-        {
-            Some(Step {
-                outcome: PlaneOutcome::Seeded,
-                mode: ApplyMode::SeedIfEmpty,
-                actor: ChangeActor::Seed,
-                reason: SEED_REASON,
-            })
-        },
-        _ => None,
-    }
-}
-
-fn refuse_unattended_wipe(
-    plane: &dyn ConfigPlane,
-    authority: EffectiveAuthority,
-    declared: &DeclaredState,
-    current: &PlaneSnapshot,
-) -> Result<(), ConfigPlaneError> {
-    if !authority.is_file_managed() || !declared.entries.is_empty() || current.is_empty() {
-        return Ok(());
-    }
-    Err(ConfigPlaneError::Invalid {
-        plane: plane.name().to_owned(),
-        path: plane.declared_path().to_owned(),
-        message: format!(
-            "the declaration is empty and would delete all {} database rows; refusing an \
-             unattended wipe (use `admin config planes apply` to empty the plane)",
-            current.len()
-        ),
-    })
 }

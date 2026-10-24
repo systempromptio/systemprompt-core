@@ -22,7 +22,7 @@ async fn service(set: ConfigPlaneSet) -> ConfigReconcileService {
 }
 
 #[tokio::test]
-async fn file_authority_overwrites_drift_and_audits_before_and_after() {
+async fn file_authority_reports_drift_and_writes_nothing() {
     let root = tempfile::tempdir().expect("tempdir");
     let plane = Arc::new(FakePlane::new(
         unique_plane_name("rec_file"),
@@ -38,50 +38,28 @@ async fn file_authority_overwrites_drift_and_audits_before_and_after() {
         .find(|p| p.plane == plane.name)
         .expect("plane");
 
-    assert_eq!(row.outcome, PlaneOutcome::Corrected);
+    assert_eq!(row.outcome, PlaneOutcome::DriftReported);
     assert_eq!(row.authority, EffectiveAuthority::File);
-    assert_eq!((row.changes, row.drift_rows), (3, 0));
+    assert_eq!(row.drift_rows, 3);
     let store = plane.store();
-    assert_eq!(store.get("a").map(String::as_str), Some("1"));
-    assert_eq!(store.get("c").map(String::as_str), Some("3"));
-    assert!(!store.contains_key("stray"));
-
-    let audit = svc
-        .repository()
-        .list_changes(plane.name, 10)
-        .await
-        .expect("audit");
-    assert_eq!(audit.len(), 3);
-    let a = audit.iter().find(|r| r.entity == "a").expect("a");
-    assert_eq!(
-        (
-            a.change_kind.as_str(),
-            a.before_value.as_deref(),
-            a.after_value.as_deref()
-        ),
-        ("changed", Some("console-edit"), Some("1"))
-    );
-    assert_eq!(a.actor, "config_reconcile");
-    assert_eq!(a.mode, "overwrite");
-    let stray = audit.iter().find(|r| r.entity == "stray").expect("stray");
-    assert_eq!(
-        (stray.before_value.as_deref(), stray.after_value.as_deref()),
-        (Some("x"), None)
+    assert_eq!(store.get("a").map(String::as_str), Some("console-edit"));
+    assert!(store.contains_key("stray"));
+    assert!(plane.applied_reasons.lock().expect("lock").is_empty());
+    assert!(
+        svc.repository()
+            .list_changes(plane.name, 10)
+            .await
+            .expect("audit")
+            .is_empty()
     );
 
     let state = svc.repository().list_states().await.expect("states");
     let state = state.iter().find(|s| s.plane == plane.name).expect("state");
-    assert_eq!((state.outcome.as_str(), state.drift_rows), ("corrected", 0));
+    assert_eq!(
+        (state.outcome.as_str(), state.drift_rows),
+        ("drift_reported", 3)
+    );
     assert_eq!(state.declared_hash, row.declared_hash);
-    assert!(state.corrected_at.is_some());
-
-    let again = svc.reconcile_all(ReconcileTrigger::Scheduled).await;
-    let again = again
-        .planes
-        .iter()
-        .find(|p| p.plane == plane.name)
-        .expect("plane");
-    assert_eq!((again.outcome, again.changes), (PlaneOutcome::InSync, 0));
 }
 
 #[tokio::test]
@@ -102,7 +80,7 @@ async fn db_authority_reports_drift_without_writing() {
         .expect("plane");
 
     assert_eq!(row.outcome, PlaneOutcome::DriftReported);
-    assert_eq!((row.drift_rows, row.changes), (2, 0));
+    assert_eq!(row.drift_rows, 2);
     assert_eq!(plane.store().get("a").map(String::as_str), Some("console"));
     assert!(plane.applied_reasons.lock().expect("lock").is_empty());
     assert!(
@@ -115,7 +93,7 @@ async fn db_authority_reports_drift_without_writing() {
 }
 
 #[tokio::test]
-async fn db_authority_seeds_an_empty_projection_once() {
+async fn boot_never_seeds_an_empty_projection() {
     let root = tempfile::tempdir().expect("tempdir");
     let plane = Arc::new(FakePlane::new(unique_plane_name("rec_seed"), &[]));
     plane.write_declaration(root.path(), &[("a", "1")]);
@@ -128,17 +106,14 @@ async fn db_authority_seeds_an_empty_projection_once() {
         .find(|p| p.plane == plane.name)
         .expect("plane");
 
-    assert_eq!(row.outcome, PlaneOutcome::Seeded);
-    assert_eq!(plane.store().get("a").map(String::as_str), Some("1"));
-    let audit = svc
-        .repository()
-        .list_changes(plane.name, 10)
-        .await
-        .expect("audit");
-    assert_eq!(audit.len(), 1);
-    assert_eq!(
-        (audit[0].actor.as_str(), audit[0].mode.as_str()),
-        ("seed", "seed_if_empty")
+    assert_eq!(row.outcome, PlaneOutcome::DriftReported);
+    assert!(plane.store().is_empty());
+    assert!(
+        svc.repository()
+            .list_changes(plane.name, 10)
+            .await
+            .expect("audit")
+            .is_empty()
     );
 }
 
@@ -164,28 +139,22 @@ async fn a_missing_declaration_is_undeclared_and_never_written() {
 }
 
 #[tokio::test]
-async fn an_apply_that_does_not_converge_fails_the_plane() {
+async fn an_operator_apply_that_does_not_converge_is_refused() {
     let root = tempfile::tempdir().expect("tempdir");
     let plane = Arc::new(FakePlane::new(unique_plane_name("rec_stuck"), &[("a", "x")]).stuck());
     plane.write_declaration(root.path(), &[("a", "1")]);
     let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[])).await;
+    let change = ChangeRequest {
+        actor: ChangeActor::Cli,
+        reason: "stuck",
+    };
 
-    let report = svc.reconcile_all(ReconcileTrigger::Scheduled).await;
+    let err = svc
+        .apply(plane.name, ApplyMode::Overwrite, &change, EntityScope::All)
+        .await
+        .expect_err("not converged");
 
-    assert_eq!(report.failures().len(), 1);
-    let row = &report.failures()[0];
-    assert!(
-        row.error
-            .as_deref()
-            .unwrap_or_default()
-            .contains("did not converge")
-    );
-    let state = svc.repository().list_states().await.expect("states");
-    assert!(
-        state
-            .iter()
-            .any(|s| s.plane == plane.name && s.outcome == "failed")
-    );
+    assert!(err.to_string().contains("did not converge"), "{err}");
     assert!(
         svc.repository()
             .list_changes(plane.name, 10)
@@ -284,7 +253,7 @@ async fn operator_diff_and_insert_only_apply_record_the_reason() {
 }
 
 #[tokio::test]
-async fn empty_file_declaration_never_wipes_rows_unattended() {
+async fn an_empty_declaration_reports_every_row_and_deletes_none() {
     let root = tempfile::tempdir().expect("tempdir");
     let plane = Arc::new(FakePlane::new(
         unique_plane_name("rec_empty"),
@@ -300,7 +269,10 @@ async fn empty_file_declaration_never_wipes_rows_unattended() {
         .find(|p| p.plane == plane.name)
         .expect("plane");
 
-    assert_eq!(row.outcome, PlaneOutcome::Failed);
+    assert_eq!(
+        (row.outcome, row.drift_rows),
+        (PlaneOutcome::DriftReported, 2)
+    );
     assert_eq!(plane.store().len(), 2);
     assert!(plane.applied_reasons.lock().expect("lock").is_empty());
 }
@@ -319,7 +291,7 @@ async fn exclusive_reconcile_takes_and_releases_the_cluster_lock() {
     svc.reconcile_exclusive(ReconcileTrigger::Boot, wait)
         .await
         .expect("lock released after the first pass");
-    assert_eq!(plane.store().get("a").map(String::as_str), Some("1"));
+    assert!(plane.store().is_empty(), "the pass writes nothing");
 }
 
 #[tokio::test]

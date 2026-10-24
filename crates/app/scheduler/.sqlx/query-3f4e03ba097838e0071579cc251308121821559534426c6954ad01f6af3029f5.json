@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO config_plane_state\n                  (plane, authority, declared_hash, drift_rows, outcome, last_error,\n                   reconciled_at)\n              VALUES ($1, $2, $3, $4, $5, $6, NOW())\n              ON CONFLICT (plane) DO UPDATE\n                 SET authority = EXCLUDED.authority,\n                     declared_hash = EXCLUDED.declared_hash,\n                     drift_rows = EXCLUDED.drift_rows,\n                     outcome = EXCLUDED.outcome,\n                     last_error = EXCLUDED.last_error,\n                     reconciled_at = NOW()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3f4e03ba097838e0071579cc251308121821559534426c6954ad01f6af3029f5"
+}

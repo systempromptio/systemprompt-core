@@ -11,7 +11,8 @@ use systemprompt_provider_contracts::{
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::{
-    ConfigReconcileService, PlaneOutcome, RECONCILE_LOCK_WAIT, ReconcileTrigger,
+    ApplyOptions, ConfigApplyService, ConfigReconcileService, PlaneOutcome, RECONCILE_LOCK_WAIT,
+    ReconcileTrigger,
 };
 use systemprompt_test_fixtures::{
     fixture_app_context_with_extensions, fixture_config, test_database_url, test_db_pool,
@@ -82,7 +83,7 @@ fn snapshot(pairs: &[(&str, &str)]) -> systemprompt_provider_contracts::PlaneSna
 }
 
 #[tokio::test]
-async fn boot_reconciles_registered_planes_in_dependency_order() {
+async fn boot_reports_planes_in_dependency_order_and_config_apply_writes_them() {
     let root = tempfile::tempdir().expect("tempdir");
     let log = new_log();
     let parent = DbPlane::new(unique_plane_name("e2e_parent"), &log);
@@ -102,11 +103,24 @@ async fn boot_reconciles_registered_planes_in_dependency_order() {
     assert!(report.failures().is_empty(), "{:?}", report.failures());
     let order: Vec<&str> = report.planes.iter().map(|p| p.plane.as_str()).collect();
     assert_eq!(order, vec![parent_name, child_name]);
+    assert!(log.lock().expect("lock").is_empty(), "boot writes nothing");
+    assert!(stored_rows(&h.pool, parent_name).await.is_empty());
+
+    let apply = ConfigApplyService::new(h.service.clone());
+    let planes = vec![parent_name.to_owned(), child_name.to_owned()];
+    let merged = apply
+        .apply(&ApplyOptions {
+            planes: &planes,
+            actor: ChangeActor::Cli,
+            reason: "deploy",
+            dry_run: false,
+            wait: RECONCILE_LOCK_WAIT,
+        })
+        .await
+        .expect("config apply");
+
+    assert_eq!(merged.applied(), 2);
     assert_eq!(*log.lock().expect("lock"), vec![parent_name, child_name]);
-    assert_eq!(
-        stored_rows(&h.pool, parent_name).await,
-        snapshot(&[("g", "1")])
-    );
     assert_eq!(
         stored_rows(&h.pool, child_name).await,
         snapshot(&[("rule", "g")])
@@ -119,7 +133,7 @@ async fn boot_reconciles_registered_planes_in_dependency_order() {
         .expect("audit");
     assert_eq!(
         (audit.len(), audit[0].actor.as_str(), audit[0].mode.as_str()),
-        (1, "boot", "overwrite")
+        (1, "cli", "merge")
     );
 }
 
@@ -188,36 +202,35 @@ async fn export_of_an_empty_plane_is_none() {
 }
 
 #[tokio::test]
-async fn a_db_plane_is_seeded_once_and_console_edits_survive_later_passes() {
+async fn console_edits_survive_boot_passes_and_later_applies() {
     let root = tempfile::tempdir().expect("tempdir");
     let mut plane = DbPlane::new(unique_plane_name("e2e_seed"), &new_log());
     plane.effect = PlaneEffect::OnRestart;
     plane.write_declaration(root.path(), &[("a", "1"), ("b", "2")]);
     let name = plane.name;
     let h = harness(root.path(), vec![Arc::new(plane)], &[name]).await;
+    let apply = ConfigApplyService::new(h.service.clone());
+    let planes = vec![name.to_owned()];
+    let options = ApplyOptions {
+        planes: &planes,
+        actor: ChangeActor::Cli,
+        reason: "deploy",
+        dry_run: false,
+        wait: RECONCILE_LOCK_WAIT,
+    };
 
-    let first = h.service.reconcile_all(ReconcileTrigger::Boot).await;
-    assert_eq!(first.planes[0].outcome, PlaneOutcome::Seeded);
-    let audit = h
-        .service
-        .repository()
-        .list_changes(name, 10)
-        .await
-        .expect("audit");
-    assert_eq!(audit.len(), 2);
-    assert!(
-        audit
-            .iter()
-            .all(|r| r.actor == "seed" && r.mode == "seed_if_empty")
-    );
+    let first = apply.apply(&options).await.expect("first apply");
+    assert_eq!(first.applied(), 2);
 
     sqlx::query("UPDATE plane_e2e_rows SET value = 'console' WHERE plane = $1 AND entity = 'a'")
         .bind(name)
         .execute(&*h.pool.write_pool())
         .await
         .expect("console edit");
-    let second = h.service.reconcile_all(ReconcileTrigger::Boot).await;
-    assert_eq!(second.planes[0].outcome, PlaneOutcome::DriftReported);
+    let boot = h.service.reconcile_all(ReconcileTrigger::Boot).await;
+    assert_eq!(boot.planes[0].outcome, PlaneOutcome::DriftReported);
+    let again = apply.apply(&options).await.expect("second apply");
+    assert_eq!(again.planes[0].drift, vec!["a"]);
     assert_eq!(
         stored_rows(&h.pool, name)
             .await
@@ -240,10 +253,16 @@ async fn an_apply_that_does_not_converge_rolls_back_rows_and_audit() {
     let name = plane.name;
     let h = harness(root.path(), vec![Arc::new(plane)], &[]).await;
     seed_rows(&h.pool, name, &[("a", "live")]).await;
+    let change = ChangeRequest {
+        actor: ChangeActor::Cli,
+        reason: "overwrite",
+    };
 
-    let report = h.service.reconcile_all(ReconcileTrigger::Scheduled).await;
+    h.service
+        .apply(name, ApplyMode::Overwrite, &change, EntityScope::All)
+        .await
+        .expect_err("not converged");
 
-    assert_eq!(report.failures().len(), 1);
     assert_eq!(stored_rows(&h.pool, name).await, snapshot(&[("a", "live")]));
     assert!(
         h.service
