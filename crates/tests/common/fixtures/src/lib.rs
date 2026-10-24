@@ -25,6 +25,7 @@ pub mod net;
 pub mod oauth;
 pub mod orphans;
 pub mod paths;
+pub mod poll;
 pub mod schema;
 pub mod secrets;
 pub mod service_row;
@@ -71,6 +72,7 @@ pub use oauth::{
     TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
 pub use paths::{canonical_tempdir, repo_path, repo_root};
+pub use poll::block_on;
 pub use schema::{install_extension_schemas, install_extension_schemas_with_config};
 pub use secrets::{ensure_test_secrets_bootstrap, install_named_secret};
 pub use service_row::seed_running_service;

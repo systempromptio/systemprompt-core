@@ -12,7 +12,7 @@ use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::codex::CodexSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{block_on, fixture_user_id};
 
 fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -142,14 +142,6 @@ fn stub_client() -> GatewayClient {
         ValidatedUrl::try_new("http://127.0.0.1:0").unwrap(),
         reqwest::Client::new(),
     )
-}
-
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(f)
 }
 
 fn marketplace_root(home: &Path) -> PathBuf {

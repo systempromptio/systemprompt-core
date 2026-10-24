@@ -13,7 +13,7 @@ use systemprompt_bridge::integration::cowork_artifacts::emit::{
 use systemprompt_bridge::integration::cowork_artifacts::sink::LIBRARY_STORE_FILE;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{block_on, fixture_user_id};
 use tempfile::TempDir;
 
 fn artifact(id: &str, version: &str) -> ArtifactEntry {
@@ -102,14 +102,6 @@ impl Session {
             f,
         )
     }
-}
-
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(f)
 }
 
 

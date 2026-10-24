@@ -17,7 +17,7 @@ use systemprompt_bridge::gateway::manifest::{
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
 use systemprompt_bridge::sync::SyncOptions;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{block_on, fixture_user_id};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -246,14 +246,6 @@ fn run_sync_with(
                 ))
         },
     )
-}
-
-fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(fut)
 }
 
 async fn mount_gateway(server: &MockServer, env: &SignedManifestEnvelope, pubkey: Option<&str>) {
