@@ -110,6 +110,20 @@ pub fn fixture_config(database_url: &str) -> Config {
     }
 }
 
+pub fn ensure_config() {
+    ensure_config_with(|_| {});
+}
+
+pub fn ensure_config_with(customize: impl FnOnce(&mut Config)) {
+    static INSTALL: std::sync::Once = std::sync::Once::new();
+    INSTALL.call_once(|| {
+        let mut config = fixture_config("postgres://x");
+        config.allowed_resource_audiences = vec!["hook".to_owned()];
+        customize(&mut config);
+        let _ = Config::install(config);
+    });
+}
+
 pub fn test_app_context(pool: &DbPool, database_url: &str) -> Arc<AppContext> {
     fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
         .unwrap_or_else(|e| panic!("fixture AppContext over the test database: {e:#}"))

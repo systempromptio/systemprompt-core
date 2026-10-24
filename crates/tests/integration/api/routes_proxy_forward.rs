@@ -49,6 +49,10 @@ fn ensure_config() {
     });
 }
 
+fn unique_name(prefix: &str) -> String {
+    format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
+}
+
 struct DeclaredBackend {
     name: String,
     ctx: std::sync::Arc<systemprompt_runtime::AppContext>,
@@ -200,10 +204,6 @@ async fn register_running_service(
     port: u16,
 ) -> anyhow::Result<()> {
     systemprompt_test_fixtures::seed_running_service(ctx, name, module, port).await
-}
-
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}-{}", Uuid::new_v4().simple())
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {

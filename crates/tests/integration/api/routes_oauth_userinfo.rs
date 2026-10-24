@@ -9,29 +9,19 @@
 //! rejects an unparseable `client_id` and an unregistered third-party client,
 //! and issues a session for the first-party default.
 
-use std::sync::Once;
 
 use axum::Router;
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, Response, StatusCode, header};
+use axum::body::Body;
+use axum::http::{Request, StatusCode, header};
 use systemprompt_api::routes::oauth::{public_router, wellknown_routes};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{fixture_config, mint_admin_jwt};
+use systemprompt_test_fixtures::{ensure_config, mint_admin_jwt};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::setup_ctx;
-
-static CONFIG_INSTALL: Once = Once::new();
-
-fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let _ = Config::install(fixture_config("postgres://x"));
-    });
-}
+use super::common::{read_json, setup_ctx};
 
 async fn oauth_state() -> anyhow::Result<OAuthState> {
     ensure_config();
@@ -50,11 +40,6 @@ async fn userinfo_app() -> anyhow::Result<Router> {
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .with_state(oauth_state().await?))
-}
-
-async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {
-    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    Ok(serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
 }
 
 fn get_userinfo(auth: Option<&str>) -> Request<Body> {

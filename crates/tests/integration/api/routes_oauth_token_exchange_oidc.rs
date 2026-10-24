@@ -11,28 +11,26 @@
 //! needs a live signing JWKS server on a loopback address, which this crate
 //! does not stand up.
 
-use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::Router;
-use axum::body::{Body, to_bytes};
+use axum::body::Body;
 use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
 use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_config_with, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::setup_ctx;
+use super::common::{read_json, setup_ctx};
 
 const TOKEN_EXCHANGE_GRANT: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
@@ -44,12 +42,8 @@ const ISSUER_PLAIN: &str = "https://idp-plain.example";
 const IDJAG_TYP: &str = "oauth-id-jag+jwt";
 const DEAD_JWKS: &str = "https://127.0.0.1:1/jwks";
 
-static CONFIG_INSTALL: Once = Once::new();
-
 fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let mut config = fixture_config("postgres://x");
-        config.allowed_resource_audiences = vec!["hook".to_owned()];
+    ensure_config_with(|config| {
         config.trusted_issuers = vec![
             TrustedIssuer {
                 issuer: ISSUER_IDJAG.to_owned(),
@@ -68,7 +62,6 @@ fn ensure_config() {
                 can_issue_id_jag: false,
             },
         ];
-        let _ = Config::install(config);
     });
 }
 
@@ -151,11 +144,6 @@ fn form_post(body: String) -> Request<Body> {
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(Body::from(body))
         .expect("build")
-}
-
-async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {
-    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    Ok(serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
 }
 
 fn urlencode(pairs: &[(&str, &str)]) -> String {

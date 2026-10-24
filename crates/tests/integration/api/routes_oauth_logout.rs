@@ -5,7 +5,6 @@
 //! and clearing the cookie), a non-UUID user logging out the same way, plus
 //! the missing-jti and out-of-range expiry error branches.
 
-use std::sync::Once;
 
 use axum::Router;
 use axum::body::Body;
@@ -14,78 +13,14 @@ use systemprompt_api::routes::oauth::authenticated_router;
 use systemprompt_identifiers::{
     AccessTokenId, Actor, AgentName, ContextId, SessionId, TraceId, UserId,
 };
-use systemprompt_manifest::Config;
-use systemprompt_manifest::profile::{
-    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
-};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+use systemprompt_test_fixtures::{ensure_config, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 use super::common::setup_ctx;
-
-static CONFIG_INSTALL: Once = Once::new();
-
-fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let _ = Config::install(Config {
-            instance_id: systemprompt_identifiers::InstanceId::new("test"),
-            metrics_port: None,
-            max_concurrent_streams: 16,
-            role: Default::default(),
-            max_in_flight: None,
-            shutdown: Default::default(),
-            sitename: "test".to_owned(),
-            database_type: "postgres".to_owned(),
-            database_url: "postgres://x".to_owned(),
-            database_write_url: None,
-            database_session_url: None,
-            github_link: String::new(),
-            github_token: None,
-            system_path: "/tmp".to_owned(),
-            services_path: "/tmp".to_owned(),
-            bin_path: "/tmp".to_owned(),
-            skills_path: "/tmp".to_owned(),
-            settings_path: "/tmp".to_owned(),
-            content_config_path: "/tmp".to_owned(),
-            geoip_database_path: None,
-            web_path: "/tmp".to_owned(),
-            web_config_path: "/tmp".to_owned(),
-            web_metadata_path: "/tmp".to_owned(),
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            api_server_url: "http://127.0.0.1".to_owned(),
-            api_internal_url: "http://127.0.0.1".to_owned(),
-            api_external_url: "http://127.0.0.1".to_owned(),
-            jwt_issuer: "https://issuer.test".to_owned(),
-            jwt_access_token_expiration: 3600,
-            jwt_refresh_token_expiration: 86_400,
-            jwt_audiences: vec![],
-            allowed_resource_audiences: vec!["hook".to_owned()],
-            trusted_issuers: vec![],
-            id_jag_ttl_secs: 300,
-            signing_key_path: std::path::PathBuf::from("signing_key.pem"),
-            use_https: false,
-            rate_limits: RateLimitsConfig::default(),
-            retention: systemprompt_manifest::profile::RetentionConfig::default(),
-            planes: Default::default(),
-            cors_allowed_origins: vec![],
-            trusted_proxies: vec![],
-            is_cloud: false,
-            system_admin_username: "admin".to_owned(),
-            system_admin_email: None,
-            content_negotiation: ContentNegotiationConfig::default(),
-            security_headers: SecurityHeadersConfig::default(),
-            allow_registration: false,
-            allow_dynamic_client_registration: true,
-            api_key_max_lifetime_days: None,
-            login_page_url: None,
-        });
-    });
-}
 
 const FUTURE_EXP: i64 = 4_102_444_800;
 

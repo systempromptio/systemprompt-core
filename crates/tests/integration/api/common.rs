@@ -35,6 +35,11 @@ pub async fn body_to_string(resp: Response<Body>) -> Result<(http::StatusCode, S
     Ok((status, String::from_utf8_lossy(&body).into_owned()))
 }
 
+pub async fn read_json(resp: Response<Body>) -> Result<serde_json::Value> {
+    let bytes = axum::body::to_bytes(resp.into_body(), 1024 * 1024).await?;
+    Ok(serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
+}
+
 pub fn empty_get(uri: &str) -> Request<Body> {
     Request::builder()
         .uri(uri)

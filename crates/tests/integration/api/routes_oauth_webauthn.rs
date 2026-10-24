@@ -14,19 +14,17 @@
 //! the passkey ceremony proves who the user is, not that the request in the
 //! query string is the one `/authorize` admitted.
 
-use std::sync::Once;
 
 use axum::Router;
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, Response, StatusCode, header};
+use axum::body::Body;
+use axum::http::{Request, StatusCode, header};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{WebAuthnService, generate_secure_token};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, pkce_pair, seed_oauth_client,
+    OAuthClientFixture, ensure_config_with, ensure_test_bootstrap, pkce_pair, seed_oauth_client,
     seed_user_row_with_roles, seed_user_session, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
@@ -36,19 +34,12 @@ use webauthn_authenticator_rs::WebauthnAuthenticator;
 use webauthn_authenticator_rs::softtoken::SoftToken;
 use webauthn_rs::prelude::*;
 
-use super::common::setup_ctx;
-
-static CONFIG_INSTALL: Once = Once::new();
+use super::common::{read_json, setup_ctx};
 
 fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let mut config = fixture_config("postgres://x");
+    ensure_config_with(|config| {
         config.api_external_url = "http://localhost".to_owned();
-        // The register endpoints 403 before validation when registration is
-        // disabled; this file drives the validation paths, so enable it. The
-        // disabled-gate itself is covered in routes_oauth_webauthn_complete.
         config.allow_registration = true;
-        let _ = Config::install(config);
     });
 }
 
@@ -72,11 +63,6 @@ async fn webauthn_app() -> anyhow::Result<Router> {
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .with_state(state))
-}
-
-async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {
-    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    Ok(serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
 }
 
 fn empty_post(uri: &str) -> Request<Body> {
