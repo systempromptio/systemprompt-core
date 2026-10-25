@@ -177,7 +177,9 @@ pub(super) async fn init_secrets() -> Result<()> {
     Ok(())
 }
 
-pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
+pub(super) async fn init_paths(
+    discover_models: bool,
+) -> Result<systemprompt_loader::ServicesState> {
     let profile = ProfileBootstrap::get()?;
     let secrets = SecretsBootstrap::get()
         .context("Secrets required to resolve the services bundle sources")?;
@@ -196,17 +198,16 @@ pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
     .context("Failed to build paths")?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))
         .context("Failed to initialize configuration")?;
-    if discover_models {
-        systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
+    let services = if discover_models {
+        systemprompt_loader::ServicesState::load_with_discovery(|providers| {
             Box::pin(systemprompt_runtime::discover_vertex_models(providers))
         })
         .await
-        .context("Failed to load the services configuration")?;
     } else {
-        systemprompt_loader::ServicesBootstrap::try_init()
-            .context("Failed to load the services configuration")?;
+        systemprompt_loader::ServicesState::load()
     }
-    Ok(())
+    .context("Failed to load the services configuration")?;
+    Ok(services)
 }
 
 pub(super) fn run_validation() -> Result<()> {

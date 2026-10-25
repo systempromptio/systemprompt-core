@@ -17,6 +17,8 @@ use systemprompt_identifiers::JobName;
 
 use super::routing_decision::{RoutingDecision, decide_routing};
 use super::{args, bootstrap};
+use systemprompt_loader::ServicesState;
+
 use crate::cli_settings::CliConfig;
 use crate::commands::{admin, infrastructure};
 use crate::descriptor::{CommandDescriptor, RoutingClass};
@@ -36,12 +38,33 @@ pub enum BootstrapOutcome {
     ExternalDbUrl(String),
 }
 
+pub(super) struct Bootstrapped {
+    pub outcome: BootstrapOutcome,
+    pub credentials: Option<CloudCredentials>,
+    pub services: Option<ServicesState>,
+}
+
+impl Bootstrapped {
+    const fn new(outcome: BootstrapOutcome, credentials: Option<CloudCredentials>) -> Self {
+        Self {
+            outcome,
+            credentials,
+            services: None,
+        }
+    }
+
+    fn with_services(mut self, services: Option<ServicesState>) -> Self {
+        self.services = services;
+        self
+    }
+}
+
 pub(super) async fn bootstrap_profile(
     cli: &args::Cli,
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
     env: &EnvOverrides,
-) -> Result<(BootstrapOutcome, Option<CloudCredentials>)> {
+) -> Result<Bootstrapped> {
     let has_export = args::has_local_export_flag(cli.command.as_ref());
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
@@ -49,7 +72,7 @@ pub(super) async fn bootstrap_profile(
     if enforce_routing_policy(&ctx, cli, desc, cli_config).await?
         == BootstrapOutcome::RemoteExecuted
     {
-        return Ok((BootstrapOutcome::RemoteExecuted, None));
+        return Ok(Bootstrapped::new(BootstrapOutcome::RemoteExecuted, None));
     }
 
     let needs_cloud = is_cloud_bypass_command(cli.command.as_ref());
@@ -127,7 +150,7 @@ async fn initialize_post_routing(
     ctx: &bootstrap::ProfileContext,
     desc: &CommandDescriptor,
     needs_cloud: bool,
-) -> Result<(BootstrapOutcome, Option<CloudCredentials>)> {
+) -> Result<Bootstrapped> {
     let credentials = if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
         bootstrap::init_credentials_gracefully(needs_cloud).await?
     } else {
@@ -141,11 +164,15 @@ async fn initialize_post_routing(
     if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_deployment_host {
         let secrets = SecretsBootstrap::get().context("Secrets required for external DB access")?;
         let db_url = secrets.effective_database_url(true).to_owned();
-        return Ok((BootstrapOutcome::ExternalDbUrl(db_url), credentials));
+        return Ok(Bootstrapped::new(
+            BootstrapOutcome::ExternalDbUrl(db_url),
+            credentials,
+        ));
     }
 
+    let mut services = None;
     if desc.paths() {
-        bootstrap::init_paths(desc.discovers_models()).await?;
+        services = Some(bootstrap::init_paths(desc.discovers_models()).await?);
         if !desc.skip_validation() {
             bootstrap::run_validation()?;
         }
@@ -155,7 +182,7 @@ async fn initialize_post_routing(
         bootstrap::validate_cloud_credentials(&ctx.env, credentials.as_ref());
     }
 
-    Ok((BootstrapOutcome::ContinueLocal, credentials))
+    Ok(Bootstrapped::new(BootstrapOutcome::ContinueLocal, credentials).with_services(services))
 }
 
 async fn try_remote_routing(

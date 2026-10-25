@@ -18,7 +18,8 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_database::DbPool;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_loader::ServicesState;
+use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext};
 use tokio::sync::OnceCell;
 
 use crate::cli_settings::CliConfig;
@@ -34,6 +35,7 @@ pub struct CommandContext {
     database_url: Option<String>,
     database_url_override: Option<String>,
     cloud_credentials: Option<CloudCredentials>,
+    services: Option<ServicesState>,
 }
 
 impl CommandContext {
@@ -48,6 +50,7 @@ impl CommandContext {
             database_url: None,
             database_url_override: None,
             cloud_credentials: None,
+            services: None,
         }
     }
 
@@ -61,6 +64,17 @@ impl CommandContext {
     pub fn with_database_url_override(mut self, url: Option<String>) -> Self {
         self.database_url_override = url;
         self
+    }
+
+    #[must_use]
+    pub fn with_services(mut self, services: Option<ServicesState>) -> Self {
+        self.services = services;
+        self
+    }
+
+    #[must_use]
+    pub const fn services(&self) -> Option<&ServicesState> {
+        self.services.as_ref()
     }
 
     #[must_use]
@@ -84,6 +98,7 @@ impl CommandContext {
             database_url: Some(database_url),
             database_url_override: None,
             cloud_credentials: None,
+            services: None,
         }
     }
 
@@ -98,6 +113,7 @@ impl CommandContext {
             database_url: None,
             database_url_override: None,
             cloud_credentials: None,
+            services: None,
         }
     }
 
@@ -133,7 +149,11 @@ impl CommandContext {
         }
         self.runtime
             .get_or_try_init(|| async {
-                let mut builder = AppContext::builder();
+                let mut builder = self
+                    .services
+                    .clone()
+                    .into_iter()
+                    .fold(AppContext::builder(), AppContextBuilder::with_services);
                 if let Some(url) = &self.database_url_override {
                     builder = builder.with_database_url(url.clone());
                 }
