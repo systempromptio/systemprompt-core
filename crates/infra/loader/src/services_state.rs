@@ -87,7 +87,7 @@ impl ServicesState {
     }
 
     #[must_use]
-    pub fn catalog(&self) -> &Arc<ResolvedCatalog> {
+    pub const fn catalog(&self) -> &Arc<ResolvedCatalog> {
         &self.catalog
     }
 
