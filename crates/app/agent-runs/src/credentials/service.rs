@@ -12,6 +12,7 @@
 
 use std::sync::Arc;
 
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthRepository;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_security::keys::SigningKeys;
@@ -53,6 +54,7 @@ impl RunCredentialService {
         issuer: impl Into<String>,
         lifetime: ApiKeyLifetime,
         signing_keys: SigningKeys,
+        config: Arc<Config>,
     ) -> Self {
         let RunCredentialRepositories {
             users,
@@ -68,6 +70,7 @@ impl RunCredentialService {
                 session_provider,
                 Arc::clone(&user_provider),
                 signing_keys,
+                config,
             ),
             user_provider,
             oauth,

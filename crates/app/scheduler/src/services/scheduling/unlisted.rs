@@ -15,22 +15,24 @@
 use std::collections::{HashMap, HashSet};
 
 use systemprompt_identifiers::JobName;
+use systemprompt_loader::BootContext;
 use systemprompt_manifest::services::UnlistedJobs;
+use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::Job as JobTrait;
 use tracing::{info, warn};
 
-use super::SchedulerService;
+use super::{SchedulerService, deployment_dependencies};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobConfig, SchedulerConfig};
 
 #[must_use]
-pub fn unlisted_job_names(config: &SchedulerConfig) -> Vec<JobName> {
+pub fn unlisted_job_names(config: &SchedulerConfig, boot: &BootContext) -> Vec<JobName> {
     let registered: HashMap<&'static str, &'static dyn JobTrait> =
         inventory::iter::<&'static dyn JobTrait>
             .into_iter()
             .map(|&job| (job.name(), job))
             .collect();
-    collect_unlisted(config, &registered)
+    collect_unlisted(config, &registered, &deployment_dependencies(boot))
         .into_iter()
         .map(|job| JobName::new(job.name()))
         .collect()
@@ -39,6 +41,7 @@ pub fn unlisted_job_names(config: &SchedulerConfig) -> Vec<JobName> {
 fn collect_unlisted(
     config: &SchedulerConfig,
     registered: &HashMap<&'static str, &'static dyn JobTrait>,
+    deployment: &Dependencies,
 ) -> Vec<&'static dyn JobTrait> {
     let named: HashSet<&str> = config
         .jobs
@@ -50,7 +53,10 @@ fn collect_unlisted(
         .values()
         .copied()
         .filter(|job| {
-            !named.contains(job.name()) && job.enabled() && job.schedulable() && job.configured()
+            !named.contains(job.name())
+                && job.enabled()
+                && job.schedulable()
+                && job.configured(deployment)
         })
         .collect();
     unlisted.sort_unstable_by_key(|job| job.name());
@@ -62,7 +68,11 @@ impl SchedulerService {
         &mut self,
         registered: &HashMap<&'static str, &'static dyn JobTrait>,
     ) -> SchedulerResult<()> {
-        let unlisted = collect_unlisted(&self.config, registered);
+        let unlisted = collect_unlisted(
+            &self.config,
+            registered,
+            &deployment_dependencies(self.app_context.boot()),
+        );
         if unlisted.is_empty() {
             return Ok(());
         }

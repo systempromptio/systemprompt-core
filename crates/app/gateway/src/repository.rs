@@ -17,7 +17,8 @@ use systemprompt_database::DbPool;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::RateWindowRepository;
 use systemprompt_logging::LoggingRuntime;
-use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
+use systemprompt_manifest::profile::{AuditConfig, QuotaConfig, UnappliedPlaneMode};
+use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
@@ -33,6 +34,8 @@ pub struct GatewayHandles {
     pub logging: LoggingRuntime,
     pub services: ServicesView,
     pub subject_providers: SubjectProviderSet,
+    pub at_rest: AtRestCipher,
+    pub unapplied_plane: UnappliedPlaneMode,
 }
 
 #[derive(Clone)]
@@ -80,6 +83,8 @@ impl GatewayRepositories {
             logging,
             services,
             subject_providers,
+            at_rest,
+            unapplied_plane,
         } = handles;
         let requests = Arc::new(AiRequestRepository::new(db));
         Self {
@@ -93,6 +98,7 @@ impl GatewayRepositories {
             policy_resolver: PolicyResolver::from_repository(
                 AiGatewayPolicyRepository::new(db),
                 cache_epochs,
+                unapplied_plane,
             ),
             thought_signatures: Arc::new(ThoughtSignatureCache::new(
                 TTL,
@@ -107,7 +113,7 @@ impl GatewayRepositories {
             logging,
             subject_providers,
             rate_windows: RateWindowRepository::new(db.write_pool().as_ref().clone()),
-            user_provider_credentials: UserProviderCredentialRepository::new(db),
+            user_provider_credentials: UserProviderCredentialRepository::new(db, at_rest),
             tool_validity: Arc::new(ToolValidityCache::default()),
             catalog: Arc::clone(&services.catalog),
         }

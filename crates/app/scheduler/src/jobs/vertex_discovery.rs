@@ -19,7 +19,9 @@
 use crate::services::scheduling::job_app_context;
 use async_trait::async_trait;
 use chrono::{Days, NaiveDate};
-use systemprompt_config::SecretsBootstrap;
+use std::sync::Arc;
+use systemprompt_manifest::secrets::Secrets;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::catalog::{CatalogDocument, ModelRegistry};
 use systemprompt_manifest::services::{DiscoveryReport, ServicesView, VertexRateCard};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
@@ -71,10 +73,13 @@ impl Job for VertexDiscoveryJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-        let services = job_app_context(ctx)?.services_state().view();
-        let scanned = Self::probe(&services).await.map_or(0, |report| {
-            report.discovered_priced.len() + report.discovered_unpriced.len()
-        });
+        let app = job_app_context(ctx)?;
+        let services = app.services_state().view();
+        let scanned = Self::probe(&services, app.secrets().get())
+            .await
+            .map_or(0, |report| {
+                report.discovered_priced.len() + report.discovered_unpriced.len()
+            });
         Ok(JobResult::success()
             .with_stats(scanned as u64, 0)
             .with_duration(start.elapsed().as_millis() as u64))
@@ -82,12 +87,8 @@ impl Job for VertexDiscoveryJob {
 }
 
 impl VertexDiscoveryJob {
-    pub async fn probe(services: &ServicesView) -> Option<DiscoveryReport> {
+    pub async fn probe(services: &ServicesView, secrets: Arc<Secrets>) -> Option<DiscoveryReport> {
         let booted = services.config();
-        let Ok(secrets) = SecretsBootstrap::get() else {
-            warn!("secret store unavailable; skipping Vertex discovery");
-            return None;
-        };
 
         // Why: a clone, never the live catalog, so probing cannot change what
         // is served mid-flight.

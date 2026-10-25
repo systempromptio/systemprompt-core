@@ -23,10 +23,14 @@ pub struct GeneratedFeed {
     pub item_count: usize,
 }
 
-pub async fn generate_feed(content_repo: ContentRepository, paths: &AppPaths) -> Result<()> {
-    let provider = DefaultRssFeedProvider::new(content_repo, paths).await?;
+pub async fn generate_feed(
+    content_repo: ContentRepository,
+    config: &Config,
+    paths: &AppPaths,
+) -> Result<()> {
+    let provider = DefaultRssFeedProvider::new(content_repo, config, paths).await?;
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![Arc::new(provider)];
-    let feeds = generate_feed_with_providers(&providers).await?;
+    let feeds = generate_feed_with_providers(config, &providers).await?;
 
     let web_dir = paths.web().dist().to_path_buf();
 
@@ -45,10 +49,10 @@ pub async fn generate_feed(content_repo: ContentRepository, paths: &AppPaths) ->
 }
 
 pub async fn generate_feed_with_providers(
+    config: &Config,
     providers: &[Arc<dyn RssFeedProvider>],
 ) -> Result<Vec<GeneratedFeed>> {
-    let global_config = Config::get()?;
-    let base_url = &global_config.api_external_url;
+    let base_url = &config.api_external_url;
 
     let mut feeds = Vec::new();
 

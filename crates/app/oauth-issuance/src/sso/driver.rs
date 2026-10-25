@@ -77,6 +77,7 @@ impl std::fmt::Debug for SsoDriver {
 impl SsoDriver {
     pub fn discover(
         db: &DbPool,
+        oauth: OAuthRepository,
         session_service: Arc<SessionCreationService>,
         config: Arc<Config>,
         services: ServicesView,
@@ -89,7 +90,7 @@ impl SsoDriver {
         let SsoRepositories {
             oauth: repo,
             login_events,
-        } = SsoRepositories::new(db);
+        } = SsoRepositories::new(db, oauth);
         let mut sinks: Vec<Arc<dyn AuthEventSink>> =
             vec![Arc::new(PostgresAuthEventSink::new(login_events))];
         sinks.extend(discover_sinks(&ctx));

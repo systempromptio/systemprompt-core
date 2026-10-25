@@ -213,7 +213,7 @@ pub trait Job: Send + Sync + 'static {
         true
     }
 
-    fn configured(&self) -> bool {
+    fn configured(&self, _deployment: &Dependencies) -> bool {
         true
     }
 

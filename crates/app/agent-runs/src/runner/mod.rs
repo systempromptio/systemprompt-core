@@ -26,6 +26,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentRunId, UserId};
 use systemprompt_manifest::Config;
+use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::JobContext;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::RunnerService;
@@ -125,25 +126,29 @@ impl RunnerService for A2aRunnerService {
             tracing::error!("A2A agent-run runner has no SigningKeys; no A2A run will be claimed");
             return;
         };
-        let config = match Config::get() {
-            Ok(config) => config,
-            Err(error) => {
-                tracing::error!(%error, "config unavailable; no A2A run will be claimed");
-                return;
-            },
+        let Ok(config) = ctx.get::<Arc<Config>>().cloned() else {
+            tracing::error!("A2A agent-run runner has no Config; no A2A run will be claimed");
+            return;
+        };
+        let Ok(oauth) = ctx.get::<Arc<OAuthRepositories>>().cloned() else {
+            tracing::error!(
+                "A2A agent-run runner has no OAuthRepositories; no A2A run will be claimed"
+            );
+            return;
         };
         let runner = A2aRunnerConfig::new(
             &config.api_internal_url,
             &config.jwt_issuer,
             paths.storage().data(),
         );
-        let repos = AgentRunRepositories::new(&db);
+        let repos = AgentRunRepositories::new(&db, oauth.oauth.clone());
         let handler = A2aRunHandler::new(
             RunCredentialService::new(
                 repos.credentials,
                 &runner.issuer,
                 ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
                 signing_keys,
+                Arc::clone(&config),
             ),
             runner,
         )

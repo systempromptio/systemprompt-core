@@ -32,7 +32,6 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::AiGatewayPolicyId;
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_manifest::services::QuotaFaultMode;
@@ -84,23 +83,17 @@ struct CachedEntry {
 }
 
 impl PolicyResolver {
-    pub fn from_repository(repo: AiGatewayPolicyRepository, epochs: CacheEpochs) -> Self {
-        let unapplied = ProfileBootstrap::get().map_or_else(
-            |_| UnappliedPlaneMode::default(),
-            systemprompt_manifest::Profile::unapplied_plane_mode,
-        );
+    pub fn from_repository(
+        repo: AiGatewayPolicyRepository,
+        epochs: CacheEpochs,
+        unapplied: UnappliedPlaneMode,
+    ) -> Self {
         Self {
             repo: Arc::new(repo),
             cache: Arc::new(RwLock::new(None)),
             epochs,
             unapplied,
         }
-    }
-
-    #[must_use]
-    pub const fn with_unapplied_mode(mut self, mode: UnappliedPlaneMode) -> Self {
-        self.unapplied = mode;
-        self
     }
 
     pub async fn resolve(

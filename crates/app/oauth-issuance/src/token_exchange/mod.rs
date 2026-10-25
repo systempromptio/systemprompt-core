@@ -22,6 +22,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -53,6 +54,12 @@ use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 pub const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
 pub const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
 pub const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExchangeContext<'a> {
+    pub jwks: &'a JwksCache,
+    pub config: &'a Arc<Config>,
+}
 
 #[derive(Debug, Default)]
 pub struct TokenExchangeRequest<'a> {
@@ -102,9 +109,12 @@ pub async fn handle_token_exchange(
     request: TokenExchangeRequest<'_>,
     origin: RequestOrigin<'_>,
     state: &OAuthState,
-    jwks: &JwksCache,
+    env: ExchangeContext<'_>,
 ) -> IssuanceResult<TokenResponse> {
-    let global = Config::get()?;
+    let ExchangeContext {
+        jwks,
+        config: global,
+    } = env;
     let repo = state.oauth_repository();
 
     if request.requested_token_type == Some(ID_JAG_TOKEN_TYPE) {

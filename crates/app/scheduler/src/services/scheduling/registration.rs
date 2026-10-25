@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{RegistrationCtx, SchedulerService, dispatch};
+use super::{RegistrationCtx, SchedulerService, deployment_dependencies, dispatch};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobConfig, SkippedJob};
 use std::sync::Arc;
@@ -107,7 +107,7 @@ impl SchedulerService {
             });
         };
 
-        if !registered_job.configured() {
+        if !registered_job.configured(&deployment_dependencies(self.app_context.boot())) {
             debug!(job = %job_config.name, "Job is not configured in this deployment; not scheduled");
             return Ok(Registered::No);
         }

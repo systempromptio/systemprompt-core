@@ -204,7 +204,11 @@ impl SsoDriver {
         };
 
         let bound = match binder_cookie {
-            Some(binder) => row.binder_matches(binder).map_err(SsoError::internal)?,
+            Some(binder) => self
+                .inner
+                .repo
+                .binder_matches(&row, binder)
+                .map_err(SsoError::internal)?,
             None => provider.allow_unsolicited(),
         };
         if !bound {

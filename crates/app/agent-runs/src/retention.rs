@@ -45,7 +45,7 @@ impl Job for AgentRunDirsCleanupJob {
         let start = std::time::Instant::now();
         let db = Arc::clone(ctx.get::<DbPool>()?);
         let paths = Arc::clone(ctx.get::<Arc<AppPaths>>()?);
-        let config = Config::get().map_err(|e| ProviderError::Internal(Box::new(e)))?;
+        let config = Arc::clone(ctx.get::<Arc<Config>>()?);
         let days = config.retention.agent_run_dirs_days;
         let cutoff = Utc::now() - chrono::Duration::days(i64::from(days));
         let runs_root = A2aRunnerConfig::runs_root(paths.storage().data());

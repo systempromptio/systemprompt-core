@@ -25,6 +25,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use systemprompt_database::{BudgetedDb, DbPool};
 use systemprompt_identifiers::{Actor, JobName, UserId};
+use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{DbBudget, Dependencies, Job as JobTrait, JobContext};
 use tokio::sync::Mutex;
@@ -257,8 +258,14 @@ pub(crate) fn make_job_context(
         .with(app_context.services_state().view())
         .with(BudgetedDb::new(Arc::clone(&db_pool), budget))
         .with(db_pool)
+        .with(Arc::clone(app_context.config_arc()))
+        .with(Arc::clone(app_context.oauth_repositories()))
         .with(app_context);
     JobContext::new(actor, dependencies)
+}
+
+pub(crate) fn deployment_dependencies(boot: &BootContext) -> Dependencies {
+    Dependencies::new().with(Arc::clone(boot.loaded_profile()))
 }
 
 pub(crate) fn job_app_context(ctx: &JobContext) -> SchedulerResult<&Arc<AppContext>> {

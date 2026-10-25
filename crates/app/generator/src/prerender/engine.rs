@@ -14,6 +14,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LocaleCode;
+use systemprompt_manifest::Config;
 use systemprompt_template_provider::{
     ComponentContext, DynPagePrerenderer, PageContext, PagePrepareContext,
 };
@@ -29,9 +30,10 @@ pub async fn prerender_content(
     db_pool: DbPool,
     content_repo: ContentRepository,
     content_analytics: ContentAnalyticsRepository,
+    config: &Config,
     paths: &AppPaths,
 ) -> Result<()> {
-    let ctx = load_prerender_context(db_pool, content_repo, paths).await?;
+    let ctx = load_prerender_context(db_pool, content_repo, config, paths).await?;
     let total_rendered = process_all_sources(&ctx, &content_analytics).await?;
     tracing::debug!(items_rendered = total_rendered, "Prerendering completed");
     Ok(())
@@ -46,9 +48,10 @@ pub struct PagePrerenderResult {
 pub async fn prerender_pages(
     db_pool: DbPool,
     content_repo: ContentRepository,
+    config: &Config,
     paths: &AppPaths,
 ) -> Result<Vec<PagePrerenderResult>> {
-    let ctx = load_prerender_context(db_pool, content_repo, paths).await?;
+    let ctx = load_prerender_context(db_pool, content_repo, config, paths).await?;
     prerender_pages_with_context(&ctx).await
 }
 

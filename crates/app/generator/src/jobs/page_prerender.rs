@@ -9,6 +9,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
+use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::{
     Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
 };
@@ -40,10 +41,11 @@ impl Job for PagePrerenderJob {
         let start_time = std::time::Instant::now();
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let paths = ctx.get::<Arc<AppPaths>>()?.as_ref();
+        let config = ctx.get::<Arc<Config>>()?.as_ref();
 
         tracing::info!("Job started");
         let content_repo = ContentRepository::new(&db_pool);
-        let results = prerender_pages(db_pool, content_repo, paths)
+        let results = prerender_pages(db_pool, content_repo, config, paths)
             .await
             .map_err(|e| ProviderError::Rendering {
                 context: "page prerender".to_owned(),

@@ -19,6 +19,7 @@ use crate::policies::{
 use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
 use systemprompt_extension::GatewayGuards;
+use systemprompt_config::SecretsService;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_wire::WireProtocol;
 
@@ -177,6 +178,7 @@ pub struct GatewayEngines {
     pub http: reqwest::Client,
     pub provider_tokens: Arc<TokenCache>,
     pub guards: GatewayGuards,
+    pub secrets: Arc<SecretsService>,
 }
 
 /// Failure to assemble a [`GatewayEngines`] set at boot.
@@ -190,6 +192,7 @@ impl GatewayEngines {
     pub fn new(
         provider_tokens: Arc<TokenCache>,
         guards: GatewayGuards,
+        secrets: Arc<SecretsService>,
     ) -> Result<Self, GatewayEnginesError> {
         let http = systemprompt_client::guarded_client(&GuardedClientConfig {
             timeout: None,
@@ -206,6 +209,7 @@ impl GatewayEngines {
             http,
             provider_tokens,
             guards,
+            secrets,
         })
     }
 }

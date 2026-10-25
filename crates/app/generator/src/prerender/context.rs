@@ -11,7 +11,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_manifest::WebConfig;
+use systemprompt_manifest::{Config, WebConfig};
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{ContentDataProvider, Dependencies};
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
@@ -64,9 +64,10 @@ impl std::fmt::Debug for PrerenderContext {
 pub(super) async fn load_prerender_context(
     db_pool: DbPool,
     content_repo: ContentRepository,
+    config: &Config,
     paths: &AppPaths,
 ) -> GeneratorResult<PrerenderContext> {
-    let assets = Arc::new(load_prerender_assets(paths).await?);
+    let assets = Arc::new(load_prerender_assets(config, paths).await?);
 
     let dependencies = Dependencies::new()
         .with(db_pool)
@@ -78,7 +79,10 @@ pub(super) async fn load_prerender_context(
     })
 }
 
-async fn load_prerender_assets(paths: &AppPaths) -> GeneratorResult<PrerenderAssets> {
+async fn load_prerender_assets(
+    config: &Config,
+    paths: &AppPaths,
+) -> GeneratorResult<PrerenderAssets> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path).await.map_err(|source| {
@@ -87,13 +91,13 @@ async fn load_prerender_assets(paths: &AppPaths) -> GeneratorResult<PrerenderAss
             source,
         }
     })?;
-    let config: ContentConfigRaw =
+    let content_config: ContentConfigRaw =
         serde_yaml::from_str(&yaml_content).map_err(|source| PublishError::ContentConfigParse {
             path: config_path.to_path_buf(),
             source,
         })?;
 
-    let web_config = load_web_config(paths).await?;
+    let web_config = load_web_config(config, paths).await?;
 
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
@@ -116,7 +120,7 @@ async fn load_prerender_assets(paths: &AppPaths) -> GeneratorResult<PrerenderAss
     let dist_dir = paths.web().dist().to_path_buf();
 
     Ok(PrerenderAssets {
-        config,
+        config: content_config,
         web_config,
         template_registry,
         dist_dir,

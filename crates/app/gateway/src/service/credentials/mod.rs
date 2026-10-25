@@ -29,6 +29,7 @@ use systemprompt_ai::models::BillingSource;
 use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_ai::{EndpointBinding, UpstreamCall, UpstreamTarget, UpstreamTargetError};
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
 use systemprompt_security::credential::{
     CredentialError, CredentialScope, TokenCache, fill_endpoint,
@@ -57,11 +58,12 @@ pub async fn resolve(
     hop: &ResolvedHop,
     owner: &KeyOwner,
     tokens: &Arc<TokenCache>,
+    secrets: &Secrets,
 ) -> Result<(UpstreamCall, BillingSource), DispatchError> {
     let binding = EndpointBinding::of_hop(catalog, hop).map_err(pre_audit)?;
     let billing = BillingSource::of(&hop.credential);
     if !hop.credential.is_personal() {
-        let target = UpstreamTarget::from_secrets(tokens, binding).map_err(pre_audit)?;
+        let target = UpstreamTarget::from_secrets(tokens, secrets, binding).map_err(pre_audit)?;
         let call = target.call().await.map_err(pre_audit)?;
         return Ok((call, billing));
     }

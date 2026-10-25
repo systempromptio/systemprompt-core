@@ -9,6 +9,7 @@ use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
+use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::{
     Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
 };
@@ -40,11 +41,12 @@ impl Job for ContentPrerenderJob {
         let start_time = std::time::Instant::now();
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let paths = ctx.get::<Arc<AppPaths>>()?.as_ref();
+        let config = ctx.get::<Arc<Config>>()?.as_ref();
 
         tracing::info!("Job started");
         let content_repo = ContentRepository::new(&db_pool);
         let content_analytics = ContentAnalyticsRepository::new(&db_pool);
-        prerender_content(db_pool, content_repo, content_analytics, paths)
+        prerender_content(db_pool, content_repo, content_analytics, config, paths)
             .await
             .map_err(|e| ProviderError::Rendering {
                 context: "content prerender".to_owned(),
