@@ -508,7 +508,7 @@ async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result
             header::AUTHORIZATION,
             format!("Bearer {}", cred.jwt.as_str()),
         )
-        .header(SESSION_ID, "sess-belonging-to-nobody")
+        .header(SESSION_ID, "sess_belonging_to_nobody")
         .body(Body::from(message_body("gpt-fixture-1").to_string()))
         .expect("request must build");
 
@@ -553,7 +553,7 @@ async fn a_session_bound_token_cannot_be_replayed_under_another_session() -> any
             .await?
             .oneshot(messages_post(
                 cred.jwt.as_str(),
-                &[(SESSION_ID, "sess-belonging-to-nobody")],
+                &[(SESSION_ID, "sess_belonging_to_nobody")],
                 message_body("claude-fixture-1"),
             ))
             .await?,
