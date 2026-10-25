@@ -40,7 +40,7 @@ fn pending(root: &ActiveServicesRoot, cache: &BundleCache) -> bool {
 async fn a_failed_reconcile_is_retried_by_the_next_refresh() {
     let database = DisposableDb::with_schema("cli_reconcile_retry").await;
     let pool = database.test_pool().await;
-    ensure_test_bootstrap();
+    let bootstrap = ensure_test_bootstrap();
     let temp = tempfile::tempdir().expect("fixture dir");
     let cache = BundleCache::new(temp.path().join("cache"));
     let source_state = BundleSourceState {
@@ -91,9 +91,7 @@ async fn a_failed_reconcile_is_retried_by_the_next_refresh() {
             versions: BTreeMap::new(),
         },
     };
-    let mut profile = systemprompt_config::ProfileBootstrap::get()
-        .expect("bootstrap profile")
-        .clone();
+    let mut profile = bootstrap.boot.profile().clone();
     profile.services.sources = vec![ServicesSource {
         name: SOURCE.to_owned(),
         https: None,

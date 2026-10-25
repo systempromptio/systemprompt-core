@@ -233,7 +233,7 @@ pub async fn handle_health(
     let relay_listening = relay_status.is_listening();
 
     let unapplied = super::probes::unapplied_governance(&ctx);
-    let services_source = super::probes::degraded_services_source();
+    let services_source = super::probes::degraded_services_source(&ctx);
     let (status, http_status) = if !db_healthy {
         ("unhealthy", StatusCode::SERVICE_UNAVAILABLE)
     } else if degraded_jobs.is_empty()
