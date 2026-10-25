@@ -1,6 +1,6 @@
 # Upgrading to 0.73
 
-How to move a production deployment from 0.72.x to 0.73.0. The release changes three things an operator acts on: the AI provider catalog has a new file format, declared configuration reaches the database only through an explicit `config apply`, and the gateway and bridge must be upgraded together. The full list of changes, with a migration note for each, is under `### Breaking` in `CHANGELOG.md` and the per-crate changelogs.
+How to move a production deployment from an earlier release to 0.73.0. The release changes three things an operator acts on: the AI provider catalog has a new file format, declared configuration reaches the database only through an explicit `config apply`, and the gateway and bridge must be upgraded together. The full list of changes, with a migration note for each, is under `### Breaking` in `CHANGELOG.md` and the per-crate changelogs.
 
 ## At a glance
 
