@@ -23,22 +23,42 @@ pub fn write(root: &Path, relative: &str, body: &str) {
     fs::write(path, body).expect("write fixture");
 }
 
+pub fn marketplace_yaml(id: &str) -> String {
+    format!(
+        "marketplace:\n  id: {id}-market\n  name: Test Market\n  description: d\n  version: 1.0.0\n  \
+         license: MIT\n  author:\n    name: t\n    email: t@example.com\n"
+    )
+}
+
+pub fn plugin_yaml(id: &str) -> String {
+    format!(
+        "plugin:\n  id: {id}\n  name: Test Plugin\n  description: d\n  version: 1.0.0\n  \
+         author:\n    name: t\n    email: t@example.com\n  keywords: []\n  license: MIT\n  \
+         category: test\n  skills:\n    source: explicit\n    include: []\n  agents:\n    \
+         source: explicit\n    include: []\n"
+    )
+}
+
 pub fn base_tree(root: &Path) {
-    write(root, "config/config.yaml", "version: 1\n");
+    write(root, "config/config.yaml", "includes: []\n");
     write(root, "access-control/rules.yaml", "rules: []\n");
-    write(root, "marketplaces/base/config.yaml", "id: base\n");
+    write(
+        root,
+        "marketplaces/base/config.yaml",
+        &marketplace_yaml("base"),
+    );
 }
 
 pub fn marketplace_tree(root: &Path, marketplace: &str, plugin: &str) {
     write(
         root,
         &format!("marketplaces/{marketplace}/config.yaml"),
-        &format!("id: {marketplace}\n"),
+        &marketplace_yaml(marketplace),
     );
     write(
         root,
         &format!("plugins/{plugin}/config.yaml"),
-        &format!("id: {plugin}\n"),
+        &plugin_yaml(plugin),
     );
 }
 

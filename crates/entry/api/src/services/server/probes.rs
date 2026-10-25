@@ -107,6 +107,7 @@ pub(crate) async fn handle_readyz(
     )
     .await;
     flag_unapplied_governance(&ctx, &mut config);
+    flag_degraded_services_source(&mut config);
     let (extensions_ready, extensions) = match readiness.as_deref() {
         Some(readiness) => readiness.run().await,
         None => (true, json!([])),
@@ -170,6 +171,29 @@ async fn config_block(
 fn flag_unapplied_governance(ctx: &AppContext, config: &mut serde_json::Value) {
     if let (Some(block), Some(fields)) = (unapplied_governance(ctx), config.as_object_mut()) {
         fields.insert("unapplied".to_owned(), block);
+    }
+}
+
+// JSON: the `/readyz` config block is an open JSON object.
+fn flag_degraded_services_source(config: &mut serde_json::Value) {
+    if let (Some(block), Some(fields)) = (degraded_services_source(), config.as_object_mut()) {
+        fields.insert("services_source".to_owned(), block);
+    }
+}
+
+// JSON: `/readyz` and `/health` carry this block as an open JSON object.
+pub(super) fn degraded_services_source() -> Option<serde_json::Value> {
+    use systemprompt_loader::{ServicesProvenance, ServicesRootBootstrap};
+    match &ServicesRootBootstrap::get()?.provenance {
+        ServicesProvenance::LastGood { error, .. } => Some(json!({
+            "serving": "last_good",
+            "error": error,
+        })),
+        ServicesProvenance::BundledFallback { error } => Some(json!({
+            "serving": "bundled",
+            "error": error,
+        })),
+        ServicesProvenance::Bundled | ServicesProvenance::Fetched { .. } => None,
     }
 }
 

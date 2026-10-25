@@ -1,11 +1,11 @@
 //! Boot-time resolution of the services root from configured bundle sources.
 //!
-//! The happy path is fetch, verify, compose, swap, record. Every other path
-//! is a named fallback carrying the error that caused it: an instance serving
-//! last-good content reports [`ServicesProvenance::LastGood`] with the failure
-//! text, so "we are running yesterday's bundle" is visible rather than
-//! inferred from a log line that scrolled past. `fail_closed` refuses to boot
-//! instead.
+//! The happy path is fetch, verify, compose, load-validate, swap, record. Every
+//! other path is a named fallback carrying the error that caused it: an
+//! instance serving last-good content reports [`ServicesProvenance::LastGood`]
+//! with the failure text, so "we are running yesterday's bundle" is visible
+//! rather than inferred from a log line that scrolled past. `fail_closed`
+//! refuses to boot instead.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +14,7 @@ pub mod baked;
 mod fetch;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use systemprompt_manifest::profile::{FetchFailurePolicy, Profile};
@@ -29,6 +29,7 @@ use baked::{is_base, stage_baked_base};
 use fetch::{ResolvedSource, SourceContext, resolve_source};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(60);
+const CONFIG_RELPATH: &str = "config/config.yaml";
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServicesSourceBootstrap;
@@ -102,11 +103,7 @@ impl ServicesSourceBootstrap {
             .first()
             .is_some_and(|r| is_base(&r.signed.manifest))
         {
-            let base = stage_baked_base(
-                cache,
-                std::path::Path::new(&profile.paths.services),
-                core_version,
-            )?;
+            let base = stage_baked_base(cache, Path::new(&profile.paths.services), core_version)?;
             resolved.insert(0, base);
         }
 
@@ -119,6 +116,9 @@ impl ServicesSourceBootstrap {
             })
             .collect();
         let (composed_path, composed_hash) = compose(cache, &members)?;
+        let kits: Vec<&str> = members.iter().map(|m| m.name.as_str()).collect();
+        let retained = previous.composed_hash == composed_hash;
+        refuse_unloadable(&composed_path, &kits, retained)?;
         cache.swap_current(&composed_path)?;
 
         let state = ServicesBundleState {
@@ -163,6 +163,22 @@ impl ServicesSourceBootstrap {
             FetchFailurePolicy::UseBundled => bundled_fallback(profile, error),
         }
     }
+}
+
+fn refuse_unloadable(composed: &Path, kits: &[&str], retained: bool) -> BundleResult<()> {
+    let Err(error) = crate::ConfigLoader::load_from_path(&composed.join(CONFIG_RELPATH)) else {
+        return Ok(());
+    };
+    if !retained && let Err(remove) = std::fs::remove_dir_all(composed) {
+        tracing::warn!(error = %remove, path = %composed.display(), "Could not remove the rejected composition");
+    }
+    Err(BundleError::policy_context(
+        format!(
+            "the composed services tree (sources: {}) does not load, so it was not swapped in",
+            kits.join(", ")
+        ),
+        error,
+    ))
 }
 
 fn last_good(

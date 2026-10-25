@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `core services refresh` reports `Changed` and retries when the composed hash was never reconciled (`outcome_with_pending`); `cloud doctor` gains a `services-source` check.
 - `config apply` honours `--database-url` through `CommandContext::with_database_url_override`; `config migrate --database-url` requires `--services`.
 - `config migrate` rewrites `hooks.evaluation` to `hooks.judge` in `plugins/*/config.yaml` (`migrate::hooks`); with `--services` it runs under `--database-url` (`--data` uses the command context's database).
 - `config migrate` writes `route_models` (not `routes`) to `legacy_map.yaml` and no longer writes `gateway.catalog_route_id`; `--data` moves the access rules of a routing-only route and of the catalog route onto their `model/<glob>` entity (`DataReport::route_rules_moved_to_models`). `services refresh` reports `registered` and `deleted` gateway routes only; marketplace access is applied by `config apply`.

@@ -79,3 +79,22 @@ pub(super) async fn check_config_planes(
         CheckResult::warn(NAME, format!("{detail} — {PLANE_NOT_APPLIED_HINT}"))
     }
 }
+
+pub(super) fn check_services_source() -> CheckResult {
+    use systemprompt_loader::{ServicesProvenance, ServicesRootBootstrap};
+    const SOURCE: &str = "services-source";
+    match ServicesRootBootstrap::get().map(|root| &root.provenance) {
+        Some(ServicesProvenance::LastGood { error, .. }) => CheckResult::warn(
+            SOURCE,
+            format!("serving the last good services composition after: {error}"),
+        ),
+        Some(ServicesProvenance::BundledFallback { error }) => CheckResult::warn(
+            SOURCE,
+            format!("serving the bundled services tree after: {error}"),
+        ),
+        Some(ServicesProvenance::Bundled | ServicesProvenance::Fetched { .. }) => {
+            CheckResult::pass(SOURCE, "serving the configured services sources")
+        },
+        None => CheckResult::pass(SOURCE, "no services sources resolved in this process"),
+    }
+}

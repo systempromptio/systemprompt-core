@@ -12,6 +12,7 @@ use systemprompt_loader::bundle::source::{AnyFetcher, BundleFetcher};
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::{Profile, Secrets};
+use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
 use crate::context::CommandContext;
@@ -143,6 +144,15 @@ async fn check_sources(
 }
 
 #[must_use]
+pub fn outcome_with_pending(rows: &[SourceRow], reconcile_pending: bool) -> RefreshOutcome {
+    if reconcile_pending {
+        RefreshOutcome::Changed
+    } else {
+        outcome_for(rows)
+    }
+}
+
+#[must_use]
 pub fn outcome_for(rows: &[SourceRow]) -> RefreshOutcome {
     if rows.iter().any(|row| row.changed) {
         RefreshOutcome::Changed
@@ -168,7 +178,9 @@ async fn swap_sources(
 
     let after = cache.read_state();
     let rows = diff_states(before, &after);
-    let outcome = outcome_for(&rows);
+    let reconcile_pending =
+        pending_composed_hash(&root, after.last_reconciled_hash.as_deref()).is_some();
+    let outcome = outcome_with_pending(&rows, reconcile_pending);
 
     let reconciled = if outcome == RefreshOutcome::Changed {
         Box::pin(reconcile_after_swap(profile, &root, cache, ctx)).await?

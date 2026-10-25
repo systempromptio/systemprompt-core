@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 use chrono::Utc;
 use systemprompt_cli::core::services::refresh::{
-    RefreshOutcome, diff_states, exit_code_for, outcome_for,
+    RefreshOutcome, diff_states, exit_code_for, outcome_for, outcome_with_pending,
 };
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 
@@ -80,4 +80,20 @@ fn one_changed_source_among_several_is_enough() {
     let rows = diff_states(&before, &after);
     assert_eq!(rows.iter().filter(|r| r.changed).count(), 1);
     assert_eq!(outcome_for(&rows), RefreshOutcome::Changed);
+}
+
+#[test]
+fn an_unchanged_source_with_an_unfinished_reconcile_still_reports_a_change() {
+    let same = state(&[("base", "sha256:aaa")]);
+    let rows = diff_states(&same, &same);
+
+    assert_eq!(
+        outcome_with_pending(&rows, false),
+        RefreshOutcome::Unchanged
+    );
+    assert_eq!(
+        outcome_with_pending(&rows, true),
+        RefreshOutcome::Changed,
+        "a reconcile that failed after the state was written is retried, not forgotten"
+    );
 }

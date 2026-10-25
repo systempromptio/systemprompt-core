@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `/readyz` and `/health` report a last-good or bundled-fallback services source as degraded (`services_source`).
 - `GatewayAuthzRequestInput::route_id` and `DispatchTarget::route_id` are optional: a request no declared route matched is authorized as its `model` entity.
 - `/readyz` reports a never-applied governance plane under `config.unapplied` (mode, effect, apply command) and `/health` answers `degraded` with the same block under `governance`; the replica stays ready.
 
