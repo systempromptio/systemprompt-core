@@ -111,7 +111,7 @@ pub async fn execute_agent(
     }
 
     let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
-    let name = lifecycle::resolve_agent_name(agent)?;
+    let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
     let service_id = orchestrator.restart_agent(&name, None).await?;
 
     let message = format!(

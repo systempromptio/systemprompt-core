@@ -52,6 +52,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
             },
             Arc::clone(ctx.a2a_repositories()),
             Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
+            ctx.services_state().clone(),
         )
         .with_agent_run_launcher(AgentRunsExtension::launcher(&db_pool)),
     );
@@ -69,7 +70,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         AiService::new(
             Arc::new(
                 services_config
-                    .resolve_catalog(&systemprompt_loader::services_bootstrap::catalog_context())
+                    .resolve_catalog(&systemprompt_loader::services_state::catalog_context())
                     .context("The services catalog does not resolve")?,
             ),
             &services_config.ai,

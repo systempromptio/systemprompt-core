@@ -197,7 +197,7 @@ pub(super) async fn execute_individual_agent(
     }
 
     let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
-    let name = lifecycle::resolve_agent_name(agent)?;
+    let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
 
     if force {
         orchestrator.delete_agent(&name).await?;

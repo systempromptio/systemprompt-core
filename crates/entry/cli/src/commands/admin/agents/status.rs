@@ -43,6 +43,7 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
         },
         Arc::clone(app.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(app.config())?),
+        app.services_state().clone(),
     ));
 
     let orchestrator = AgentOrchestrator::new(

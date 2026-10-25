@@ -166,7 +166,7 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
         ConfigCommands::Deployment(ref cmd) => deployment::execute(cmd, &ctx.cli).await,
         ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, &ctx.cli).await,
         ConfigCommands::Governance(ref cmd) => governance::execute(cmd, &ctx.cli),
-        ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, &ctx.cli),
+        ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, &ctx.cli, ctx.services()),
         ConfigCommands::Migrate(ref args) => migrate::execute(args, ctx).await,
         ConfigCommands::Secret(ref cmd) => secret::execute(cmd, &ctx.cli).await,
         ConfigCommands::Planes(cmd) => planes::execute(cmd, &ctx.cli).await,

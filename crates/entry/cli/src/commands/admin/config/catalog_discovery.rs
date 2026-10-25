@@ -19,10 +19,6 @@ use super::types::DiscoveryRow;
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
-fn boot_discovery() -> Option<&'static DiscoveryReport> {
-    systemprompt_loader::ServicesBootstrap::discovery_report().filter(|r| !r.ran_at.is_empty())
-}
-
 #[must_use]
 pub fn discovery_rows(report: &DiscoveryReport, card: &VertexRateCard) -> Vec<DiscoveryRow> {
     let retires_on = |id: &str| -> String {
@@ -69,8 +65,14 @@ fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
     notes
 }
 
-pub fn show_discovery(config: &CliConfig) -> anyhow::Result<()> {
-    render_discovery(boot_discovery(), config)
+pub fn show_discovery(
+    services: Option<&systemprompt_loader::ServicesState>,
+    config: &CliConfig,
+) -> anyhow::Result<()> {
+    let report = services
+        .and_then(systemprompt_loader::ServicesState::discovery_report)
+        .filter(|r| !r.ran_at.is_empty());
+    render_discovery(report, config)
 }
 
 pub fn render_discovery(

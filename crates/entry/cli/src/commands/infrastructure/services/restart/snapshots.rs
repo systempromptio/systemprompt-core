@@ -15,8 +15,9 @@ use systemprompt_scheduler::{ServiceSnapshot, ServiceType};
 
 pub(super) async fn agent_snapshots(
     orchestrator: &AgentOrchestrator,
+    services: &systemprompt_loader::ServicesState,
 ) -> Result<Vec<ServiceSnapshot>> {
-    let agent_registry = AgentRegistry::new()?;
+    let agent_registry = AgentRegistry::new(services);
     let all_agents = orchestrator.list_all().await?;
 
     let mut snapshots = Vec::with_capacity(all_agents.len());

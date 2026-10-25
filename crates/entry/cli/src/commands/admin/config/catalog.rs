@@ -18,8 +18,12 @@ pub enum CatalogCommands {
     Discovery,
 }
 
-pub fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(
+    command: &CatalogCommands,
+    config: &CliConfig,
+    services: Option<&systemprompt_loader::ServicesState>,
+) -> Result<()> {
     match command {
-        CatalogCommands::Discovery => super::catalog_discovery::show_discovery(config),
+        CatalogCommands::Discovery => super::catalog_discovery::show_discovery(services, config),
     }
 }

@@ -55,7 +55,7 @@ impl CatalogLocation {
 
 #[must_use]
 pub fn catalog_context() -> CatalogContext {
-    systemprompt_loader::services_bootstrap::catalog_context()
+    systemprompt_loader::services_state::catalog_context()
 }
 
 pub fn write_gateway(dir: &Path, gateway: Option<&GatewayConfigSpec>) -> Result<()> {
@@ -113,7 +113,7 @@ pub fn commit_catalog(
 ) -> Result<ServicesConfig> {
     let previous = snapshot(location)?;
     write_document(location, after)?;
-    match ConfigLoader::reload_from_path(&location.root) {
+    match ConfigLoader::load_from_path(&location.root) {
         Ok(services) => Ok(services),
         Err(error) => {
             restore(&previous)?;

@@ -80,7 +80,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     }
 
     if !deleted.is_empty() {
-        ConfigLoader::reload().with_context(|| {
+        ConfigLoader::load().with_context(|| {
             "Agent(s) deleted but configuration validation failed. Please check the configuration."
         })?;
     }
@@ -178,6 +178,7 @@ async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
         },
         Arc::clone(app.a2a_repositories()),
         Arc::new(broadcaster),
+        app.services_state().clone(),
     ));
 
     AgentOrchestrator::new(
