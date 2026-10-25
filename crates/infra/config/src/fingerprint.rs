@@ -64,12 +64,11 @@ impl ConfigFingerprint {
             .key_names()
             .inspect_err(|error| tracing::debug!(error = %error, "no secrets for fingerprint"))
             .unwrap_or_default();
-        let mut fingerprint =
-            Self::compute(profile, &keys, secrets.generation(), services_sha)
-                .inspect_err(|error| {
-                    tracing::warn!(error = %error, "profile could not be fingerprinted");
-                })
-                .ok()?;
+        let mut fingerprint = Self::compute(profile, &keys, secrets.generation(), services_sha)
+            .inspect_err(|error| {
+                tracing::warn!(error = %error, "profile could not be fingerprinted");
+            })
+            .ok()?;
         fingerprint.secrets_last_reload_at = secrets.status().last_reload_at;
         Some(fingerprint)
     }

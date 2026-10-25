@@ -12,18 +12,20 @@ use crate::error::AgentError;
 #[derive(Debug, Clone)]
 pub struct AgentRegistryProviderService {
     registry: AgentRegistry,
+    is_cloud: bool,
 }
 
 impl AgentRegistryProviderService {
     #[must_use]
-    pub fn new(services: &ServicesView) -> Self {
+    pub fn new(services: &ServicesView, is_cloud: bool) -> Self {
         Self {
             registry: AgentRegistry::new(services),
+            is_cloud,
         }
     }
 
-    pub const fn from_registry(registry: AgentRegistry) -> Self {
-        Self { registry }
+    pub const fn from_registry(registry: AgentRegistry, is_cloud: bool) -> Self {
+        Self { registry, is_cloud }
     }
 }
 
@@ -45,10 +47,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
     }
 
     fn list_enabled_agents(&self) -> Result<Vec<AgentInfo>, RegistryError> {
-        let agents = self
-            .registry
-            .list_enabled_agents()
-            .map_err(registry_error)?;
+        let agents = self.registry.list_enabled_agents(self.is_cloud);
 
         Ok(agents
             .into_iter()
@@ -67,7 +66,10 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
     }
 
     fn get_default_agent(&self) -> Result<AgentInfo, RegistryError> {
-        let agent = self.registry.get_default_agent().map_err(registry_error)?;
+        let agent = self
+            .registry
+            .get_default_agent(self.is_cloud)
+            .map_err(registry_error)?;
 
         Ok(AgentInfo {
             name: agent.name,

@@ -83,13 +83,19 @@ impl AuthResult {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct JwtVerifier<'a> {
+    pub keys: &'a SigningKeys,
+    pub config: &'a systemprompt_manifest::Config,
+}
+
 #[tracing::instrument(name = "mcp_rbac", skip_all)]
 pub async fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
     server_id: &McpServerId,
     hook: &SharedAuthzHook,
     services_config: &ServicesConfig,
-    keys: &SigningKeys,
+    verifier: &JwtVerifier<'_>,
 ) -> Result<AuthResult, McpError> {
     let header_dump = mcp_context
         .extensions
@@ -139,7 +145,7 @@ pub async fn enforce_rbac_from_registry(
         )
     })?;
 
-    let claims = validate_and_extract_claims(keys, server_id, &token)?;
+    let claims = validate_and_extract_claims(verifier.keys, verifier.config, server_id, &token)?;
     validate_audience(server_id, &claims, oauth_config)?;
     validate_scopes_for_permissions(server_id, &claims.get_permissions(), oauth_config)?;
 

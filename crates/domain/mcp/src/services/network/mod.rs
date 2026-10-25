@@ -52,8 +52,11 @@ impl NetworkService {
         routing::create_base_router()
     }
 
-    pub fn apply_cors(router: axum::Router) -> McpDomainResult<axum::Router> {
-        routing::apply_cors_layer(router)
+    pub fn apply_cors(
+        router: axum::Router,
+        config: &systemprompt_manifest::Config,
+    ) -> axum::Router {
+        routing::apply_cors_layer(router, config)
     }
 
     pub fn create_proxy(

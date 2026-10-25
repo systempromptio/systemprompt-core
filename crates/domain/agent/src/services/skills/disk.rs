@@ -4,9 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use systemprompt_identifiers::SkillId;
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
 pub(super) struct LoadedDiskSkill {
@@ -14,13 +13,6 @@ pub(super) struct LoadedDiskSkill {
     pub(super) name: String,
     pub(super) description: String,
     pub(super) instructions: String,
-}
-
-pub(super) fn resolve_skills_root() -> Result<PathBuf> {
-    let root = ServicesRootBootstrap::require().map_err(|e| {
-        AgentServiceError::operation("services root unavailable for SkillService", e)
-    })?;
-    Ok(root.path.join("skills"))
 }
 
 pub(super) fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<LoadedDiskSkill> {

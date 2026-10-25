@@ -12,13 +12,10 @@ use crate::services::auth::validate_jwt_token;
 
 pub fn validate_and_extract_claims(
     keys: &SigningKeys,
+    config: &systemprompt_manifest::Config,
     server_id: &McpServerId,
     token: &str,
 ) -> Result<JwtClaims, McpError> {
-    let config = systemprompt_manifest::Config::get().map_err(|e| {
-        tracing::error!(server = %server_id, error = %e, "Failed to get config");
-        McpError::internal_error("Failed to get config", None)
-    })?;
     validate_jwt_token(keys, token, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
         tracing::error!(server = %server_id, error = %e, "JWT validation failed");
         McpError::invalid_request(format!("Invalid JWT token: {e}"), None)

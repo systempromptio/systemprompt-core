@@ -11,8 +11,8 @@ pub use validator::FilesConfigValidator;
 
 use std::path::{Path, PathBuf};
 use systemprompt_cloud::constants::storage;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_manifest::profile::Profile;
 
 use crate::error::{FilesError, FilesResult};
 use types::FilesConfigWrapper;
@@ -26,9 +26,7 @@ pub struct FilesConfig {
 }
 
 impl FilesConfig {
-    pub fn from_profile(paths: &AppPaths) -> FilesResult<Self> {
-        let profile = ProfileBootstrap::get()?;
-
+    pub fn from_profile(profile: &Profile, paths: &AppPaths) -> FilesResult<Self> {
         let storage_root = profile
             .paths
             .storage

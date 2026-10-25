@@ -8,13 +8,13 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
+use std::path::Path;
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
-use systemprompt_manifest::Config;
 
 use super::state::AgentHandlerState;
 use crate::error::AgentResult;
-use crate::services::registry::AgentRegistry;
+use crate::services::registry::{AgentRegistry, CardSite};
 
 pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> impl IntoResponse {
     let config = state.config.read().await;
@@ -23,27 +23,27 @@ pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> i
 
     tracing::info!(agent_name = %agent_name, "Fetching agent card");
 
-    let base_url = Config::get().map_or_else(
-        |_| "http://localhost:3000".to_owned(),
-        |c| c.api_external_url.clone(),
-    );
+    let global = state.agent_state.config();
 
     agent_card_response(
         Ok(AgentRegistry::new(state.agent_state.services())),
         &agent_name,
-        &base_url,
+        CardSite {
+            api_external_url: &global.api_external_url,
+            skills_dir: Path::new(&global.skills_path),
+        },
     )
 }
 
 pub fn agent_card_response(
     registry: AgentResult<AgentRegistry>,
     agent_name: &AgentName,
-    base_url: &str,
+    site: CardSite<'_>,
 ) -> Response {
     match registry {
         Ok(registry) => match registry.get_agent(agent_name.as_str()) {
             Ok(agent_config) => {
-                match registry.to_agent_card(&agent_config.name, base_url, vec![], None) {
+                match registry.to_agent_card(&agent_config.name, site, vec![], None) {
                     Ok(agent_card) => (StatusCode::OK, Json(agent_card)).into_response(),
                     Err(e) => {
                         tracing::error!(error = %e, "Failed to build agent card");

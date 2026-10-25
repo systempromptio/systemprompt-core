@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use async_trait::async_trait;
 use tracing::{info, warn};
 
+use systemprompt_config::SecretsService;
 use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
 use systemprompt_identifiers::{AgentName, McpServerId};
@@ -75,8 +76,14 @@ impl McpToolProvider {
         registry: RegistryService,
         resilience: &ResilienceSettings,
         connector_tokens: Arc<TokenCache>,
+        secrets: Arc<SecretsService>,
     ) -> Self {
-        let client = Arc::new(McpClient::new(connector_tokens, registry.deployments()));
+        let client = Arc::new(McpClient::new(
+            connector_tokens,
+            registry.deployments(),
+            Arc::clone(registry.config()),
+            secrets,
+        ));
         Self {
             db_pool,
             registry,
@@ -214,15 +221,14 @@ impl ToolProvider for McpToolProvider {
             .validate()
             .map_err(|e| ToolProviderError::Internal(Box::new(e)))?;
 
-        let api_server_url = systemprompt_manifest::Config::get()
-            .map_err(|e| configuration_error("Failed to get configuration", e))?
-            .api_server_url
-            .clone();
+        let config = self.registry.config();
+        let api_server_url = config.api_server_url.clone();
 
         for server_name in assigned_servers {
             match McpServerId::try_new(server_name) {
                 Ok(server_id) => {
-                    check_server_connection(&self.registry, &server_id, &api_server_url).await;
+                    check_server_connection(&self.registry, &server_id, &api_server_url, config)
+                        .await;
                 },
                 Err(error) => {
                     warn!(agent = %agent_name, %error, "Agent lists an invalid MCP server name");
@@ -236,10 +242,7 @@ impl ToolProvider for McpToolProvider {
     async fn health_check(&self) -> ToolProviderResult<HashMap<String, bool>> {
         let mut health_status = HashMap::new();
 
-        let config_api_server_url = systemprompt_manifest::Config::get()
-            .map_err(|e| configuration_error("Failed to get configuration", e))?
-            .api_server_url
-            .clone();
+        let config_api_server_url = self.registry.config().api_server_url.clone();
 
         let servers = self
             .registry

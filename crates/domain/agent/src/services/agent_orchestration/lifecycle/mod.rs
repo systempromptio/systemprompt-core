@@ -18,12 +18,14 @@ use systemprompt_manifest::services::ServicesView;
 
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
+use crate::services::agent_orchestration::process::SpawnEnvironment;
 
 #[derive(Debug)]
 pub struct AgentLifecycle {
     pub(crate) db_service: AgentDatabaseService,
     pub(crate) app_paths: Arc<AppPaths>,
     pub(crate) spawner: Arc<Spawner>,
+    pub(crate) spawn_environment: Arc<SpawnEnvironment>,
 }
 
 impl AgentLifecycle {
@@ -31,12 +33,14 @@ impl AgentLifecycle {
         agent_service_repo: AgentServiceRepository,
         app_paths: Arc<AppPaths>,
         spawner: Arc<Spawner>,
+        spawn_environment: Arc<SpawnEnvironment>,
         services: &ServicesView,
     ) -> Self {
         Self {
             db_service: AgentDatabaseService::new(agent_service_repo, services),
             app_paths,
             spawner,
+            spawn_environment,
         }
     }
 }

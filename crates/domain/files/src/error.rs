@@ -11,16 +11,12 @@
 
 use std::path::PathBuf;
 
-use systemprompt_config::ProfileBootstrapError;
 use systemprompt_identifiers::FileId;
 use systemprompt_models::domain_error;
 
 domain_error! {
     pub enum FilesError {
         common: [repository, io, json, yaml, validation, not_found, config],
-
-        #[error("profile: {0}")]
-        Profile(#[from] ProfileBootstrapError),
 
         #[error("Failed to read files.yaml ({path:?}): {source}")]
         ConfigRead {

@@ -23,6 +23,7 @@ use rmcp::model::{ClientConfig, Implementation, ProtocolVersion};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
+use systemprompt_config::SecretsService;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::Config;
 use systemprompt_models::ai::tools::McpTool;
@@ -57,14 +58,23 @@ pub use validation::{
 pub struct McpClient {
     connector_tokens: Arc<TokenCache>,
     deployments: DeploymentService,
+    config: Arc<Config>,
+    secrets: Arc<SecretsService>,
 }
 
 impl McpClient {
     #[must_use]
-    pub const fn new(connector_tokens: Arc<TokenCache>, deployments: DeploymentService) -> Self {
+    pub const fn new(
+        connector_tokens: Arc<TokenCache>,
+        deployments: DeploymentService,
+        config: Arc<Config>,
+        secrets: Arc<SecretsService>,
+    ) -> Self {
         Self {
             connector_tokens,
             deployments,
+            config,
+            secrets,
         }
     }
 
@@ -172,14 +182,7 @@ impl McpClient {
         context: &systemprompt_models::RequestContext,
         with_elicitation: bool,
     ) -> McpDomainResult<StreamableHttpClientTransport<HttpClientWithContext>> {
-        build_transport(
-            &self.connector_tokens,
-            &self.deployments,
-            server_config,
-            context,
-            with_elicitation,
-        )
-        .await
+        build_transport(self, server_config, context, with_elicitation).await
     }
 }
 
@@ -191,30 +194,25 @@ fn transport_unavailable(server: &str, error: McpTransportError) -> crate::McpDo
 }
 
 async fn build_transport(
-    connector_tokens: &TokenCache,
-    deployments: &DeploymentService,
+    client: &McpClient,
     server_config: &systemprompt_models::mcp::McpServerConfig,
     context: &systemprompt_models::RequestContext,
     with_elicitation: bool,
 ) -> McpDomainResult<StreamableHttpClientTransport<HttpClientWithContext>> {
-    let raw_url = server_config.call_url(&Config::get()?.api_server_url);
+    let config = &*client.config;
+    let raw_url = server_config.call_url(&config.api_server_url);
     let url = if server_config.is_external() {
         raw_url
     } else {
-        rewrite_url_for_internal_use(&raw_url)
+        rewrite_url_for_internal_use(&raw_url, config)
     };
 
     let mut transport_config = StreamableHttpClientTransportConfig::with_uri(url.as_str());
 
     let client = if let Some(ext) = server_config.external_auth.as_ref() {
-        let bearer = external_auth::resolve_external_bearer(
-            connector_tokens,
-            deployments,
-            ext,
-            context,
-            &server_config.name,
-        )
-        .await?;
+        let bearer =
+            external_auth::resolve_external_bearer(client, ext, context, &server_config.name)
+                .await?;
         let outbound = external_auth::outbound_headers(
             ext,
             &bearer,

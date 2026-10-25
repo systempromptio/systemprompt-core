@@ -238,12 +238,7 @@ fn tools_validation(
     }
 }
 
-pub fn rewrite_url_for_internal_use(url: &str) -> String {
-    use systemprompt_manifest::Config;
-
-    let Ok(config) = Config::get() else {
-        return url.to_owned();
-    };
+pub fn rewrite_url_for_internal_use(url: &str, config: &systemprompt_manifest::Config) -> String {
     let external_url = &config.api_external_url;
     let internal_url = &config.api_server_url;
 

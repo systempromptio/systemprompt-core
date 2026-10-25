@@ -51,7 +51,7 @@ pub use bootstrap::{
     BOOT_REQUIRED_SECRET_KEYS, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES, EnvLookup,
     KeyMaterialError, LoadedProfile, MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS,
     ProfileBootstrapError, ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM, SecretsBootstrapError,
-    SecretsService, SecretsDocument, SecretsFetch, SecretsProvider, SecretsSourceFactory,
+    SecretsDocument, SecretsFetch, SecretsProvider, SecretsService, SecretsSourceFactory,
     SecretsSourceRegistration, SecretsStatus, SharedSecretsProvider, VaultAttemptFailure,
     VaultError, VaultKvProvider, build_external_provider, build_loaded_secrets_message,
     decode_master_key, decode_seed, diff_secrets, generate_master_key, generate_seed,

@@ -27,18 +27,12 @@ impl JwtTokenValidator {
         }
     }
 
-    pub fn from_config(keys: SigningKeys) -> Result<Self, AuthRequestError> {
-        let config = systemprompt_manifest::Config::get().map_err(|error| {
-            tracing::error!(%error, "JWT validator could not read the configuration");
-            AuthRequestError::AuthenticationFailed {
-                message: "token validator is not configured".to_owned(),
-            }
-        })?;
-        Ok(Self {
+    pub fn from_config(config: &systemprompt_manifest::Config, keys: SigningKeys) -> Self {
+        Self {
             issuer: config.jwt_issuer.clone(),
             audiences: config.jwt_audiences.clone(),
             keys,
-        })
+        }
     }
 }
 

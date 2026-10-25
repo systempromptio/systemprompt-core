@@ -19,7 +19,7 @@ pub(crate) use repository::IncomingRevision;
 pub use service::InventoryService;
 pub use types::{
     BaselineScope, ConfiguredInventoryEntry, InventoryEntry, InventoryReconciliation,
-    InventoryStatus, configured_identity,
+    InventoryStatus, SourcesContext, configured_identity,
 };
 
 mod installation_coverage;

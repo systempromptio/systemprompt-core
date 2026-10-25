@@ -64,24 +64,27 @@ impl AuthService {
 
     pub fn authenticate(
         keys: &SigningKeys,
+        config: &systemprompt_manifest::Config,
         headers: &http::HeaderMap,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthenticationService::authenticate(keys, headers)
+        AuthenticationService::authenticate(keys, config, headers)
     }
 
     pub fn authorize_service_access(
         keys: &SigningKeys,
+        config: &systemprompt_manifest::Config,
         headers: &http::HeaderMap,
         service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthorizationService::authorize_service_access(keys, headers, service_name)
+        AuthorizationService::authorize_service_access(keys, config, headers, service_name)
     }
 
     pub fn authorize_required_audience(
         keys: &SigningKeys,
+        config: &systemprompt_manifest::Config,
         headers: &http::HeaderMap,
         required_audience: &str,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthorizationService::authorize_required_audience(keys, headers, required_audience)
+        AuthorizationService::authorize_required_audience(keys, config, headers, required_audience)
     }
 }

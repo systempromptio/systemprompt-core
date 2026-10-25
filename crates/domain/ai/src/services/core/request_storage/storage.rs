@@ -35,6 +35,7 @@ pub struct RequestStorage {
     ai_request_repo: AiRequestRepository,
     payload_repo: AiRequestPayloadRepository,
     session_provider: DynAiSessionProvider,
+    session_ttl_seconds: i64,
     context_materializer: Option<DynContextMaterializer>,
 }
 
@@ -51,11 +52,13 @@ impl RequestStorage {
         ai_request_repo: AiRequestRepository,
         payload_repo: AiRequestPayloadRepository,
         session_provider: DynAiSessionProvider,
+        session_ttl_seconds: i64,
     ) -> Self {
         Self {
             ai_request_repo,
             payload_repo,
             session_provider,
+            session_ttl_seconds,
             context_materializer: None,
         }
     }
@@ -91,7 +94,13 @@ impl RequestStorage {
         let cost = record.cost_microdollars;
 
         if let Some(session_id) = session_id.as_ref() {
-            touch_session(self.session_provider.as_ref(), session_id, &user_id).await;
+            touch_session(
+                self.session_provider.as_ref(),
+                session_id,
+                &user_id,
+                self.session_ttl_seconds,
+            )
+            .await;
         }
 
         if let Some(materializer) = self.context_materializer.as_ref()

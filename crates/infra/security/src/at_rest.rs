@@ -9,10 +9,10 @@
 //!
 //! Where a stored secret has to be replayed upstream rather than merely
 //! matched — an MCP proxy identity's bearer JWT, say — a digest is no use and
-//! [`AtRestCipher::seal`]/[`AtRestCipher::open`] encrypt it instead, with ChaCha20-Poly1305 under the
-//! deployment's `encryption_master_key`. That is the same key and the same
-//! AEAD the gateway accounting journal uses on disk, so a deployment has one
-//! at-rest key to hold, not two.
+//! [`AtRestCipher::seal`]/[`AtRestCipher::open`] encrypt it instead, with
+//! ChaCha20-Poly1305 under the deployment's `encryption_master_key`. That is
+//! the same key and the same AEAD the gateway accounting journal uses on disk,
+//! so a deployment has one at-rest key to hold, not two.
 //!
 //! Rotation is out of scope here: rolling the pepper invalidates every
 //! row hashed under the old key, and rolling the master key invalidates every

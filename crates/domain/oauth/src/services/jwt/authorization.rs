@@ -8,6 +8,7 @@ use crate::services::validation::{audience, jwt as jwt_validation};
 use http::{HeaderMap, StatusCode};
 use std::str::FromStr;
 use systemprompt_identifiers::{ServiceName, UserId};
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use systemprompt_security::TokenExtractor;
 use systemprompt_security::keys::SigningKeys;
@@ -18,6 +19,7 @@ pub struct AuthorizationService;
 impl AuthorizationService {
     pub fn authorize_service_access(
         keys: &SigningKeys,
+        config: &Config,
         headers: &HeaderMap,
         service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, StatusCode> {
@@ -30,9 +32,6 @@ impl AuthorizationService {
             );
             return Err(StatusCode::UNAUTHORIZED);
         };
-        let config =
-            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
-
         let Ok(claims) = jwt_validation::validate_jwt_token(
             keys,
             &token,
@@ -60,15 +59,13 @@ impl AuthorizationService {
 
     pub fn authorize_required_audience(
         keys: &SigningKeys,
+        config: &Config,
         headers: &HeaderMap,
         required_audience: &str,
     ) -> Result<AuthenticatedUser, StatusCode> {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-        let config =
-            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
-
         let claims = jwt_validation::validate_jwt_token(
             keys,
             &token,
@@ -89,15 +86,13 @@ impl AuthorizationService {
 
     pub fn authorize_any_audience(
         keys: &SigningKeys,
+        config: &Config,
         headers: &HeaderMap,
         allowed_audiences: &[&str],
     ) -> Result<AuthenticatedUser, StatusCode> {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-        let config =
-            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
-
         let claims = jwt_validation::validate_jwt_token(
             keys,
             &token,

@@ -100,7 +100,9 @@ pub async fn store_personal_key(
     }
     verify_personal_key(tokens, catalog, credential, key, user_id).await?;
     let label = label.map(str::trim).filter(|l| !l.is_empty());
-    let sealed = systemprompt_security::at_rest::seal(key)
+    let sealed = credentials
+        .cipher()
+        .seal(key)
         .map_err(|e| PersonalKeyError::Internal(e.into()))?;
     let meta = credentials
         .set_key(user_id, &credential.id, &sealed, label)

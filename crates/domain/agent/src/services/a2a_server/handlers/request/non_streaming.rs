@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_identifiers::{AgentName, TaskId};
@@ -204,7 +205,8 @@ async fn send_message(
         Arc::clone(&state.ai_service),
         state.agent_state.webhooks(),
         state.agent_state.services().clone(),
-    )?;
+        PathBuf::from(&state.agent_state.config().skills_path),
+    );
 
     let mut task = message_processor
         .handle_message(message, agent_name, context, &state.active_tasks)

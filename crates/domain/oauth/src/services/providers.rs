@@ -32,15 +32,12 @@ impl JwtValidationProviderImpl {
         }
     }
 
-    pub fn from_config(keys: SigningKeys) -> JwtResult<Self> {
-        let config = systemprompt_manifest::Config::get()
-            .map_err(|e| JwtProviderError::Internal(Box::new(e)))?;
-
-        Ok(Self {
+    pub fn from_config(config: &systemprompt_manifest::Config, keys: SigningKeys) -> Self {
+        Self {
             issuer: config.jwt_issuer.clone(),
             audiences: config.jwt_audiences.clone(),
             keys,
-        })
+        }
     }
 }
 

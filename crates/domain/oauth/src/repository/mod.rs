@@ -44,9 +44,9 @@ pub struct OAuthRepositories {
 }
 
 impl OAuthRepositories {
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, pepper: std::sync::Arc<str>) -> Self {
         Self {
-            oauth: OAuthRepository::new(db),
+            oauth: OAuthRepository::new(db, pepper),
             bridge_host_prefs: BridgeHostPrefsRepository::new(db),
             bridge_sessions: BridgeSessionRepository::new(db),
         }

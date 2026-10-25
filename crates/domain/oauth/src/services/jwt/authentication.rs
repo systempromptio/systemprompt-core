@@ -6,6 +6,7 @@
 use crate::services::validation::jwt as jwt_validation;
 use http::{HeaderMap, StatusCode};
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_security::TokenExtractor;
 use systemprompt_security::keys::SigningKeys;
@@ -16,14 +17,12 @@ pub struct AuthenticationService;
 impl AuthenticationService {
     pub fn authenticate(
         keys: &SigningKeys,
+        config: &Config,
         headers: &HeaderMap,
     ) -> Result<AuthenticatedUser, StatusCode> {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-        let config =
-            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
-
         let claims = jwt_validation::validate_jwt_token(
             keys,
             &token,

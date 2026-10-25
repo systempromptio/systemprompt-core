@@ -10,7 +10,6 @@ pub mod skills;
 
 use std::sync::Arc;
 use systemprompt_identifiers::{AgentName, McpServerId};
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
@@ -22,6 +21,12 @@ use crate::models::a2a::{
 use security::{oauth_to_security_config, override_oauth_urls, requirements_from_config};
 use skills::load_skill_from_disk;
 use std::path::Path;
+
+#[derive(Debug, Clone, Copy)]
+pub struct CardSite<'a> {
+    pub api_external_url: &'a str,
+    pub skills_dir: &'a Path,
+}
 
 #[derive(Clone, Debug)]
 pub struct AgentRegistry {
@@ -55,19 +60,16 @@ impl AgentRegistry {
         self.config.agents.values().cloned().collect()
     }
 
-    pub fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
-        let is_cloud = is_cloud_deployment()?;
-        Ok(self
-            .config
+    pub fn list_enabled_agents(&self, is_cloud: bool) -> Vec<AgentConfig> {
+        self.config
             .agents
             .values()
             .filter(|a| a.enabled && !(a.dev_only && is_cloud))
             .cloned()
-            .collect())
+            .collect()
     }
 
-    pub fn get_default_agent(&self) -> AgentResult<AgentConfig> {
-        let is_cloud = is_cloud_deployment()?;
+    pub fn get_default_agent(&self, is_cloud: bool) -> AgentResult<AgentConfig> {
         self.config
             .agents
             .values()
@@ -79,11 +81,15 @@ impl AgentRegistry {
     pub fn to_agent_card(
         &self,
         name: &str,
-        api_external_url: &str,
+        site: CardSite<'_>,
         mcp_extensions: Vec<AgentExtension>,
         runtime_status: Option<&(String, Option<u16>, Option<u32>)>,
     ) -> AgentResult<AgentCard> {
         let agent = self.get_agent(name)?;
+        let CardSite {
+            api_external_url,
+            skills_dir,
+        } = site;
         let url = agent.construct_url(api_external_url);
 
         let extensions = build_extensions(&agent, runtime_status, mcp_extensions);
@@ -107,7 +113,7 @@ impl AgentRegistry {
             oauth_to_security_config(&agent.oauth, api_external_url)
         };
 
-        let all_skills = load_agent_skills(&agent)?;
+        let all_skills = load_agent_skills_from_dir(&agent, skills_dir)?;
 
         let protocol_binding = match agent.card.preferred_transport.as_str() {
             "GRPC" => ProtocolBinding::Grpc,
@@ -177,12 +183,6 @@ impl AgentRegistry {
     }
 }
 
-fn is_cloud_deployment() -> AgentResult<bool> {
-    systemprompt_manifest::Config::get()
-        .map(|config| config.is_cloud)
-        .map_err(|e| AgentError::invalid_config("cannot resolve dev_only agents", e))
-}
-
 fn build_extensions(
     agent: &AgentConfig,
     runtime_status: Option<&(String, Option<u16>, Option<u32>)>,
@@ -205,11 +205,6 @@ fn build_extensions(
 
     extensions.extend(mcp_extensions);
     extensions
-}
-
-fn load_agent_skills(agent: &AgentConfig) -> AgentResult<Vec<crate::models::a2a::AgentSkill>> {
-    let skills_path = ServicesRootBootstrap::require()?.path.join("skills");
-    load_agent_skills_from_dir(agent, &skills_path)
 }
 
 // Why: the card advertises every skill in `metadata.skills.include`; a skill

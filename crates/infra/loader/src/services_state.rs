@@ -50,10 +50,7 @@ impl ServicesState {
     }
 
     pub fn load_from_path(path: &Path, profile: &Profile) -> ConfigLoadResult<Self> {
-        Self::from_config(
-            profile,
-            ConfigLoader::load_from_path(path, Some(profile))?,
-        )
+        Self::from_config(profile, ConfigLoader::load_from_path(path, Some(profile))?)
     }
 
     // Why: the augmenter borrows the catalog across an await, so it is a

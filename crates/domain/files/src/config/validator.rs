@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::validators::validation_report::{
     ValidationIssue, ValidationReport, ValidationWarning,
@@ -21,14 +20,18 @@ fn is_valid_header_value(value: &str) -> bool {
     !value.is_empty() && value.chars().all(|c| matches!(c, ' '..='~'))
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct FilesConfigValidator {
+    paths: AppPaths,
     config: Option<FilesConfigYaml>,
 }
 
 impl FilesConfigValidator {
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new(paths: AppPaths) -> Self {
+        Self {
+            paths,
+            config: None,
+        }
     }
 }
 
@@ -42,11 +45,7 @@ impl DomainConfig for FilesConfigValidator {
     }
 
     fn load(&mut self, _config: &dyn ConfigProvider) -> Result<(), DomainConfigError> {
-        let profile = ProfileBootstrap::get()
-            .map_err(|e| DomainConfigError::load("profile not initialized", e))?;
-        let paths = AppPaths::from_profile(&profile.paths, profile.path_resolution(), None)
-            .map_err(|e| DomainConfigError::load("application paths", e))?;
-        let yaml_config = FilesConfig::load_yaml_config(&paths)
+        let yaml_config = FilesConfig::load_yaml_config(&self.paths)
             .map_err(|e| DomainConfigError::load("files.yaml", e))?;
         self.config = Some(yaml_config);
         Ok(())

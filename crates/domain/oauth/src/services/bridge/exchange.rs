@@ -12,6 +12,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::net::IpAddr;
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::Config;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{AnalyticsProvider, SessionProvider, UserProvider};
 
@@ -56,6 +57,7 @@ pub struct BridgeExchangeRequest<'a> {
     pub caller_ip: Option<IpAddr>,
     pub code: &'a str,
     pub keys: &'a SigningKeys,
+    pub config: &'a Config,
 }
 
 pub async fn exchange_bridge_session_code(
@@ -70,6 +72,7 @@ pub async fn exchange_bridge_session_code(
         caller_ip,
         code,
         keys,
+        config,
     } = exchange;
     let code_hash = hash_exchange_code(code);
     let Some(user_id) = repo.consume_bridge_exchange_code(&code_hash).await? else {
@@ -81,7 +84,7 @@ pub async fn exchange_bridge_session_code(
         analytics,
         sessions,
         users,
-        BridgeAccessRequest::bridge(request_headers, caller_ip, &user_id),
+        BridgeAccessRequest::bridge(config, request_headers, caller_ip, &user_id),
     )
     .await?;
     Ok(Some(result))

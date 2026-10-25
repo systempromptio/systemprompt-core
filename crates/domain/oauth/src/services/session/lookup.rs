@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{AnonymousSessionInfo, MAX_SESSION_AGE_SECONDS, SessionCreationService};
-use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
+use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt_with_expiry};
 use systemprompt_identifiers::{ClientId, JwtToken, UserId};
 use systemprompt_models::auth::UserRole;
 
@@ -47,20 +47,21 @@ impl SessionCreationService {
             return None;
         }
 
-        let config = systemprompt_manifest::Config::get()
-            .inspect_err(|e| {
-                tracing::warn!(error = %e, "Failed to get config for session lookup");
-            })
-            .ok()?;
         let signing = JwtSigningParams {
-            issuer: &config.jwt_issuer,
+            issuer: &self.config.jwt_issuer,
             keys: &self.keys,
         };
-        let token = generate_anonymous_jwt(&user_id, &session_id, client_id, &signing)
-            .inspect_err(|e| {
-                tracing::warn!(error = %e, "Failed to generate JWT for session lookup");
-            })
-            .ok()?;
+        let token = generate_anonymous_jwt_with_expiry(
+            &user_id,
+            &session_id,
+            client_id,
+            &signing,
+            self.config.jwt_access_token_expiration,
+        )
+        .inspect_err(|e| {
+            tracing::warn!(error = %e, "Failed to generate JWT for session lookup");
+        })
+        .ok()?;
 
         Some(AnonymousSessionInfo {
             session_id,

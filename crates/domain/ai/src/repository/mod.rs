@@ -25,6 +25,7 @@ pub mod thought_signatures;
 pub mod user_provider_credentials;
 
 use systemprompt_database::DbPool;
+use systemprompt_security::at_rest::AtRestCipher;
 
 pub use ai_gateway_policies::{AiGatewayPolicyRepository, GatewayPolicyRow, GatewayPolicyWrite};
 pub use ai_quota_buckets::{
@@ -60,7 +61,7 @@ pub struct AiRepositories {
 }
 
 impl AiRepositories {
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, cipher: AtRestCipher) -> Self {
         Self {
             requests: AiRequestRepository::new(db),
             payloads: AiRequestPayloadRepository::new(db),
@@ -69,7 +70,7 @@ impl AiRepositories {
             quota_usage: QuotaUsageRepository::new(db),
             safety_findings: AiSafetyFindingRepository::new(db),
             thought_signatures: AiThoughtSignatureRepository::new(db),
-            user_provider_credentials: UserProviderCredentialRepository::new(db),
+            user_provider_credentials: UserProviderCredentialRepository::new(db, cipher),
         }
     }
 }

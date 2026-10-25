@@ -15,8 +15,8 @@ use crate::services::spawn_target::SpawnTarget;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use systemprompt_config::SecretsService;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::subprocess::{self, ChildKind, Spawner};
 use systemprompt_manifest::{Config, Secrets};
 
@@ -142,6 +142,8 @@ pub fn serialize_server_configs(config: &McpServerConfig) -> McpDomainResult<(St
 
 pub fn spawn_server(
     spawner: &Spawner,
+    global: &Config,
+    secrets: &SecretsService,
     paths: &AppPaths,
     config: &McpServerConfig,
 ) -> McpDomainResult<u32> {
@@ -154,23 +156,15 @@ pub fn spawn_server(
         )
     })?;
 
-    let config_global = Config::get()?;
-
     let log_file = open_server_log(paths, config)?;
     let (tools_config_json, server_model_config_json) = serialize_server_configs(config)?;
 
-    let profile_path = ProfileBootstrap::get_path().map_err(|e| {
-        crate::error::McpDomainError::operation(
-            "SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server",
-            e,
+    let profile_path = secrets.profile().path().to_str().ok_or_else(|| {
+        crate::error::McpDomainError::Configuration(
+            "profile path is not valid UTF-8 - cannot spawn MCP server".to_owned(),
         )
     })?;
-    let secrets = SecretsBootstrap::get().map_err(|e| {
-        crate::error::McpDomainError::operation(
-            "Secrets not available - cannot spawn MCP server",
-            e,
-        )
-    })?;
+    let secrets = secrets.get();
 
     let mut child_command = Command::new(&binary_path);
     configure_environment(
@@ -179,12 +173,12 @@ pub fn spawn_server(
             config,
             port,
             system_root: paths.system().root(),
-            database_type: &config_global.database_type,
+            database_type: &global.database_type,
             profile_path,
             tools_config_json: &tools_config_json,
             server_model_config_json: &server_model_config_json,
         },
-        secrets,
+        &secrets,
     );
     subprocess::mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
 

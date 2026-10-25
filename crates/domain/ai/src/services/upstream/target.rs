@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use systemprompt_identifiers::{CredentialId, ProviderId, UserId};
+use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{
     EndpointRef, ResolvedCatalog, ResolvedCredential, ResolvedEndpoint, ResolvedHop,
     ResolvedProvider,
@@ -165,6 +166,7 @@ impl UpstreamTarget {
 
     pub fn from_secrets(
         tokens: &Arc<TokenCache>,
+        secrets: &Secrets,
         binding: EndpointBinding<'_>,
     ) -> Result<Self, UpstreamTargetError> {
         let credential = binding.credential;
@@ -173,8 +175,6 @@ impl UpstreamTarget {
                 credential: credential.id.as_str().to_owned(),
             });
         };
-        let secrets = systemprompt_config::SecretsBootstrap::get()
-            .map_err(|e| UpstreamTargetError::SecretsUnavailable(Box::new(e)))?;
         let secret = secrets.get(secret_name.as_str()).ok_or_else(|| {
             UpstreamTargetError::MissingSecret {
                 credential: credential.id.as_str().to_owned(),

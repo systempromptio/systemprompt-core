@@ -36,7 +36,14 @@ impl AgentLifecycle {
         agent_name: &AgentName,
         port: u16,
     ) -> OrchestrationResult<u32> {
-        process::spawn_detached(&self.app_paths, &self.spawner, agent_name, port).await
+        process::spawn_detached(
+            &self.app_paths,
+            &self.spawner,
+            &self.spawn_environment,
+            agent_name,
+            port,
+        )
+        .await
     }
 
     pub async fn verify_startup(
@@ -108,17 +115,13 @@ impl AgentLifecycle {
     }
 
     pub async fn log_startup_failure(&self, agent_name: &AgentName, port: u16) {
-        let log_path = match systemprompt_manifest::Config::get() {
-            Ok(config) => format!("{}/agent-{}.log", config.logs_path(), agent_name),
-            Err(e) => {
-                tracing::error!(
-                    agent = %agent_name,
-                    error = %e,
-                    "Cannot report agent startup failure: profile not initialised"
-                );
-                return;
-            },
-        };
+        let log_path = self
+            .app_paths
+            .system()
+            .logs()
+            .join(format!("agent-{agent_name}.log"))
+            .display()
+            .to_string();
 
         match self.db_service.get_status(agent_name).await {
             Ok(AgentStatus::Running { pid, .. }) => {

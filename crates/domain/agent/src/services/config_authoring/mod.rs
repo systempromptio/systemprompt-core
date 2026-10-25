@@ -21,7 +21,7 @@ mod request;
 mod set_value;
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::{ConfigWriteError, ConfigWriter};
@@ -158,7 +158,7 @@ impl AgentConfigAuthoringService {
     pub fn create(&self, request: AgentCreateRequest) -> Result<PathBuf, ConfigAuthoringError> {
         Self::validate_agent_name(&request.name)?;
         Self::validate_port(request.port)?;
-        let agent_config = build_agent_config(request)?;
+        let agent_config = build_agent_config(request, &self.services_dir)?;
         Ok(ConfigWriter::create_agent(
             &agent_config,
             &self.services_dir,
@@ -172,9 +172,13 @@ impl AgentConfigAuthoringService {
 
 fn build_agent_config(
     mut request: AgentCreateRequest,
+    services_dir: &Path,
 ) -> Result<AgentConfig, ConfigAuthoringError> {
-    let (provider, model) =
-        agent_defaults(request.model.provider.take(), request.model.model.take())?;
+    let (provider, model) = agent_defaults(
+        request.model.provider.take(),
+        request.model.model.take(),
+        services_dir,
+    )?;
     let endpoint = match request.placement.endpoint.take() {
         Some(endpoint) => endpoint,
         None => ApiPaths::agent_endpoint(&AgentName::new(&request.name)),
@@ -233,6 +237,7 @@ fn build_agent_config(
 fn agent_defaults(
     provider: Option<String>,
     model: Option<String>,
+    services_dir: &Path,
 ) -> Result<(String, String), ConfigAuthoringError> {
     match (provider, model) {
         (Some(provider), Some(model)) => Ok((provider, model)),
@@ -241,7 +246,10 @@ fn agent_defaults(
             Ok((provider, model))
         },
         (None, model) => {
-            let catalog = match systemprompt_loader::ConfigLoader::load() {
+            let catalog = match systemprompt_loader::ConfigLoader::load_from_path(
+                &services_dir.join("config").join("config.yaml"),
+                None,
+            ) {
                 Ok(services) => services.resolve_catalog(&CatalogContext::default())?,
                 Err(_) => DefaultCatalog::document()?.resolve(&CatalogContext::default())?,
             };

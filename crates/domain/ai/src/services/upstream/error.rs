@@ -4,14 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_security::credential::CredentialError;
-use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum UpstreamTargetError {
-    #[error("secrets are not available: {0}")]
-    SecretsUnavailable(#[source] BoxedSource),
-
     #[error("endpoint '{endpoint}' is not in the resolved catalog")]
     UnknownEndpoint { endpoint: String },
 

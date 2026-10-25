@@ -50,8 +50,12 @@ impl std::fmt::Debug for WebAuthnService {
 }
 
 impl WebAuthnService {
-    pub fn new(oauth_repo: OAuthRepository, user_provider: Arc<dyn UserProvider>) -> Result<Self> {
-        Self::with_config(WebAuthnConfig::new()?, oauth_repo, user_provider)
+    pub fn new(
+        config: &systemprompt_manifest::Config,
+        oauth_repo: OAuthRepository,
+        user_provider: Arc<dyn UserProvider>,
+    ) -> Result<Self> {
+        Self::with_config(WebAuthnConfig::new(config)?, oauth_repo, user_provider)
     }
 
     pub fn with_config(

@@ -46,6 +46,7 @@ pub struct BridgeAuthResult {
 
 #[derive(Debug)]
 pub struct BridgeAccessRequest<'a> {
+    pub config: &'a Config,
     pub request_headers: &'a HeaderMap,
     pub caller_ip: Option<IpAddr>,
     pub user_id: &'a UserId,
@@ -57,11 +58,13 @@ pub struct BridgeAccessRequest<'a> {
 
 impl<'a> BridgeAccessRequest<'a> {
     pub fn bridge(
+        config: &'a Config,
         request_headers: &'a HeaderMap,
         caller_ip: Option<IpAddr>,
         user_id: &'a UserId,
     ) -> Self {
         Self {
+            config,
             request_headers,
             caller_ip,
             user_id,
@@ -118,6 +121,7 @@ pub async fn issue_bridge_access(
     request: BridgeAccessRequest<'_>,
 ) -> Result<BridgeAuthResult> {
     let BridgeAccessRequest {
+        config: global_config,
         request_headers,
         caller_ip,
         user_id,
@@ -128,8 +132,6 @@ pub async fn issue_bridge_access(
     } = request;
 
     let auth_user = load_authenticated_user(users, user_id).await?;
-
-    let global_config = Config::get()?;
 
     let session_id = adopt_or_mint_session(sessions, request_headers, user_id).await;
     let trace_id = TraceId::generate();

@@ -1,13 +1,14 @@
 //! Reads, parses, and merges the active services configuration.
 //!
 //! [`ConfigLoader`] is the only public entry point. It resolves the active
-//! profile's services root to a YAML path, parses the root file, recursively resolves the `includes:` graph
-//! (rejecting cycles and duplicate definitions), reads the model catalog by
-//! convention from `services/ai/` ([`catalog`]), inlines `!include`
-//! references inside agent system prompts, skill instructions and gateway
-//! prompt overrides, projects the gateway spec to its resolved runtime form,
-//! and finally validates the merged configuration — the catalog resolved
-//! with every reference checked — before returning it to the caller.
+//! profile's services root to a YAML path, parses the root file, recursively
+//! resolves the `includes:` graph (rejecting cycles and duplicate definitions),
+//! reads the model catalog by convention from `services/ai/` ([`catalog`]),
+//! inlines `!include` references inside agent system prompts, skill
+//! instructions and gateway prompt overrides, projects the gateway spec to its
+//! resolved runtime form, and finally validates the merged configuration — the
+//! catalog resolved with every reference checked — before returning it to the
+//! caller.
 //!
 //! A pre-0.73 tree is refused with the `systemprompt admin config migrate`
 //! hint. A provider whose secret is absent is still loaded: a missing

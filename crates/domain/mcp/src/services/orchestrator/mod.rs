@@ -38,6 +38,7 @@ use super::network::NetworkService;
 use super::process::ProcessService;
 use super::registry::RegistryService;
 use crate::McpServerConfig;
+use systemprompt_config::SecretsService;
 
 #[derive(Debug)]
 pub struct McpOrchestrator {
@@ -59,13 +60,14 @@ impl McpOrchestrator {
         app_paths: Arc<AppPaths>,
         registry: RegistryService,
         spawner: Arc<Spawner>,
+        secrets: Arc<SecretsService>,
     ) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
 
         registry.validate()?;
         let database = DatabaseService::new(service_repo, Arc::clone(&app_paths), registry.clone());
         let network = NetworkService::new();
-        let process = ProcessService::new(spawner);
+        let process = ProcessService::new(spawner, Arc::clone(registry.config()), secrets);
         let monitoring = MonitoringService::new();
         let lifecycle = LifecycleService::new(
             process,

@@ -20,6 +20,7 @@ pub use persistence::PersistOutcome;
 pub use stream_service::StreamService;
 
 use crate::services::shared::{AgentServiceError, Result};
+use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_manifest::services::ServicesView;
 use tokio::sync::mpsc;
@@ -116,17 +117,19 @@ impl MessageHandler {
         ai_service: DynAiProvider,
         webhooks: DynWebhookBroadcaster,
         services: ServicesView,
+        skills_root: PathBuf,
     ) -> Result<Self> {
         let context_service = ContextService::new(repositories.tasks.clone());
         let execution_step_repo = Arc::new(repositories.execution_steps.clone());
         let skill_service = Arc::new(SkillService::new(
+            skills_root,
             repositories.managed_skill_resolver(),
             Arc::clone(&execution_step_repo),
             Arc::clone(&webhooks),
-        )?);
+        ));
         let publishing = ArtifactPublishingService::new(&repositories, Arc::clone(&skill_service));
 
-        Ok(Self {
+        Self {
             repositories,
             ai_service,
             context_service,
@@ -135,7 +138,7 @@ impl MessageHandler {
             publishing,
             webhooks,
             services,
-        })
+        }
     }
 
     #[must_use]

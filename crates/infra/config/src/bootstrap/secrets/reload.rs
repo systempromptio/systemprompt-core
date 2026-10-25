@@ -134,7 +134,10 @@ impl SecretsService {
             });
         }
 
-        *state.secrets.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(fresh);
+        *state
+            .secrets
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = Arc::new(fresh);
         let generation = state.generation.fetch_add(1, Ordering::SeqCst) + 1;
         state
             .status

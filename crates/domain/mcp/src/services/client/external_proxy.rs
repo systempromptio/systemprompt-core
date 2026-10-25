@@ -42,14 +42,9 @@ impl McpClient {
             ))
         })?;
 
-        let bearer = super::external_auth::resolve_external_bearer(
-            &self.connector_tokens,
-            &self.deployments,
-            ext,
-            context,
-            &server_config.name,
-        )
-        .await?;
+        let bearer =
+            super::external_auth::resolve_external_bearer(self, ext, context, &server_config.name)
+                .await?;
         let headers = super::external_auth::outbound_headers(
             ext,
             &bearer,

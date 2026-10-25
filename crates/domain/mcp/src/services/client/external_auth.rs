@@ -27,11 +27,12 @@
 use std::collections::HashMap;
 
 use http::{HeaderName, HeaderValue};
-use systemprompt_manifest::Config;
+use systemprompt_manifest::{Config, Secrets};
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExternalAuth;
 use systemprompt_security::credential::TokenCache;
 
+use super::McpClient;
 use super::validation::rewrite_url_for_internal_use;
 use crate::error::{McpDomainError, McpDomainResult};
 use crate::services::deployment::DeploymentService;
@@ -53,13 +54,22 @@ struct AccessorError {
 const ACCESSOR_ERROR_MAX_CHARS: usize = 240;
 
 pub(super) async fn resolve_external_bearer(
-    connector_tokens: &TokenCache,
-    deployments: &DeploymentService,
+    client: &McpClient,
     ext: &ExternalAuth,
     context: &RequestContext,
     server: &str,
 ) -> McpDomainResult<String> {
-    if let Some(token) = machine_grant_bearer(connector_tokens, deployments, ext, server).await? {
+    let config = &*client.config;
+    let snapshot = client.secrets.get();
+    if let Some(token) = machine_grant_bearer(
+        &client.connector_tokens,
+        &client.deployments,
+        &snapshot,
+        ext,
+        server,
+    )
+    .await?
+    {
         return Ok(token);
     }
     let Some(jwt) = context.auth_token() else {
@@ -68,18 +78,11 @@ pub(super) async fn resolve_external_bearer(
         )));
     };
 
-    let base = Config::get()?.api_external_url.clone();
-    let accessor = accessor_url(&base, &ext.token_endpoint);
+    let accessor = accessor_url(&config.api_external_url, &ext.token_endpoint, config);
     // Why: the accessor authenticates this process by the broker secret; a
     // call without it would be refused (or, worse, served to an unbrokered
     // caller), so a missing secret is a configuration error here.
-    let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
-        McpDomainError::invalid_configuration(
-            format!("credential broker secret unavailable for external MCP server '{server}'"),
-            e,
-        )
-    })?;
-    let broker_secret = secrets
+    let broker_secret = snapshot
         .get(BROKER_SECRET_KEY)
         .filter(|secret| !secret.is_empty())
         .ok_or_else(|| {
@@ -101,6 +104,7 @@ pub(super) async fn resolve_external_bearer(
 async fn machine_grant_bearer(
     connector_tokens: &TokenCache,
     deployments: &DeploymentService,
+    secrets: &Secrets,
     ext: &ExternalAuth,
     server: &str,
 ) -> McpDomainResult<Option<String>> {
@@ -110,16 +114,20 @@ async fn machine_grant_bearer(
     let Some(connector) = deployment.connector.filter(|c| c.grant.is_machine()) else {
         return Ok(None);
     };
-    let token =
-        systemprompt_security::connector_grant::machine_token(connector_tokens, server, &connector)
-            .await
-            .map_err(|error| {
-                tracing::warn!(server, %error, "connector machine grant failed");
-                McpDomainError::ExternalAuthUnavailable {
-                    server: server.to_owned(),
-                    message: error.to_string(),
-                }
-            })?;
+    let token = systemprompt_security::connector_grant::machine_token(
+        connector_tokens,
+        secrets,
+        server,
+        &connector,
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!(server, %error, "connector machine grant failed");
+        McpDomainError::ExternalAuthUnavailable {
+            server: server.to_owned(),
+            message: error.to_string(),
+        }
+    })?;
     // Why: a connector's resolved ExternalAuth carries an empty scheme because
     // the broker answers with a complete header value; a minted machine token
     // is bare, so the scheme is added here.
@@ -130,13 +138,13 @@ async fn machine_grant_bearer(
     }))
 }
 
-pub fn accessor_url(api_external_url: &str, token_endpoint: &str) -> String {
+pub fn accessor_url(api_external_url: &str, token_endpoint: &str, config: &Config) -> String {
     let accessor = format!(
         "{}{}",
         api_external_url.trim_end_matches('/'),
         token_endpoint
     );
-    rewrite_url_for_internal_use(&accessor)
+    rewrite_url_for_internal_use(&accessor, config)
 }
 
 pub async fn fetch_external_bearer(

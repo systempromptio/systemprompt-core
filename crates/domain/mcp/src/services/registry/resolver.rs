@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ExtensionBinaryIndex;
 use systemprompt_manifest::Config;
@@ -25,12 +26,22 @@ use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, Ser
 pub struct RegistryService {
     owner: UserId,
     services: ServicesView,
+    config: Arc<Config>,
 }
 
 impl RegistryService {
     #[must_use]
-    pub const fn new(owner: UserId, services: ServicesView) -> Self {
-        Self { owner, services }
+    pub const fn new(owner: UserId, services: ServicesView, config: Arc<Config>) -> Self {
+        Self {
+            owner,
+            services,
+            config,
+        }
+    }
+
+    #[must_use]
+    pub const fn config(&self) -> &Arc<Config> {
+        &self.config
     }
 
     #[must_use]
@@ -49,7 +60,7 @@ impl RegistryService {
     }
 
     pub fn get_enabled_servers_as_config(&self) -> McpDomainResult<Vec<crate::McpServerConfig>> {
-        let global_config = Config::get()?;
+        let global_config = &self.config;
         let registry = ExtensionBinaryIndex::build(
             Path::new(&global_config.system_path),
             global_config.is_cloud,

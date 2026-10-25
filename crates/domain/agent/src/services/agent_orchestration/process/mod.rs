@@ -12,30 +12,40 @@
 
 pub mod command;
 
+use std::path::PathBuf;
+use std::sync::Arc;
+use systemprompt_config::SecretsService;
 use systemprompt_config::paths::{AppPaths, BuildPaths};
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
+#[derive(Debug, Clone)]
+pub struct SpawnEnvironment {
+    pub config: Arc<Config>,
+    pub secrets: Arc<SecretsService>,
+    pub profile_path: PathBuf,
+}
+
 pub async fn spawn_detached(
     paths: &AppPaths,
     spawner: &Spawner,
+    environment: &SpawnEnvironment,
     agent_name: &AgentName,
     port: u16,
 ) -> OrchestrationResult<u32> {
     let binary_path = BuildPaths::resolve_self()
         .map_err(|e| OrchestrationError::spawn("Failed to resolve running binary", e))?;
 
-    let config = Config::get().map_err(|e| OrchestrationError::spawn("Failed to get config", e))?;
-
-    let secrets = SecretsBootstrap::get()
-        .map_err(|e| OrchestrationError::spawn("Failed to get secrets", e))?;
-
-    let profile_path = ProfileBootstrap::get_path()
-        .map_err(|e| OrchestrationError::spawn("Failed to get profile path", e))?;
+    let secrets = environment.secrets.get();
+    let profile_path = environment.profile_path.to_str().ok_or_else(|| {
+        OrchestrationError::ProcessSpawnFailed(format!(
+            "profile path {} is not valid UTF-8",
+            environment.profile_path.display()
+        ))
+    })?;
 
     let log_file = command::prepare_agent_log_file(agent_name, &paths.system().logs())?;
 
@@ -44,8 +54,8 @@ pub async fn spawn_detached(
         agent_name,
         port,
         profile_path,
-        secrets,
-        config,
+        secrets: &secrets,
+        config: &environment.config,
         log_file,
     });
 

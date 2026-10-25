@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
 use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, CustomClaims, JwtAudience, Permission, RateLimitTier,
     RegisteredClaims, TokenType, UserType,
@@ -191,16 +190,6 @@ pub fn generate_jwt(
 ) -> Result<String> {
     let claims = build_claims(user, config, jti, session_id, signing)?;
     encode_with_keys(signing.keys, &claims)
-}
-
-pub fn generate_anonymous_jwt(
-    user_id: &UserId,
-    session_id: &SessionId,
-    client_id: &ClientId,
-    signing: &JwtSigningParams<'_>,
-) -> Result<String> {
-    let expires_in_seconds = Config::get()?.jwt_access_token_expiration;
-    generate_anonymous_jwt_with_expiry(user_id, session_id, client_id, signing, expires_in_seconds)
 }
 
 pub fn generate_anonymous_jwt_with_expiry(

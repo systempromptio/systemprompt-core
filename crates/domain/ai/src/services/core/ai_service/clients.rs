@@ -15,6 +15,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{EndpointRef, ResolvedCatalog, ResolvedHop};
 use systemprompt_security::credential::TokenCache;
 
@@ -45,6 +46,7 @@ pub struct WithheldEndpoint {
 impl ProviderClients {
     pub fn build(
         tokens: &Arc<TokenCache>,
+        secrets: &Secrets,
         catalog: &ResolvedCatalog,
     ) -> Result<(Self, Vec<WithheldEndpoint>)> {
         let mut clients = Self::default();
@@ -75,7 +77,7 @@ impl ProviderClients {
                 tracing::debug!(endpoint = %endpoint_ref, "personal-credential endpoint left to the gateway");
                 continue;
             }
-            let target = match UpstreamTarget::from_secrets(tokens, binding) {
+            let target = match UpstreamTarget::from_secrets(tokens, secrets, binding) {
                 Ok(target) => target,
                 Err(e) => {
                     tracing::warn!(

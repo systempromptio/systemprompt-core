@@ -21,6 +21,7 @@ use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSend
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 use crate::services::agent_orchestration::lifecycle::AgentLifecycle;
 use crate::services::agent_orchestration::monitor::AgentMonitor;
+use crate::services::agent_orchestration::process::SpawnEnvironment;
 use crate::services::agent_orchestration::reconciler::AgentReconciler;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, monitor};
 use crate::state::AgentState;
@@ -48,6 +49,7 @@ impl AgentOrchestrator {
         agent_state: Arc<AgentState>,
         app_paths: Arc<AppPaths>,
         spawner: Arc<Spawner>,
+        spawn_environment: Arc<SpawnEnvironment>,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<Self> {
         tracing::debug!("Initializing Agent Orchestrator");
@@ -56,7 +58,13 @@ impl AgentOrchestrator {
 
         let services = agent_state.services();
         let db_service = AgentDatabaseService::new(agent_repo.clone(), services);
-        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths, spawner, services);
+        let lifecycle = AgentLifecycle::new(
+            agent_repo.clone(),
+            app_paths,
+            spawner,
+            spawn_environment,
+            services,
+        );
         let reconciler = AgentReconciler::new(agent_repo.clone(), services);
         let monitor = AgentMonitor::new(agent_repo, services);
 

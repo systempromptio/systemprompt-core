@@ -6,7 +6,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_manifest::services::AiConfig;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 
@@ -31,9 +30,11 @@ impl AiService {
             tools: tool_provider,
             sessions: session_provider,
             provider_tokens,
+            secrets,
+            session_ttl_seconds,
         } = providers;
-        SecretsBootstrap::get()?;
-        let (clients, withheld) = ProviderClients::build(&provider_tokens, &catalog)?;
+        let (clients, withheld) =
+            ProviderClients::build(&provider_tokens, &secrets.get(), &catalog)?;
         ConfigValidator::validate(ai_config, &catalog, &clients, &withheld)?;
         let (default_provider, default_model) =
             Self::derive_default(&catalog, &clients, &withheld)?;
@@ -45,6 +46,7 @@ impl AiService {
             repositories.requests.clone(),
             repositories.payloads.clone(),
             session_provider,
+            session_ttl_seconds,
         );
 
         Ok(Self {

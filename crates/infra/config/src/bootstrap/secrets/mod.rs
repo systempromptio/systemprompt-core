@@ -199,11 +199,13 @@ impl SecretsService {
             .secrets
             .as_ref()
             .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
-        let profile_dir = profile.path().parent().ok_or_else(|| {
-            ConfigError::ProfilePathWithoutParent {
-                path: profile.path().to_path_buf(),
-            }
-        })?;
+        let profile_dir =
+            profile
+                .path()
+                .parent()
+                .ok_or_else(|| ConfigError::ProfilePathWithoutParent {
+                    path: profile.path().to_path_buf(),
+                })?;
         let secrets_path = secrets_config
             .secrets_path()
             .map_err(SecretsBootstrapError::SecretsConfigInvalid)?;

@@ -66,6 +66,7 @@ pub struct SessionCreationService {
     fingerprint_locks: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     keys: SigningKeys,
+    config: Arc<Config>,
 }
 
 impl std::fmt::Debug for SessionCreationService {
@@ -81,6 +82,7 @@ impl SessionCreationService {
         session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
         keys: SigningKeys,
+        config: Arc<Config>,
     ) -> Self {
         Self {
             session_provider,
@@ -88,6 +90,7 @@ impl SessionCreationService {
             fingerprint_locks: Arc::new(RwLock::new(HashMap::new())),
             fingerprint_provider: None,
             keys,
+            config,
         }
     }
 
@@ -139,12 +142,11 @@ impl SessionCreationService {
         analytics: &SessionAnalytics,
         session_source: SessionSource,
     ) -> Result<SessionId, SessionCreationError> {
-        let global_config = Config::get().map_err(|e| SessionCreationError::Internal(e.into()))?;
         self.create_authenticated_session_with_ttl(
             user_id,
             analytics,
             session_source,
-            chrono::Duration::seconds(global_config.jwt_access_token_expiration),
+            chrono::Duration::seconds(self.config.jwt_access_token_expiration),
         )
         .await
     }

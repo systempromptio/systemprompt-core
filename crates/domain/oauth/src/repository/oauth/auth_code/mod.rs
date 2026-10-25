@@ -7,7 +7,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
-use super::at_rest::hash_at_rest;
 use crate::error::{OauthError, OauthResult};
 use crate::models::PkceMethod;
 use chrono::Utc;
@@ -68,7 +67,7 @@ impl OAuthRepository {
         let code_challenge_method = PkceMethod::S256.as_str();
         let expires_at = Utc::now() + chrono::Duration::seconds(600);
         let now = Utc::now();
-        let code_hash = hash_at_rest(params.code.as_str())?;
+        let code_hash = self.hash_at_rest(params.code.as_str())?;
         let client_id = params.client_id.as_str();
         let user_id = params.user_id.as_str();
 
@@ -98,7 +97,7 @@ impl OAuthRepository {
         &self,
         code: &AuthorizationCode,
     ) -> OauthResult<Option<ClientId>> {
-        let code_hash = hash_at_rest(code.as_str())?;
+        let code_hash = self.hash_at_rest(code.as_str())?;
         let result = sqlx::query_scalar!(
             "SELECT client_id FROM oauth_auth_codes WHERE code = $1",
             code_hash
@@ -117,7 +116,7 @@ impl OAuthRepository {
         code_verifier: &str,
     ) -> OauthResult<AuthCodeValidationResult> {
         let now = Utc::now();
-        let code_hash = hash_at_rest(code.as_str())?;
+        let code_hash = self.hash_at_rest(code.as_str())?;
 
         let claimed = sqlx::query!(
             "UPDATE oauth_auth_codes
@@ -254,8 +253,8 @@ impl OAuthRepository {
         code: &AuthorizationCode,
         refresh_token_id: &RefreshTokenId,
     ) -> OauthResult<()> {
-        let code_hash = hash_at_rest(code.as_str())?;
-        let refresh_token_id_hash = hash_at_rest(refresh_token_id.as_str())?;
+        let code_hash = self.hash_at_rest(code.as_str())?;
+        let refresh_token_id_hash = self.hash_at_rest(refresh_token_id.as_str())?;
         sqlx::query!(
             "UPDATE oauth_auth_codes SET refresh_token_id = $1 WHERE code = $2",
             refresh_token_id_hash,

@@ -15,6 +15,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CredentialId, UserId};
+use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_traits::RepositoryError;
 
 /// What is known about a stored key without opening it.
@@ -31,14 +32,19 @@ pub struct UserProviderCredentialMeta {
 #[derive(Debug, Clone)]
 pub struct UserProviderCredentialRepository {
     write_pool: Arc<PgPool>,
+    cipher: AtRestCipher,
 }
 
 const NONCE_HEX_CHARS: usize = 24;
 
 impl UserProviderCredentialRepository {
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, cipher: AtRestCipher) -> Self {
         let write_pool = db.write_pool();
-        Self { write_pool }
+        Self { write_pool, cipher }
+    }
+
+    pub const fn cipher(&self) -> &AtRestCipher {
+        &self.cipher
     }
 
     pub async fn set_key(
@@ -95,7 +101,7 @@ impl UserProviderCredentialRepository {
         let Some(sealed) = sealed else {
             return Ok(None);
         };
-        match systemprompt_security::at_rest::open(&sealed) {
+        match self.cipher.open(&sealed) {
             Ok(key) => Ok(Some(key)),
             Err(error) => {
                 tracing::warn!(
