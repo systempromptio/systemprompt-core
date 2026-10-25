@@ -32,6 +32,7 @@ pub struct CommandContext {
     runtime: OnceCell<Arc<AppContext>>,
     db: Option<DatabaseContext>,
     database_url: Option<String>,
+    database_url_override: Option<String>,
     cloud_credentials: Option<CloudCredentials>,
 }
 
@@ -45,6 +46,7 @@ impl CommandContext {
             runtime: OnceCell::new(),
             db: None,
             database_url: None,
+            database_url_override: None,
             cloud_credentials: None,
         }
     }
@@ -52,6 +54,12 @@ impl CommandContext {
     #[must_use]
     pub fn with_cloud_credentials(mut self, credentials: Option<CloudCredentials>) -> Self {
         self.cloud_credentials = credentials;
+        self
+    }
+
+    #[must_use]
+    pub fn with_database_url_override(mut self, url: Option<String>) -> Self {
+        self.database_url_override = url;
         self
     }
 
@@ -74,6 +82,7 @@ impl CommandContext {
             runtime: OnceCell::new(),
             db: Some(db),
             database_url: Some(database_url),
+            database_url_override: None,
             cloud_credentials: None,
         }
     }
@@ -87,6 +96,7 @@ impl CommandContext {
             runtime: OnceCell::new_with(Some(app)),
             db: None,
             database_url: None,
+            database_url_override: None,
             cloud_credentials: None,
         }
     }
@@ -122,7 +132,13 @@ impl CommandContext {
             bail!("This command requires full profile initialization. Remove --database-url flag.");
         }
         self.runtime
-            .get_or_try_init(|| async { AppContext::new().await.map(Arc::new) })
+            .get_or_try_init(|| async {
+                let mut builder = AppContext::builder();
+                if let Some(url) = &self.database_url_override {
+                    builder = builder.with_database_url(url.clone());
+                }
+                builder.build().await.map(Arc::new)
+            })
             .await
             .context("Failed to initialize application context")
     }

@@ -59,6 +59,7 @@ pub struct AppContextBuilder {
     shutdown: Option<ShutdownRequest>,
     background_tasks: Option<BackgroundTasks>,
     event_router: Option<EventRouter>,
+    database_url: Option<String>,
 }
 
 impl std::fmt::Debug for AppContextBuilder {
@@ -71,6 +72,7 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("signing_keys", &self.signing_keys.is_some())
             .field("install_schemas", &self.schema.install)
             .field("verify_schema", &self.schema.verify)
+            .field("database_url_override", &self.database_url.is_some())
             .field("migration_config", &self.migration_config)
             .field("shutdown", &self.shutdown.is_some())
             .field("background_tasks", &self.background_tasks.is_some())
@@ -155,6 +157,12 @@ impl AppContextBuilder {
     }
 
     #[must_use]
+    pub fn with_database_url(mut self, url: impl Into<String>) -> Self {
+        self.database_url = Some(url.into());
+        self
+    }
+
+    #[must_use]
     pub const fn with_migration_config(mut self, config: MigrationConfig) -> Self {
         self.migration_config = config;
         self
@@ -172,7 +180,7 @@ impl AppContextBuilder {
             cache_epochs,
             log_sink,
             policy,
-        } = init_core(self.authz_hook, self.signing_keys).await?;
+        } = init_core(self.authz_hook, self.signing_keys, self.database_url).await?;
 
         let (extensions, schema_install, governance) = init_governed_extensions(
             self.extension_registry,

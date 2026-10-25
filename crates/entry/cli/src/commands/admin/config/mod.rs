@@ -170,6 +170,6 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
         ConfigCommands::Migrate(ref args) => migrate::execute(args, ctx).await,
         ConfigCommands::Secret(ref cmd) => secret::execute(cmd, &ctx.cli).await,
         ConfigCommands::Planes(cmd) => planes::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Apply(ref args) => apply::execute(args, &ctx.cli).await,
+        ConfigCommands::Apply(ref args) => apply::execute(args, ctx).await,
     }
 }

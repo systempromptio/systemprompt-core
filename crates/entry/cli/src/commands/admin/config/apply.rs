@@ -27,7 +27,7 @@ use systemprompt_scheduler::services::{
     ApplyOptions, ConfigApplyService, ConfigReconcileService, MergeReport,
 };
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Clone, Args)]
@@ -66,12 +66,13 @@ struct PlaneRow {
     unchanged: usize,
 }
 
-pub async fn execute(args: &ApplyArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: &ApplyArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     if args.reason.trim().is_empty() {
         bail!("--reason must not be empty; it is recorded in config_change_audit");
     }
-    let ctx = Arc::new(AppContext::new().await?);
-    let report = run(args, &ctx).await?;
+    let app = Arc::clone(ctx.app_context().await?);
+    let report = run(args, &app).await?;
     let conflicts = report.conflicts();
     render_result(&render(&report), config);
     if conflicts > 0 && !report.dry_run {

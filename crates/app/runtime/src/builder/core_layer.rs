@@ -100,13 +100,20 @@ fn init_files_config(app_paths: &AppPaths) -> RuntimeResult<Arc<FilesConfig>> {
 pub(super) async fn init_core(
     authz_hook_override: Option<SharedAuthzHook>,
     signing_keys_override: Option<SigningKeys>,
+    database_url_override: Option<String>,
 ) -> RuntimeResult<CoreLayer> {
     let profile = ProfileBootstrap::get()?;
     let secrets = SecretsBootstrap::get()?;
     let (active_root, app_paths) = resolve_services_root(profile, secrets).await?;
     let files_config = init_files_config(&app_paths)?;
     let services = init_services(secrets).await?;
-    let config = Arc::new(Config::get()?.clone());
+    let mut config = Config::get()?.clone();
+    if let Some(url) = database_url_override {
+        config.database_url = url;
+        config.database_write_url = None;
+        config.database_session_url = None;
+    }
+    let config = Arc::new(config);
     let instance_id = config.instance_id.clone();
     let file_storage =
         crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, secrets)

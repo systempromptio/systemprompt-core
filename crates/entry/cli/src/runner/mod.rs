@@ -64,6 +64,7 @@ async fn run_inner() -> Result<()> {
         console::set_colors_enabled(false);
     }
 
+    let database_url_override = cli.database.database_url.clone();
     if let Some(database_url) = cli.database.database_url.clone() {
         match cli.command.as_ref().map(args::Commands::db_url_routing) {
             Some(db_url::DbUrlRouting::Direct) => {
@@ -114,7 +115,9 @@ async fn run_inner() -> Result<()> {
         }
     }
 
-    let ctx = CommandContext::new(cli_config, env).with_cloud_credentials(credentials);
+    let ctx = CommandContext::new(cli_config, env)
+        .with_cloud_credentials(credentials)
+        .with_database_url_override(database_url_override);
     Box::pin(dispatch_command(cli.command, &ctx)).await
 }
 

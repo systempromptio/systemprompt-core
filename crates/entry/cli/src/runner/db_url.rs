@@ -23,7 +23,8 @@ impl Commands {
             Self::Admin(
                 admin::AdminCommands::Setup(_)
                 | admin::AdminCommands::Bootstrap(_)
-                | admin::AdminCommands::Session(_),
+                | admin::AdminCommands::Session(_)
+                | admin::AdminCommands::Config(admin::config::ConfigCommands::Apply(_)),
             ) => DbUrlRouting::ProfileDriven,
 
             Self::Core(core::CoreCommands::Content(_) | core::CoreCommands::Files(_))

@@ -195,3 +195,32 @@ async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
     remove_admin(&pool, &admin).await;
     remove_admin(&pool, &previous).await;
 }
+
+#[tokio::test]
+async fn a_database_url_override_replaces_the_profile_database_and_its_write_url() {
+    let admin = unique_admin("override");
+    let _fixture = boot(&BootOptions {
+        admin_username: admin.clone(),
+        write_url: true,
+        ..BootOptions::default()
+    });
+    let other = systemprompt_test_fixtures::DisposableDb::with_schema("db_url_override").await;
+    let pool = seed_admin(other.url(), &admin, "active", &["admin", "user"]).await;
+
+    let ctx = AppContext::builder()
+        .with_extensions(systemprompt_extension::ExtensionRegistry::new())
+        .with_database_url(other.url())
+        .build()
+        .await
+        .expect("the build must run against the overriding database");
+
+    assert_eq!(ctx.config().database_url, other.url());
+    assert!(
+        ctx.config().database_write_url.is_none(),
+        "the profile's write url names the database being overridden"
+    );
+    assert_eq!(ctx.system_admin().username(), admin);
+
+    pool.close().await;
+    other.drop_now().await;
+}
