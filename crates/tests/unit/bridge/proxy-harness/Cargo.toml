@@ -25,7 +25,6 @@ uuid = { workspace = true }
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["server", "tokio"] }
 arc-swap = "1"
-keyring-core = { workspace = true }
 
 # The kernel keyring backs the headless credential store on Linux CI; other
 # targets use `keyring_core::mock` and must not build this Linux-only crate.

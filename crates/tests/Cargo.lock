@@ -7398,7 +7398,6 @@ dependencies = [
 name = "systemprompt-bridge-auth-e2e-tests"
 version = "0.0.11"
 dependencies = [
- "keyring-core",
  "linux-keyutils-keyring-store",
  "reqwest",
  "serde_json",
@@ -7407,7 +7406,6 @@ dependencies = [
  "systemprompt-test-fixtures",
  "temp-env",
  "tempfile",
- "tokio",
  "wiremock",
 ]
 
@@ -7454,7 +7452,6 @@ dependencies = [
 name = "systemprompt-bridge-cli-dispatch-tests"
 version = "0.0.11"
 dependencies = [
- "keyring-core",
  "linux-keyutils-keyring-store",
  "reqwest",
  "serde_json",
@@ -7712,7 +7709,6 @@ dependencies = [
  "arc-swap",
  "hyper",
  "hyper-util",
- "keyring-core",
  "linux-keyutils-keyring-store",
  "reqwest",
  "serde_json",
@@ -9610,7 +9606,6 @@ dependencies = [
  "systemprompt-client",
  "systemprompt-config",
  "systemprompt-identifiers",
- "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-wire",
  "thiserror 2.0.21",

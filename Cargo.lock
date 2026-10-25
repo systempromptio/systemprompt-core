@@ -5710,7 +5710,6 @@ dependencies = [
  "systemprompt-client",
  "systemprompt-config",
  "systemprompt-identifiers",
- "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-wire",
  "thiserror 2.0.21",

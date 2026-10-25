@@ -1,3 +1,9 @@
+//! Governance assembly: the governed extension set and the policy engine the
+//! context is built with.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
