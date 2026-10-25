@@ -13,7 +13,6 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_models::{CollectionResponse, RequestContext};
 use systemprompt_runtime::AppContext;
 
-use crate::error::ApiHttpError;
 use systemprompt_agent::models::a2a::{AgentCard, AgentExtension, McpServerMetadata};
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_manifest::AgentConfig;
@@ -22,13 +21,7 @@ pub async fn handle_agent_registry(
     Extension(_req_ctx): Extension<RequestContext>,
     State(ctx): State<AppContext>,
 ) -> impl IntoResponse {
-    let registry = match AgentRegistry::new() {
-        Ok(r) => Arc::new(r),
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to load agent registry");
-            return ApiHttpError::internal("Failed to load agent registry", e).into_response();
-        },
-    };
+    let registry = Arc::new(AgentRegistry::new(ctx.services_state()));
     let service_repo = ctx.service_repository();
     let api_external_url = &ctx.config().api_external_url;
 

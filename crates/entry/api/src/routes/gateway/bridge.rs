@@ -16,7 +16,6 @@ use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
-use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::bridge_profile;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_oauth::repository::HostPrefWrite;
@@ -54,8 +53,7 @@ pub async fn set_enabled_host(
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
-    let services = bridge_data::load_services_config()
-        .map_err(|e| BridgeError::internal("services config load failed", e))?;
+    let services = ctx.services_config();
     let instance_hosts = services.instance_enabled_hosts();
     if body.enabled && !instance_hosts.contains(&body.host_id) {
         return Err(BridgeError::HostDisabled(body.host_id).into());
@@ -150,10 +148,8 @@ pub async fn profile(
     let (claims, user) = authenticate_bridge(&jwt_extractor, &headers).await?;
     let profile =
         ProfileBootstrap::get().map_err(|e| BridgeError::unavailable("profile not ready", e))?;
-    let services = ServicesBootstrap::get()
-        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
-    let catalog = ServicesBootstrap::catalog()
-        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
+    let services = ctx.services_config();
+    let catalog = ctx.services_state().catalog();
     let gateway = services
         .gateway_config()
         .filter(|g| g.enabled)

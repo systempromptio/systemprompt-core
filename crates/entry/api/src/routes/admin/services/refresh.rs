@@ -150,7 +150,7 @@ async fn run_refresh(
         // Why: the boot-time root is a static that still names the previous
         // tree; the recomposed tree is the one whose config is projected.
         let services =
-            ConfigLoader::reload_from_path(&resolved.path.join("config").join("config.yaml"))
+            ConfigLoader::load_from_path(&resolved.path.join("config").join("config.yaml"))
                 .map_err(RefreshError::RecomposedConfig)?;
         let outcome = reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
             .await

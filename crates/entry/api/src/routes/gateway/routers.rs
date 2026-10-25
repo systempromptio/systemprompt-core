@@ -150,7 +150,12 @@ pub(super) fn bridge_auth_routes(
         )
 }
 
-pub(super) fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
+pub(super) fn bridge_release_routes(
+    ctx: &AppContext,
+    jwt_extractor: &Arc<JwtContextExtractor>,
+) -> Router {
+    let services_latest = ctx.services_state().clone();
+    let services_download = ctx.services_state().clone();
     let jwt_latest = Arc::clone(jwt_extractor);
     let jwt_download = Arc::clone(jwt_extractor);
     let feed = Arc::new(bridge_release::ReleaseFeed::default());
@@ -163,7 +168,8 @@ pub(super) fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) ->
             get(move |headers, query| {
                 let extractor = Arc::clone(&jwt_latest);
                 let feed = Arc::clone(&feed_latest);
-                async move { bridge_release::latest(extractor, feed, headers, query).await }
+                let services = services_latest.clone();
+                async move { bridge_release::latest(extractor, &services, feed, headers, query).await }
             }),
         )
         .route(
@@ -171,7 +177,8 @@ pub(super) fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) ->
             get(move |headers, path| {
                 let extractor = Arc::clone(&jwt_download);
                 let feed = Arc::clone(&feed_download);
-                async move { bridge_release::download(extractor, feed, headers, path).await }
+                let services = services_download.clone();
+                async move { bridge_release::download(extractor, &services, feed, headers, path).await }
             }),
         )
 }

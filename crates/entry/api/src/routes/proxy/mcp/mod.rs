@@ -64,9 +64,13 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
 pub fn router(ctx: &AppContext) -> Router {
     let repo = crate::repository::tool_usage(ctx.db_pool());
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let engine = ProxyService::new(identities, Arc::clone(ctx.connector_tokens()))
-        .with_tool_usage_repo(repo, ctx.tool_call_intents())
-        .with_artifact_ingest(ctx.artifact_ingest_arc());
+    let engine = ProxyService::new(
+        identities,
+        Arc::clone(ctx.connector_tokens()),
+        ctx.services_state(),
+    )
+    .with_tool_usage_repo(repo, ctx.tool_call_intents())
+    .with_artifact_ingest(ctx.artifact_ingest_arc());
 
     let state = McpState { ctx: ctx.clone() };
 

@@ -21,12 +21,10 @@ pub use extract::{GatewayAuthzRequestInput, build_gateway_authz_request, extract
 
 use axum::body::Body;
 use axum::extract::Request;
-use axum::http::StatusCode;
 use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::origin::RequestOrigin;
@@ -53,8 +51,8 @@ pub(super) struct RequestContext<'a> {
     pub ctx: &'a AppContext,
     pub repos: &'a systemprompt_gateway::GatewayRepositories,
     pub engines: &'a Arc<GatewayEngines>,
-    pub services: &'static ServicesConfig,
-    pub catalog: &'static ResolvedCatalog,
+    pub services: &'a ServicesConfig,
+    pub catalog: &'a ResolvedCatalog,
     pub ai_request_id: &'a AiRequestId,
     pub access_log: Option<GatewayAccessLog>,
 }
@@ -160,21 +158,15 @@ struct HandleInner<'a> {
 
 impl HandleInner<'_> {
     async fn run(self, request: Request<Body>) -> Result<Response<Body>, RejectionError> {
-        let services = ServicesBootstrap::get().map_err(|e| {
-            RejectionError::server(StatusCode::SERVICE_UNAVAILABLE, "services config not ready")
-                .with_cause(e)
-        })?;
-        let catalog = ServicesBootstrap::catalog().map_err(|e| {
-            RejectionError::server(StatusCode::SERVICE_UNAVAILABLE, "services config not ready")
-                .with_cause(e)
-        })?;
+        let services = self.ctx.services_config();
+        let catalog = self.ctx.services_state().catalog();
         let access_log = request.extensions().get::<GatewayAccessLog>().cloned();
         let request_ctx = RequestContext {
             jwt_extractor: self.jwt_extractor,
             ctx: self.ctx,
             repos: self.repos,
             engines: self.engines,
-            services,
+            services: &services,
             catalog,
             ai_request_id: self.ai_request_id,
             access_log,

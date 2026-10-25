@@ -5,7 +5,6 @@
 
 use anyhow::{Result, bail};
 use std::sync::Arc;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
 use systemprompt_scheduler::services::{
@@ -24,16 +23,11 @@ pub(in crate::services::server) async fn initialize_scheduler(
     events.scheduler_initializing();
     reconcile_config_planes(ctx).await?;
 
-    let config = ConfigLoader::load().map_or_else(
-        |e| {
-            tracing::warn!(error = %e, "Failed to load scheduler config, using defaults");
-            SchedulerConfig::with_system_admin()
-        },
-        |c| {
-            c.scheduler
-                .unwrap_or_else(SchedulerConfig::with_system_admin)
-        },
-    );
+    let config = ctx
+        .services_config()
+        .scheduler
+        .clone()
+        .unwrap_or_else(SchedulerConfig::with_system_admin);
 
     let scheduler = SchedulerService::new(config, Arc::clone(ctx.db_pool()), Arc::new(ctx.clone()));
 

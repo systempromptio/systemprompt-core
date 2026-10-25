@@ -51,11 +51,7 @@ pub(super) async fn resource(
         tracing::warn!(%error, "consumer: profile unavailable");
         ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
     })?;
-    let services =
-        crate::routes::gateway::bridge_data::load_services_config().map_err(|error| {
-            tracing::warn!(%error, "consumer: services config load failed");
-            ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
-        })?;
+    let services = ctx.services_config();
     if !services
         .instance_enabled_hosts()
         .iter()
@@ -67,7 +63,7 @@ pub(super) async fn resource(
         ctx,
         profile,
         &identity.consumer_id,
-        services,
+        (*services).clone(),
         crate::routes::gateway::bridge_resolved::Freshness::Memo,
     )
     .await

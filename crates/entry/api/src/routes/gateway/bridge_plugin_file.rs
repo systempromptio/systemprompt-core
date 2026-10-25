@@ -25,7 +25,7 @@ use systemprompt_runtime::AppContext;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
 use super::bridge_plugin_archive::ArchiveMemo;
-use super::{bridge_data, bridge_plugin_archive, bridge_resolved};
+use super::{bridge_plugin_archive, bridge_resolved};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
@@ -104,8 +104,7 @@ pub(super) async fn resolve_entitled(
     {
         return Ok(latest);
     }
-    let services = bridge_data::load_services_config()
-        .map_err(|e| BridgeError::internal("plugin bundle: services config load failed", e))?;
+    let services = ctx.services_config();
     let profile = ProfileBootstrap::get()
         .map_err(|e| BridgeError::internal("plugin bundle: profile not ready", e))?;
     let resolved = bridge_resolved::resolve_for_user(

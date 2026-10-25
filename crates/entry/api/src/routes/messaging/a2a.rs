@@ -154,10 +154,14 @@ pub(super) async fn run_agent(
         kind: ProxyKind::Agent,
     };
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let response = ProxyService::new(identities, Arc::clone(ctx.connector_tokens()))
-        .proxy_request(target, request, ctx.clone())
-        .await
-        .map_err(MessagingError::Dispatch)?;
+    let response = ProxyService::new(
+        identities,
+        Arc::clone(ctx.connector_tokens()),
+        ctx.services_state(),
+    )
+    .proxy_request(target, request, ctx.clone())
+    .await
+    .map_err(MessagingError::Dispatch)?;
 
     let bytes = to_bytes(response.into_body(), MAX_A2A_RESPONSE_BYTES)
         .await

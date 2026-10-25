@@ -24,7 +24,6 @@ use systemprompt_ai::{
     PersonalKeyError, PersonalKeyRequest, personal_credential, personal_credentials,
     store_personal_key,
 };
-use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedCredential};
 use systemprompt_models::bridge::profile::{
     ProviderCredentialStatus, SetProviderCredentialRequest,
@@ -45,7 +44,7 @@ pub async fn list(
         .list_metadata(&claims.user_id)
         .await
         .map_err(|e| BridgeError::internal("personal key listing failed", e))?;
-    let catalog = catalog()?;
+    let catalog = ctx.services_state().catalog();
     let rows = personal_credentials(catalog)
         .into_iter()
         .map(|credential| {
@@ -67,7 +66,7 @@ pub async fn set(
 ) -> Result<Json<ProviderCredentialStatus>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
-    let catalog = catalog()?;
+    let catalog = ctx.services_state().catalog();
     let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
     let meta = store_personal_key(
         repository(&ctx),
@@ -91,7 +90,8 @@ pub async fn delete(
     Path(credential): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let resolved = personal_credential(catalog()?, &credential).map_err(key_error)?;
+    let resolved =
+        personal_credential(ctx.services_state().catalog(), &credential).map_err(key_error)?;
     let removed = repository(&ctx)
         .delete_key(&claims.user_id, &resolved.id)
         .await
@@ -108,11 +108,6 @@ pub async fn delete(
 
 fn repository(ctx: &AppContext) -> &UserProviderCredentialRepository {
     &ctx.ai_repositories().user_provider_credentials
-}
-
-fn catalog() -> Result<&'static ResolvedCatalog, BridgeError> {
-    ServicesBootstrap::catalog()
-        .map_err(|e| BridgeError::unavailable("services config not ready", e))
 }
 
 fn key_error(error: PersonalKeyError) -> BridgeError {

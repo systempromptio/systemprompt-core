@@ -27,7 +27,7 @@ pub(in crate::services::server) fn start_services_watch(ctx: &AppContext) {
     };
     ctx.services_watch()
         .spawn(ctx.background_tasks(), signals, || async {
-            ConfigLoader::reload()
+            ConfigLoader::load()
         });
     tracing::info!("Services config follows the served services tree");
 }

@@ -4,8 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{ApiKeyId, UserId};
-use systemprompt_loader::{ConfigLoadResult, ConfigLoader};
-use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_oauth::OauthResult;
@@ -73,8 +71,4 @@ pub async fn set_host_model_protocols(
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
     repo.set_model_protocols(user_id, host, protocols).await?;
     Ok(())
-}
-
-pub fn load_services_config() -> ConfigLoadResult<ServicesConfig> {
-    ConfigLoader::load()
 }

@@ -30,13 +30,7 @@ pub async fn reconcile_agents(
 ) -> Result<usize> {
     let orchestrator = build_orchestrator(ctx, events).await?;
 
-    let agent_registry = match AgentRegistry::new() {
-        Ok(registry) => registry,
-        Err(e) => {
-            events.error(format!("Failed to load agent registry: {e}"), true);
-            return Err(e.into());
-        },
-    };
+    let agent_registry = AgentRegistry::new(ctx.services_state());
 
     let enabled_agents = match agent_registry.list_enabled_agents() {
         Ok(agents) => agents,
@@ -91,6 +85,7 @@ async fn build_orchestrator(
         },
         Arc::clone(ctx.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
+        ctx.services_state().clone(),
     ));
 
     match AgentOrchestrator::new(

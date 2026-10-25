@@ -104,6 +104,7 @@ pub fn gateway_repositories(
             background: ctx.background_tasks().clone(),
             cache_epochs: ctx.cache_epochs().clone(),
             logging: ctx.logging().clone(),
+            catalog: Arc::clone(ctx.services_state().catalog()),
         },
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
@@ -132,9 +133,15 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
-            .merge(bridge_release_routes(&jwt_extractor))
+            .merge(bridge_release_routes(ctx, &jwt_extractor))
             .merge(otel_routes(ctx, &jwt_extractor))
-            .route("/models", get(models::list))
+            .route("/models", {
+                let services = ctx.services_state().clone();
+                get(move |headers, query| {
+                    let services = services.clone();
+                    async move { models::list(services, headers, query).await }
+                })
+            })
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
     })

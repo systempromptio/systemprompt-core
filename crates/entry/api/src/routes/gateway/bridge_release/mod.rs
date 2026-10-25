@@ -25,7 +25,7 @@ use axum::extract::{Path, Query};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
-use systemprompt_loader::ServicesBootstrap;
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 
@@ -53,12 +53,13 @@ pub struct LatestQuery {
 
 pub async fn latest(
     jwt_extractor: Arc<JwtContextExtractor>,
+    services: &ServicesState,
     feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Query(query): Query<LatestQuery>,
 ) -> Result<Json<ReleaseManifest>, ReleaseError> {
     authenticate_bridge(&jwt_extractor, &headers).await?;
-    let spec = releases_spec()?;
+    let spec = releases_spec(services)?;
     let resolved = if query.refresh {
         feed.resolve_fresh(&spec, &query.platform).await?
     } else {
@@ -69,12 +70,13 @@ pub async fn latest(
 
 pub async fn download(
     jwt_extractor: Arc<JwtContextExtractor>,
+    services: &ServicesState,
     feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Path(platform): Path<String>,
 ) -> Result<Response, ReleaseError> {
     authenticate_bridge(&jwt_extractor, &headers).await?;
-    let spec = releases_spec()?;
+    let spec = releases_spec(services)?;
     let asset = feed.resolve_asset(&spec, &platform).await?;
 
     // Why: GitHub's asset API returns JSON metadata unless Accept is
@@ -111,9 +113,9 @@ pub async fn download(
         .into_response())
 }
 
-fn releases_spec() -> Result<BridgeReleasesSpec, ReleaseError> {
-    let services = ServicesBootstrap::get().map_err(ReleaseError::ServicesNotReady)?;
+fn releases_spec(services: &ServicesState) -> Result<BridgeReleasesSpec, ReleaseError> {
     services
+        .config()
         .gateway_config()
         .and_then(|g| g.bridge_releases.clone())
         .ok_or(ReleaseError::NotConfigured)

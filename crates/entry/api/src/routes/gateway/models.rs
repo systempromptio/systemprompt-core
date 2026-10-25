@@ -8,7 +8,7 @@ use axum::http::HeaderMap;
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
-use systemprompt_loader::ServicesBootstrap;
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::bridge_profile::{CredentialFacts, is_model_servable};
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::api::ApiError;
@@ -89,11 +89,12 @@ pub struct OpenAiModelsResponse {
 }
 
 pub async fn list(
+    services_state: ServicesState,
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<axum::response::Response, ApiHttpError> {
-    let services = ServicesBootstrap::get()?;
-    let catalog = ServicesBootstrap::catalog()?;
+    let services = services_state.config();
+    let catalog = services_state.catalog();
 
     services
         .gateway_config()

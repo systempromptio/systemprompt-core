@@ -15,7 +15,6 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use systemprompt_config::SecretsBootstrapError;
-use systemprompt_loader::ConfigLoadError;
 use systemprompt_models::api::ApiError;
 
 use super::super::bridge_error::BridgeError;
@@ -25,8 +24,6 @@ use crate::error::ApiHttpError;
 pub enum ReleaseError {
     #[error(transparent)]
     Auth(Box<BridgeError>),
-    #[error("services config not ready")]
-    ServicesNotReady(#[source] ConfigLoadError),
     #[error("bridge releases are not configured on this gateway")]
     NotConfigured,
     #[error("no published build for platform {platform}")]
@@ -101,8 +98,7 @@ impl ReleaseError {
             | Self::ChecksumMissing { .. }
             | Self::Request { .. }
             | Self::UpstreamStatus { .. } => StatusCode::BAD_GATEWAY,
-            Self::ServicesNotReady(_)
-            | Self::SecretsUnavailable(_)
+            Self::SecretsUnavailable(_)
             | Self::TokenNotConfigured { .. }
             | Self::TokenRejected { .. } => StatusCode::SERVICE_UNAVAILABLE,
         }
@@ -142,9 +138,9 @@ impl ReleaseError {
             },
             Self::Request { .. } | Self::UpstreamStatus { .. } => "release_upstream_failed",
             Self::TokenRejected { .. } => "release_token_rejected",
-            Self::ServicesNotReady(_)
-            | Self::SecretsUnavailable(_)
-            | Self::TokenNotConfigured { .. } => "release_feed_not_ready",
+            Self::SecretsUnavailable(_) | Self::TokenNotConfigured { .. } => {
+                "release_feed_not_ready"
+            },
         }
     }
 }

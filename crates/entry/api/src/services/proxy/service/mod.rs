@@ -63,13 +63,17 @@ impl ProxyService {
     pub fn new(
         identities: Arc<McpProxyIdentityRepository>,
         connector_tokens: Arc<TokenCache>,
+        services: &systemprompt_loader::ServicesState,
     ) -> Self {
         Self {
             client_pool: ClientPool::new(),
             identities,
             intent_claims: None,
             artifact_ingest: None,
-            mcp_client: Arc::new(McpClient::new(connector_tokens)),
+            mcp_client: Arc::new(McpClient::new(
+                connector_tokens,
+                systemprompt_mcp::services::DeploymentService::new(services.clone()),
+            )),
         }
     }
 

@@ -35,10 +35,7 @@ pub fn wellknown_router(ctx: &AppContext) -> Router {
 async fn handle_default_agent_card(
     State(ctx): State<AppContext>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let registry = AgentRegistry::new().map_err(|e| {
-        tracing::error!(error = %e, "Failed to create agent registry");
-        ApiError::internal("Failed to create agent registry", e)
-    })?;
+    let registry = AgentRegistry::new(ctx.services_state());
 
     let default_agent = registry.get_default_agent().map_err(|e| {
         tracing::error!(error = %e, "Failed to get default agent");
@@ -62,10 +59,7 @@ async fn handle_agent_card_by_name(
     Path(agent_name): Path<String>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let agent_name = AgentName::try_new(agent_name.trim_end_matches(".json"))?;
-    let registry = AgentRegistry::new().map_err(|e| {
-        tracing::error!(error = %e, "Failed to create agent registry");
-        ApiError::internal("Failed to create agent registry", e)
-    })?;
+    let registry = AgentRegistry::new(ctx.services_state());
 
     let _agent = registry.get_agent(agent_name.as_str()).map_err(|e| {
         tracing::warn!(agent = %agent_name, error = %e, "Agent not found");
@@ -87,10 +81,7 @@ async fn handle_agent_card_by_name(
 async fn handle_list_agent_cards(
     State(ctx): State<AppContext>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let registry = AgentRegistry::new().map_err(|e| {
-        tracing::error!(error = %e, "Failed to create agent registry");
-        ApiError::internal("Failed to create agent registry", e)
-    })?;
+    let registry = AgentRegistry::new(ctx.services_state());
 
     let agents = registry.list_agents();
 
