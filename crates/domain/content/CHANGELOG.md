@@ -1,11 +1,11 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
 
 ### Changed
 
-- Parse frontmatter through the ingestion parser for the ready snapshot.
-- Declare owner reassignments through one table-driven macro.
+- The ready snapshot parses frontmatter through the ingestion parser.
+- The content owner reassignment is declared through `systemprompt_database::owner_reassignment!` and runs in one transaction.
 
 ## [0.63.0] - 2026-10-07
 

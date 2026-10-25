@@ -1,12 +1,12 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
 
-### Changed
+### Breaking
 
-- Decode owner, user, SSO request and client message ids as typed ids.
-- Own the JWKS client cache on the token route.
-- Type the remaining raw-string identifier fields.
+- **Breaking:** `token_exchange::subject::shared_jwks_client` is removed in favour of `JwksCache`, one JWKS client per trusted issuer owned by the `/oauth/token` route; `TokenIssuanceOrchestrator::new`, `handle_token_exchange`, `validate_subject_token`, `validate_id_jag_subject`, `validate_oidc_subject` and `issue_id_jag` take a `&JwksCache`. Migrate by building one `JwksCache::new()` where the OAuth routes are mounted.
+- **Breaking:** `IdJagGrant` carries the `SigningKeys` it signs with (`IdJagGrant::keys`). Migrate by passing `ctx.signing_keys()`.
+- **Breaking:** SSO request, owner, user and client message ids decode as typed identifiers. Migrate by reading the values through `as_str()`.
 
 ## [0.69.0] - 2026-10-15
 

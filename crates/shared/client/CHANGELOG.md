@@ -1,10 +1,10 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
 
 ### Changed
 
-- Header and gateway path constants spelled once.
+- Header and gateway path constants come from `systemprompt_identifiers::headers`.
 
 ## [0.66.0] - 2026-10-13
 

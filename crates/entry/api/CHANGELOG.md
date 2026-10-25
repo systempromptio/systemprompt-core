@@ -1,25 +1,19 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
 
 ### Breaking
 
 - `/readyz` and `/health` report a last-good or bundled-fallback services source as degraded (`services_source`).
 - `GatewayAuthzRequestInput::route_id` and `DispatchTarget::route_id` are optional: a request no declared route matched is authorized as its `model` entity.
 - `/readyz` reports a never-applied governance plane under `config.unapplied` (mode, effect, apply command) and `/health` answers `degraded` with the same block under `governance`; the replica stays ready.
-
 - `enforce_authz_pre_dispatch` takes a `DispatchTarget` (route, model, serving provider); `GatewayAuthzRequestInput` gains `provider`; `bridge_admission::probe_route` returns the serving provider with the route id.
 - Gateway request extraction resolves the route through `systemprompt_gateway::resolve_route` (scope attribution included); `extract::authz::enforce_authz_pre_dispatch` takes the access `RouteId`; `extract::signatures::route_needs_thought_signatures(&RouteResolution)`.
 - `GET /v1/bridge/profile` answers only an authenticated caller (401 otherwise) and is built by `bridge_profile::build` over the resolved catalog. `/v1/me/provider-credentials/{credential}` stores, lists and removes keys per catalog credential (`ProviderCredentialStatus.credential`); the error key `not_personal_provider` is `not_personal_credential` and `BridgeError::PersonalKeyUnverified { credential }` replaces `{ provider }`.
 - `/v1/models` lists advertised models servable by a configured credential; `x-inference-protocol` takes client-family tags (`families_from_header` replaces `surfaces_from_header`), and host model filters are stored as client-family tags.
-## [Unreleased]
-
-### Breaking
-
 - One gateway principal for every credential kind: `messages::auth::AuthedPrincipal` is a struct holding a `Principal { user_id, roles, subject, attributes, act_chain, client_id, scopes }` plus the bound `session_id` and the client's own `client_session`. `JwtPrincipal`, `ApiKeyPrincipal` and `enforce_session_binding` are removed. An API key's principal carries its user's roles, loaded through the same user record and cache as the JWT path; its `KeyScopes` narrow that principal.
 - `messages::auth::authenticate(credential, AuthInputs { header_session, headers, jwt_extractor, providers, ctx })`. `Principal::subject` holds the caller's groups, projects and every other registered subject dimension, gathered once through `SubjectProviderSet::gather` for every credential kind; `extract::scope::ScopeResolution` takes that `subject` instead of a `user_id` and no longer queries the providers again. `extract::headers::require_session_id` is replaced by `optional_session_id`.
-- `GET /v1/bridge/profile` requires a verified bearer; a missing, invalid or stale one is 401. Its model list is filtered through `bridge_admission::ModelAdmission`, which is dispatch's own check.
-- `routes::gateway::bridge::canonicalize_org_uuid` is removed; use `TenantId::organization_uuid`.
+- `routes::gateway::bridge::canonicalize_org_uuid` is removed. Migrate by `TenantId::organization_uuid`.
 
 ### Added
 

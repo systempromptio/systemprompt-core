@@ -1,11 +1,11 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
 
 ### Changed
 
-- Load prerender assets per run and split prerender utils by responsibility.
-- Name temp files with a random suffix, not a process counter.
+- The prerender jobs load their content config, web config and template registry on every run, so template edits apply without a restart.
+- Staging files take a random suffix instead of a process-wide counter.
 
 ## [0.70.0] - 2026-10-18
 

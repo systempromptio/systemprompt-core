@@ -1,12 +1,15 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `FilesConfig::{init, get, get_optional}` are removed; the context owns the value. Migrate by reading `AppContext::files_config()`, building one with `FilesConfig::from_profile` or `FilesConfig::new` at a composition root, and passing it to `FilesAiPersistenceProvider::new`.
+- **Breaking:** `FilesConfig::ensure_storage_structure` returns `Result<(), FilesError>` (`FilesError::StorageDir` names the directory) and `FilesConfig::validate` no longer touches the filesystem; `FilesConfigValidator` lives in this crate.
 
 ### Changed
 
-- Own the startup validation report and DomainConfig.
-- Declare owner reassignments through one table-driven macro.
-- Move process statics into owned state.
+- The files owner reassignment is declared through `systemprompt_database::owner_reassignment!` and runs in one transaction.
 
 ## [0.70.0] - 2026-10-18
 

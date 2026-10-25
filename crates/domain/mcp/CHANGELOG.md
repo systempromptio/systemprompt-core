@@ -1,18 +1,19 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `services::network::proxy::create_proxy_router` and `NetworkService::create_proxy` take the `reqwest::Client` they forward through; the process-wide proxy client is removed. Migrate by passing the caller's client.
+- **Breaking:** `McpClient` is constructed with `McpClient::new(Arc<TokenCache>)` and its operations are methods; `McpToolProvider::new` takes the shared cache. Migrate by passing `AppContext::connector_tokens()`.
+- **Breaking:** the `TaskContext`, `TaskManager` and `TaskOptions` re-exports are removed and `services::registry::trait_impl` is folded into `services::registry`. Migrate by importing from `rmcp::task_manager`.
+- **Breaking:** `models::ExecutionStatus` is removed; `systemprompt_models::mcp::McpToolExecutionStatus` (adds `Timeout`) is the `mcp_tool_executions.status` vocabulary.
+- **Breaking:** `services::database::sync::{cleanup_stale_services, delete_crashed_services}` are removed. Migrate by `ServiceRepository::reap_stale(&SubprocessLiveness)`.
 
 ### Changed
 
-- Rustdoc links, bridge layer order and globals, row/model unification, JSON reasons.
-- One enforcement mode, request status, quota subject and service status.
-- Type the remaining raw-string identifier fields.
-- Inject the proxy HTTP client, fold registry trait impls, split long steps.
-- Declare owner reassignments through one table-driven macro.
-- No dry-run ledger counts; high-volume IPs read v_clean_traffic.
-- Move process statics into owned state.
-- Header and gateway path constants spelled once.
-- Delete through owner repositories; table ownership covers app and entry.
+- The startup sync judges a recorded service by process identity only; the port probe is gone.
+- The mcp owner reassignment is declared through `systemprompt_database::owner_reassignment!` and runs in one transaction.
 
 ## [0.71.0] - 2026-10-21
 

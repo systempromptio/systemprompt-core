@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
 
 ### Breaking
 
@@ -10,7 +10,6 @@
 - `config migrate` rewrites `hooks.evaluation` to `hooks.judge` in `plugins/*/config.yaml` (`migrate::hooks`); with `--services` it runs under `--database-url` (`--data` uses the command context's database).
 - `config migrate` writes `route_models` (not `routes`) to `legacy_map.yaml` and no longer writes `gateway.catalog_route_id`; `--data` moves the access rules of a routing-only route and of the catalog route onto their `model/<glob>` entity (`DataReport::route_rules_moved_to_models`). `services refresh` reports `registered` and `deleted` gateway routes only; marketplace access is applied by `config apply`.
 - `admin config planes list` adds an `applied` column and titles the table NOT APPLIED with the `unapplied_planes` mode while any plane was never applied; `cloud doctor` adds a `config-planes` check reporting the mode and whether `governance`, `gateway_policies` and `access_control` are applied.
-
 - `admin config migrate` folds `access-control/roles.yaml` into `rules.yaml`, and `--data` moves access rules from legacy route ids to declared ones; `admin access-control export-yaml` renders `rules.yaml`.
 - `systemprompt admin config apply` is the deploy pipeline's explicit code-to-database step (three-way merge per entity; conflicts exit non-zero), and `systemprompt cloud sync export` writes the console's database changes as declaration files. Boot applies nothing.
 - `systemprompt admin config migrate [--check] [--data] [--services <dir>]` rewrites a pre-0.73 services tree to the catalog shape (replaying 0.72.1 dispatch into deployments), refuses undecidable shapes naming file and keys, writes only after the result loads, emits `services/ai/legacy_map.yaml`, and with `--data` moves personal keys, `ai_requests.credential`/`endpoint` and host-filter tags through it.

@@ -1,11 +1,8 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
 
 ### Breaking
-
-- Migration 052 runs its `synthetic` to `traffic` re-class only where the `synthetic` column exists, so it applies on schemas laid down before ai 040; it supersedes its previous checksum.
-- `AiGatewayPolicyRepository::find_plane_applied`.
 
 - `AiGatewayPolicyRepository::{list_all_on, upsert_on, delete_on}` and `GatewayPolicyWrite` replace `upsert`, `list_all_names` and `delete_by_name`.
 - `AiService::new(catalog: Arc<ResolvedCatalog>, &AiConfig, AiServiceProviders, &AiRepositories)` replaces the `ProviderRegistry` + `ai.providers` constructor. Clients are built per endpoint (`ProviderClients`, keyed `provider/endpoint`) for every enabled provider with a deployment and a usable platform credential; resilience is the endpoint's effective value and web search the provider's `google_search_enabled`. A request resolves its model through the catalog's enabled deployments in failover order. The default provider and model are `gateway.default_model`'s first served deployment; `health_check` keys are `provider_<provider>/<endpoint>`.
@@ -18,20 +15,17 @@
 
 ### Added
 
+- `AiGatewayPolicyRepository::find_plane_applied`.
 - `BillingSource::{from_kind, of}` derives `ai_requests.billing_source` from the catalog credential kind (`personal` is `user_key`).
 - Migration `051_catalog_credentials.sql`: renames `user_provider_credentials.provider` and its unique constraint, adds nullable `ai_requests.credential` and `endpoint`, creates `ai_catalog_legacy_map`. Locks on a 100M-row `ai_requests`: each ADD COLUMN is catalog-only (nullable, no default), ACCESS EXCLUSIVE for milliseconds, no rewrite, no scan; the rename is catalog-only on a small table. Existing rows are backfilled by `config migrate --data` in bounded batches, never in the migration.
 - `AiRequestRecord.hop: Option<CatalogHop>` (written to `credential`/`endpoint` on insert); `AiRequestRepository::update_served_hop(ServedHop)` replaces `update_served_provider`; `AdmissionWrite.served_hop` replaces `served_provider`.
 - `CatalogMigrationRepository` (`upsert_legacy_map`, `update_personal_keys`, `update_audit_batch`, `update_served_audit_batch`) for `config migrate --data`.
-## [Unreleased]
-
-### Added
-
 - `ai_gateway_policies` carries `source` (closed vocabulary, CHECK), `changed_by`, `changed_at` and `reason`, stamped by `sp_stamp_change()`, and bumps `config_version` (`config:gateway_policies`). Migration `050_ai_gateway_policies_change_provenance` (with down): catalog-only `ADD COLUMN`s; the CHECK is added `NOT VALID` and validated under SHARE UPDATE EXCLUSIVE. `ai_requests` is untouched.
 
 ### Fixed
 
-- Storing a personal key probes every entry that shares it (`credential_siblings`, `verify_personal_key`), not only the owner entry, so a key a sibling endpoint refuses is never stored as working.
-- The personal token cache is keyed by user and credential owner, so entries sharing one key share its token; `UpstreamTarget::cache_key()` exposes it.
+- Migration 052 runs its `synthetic` to `traffic` re-class only where the `synthetic` column exists, so it applies on schemas laid down before ai 040.
+- Endpoints sharing one personal credential share one cached token; `UpstreamTarget::cache_key()` exposes the key.
 
 ## [0.72.1] - 2026-10-22
 

@@ -1,6 +1,11 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `CONTEXT_BROADCASTER`, `AGUI_BROADCASTER`, `A2A_BROADCASTER` and `ANALYTICS_BROADCASTER` are removed in favour of `EventBroadcasters`; `EventRouter::local_only`, `EventRouter::with_outbox` and `PostgresEventBridge::new` take the `Arc<EventBroadcasters>`, and the `route_*_local` functions are methods. Migrate by reading `AppContext::event_broadcasters()`.
+- **Breaking:** `PostgresEventBridge::into_idle_handle` builds an idle `EventBridgeHandle` that `start()` starts once. Migrate by calling `ctx.event_bridge().start()`.
 
 ### Changed
 

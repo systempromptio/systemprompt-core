@@ -1,18 +1,20 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `AnalyticsRepositories::new` takes the logging `Arc<AnalyticsRepository>` (`event_log`) in place of the `DynAnalyticsEventStore`, and the analytics middleware logs through it. Migrate by passing the logging repository to `new`.
+- **Breaking:** `TrafficAnalyticsRepository::new(db, traffic_counts: DynTrafficClassCounts)` takes the users-owned counter, and `get_bot_totals` reads it over whole hour buckets. Migrate by passing `Arc::new(SessionTrafficRollupRepository::new(db))`.
+- **Breaking:** `AnalyticsEventRecord.id` and `AnalyticsEventCreated.id` are `AnalyticsEventId`, and user-keyed rows decode `user_id` as `UserId`. Migrate by reading the values through `as_str()`.
 
 ### Changed
 
-- Rustdoc links, bridge layer order and globals, row/model unification, JSON reasons.
-- One enforcement mode, request status, quota subject and service status.
-- Decode owner, user, SSO request and client message ids as typed ids.
-- Type the remaining raw-string identifier fields.
-- Replace glob re-exports with explicit lists.
-- Declare owner reassignments through one table-driven macro.
-- Log the missing GeoIP reader once when AnalyticsService is built.
-- Session traffic rollup counted at write time; bot totals read it.
-- One session-source default, one human-traffic predicate, one bot classifier.
+- Per-conversation reads and the usage-anomaly scan read the `ai_context_rollup_hourly` rollup instead of `ai_requests`; their windows widen to whole UTC hours.
+- The analytics owner reassignment is declared through `systemprompt_database::owner_reassignment!` and runs in one transaction.
+- `systemprompt_analytics::models` and its `reporting` module re-export explicit item lists instead of globs; the exported set is unchanged.
+- The "no GeoIP reader" notice is logged once when `AnalyticsService` is built.
+- Sessions default to `session_source = unknown`, and human traffic is judged by one predicate and one bot classifier.
 
 ## [0.71.0] - 2026-10-21
 

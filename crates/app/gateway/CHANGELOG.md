@@ -1,23 +1,21 @@
 # Changelog
 
-## [0.73.0] - Unreleased
+## [0.73.0] - 2026-10-25
 
 ### Breaking
 
 - `RouteResolution::access_route_id` is `route_id` and returns `Option<&RouteId>`; `order_chain` takes `Option<&RouteId>`, `describe_route_match` and the bound upstream's `route_id` are optional, and route selectors apply only to a request a declared route matched.
 - `PolicyResolver` follows the profile's `governance.unapplied_planes` (`with_unapplied_mode`): with `ai_gateway_policies` empty and the `gateway_policies` plane never applied, `deny` returns `PolicyUnavailable::NotApplied` in either fault mode and `warn` serves the permissive spec with a warning per request.
-
 - `GatewayPoliciesPlane` and the `gateway` extension replace the boot ingest (`load_from_yaml`, `GatewayPolicyIngestionService` and its options and report are deleted; `GatewayPolicyError` keeps only `Invalid`).
 - `GatewayService::dispatch(&GatewayConfig, &ResolvedCatalog, …)` replaces the `ProviderRegistry` argument. `routing::{resolve_route, RouteSource, RouteResolution}` resolve a request's model through the catalog with its scope attribution and body; by_scope chains, `ChainSelection` and glob routing are gone.
 - `OutboundCtx.target: &ResolvedHop` replaces `route`; route-level `extra_headers` are deleted (provider headers travel in the `UpstreamCall`). Learned Anthropic beta and field refusals are keyed per `provider/endpoint`.
 - `pricing::resolve(provider, candidates, &ResolvedCatalog)` and `pricing::resolve_hop`; `resolve_upstream` is deleted. Breakers (`ProviderBreakers::for_endpoint`) and `DeploymentLoad` are keyed per endpoint (`failover::breaker_key`); `breaker_settings` and `DeploymentLoad::key` are deleted.
 - `GatewayRequestContext.hop: Option<CatalogHop>` and `GatewayRequestContext::open_on`; `GatewayAudit::set_served_hop` replaces `set_served_provider` and records provider, credential and endpoint. `GatewayError::PersonalKeyRequired { credential }` replaces `{ provider }`; `GatewayError::UndeclaredProvider` is deleted.
 - Failover keeps the credential guard (`resolve::may_fail_over`): platform to platform allowed, personal needs the same credential, mixed refused.
-## [Unreleased]
 
 ### Changed
-- The failover module doc names the route `when.scope` chain instead of the removed `by_scope`.
 
+- The failover module doc names the route `when.scope` chain instead of the removed `by_scope`.
 - The derived `x-opencode-session` is keyed on the request's client session id when there is one, falling back to the gateway session, so OpenCode sessions sharing one API key's bound session are metered separately.
 
 ### Fixed

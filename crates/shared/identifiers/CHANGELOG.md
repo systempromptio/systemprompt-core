@@ -1,11 +1,6 @@
 # Changelog
 
-## [0.73.0] - Unreleased
-
-### Added
-
-- `CredentialId` and `EndpointId`, the keys of `services/ai/credentials.yaml` and of a provider's `endpoints:`.
-## [Unreleased]
+## [0.73.0] - 2026-10-25
 
 ### Breaking
 
@@ -13,6 +8,7 @@
 
 ### Added
 
+- `CredentialId` and `EndpointId`, the keys of `services/ai/credentials.yaml` and of a provider's `endpoints:`.
 - `TenantId::organization_uuid` is the one derivation of the organisation UUID hosts are configured with (it replaces `systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid`).
 
 ## [0.71.0] - 2026-10-21
