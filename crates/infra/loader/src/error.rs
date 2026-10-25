@@ -100,15 +100,6 @@ pub enum ConfigLoadError {
     #[error("the services catalog does not resolve: {0}")]
     Catalog(Box<systemprompt_manifest::services::catalog::CatalogError>),
 
-    #[error(
-        "Services config not initialized. Call ServicesBootstrap::init() after \
-         ProfileBootstrap::init()"
-    )]
-    NotInitialized,
-
-    #[error("Services config already initialized")]
-    AlreadyInitialized,
-
     #[error("services config validation failed: {0}")]
     Validation(#[from] systemprompt_models::errors::ServicesValidationError),
 

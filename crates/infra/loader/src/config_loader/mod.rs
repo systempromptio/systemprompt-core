@@ -15,10 +15,8 @@
 //! credential is health state the gateway reports, never a rewrite of the
 //! catalog.
 //!
-//! [`ConfigLoader::load`] — the active-profile entry point — memoises its
-//! result for the lifetime of the process. The explicit
-//! [`ConfigLoader::load_from_path`] and [`ConfigLoader::validate_file`] forms
-//! are one-shot reads of a caller-supplied file and are never cached.
+//! Every entry point is a fresh read; the process holds the parsed result in
+//! [`crate::ServicesState`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,10 +28,9 @@ mod includes;
 mod merge;
 mod types;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{OnceLock, PoisonError, RwLock};
 
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_manifest::services::ServicesConfig;
@@ -72,49 +69,7 @@ impl ConfigLoader {
     }
 
     pub fn load() -> ConfigLoadResult<ServicesConfig> {
-        Self::for_active_profile()?.run_cached()
-    }
-
-    pub fn reload() -> ConfigLoadResult<ServicesConfig> {
-        Self::for_active_profile()?.run_uncached()
-    }
-
-    fn run_uncached(&self) -> ConfigLoadResult<ServicesConfig> {
-        let config = self.run()?;
-        let key = fs::canonicalize(&self.config_path).unwrap_or_else(|_| self.config_path.clone());
-        cache_store(key, &config);
-        Ok(config)
-    }
-
-    pub fn load_cached_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
-        Self::new(path.to_path_buf()).run_cached()
-    }
-
-    pub fn reload_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
-        Self::new(path.to_path_buf()).run_uncached()
-    }
-
-    fn run_cached(&self) -> ConfigLoadResult<ServicesConfig> {
-        let key = self.cache_key();
-
-        if let Some(cached) = cache_read(&key) {
-            return Ok(cached);
-        }
-
-        let config = self.run()?;
-        cache_store(key, &config);
-        Ok(config)
-    }
-
-    // Why: `fs::canonicalize` requires the path to exist, even for cache keys.
-    fn cache_key(&self) -> PathBuf {
-        let Some(parent) = self.config_path.parent() else {
-            return self.config_path.clone();
-        };
-        let Some(name) = self.config_path.file_name() else {
-            return self.config_path.clone();
-        };
-        fs::canonicalize(parent).map_or_else(|_| self.config_path.clone(), |dir| dir.join(name))
+        Self::for_active_profile()?.run()
     }
 
     pub fn load_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
@@ -233,25 +188,4 @@ impl ConfigLoader {
     pub fn base_path(&self) -> &Path {
         &self.base_path
     }
-}
-
-static CONFIG_CACHE: OnceLock<RwLock<HashMap<PathBuf, ServicesConfig>>> = OnceLock::new();
-
-fn config_cache() -> &'static RwLock<HashMap<PathBuf, ServicesConfig>> {
-    CONFIG_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
-}
-
-fn cache_read(key: &Path) -> Option<ServicesConfig> {
-    config_cache()
-        .read()
-        .unwrap_or_else(PoisonError::into_inner)
-        .get(key)
-        .cloned()
-}
-
-fn cache_store(key: PathBuf, config: &ServicesConfig) {
-    config_cache()
-        .write()
-        .unwrap_or_else(PoisonError::into_inner)
-        .insert(key, config.clone());
 }

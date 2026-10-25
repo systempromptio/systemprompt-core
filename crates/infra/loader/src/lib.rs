@@ -39,8 +39,8 @@ pub mod extension_binary_index;
 pub mod extension_loader;
 pub mod module_loader;
 pub mod profile_loader;
-pub mod services_bootstrap;
 pub mod services_root;
+pub mod services_state;
 pub mod subprocess;
 pub mod vertex_discovery;
 
@@ -55,5 +55,5 @@ pub use extension_binary_index::ExtensionBinaryIndex;
 pub use extension_loader::{ExtensionLoader, ExtensionValidationResult};
 pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
-pub use services_bootstrap::ServicesBootstrap;
 pub use services_root::{ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap};
+pub use services_state::ServicesState;
