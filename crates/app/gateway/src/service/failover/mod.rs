@@ -2,11 +2,11 @@
 //! `fallbacks`.
 //!
 //! A route's chain is its primary deployment followed by its ordered
-//! fallbacks (or the per-scope chain `by_scope` selected). Each deployment is
-//! a provider entry and sits behind that provider's circuit breaker, so a
-//! breaker is per deployment. The attempt order is decided before anything is
-//! sent: healthy deployments in chain order, or every deployment in chain
-//! order when none is healthy, so a request is never left unsent.
+//! fallbacks (or the chain of the route whose `when.scope` matched). Each
+//! deployment is a provider entry and sits behind that provider's circuit
+//! breaker, so a breaker is per deployment. The attempt order is decided before
+//! anything is sent: healthy deployments in chain order, or every deployment in
+//! chain order when none is healthy, so a request is never left unsent.
 //!
 //! Each deployment keeps the bounded retry budget for transient 429/503
 //! answers. Once that budget is spent, or the deployment answers any other

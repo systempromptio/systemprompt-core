@@ -335,6 +335,7 @@ jobs:
       - run: just lint-sql-vocab
       - run: just lint-migrations
       - run: just lint-host-ids
+      - run: just check-removed-config-names
       - run: just lint-header-literals
       - run: just lint-path-literals
         if: ${{ !cancelled() }}

@@ -400,6 +400,9 @@ lint-bridge-file-size:
 lint-host-ids:
     ./scripts/lint-host-ids.sh
 
+check-removed-config-names:
+    ./scripts/check-removed-config-names.sh
+
 # A systemprompt header name is spelled once, in identifiers::headers or the bridge's headers.rs.
 lint-header-literals:
     ./scripts/lint-header-literals.sh

@@ -152,6 +152,7 @@ scripts/*
 !scripts/check-release-tag.sh
 !scripts/check-crate-changelogs.sh
 !scripts/check-version-strings.sh
+!scripts/check-removed-config-names.sh
 !scripts/check-lockfile-registry.sh
 !scripts/lint-bridge-css-tokens.sh
 !scripts/lint-bridge-i18n.sh

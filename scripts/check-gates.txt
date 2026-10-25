@@ -49,3 +49,4 @@ lint-core-globals
 lint-serde-aliases
 lint-bridge-file-size
 lint-repo-hygiene
+check-removed-config-names

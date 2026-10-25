@@ -15,6 +15,7 @@
 ## [Unreleased]
 
 ### Changed
+- The failover module doc names the route `when.scope` chain instead of the removed `by_scope`.
 
 - The derived `x-opencode-session` is keyed on the request's client session id when there is one, falling back to the gateway session, so OpenCode sessions sharing one API key's bound session are metered separately.
 
