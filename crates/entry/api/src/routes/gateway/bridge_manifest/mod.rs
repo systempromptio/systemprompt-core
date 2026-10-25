@@ -30,7 +30,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_security::keys::SigningKeys;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use super::{bridge_resolved, bridge_services_cache};
+use super::{bridge_data, bridge_resolved};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
@@ -48,7 +48,7 @@ pub async fn manifest(
 
     let stamp = build_version()?;
 
-    let services = bridge_services_cache::load_services_config()
+    let services = bridge_data::load_services_config()
         .map_err(|e| BridgeError::internal("manifest: services config load failed", e))?;
     let instance_hosts = services.instance_enabled_hosts();
     let desktop_policy = desktop_policy(&services);

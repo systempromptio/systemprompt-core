@@ -18,7 +18,6 @@ crates/infra/loader/src/services_root.rs:ACTIVE_ROOT — bootstrap chain: the re
 crates/infra/loader/src/services_bootstrap.rs:SERVICES — owned by config-arch Phase 3
 crates/infra/loader/src/services_bootstrap.rs:DISCOVERY — owned by config-arch Phase 3
 crates/infra/loader/src/config_loader/mod.rs:CONFIG_CACHE — owned by config-arch Phase 3
-crates/entry/api/src/routes/gateway/bridge_services_cache.rs:CACHED — owned by config-arch Phase 3
 
 # Gateway failover statics (config-arch session hand-off).
 crates/infra/security/src/credential/mod.rs:PROVIDER_TOKENS — debt: ProviderCredential::bearer is called from domain/ai upstream/target.rs and loader vertex_discovery (config-arch session); the owned form is TokenCache

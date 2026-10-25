@@ -39,7 +39,6 @@ pub mod bridge_plugin_file;
 pub mod bridge_profile_usage;
 pub mod bridge_release;
 pub mod bridge_resolved;
-pub mod bridge_services_cache;
 pub mod bridge_stream;
 pub mod bridge_whoami;
 pub mod messages;
