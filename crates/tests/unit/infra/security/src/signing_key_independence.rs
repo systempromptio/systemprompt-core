@@ -32,37 +32,32 @@ fn ensure_bootstrap() {
     });
 }
 
-fn manifest_keys()
--> Result<systemprompt_security::keys::SigningKeys, systemprompt_config::SecretsBootstrapError> {
-    let seed = SecretsBootstrap::manifest_signing_secret_seed()?;
-    Ok(systemprompt_security::keys::SigningKeys::new(
+fn manifest_keys() -> systemprompt_security::keys::SigningKeys {
+    systemprompt_security::keys::SigningKeys::new(
         systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX),
-        &seed,
+        &seed_bytes(),
     )
-    .expect("build signing keys from the bootstrapped seed"))
+    .expect("build signing keys from the seed")
 }
 
-fn expected_pubkey_b64() -> String {
+fn seed_bytes() -> [u8; 32] {
     let raw = base64::engine::general_purpose::STANDARD
         .decode(SEED_B64)
         .expect("test seed must decode");
     let mut seed = [0u8; 32];
     seed.copy_from_slice(&raw);
-    let key = SigningKey::from_bytes(&seed);
+    seed
+}
+
+fn expected_pubkey_b64() -> String {
+    let key = SigningKey::from_bytes(&seed_bytes());
     base64::engine::general_purpose::STANDARD.encode(key.verifying_key().to_bytes())
 }
 
 #[test]
 fn pubkey_derives_from_seed_not_jwt_secret() {
     ensure_bootstrap();
-    let actual = match manifest_keys().map(|keys| keys.manifest_pubkey_b64()) {
-        Ok(k) => k,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let actual = manifest_keys().manifest_pubkey_b64();
     assert_eq!(
         actual,
         expected_pubkey_b64(),
@@ -73,14 +68,7 @@ fn pubkey_derives_from_seed_not_jwt_secret() {
 #[test]
 fn pubkey_stable_across_jwt_secret_rotation() {
     ensure_bootstrap();
-    let before = match manifest_keys().map(|keys| keys.manifest_pubkey_b64()) {
-        Ok(k) => k,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let before = manifest_keys().manifest_pubkey_b64();
 
     unsafe {
         std::env::set_var(
@@ -89,9 +77,7 @@ fn pubkey_stable_across_jwt_secret_rotation() {
         );
     }
 
-    let after = manifest_keys()
-        .map(|keys| keys.manifest_pubkey_b64())
-        .expect("pubkey after rotation");
+    let after = manifest_keys().manifest_pubkey_b64();
     assert_eq!(
         before, after,
         "rotating the JWT secret must not change the manifest signing pubkey"
@@ -101,14 +87,8 @@ fn pubkey_stable_across_jwt_secret_rotation() {
 #[test]
 fn seed_accessor_returns_dedicated_value() {
     ensure_bootstrap();
-    let seed = match SecretsBootstrap::manifest_signing_secret_seed() {
-        Ok(s) => s,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let seed = SecretsBootstrap::manifest_signing_secret_seed()
+        .expect("bootstrapped manifest signing seed");
     let raw = base64::engine::general_purpose::STANDARD
         .decode(SEED_B64)
         .expect("seed decode");

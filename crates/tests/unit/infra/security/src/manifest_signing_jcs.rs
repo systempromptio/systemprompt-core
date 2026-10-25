@@ -1,5 +1,4 @@
-use std::sync::Once;
-
+use base64::Engine;
 use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ArtifactEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
     PluginEntry, PluginFile, RuleEntry, SignedManifest, SignedManifestEnvelope, SkillEntry,
@@ -14,34 +13,11 @@ use systemprompt_identifiers::{
 const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const FAKE_SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const FAKE_SHA_C: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
-use systemprompt_config::SecretsBootstrap;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
-static INIT_SECRETS: Once = Once::new();
-
-fn ensure_bootstrap() {
-    INIT_SECRETS.call_once(|| {
-        unsafe {
-            std::env::set_var("SYSTEMPROMPT_SUBPROCESS", "1");
-            std::env::set_var(
-                "JWT_SECRET",
-                "manifest-signing-jcs-test-secret-must-be-32-bytes-or-longer",
-            );
-            if std::env::var_os("DATABASE_URL").is_none() {
-                std::env::set_var(
-                    "DATABASE_URL",
-                    "postgres://placeholder:placeholder@localhost/placeholder",
-                );
-            }
-            std::env::set_var(
-                "MANIFEST_SIGNING_SECRET_SEED",
-                "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
-            );
-        }
-        let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
-    });
-}
+const SEED_B64: &str = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
 fn sample_manifest() -> SignedManifest {
     SignedManifest {
@@ -158,21 +134,22 @@ fn sample_manifest() -> SignedManifest {
     }
 }
 
-fn manifest_keys()
--> Result<systemprompt_security::keys::SigningKeys, systemprompt_config::SecretsBootstrapError> {
-    let seed = SecretsBootstrap::manifest_signing_secret_seed()?;
-    Ok(systemprompt_security::keys::SigningKeys::new(
+fn manifest_keys() -> SigningKeys {
+    let raw = base64::engine::general_purpose::STANDARD
+        .decode(SEED_B64)
+        .expect("test seed must decode");
+    let mut seed = [0u8; 32];
+    seed.copy_from_slice(&raw);
+    SigningKeys::new(
         systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX),
         &seed,
     )
-    .expect("build signing keys from the bootstrapped seed"))
+    .expect("build signing keys from the seed")
 }
 
 fn sealed_envelope(manifest: &SignedManifest) -> SignedManifestEnvelope {
     let payload = manifest_signing::canonicalize(manifest).expect("canonicalize manifest");
-    let signature = manifest_keys()
-        .expect("manifest keys from the bootstrapped seed")
-        .sign_manifest_bytes(payload.as_bytes());
+    let signature = manifest_keys().sign_manifest_bytes(payload.as_bytes());
     SignedManifestEnvelope {
         payload,
         signature: ManifestSignature::new(signature),
@@ -218,15 +195,7 @@ fn jcs_output_sorts_keys_alphabetically() {
 
 #[test]
 fn sign_bytes_round_trips_through_verifier() {
-    ensure_bootstrap();
-    let pubkey = match manifest_keys().map(|keys| keys.manifest_pubkey_b64()) {
-        Ok(k) => k,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let pubkey = manifest_keys().manifest_pubkey_b64();
 
     let envelope = sealed_envelope(&sample_manifest());
     verify_envelope(&envelope, &pubkey).expect("signature must verify against published pubkey");
@@ -234,15 +203,7 @@ fn sign_bytes_round_trips_through_verifier() {
 
 #[test]
 fn tamper_with_payload_breaks_signature() {
-    ensure_bootstrap();
-    let pubkey = match manifest_keys().map(|keys| keys.manifest_pubkey_b64()) {
-        Ok(k) => k,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let pubkey = manifest_keys().manifest_pubkey_b64();
 
     let mut envelope = sealed_envelope(&sample_manifest());
     let tampered_user = unique_user_id("tampered");

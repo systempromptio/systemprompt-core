@@ -32,10 +32,8 @@ const TEST_KEY_PEMS: [&str; 6] = [
     include_str!("../keys/test_signing_key_5.pem"),
 ];
 
-/// Index of the key backing [`crate::jwt::test_signing_keys`].
 pub const AUTHORITY_KEY_INDEX: usize = 0;
 
-/// How many distinct keys [`next_test_key`] cycles through before repeating.
 pub const ROTATING_KEY_COUNT: usize = TEST_KEY_PEMS.len() - 1;
 
 static NEXT_KEY: AtomicUsize = AtomicUsize::new(0);
@@ -44,17 +42,11 @@ pub(crate) const fn authority_key_pem() -> &'static str {
     TEST_KEY_PEMS[AUTHORITY_KEY_INDEX]
 }
 
-/// Load test key `index`, wrapping modulo the number of committed keys.
 pub fn test_key(index: usize) -> RsaSigningKey {
     RsaSigningKey::from_pkcs8_pem(TEST_KEY_PEMS[index % TEST_KEY_PEMS.len()])
         .expect("committed test signing key is valid PKCS#8")
 }
 
-/// Take the next rotating key, skipping the authority key.
-///
-/// Callers that need several keys to be distinct from each other must take them
-/// all from this function and must not take more than [`ROTATING_KEY_COUNT`]
-/// within one assertion.
 pub fn next_test_key() -> RsaSigningKey {
     let n = NEXT_KEY.fetch_add(1, Ordering::Relaxed);
     test_key(AUTHORITY_KEY_INDEX + 1 + (n % ROTATING_KEY_COUNT))
