@@ -87,8 +87,11 @@ pub(super) fn create_request_context(
     Ok(request_ctx)
 }
 
-pub(super) fn load_agent_servers(agent_name: &AgentName) -> McpDomainResult<Vec<String>> {
-    let config = DeploymentService::load_config()?;
+pub(super) fn load_agent_servers(
+    deployments: &DeploymentService,
+    agent_name: &AgentName,
+) -> McpDomainResult<Vec<String>> {
+    let config = deployments.load_config();
 
     let agent = config.agents.get(agent_name.as_str()).ok_or_else(|| {
         crate::error::McpDomainError::Configuration(format!(

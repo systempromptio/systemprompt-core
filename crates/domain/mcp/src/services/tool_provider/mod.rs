@@ -76,12 +76,13 @@ impl McpToolProvider {
         resilience: &ResilienceSettings,
         connector_tokens: Arc<TokenCache>,
     ) -> Self {
+        let client = Arc::new(McpClient::new(connector_tokens, registry.deployments()));
         Self {
             db_pool,
             registry,
             resilience: *resilience,
             guards: Arc::new(Mutex::new(HashMap::new())),
-            client: Arc::new(McpClient::new(connector_tokens)),
+            client,
         }
     }
 
@@ -110,7 +111,7 @@ impl ToolProvider for McpToolProvider {
         agent_name: &AgentName,
         context: &ToolContext,
     ) -> ToolProviderResult<ToolInventory> {
-        let assigned_servers = load_agent_servers(agent_name)
+        let assigned_servers = load_agent_servers(&self.registry.deployments(), agent_name)
             .map_err(|e| configuration_error("Failed to load agent config", e))?;
 
         info!(
@@ -200,7 +201,7 @@ impl ToolProvider for McpToolProvider {
     }
 
     async fn refresh_connections(&self, agent_name: &AgentName) -> ToolProviderResult<()> {
-        let assigned_servers = load_agent_servers(agent_name)
+        let assigned_servers = load_agent_servers(&self.registry.deployments(), agent_name)
             .map_err(|e| configuration_error("Failed to load agent config", e))?;
 
         info!(

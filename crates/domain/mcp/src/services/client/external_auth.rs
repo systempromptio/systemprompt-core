@@ -34,6 +34,7 @@ use systemprompt_security::credential::TokenCache;
 
 use super::validation::rewrite_url_for_internal_use;
 use crate::error::{McpDomainError, McpDomainResult};
+use crate::services::deployment::DeploymentService;
 
 pub const BROKER_SECRET_KEY: &str = "mcp_credential_broker_secret";
 pub const MCP_SERVER_HEADER: &str = systemprompt_identifiers::headers::MCP_SERVER;
@@ -53,11 +54,12 @@ const ACCESSOR_ERROR_MAX_CHARS: usize = 240;
 
 pub(super) async fn resolve_external_bearer(
     connector_tokens: &TokenCache,
+    deployments: &DeploymentService,
     ext: &ExternalAuth,
     context: &RequestContext,
     server: &str,
 ) -> McpDomainResult<String> {
-    if let Some(token) = machine_grant_bearer(connector_tokens, ext, server).await? {
+    if let Some(token) = machine_grant_bearer(connector_tokens, deployments, ext, server).await? {
         return Ok(token);
     }
     let Some(jwt) = context.auth_token() else {
@@ -98,11 +100,11 @@ pub(super) async fn resolve_external_bearer(
 
 async fn machine_grant_bearer(
     connector_tokens: &TokenCache,
+    deployments: &DeploymentService,
     ext: &ExternalAuth,
     server: &str,
 ) -> McpDomainResult<Option<String>> {
-    let Ok(deployment) = crate::services::deployment::DeploymentService::get_deployment(server)
-    else {
+    let Ok(deployment) = deployments.get_deployment(server) else {
         return Ok(None);
     };
     let Some(connector) = deployment.connector.filter(|c| c.grant.is_machine()) else {

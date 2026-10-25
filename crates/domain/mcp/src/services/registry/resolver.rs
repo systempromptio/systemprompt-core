@@ -15,6 +15,7 @@ use crate::services::deployment::DeploymentService;
 use async_trait::async_trait;
 use std::future::ready;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_manifest::services::McpDeploymentProvider;
 use systemprompt_models::errors::{McpRegistryError, McpRegistryResult};
@@ -24,12 +25,23 @@ use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, Ser
 #[derive(Debug, Clone)]
 pub struct RegistryService {
     owner: UserId,
+    services: ServicesState,
 }
 
 impl RegistryService {
     #[must_use]
-    pub const fn new(owner: UserId) -> Self {
-        Self { owner }
+    pub const fn new(owner: UserId, services: ServicesState) -> Self {
+        Self { owner, services }
+    }
+
+    #[must_use]
+    pub const fn services(&self) -> &ServicesState {
+        &self.services
+    }
+
+    #[must_use]
+    pub fn deployments(&self) -> DeploymentService {
+        DeploymentService::new(self.services.clone())
     }
 
     #[must_use]
@@ -38,15 +50,13 @@ impl RegistryService {
     }
 
     pub fn get_enabled_servers_as_config(&self) -> McpDomainResult<Vec<crate::McpServerConfig>> {
-        use systemprompt_loader::ConfigLoader;
-
         let global_config = Config::get()?;
         let registry = ExtensionBinaryIndex::build(
             Path::new(&global_config.system_path),
             global_config.is_cloud,
             &global_config.bin_path,
         );
-        let services_config = ConfigLoader::load()?;
+        let services_config = self.services.config();
         let mut enabled = Vec::new();
 
         let mut server_names: Vec<_> = services_config.mcp_servers.keys().collect();
@@ -116,12 +126,8 @@ impl RegistryService {
         Ok(enabled)
     }
 
-    #[expect(
-        clippy::unused_self,
-        reason = "registry-scoped entry-point over DeploymentService::validate_config"
-    )]
     pub fn validate(&self) -> McpDomainResult<()> {
-        DeploymentService::validate_config()?;
+        self.services.config().validate()?;
         Ok(())
     }
 
@@ -185,14 +191,11 @@ fn typed_server_ids(names: impl Iterator<Item = String>) -> McpRegistryResult<Ve
         .collect()
 }
 
-fn load_services() -> McpRegistryResult<ServicesConfig> {
-    systemprompt_loader::ConfigLoader::load()
-        .map_err(|e| McpRegistryError::Configuration(Box::new(e)))
-}
-
 impl McpRegistry for RegistryService {
     fn list_servers(&self) -> impl Future<Output = McpRegistryResult<Vec<McpServerId>>> + Send {
-        ready(load_services().and_then(|config| typed_server_ids(config.mcp_servers.into_keys())))
+        ready(typed_server_ids(
+            self.services.config().mcp_servers.keys().cloned(),
+        ))
     }
 
     fn find_server(
@@ -216,16 +219,31 @@ impl McpRegistry for RegistryService {
         &self,
         name: &McpServerId,
     ) -> impl Future<Output = McpRegistryResult<bool>> + Send {
-        ready(load_services().map(|config| config.mcp_servers.contains_key(name.as_str())))
+        ready(Ok(self
+            .services
+            .config()
+            .mcp_servers
+            .contains_key(name.as_str())))
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct McpDeploymentProviderImpl;
+#[derive(Debug, Clone)]
+pub struct McpDeploymentProviderImpl {
+    deployments: DeploymentService,
+}
+
+impl McpDeploymentProviderImpl {
+    #[must_use]
+    pub const fn new(services: ServicesState) -> Self {
+        Self {
+            deployments: DeploymentService::new(services),
+        }
+    }
+}
 
 impl McpDeploymentProvider for McpDeploymentProviderImpl {
     fn load_config(&self) -> impl Future<Output = McpRegistryResult<ServicesConfig>> + Send {
-        ready(DeploymentService::load_config().map_err(McpRegistryError::from))
+        ready(Ok((*self.deployments.load_config()).clone()))
     }
 
     fn protocol_version(&self) -> &'static str {

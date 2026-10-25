@@ -17,6 +17,7 @@
 use std::sync::Arc;
 
 use crate::error::McpDomainResult;
+use crate::services::deployment::DeploymentService;
 use rmcp::ServiceExt;
 use rmcp::model::{ClientConfig, Implementation, ProtocolVersion};
 use rmcp::transport::streamable_http_client::{
@@ -55,12 +56,16 @@ pub use validation::{
 #[derive(Debug, Clone)]
 pub struct McpClient {
     connector_tokens: Arc<TokenCache>,
+    deployments: DeploymentService,
 }
 
 impl McpClient {
     #[must_use]
-    pub const fn new(connector_tokens: Arc<TokenCache>) -> Self {
-        Self { connector_tokens }
+    pub const fn new(connector_tokens: Arc<TokenCache>, deployments: DeploymentService) -> Self {
+        Self {
+            connector_tokens,
+            deployments,
+        }
     }
 
     pub async fn list_tools(
@@ -169,6 +174,7 @@ impl McpClient {
     ) -> McpDomainResult<StreamableHttpClientTransport<HttpClientWithContext>> {
         build_transport(
             &self.connector_tokens,
+            &self.deployments,
             server_config,
             context,
             with_elicitation,
@@ -186,6 +192,7 @@ fn transport_unavailable(server: &str, error: McpTransportError) -> crate::McpDo
 
 async fn build_transport(
     connector_tokens: &TokenCache,
+    deployments: &DeploymentService,
     server_config: &systemprompt_models::mcp::McpServerConfig,
     context: &systemprompt_models::RequestContext,
     with_elicitation: bool,
@@ -202,6 +209,7 @@ async fn build_transport(
     let client = if let Some(ext) = server_config.external_auth.as_ref() {
         let bearer = external_auth::resolve_external_bearer(
             connector_tokens,
+            deployments,
             ext,
             context,
             &server_config.name,
