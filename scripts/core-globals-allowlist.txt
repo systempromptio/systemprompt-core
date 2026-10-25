@@ -5,17 +5,6 @@
 # accepted as a pattern. "immutable data" marks compiled regexes, const tables
 # and link-time inventories that are set once and never mutated.
 
-# Bootstrap chain (profile → secrets → config → services root): read by every
-# layer before an AppContext exists; replacing it is its own release.
-crates/infra/config/src/bootstrap/profile.rs:PROFILE — bootstrap chain: the profile every layer reads before AppContext exists
-crates/infra/config/src/bootstrap/profile.rs:PROFILE_PATH — bootstrap chain: where the active profile was loaded from
-crates/infra/config/src/bootstrap/secrets/reload.rs:SECRETS — bootstrap chain: the secrets snapshot the reload swaps
-crates/infra/config/src/bootstrap/secrets/reload.rs:GENERATION — bootstrap chain: secrets reload generation counter
-crates/infra/config/src/bootstrap/secrets/reload.rs:STATUS — bootstrap chain: last secrets reload status
-crates/infra/config/src/bootstrap/secrets/reload.rs:RELOAD_LOCK — bootstrap chain: serialises secrets reloads
-crates/shared/manifest/src/config/mod.rs:CONFIG — bootstrap chain: the resolved Config read before AppContext exists
-crates/infra/loader/src/services_root.rs:ACTIVE_ROOT — bootstrap chain: the resolved services root
-
 # Immutable data: compiled once, never mutated.
 crates/shared/models/src/ai/execution_plan.rs:TEMPLATE_REF_REGEX — immutable data
 crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data
