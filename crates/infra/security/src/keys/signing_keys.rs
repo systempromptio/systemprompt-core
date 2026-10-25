@@ -7,7 +7,7 @@
 //! where the filesystem is read-only and the PEM is injected as an env
 //! secret), falling back to the file at `signing_key_path` (the local-dev
 //! path). The manifest key is derived from the 32-byte seed loaded by
-//! [`systemprompt_config::SecretsBootstrap`].
+//! [`systemprompt_config::SecretsService`].
 //!
 //! Token-minting paths use [`SigningKeys::encoding_key`] /
 //! [`SigningKeys::active_kid`] to produce RS256 JWTs whose `kid` matches the

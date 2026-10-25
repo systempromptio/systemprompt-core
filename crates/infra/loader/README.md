@@ -40,13 +40,13 @@ systemprompt-loader = "0.73"
 
 ```rust
 use systemprompt_loader::{
-    ConfigLoader, ProfileLoader,
+    BootContext, ConfigLoader, ProfileLoader,
     ExtensionLoader, ExtensionBinaryIndex, ModuleLoader,
 };
 
-let config = ConfigLoader::load()?;
+let config = boot.load_services_config()?;
 
-let loader = ConfigLoader::for_active_profile()?;
+let loader = ConfigLoader::for_profile(boot.profile(), &services_root);
 
 let profile = ProfileLoader::load_and_validate(services_path, "development")?;
 
