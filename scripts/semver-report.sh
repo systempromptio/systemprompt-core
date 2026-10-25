@@ -22,10 +22,17 @@ mapfile -t unpublished < <(cargo metadata --no-deps --format-version 1 \
 excludes=()
 for package in "${unpublished[@]}"; do excludes+=(--exclude "$package"); done
 
+# Why: cargo-semver-checks judges a change against the version bump, and on 0.x a
+# minor bump already permits any break. Once the workspace version is ahead of
+# the baseline tag, check as a patch release so every break is reported.
+release_type=()
+current="$(cargo metadata --no-deps --format-version 1 | jq -r '[.packages[] | select(.publish != [])][0].version')"
+[ "$current" != "${baseline#v}" ] && release_type=(--release-type patch)
+
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
 cargo semver-checks check-release --workspace "${excludes[@]}" \
-    --baseline-rev "$baseline" --color never >"$log" 2>&1
+    --baseline-rev "$baseline" "${release_type[@]}" --color never >"$log" 2>&1
 status=$?
 
 failed="$(grep -cE '^\s*--- failure ' "$log" || true)"
