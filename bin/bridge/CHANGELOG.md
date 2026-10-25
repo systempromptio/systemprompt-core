@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** `integration::opencode::{OpenCodeHost, OPENCODE_HOST}` and `install::mdm::policy::DESKTOP_SURFACES` are removed; hosts are addressed through `HostKind` (`OPENCODE_APP_HOST`, `OPENCODE_CLI_HOST`).
 - **Breaking:** the bridge needs a 0.73 gateway. It reads the catalog's client families (`ProviderHealth.clients`, `ProviderCredentialStatus.credential`) and sends `x-inference-protocol` and host model filters as `ClientFamily` tags (`claude`, `openai`, `gemini`).
 - **Breaking:** the loopback proxy's rejection response no longer carries `x-systemprompt-bridge-install` or `x-systemprompt-bridge-config-dir`; `x-systemprompt-bridge-reason` stays.
 - **Breaking:** `OpenCode` is written in the V2 config shape only (`@opencode/cli` >= 2.0.30), and every install and sync strips the V1 keys. Migrate by upgrading `OpenCode` to 2.0.30 or later.
