@@ -47,10 +47,7 @@ pub(super) async fn resource(
     host: EvaluatorClient,
 ) -> Result<(), ConsumerHttpError> {
     let identity = authenticate_device(ctx, credential).await?;
-    let profile = systemprompt_config::ProfileBootstrap::get().map_err(|error| {
-        tracing::warn!(%error, "consumer: profile unavailable");
-        ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
-    })?;
+    let profile = ctx.profile();
     let services = ctx.services_config();
     if !services
         .instance_enabled_hosts()

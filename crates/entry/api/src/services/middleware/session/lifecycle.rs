@@ -7,6 +7,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 
 use super::RequestMeta;
+use systemprompt_manifest::Config;
 use systemprompt_models::api::ApiError;
 use systemprompt_oauth::services::{
     CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
@@ -42,6 +43,7 @@ pub(super) async fn create_new_session(
 
 pub(super) async fn refresh_session_for_user(
     session_creation_service: &Arc<SessionCreationService>,
+    config: &Config,
     user_id: &UserId,
     meta: &RequestMeta<'_>,
 ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
@@ -59,12 +61,7 @@ pub(super) async fn refresh_session_for_user(
             },
         })?;
 
-    let config = systemprompt_manifest::Config::get().map_err(|e| {
-        tracing::error!(error = %e, "Failed to get config during session refresh");
-        ApiError::internal("Failed to refresh session", e)
-    })?;
-
-    let token = systemprompt_oauth::services::generation::generate_anonymous_jwt(
+    let token = systemprompt_oauth::services::generation::generate_anonymous_jwt_with_expiry(
         user_id,
         &session_id,
         &ClientId::new("sp_web".to_owned()),
@@ -72,6 +69,7 @@ pub(super) async fn refresh_session_for_user(
             issuer: &config.jwt_issuer,
             keys: session_creation_service.signing_keys(),
         },
+        config.jwt_access_token_expiration,
     )
     .map_err(|e| {
         tracing::error!(error = %e, "Failed to generate JWT during session refresh");

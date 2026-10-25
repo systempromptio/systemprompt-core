@@ -36,14 +36,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::convert::Infallible;
 use std::future::{Future, ready};
 use std::net::{IpAddr, SocketAddr};
+use std::sync::Arc;
 
 use axum::extract::{ConnectInfo, FromRequestParts};
-use axum::http::HeaderMap;
 use axum::http::request::Parts;
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::IntoResponse;
 use ipnet::IpNet;
+use systemprompt_manifest::Config;
 
 fn is_trusted(addr: IpAddr, trusted: &[IpNet]) -> bool {
     trusted.iter().any(|net| net.contains(&addr))
@@ -94,38 +96,46 @@ pub fn forwarded_headers_ignored(headers: &HeaderMap, peer_ip: IpAddr, trusted: 
 }
 
 #[must_use]
-pub fn resolve_client_ip_from_config(
-    headers: &HeaderMap,
-    connect_info: Option<&ConnectInfo<SocketAddr>>,
-) -> Option<IpAddr> {
-    let trusted = systemprompt_manifest::Config::get()
-        .map(|c| c.trusted_proxies.clone())
-        .unwrap_or_default();
-    resolve_client_ip(headers, connect_info, &trusted)
-}
-
-#[must_use]
-pub fn client_ip_from_request(request: &axum::extract::Request) -> Option<IpAddr> {
-    resolve_client_ip_from_config(
+pub fn client_ip_from_request(request: &axum::extract::Request, config: &Config) -> Option<IpAddr> {
+    resolve_client_ip(
         request.headers(),
         request.extensions().get::<ConnectInfo<SocketAddr>>(),
+        &config.trusted_proxies,
     )
+}
+
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("the router carries no Config extension to resolve trusted proxies from")]
+pub struct ClientIpConfigMissing;
+
+impl IntoResponse for ClientIpConfigMissing {
+    fn into_response(self) -> axum::response::Response {
+        tracing::error!(error = %self, "client ip extractor is not wired");
+        StatusCode::INTERNAL_SERVER_ERROR.into_response()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ClientIp(pub Option<IpAddr>);
 
 impl<S: Sync> FromRequestParts<S> for ClientIp {
-    type Rejection = Infallible;
+    type Rejection = ClientIpConfigMissing;
 
     fn from_request_parts(
         parts: &mut Parts,
         _state: &S,
-    ) -> impl Future<Output = Result<Self, Infallible>> + Send {
-        let resolved = resolve_client_ip_from_config(
-            &parts.headers,
-            parts.extensions.get::<ConnectInfo<SocketAddr>>(),
-        );
-        ready(Ok(Self(resolved)))
+    ) -> impl Future<Output = Result<Self, ClientIpConfigMissing>> + Send {
+        let resolved = parts
+            .extensions
+            .get::<Arc<Config>>()
+            .ok_or(ClientIpConfigMissing)
+            .map(|config| {
+                Self(resolve_client_ip(
+                    &parts.headers,
+                    parts.extensions.get::<ConnectInfo<SocketAddr>>(),
+                    &config.trusted_proxies,
+                ))
+            });
+        ready(resolved)
     }
 }

@@ -17,6 +17,7 @@ use crate::services::proxy::backend::ProxyError;
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServiceModule;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
@@ -75,6 +76,7 @@ impl AccessValidator {
         };
         let authenticated_user = match AuthValidator::validate_service_access(
             ctx.signing_keys(),
+            ctx.config(),
             headers,
             service_name,
             req_context,
@@ -91,6 +93,7 @@ impl AccessValidator {
         };
         if let Err(status_code) = enforce_required_audience(
             ctx.signing_keys(),
+            ctx.config(),
             headers,
             service_name,
             &requirement.audience,
@@ -109,7 +112,10 @@ async fn lookup_oauth_requirement(
 ) -> Result<OAuthRequirement, ProxyError> {
     match service.module_name {
         ServiceModule::Agent => {
-            let registry = AgentRegistryProviderService::new(&ctx.services_state().view());
+            let registry = AgentRegistryProviderService::new(
+                &ctx.services_state().view(),
+                ctx.config().is_cloud,
+            );
             let info = registry
                 .get_agent(service_name.as_str())
                 .map_err(|error| registry_lookup_error(service_name, error))?;
@@ -160,6 +166,7 @@ fn registry_lookup_error(service_name: &ServiceName, error: RegistryError) -> Pr
 
 fn enforce_required_audience(
     keys: &SigningKeys,
+    config: &Config,
     headers: &HeaderMap,
     service_name: &ServiceName,
     audience: &str,
@@ -167,7 +174,7 @@ fn enforce_required_audience(
     if audience.is_empty() {
         return Ok(());
     }
-    AuthService::authorize_required_audience(keys, headers, audience)
+    AuthService::authorize_required_audience(keys, config, headers, audience)
         .map(|_user| ())
         .inspect_err(|status| {
             tracing::warn!(

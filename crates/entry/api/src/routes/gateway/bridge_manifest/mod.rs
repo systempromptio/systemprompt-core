@@ -17,7 +17,6 @@ use axum::Json;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::BridgePolicyConfig;
 use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
@@ -43,8 +42,7 @@ pub async fn manifest(
     let started = Instant::now();
     let schema = shape::requested_schema(&headers);
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| BridgeError::unavailable("manifest: profile not ready", e))?;
+    let profile = ctx.profile();
 
     let stamp = build_version()?;
 

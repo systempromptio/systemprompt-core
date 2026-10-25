@@ -4,10 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Extension, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
+use std::sync::Arc;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
 
@@ -28,13 +30,14 @@ pub struct UserinfoResponse {
 
 pub async fn handle_userinfo(
     State(state): State<OAuthState>,
+    Extension(config): Extension<Arc<Config>>,
     headers: HeaderMap,
 ) -> Result<Response, OAuthHttpError> {
     let token = extract_bearer_token(&headers).ok_or_else(|| {
         OAuthHttpError::invalid_request("Missing or invalid Authorization header")
     })?;
 
-    let userinfo = get_userinfo(&state, &token).map_err(|_e| {
+    let userinfo = get_userinfo(&state, &config, &token).map_err(|_e| {
         OAuthHttpError::invalid_token(
             "The access token provided is expired, revoked, malformed, or invalid",
         )
@@ -55,8 +58,11 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     auth_str.strip_prefix("Bearer ").map(str::to_owned)
 }
 
-fn get_userinfo(state: &OAuthState, token: &str) -> anyhow::Result<UserinfoResponse> {
-    let config = systemprompt_manifest::Config::get()?;
+fn get_userinfo(
+    state: &OAuthState,
+    config: &Config,
+    token: &str,
+) -> anyhow::Result<UserinfoResponse> {
     let claims = validate_jwt_token(
         state.signing_keys(),
         token,

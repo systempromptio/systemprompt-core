@@ -15,7 +15,6 @@ use std::sync::Arc;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_content::{LinkAnalyticsService, LinkGenerationService};
 use systemprompt_identifiers::{CampaignId, LinkId};
-use systemprompt_manifest::Config;
 use systemprompt_models::{ApiError, RequestContext};
 use systemprompt_runtime::AppContext;
 use tracing::error;
@@ -109,10 +108,7 @@ pub async fn generate_link_handler(
         .await
     {
         Ok(link) => {
-            let base_url = match Config::get() {
-                Ok(c) => c.api_external_url.clone(),
-                Err(e) => return ApiHttpError::from(e).into_response(),
-            };
+            let base_url = ctx.config().api_external_url.clone();
             let redirect_url = LinkGenerationService::build_trackable_url(&link, &base_url);
             let full_url = link.get_full_url();
 

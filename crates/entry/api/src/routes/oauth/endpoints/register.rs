@@ -18,6 +18,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bcrypt::hash;
 use chrono::Utc;
 use rand::Rng;
+use std::sync::Arc;
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use uuid::Uuid;
@@ -82,10 +83,10 @@ fn validate_registration(
 
 pub async fn register_client(
     Extension(req_ctx): Extension<RequestContext>,
+    Extension(config): Extension<Arc<Config>>,
     OAuthRepo(repository): OAuthRepo,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    let config = Config::get()?;
     if !config.allow_dynamic_client_registration {
         return Err(OAuthHttpError::access_denied(
             "Dynamic client registration is disabled on this server",

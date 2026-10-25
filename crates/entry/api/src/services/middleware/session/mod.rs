@@ -38,6 +38,7 @@ use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
+use systemprompt_manifest::Config;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::{CookieExtractor, HeaderExtractor};
@@ -55,7 +56,7 @@ pub struct SessionMiddleware {
     analytics_service: Arc<AnalyticsService>,
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
-    jwt_issuer: Arc<str>,
+    config: Arc<Config>,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
@@ -72,13 +73,14 @@ impl SessionMiddleware {
             analytics,
             Arc::new(user_service),
             ctx.signing_keys().clone(),
+            Arc::clone(ctx.config_arc()),
         ));
 
         Self {
             analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
-            jwt_issuer: Arc::from(ctx.config().jwt_issuer.as_str()),
+            config: Arc::clone(ctx.config_arc()),
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
             )),

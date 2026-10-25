@@ -158,6 +158,8 @@ pub(super) async fn run_agent(
         identities,
         Arc::clone(ctx.connector_tokens()),
         &ctx.services_state().view(),
+        Arc::clone(ctx.config_arc()),
+        Arc::clone(ctx.secrets()),
     )
     .proxy_request(target, request, ctx.clone())
     .await

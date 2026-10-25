@@ -258,6 +258,7 @@ fn create_mcp_orchestrator(
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
         Arc::clone(ctx.spawner()),
+        Arc::clone(ctx.secrets()),
     )?;
     Ok(Arc::new(manager))
 }

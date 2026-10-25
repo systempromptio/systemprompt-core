@@ -49,11 +49,13 @@ impl SsoRouteState {
             Arc::clone(oauth.session_provider()),
             Arc::clone(oauth.user_provider()),
             oauth.signing_keys().clone(),
+            Arc::clone(ctx.config_arc()),
         );
         let driver = SsoDriver::discover(
             ctx.db_pool(),
+            oauth.oauth_repository().clone(),
             Arc::new(session_service),
-            Arc::new(ctx.config().clone()),
+            Arc::clone(ctx.config_arc()),
             ctx.services_state().view(),
         );
         Self {

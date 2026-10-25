@@ -55,35 +55,37 @@ pub struct LatestQuery {
 
 pub async fn latest(
     jwt_extractor: Arc<JwtContextExtractor>,
-    services: &ServicesView,
+    ctx: &AppContext,
     feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Query(query): Query<LatestQuery>,
 ) -> Result<Json<ReleaseManifest>, ReleaseError> {
     authenticate_bridge(&jwt_extractor, &headers).await?;
-    let spec = releases_spec(services)?;
+    let spec = releases_spec(&ctx.services_state().view())?;
+    let secrets = ctx.secrets().get();
     let resolved = if query.refresh {
-        feed.resolve_fresh(&spec, &query.platform).await?
+        feed.resolve_fresh(&spec, &secrets, &query.platform).await?
     } else {
-        feed.resolve(&spec, &query.platform).await?
+        feed.resolve(&spec, &secrets, &query.platform).await?
     };
     Ok(Json(resolved.manifest))
 }
 
 pub async fn download(
     jwt_extractor: Arc<JwtContextExtractor>,
-    services: &ServicesView,
+    ctx: &AppContext,
     feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Path(platform): Path<String>,
 ) -> Result<Response, ReleaseError> {
     authenticate_bridge(&jwt_extractor, &headers).await?;
-    let spec = releases_spec(services)?;
-    let asset = feed.resolve_asset(&spec, &platform).await?;
+    let spec = releases_spec(&ctx.services_state().view())?;
+    let secrets = ctx.secrets().get();
+    let asset = feed.resolve_asset(&spec, &secrets, &platform).await?;
 
     // Why: GitHub's asset API returns JSON metadata unless Accept is
     // application/octet-stream.
-    let upstream = github(feed.http(), &spec, &asset.url)?
+    let upstream = github(feed.http(), &spec, &secrets, &asset.url)?
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await
@@ -127,8 +129,8 @@ pub(in crate::routes::gateway) fn routes(
     ctx: &AppContext,
     jwt_extractor: &Arc<JwtContextExtractor>,
 ) -> Router {
-    let services_latest = ctx.services_state().view();
-    let services_download = ctx.services_state().view();
+    let ctx_latest = ctx.clone();
+    let ctx_download = ctx.clone();
     let jwt_latest = Arc::clone(jwt_extractor);
     let jwt_download = Arc::clone(jwt_extractor);
     let feed = Arc::new(ReleaseFeed::default());
@@ -141,8 +143,8 @@ pub(in crate::routes::gateway) fn routes(
             get(move |headers, query| {
                 let extractor = Arc::clone(&jwt_latest);
                 let feed = Arc::clone(&feed_latest);
-                let services = services_latest.clone();
-                async move { latest(extractor, &services, feed, headers, query).await }
+                let ctx = ctx_latest.clone();
+                async move { latest(extractor, &ctx, feed, headers, query).await }
             }),
         )
         .route(
@@ -150,8 +152,8 @@ pub(in crate::routes::gateway) fn routes(
             get(move |headers, path| {
                 let extractor = Arc::clone(&jwt_download);
                 let feed = Arc::clone(&feed_download);
-                let services = services_download.clone();
-                async move { download(extractor, &services, feed, headers, path).await }
+                let ctx = ctx_download.clone();
+                async move { download(extractor, &ctx, feed, headers, path).await }
             }),
         )
 }

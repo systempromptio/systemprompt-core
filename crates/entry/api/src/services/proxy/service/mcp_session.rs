@@ -16,6 +16,7 @@ use systemprompt_identifiers::{McpServerId, ServiceName, SessionId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_security::at_rest::AtRestCipher;
 
 fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
     headers
@@ -32,6 +33,7 @@ async fn evict(identities: &McpProxyIdentityRepository, session_id: &SessionId, 
 
 pub async fn enrich_with_cached_identity(
     identities: &McpProxyIdentityRepository,
+    at_rest: &AtRestCipher,
     request_headers: &HeaderMap,
     req_context: RequestContext,
     service_name: &ServiceName,
@@ -40,7 +42,7 @@ pub async fn enrich_with_cached_identity(
         return req_context;
     };
 
-    let identity = match identities.find(&session_id).await {
+    let identity = match identities.find(at_rest, &session_id).await {
         Ok(Some(identity)) => identity,
         Ok(None) => {
             tracing::debug!(
@@ -85,6 +87,7 @@ pub async fn enrich_with_cached_identity(
 #[derive(Debug)]
 pub struct McpResponseCtx<'a> {
     pub identities: &'a McpProxyIdentityRepository,
+    pub at_rest: &'a AtRestCipher,
     pub response: &'a reqwest::Response,
     pub request_headers: &'a HeaderMap,
     pub req_context: &'a RequestContext,
@@ -96,6 +99,7 @@ pub struct McpResponseCtx<'a> {
 pub async fn handle_mcp_response(args: McpResponseCtx<'_>) {
     let McpResponseCtx {
         identities,
+        at_rest,
         response,
         request_headers,
         req_context,
@@ -137,10 +141,13 @@ pub async fn handle_mcp_response(args: McpResponseCtx<'_>) {
 
     cache_identity_from_response(
         identities,
-        response,
-        req_context,
-        authenticated_user,
-        service_name,
+        at_rest,
+        IssuedIdentity {
+            response,
+            req_context,
+            authenticated_user,
+            service_name,
+        },
     )
     .await;
 
@@ -187,13 +194,24 @@ async fn evict_on_error_response(
     }
 }
 
+struct IssuedIdentity<'a> {
+    response: &'a reqwest::Response,
+    req_context: &'a RequestContext,
+    authenticated_user: Option<&'a AuthenticatedUser>,
+    service_name: &'a ServiceName,
+}
+
 async fn cache_identity_from_response(
     identities: &McpProxyIdentityRepository,
-    response: &reqwest::Response,
-    req_context: &RequestContext,
-    authenticated_user: Option<&AuthenticatedUser>,
-    service_name: &ServiceName,
+    at_rest: &AtRestCipher,
+    issued: IssuedIdentity<'_>,
 ) {
+    let IssuedIdentity {
+        response,
+        req_context,
+        authenticated_user,
+        service_name,
+    } = issued;
     let Some(session_id) = session_id_header(response.headers()) else {
         return;
     };
@@ -210,7 +228,7 @@ async fn cache_identity_from_response(
         roles: user.roles.clone(),
         auth_token: auth_token.clone(),
     };
-    match identities.upsert(&session_id, &row).await {
+    match identities.upsert(at_rest, &session_id, &row).await {
         Ok(()) => {
             tracing::info!(
                 service = %service_name,

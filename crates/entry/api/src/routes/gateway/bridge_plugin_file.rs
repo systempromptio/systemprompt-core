@@ -18,7 +18,6 @@ use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
 use axum::routing::get;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_marketplace::ResolvedCatalog;
 use systemprompt_runtime::AppContext;
@@ -105,8 +104,7 @@ pub(super) async fn resolve_entitled(
         return Ok(latest);
     }
     let services = ctx.services_config();
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| BridgeError::internal("plugin bundle: profile not ready", e))?;
+    let profile = ctx.profile();
     let resolved = bridge_resolved::resolve_for_user(
         ctx,
         &services,

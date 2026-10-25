@@ -10,6 +10,7 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::api::ApiError;
+use systemprompt_security::at_rest::AtRestCipherError;
 use systemprompt_traits::RegistryError;
 use thiserror::Error;
 
@@ -114,6 +115,9 @@ pub enum ProxyError {
         #[source]
         source: McpDomainError,
     },
+
+    #[error("the at-rest cipher is unavailable")]
+    AtRestUnavailable(#[from] AtRestCipherError),
 }
 
 #[derive(Debug, Error)]
@@ -144,6 +148,7 @@ impl ProxyError {
             Self::UrlConstructionFailed { .. }
             | Self::DatabaseError { .. }
             | Self::RegistryUnavailable { .. }
+            | Self::AtRestUnavailable(_)
             | Self::RegistryLookupFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BodyExtractionFailed { .. }
             | Self::InvalidMethod { .. }
@@ -177,6 +182,7 @@ impl ProxyError {
             Self::InvalidServiceName { .. } => "invalid_service_name",
             Self::InvalidIdentifier(_) => "invalid_identifier",
             Self::RegistryUnavailable { .. } => "registry_unavailable",
+            Self::AtRestUnavailable(_) => "at_rest_unavailable",
             Self::RegistryLookupFailed { .. } => "registry_lookup_failed",
             Self::ProviderNotConnected { .. } => "provider_not_connected",
             Self::ExternalResolveFailed { .. } => "external_resolve_failed",

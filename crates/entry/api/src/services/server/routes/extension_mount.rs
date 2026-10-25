@@ -37,11 +37,8 @@ pub(super) fn mount_extension_routes(
         return Ok(router);
     }
 
-    let profile = systemprompt_config::ProfileBootstrap::get()
-        .map_err(|source| RouteMountError::initialization("profile", source))?;
-
     let config_json = serde_json::json!({
-        "paths": profile.paths,
+        "paths": ctx.profile().paths,
     });
 
     for (ext, ext_router_config) in api_extensions {

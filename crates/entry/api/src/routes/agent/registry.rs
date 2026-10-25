@@ -14,7 +14,7 @@ use systemprompt_models::{CollectionResponse, RequestContext};
 use systemprompt_runtime::AppContext;
 
 use systemprompt_agent::models::a2a::{AgentCard, AgentExtension, McpServerMetadata};
-use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::services::registry::{AgentRegistry, CardSite};
 use systemprompt_manifest::AgentConfig;
 
 pub async fn handle_agent_registry(
@@ -23,11 +23,13 @@ pub async fn handle_agent_registry(
 ) -> impl IntoResponse {
     let registry = Arc::new(AgentRegistry::new(&ctx.services_state().view()));
     let service_repo = ctx.service_repository();
-    let api_external_url = &ctx.config().api_external_url;
+    let site = CardSite {
+        api_external_url: &ctx.config().api_external_url,
+        skills_dir: std::path::Path::new(&ctx.config().skills_path),
+    };
 
     let agents = registry.list_agents();
-    let mut agent_cards =
-        build_agent_cards(&registry, service_repo, api_external_url, agents).await;
+    let mut agent_cards = build_agent_cards(&registry, service_repo, site, agents).await;
     sort_default_first(&mut agent_cards);
     Json(CollectionResponse::new(agent_cards)).into_response()
 }
@@ -35,7 +37,7 @@ pub async fn handle_agent_registry(
 async fn build_agent_cards(
     registry: &AgentRegistry,
     service_repo: &ServiceRepository,
-    api_external_url: &str,
+    site: CardSite<'_>,
     agents: Vec<AgentConfig>,
 ) -> Vec<AgentCard> {
     let mut agent_cards = Vec::new();
@@ -54,12 +56,12 @@ async fn build_agent_cards(
 
         let mcp_extensions = create_mcp_extensions_from_config(
             &agent_config.metadata.mcp_servers.include,
-            api_external_url,
+            site.api_external_url,
         );
 
         match registry.to_agent_card(
             &agent_config.name,
-            api_external_url,
+            site,
             mcp_extensions,
             Some(&runtime_status),
         ) {

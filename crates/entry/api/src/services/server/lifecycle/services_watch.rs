@@ -14,7 +14,6 @@
 use std::sync::Arc;
 
 use systemprompt_database::PgConfigVersion;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{CONFIG_WATCH_POLL, CacheDomain, WatchSignals};
 
@@ -25,9 +24,11 @@ pub(in crate::services::server) fn start_services_watch(ctx: &AppContext) {
         version: Arc::new(PgConfigVersion::new(ctx.db_pool())),
         poll: CONFIG_WATCH_POLL,
     };
+    let boot = ctx.boot().clone();
     ctx.services_watch()
-        .spawn(ctx.background_tasks(), signals, || async {
-            ConfigLoader::load()
+        .spawn(ctx.background_tasks(), signals, move || {
+            let boot = boot.clone();
+            async move { boot.load_services_config() }
         });
     tracing::info!("Services config follows the served services tree");
 }

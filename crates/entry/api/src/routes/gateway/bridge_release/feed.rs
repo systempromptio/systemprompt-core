@@ -12,6 +12,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use systemprompt_manifest::Secrets;
 use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 
@@ -70,6 +71,12 @@ impl<T: Clone + Send + Sync> Cache<T> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Upstream<'a> {
+    spec: &'a BridgeReleasesSpec,
+    secrets: &'a Secrets,
+}
+
 /// Router-scoped state for the release feed: one HTTP client and the
 /// per-platform resolution caches both endpoints read.
 #[derive(Debug, Default)]
@@ -92,9 +99,10 @@ impl ReleaseFeed {
     pub async fn resolve(
         &self,
         spec: &BridgeReleasesSpec,
+        secrets: &Secrets,
         platform: &str,
     ) -> Result<ResolvedRelease, ReleaseError> {
-        self.resolve_with(spec, platform, false).await
+        self.resolve_with(spec, secrets, platform, false).await
     }
 
     // Why: whoever clicked "Check for updates" asked about now, not five
@@ -102,22 +110,24 @@ impl ReleaseFeed {
     pub async fn resolve_fresh(
         &self,
         spec: &BridgeReleasesSpec,
+        secrets: &Secrets,
         platform: &str,
     ) -> Result<ResolvedRelease, ReleaseError> {
-        self.resolve_with(spec, platform, true).await
+        self.resolve_with(spec, secrets, platform, true).await
     }
 
     async fn resolve_with(
         &self,
         spec: &BridgeReleasesSpec,
+        secrets: &Secrets,
         platform: &str,
         bypass_cache: bool,
     ) -> Result<ResolvedRelease, ReleaseError> {
         let asset = self
-            .resolve_asset_with(spec, platform, bypass_cache)
+            .resolve_asset_with(spec, secrets, platform, bypass_cache)
             .await?;
         let sha256 = self
-            .resolve_digest(spec, platform, &asset, bypass_cache)
+            .resolve_digest(Upstream { spec, secrets }, platform, &asset, bypass_cache)
             .await?;
         Ok(ResolvedRelease {
             manifest: ReleaseManifest {
@@ -133,21 +143,24 @@ impl ReleaseFeed {
     pub async fn resolve_asset(
         &self,
         spec: &BridgeReleasesSpec,
+        secrets: &Secrets,
         platform: &str,
     ) -> Result<ResolvedAsset, ReleaseError> {
-        self.resolve_asset_with(spec, platform, false).await
+        self.resolve_asset_with(spec, secrets, platform, false)
+            .await
     }
 
     async fn resolve_asset_with(
         &self,
         spec: &BridgeReleasesSpec,
+        secrets: &Secrets,
         platform: &str,
         bypass_cache: bool,
     ) -> Result<ResolvedAsset, ReleaseError> {
         if !bypass_cache && let Some(fresh) = self.assets.fresh(platform, self.ttl()).await {
             return Ok(fresh);
         }
-        match self.resolve_asset_upstream(spec, platform).await {
+        match self.resolve_asset_upstream(spec, secrets, platform).await {
             Ok(asset) => {
                 self.assets.store(platform, asset.clone()).await;
                 Ok(asset)
@@ -169,11 +182,12 @@ impl ReleaseFeed {
 
     async fn resolve_digest(
         &self,
-        spec: &BridgeReleasesSpec,
+        upstream: Upstream<'_>,
         platform: &str,
         asset: &ResolvedAsset,
         bypass_cache: bool,
     ) -> Result<String, ReleaseError> {
+        let Upstream { spec, secrets } = upstream;
         if !bypass_cache && let Some(fresh) = self.digests.fresh(platform, self.ttl()).await {
             return Ok(fresh);
         }
@@ -184,7 +198,7 @@ impl ReleaseFeed {
                 version: asset.version.clone(),
             });
         let fetched = match published {
-            Ok(url) => asset_digest(&self.http, spec, url, &asset.name).await,
+            Ok(url) => asset_digest(&self.http, spec, secrets, url, &asset.name).await,
             Err(e) => Err(e),
         };
         match fetched {
@@ -209,6 +223,7 @@ impl ReleaseFeed {
     async fn resolve_asset_upstream(
         &self,
         spec: &BridgeReleasesSpec,
+        secrets: &Secrets,
         platform: &str,
     ) -> Result<ResolvedAsset, ReleaseError> {
         let asset_name =
@@ -218,7 +233,7 @@ impl ReleaseFeed {
                     platform: platform.to_owned(),
                 })?;
 
-        let release = resolve_release(&self.http, spec).await?;
+        let release = resolve_release(&self.http, spec, secrets).await?;
         let asset = release
             .assets
             .iter()

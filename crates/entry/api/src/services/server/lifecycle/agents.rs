@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
@@ -32,13 +33,7 @@ pub async fn reconcile_agents(
 
     let agent_registry = AgentRegistry::new(&ctx.services_state().view());
 
-    let enabled_agents = match agent_registry.list_enabled_agents() {
-        Ok(agents) => agents,
-        Err(e) => {
-            events.error(format!("Failed to list enabled agents: {e}"), true);
-            return Err(e.into());
-        },
-    };
+    let enabled_agents = agent_registry.list_enabled_agents(ctx.config().is_cloud);
 
     let required_count = enabled_agents.len();
     let (started, failed_agents) =
@@ -74,8 +69,9 @@ async fn build_orchestrator(
     events: Option<&StartupEventSender>,
 ) -> Result<AgentOrchestrator> {
     let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
+        ctx.config(),
         ctx.signing_keys().clone(),
-    )?);
+    ));
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
@@ -92,6 +88,11 @@ async fn build_orchestrator(
         agent_state,
         Arc::clone(ctx.app_paths_arc()),
         Arc::clone(ctx.spawner()),
+        Arc::new(SpawnEnvironment {
+            config: Arc::clone(ctx.config_arc()),
+            secrets: Arc::clone(ctx.secrets()),
+            profile_path: ctx.boot().profile_path().to_path_buf(),
+        }),
         events,
     )
     .await

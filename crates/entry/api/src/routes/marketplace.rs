@@ -17,7 +17,6 @@ use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
 use std::path::{Path, PathBuf};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{MarketplaceId, PluginId};
 use systemprompt_marketplace::{
     MarketplaceService, render_marketplace_json, render_marketplace_list,
@@ -168,7 +167,7 @@ async fn serve_plugin_file(
     AxumPath((plugin_id, file_path)): AxumPath<(String, String)>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let services = ctx.services_config();
-    let profile = ProfileBootstrap::get()?;
+    let profile = ctx.profile();
     let api_external_url = &profile.server.api_external_url;
     let services_root = ctx.app_paths().system().services();
 

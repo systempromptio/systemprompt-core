@@ -27,11 +27,9 @@ use std::time::Duration;
 use axum::Json;
 use axum::extract::{Extension, Query, State};
 use serde::Deserialize;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_loader::services_root::ServicesRootBootstrap;
 use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesSourceBootstrap};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_models::RequestContext;
@@ -116,18 +114,19 @@ async fn run_refresh(
     actor: &UserId,
     restart: bool,
 ) -> Result<ServicesRefreshResponse, ApiHttpError> {
-    let profile = ProfileBootstrap::get()?;
-    let secrets = SecretsBootstrap::get()?;
+    let profile = ctx.profile();
+    let secrets = ctx.secrets().get();
 
-    // Why: the boot-time root is a static; after an in-place import the cache
-    // state names the composition actually being served, so "changed" is
-    // measured against that and a repeat import is a no-op.
+    // Why: the boot-time root is fixed for the process; after an in-place import
+    // the cache state names the composition actually being served, so "changed"
+    // is measured against that and a repeat import is a no-op.
     let cache = BundleCache::new(cache_root(profile));
     let previous = cache.read_state();
     let served_hash = (!previous.composed_hash.is_empty())
         .then_some(previous.composed_hash.clone())
         .or_else(|| {
-            ServicesRootBootstrap::get()
+            ctx.boot()
+                .services_root()
                 .and_then(composed_hash_of)
                 .map(str::to_owned)
         });
@@ -147,11 +146,13 @@ async fn run_refresh(
     let unreconciled = new_hash.is_some() && previous.last_reconciled_hash != new_hash;
     let mut reconciled = false;
     if changed || unreconciled {
-        // Why: the boot-time root is a static that still names the previous
-        // tree; the recomposed tree is the one whose config is projected.
-        let services =
-            ConfigLoader::load_from_path(&resolved.path.join("config").join("config.yaml"))
-                .map_err(RefreshError::RecomposedConfig)?;
+        // Why: the boot-time root still names the previous tree; the
+        // recomposed tree is the one whose config is projected.
+        let services = ConfigLoader::load_from_path(
+            &resolved.path.join("config").join("config.yaml"),
+            Some(profile),
+        )
+        .map_err(RefreshError::RecomposedConfig)?;
         let outcome = reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
             .await
             .map_err(RefreshError::Reconcile)?;

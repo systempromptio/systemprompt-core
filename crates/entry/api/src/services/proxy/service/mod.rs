@@ -23,12 +23,15 @@ use axum::extract::Request;
 use axum::http::HeaderMap;
 use axum::response::Response;
 use std::sync::Arc;
+use systemprompt_config::SecretsService;
 use systemprompt_database::{ServiceConfig, ServiceModule};
 use systemprompt_identifiers::{AgentName, ServiceName};
+use systemprompt_manifest::Config;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_mcp::services::client::McpClient;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_security::credential::TokenCache;
 
 use super::auth::AccessValidator;
@@ -57,6 +60,7 @@ pub struct ProxyService {
     intent_claims: Option<systemprompt_mcp::IntentClaimService>,
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     mcp_client: Arc<McpClient>,
+    secrets: Arc<SecretsService>,
 }
 
 impl ProxyService {
@@ -64,6 +68,8 @@ impl ProxyService {
         identities: Arc<McpProxyIdentityRepository>,
         connector_tokens: Arc<TokenCache>,
         services: &systemprompt_manifest::services::ServicesView,
+        config: Arc<Config>,
+        secrets: Arc<SecretsService>,
     ) -> Self {
         Self {
             client_pool: ClientPool::new(),
@@ -73,8 +79,15 @@ impl ProxyService {
             mcp_client: Arc::new(McpClient::new(
                 connector_tokens,
                 systemprompt_mcp::services::DeploymentService::new(services.clone()),
+                config,
+                Arc::clone(&secrets),
             )),
+            secrets,
         }
+    }
+
+    pub(super) fn at_rest(&self) -> Result<AtRestCipher, ProxyError> {
+        Ok(AtRestCipher::from_secrets(&self.secrets.get())?)
     }
 
     #[must_use]
@@ -156,8 +169,10 @@ impl ProxyService {
             .await?;
 
         if service.module_name == ServiceModule::Mcp {
+            let at_rest = self.at_rest()?;
             mcp_session::handle_mcp_response(mcp_session::McpResponseCtx {
                 identities: &self.identities,
+                at_rest: &at_rest,
                 response: &response,
                 request_headers: &request_headers,
                 req_context: &req_context,
@@ -199,6 +214,7 @@ impl ProxyService {
         if service.module_name == ServiceModule::Mcp && req_context.auth_token().is_none() {
             req_context = mcp_session::enrich_with_cached_identity(
                 &self.identities,
+                &self.at_rest()?,
                 request_headers,
                 req_context,
                 service_name,

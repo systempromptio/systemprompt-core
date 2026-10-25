@@ -10,7 +10,6 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_manifest::Config;
 use systemprompt_models::ApiError;
 use systemprompt_models::mcp::McpExtensionId;
 use systemprompt_models::oauth::ProtectedResourceMetadata;
@@ -47,7 +46,7 @@ pub(super) async fn handle_mcp_protected_resource(
     Path(raw_server): Path<String>,
 ) -> Result<Response, ApiHttpError> {
     let server = McpServerId::try_new(raw_server).map_err(ApiError::from)?;
-    let base_url = Config::get()?.api_external_url.clone();
+    let base_url = state.ctx.config().api_external_url.clone();
 
     let scopes = get_mcp_server_scopes(state.ctx.mcp_registry(), &server)
         .await
@@ -74,8 +73,10 @@ pub(super) async fn handle_mcp_protected_resource(
     Ok((StatusCode::OK, Json(metadata)).into_response())
 }
 
-pub(super) async fn handle_mcp_authorization_server() -> Result<Response, ApiHttpError> {
-    let config = Config::get()?;
+pub(super) async fn handle_mcp_authorization_server(
+    State(state): State<McpState>,
+) -> Result<Response, ApiHttpError> {
+    let config = state.ctx.config();
     let (base_url, allow_dcr) = (
         config.api_external_url.clone(),
         config.allow_dynamic_client_registration,

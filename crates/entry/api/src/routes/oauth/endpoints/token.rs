@@ -14,6 +14,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Form, Json};
 use base64::Engine;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth_issuance::{
     IssuanceError, IssuanceResult, JwksCache, RequestOrigin, TokenIssuanceOrchestrator,
@@ -24,10 +25,15 @@ use tracing::instrument;
 use crate::routes::oauth::OAuthHttpError;
 use crate::services::middleware::client_addr::ClientIp;
 
-#[instrument(skip(state, jwks, caller_ip, headers, request), fields(grant_type = %request.grant_type))]
+#[instrument(skip(state, jwks, config, caller_ip, headers, request), fields(grant_type = %request.grant_type))]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "axum extractors: each argument is one request-scoped extractor"
+)]
 pub async fn handle_token(
     State(state): State<OAuthState>,
     Extension(jwks): Extension<Arc<JwksCache>>,
+    Extension(config): Extension<Arc<Config>>,
     ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Form(mut request): Form<TokenRequest>,
@@ -40,7 +46,7 @@ pub async fn handle_token(
         headers: &headers,
         caller_ip,
     };
-    let response = TokenIssuanceOrchestrator::new(&state, &jwks)
+    let response = TokenIssuanceOrchestrator::new(&state, &jwks, &config)
         .issue(request, origin)
         .await?;
     Ok((StatusCode::OK, Json(response)).into_response())

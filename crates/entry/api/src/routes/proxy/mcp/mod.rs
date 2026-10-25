@@ -68,6 +68,8 @@ pub fn router(ctx: &AppContext) -> Router {
         identities,
         Arc::clone(ctx.connector_tokens()),
         &ctx.services_state().view(),
+        Arc::clone(ctx.config_arc()),
+        Arc::clone(ctx.secrets()),
     )
     .with_tool_usage_repo(repo, ctx.tool_call_intents())
     .with_artifact_ingest(ctx.artifact_ingest_arc());

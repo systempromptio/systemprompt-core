@@ -59,7 +59,7 @@ pub(crate) async fn handle_readyz(
     use systemprompt_database::DatabaseProvider;
 
     let instance = ctx.config().instance_id.clone();
-    let fingerprint = super::config_fingerprint::current();
+    let fingerprint = super::config_fingerprint::current(ctx.boot());
     let respond = |status: StatusCode, mut body: serde_json::Value, config: serde_json::Value| {
         if let Some(fields) = body.as_object_mut() {
             fields.insert("instance".to_owned(), json!(instance));

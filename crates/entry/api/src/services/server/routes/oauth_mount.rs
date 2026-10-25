@@ -37,7 +37,7 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
     let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
         Arc::new(ctx.mcp_registry().clone());
     let oauth_repository = ctx.oauth_repositories().oauth.clone();
-    let webauthn = WebAuthnService::new(oauth_repository.clone(), Arc::clone(&users));
+    let webauthn = WebAuthnService::new(ctx.config(), oauth_repository.clone(), Arc::clone(&users));
     let state = OAuthState::new(
         oauth_repository,
         analytics,

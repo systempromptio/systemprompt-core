@@ -17,6 +17,8 @@ pub fn router(ctx: &AppContext) -> Router {
         identities,
         Arc::clone(ctx.connector_tokens()),
         &ctx.services_state().view(),
+        Arc::clone(ctx.config_arc()),
+        Arc::clone(ctx.secrets()),
     );
     let engine_with_path = engine.clone();
 

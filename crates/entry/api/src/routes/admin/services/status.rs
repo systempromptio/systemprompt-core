@@ -4,20 +4,23 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
-use systemprompt_config::ProfileBootstrap;
+use axum::extract::State;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesRootBootstrap};
+use systemprompt_loader::services_root::ActiveServicesRoot;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
+use systemprompt_runtime::AppContext;
 
 use super::{ProvenanceView, ServicesStatusResponse, provenance_view, source_views};
 use crate::error::ApiHttpError;
 
-pub(super) async fn status() -> Result<Json<ServicesStatusResponse>, ApiHttpError> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) async fn status(
+    State(ctx): State<AppContext>,
+) -> Result<Json<ServicesStatusResponse>, ApiHttpError> {
+    let profile = ctx.profile();
     let state = BundleCache::new(cache_root(profile)).read_state();
 
     Ok(Json(build_status(
-        ServicesRootBootstrap::get(),
+        ctx.boot().services_root(),
         &profile.paths.services,
         !profile.services.sources.is_empty(),
         &state,

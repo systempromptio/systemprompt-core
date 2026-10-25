@@ -88,7 +88,7 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
         .ok_or_else(|| ApiHttpError::unauthorized("Invalid PAT"))?;
 
     let analytics = require_analytics(&ctx)?;
-    let caller_ip = client_ip_from_request(&request);
+    let caller_ip = client_ip_from_request(&request, ctx.config());
     let users = require_user_provider(&ctx)?;
     let result = issue_bridge_access(
         ctx.signing_keys(),
@@ -99,7 +99,7 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
             })?
             .as_ref(),
         users.as_ref(),
-        BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id)
+        BridgeAccessRequest::bridge(ctx.config(), request.headers(), caller_ip, &record.user_id)
             .with_purpose(record.purpose.clone()),
     )
     .await?;
@@ -133,6 +133,7 @@ pub async fn session(
             caller_ip,
             code: body.code.trim(),
             keys: ctx.signing_keys(),
+            config: ctx.config(),
         },
     )
     .await?
@@ -216,7 +217,7 @@ pub async fn provision_oauth_client(
         .decode_for_gateway(&JwtToken::new(bearer))
         .await?;
 
-    let token_endpoint = build_token_endpoint(request.headers())?;
+    let token_endpoint = build_token_endpoint(ctx.config(), request.headers())?;
 
     let result = provision_bridge_oauth_client(
         &ctx.oauth_repositories().oauth,
@@ -233,8 +234,7 @@ pub async fn provision_oauth_client(
     reason = "ApiError carries response context that is intentionally large; boxing here would \
               propagate to every caller for negligible gain"
 )]
-fn build_token_endpoint(headers: &HeaderMap) -> Result<String, ApiHttpError> {
-    let cfg = Config::get()?;
+fn build_token_endpoint(cfg: &Config, headers: &HeaderMap) -> Result<String, ApiHttpError> {
     let configured = url::Url::parse(&cfg.api_external_url)
         .map_err(|e| BridgeError::internal("Configured external URL is invalid", e))?;
     let raw_host = headers.get(header::HOST).and_then(|v| v.to_str().ok());

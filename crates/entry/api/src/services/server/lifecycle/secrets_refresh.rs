@@ -12,17 +12,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_config::SecretsBootstrap;
+use std::sync::Arc;
+
 use systemprompt_runtime::AppContext;
 
 pub(in crate::services::server) fn start_secrets_refresh(ctx: &AppContext) {
-    let Some(interval) = SecretsBootstrap::refresh_interval() else {
+    let Some(interval) = ctx.secrets().refresh_interval() else {
         return;
     };
     tracing::info!(
         interval_secs = interval.as_secs(),
         "secrets refresh scheduled on this replica"
     );
+    let secrets = Arc::clone(ctx.secrets());
     ctx.background_tasks()
         .spawn_cancellable("secrets_refresh", move |cancel| async move {
             let mut tick = tokio::time::interval(interval);
@@ -33,7 +35,7 @@ pub(in crate::services::server) fn start_secrets_refresh(ctx: &AppContext) {
                     () = cancel.cancelled() => break,
                     _ = tick.tick() => {},
                 }
-                match SecretsBootstrap::reload().await {
+                match secrets.reload().await {
                     Ok(outcome) if outcome.swapped => tracing::info!(
                         generation = outcome.generation,
                         changed = ?outcome.changed_keys,
@@ -42,7 +44,7 @@ pub(in crate::services::server) fn start_secrets_refresh(ctx: &AppContext) {
                     Ok(_) => tracing::debug!("secrets refresh found no change"),
                     Err(error) => tracing::warn!(
                         error = %error,
-                        generation = SecretsBootstrap::generation(),
+                        generation = secrets.generation(),
                         "secrets refresh failed; keeping the current generation"
                     ),
                 }

@@ -61,7 +61,7 @@ pub async fn create_session(
         ApiHttpError::internal("User provider unavailable", "provider is not registered")
     })?;
 
-    let caller_ip = client_ip_from_request(&request);
+    let caller_ip = client_ip_from_request(&request, ctx.config());
     let session_analytics = analytics.extract_analytics(
         request.headers(),
         ExtractSignals {
@@ -76,6 +76,7 @@ pub async fn create_session(
         })?,
         user_provider,
         ctx.signing_keys().clone(),
+        Arc::clone(ctx.config_arc()),
     )
     .create_authenticated_session(&record.user_id, &session_analytics, SessionSource::Api)
     .await?;

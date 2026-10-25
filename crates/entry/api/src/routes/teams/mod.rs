@@ -29,9 +29,9 @@ use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_governance::authz::EntityRef;
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
+use systemprompt_manifest::Secrets;
 use systemprompt_manifest::services::{ServicesConfig, TeamsAppConfig};
 use systemprompt_runtime::AppContext;
 use systemprompt_teams::activities::Activity;
@@ -86,7 +86,7 @@ async fn handle_messages(
     let Some(agent) = app.agent_for(&normalized.routing_key).cloned() else {
         return StatusCode::OK.into_response();
     };
-    let app_password = match app_password(&app) {
+    let app_password = match app_password(&state.ctx.secrets().get(), &app) {
         Ok(password) => password,
         Err(err) => {
             tracing::error!(
@@ -180,9 +180,8 @@ fn resolve_app(services: &ServicesConfig, tenant_id: &TeamsTenantId) -> Option<T
         .cloned()
 }
 
-fn app_password(app: &TeamsAppConfig) -> anyhow::Result<String> {
-    SecretsBootstrap::get()
-        .context("secrets store")?
+fn app_password(secrets: &Secrets, app: &TeamsAppConfig) -> anyhow::Result<String> {
+    secrets
         .get(app.app_password_ref.as_str())
         .cloned()
         .with_context(|| format!("secret {} is not configured", app.app_password_ref))

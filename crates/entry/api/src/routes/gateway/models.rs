@@ -13,6 +13,7 @@ use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::providers::ClientFamily;
+use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
 
@@ -89,10 +90,11 @@ pub struct OpenAiModelsResponse {
 }
 
 pub async fn list(
-    axum::extract::State(services_state): axum::extract::State<ServicesView>,
+    axum::extract::State(ctx): axum::extract::State<AppContext>,
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<axum::response::Response, ApiHttpError> {
+    let services_state = ctx.services_state().view();
     let services = services_state.config();
     let catalog = &services_state.catalog;
 
@@ -100,7 +102,7 @@ pub async fn list(
         .gateway_config()
         .filter(|g| g.enabled)
         .ok_or_else(|| ApiHttpError::not_found("Gateway not enabled"))?;
-    let secrets = systemprompt_config::SecretsBootstrap::get()?;
+    let secrets = ctx.secrets().get();
 
     // Why: the `x-inference-protocol` header is advisory, not a filter. The
     // gateway transcodes every inbound wire to every provider wire, so a client

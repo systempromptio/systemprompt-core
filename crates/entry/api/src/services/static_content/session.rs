@@ -31,7 +31,7 @@ pub async fn ensure_session(
     caller_ip: Option<IpAddr>,
     ctx: &AppContext,
 ) -> Result<SessionInfo> {
-    let config = systemprompt_manifest::Config::get()?;
+    let config = ctx.config();
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers)
         && let Ok(claims) = validate_jwt_token(
@@ -58,6 +58,7 @@ pub async fn ensure_session(
         analytics,
         Arc::new(user_service),
         ctx.signing_keys().clone(),
+        Arc::clone(ctx.config_arc()),
     );
 
     let client_id = ClientId::new("sp_web");

@@ -18,6 +18,7 @@ use serde_json::json;
 use crate::services::proxy::backend::ProxyError;
 use crate::services::request_base_url::resolve as resolve_request_base_url;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::modules::ApiPaths;
@@ -31,11 +32,12 @@ pub(super) struct AuthValidator;
 impl AuthValidator {
     pub(super) fn validate_service_access(
         keys: &SigningKeys,
+        config: &Config,
         headers: &HeaderMap,
         service_name: &ServiceName,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let result = AuthService::authorize_service_access(keys, headers, service_name);
+        let result = AuthService::authorize_service_access(keys, config, headers, service_name);
 
         if let Err(status) = &result {
             let trace_id =
@@ -148,6 +150,7 @@ pub(crate) fn build_mcp_unknown_service_challenge(
 ) -> Option<ProxyError> {
     let status_code = AuthValidator::validate_service_access(
         ctx.signing_keys(),
+        ctx.config(),
         headers,
         service_name,
         req_context,

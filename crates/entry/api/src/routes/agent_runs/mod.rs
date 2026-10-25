@@ -50,7 +50,8 @@ impl AgentRunsState {
     pub fn build(ctx: &AppContext) -> Self {
         let config = ctx.config();
         Self {
-            runs: AgentRunRepositories::new(ctx.db_pool()).runs,
+            runs: AgentRunRepositories::new(ctx.db_pool(), ctx.oauth_repositories().oauth.clone())
+                .runs,
             notifier: RunEventNotifier::spawn(
                 ctx.background_tasks(),
                 ctx.db_pool().write_pool().as_ref().clone(),

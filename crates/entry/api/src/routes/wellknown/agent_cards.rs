@@ -9,7 +9,7 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
-use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::services::registry::{AgentRegistry, CardSite};
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
@@ -37,15 +37,20 @@ async fn handle_default_agent_card(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let registry = AgentRegistry::new(&ctx.services_state().view());
 
-    let default_agent = registry.get_default_agent().map_err(|e| {
-        tracing::error!(error = %e, "Failed to get default agent");
-        ApiError::not_found("Default agent not found")
-    })?;
+    let default_agent = registry
+        .get_default_agent(ctx.config().is_cloud)
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to get default agent");
+            ApiError::not_found("Default agent not found")
+        })?;
 
-    let base_url = &ctx.config().api_external_url;
+    let site = CardSite {
+        api_external_url: &ctx.config().api_external_url,
+        skills_dir: std::path::Path::new(&ctx.config().skills_path),
+    };
 
     let agent_card = registry
-        .to_agent_card(&default_agent.name, base_url, vec![], None)
+        .to_agent_card(&default_agent.name, site, vec![], None)
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to create agent card");
             ApiError::internal("Failed to create agent card", e)
@@ -66,10 +71,13 @@ async fn handle_agent_card_by_name(
         ApiError::not_found(format!("Agent '{}' not found", agent_name))
     })?;
 
-    let base_url = &ctx.config().api_external_url;
+    let site = CardSite {
+        api_external_url: &ctx.config().api_external_url,
+        skills_dir: std::path::Path::new(&ctx.config().skills_path),
+    };
 
     let agent_card = registry
-        .to_agent_card(agent_name.as_str(), base_url, vec![], None)
+        .to_agent_card(agent_name.as_str(), site, vec![], None)
         .map_err(|e| {
             tracing::error!(agent = %agent_name, error = %e, "Failed to create agent card");
             ApiError::internal("Failed to create agent card", e)
@@ -85,11 +93,14 @@ async fn handle_list_agent_cards(
 
     let agents = registry.list_agents();
 
-    let base_url = &ctx.config().api_external_url;
+    let site = CardSite {
+        api_external_url: &ctx.config().api_external_url,
+        skills_dir: std::path::Path::new(&ctx.config().skills_path),
+    };
 
     let mut cards = Vec::new();
     for agent in agents {
-        if let Ok(card) = registry.to_agent_card(&agent.name, base_url, vec![], None) {
+        if let Ok(card) = registry.to_agent_card(&agent.name, site, vec![], None) {
             cards.push(card);
         }
     }

@@ -68,7 +68,12 @@ async fn handle_events(
 
     match envelope {
         EventsApiEnvelope::UrlVerification { challenge } => {
-            if verify_any_app(&ctx.services_config(), &headers, &body) {
+            if verify_any_app(
+                &ctx.secrets().get(),
+                &ctx.services_config(),
+                &headers,
+                &body,
+            ) {
                 challenge.into_response()
             } else {
                 StatusCode::UNAUTHORIZED.into_response()
@@ -78,7 +83,7 @@ async fn handle_events(
             let Some(app) = resolve_app(&ctx.services_config(), &team_id) else {
                 return StatusCode::OK.into_response();
             };
-            if !verify_app(&app, &headers, &body) {
+            if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
                 return StatusCode::UNAUTHORIZED.into_response();
             }
             if event.bot_id.is_some() || !matches!(event.kind.as_str(), "message" | "app_mention") {
@@ -125,7 +130,7 @@ async fn handle_commands(
     let Some(app) = resolve_app(&ctx.services_config(), &cmd.team_id) else {
         return StatusCode::OK.into_response();
     };
-    if !verify_app(&app, &headers, &body) {
+    if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let normalized = cmd.normalize();
@@ -172,7 +177,7 @@ async fn handle_interactivity(
     let Some(app) = resolve_app(&ctx.services_config(), &payload.team.id) else {
         return StatusCode::OK.into_response();
     };
-    if !verify_app(&app, &headers, &body) {
+    if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let channel_id = payload

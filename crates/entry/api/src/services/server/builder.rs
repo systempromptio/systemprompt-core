@@ -37,8 +37,7 @@ pub fn setup_api_server(
     events: Option<&StartupEventSender>,
     readiness: &Arc<ReadinessState>,
 ) -> Result<Router> {
-    let profile = systemprompt_config::ProfileBootstrap::get()?;
-    let services_cache = systemprompt_loader::bundle::cache_root(profile);
+    let services_cache = systemprompt_loader::bundle::cache_root(ctx.profile());
     systemprompt_config::ensure_state_dirs_writable(
         &ctx.app_paths()
             .writable_roots(ctx.config().role, &services_cache),
@@ -66,6 +65,7 @@ fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
     let resolver = systemprompt_gateway::PolicyResolver::from_repository(
         ctx.ai_repositories().gateway_policies.clone(),
         ctx.cache_epochs().clone(),
+        ctx.profile().unapplied_plane_mode(),
     );
     ctx.artifact_ingest().register_scanner(Arc::new(
         systemprompt_gateway::GatewayArtifactScanner::new(
@@ -119,7 +119,10 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
 
     router = router.layer(axum::middleware::from_fn(inject_trace_header));
 
-    router = router.layer(axum::middleware::from_fn(inject_served_by));
+    router = router.layer(axum::middleware::from_fn_with_state(
+        ctx.config().instance_id.clone(),
+        inject_served_by,
+    ));
 
     router = router.layer(axum::middleware::from_fn(
         crate::services::middleware::strip_caller_purpose,
@@ -139,5 +142,5 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         }));
     }
 
-    Ok(router)
+    Ok(router.layer(axum::Extension(Arc::clone(ctx.config_arc()))))
 }

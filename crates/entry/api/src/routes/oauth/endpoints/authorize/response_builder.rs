@@ -33,6 +33,7 @@ pub fn is_user_consent_granted(form: &AuthorizeRequest) -> bool {
 }
 
 pub fn generate_webauthn_form(
+    config: &Config,
     params: &AuthorizeQuery,
     validated: &ValidatedAuthorizeRequest,
 ) -> String {
@@ -53,7 +54,7 @@ pub fn generate_webauthn_form(
     let code_challenge = params.code_challenge.as_deref().unwrap_or("");
     let code_challenge_method = params.code_challenge_method.as_deref().unwrap_or("");
     let resource = params.resource.as_deref().unwrap_or("");
-    let api_external_url = Config::get().map_or("", |c| c.api_external_url.as_str());
+    let api_external_url = config.api_external_url.as_str();
 
     context.insert("client_id", params.client_id.as_str());
     context.insert("client_name", validated.client.client_name.as_str());
@@ -69,7 +70,7 @@ pub fn generate_webauthn_form(
     context.insert("resource", resource);
     context.insert("api_external_url", api_external_url);
 
-    let allow_registration = Config::get().is_ok_and(|c| c.allow_registration);
+    let allow_registration = config.allow_registration;
     let register_class = if allow_registration { "" } else { "hidden" };
     context.insert("register_class", register_class);
 

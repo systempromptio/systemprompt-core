@@ -3,9 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::extract::Path;
+use axum::extract::{Extension, Path};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json, Response};
+use std::sync::Arc;
 use systemprompt_manifest::Config;
 
 use super::validation::authenticate_client_configuration;
@@ -20,6 +21,7 @@ use systemprompt_oauth::services::validation::{
 
 pub async fn update_client_configuration(
     OAuthRepo(repository): OAuthRepo,
+    Extension(config): Extension<Arc<Config>>,
     Path(client_id): Path<String>,
     headers: HeaderMap,
     Json(request): Json<DynamicRegistrationRequest>,
@@ -53,7 +55,7 @@ pub async fn update_client_configuration(
         .await
         .map_err(internal::client_metadata_error)?;
 
-    let base_url = Config::get()?.api_server_url.clone();
+    let base_url = config.api_server_url.clone();
 
     let response = DynamicRegistrationResponse {
         client_id: client_id.clone(),

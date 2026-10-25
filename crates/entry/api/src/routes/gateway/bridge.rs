@@ -14,7 +14,6 @@ use axum::Json;
 use axum::extract::rejection::JsonRejection;
 use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_manifest::bridge_profile;
 use systemprompt_models::providers::ClientFamily;
@@ -146,8 +145,7 @@ pub async fn profile(
     headers: HeaderMap,
 ) -> Result<Json<BridgeProfileResponse>, ApiHttpError> {
     let (claims, user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let profile =
-        ProfileBootstrap::get().map_err(|e| BridgeError::unavailable("profile not ready", e))?;
+    let profile = ctx.profile();
     let services = ctx.services_config();
     let catalog = ctx.services_state().catalog();
     let gateway = services
@@ -165,8 +163,7 @@ pub async fn profile(
         .and_then(|cloud| cloud.tenant_id.as_ref())
         .map(TenantId::organization_uuid);
 
-    let secrets = systemprompt_config::SecretsBootstrap::get()
-        .map_err(|e| BridgeError::unavailable("secrets not ready", e))?;
+    let secrets = ctx.secrets().get();
     let personal_keys = personal_keys(&ctx, &claims.user_id).await?;
     let secret_present = |name: &str| secrets.get(name).is_some_and(|k| !k.is_empty());
     let mut response = bridge_profile::build(

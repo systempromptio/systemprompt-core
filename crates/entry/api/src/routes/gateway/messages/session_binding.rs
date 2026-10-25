@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
+use std::sync::Arc;
 use systemprompt_identifiers::{ApiKeyId, ClientSessionId, SessionId, SessionSource, UserId};
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
@@ -136,10 +137,15 @@ async fn mint(ctx: &AppContext, request: SessionRequest<'_>) -> Result<SessionId
         .session_provider()
         .ok_or_else(|| binding_error("session provider unavailable"))?;
     let session_analytics = analytics.extract_analytics(request.headers, ExtractSignals::default());
-    SessionCreationService::new(sessions, users, ctx.signing_keys().clone())
-        .create_authenticated_session(request.user_id, &session_analytics, SessionSource::Api)
-        .await
-        .map_err(|e| binding_error("api-key session mint failed").with_cause(e))
+    SessionCreationService::new(
+        sessions,
+        users,
+        ctx.signing_keys().clone(),
+        Arc::clone(ctx.config_arc()),
+    )
+    .create_authenticated_session(request.user_id, &session_analytics, SessionSource::Api)
+    .await
+    .map_err(|e| binding_error("api-key session mint failed").with_cause(e))
 }
 
 fn binding_error(message: &'static str) -> RejectionError {

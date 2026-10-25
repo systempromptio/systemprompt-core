@@ -22,9 +22,9 @@ use axum::extract::FromRequestParts;
 use axum::response::{IntoResponse, Response};
 use http::header;
 use http::request::Parts;
+use std::sync::Arc;
 use systemprompt_manifest::Config;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::errors::GlobalConfigError;
 
 #[derive(Debug, Clone)]
 pub struct RequestBaseUrl {
@@ -114,8 +114,8 @@ fn build_from_host(raw_host: &str, configured: &url::Url) -> Result<RequestBaseU
 
 #[derive(Debug, thiserror::Error)]
 pub enum RequestBaseUrlError {
-    #[error("configuration unavailable")]
-    Config(#[from] GlobalConfigError),
+    #[error("the router carries no Config extension")]
+    ConfigMissing,
     #[error("api_external_url {url:?} is not a valid URL")]
     InvalidExternalUrl {
         url: String,
@@ -139,7 +139,10 @@ impl<S: Send + Sync> FromRequestParts<S> for RequestBaseUrl {
                   extractor resolves the base URL synchronously"
     )]
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let cfg = Config::get()?;
+        let cfg = parts
+            .extensions
+            .get::<Arc<Config>>()
+            .ok_or(RequestBaseUrlError::ConfigMissing)?;
         let configured = url::Url::parse(&cfg.api_external_url).map_err(|source| {
             RequestBaseUrlError::InvalidExternalUrl {
                 url: cfg.api_external_url.clone(),

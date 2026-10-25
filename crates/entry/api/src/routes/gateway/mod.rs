@@ -92,9 +92,9 @@ pub fn gateway_repositories(
 ) -> anyhow::Result<systemprompt_gateway::GatewayRepositories> {
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         ctx.app_paths().storage().data(),
-        systemprompt_config::SecretsBootstrap::encryption_master_key()?,
+        ctx.secrets().encryption_master_key()?,
     )?;
-    let profile = systemprompt_config::ProfileBootstrap::get()?;
+    let profile = ctx.profile();
     Ok(systemprompt_gateway::GatewayRepositories::new(
         ctx.db_pool(),
         journal,
@@ -105,6 +105,10 @@ pub fn gateway_repositories(
             logging: ctx.logging().clone(),
             services: ctx.services_state().view(),
             subject_providers: ctx.subject_providers().clone(),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &ctx.secrets().get(),
+            )?,
+            unapplied_plane: profile.unapplied_plane_mode(),
         },
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
@@ -135,10 +139,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
             .merge(bridge_release::routes(ctx, &jwt_extractor))
             .merge(otel_routes(ctx, &jwt_extractor))
-            .route(
-                "/models",
-                get(models::list).with_state(ctx.services_state().view()),
-            )
+            .route("/models", get(models::list).with_state(ctx.clone()))
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
     })
@@ -150,6 +151,7 @@ pub fn gateway_engines(
     GatewayEngines::new(
         Arc::clone(ctx.connector_tokens()),
         systemprompt_extension::GatewayGuards::discover(ctx),
+        Arc::clone(ctx.secrets()),
     )
 }
 

@@ -16,6 +16,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId, RefreshTokenId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
@@ -60,9 +61,10 @@ impl Caller<'_> {
     }
 }
 
-#[instrument(skip(state, req_ctx, request, repo))]
+#[instrument(skip(state, config, req_ctx, request, repo))]
 pub async fn handle_revoke(
     Extension(req_ctx): Extension<RequestContext>,
+    Extension(config): Extension<Arc<Config>>,
     State(state): State<OAuthState>,
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<RevokeRequest>,
@@ -95,11 +97,11 @@ pub async fn handle_revoke(
             revoke_refresh_token(&repo, &request.token, &caller).await?;
         },
         Some("access_token") => {
-            revoke_access_token(&state, &repo, &request.token, &caller).await?;
+            revoke_access_token(&state, &config, &repo, &request.token, &caller).await?;
         },
         _ => {
             if !revoke_refresh_token(&repo, &request.token, &caller).await? {
-                revoke_access_token(&state, &repo, &request.token, &caller).await?;
+                revoke_access_token(&state, &config, &repo, &request.token, &caller).await?;
             }
         },
     }
@@ -144,11 +146,11 @@ async fn revoke_refresh_token(
 
 async fn revoke_access_token(
     state: &OAuthState,
+    config: &Config,
     repo: &OAuthRepository,
     token: &str,
     caller: &Caller<'_>,
 ) -> Result<(), OAuthHttpError> {
-    let config = Config::get()?;
     let claims = match validate_jwt_token(
         state.signing_keys(),
         token,

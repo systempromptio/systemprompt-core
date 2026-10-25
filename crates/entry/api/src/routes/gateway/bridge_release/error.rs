@@ -14,7 +14,6 @@
 
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use systemprompt_config::SecretsBootstrapError;
 use systemprompt_models::api::ApiError;
 
 use super::super::bridge_error::BridgeError;
@@ -56,8 +55,6 @@ pub enum ReleaseError {
         status: StatusCode,
         key: String,
     },
-    #[error("bridge release token secret unavailable")]
-    SecretsUnavailable(#[source] SecretsBootstrapError),
     #[error("bridge release token secret {key} is not configured")]
     TokenNotConfigured { key: String },
 }
@@ -98,9 +95,9 @@ impl ReleaseError {
             | Self::ChecksumMissing { .. }
             | Self::Request { .. }
             | Self::UpstreamStatus { .. } => StatusCode::BAD_GATEWAY,
-            Self::SecretsUnavailable(_)
-            | Self::TokenNotConfigured { .. }
-            | Self::TokenRejected { .. } => StatusCode::SERVICE_UNAVAILABLE,
+            Self::TokenNotConfigured { .. } | Self::TokenRejected { .. } => {
+                StatusCode::SERVICE_UNAVAILABLE
+            },
         }
     }
 
@@ -138,9 +135,7 @@ impl ReleaseError {
             },
             Self::Request { .. } | Self::UpstreamStatus { .. } => "release_upstream_failed",
             Self::TokenRejected { .. } => "release_token_rejected",
-            Self::SecretsUnavailable(_) | Self::TokenNotConfigured { .. } => {
-                "release_feed_not_ready"
-            },
+            Self::TokenNotConfigured { .. } => "release_feed_not_ready",
         }
     }
 }
