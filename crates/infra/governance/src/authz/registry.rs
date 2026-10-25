@@ -19,9 +19,43 @@
 
 use std::sync::Arc;
 
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
+use systemprompt_traits::{CacheEpochs, ConfigWatch};
+
 use super::audit::AuthzAuditSink;
 use super::composite::CompositeAuthzHook;
 use super::hook::SharedAuthzHook;
+use super::parent_chain::ChainSources;
+
+/// The owned services config and resolved catalog handed to authz hooks and
+/// subject providers, built once at the composition root.
+#[derive(Clone)]
+pub struct AuthzServices {
+    pub config: ConfigWatch<ServicesConfig>,
+    pub catalog: Arc<ResolvedCatalog>,
+}
+
+impl std::fmt::Debug for AuthzServices {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthzServices").finish_non_exhaustive()
+    }
+}
+
+/// The chain sources, cache epochs and services a rule-based hook is wired
+/// from at the composition root.
+#[derive(Clone)]
+pub struct AuthzWiring {
+    pub sources: ChainSources,
+    pub epochs: CacheEpochs,
+    pub services: AuthzServices,
+}
+
+impl std::fmt::Debug for AuthzWiring {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthzWiring").finish_non_exhaustive()
+    }
+}
 
 /// Inputs passed to every registered factory at bootstrap.
 ///
@@ -32,6 +66,7 @@ use super::hook::SharedAuthzHook;
 pub struct AuthzHookContext {
     pub pool: Arc<sqlx::PgPool>,
     pub sink: Arc<dyn AuthzAuditSink>,
+    pub services: AuthzServices,
 }
 
 impl std::fmt::Debug for AuthzHookContext {

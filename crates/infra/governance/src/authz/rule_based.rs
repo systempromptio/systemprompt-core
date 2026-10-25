@@ -37,7 +37,7 @@ use super::hook::AuthzDecisionHook;
 use super::parent_chain::{
     ChainIndexCache, ChainSources, DecisionFacts, ParentChainIndex, ResolveBase,
 };
-use super::registry::AuthzHookContext;
+use super::registry::{AuthzHookContext, AuthzServices};
 use super::repository::AccessControlRepository;
 use super::rule_based_cache::{EntityRules, EntityRulesCache};
 use super::subject::{
@@ -75,10 +75,12 @@ impl RuleBasedHook {
         sink: Arc<dyn AuthzAuditSink>,
         sources: ChainSources,
         epochs: CacheEpochs,
+        services: AuthzServices,
     ) -> Self {
         let providers = discover_subject_providers(&AuthzHookContext {
             pool: Arc::clone(&pool),
             sink: Arc::clone(&sink),
+            services,
         });
         Self {
             repo: AccessControlRepository::from_pool(pool),

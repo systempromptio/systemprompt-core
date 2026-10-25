@@ -103,7 +103,7 @@ pub fn gateway_repositories(
             background: ctx.background_tasks().clone(),
             cache_epochs: ctx.cache_epochs().clone(),
             logging: ctx.logging().clone(),
-            catalog: Arc::clone(ctx.services_state().catalog()),
+            services: ctx.authz_services(),
         },
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())

@@ -48,9 +48,7 @@ fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            catalog: std::sync::Arc::clone(
-                systemprompt_test_fixtures::fixture_services_state().catalog(),
-            ),
+            services: systemprompt_test_fixtures::fixture_authz_services(),
         },
     )
 }

@@ -18,7 +18,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
+use systemprompt_governance::authz::{
+    AuthzHookContext, AuthzServices, NullAuditSink, SubjectProviderSet,
+};
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
 use systemprompt_manifest::services::ManagedMarketplaceConfig;
 use systemprompt_traits::BoxedSource;
@@ -148,7 +150,11 @@ impl PublicationPolicy {
         }
     }
 
-    pub fn discover(db: &DbPool, config: ManagedMarketplaceConfig) -> Result<Self> {
+    pub fn discover(
+        db: &DbPool,
+        config: ManagedMarketplaceConfig,
+        services: AuthzServices,
+    ) -> Result<Self> {
         let gates = discover_publication_gates()
             .into_iter()
             .map(|registration| (registration.factory)(db))
@@ -160,6 +166,7 @@ impl PublicationPolicy {
         let subjects = SubjectProviderSet::discover(&AuthzHookContext {
             pool: db.pool(),
             sink: Arc::new(NullAuditSink),
+            services,
         });
         Ok(Self::new(config, gates, subjects))
     }

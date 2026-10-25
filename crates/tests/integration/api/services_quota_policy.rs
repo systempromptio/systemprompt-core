@@ -100,6 +100,7 @@ fn providers(p: &systemprompt_database::DbPool) -> SubjectProviderSet {
     SubjectProviderSet::discover(&AuthzHookContext {
         pool: p.pool(),
         sink: std::sync::Arc::new(NullAuditSink),
+        services: systemprompt_test_fixtures::fixture_authz_services(),
     })
 }
 

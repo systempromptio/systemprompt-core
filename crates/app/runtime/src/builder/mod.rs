@@ -11,7 +11,7 @@
 mod ai_service;
 mod assembly;
 mod composition;
-mod core_layer;
+pub(crate) mod core_layer;
 mod database;
 mod events;
 mod governance;

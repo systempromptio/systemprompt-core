@@ -112,6 +112,26 @@ pub(super) struct CoreOverrides {
     pub services: Option<ServicesState>,
 }
 
+pub(crate) fn authz_services(
+    services: &ServicesState,
+) -> systemprompt_governance::authz::AuthzServices {
+    systemprompt_governance::authz::AuthzServices {
+        config: services.watch().clone(),
+        catalog: Arc::clone(services.catalog()),
+    }
+}
+
+fn authz_wiring(
+    services: &ServicesState,
+    epochs: CacheEpochs,
+) -> systemprompt_governance::authz::AuthzWiring {
+    systemprompt_governance::authz::AuthzWiring {
+        sources: chain_sources(&services.config()),
+        epochs,
+        services: authz_services(services),
+    }
+}
+
 pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLayer> {
     let CoreOverrides {
         authz_hook: authz_hook_override,
@@ -157,16 +177,15 @@ pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLay
     let policy = systemprompt_marketplace::managed::PublicationPolicy::discover(
         &database,
         services_config.marketplace.clone().unwrap_or_default(),
+        authz_services(&services),
     )?;
 
     let cache_epochs = CacheEpochs::new();
-    let authz_audit_pool = database.write_pool();
     let authz_hook = systemprompt_governance::authz::build_authz_hook(
         profile.governance.as_ref(),
-        authz_audit_pool,
+        database.write_pool(),
         authz_hook_override,
-        chain_sources(&services_config),
-        cache_epochs.clone(),
+        authz_wiring(&services, cache_epochs.clone()),
     )?;
 
     systemprompt_logging::OutputState::current()

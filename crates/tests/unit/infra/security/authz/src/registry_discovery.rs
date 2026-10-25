@@ -56,6 +56,7 @@ fn context() -> AuthzHookContext {
     AuthzHookContext {
         pool: Arc::new(pool),
         sink: Arc::new(NullAuditSink),
+        services: systemprompt_test_fixtures::fixture_authz_services(),
     }
 }
 

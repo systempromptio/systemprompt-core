@@ -111,8 +111,11 @@ async fn extension_hook_evaluated_and_audited() {
         Some(&governance),
         write_pool.clone(),
         Some(hook),
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_authz_services(),
+        },
     )
     .expect("bootstrap ok");
 
