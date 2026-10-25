@@ -4,8 +4,8 @@
 //! refuses a pre-0.73 tree with the hint to run `config migrate`. Migrate
 //! rewrites exactly that tree, so without `--data` it may load the profile
 //! and secrets only. `--data` runs over an already-migrated tree and reads
-//! its database URL from it, and every other `admin config` command keeps loading the
-//! tree, which is what refuses a legacy one.
+//! its database URL from it, and every other `admin config` command keeps
+//! loading the tree, which is what refuses a legacy one.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -36,7 +36,10 @@ fn migrate_loads_the_profile_and_secrets_but_not_the_services_tree() {
         let desc = descriptor(&args);
         assert!(desc.profile(), "{args:?} needs the profile");
         assert!(desc.secrets(), "{args:?} needs the secrets");
-        assert!(!desc.paths(), "{args:?} must not load the legacy tree it rewrites");
+        assert!(
+            !desc.paths(),
+            "{args:?} must not load the legacy tree it rewrites"
+        );
         assert!(!desc.database(), "{args:?} touches files only");
     }
 }
@@ -48,7 +51,10 @@ fn migrate_data_loads_the_migrated_tree() {
 
 #[test]
 fn other_config_commands_still_load_the_tree_that_refuses_a_legacy_shape() {
-    for args in [vec!["admin", "config", "list"], vec!["admin", "config", "validate"]] {
+    for args in [
+        vec!["admin", "config", "list"],
+        vec!["admin", "config", "validate"],
+    ] {
         assert!(descriptor(&args).paths(), "{args:?} must load services/");
     }
 }
