@@ -106,7 +106,11 @@ fn table_config() -> CliConfig {
 }
 
 fn table_ctx() -> CommandContext {
-    CommandContext::new(table_config(), EnvOverrides::default())
+    CommandContext::new(table_config(), EnvOverrides::default()).with_boot(Some(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .clone(),
+    ))
 }
 
 fn prompter() -> ScriptedPrompter {
@@ -235,7 +239,7 @@ async fn agent_config_commands_render_through_the_terminal_renderer() {
 fn rate_limit_reports_render_through_the_terminal_renderer() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let prompter = prompter();
-    let config = table_config();
+    let config = table_ctx();
 
     for args in [
         vec!["show"],

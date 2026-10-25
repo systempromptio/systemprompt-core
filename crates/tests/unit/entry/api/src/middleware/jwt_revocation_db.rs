@@ -13,7 +13,6 @@ use systemprompt_api::services::middleware::JtiRevocationChecker;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AccessTokenId;
 use systemprompt_models::execution::context::ContextExtractionError;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_test_fixtures::{seed_user_row, test_db_pool, unique_user_id};
 use uuid::Uuid;
 
@@ -25,7 +24,10 @@ fn checker(pool: &DbPool) -> JtiRevocationChecker {
 fn checker_with_relay(pool: &DbPool, live: bool) -> JtiRevocationChecker {
     let epochs = systemprompt_traits::CacheEpochs::new();
     epochs.set_relay_live(live);
-    JtiRevocationChecker::from_repository(OAuthRepository::new(pool), epochs)
+    JtiRevocationChecker::from_repository(
+        systemprompt_test_fixtures::oauth_fixture_repository(pool),
+        epochs,
+    )
 }
 
 fn jti() -> AccessTokenId {

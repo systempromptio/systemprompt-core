@@ -447,11 +447,11 @@ fn bootstrap_and_config_errors_are_internal_without_detail() {
     use systemprompt_loader::ConfigLoadError;
     use systemprompt_models::errors::GlobalConfigError;
     let cases = [
-        code_of(ProfileBootstrapError::NotInitialized),
-        code_of(SecretsBootstrapError::NotInitialized),
+        code_of(ProfileBootstrapError::PathNotSet),
+        code_of(SecretsBootstrapError::NoSecretsConfigured),
         code_of(GlobalConfigError::NotInitialized),
         code_of(ConfigLoadError::ProfileBootstrap(
-            ProfileBootstrapError::NotInitialized,
+            ProfileBootstrapError::PathNotSet,
         )),
     ];
     for api in cases {

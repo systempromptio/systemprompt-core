@@ -55,7 +55,14 @@ fn a_committed_edit_is_written_and_reloaded() {
     after.models.models.remove(&ModelId::new("gpt-5"));
     after.deployments.deployments.remove(&ModelId::new("gpt-5"));
 
-    let services = commit_catalog(&location, &after).unwrap();
+    let services = commit_catalog(
+        &location,
+        &after,
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .profile(),
+    )
+    .unwrap();
 
     assert!(services.models.get("gpt-5").is_none());
     assert!(location.read().unwrap().models.get("gpt-5").is_none());
@@ -75,7 +82,14 @@ fn an_edit_the_loader_refuses_is_rolled_back() {
         })],
     );
 
-    let err = commit_catalog(&location, &after).unwrap_err();
+    let err = commit_catalog(
+        &location,
+        &after,
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .profile(),
+    )
+    .unwrap_err();
 
     assert!(err.to_string().contains("no longer loads"), "{err:#}");
     assert_eq!(snapshot(&location), files);

@@ -20,13 +20,15 @@ async fn provider() -> McpToolProvider {
     let db = test_db_pool().await;
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     McpToolProvider::new(
         db,
         registry,
         &ResilienceSettings::default(),
         std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
 }
 

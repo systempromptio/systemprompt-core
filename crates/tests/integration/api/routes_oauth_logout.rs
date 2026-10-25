@@ -15,7 +15,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{ensure_config, ensure_test_bootstrap, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -25,7 +25,6 @@ use super::common::setup_ctx;
 const FUTURE_EXP: i64 = 4_102_444_800;
 
 async fn logout_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -34,7 +33,9 @@ async fn logout_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_signing_keys(),
     );
-    Ok(authenticated_router().with_state(state))
+    Ok(authenticated_router()
+        .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn seed_user(user: &UserId) -> anyhow::Result<()> {

@@ -3,7 +3,6 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::services::skills::SkillService;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, SessionId, SkillId, TaskId, TraceId, UserId,
@@ -41,15 +40,18 @@ fn write_skill(skills_root: &Path, id: &str, config_yaml: &str, content: Option<
 }
 
 fn skills_root() -> std::path::PathBuf {
-    ensure_test_bootstrap();
-    let profile = ProfileBootstrap::get().expect("profile initialised");
-    std::path::PathBuf::from(profile.paths.skills())
+    systemprompt_test_fixtures::test_skills_root()
 }
 
 fn service_with(pool: &DbPool, managed: DynManagedSkillResolver) -> SkillService {
     ensure_test_bootstrap();
     let repo = Arc::new(ExecutionStepRepository::new(pool));
-    SkillService::new(managed, repo, recording_webhooks()).expect("skill service")
+    SkillService::new(
+        systemprompt_test_fixtures::test_skills_root(),
+        managed,
+        repo,
+        recording_webhooks(),
+    )
 }
 
 async fn disk_service() -> (DbPool, SkillService) {
@@ -274,11 +276,11 @@ async fn load_skill_records_an_execution_step_for_the_task() {
 
     let step_repo = Arc::new(ExecutionStepRepository::new(&pool));
     let svc = SkillService::new(
+        systemprompt_test_fixtures::test_skills_root(),
         not_managed_skills(),
         Arc::clone(&step_repo),
         recording_webhooks(),
-    )
-    .expect("service");
+    );
 
     let instructions = svc
         .load_skill(&SkillId::new(&id), &ctx_with_task(&context_id, &task_id))
@@ -367,16 +369,6 @@ async fn an_unavailable_authority_fails_the_load() {
         .await
         .expect_err("an authority outage is not a disk fallback");
     assert!(err.to_string().contains("outage"), "{err}");
-}
-
-#[test]
-fn coverage_skill_service_requires_a_profile_before_loading_disk_content() {
-    assert!(ProfileBootstrap::get().is_err());
-    let rt = tokio::runtime::Runtime::new().expect("runtime");
-    let pool = rt.block_on(test_db_pool());
-    let repo = Arc::new(ExecutionStepRepository::new(&pool));
-    let err = SkillService::new(not_managed_skills(), repo, recording_webhooks()).unwrap_err();
-    assert!(err.to_string().contains("Profile not initialized"));
 }
 
 #[tokio::test]

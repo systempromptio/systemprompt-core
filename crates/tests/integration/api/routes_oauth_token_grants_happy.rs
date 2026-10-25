@@ -17,10 +17,9 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
+use systemprompt_oauth::repository::AuthCodeParams;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_config, ensure_test_bootstrap, pkce_pair, seed_oauth_client,
-    test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, pkce_pair, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -40,7 +39,6 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
 }
 
 async fn token_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -53,7 +51,8 @@ async fn token_app() -> anyhow::Result<Router> {
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .layer(middleware::from_fn(inject_context))
-    .with_state(state))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 struct SeededGrant {
@@ -74,7 +73,7 @@ async fn seed_grant(resource: Option<&str>) -> anyhow::Result<SeededGrant> {
         .await?;
     let client = seed_oauth_client(&pool, &user).await?;
 
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4().simple()));
     let pair = pkce_pair();
     let params = AuthCodeParams {

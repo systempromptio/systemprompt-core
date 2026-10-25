@@ -7,7 +7,7 @@ use std::sync::Arc;
 use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::create_local_session_row;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, test_app_context,
 };
@@ -62,6 +62,7 @@ async fn delete_preview_helper() {
         &target.id,
         chrono::Duration::hours(1),
         systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .expect("target session");
@@ -80,7 +81,7 @@ async fn delete_preview_helper() {
             .fetch_one(raw.as_ref())
             .await
             .expect("session before preview");
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

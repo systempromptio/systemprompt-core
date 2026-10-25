@@ -6,7 +6,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, MigrationService, SchemaInstallReport};
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
@@ -116,8 +115,8 @@ impl Fixture {
             .expect("migrations apply");
     }
 
-    fn profile(&self) -> &'static Profile {
-        ProfileBootstrap::get().expect("profile bootstrapped")
+    fn profile(&self) -> &Profile {
+        self._boot.boot.profile()
     }
 
     async fn cleanup(&self) {

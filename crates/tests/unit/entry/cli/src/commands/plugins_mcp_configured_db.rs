@@ -27,7 +27,7 @@ use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_user_id, free_port_in_range, init_services_bootstrap,
-    seed_fixture_system_admin, test_app_context, test_db_pool,
+    seed_fixture_system_admin, test_db_pool,
 };
 
 const ENABLED: &str = "fixture_enabled_server";
@@ -114,18 +114,29 @@ fn parse(args: &[&str]) -> McpCommands {
         .cmd
 }
 
-async fn app() -> (DbPool, Arc<AppContext>) {
+fn app_over(pool: &DbPool) -> Arc<AppContext> {
     let b = boot();
+    systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
+        b,
+        pool,
+        systemprompt_test_fixtures::fixture_config(&b.database_url),
+        Arc::new(systemprompt_marketplace::AllowAllFilter),
+    )
+    .expect("fixture AppContext over the services bootstrap")
+}
+
+async fn app() -> (DbPool, Arc<AppContext>) {
+    boot();
     let pool = test_db_pool().await;
     seed_fixture_system_admin(&pool)
         .await
         .expect("seed the configured system admin");
-    let app = test_app_context(&pool, &b.database_url);
+    let app = app_over(&pool);
     (pool, app)
 }
 
 fn ctx(app: &Arc<AppContext>) -> CommandContext {
-    CommandContext::with_app_context(
+    crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -140,12 +151,8 @@ async fn run(args: &[&str]) -> anyhow::Result<()> {
     mcp::execute(parse(args), &ctx(&app)).await
 }
 
-// Why: `ServicesBootstrap` initialises once per process. If a sibling suite
-// wins that race the config below is never installed, every command here runs
-// against an empty server map, and the assertions would pass while exercising
-// nothing. Fail loudly instead.
 fn assert_configured() {
-    let config = systemprompt_loader::ConfigLoader::load().expect("services config");
+    let config = boot().boot.load_services_config().expect("services config");
     assert!(
         config.mcp_servers.contains_key(ENABLED) && config.mcp_servers.contains_key(DISABLED),
         "the fixture services config was not the one that booted this process; got servers: {:?}",
@@ -270,7 +277,7 @@ async fn validate_running_external_helper() {
     assert_configured();
     let database = DisposableDb::with_schema("cli_mcp_validate_external").await;
     let pool = database.test_pool().await;
-    let app = test_app_context(&pool, database.url());
+    let app = app_over(&pool);
     app.service_repository()
         .create_service(CreateServiceInput {
             name: &ServiceName::new(ENABLED),
@@ -426,7 +433,7 @@ async fn validate_closed_database_helper() {
     assert_configured();
     let database = DisposableDb::with_schema("cli_mcp_validate_closed_database").await;
     let pool = database.test_pool().await;
-    let app = test_app_context(&pool, database.url());
+    let app = app_over(&pool);
     pool.pool().close().await;
     println!("BEGIN_VALIDATE_CLOSED_DATABASE");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app))
@@ -478,7 +485,7 @@ async fn validate_stopped_outputs_helper() {
     assert_configured();
     let database = DisposableDb::with_schema("cli_mcp_validate_stopped_outputs").await;
     let pool = database.test_pool().await;
-    let app = test_app_context(&pool, database.url());
+    let app = app_over(&pool);
     let context = ctx(&app);
     println!("BEGIN_VALIDATE_NAMED_STOPPED");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)

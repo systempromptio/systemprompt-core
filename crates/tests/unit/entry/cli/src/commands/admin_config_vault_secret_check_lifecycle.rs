@@ -6,7 +6,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use systemprompt_cli::admin::config::secret_check;
 use systemprompt_cli::cloud::doctor::{CheckStatus, vault_checks};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
+use systemprompt_config::LoadedProfile;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
@@ -171,7 +172,12 @@ async fn vault_secret_check_reports_transport_failure_then_recovers_without_expo
     // SAFETY: nextest runs this test in its own process and profile initialization
     // has not run.
     unsafe { std::env::set_var("OWNED_COVERAGE_VAULT_TOKEN", OWNED_COVERAGE_VAULT_TOKEN) };
-    ProfileBootstrap::init_from_path(&profile_path).expect("initialize Vault profile");
+    let loaded = LoadedProfile::from_path(&profile_path).expect("initialize Vault profile");
+    let ctx = CommandContext::new(
+        CliConfig::new().with_interactive(false),
+        EnvOverrides::default(),
+    )
+    .with_profile(Some(Arc::clone(&loaded)));
     let previous = std::env::current_dir().expect("current directory");
     std::env::set_current_dir(project.path()).expect("enter owned Vault project");
     struct CwdGuard(std::path::PathBuf);
@@ -181,14 +187,13 @@ async fn vault_secret_check_reports_transport_failure_then_recovers_without_expo
         }
     }
     let _cwd = CwdGuard(previous);
-    let profile = ProfileBootstrap::get().expect("Vault profile");
-    let vault = profile
+    let vault = loaded
         .secrets
         .as_ref()
         .and_then(|secrets| secrets.vault.as_ref())
         .expect("Vault configuration");
 
-    let error = secret_check::run()
+    let error = secret_check::run(&ctx)
         .await
         .expect_err("HTTP 500 must fail the secret check");
     let rendered = format!("{error:#}");
@@ -218,7 +223,7 @@ async fn vault_secret_check_reports_transport_failure_then_recovers_without_expo
     assert!(failed_values.is_empty());
 
     failing.store(false, Ordering::SeqCst);
-    let report = secret_check::run().await.expect("repaired Vault check");
+    let report = secret_check::run(&ctx).await.expect("repaired Vault check");
     assert_eq!(report.source, "vault");
     assert!(
         report.detail.contains("secret/systemprompt/owned"),

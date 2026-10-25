@@ -19,9 +19,7 @@ use systemprompt_identifiers::JwtToken;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with, fixture_config, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
 use tempfile::TempDir;
 
 async fn state_with_dist() -> anyhow::Result<(TempDir, StaticContentState)> {
@@ -99,8 +97,7 @@ async fn serve_homepage_missing_index_is_404() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
-    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
+    ensure_test_bootstrap();
     let (_tmp, state) = state_with_dist().await?;
 
     let mut headers = HeaderMap::new();
@@ -120,8 +117,7 @@ async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Resul
 #[tokio::test]
 async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_session()
 -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
-    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
+    ensure_test_bootstrap();
     let (_tmp, state) = state_with_dist().await?;
     let mut first_headers = HeaderMap::new();
     first_headers.insert(

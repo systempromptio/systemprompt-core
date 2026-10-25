@@ -1,12 +1,11 @@
 //! Full in-process bootstrap fixture: a tempdir profile tree (system,
 //! services, storage, bin), a secrets.json wired to the test database, and
-//! ProfileBootstrap + SecretsBootstrap initialisation. Each test that uses
-//! this runs in its own nextest process, so the global OnceLock singletons
-//! are safe to install per-test.
+//! the `BootContext` loaded from that profile and its secrets.
 
 use std::path::Path;
 
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
+use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use tempfile::TempDir;
 
@@ -17,6 +16,7 @@ pub const SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 pub struct BootFixture {
     pub _tmp: TempDir,
     pub database_url: String,
+    pub boot: BootContext,
 }
 
 pub struct BootOptions {
@@ -45,7 +45,6 @@ impl Default for BootOptions {
     }
 }
 
-// Builds the tree and installs ProfileBootstrap + SecretsBootstrap.
 pub fn boot(opts: &BootOptions) -> BootFixture {
     let database_url = systemprompt_test_fixtures::test_database_url();
     let tmp = tempfile::tempdir().expect("create boot tempdir");
@@ -143,12 +142,14 @@ pub fn boot(opts: &BootOptions) -> BootFixture {
     )
     .expect("write profile.yaml");
 
-    ProfileBootstrap::init_from_path(&profile_path).expect("init profile bootstrap");
-    systemprompt_test_fixtures::secrets::block_on_secrets_init().expect("init secrets bootstrap");
+    let profile = LoadedProfile::from_path(&profile_path).expect("load the fixture profile");
+    let secrets = systemprompt_test_fixtures::secrets::block_on_secrets_load(&profile)
+        .expect("load the fixture secrets");
 
     BootFixture {
         _tmp: tmp,
         database_url,
+        boot: BootContext::new(profile, secrets),
     }
 }
 

@@ -27,7 +27,7 @@ fn parse(args: &[&str]) -> UsersCommands {
 
 fn ctx(pool: &DbPool) -> CommandContext {
     let url = test_database_url();
-    CommandContext::with_app_context(
+    crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -55,6 +55,7 @@ async fn end_specific_session_succeeds() {
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
         systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .unwrap();
@@ -91,6 +92,7 @@ async fn end_all_sessions_for_user() {
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
         systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .unwrap();
@@ -99,6 +101,7 @@ async fn end_all_sessions_for_user() {
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
         systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .unwrap();

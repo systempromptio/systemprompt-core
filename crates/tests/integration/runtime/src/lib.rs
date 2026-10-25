@@ -2,9 +2,9 @@
 //!
 //! Exercises `AppContext` context loaders, `StartupValidator::validate`,
 //! and the validation-report display helpers end-to-end. These tests
-//! deliberately stay clear of the global `ProfileBootstrap` / `Config`
-//! `OnceLock`s — they construct fresh `Config` values per test so the
-//! validator's early-bail (services-config) path runs.
+//! deliberately stay clear of the shared fixture bootstrap — they construct
+//! fresh `Config` values per test so the validator's early-bail
+//! (services-config) path runs.
 
 #![allow(clippy::all)]
 

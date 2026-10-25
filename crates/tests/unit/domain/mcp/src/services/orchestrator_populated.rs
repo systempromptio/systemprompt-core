@@ -59,7 +59,8 @@ async fn orchestrator_and_repo(
     );
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     let service_repo = ServiceRepository::new(&db, unique_instance());
     let orchestrator = McpOrchestrator::new(
@@ -67,6 +68,7 @@ async fn orchestrator_and_repo(
         app_paths,
         registry,
         systemprompt_test_fixtures::test_spawner(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
     .expect("MCP orchestrator");
     (orchestrator, service_repo)

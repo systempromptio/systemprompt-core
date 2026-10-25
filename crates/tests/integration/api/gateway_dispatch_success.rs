@@ -23,8 +23,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context,
-    test_db_pool,
+    AuthedFixture, TestBootstrap, init_services_bootstrap, seed_admin_credential,
+    test_app_context_on, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;
@@ -125,7 +125,7 @@ async fn harness() -> &'static Harness {
 async fn app() -> Result<(Router, DbPool, Arc<AppContext>)> {
     let h = harness().await;
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &h.boot.database_url);
+    let ctx = test_app_context_on(&h.boot, &pool);
     Ok((
         gateway_router(&ctx).expect("gateway router builds"),
         pool,
@@ -377,7 +377,7 @@ mod streaming {
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::headers::SESSION_ID;
     use systemprompt_test_fixtures::{
-        AuthedFixture, TestBootstrap, init_services_bootstrap, test_app_context, test_db_pool,
+        AuthedFixture, TestBootstrap, init_services_bootstrap, test_app_context_on, test_db_pool,
     };
     use tokio::sync::OnceCell;
     use tower::ServiceExt;
@@ -445,7 +445,7 @@ mod streaming {
     async fn app() -> Result<(axum::Router, DbPool, Arc<AppContext>)> {
         let h = harness().await;
         let pool = test_db_pool().await;
-        let ctx = test_app_context(&pool, &h.boot.database_url);
+        let ctx = test_app_context_on(&h.boot, &pool);
         Ok((
             gateway_router(&ctx).expect("gateway router builds"),
             pool,

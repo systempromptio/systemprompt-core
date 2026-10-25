@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
-use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::path::Path;
 
 use chrono::Utc;
 use systemprompt_loader::bundle::{
     BaseTreeHashMemo, BundleCache, owning_bundle_hashes, sources_provenance,
 };
-use systemprompt_manifest::profile::FetchFailurePolicy;
+use systemprompt_manifest::profile::{FetchFailurePolicy, Profile};
 use systemprompt_manifest::services::bundle::{
     BUNDLE_MANIFEST_FILE, BundleSourceState, ServicesBundleState,
 };
@@ -14,18 +13,8 @@ use systemprompt_manifest::services::bundle::{
 use crate::bundle_profile::{https_source, profile};
 use crate::bundle_support::{pack, pubkey, write};
 
-const CHILD_ENV: &str = "SYSTEMPROMPT_PROVENANCE_CONFIGURED_CHILD";
-
 #[test]
 fn configured_bundle_provenance_survives_missing_and_corrupt_manifests_then_recovers() {
-    if std::env::var_os(CHILD_ENV).is_some() {
-        run_child_assertions();
-    } else {
-        run_parent_and_child();
-    }
-}
-
-fn run_parent_and_child() {
     let root = tempfile::tempdir().expect("isolated provenance fixture");
     let services = root.path().join("services");
     let cache_root = root.path().join("cache");
@@ -77,56 +66,15 @@ fn run_parent_and_child() {
     let storage = root.path().join("storage");
     std::fs::create_dir(&storage).expect("profile storage directory");
     configured.paths.storage = Some(storage.to_string_lossy().into_owned());
-    let profile_path = root.path().join("profile.yaml");
-    std::fs::write(
-        &profile_path,
-        serde_yaml::to_string(&configured).expect("serialize profile"),
-    )
-    .expect("profile fixture");
-
-    let stdout = tempfile::NamedTempFile::new().expect("provenance child stdout");
-    let stderr = tempfile::NamedTempFile::new().expect("provenance child stderr");
-    let mut child = Command::new(std::env::current_exe().expect("current test binary"));
-    child
-        .args([
-            "--exact",
-            "bundle_provenance_configured::configured_bundle_provenance_survives_missing_and_corrupt_manifests_then_recovers",
-            "--nocapture",
-        ])
-        .env(CHILD_ENV, "1")
-        .env("SYSTEMPROMPT_PROFILE", &profile_path)
-        .env("PROVENANCE_MANIFEST_PATH", &manifest_path)
-        .env("PROVENANCE_MANIFEST_BACKUP", &manifest_backup)
-        .stdout(Stdio::from(stdout.reopen().expect("open provenance stdout")))
-        .stderr(Stdio::from(stderr.reopen().expect("open provenance stderr")));
-    let mut child = child.spawn().expect("run isolated profile child");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("poll provenance child") {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            panic!(
-                "isolated provenance child timed out\nstdout:\n{}\nstderr:\n{}",
-                std::fs::read_to_string(stdout.path()).unwrap_or_default(),
-                std::fs::read_to_string(stderr.path()).unwrap_or_default()
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    assert!(
-        status.success(),
-        "isolated provenance child failed\nstdout:\n{}\nstderr:\n{}",
-        std::fs::read_to_string(stdout.path()).unwrap_or_default(),
-        std::fs::read_to_string(stderr.path()).unwrap_or_default()
-    );
+    assert_provenance_survives_manifest_damage(&configured, &manifest_path, &manifest_backup);
 }
 
-fn run_child_assertions() {
-    systemprompt_config::ProfileBootstrap::init().expect("initialize isolated configured profile");
-    let provenance = sources_provenance(&BaseTreeHashMemo::new());
+fn assert_provenance_survives_manifest_damage(
+    profile: &Profile,
+    manifest_path: &Path,
+    manifest_backup: &Path,
+) {
+    let provenance = sources_provenance(profile, None, &BaseTreeHashMemo::new());
     assert_eq!(
         provenance.composed_hash.as_deref(),
         Some("composed-fixture-hash")
@@ -139,19 +87,19 @@ fn run_child_assertions() {
     assert_eq!(bundle.active_digest, bundle.pinned_digest);
     assert_eq!(bundle.version.as_deref(), Some("4.2.0"));
     let hash = bundle.content_hash.clone().expect("active content hash");
-    assert_eq!(owning_bundle_hashes().get("owned-skill"), Some(&hash));
-
-    let manifest_path = std::path::PathBuf::from(
-        std::env::var_os("PROVENANCE_MANIFEST_PATH").expect("manifest path"),
+    assert_eq!(
+        owning_bundle_hashes(profile).get("owned-skill"),
+        Some(&hash)
     );
-    std::fs::remove_file(&manifest_path).expect("remove cached manifest");
-    assert!(owning_bundle_hashes().is_empty());
-    std::fs::write(&manifest_path, b"{ corrupt").expect("corrupt cached manifest");
-    assert!(owning_bundle_hashes().is_empty());
-    let bytes = std::fs::read(
-        std::env::var_os("PROVENANCE_MANIFEST_BACKUP").expect("manifest backup path"),
-    )
-    .expect("read manifest recovery fixture");
-    std::fs::write(&manifest_path, bytes).expect("restore cached manifest");
-    assert_eq!(owning_bundle_hashes().get("owned-skill"), Some(&hash));
+
+    std::fs::remove_file(manifest_path).expect("remove cached manifest");
+    assert!(owning_bundle_hashes(profile).is_empty());
+    std::fs::write(manifest_path, b"{ corrupt").expect("corrupt cached manifest");
+    assert!(owning_bundle_hashes(profile).is_empty());
+    let bytes = std::fs::read(manifest_backup).expect("read manifest recovery fixture");
+    std::fs::write(manifest_path, bytes).expect("restore cached manifest");
+    assert_eq!(
+        owning_bundle_hashes(profile).get("owned-skill"),
+        Some(&hash)
+    );
 }

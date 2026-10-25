@@ -45,7 +45,14 @@ fn test_validator_in_option() {
     let mut maybe_validator: Option<StartupValidator> = None;
     assert!(maybe_validator.is_none());
 
-    maybe_validator = Some(StartupValidator::new());
+    maybe_validator = Some(
+        StartupValidator::new(
+            systemprompt_test_fixtures::ensure_test_bootstrap()
+                .boot
+                .clone(),
+        )
+        .expect("startup validator"),
+    );
     maybe_validator
         .as_ref()
         .expect("Should contain a validator");
@@ -59,8 +66,22 @@ fn test_validator_in_vec() {
     let mut validators: Vec<StartupValidator> = Vec::new();
     assert!(validators.is_empty());
 
-    validators.push(StartupValidator::new());
-    validators.push(StartupValidator::default());
+    validators.push(
+        StartupValidator::new(
+            systemprompt_test_fixtures::ensure_test_bootstrap()
+                .boot
+                .clone(),
+        )
+        .expect("startup validator"),
+    );
+    validators.push(
+        StartupValidator::new(
+            systemprompt_test_fixtures::ensure_test_bootstrap()
+                .boot
+                .clone(),
+        )
+        .expect("startup validator"),
+    );
     assert_eq!(validators.len(), 2);
 
     validators.clear();
@@ -206,7 +227,11 @@ fn test_files_config_validator_domain_id() {
     use systemprompt_files::FilesConfigValidator;
     use systemprompt_manifest::validators::DomainConfig;
 
-    let validator = FilesConfigValidator::new();
+    let validator = FilesConfigValidator::new(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .clone(),
+    );
     assert_eq!(validator.domain_id(), "files");
 }
 
@@ -215,6 +240,10 @@ fn test_files_config_validator_priority() {
     use systemprompt_files::FilesConfigValidator;
     use systemprompt_manifest::validators::DomainConfig;
 
-    let validator = FilesConfigValidator::new();
+    let validator = FilesConfigValidator::new(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .clone(),
+    );
     assert_eq!(validator.priority(), 10);
 }

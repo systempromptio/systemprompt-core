@@ -230,6 +230,7 @@ async fn fingerprint_limit_reuses_session_and_user_from_one_row() {
             known_user: Some(user_with_role("user_existing", "anonymous")),
         }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 5,
@@ -272,6 +273,7 @@ async fn recent_anonymous_session_is_returned_without_creating_a_new_one() {
             known_user: Some(user_with_role("user_existing", "anonymous")),
         }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 1,
@@ -305,6 +307,7 @@ async fn registered_users_session_is_never_reused_for_a_matching_fingerprint() {
             known_user: Some(user_with_role("user_victim", "user")),
         }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 9,
@@ -337,6 +340,7 @@ async fn session_whose_owner_cannot_be_loaded_is_not_reused() {
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let request_analytics = SessionAnalytics::default();
@@ -363,6 +367,7 @@ async fn recent_session_without_user_falls_through_to_fresh_creation() {
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let request_analytics = SessionAnalytics::default();
@@ -395,6 +400,7 @@ async fn create_authenticated_session_persists_for_known_user() {
             known_user: Some(anon_user("user_known")),
         }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let session_id = service
@@ -414,6 +420,7 @@ async fn create_authenticated_session_rejects_unknown_user() {
         Arc::new(StubAnalyticsProvider::new(None)) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let user_id = UserId::new("user_missing");
@@ -609,6 +616,7 @@ async fn failing_reusable_session_lookup_falls_through_to_fresh_session() {
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(ReusableLookupFailsProvider));
 
@@ -633,6 +641,7 @@ async fn at_limit_failing_recent_lookup_falls_through_to_fresh_session() {
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 9,
@@ -659,6 +668,7 @@ async fn failing_fingerprint_count_falls_through_to_fresh_session() {
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(FailingFingerprintProvider));
 
@@ -682,6 +692,7 @@ async fn at_limit_without_reusable_session_creates_fresh_session() {
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 5,
@@ -711,6 +722,7 @@ async fn at_limit_with_recent_session_lacking_user_creates_fresh_session() {
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 9,
@@ -738,6 +750,7 @@ async fn failing_analytics_lookup_falls_through_to_fresh_session() {
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let request_analytics = SessionAnalytics::default();
@@ -761,6 +774,7 @@ async fn slow_session_lookup_times_out_and_creates_fresh_session() {
         }) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let request_analytics = SessionAnalytics::default();
@@ -782,6 +796,7 @@ async fn ensure_anonymous_user_resolves_user_and_fingerprint() {
         Arc::new(StubAnalyticsProvider::new(None)) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let (user_id, fingerprint) = service

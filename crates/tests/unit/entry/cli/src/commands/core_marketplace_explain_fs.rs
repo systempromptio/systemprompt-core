@@ -66,7 +66,9 @@ fn args(skill: Option<&str>, plugin: Option<&str>) -> ExplainArgs {
 }
 
 async fn rows(args: &ExplainArgs) -> Vec<Value> {
-    let output = explain(args).await.expect("explain");
+    let output = explain(args, &crate::boot_ctx::bootstrap_ctx())
+        .await
+        .expect("explain");
     let artifact = serde_json::to_value(output.artifact()).expect("serialise artifact");
     artifact["items"]
         .as_array()

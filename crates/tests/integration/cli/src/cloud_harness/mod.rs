@@ -5,10 +5,10 @@
 //! `services/` scaffolding), a single shared `MockServer`, the cloud
 //! credentials loaded once from a `credentials.json` whose `api_url` is the
 //! mock server (handed to every `CommandContext` it builds), and the
-//! process-global `ProfileBootstrap` (a validated local profile carrying a
-//! `cloud.tenant_id`). Because the profile and the process cwd are global,
-//! every test serialises through one async mutex and runs while chdir'd into
-//! the project root; per-test file seeding and `MockServer::reset`
+//! loaded profile (a validated local profile carrying a `cloud.tenant_id`),
+//! handed to every `CommandContext` it builds. Because the process cwd is
+//! global, every test serialises through one async mutex and runs while chdir'd
+//! into the project root; per-test file seeding and `MockServer::reset`
 //! give each test a clean slate.
 
 use std::path::{Path, PathBuf};
@@ -16,13 +16,14 @@ use systemprompt_identifiers::CloudAppId;
 
 use chrono::Utc;
 use serde_json::json;
+use std::sync::Arc;
 use systemprompt_cli::cloud::auth::AuthCommands;
 use systemprompt_cli::cloud::tenant::{TenantCommands, TenantDeleteArgs, TenantRotateArgs};
 use systemprompt_cli::cloud::{self, CloudCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
 use systemprompt_cloud::{CloudCredentials, CloudPath, CredentialsBootstrap, get_cloud_paths};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 use systemprompt_identifiers::TenantId;
 use tempfile::TempDir;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
@@ -39,6 +40,7 @@ pub(super) struct Harness {
     root: PathBuf,
     server: MockServer,
     credentials: Option<CloudCredentials>,
+    profile: Option<Arc<LoadedProfile>>,
 }
 
 static HARNESS: OnceCell<Harness> = OnceCell::const_new();
@@ -63,9 +65,7 @@ async fn build_harness() -> Harness {
     let credentials = CredentialsBootstrap::load().await.ok().flatten();
 
     let profile_path = root.join(".systemprompt/profiles/local/profile.yaml");
-    if !ProfileBootstrap::is_initialized() {
-        let _ = ProfileBootstrap::init_from_path(&profile_path);
-    }
+    let profile = LoadedProfile::from_path(&profile_path).ok();
 
     server.reset().await;
     if let Some(prev) = prev {
@@ -77,6 +77,7 @@ async fn build_harness() -> Harness {
         root,
         server,
         credentials,
+        profile,
     }
 }
 
@@ -350,13 +351,19 @@ pub(super) fn ctx(format: OutputFormat) -> CommandContext {
     let cli = CliConfig::default()
         .with_output_format(format)
         .with_interactive(false);
-    CommandContext::new(cli, EnvOverrides::default()).with_cloud_credentials(harness_credentials())
+    CommandContext::new(cli, EnvOverrides::default())
+        .with_cloud_credentials(harness_credentials())
+        .with_profile(harness_profile())
 }
 
 fn harness_credentials() -> Option<CloudCredentials> {
     HARNESS
         .get()
         .and_then(|harness| harness.credentials.clone())
+}
+
+fn harness_profile() -> Option<Arc<LoadedProfile>> {
+    HARNESS.get().and_then(|harness| harness.profile.clone())
 }
 
 pub(super) fn json_ctx() -> CommandContext {
@@ -372,6 +379,7 @@ pub(super) fn interactive_ctx(
         .with_assume_terminal(true);
     CommandContext::new(cli, EnvOverrides::default())
         .with_cloud_credentials(harness_credentials())
+        .with_profile(harness_profile())
         .with_prompter(Box::new(systemprompt_cli::ScriptedPrompter::new(answers)))
 }
 

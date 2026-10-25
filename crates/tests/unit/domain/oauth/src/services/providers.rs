@@ -80,9 +80,10 @@ mod config_backed {
         let user_id = UserId::new(Uuid::new_v4().to_string());
         let token = mint_admin_jwt(&user_id, "prov@test.invalid", "https://issuer.test");
 
-        let provider =
-            JwtValidationProviderImpl::from_config(systemprompt_test_fixtures::test_signing_keys())
-                .expect("from_config");
+        let provider = JwtValidationProviderImpl::from_config(
+            &systemprompt_test_fixtures::test_config(),
+            systemprompt_test_fixtures::test_signing_keys(),
+        );
         let claims = provider
             .validate_token(token.as_str())
             .expect("valid token");
@@ -99,9 +100,10 @@ mod config_backed {
         let user_id = UserId::new(Uuid::new_v4().to_string());
         let token = mint_admin_jwt(&user_id, "prov2@test.invalid", "someone-else");
 
-        let provider =
-            JwtValidationProviderImpl::from_config(systemprompt_test_fixtures::test_signing_keys())
-                .expect("from_config");
+        let provider = JwtValidationProviderImpl::from_config(
+            &systemprompt_test_fixtures::test_config(),
+            systemprompt_test_fixtures::test_signing_keys(),
+        );
         let err = provider
             .validate_token(token.as_str())
             .expect_err("issuer mismatch");
@@ -149,9 +151,10 @@ mod config_backed {
         let token =
             jsonwebtoken::encode(&header, &claims, keys.encoding_key()).expect("encode expired");
 
-        let provider =
-            JwtValidationProviderImpl::from_config(systemprompt_test_fixtures::test_signing_keys())
-                .expect("from_config");
+        let provider = JwtValidationProviderImpl::from_config(
+            &systemprompt_test_fixtures::test_config(),
+            systemprompt_test_fixtures::test_signing_keys(),
+        );
         let err = provider
             .validate_token(&token)
             .expect_err("expired token must be rejected");
@@ -164,9 +167,10 @@ mod config_backed {
     #[test]
     fn generate_token_roundtrips_through_validate() {
         ensure_test_bootstrap();
-        let provider =
-            JwtValidationProviderImpl::from_config(systemprompt_test_fixtures::test_signing_keys())
-                .expect("from_config");
+        let provider = JwtValidationProviderImpl::from_config(
+            &systemprompt_test_fixtures::test_config(),
+            systemprompt_test_fixtures::test_signing_keys(),
+        );
         let user_uuid = Uuid::new_v4();
 
         let token = provider
@@ -203,9 +207,10 @@ mod config_backed {
     #[test]
     fn generate_token_refuses_an_empty_audience_list() {
         ensure_test_bootstrap();
-        let provider =
-            JwtValidationProviderImpl::from_config(systemprompt_test_fixtures::test_signing_keys())
-                .expect("from_config");
+        let provider = JwtValidationProviderImpl::from_config(
+            &systemprompt_test_fixtures::test_config(),
+            systemprompt_test_fixtures::test_signing_keys(),
+        );
 
         let err = provider
             .generate_token(token_params(&["user"], &[]))
@@ -219,9 +224,10 @@ mod config_backed {
     #[test]
     fn generate_token_refuses_an_unparseable_audience() {
         ensure_test_bootstrap();
-        let provider =
-            JwtValidationProviderImpl::from_config(systemprompt_test_fixtures::test_signing_keys())
-                .expect("from_config");
+        let provider = JwtValidationProviderImpl::from_config(
+            &systemprompt_test_fixtures::test_config(),
+            systemprompt_test_fixtures::test_signing_keys(),
+        );
 
         let err = provider
             .generate_token(token_params(&["user"], &["api", "not-an-audience"]))
@@ -235,9 +241,10 @@ mod config_backed {
     #[test]
     fn generate_token_refuses_an_unparseable_permission() {
         ensure_test_bootstrap();
-        let provider =
-            JwtValidationProviderImpl::from_config(systemprompt_test_fixtures::test_signing_keys())
-                .expect("from_config");
+        let provider = JwtValidationProviderImpl::from_config(
+            &systemprompt_test_fixtures::test_config(),
+            systemprompt_test_fixtures::test_signing_keys(),
+        );
 
         provider
             .generate_token(token_params(&["user", "not-a-permission"], &["api"]))
@@ -247,9 +254,10 @@ mod config_backed {
     #[test]
     fn generate_token_accepts_a_non_uuid_user_id() {
         ensure_test_bootstrap();
-        let provider =
-            JwtValidationProviderImpl::from_config(systemprompt_test_fixtures::test_signing_keys())
-                .expect("from_config");
+        let provider = JwtValidationProviderImpl::from_config(
+            &systemprompt_test_fixtures::test_config(),
+            systemprompt_test_fixtures::test_signing_keys(),
+        );
 
         let token = provider
             .generate_token(GenerateTokenParams {

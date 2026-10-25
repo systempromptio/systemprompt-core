@@ -1,24 +1,25 @@
-//! The process-wide services-root cell.
+//! The services root a boot context holds.
 //!
-//! The cell is installed once. Before installation `require` refuses rather
-//! than guessing a root, and afterwards it serves the installed root.
+//! The cell is installed once. Before installation `services_root` is empty and
+//! `require_services_root` serves the baked root, and afterwards both serve the
+//! installed root.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use systemprompt_loader::services_root::{
-    ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap,
-};
+use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesProvenance};
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 #[test]
-fn the_cell_refuses_before_installation_then_serves_the_installed_root() {
-    assert!(!ServicesRootBootstrap::is_initialized());
-    assert_eq!(ServicesRootBootstrap::get(), None);
-    assert!(ServicesRootBootstrap::require().is_err());
+fn the_cell_serves_the_baked_root_before_installation_then_the_installed_root() {
+    let boot = ensure_test_bootstrap().boot.clone();
+    assert_eq!(boot.services_root(), None);
+    let baked = boot.require_services_root();
+    assert_eq!(baked, ActiveServicesRoot::baked(boot.profile()));
 
-    let installed = ServicesRootBootstrap::install(ActiveServicesRoot {
+    let installed = boot.install_services_root(ActiveServicesRoot {
         path: PathBuf::from("/cache/composed/abc"),
         base: PathBuf::from("/services"),
         provenance: ServicesProvenance::Fetched {
@@ -28,15 +29,12 @@ fn the_cell_refuses_before_installation_then_serves_the_installed_root() {
     });
 
     assert_eq!(installed.path, PathBuf::from("/cache/composed/abc"));
-    assert!(ServicesRootBootstrap::is_initialized());
     assert_eq!(
-        ServicesRootBootstrap::require()
-            .map(|root| root.path.clone())
-            .ok(),
-        Some(PathBuf::from("/cache/composed/abc"))
+        boot.require_services_root().path,
+        PathBuf::from("/cache/composed/abc")
     );
 
-    let second = ServicesRootBootstrap::install(ActiveServicesRoot {
+    let second = boot.install_services_root(ActiveServicesRoot {
         path: PathBuf::from("/cache/composed/def"),
         base: PathBuf::from("/services"),
         provenance: ServicesProvenance::Bundled,

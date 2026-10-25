@@ -137,7 +137,7 @@ async fn fixture() -> ManagedSkillFixture {
         .await
         .unwrap();
     ManagedSkillFixture {
-        ctx: CommandContext::with_app_context(
+        ctx: crate::boot_ctx::with_app_boot(
             CliConfig::new()
                 .with_interactive(false)
                 .with_output_format(OutputFormat::Json),

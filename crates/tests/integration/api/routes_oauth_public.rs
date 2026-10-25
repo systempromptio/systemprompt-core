@@ -2,7 +2,6 @@
 //! exercise the routing and error mappings; happy paths require a full
 //! provisioned client + PKCE flow.
 
-use systemprompt_test_fixtures::ensure_config;
 
 use axum::Router;
 use axum::body::Body;
@@ -15,7 +14,6 @@ use tower::ServiceExt;
 use super::common::{empty_get, json_post, setup_ctx};
 
 async fn public_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -27,11 +25,11 @@ async fn public_app() -> anyhow::Result<Router> {
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
-    .with_state(state))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn authenticated_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -40,7 +38,9 @@ async fn authenticated_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_signing_keys(),
     );
-    Ok(authenticated_router().with_state(state))
+    Ok(authenticated_router()
+        .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 #[tokio::test]
@@ -189,8 +189,6 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
     use axum::Extension;
     use systemprompt_identifiers::UserId;
     use uuid::Uuid;
-
-    ensure_config();
     let (pool, ctx) = setup_ctx().await?;
 
     let user_id = UserId::new(format!("dcr-defaults-{}", Uuid::new_v4()));
@@ -219,6 +217,7 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone()))
     .layer(Extension(req_ctx));
 
     let body = serde_json::json!({
@@ -258,8 +257,6 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
     use axum::Extension;
     use systemprompt_identifiers::UserId;
     use uuid::Uuid;
-
-    ensure_config();
     let (pool, ctx) = setup_ctx().await?;
 
     let user_id = UserId::new(format!("dcr-apptype-{}", Uuid::new_v4()));
@@ -288,6 +285,7 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone()))
     .layer(Extension(req_ctx));
 
     let body = serde_json::json!({
@@ -354,8 +352,6 @@ async fn dcr_app() -> anyhow::Result<Router> {
     use axum::Extension;
     use systemprompt_identifiers::UserId;
     use uuid::Uuid;
-
-    ensure_config();
     let (pool, ctx) = setup_ctx().await?;
     let user_id = UserId::new(format!("dcr-scope-{}", Uuid::new_v4()));
     let p = pool.pool();
@@ -379,6 +375,7 @@ async fn dcr_app() -> anyhow::Result<Router> {
             systemprompt_oauth_issuance::JwksCache::new(),
         ))
         .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone()))
         .layer(Extension(req_ctx)),
     )
 }

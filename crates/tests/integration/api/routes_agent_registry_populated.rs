@@ -12,7 +12,7 @@ use systemprompt_api::routes::agent::registry::create_mcp_extensions_from_config
 use systemprompt_api::routes::registry_router;
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{
-    ensure_messaging_bootstrap, seed_running_service, test_app_context, test_db_pool,
+    ensure_messaging_bootstrap, seed_running_service, test_app_context_on, test_db_pool,
     test_messaging_agent,
 };
 use tower::ServiceExt;
@@ -22,7 +22,7 @@ use super::common::{body_to_string, empty_get, request_context};
 async fn setup() -> anyhow::Result<(DbPool, std::sync::Arc<systemprompt_runtime::AppContext>)> {
     let b = ensure_messaging_bootstrap();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context_on(&b, &pool);
     Ok((pool, ctx))
 }
 
@@ -193,7 +193,7 @@ async fn multi_agent_registry_sorts_default_first_and_retains_runtime_and_mcp_me
         TWO_AGENTS,
     );
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context_on(&boot, &pool);
     seed_running_service(&ctx, "a_secondary", "agent", 9322).await?;
     let app = registry_router(&ctx).layer(Extension(request_context("registry_order")));
     let response = app.oneshot(empty_get("/")).await?;
@@ -230,7 +230,7 @@ async fn registry_preserves_configured_cards_with_unknown_status_when_database_i
         TWO_AGENTS,
     );
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context_on(&boot, &pool);
     pool.pool().close().await;
     let app = registry_router(&ctx).layer(Extension(request_context("registry_db_fault")));
     let response = app.oneshot(empty_get("/")).await?;

@@ -17,7 +17,7 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_config, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -44,7 +44,6 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
 }
 
 async fn authorize_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -57,7 +56,8 @@ async fn authorize_app() -> anyhow::Result<Router> {
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .layer(middleware::from_fn(inject_context))
-    .with_state(state))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
@@ -324,7 +324,6 @@ async fn authorize_post_password_attempt_is_unsupported() -> anyhow::Result<()> 
 // neither, so both stayed at zero calls; attaching the registry from the
 // AppContext puts the resource-scoped authorization path on its real branch.
 async fn authorize_app_with_mcp_registry() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -338,7 +337,8 @@ async fn authorize_app_with_mcp_registry() -> anyhow::Result<Router> {
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .layer(middleware::from_fn(inject_context))
-    .with_state(state))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 fn authorize_uri(client_id: &str, resource: Option<&str>) -> String {

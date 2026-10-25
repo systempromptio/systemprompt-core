@@ -3,7 +3,6 @@
 //! skill entry missing its content file, printed through the verbose
 //! domain-error branch.
 
-use systemprompt_manifest::Config;
 use systemprompt_runtime::StartupValidator;
 
 use crate::boot::{BootOptions, boot};
@@ -14,14 +13,18 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
                package: ghost\n    port: 5055\n    enabled: true\n    display_in_web: false\n    \
                oauth:\n      required: false\n      scopes: []\n      audience: mcp\n      \
                client_id: null\n";
-    let _fixture = boot(&BootOptions {
+    let fixture = boot(&BootOptions {
         mcp_servers_yaml: mcp.to_owned(),
         ..BootOptions::default()
     });
-    systemprompt_config::try_init_config(None).expect("init config from profile");
-    let config = Config::get().expect("config installed").clone();
+    let config = fixture
+        .boot
+        .try_init_config(None)
+        .expect("init config from profile")
+        .as_ref()
+        .clone();
 
-    let mut validator = StartupValidator::new();
+    let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
     let report = validator.validate(&config);
 
     let mcp_domain = report
@@ -60,16 +63,20 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
 
 #[test]
 fn skill_missing_content_file_errors_in_verbose_mode() {
-    let _fixture = boot(&BootOptions::default());
-    systemprompt_config::try_init_config(None).expect("init config from profile");
-    let config = Config::get().expect("config installed").clone();
+    let fixture = boot(&BootOptions::default());
+    let config = fixture
+        .boot
+        .try_init_config(None)
+        .expect("init config from profile")
+        .as_ref()
+        .clone();
 
     std::fs::remove_file(
         std::path::Path::new(&config.services_path).join("skills/echo_skill/index.md"),
     )
     .expect("remove skill content file");
 
-    let mut validator = StartupValidator::new();
+    let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
     let report = validator.validate(&config);
 
     let skills = report
@@ -91,9 +98,13 @@ fn skill_missing_content_file_errors_in_verbose_mode() {
 
 #[test]
 fn quiet_mode_validate_reports_the_same_extension_failures() {
-    let _fixture = boot(&BootOptions::default());
-    systemprompt_config::try_init_config(None).expect("init config from profile");
-    let config = Config::get().expect("config installed").clone();
+    let fixture = boot(&BootOptions::default());
+    let config = fixture
+        .boot
+        .try_init_config(None)
+        .expect("init config from profile")
+        .as_ref()
+        .clone();
 
     let mut config = config;
     let bad = std::path::Path::new(&config.services_path).join("bad.yaml");
@@ -103,7 +114,7 @@ fn quiet_mode_validate_reports_the_same_extension_failures() {
     config.web_config_path.clone_from(&bad);
     config.web_metadata_path.clone_from(&bad);
 
-    let mut validator = StartupValidator::new();
+    let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
     let report = validator.validate(&config);
 
     assert!(

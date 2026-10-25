@@ -190,8 +190,7 @@ mod agent_failure {
 
     use systemprompt_api::services::server::{bind_and_serve, run_server};
     use systemprompt_test_fixtures::{
-        TestBootstrap, fixture_app_context_with_config, fixture_config, init_isolated_bootstrap,
-        test_db_pool,
+        TestBootstrap, fixture_config, init_isolated_bootstrap, test_db_pool,
     };
 
     const AGENT: &str = "unstartable_fixture_agent";
@@ -232,7 +231,12 @@ settings:
         let pool = test_db_pool().await;
         let mut config = fixture_config(&b.database_url);
         config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
-        let ctx = fixture_app_context_with_config(&pool, config)?;
+        let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
+            b,
+            &pool,
+            config,
+            std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
+        )?;
 
         let early = bind_and_serve(
             "127.0.0.1:0",
@@ -271,7 +275,7 @@ settings:
     {
         let b = boot();
         let pool = test_db_pool().await;
-        let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
+        let ctx = systemprompt_test_fixtures::test_app_context_on(b, &pool);
 
         let (tx, mut rx) = futures::channel::mpsc::unbounded();
         let early = bind_and_serve(
@@ -332,10 +336,7 @@ mod mcp_failure {
     use std::time::Duration;
 
     use systemprompt_api::services::server::{bind_and_serve, run_server};
-    use systemprompt_test_fixtures::{
-        TestBootstrap, fixture_app_context_with_config, fixture_config, init_isolated_bootstrap,
-        test_db_pool,
-    };
+    use systemprompt_test_fixtures::{TestBootstrap, init_isolated_bootstrap, test_db_pool};
 
     const MCP_NAME: &str = "fixture_unstartable_mcp";
 
@@ -372,7 +373,7 @@ settings:
     async fn run_server_fails_when_a_required_mcp_server_cannot_start() -> anyhow::Result<()> {
         let b = boot();
         let pool = test_db_pool().await;
-        let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
+        let ctx = systemprompt_test_fixtures::test_app_context_on(b, &pool);
 
         let early = bind_and_serve(
             "127.0.0.1:0",
@@ -405,7 +406,7 @@ settings:
     async fn the_mcp_failure_is_announced_as_fatal_on_the_startup_channel() -> anyhow::Result<()> {
         let b = boot();
         let pool = test_db_pool().await;
-        let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
+        let ctx = systemprompt_test_fixtures::test_app_context_on(b, &pool);
 
         let (tx, mut rx) = futures::channel::mpsc::unbounded();
         let early = bind_and_serve(

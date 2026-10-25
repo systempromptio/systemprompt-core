@@ -14,17 +14,13 @@ use systemprompt_oauth::services::{
 };
 
 fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
-    systemprompt_oauth::OAuthRepository::new(db)
+    systemprompt_test_fixtures::oauth_fixture_repository(db)
 }
 
 fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::UserService {
     systemprompt_users::UserService::new(std::sync::Arc::new(
         systemprompt_users::UserRepository::new(db),
     ))
-}
-
-fn ensure_runtime() {
-    let _ = Config::install(test_config());
 }
 
 fn test_config() -> Config {
@@ -87,7 +83,7 @@ fn test_config() -> Config {
 
 #[tokio::test]
 async fn exchange_code_issued_and_consumed_once() {
-    ensure_runtime();
+    let config = test_config();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
 
@@ -109,6 +105,7 @@ async fn exchange_code_issued_and_consumed_once() {
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),
+            config: &config,
             request_headers: &headers,
             caller_ip: None,
             code: &issued.code,
@@ -128,6 +125,7 @@ async fn exchange_code_issued_and_consumed_once() {
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),
+            config: &config,
             request_headers: &headers,
             caller_ip: None,
             code: &issued.code,
@@ -140,7 +138,7 @@ async fn exchange_code_issued_and_consumed_once() {
 
 #[tokio::test]
 async fn exchange_unknown_code_returns_none() {
-    ensure_runtime();
+    let config = test_config();
     let db = setup_test_db().await;
     let analytics = systemprompt_analytics::AnalyticsService::new(
         None,
@@ -155,6 +153,7 @@ async fn exchange_unknown_code_returns_none() {
         &user_provider(&db),
         BridgeExchangeRequest {
             keys: &systemprompt_test_fixtures::test_signing_keys(),
+            config: &config,
             request_headers: &headers,
             caller_ip: None,
             code: "deadbeef",
@@ -167,7 +166,6 @@ async fn exchange_unknown_code_returns_none() {
 
 #[tokio::test]
 async fn provision_oauth_client_is_idempotent() {
-    ensure_runtime();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
 

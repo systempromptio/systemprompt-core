@@ -8,15 +8,37 @@ use axum::http::{Request, Response};
 use http_body_util::BodyExt;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
+use systemprompt_test_fixtures::{
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_app_context,
+    test_db_pool,
+};
 
 pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
     Ok((pool, ctx))
+}
+
+pub async fn setup_ctx_customised(
+    customize: impl FnOnce(&mut Config),
+) -> Result<(DbPool, Arc<AppContext>)> {
+    let b = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let mut config = fixture_config(&b.database_url);
+    customize(&mut config);
+    let ctx = fixture_app_context_with_config(&pool, config)?;
+    Ok((pool, ctx))
+}
+
+pub fn with_config<S: Clone + Send + Sync + 'static>(
+    router: axum::Router<S>,
+    ctx: &AppContext,
+) -> axum::Router<S> {
+    router.layer(axum::Extension(Arc::clone(ctx.config_arc())))
 }
 
 pub fn request_context(user: &str) -> RequestContext {

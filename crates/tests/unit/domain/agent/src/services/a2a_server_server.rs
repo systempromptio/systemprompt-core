@@ -98,7 +98,7 @@ async fn state() -> Arc<AgentState> {
         },
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        b.services.clone(),
     );
     Arc::new(state)
 }

@@ -9,6 +9,12 @@ use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
 
+fn loaded() -> &'static systemprompt_config::LoadedProfile {
+    systemprompt_test_fixtures::ensure_test_bootstrap()
+        .boot
+        .loaded_profile()
+}
+
 fn services_root() -> std::path::PathBuf {
     systemprompt_test_fixtures::ensure_test_bootstrap()
         .services_path
@@ -38,7 +44,7 @@ fn each_section_resolves_a_file_under_the_profile() {
     let root = services_root();
 
     for section in ConfigSection::all() {
-        let path = section.file_path().unwrap();
+        let path = section.file_path(loaded());
         if matches!(section, ConfigSection::Profile) {
             assert!(path.ends_with("profile.yaml"), "{}", path.display());
         } else {
@@ -55,7 +61,7 @@ fn section_file_listings_walk_the_services_tree_recursively() {
     std::fs::write(nested.join("config.yaml"), "id: covnested\n").unwrap();
     std::fs::write(nested.join("notes.txt"), "ignored").unwrap();
 
-    let skills = ConfigSection::Skills.all_files().unwrap();
+    let skills = ConfigSection::Skills.all_files(loaded()).unwrap();
     assert!(
         skills.iter().any(|p| p.ends_with("covnested/config.yaml")),
         "{skills:?}"
@@ -67,7 +73,7 @@ fn section_file_listings_walk_the_services_tree_recursively() {
         "{skills:?}"
     );
 
-    let profile_files = ConfigSection::Profile.all_files().unwrap();
+    let profile_files = ConfigSection::Profile.all_files(loaded()).unwrap();
     assert_eq!(profile_files.len(), 1);
 }
 
@@ -79,7 +85,12 @@ fn a_section_whose_directory_is_absent_lists_nothing() {
         std::fs::remove_dir_all(&scheduler).unwrap();
     }
 
-    assert!(ConfigSection::Scheduler.all_files().unwrap().is_empty());
+    assert!(
+        ConfigSection::Scheduler
+            .all_files(loaded())
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]
@@ -120,11 +131,11 @@ fn reading_reports_missing_files_and_parse_errors_with_the_path() {
 fn providers_and_gateway_sections_resolve_the_ai_services_files() {
     let root = services_root();
     assert_eq!(
-        ConfigSection::Providers.file_path().unwrap(),
+        ConfigSection::Providers.file_path(loaded()),
         root.join("ai/providers.yaml")
     );
     assert_eq!(
-        ConfigSection::Gateway.file_path().unwrap(),
+        ConfigSection::Gateway.file_path(loaded()),
         root.join("ai/gateway.yaml")
     );
 }
@@ -138,7 +149,7 @@ fn ai_listing_excludes_the_catalog_and_gateway_files() {
     std::fs::write(root.join("ai/models.yaml"), "models: {}\n").unwrap();
     std::fs::write(root.join("ai/gateway.yaml"), "gateway:\n  enabled: false\n").unwrap();
 
-    let ai = ConfigSection::Ai.all_files().unwrap();
+    let ai = ConfigSection::Ai.all_files(loaded()).unwrap();
     assert!(ai.iter().any(|p| p.ends_with("ai/config.yaml")));
     for catalog in ["providers.yaml", "models.yaml", "gateway.yaml"] {
         assert!(
@@ -150,7 +161,10 @@ fn ai_listing_excludes_the_catalog_and_gateway_files() {
         .iter()
         .map(|name| root.join(format!("ai/{name}.yaml")))
         .collect();
-    assert_eq!(ConfigSection::Providers.all_files().unwrap(), catalog);
+    assert_eq!(
+        ConfigSection::Providers.all_files(loaded()).unwrap(),
+        catalog
+    );
 }
 
 // Why: `admin config validate` walks every section; a section whose

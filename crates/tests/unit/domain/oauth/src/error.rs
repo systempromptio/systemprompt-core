@@ -218,9 +218,9 @@ fn config_error_converts_into_config_variant() {
 
 #[test]
 fn secrets_bootstrap_error_converts_into_secrets_variant() {
-    let err: OauthError = systemprompt_config::SecretsBootstrapError::NotInitialized.into();
+    let err: OauthError = systemprompt_config::SecretsBootstrapError::NoSecretsConfigured.into();
     assert!(matches!(err, OauthError::Secrets(_)));
-    assert!(err.to_string().contains("Secrets not initialized"));
+    assert!(err.to_string().contains("No secrets configured"));
 }
 
 #[test]

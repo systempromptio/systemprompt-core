@@ -20,7 +20,6 @@ use systemprompt_database::{
     CreateServiceInput, DbPool, ServiceModule, ServiceRepository, ServiceStatus,
 };
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
-use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::DrainOutcome;
@@ -160,26 +159,20 @@ async fn harness_with_database(
     } else {
         systemprompt_test_fixtures::test_db_pool().await
     };
-    let paths = PathsConfig {
-        system: b.system_path.to_string_lossy().into_owned(),
-        services: b.services_path.to_string_lossy().into_owned(),
-        bin: b.bin_path.to_string_lossy().into_owned(),
-        web_path: None,
-        storage: Some(b.storage_path.to_string_lossy().into_owned()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let ctx = systemprompt_test_fixtures::fixture_app_context_with(
+    let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap(
+        &b,
         &pool,
-        database_url,
-        paths,
+        {
+            let mut config = b.boot_config().as_ref().clone();
+            config.database_url = database_url.to_owned();
+            config
+        },
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
     if let Some(governance) = governance_yaml {
         systemprompt_test_fixtures::apply_governance(&ctx, governance).await?;
     }
-    let app = systemprompt_api::routes::proxy::mcp::router(&ctx);
+    let app = super::common::with_config(systemprompt_api::routes::proxy::mcp::router(&ctx), &ctx);
     Ok(Harness {
         app,
         pool,

@@ -107,9 +107,13 @@ async fn generate_sitemap_skips_disabled_sources_and_disabled_sitemaps() {
     seed(&db, &SourceId::new(nos.as_str()), "nositemap-post", "en").await;
 
     install_config(boot, tag);
-    generate_sitemap(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("generate_sitemap");
+    generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("generate_sitemap");
 
     let xml = fs::read_to_string(boot.app_paths.web().dist().join("sitemap.xml"))
         .expect("read sitemap.xml");
@@ -141,9 +145,13 @@ async fn generate_sitemap_excludes_unsupported_locales_from_alternates() {
     seed(&db, &SourceId::new(tag), "multi-locale-post", "de").await;
 
     install_config(boot, tag);
-    generate_sitemap(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("generate_sitemap");
+    generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("generate_sitemap");
 
     let xml = fs::read_to_string(boot.app_paths.web().dist().join("sitemap.xml"))
         .expect("read sitemap.xml");
@@ -170,9 +178,13 @@ async fn generate_sitemap_with_closed_pool_is_fetch_error() {
 
     install_config(boot, "smapextraclosed");
     let closed = closed_db_pool().await;
-    let err = generate_sitemap(content_repo(&closed), &boot.app_paths)
-        .await
-        .expect_err("closed pool must fail sitemap fetch");
+    let err = generate_sitemap(
+        content_repo(&closed),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect_err("closed pool must fail sitemap fetch");
     assert!(
         matches!(err, PublishError::FetchFailed { .. }),
         "unexpected error: {err:?}"

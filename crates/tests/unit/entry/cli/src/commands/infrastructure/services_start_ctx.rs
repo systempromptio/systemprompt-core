@@ -49,7 +49,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    CommandContext::with_app_context(cli, EnvOverrides::default(), Arc::clone(app))
+    crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), Arc::clone(app))
 }
 
 async fn applied_migration_count(pool: &DbPool) -> i64 {
@@ -241,9 +241,10 @@ fn service_flags_translate_into_a_target_set() {
 
 #[test]
 fn the_service_manifest_loads_from_the_bootstrap_profile() {
-    ensure_test_bootstrap();
+    let boot = ensure_test_bootstrap();
 
-    let configs = load_service_configs().expect("the bootstrap profile has a readable manifest");
+    let configs =
+        load_service_configs(&boot.boot).expect("the bootstrap profile has a readable manifest");
     assert!(
         configs.iter().all(|c| !c.name.as_str().is_empty()),
         "every manifest entry must carry a service name"

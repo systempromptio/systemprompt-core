@@ -38,7 +38,8 @@ ai:
 "#,
     );
 
-    let config = ConfigLoader::load_from_content(ROOT_HEAD, &config_path).expect("should load");
+    let config =
+        ConfigLoader::load_from_content(ROOT_HEAD, &config_path, None).expect("should load");
 
     assert_eq!(config.ai.default_max_output_tokens, Some(1234));
 }
@@ -53,7 +54,7 @@ fn a_legacy_ai_block_in_an_include_is_refused_with_the_migrate_hint() {
         "agents: {}\nmcp_servers: {}\nai:\n  default_provider: anthropic\n",
     );
 
-    let err = ConfigLoader::load_from_content(ROOT_HEAD, &config_path).expect_err("legacy");
+    let err = ConfigLoader::load_from_content(ROOT_HEAD, &config_path, None).expect_err("legacy");
     assert!(err.to_string().contains("config migrate"), "{err}");
 }
 
@@ -76,7 +77,7 @@ scheduler:
     );
 
     let root = ROOT_HEAD.to_owned();
-    let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
+    let config = ConfigLoader::load_from_content(&root, &config_path, None).expect("should load");
 
     let scheduler = config.scheduler.expect("scheduler taken from include");
     assert!(
@@ -105,7 +106,7 @@ external_agents:
     );
 
     let root = ROOT_HEAD.to_owned();
-    let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
+    let config = ConfigLoader::load_from_content(&root, &config_path, None).expect("should load");
 
     let found = config
         .external_agents
@@ -136,7 +137,7 @@ external_agents:
     let root = format!(
         "{ROOT_HEAD}\nexternal_agents:\n  codex_cli:\n    id: codex_cli\n    display_name: Codex CLI (root)\n    kind: cli_tool\n    enabled: true\n"
     );
-    let err = ConfigLoader::load_from_content(&root, &config_path)
+    let err = ConfigLoader::load_from_content(&root, &config_path, None)
         .expect_err("duplicate external agent must error");
     let msg = format!("{err:#}");
     assert!(
@@ -183,7 +184,7 @@ fn duplicate_plugin_in_include_errors() {
     );
 
     let root = format!("{ROOT_HEAD}\nplugins:{}", plugin_block("Root Plugin"));
-    let err = ConfigLoader::load_from_content(&root, &config_path)
+    let err = ConfigLoader::load_from_content(&root, &config_path, None)
         .expect_err("duplicate plugin must error");
     let msg = format!("{err:#}");
     assert!(
@@ -220,7 +221,7 @@ skills:
 
     let root =
         format!("{ROOT_HEAD}\nskills:\n  enabled: true\n  auto_discover: false\n  skills: {{}}\n");
-    let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
+    let config = ConfigLoader::load_from_content(&root, &config_path, None).expect("should load");
 
     assert!(
         config.skills.auto_discover,
@@ -269,7 +270,7 @@ fn duplicate_skill_across_root_and_include_errors() {
         "{ROOT_HEAD}\nskills:\n  enabled: true\n  auto_discover: false\n  skills:{}",
         skill_block("from root")
     );
-    let err = ConfigLoader::load_from_content(&root, &config_path)
+    let err = ConfigLoader::load_from_content(&root, &config_path, None)
         .expect_err("duplicate skill must error");
     let msg = format!("{err:#}");
     assert!(
@@ -304,7 +305,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(root, &config_path)
+    let err = ConfigLoader::load_from_content(root, &config_path, None)
         .expect_err("include cycle must be rejected");
     let msg = format!("{err:#}");
     assert!(
@@ -344,7 +345,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let config = ConfigLoader::load_from_content(root, &config_path).expect("should load");
+    let config = ConfigLoader::load_from_content(root, &config_path, None).expect("should load");
     assert_eq!(
         config.ai.default_max_output_tokens,
         Some(77),

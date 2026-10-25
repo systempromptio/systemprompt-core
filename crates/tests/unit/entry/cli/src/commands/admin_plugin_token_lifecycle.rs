@@ -8,7 +8,6 @@ use clap::Parser;
 use systemprompt_cli::admin::keys::{self, KeysCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::Config;
 use systemprompt_security::HookTokenValidator;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row_with_roles,
@@ -39,7 +38,7 @@ async fn plugin_token_helper() {
         std::env::set_var("DATABASE_URL", database.url());
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
-    ensure_test_bootstrap();
+    let boot = ensure_test_bootstrap();
     let pool = database.test_pool().await;
     let admin = UserId::new(uuid::Uuid::new_v4().to_string());
     let member = UserId::new(uuid::Uuid::new_v4().to_string());
@@ -56,7 +55,8 @@ async fn plugin_token_helper() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-    );
+    )
+    .with_boot(Some(boot.boot.clone()));
 
     println!("BEGIN_PLUGIN_TOKEN");
     keys::execute(
@@ -155,7 +155,9 @@ fn plugin_token_requires_admin_and_persists_its_backing_session() {
         .expect("decode JWT claims");
     let claims: serde_json::Value = serde_json::from_slice(&claims).expect("JWT claims JSON");
     let validator = HookTokenValidator::new(
-        Config::get()
+        ensure_test_bootstrap()
+            .boot
+            .config()
             .expect("fixture configuration")
             .jwt_issuer
             .clone(),

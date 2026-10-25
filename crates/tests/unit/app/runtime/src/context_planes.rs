@@ -67,6 +67,7 @@ async fn plane_debug_impls_flag_optional_members() {
         )),
         oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
             &pool,
+            Arc::from("pepper"),
         )),
         user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
         service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
@@ -77,7 +78,13 @@ async fn plane_debug_impls_flag_optional_members() {
             &pool,
             test_instance.clone(),
         )),
-        ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
+        ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(
+            &pool,
+            systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+        )),
         analytics_repositories: Arc::new(
             systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
                 .expect("analytics repositories"),
@@ -114,6 +121,9 @@ async fn plane_debug_impls_flag_optional_members() {
         app_paths,
         content_config: Some(content_config()),
         route_classifier: Arc::new(RouteClassifier::new(None)),
+        boot: systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .clone(),
     };
     let dbg = format!("{cfg:?}");
     assert!(dbg.contains("ConfigPlane"), "got: {dbg}");
@@ -124,6 +134,7 @@ async fn plane_debug_impls_flag_optional_members() {
         mcp_registry: RegistryService::new(
             systemprompt_test_fixtures::fixture_user_id(),
             systemprompt_test_fixtures::fixture_services_view(),
+            systemprompt_test_fixtures::test_config(),
         ),
         marketplace_filter: Arc::new(AllowAllFilter),
         marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),

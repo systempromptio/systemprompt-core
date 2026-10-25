@@ -1,8 +1,7 @@
-//! Smoke tests for generator public entry points that only need config
-//! singletons (not a full WebConfig fixture). These hit the sitemap
-//! provider's async constructor and `generate_feed_with_providers`'
-//! `Config::get()` path. Tests that need a full `web/config.yaml` are
-//! left to integration suites.
+//! Smoke tests for generator public entry points that only need the boot
+//! config (not a full WebConfig fixture). These hit the sitemap provider's
+//! async constructor and `generate_feed_with_providers`. Tests that need a full
+//! `web/config.yaml` are left to integration suites.
 
 use systemprompt_generator::{DefaultSitemapProvider, generate_feed_with_providers};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
@@ -10,7 +9,7 @@ use systemprompt_test_fixtures::ensure_test_bootstrap;
 #[tokio::test]
 async fn generate_feed_with_providers_empty_slice_errors() {
     let _ = ensure_test_bootstrap();
-    let r = generate_feed_with_providers(&[]).await;
+    let r = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &[]).await;
     assert!(r.is_err(), "expected error when no providers registered");
 }
 

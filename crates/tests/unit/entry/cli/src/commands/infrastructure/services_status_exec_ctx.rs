@@ -41,7 +41,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    CommandContext::with_app_context(cli, EnvOverrides::default(), Arc::clone(app))
+    crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), Arc::clone(app))
 }
 
 async fn run(args: &[&str], json: bool) -> anyhow::Result<()> {

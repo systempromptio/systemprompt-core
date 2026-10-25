@@ -128,9 +128,9 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
         shipped_files: None,
         data: None,
     };
-    let ctx = systemprompt_test_fixtures::fixture_app_context_with(
+    let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap_with_paths(
+        b,
         &pool,
-        &b.database_url,
         paths,
         std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;

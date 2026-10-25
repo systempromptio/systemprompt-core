@@ -15,7 +15,7 @@ struct Ctx {
 async fn setup() -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     let user_id = unique_user_id("wa");
     seed_user_row(&pool, &user_id, &format!("{}@wa.invalid", user_id.as_str()))
         .await

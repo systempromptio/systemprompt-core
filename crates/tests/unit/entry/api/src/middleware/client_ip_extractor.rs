@@ -1,6 +1,6 @@
 //! The `ClientIp` axum extractor.
 //!
-//! `resolve_client_ip_from_config` is tested directly, but the extractor that
+//! `client_ip_from_request` is tested directly, but the extractor that
 //! wraps it — the only way a handler ever obtains the caller's address — is
 //! never driven. Handlers use the value for rate limiting, IP bans and session
 //! attribution, so an extractor that silently yields `None`, or that trusts a
@@ -21,7 +21,9 @@ async fn echo_ip(ClientIp(ip): ClientIp) -> String {
 }
 
 async fn resolved(peer: Option<SocketAddr>, headers: &[(&str, &str)]) -> String {
-    let app = Router::new().route("/", get(echo_ip));
+    let app = Router::new()
+        .route("/", get(echo_ip))
+        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
     let mut builder = Request::builder().uri("/");
     for (name, value) in headers {
         builder = builder.header(*name, *value);

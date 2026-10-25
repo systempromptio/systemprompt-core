@@ -5,13 +5,11 @@
 use axum::Router;
 use axum::routing::get;
 use systemprompt_api::routes::oauth;
-use systemprompt_test_fixtures::ensure_config;
 use tower::ServiceExt;
 
 use super::common::{body_to_string, empty_get, setup_ctx};
 
 async fn discovery_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     Ok(Router::new()
         .route(
@@ -26,7 +24,8 @@ async fn discovery_app() -> anyhow::Result<Router> {
             "/.well-known/oauth-protected-resource/{*path}",
             get(oauth::discovery::handle_oauth_protected_resource_with_path),
         )
-        .with_state((*ctx).clone()))
+        .with_state((*ctx).clone())
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 #[tokio::test]

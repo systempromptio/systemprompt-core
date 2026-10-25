@@ -17,6 +17,8 @@
 #[cfg(test)]
 mod agents_shared_prompt;
 #[cfg(test)]
+mod boot_ctx;
+#[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
 mod cloud_deploy_progress;

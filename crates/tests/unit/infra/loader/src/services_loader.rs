@@ -23,7 +23,7 @@ fn test_load_from_path_minimal_config() {
 
     std::fs::write(&config_path, create_minimal_config()).expect("Failed to write config");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("Should load config");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("Should load config");
     assert!(config.agents.is_empty());
     assert!(config.mcp_servers.is_empty());
 }
@@ -31,7 +31,7 @@ fn test_load_from_path_minimal_config() {
 #[test]
 fn test_load_from_path_nonexistent() {
     let path = PathBuf::from("/nonexistent/services.yaml");
-    let result = ConfigLoader::load_from_path(&path);
+    let result = ConfigLoader::load_from_path(&path, None);
     let err = result.unwrap_err().to_string();
     assert!(err.contains("io error"));
 }
@@ -43,7 +43,7 @@ fn test_load_from_path_invalid_yaml() {
 
     std::fs::write(&config_path, "invalid: yaml: : :").expect("Failed to write config");
 
-    ConfigLoader::load_from_path(&config_path).unwrap_err();
+    ConfigLoader::load_from_path(&config_path, None).unwrap_err();
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn test_load_from_content_minimal() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("services.yaml");
 
-    ConfigLoader::load_from_content(&create_minimal_config(), &config_path)
+    ConfigLoader::load_from_content(&create_minimal_config(), &config_path, None)
         .expect("result should succeed");
 }
 
@@ -77,7 +77,8 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    ConfigLoader::load_from_content(main_content, &config_path).expect("result should succeed");
+    ConfigLoader::load_from_content(main_content, &config_path, None)
+        .expect("result should succeed");
 }
 
 #[test]
@@ -87,7 +88,7 @@ fn test_validate_file_valid() {
 
     std::fs::write(&config_path, create_minimal_config()).expect("Failed to write config");
 
-    ConfigLoader::validate_file(&config_path).expect("result should succeed");
+    ConfigLoader::validate_file(&config_path, None).expect("result should succeed");
 }
 
 #[test]
@@ -203,7 +204,8 @@ settings:
 
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("Should load merged config");
+    let config =
+        ConfigLoader::load_from_path(&config_path, None).expect("Should load merged config");
     assert!(config.agents.is_empty());
     assert!(config.mcp_servers.is_empty());
 }
@@ -239,7 +241,7 @@ settings:
 "#;
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
-    ConfigLoader::load_from_path(&config_path)
+    ConfigLoader::load_from_path(&config_path, None)
         .expect("Three-level nested includes should load successfully");
 }
 
@@ -274,7 +276,7 @@ settings:
 "#;
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
-    let err = ConfigLoader::load_from_path(&config_path).expect_err("cycle should error");
+    let err = ConfigLoader::load_from_path(&config_path, None).expect_err("cycle should error");
     let msg = format!("{err:#}");
     assert!(
         msg.contains("cycle detected"),
@@ -601,7 +603,8 @@ fn test_load_full_fixture_round_trip() {
     let yaml = full_services_fixture();
     std::fs::write(&config_path, &yaml).expect("Failed to write config");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("full fixture should load");
+    let config =
+        ConfigLoader::load_from_path(&config_path, None).expect("full fixture should load");
 
     assert_eq!(config.agents.len(), 1);
     assert!(config.agents.contains_key("alpha_agent"));
@@ -653,7 +656,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(content, &config_path)
+    let err = ConfigLoader::load_from_content(content, &config_path, None)
         .expect_err("unknown top-level field should fail through loader path");
     let msg = format!("{err:#}");
     assert!(
@@ -685,7 +688,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(main_content, &config_path)
+    let err = ConfigLoader::load_from_content(main_content, &config_path, None)
         .expect_err("unknown field in include should fail through loader path");
     let msg = format!("{err:#}");
     assert!(
@@ -745,7 +748,7 @@ plugins:
 "#;
     std::fs::write(&config_path, content).expect("Failed to write config");
 
-    let err = ConfigLoader::load_from_path(&config_path)
+    let err = ConfigLoader::load_from_path(&config_path, None)
         .expect_err("unknown agent reference should fail validation");
     let msg = format!("{err:#}");
     assert!(
@@ -780,7 +783,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
     std::fs::write(&config_path, content).expect("Failed to write config");
-    let err = ConfigLoader::load_from_path(&config_path)
+    let err = ConfigLoader::load_from_path(&config_path, None)
         .expect_err("absolute internal endpoint should be rejected");
     let msg = format!("{err:#}");
     assert!(

@@ -20,7 +20,7 @@ fn provider(agents: Vec<AgentConfig>) -> AgentRegistryProviderService {
             .collect::<HashMap<_, _>>(),
         ..Default::default()
     };
-    AgentRegistryProviderService::from_registry(AgentRegistry::from_config(config))
+    AgentRegistryProviderService::from_registry(AgentRegistry::from_config(config), false)
 }
 
 #[tokio::test]

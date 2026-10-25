@@ -4,7 +4,7 @@ use std::process::Command;
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_test_fixtures::{bounded_output, init_services_bootstrap};
 
 const AGENT: &str = "covemptytools";
@@ -67,8 +67,9 @@ fn services_yaml() -> String {
 #[tokio::test]
 #[ignore = "re-executed by agent_with_no_mcp_servers_returns_an_exact_empty_inventory"]
 async fn empty_agent_tools_helper() {
-    let _boot = init_services_bootstrap(&services_yaml());
-    let context = CommandContext::new(
+    let boot = init_services_bootstrap(&services_yaml());
+    let context = crate::boot_ctx::new_on(
+        &boot,
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

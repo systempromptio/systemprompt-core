@@ -28,7 +28,7 @@ fn parse(args: &[&str]) -> LogsCommands {
 
 fn app_ctx(pool: &DbPool) -> CommandContext {
     let url = test_database_url();
-    CommandContext::with_app_context(
+    crate::boot_ctx::with_app_boot(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
         test_app_context(pool, &url),
@@ -131,7 +131,7 @@ async fn stream_clear_and_empty_filter_terminate() {
 #[tokio::test]
 async fn stream_rejects_json_output() {
     let pool = test_db_pool().await;
-    let ctx = CommandContext::with_app_context(
+    let ctx = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(systemprompt_cli::OutputFormat::Json),

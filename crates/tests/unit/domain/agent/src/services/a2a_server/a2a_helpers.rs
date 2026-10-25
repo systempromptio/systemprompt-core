@@ -324,11 +324,11 @@ pub(crate) fn skill_service(pool: &DbPool) -> systemprompt_agent::services::Skil
     let steps =
         Arc::new(systemprompt_agent::repository::execution::ExecutionStepRepository::new(pool));
     systemprompt_agent::services::SkillService::new(
+        systemprompt_test_fixtures::test_skills_root(),
         systemprompt_test_fixtures::not_managed_skills(),
         steps,
         systemprompt_test_mocks::recording_webhooks(),
     )
-    .expect("skill service")
 }
 
 pub(crate) fn make_agent_state(pool: &DbPool) -> Arc<AgentState> {

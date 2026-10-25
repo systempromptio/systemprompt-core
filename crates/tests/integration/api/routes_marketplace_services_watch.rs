@@ -13,7 +13,6 @@ use std::time::Duration;
 use async_trait::async_trait;
 use axum::Router;
 use systemprompt_api::routes::marketplace;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_runtime::AppContext;
@@ -79,7 +78,8 @@ async fn a_tree_change_is_not_served_until_the_watch_reloads() -> anyhow::Result
     let ctx = context().await?;
     write_late_marketplace()?;
     assert!(
-        ConfigLoader::load()?
+        ctx.boot()
+            .load_services_config()?
             .marketplaces
             .keys()
             .any(|id| id.as_str() == "late"),
@@ -106,9 +106,11 @@ async fn advancing_the_services_epoch_serves_the_new_tree() -> anyhow::Result<()
         version: Arc::new(FixedVersion),
         poll: Duration::from_secs(3600),
     };
+    let boot = ctx.boot().clone();
     ctx.services_watch()
-        .spawn(ctx.background_tasks(), signals, || async {
-            ConfigLoader::load()
+        .spawn(ctx.background_tasks(), signals, move || {
+            let boot = boot.clone();
+            async move { boot.load_services_config() }
         });
     for _ in 0..200 {
         if ctx.services_watch().reloads() > 0 {

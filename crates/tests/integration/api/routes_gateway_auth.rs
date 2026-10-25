@@ -204,7 +204,7 @@ async fn seed_exchange_code(
     systemprompt_test_fixtures::seed_user_row(pool, &user, &format!("ex-{uniq}@example.invalid"))
         .await?;
     let code = format!("code-{uniq}");
-    let repo = systemprompt_oauth::OAuthRepository::new(ctx.db_pool());
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(ctx.db_pool());
     repo.create_bridge_exchange_code(systemprompt_oauth::repository::CreateExchangeCodeParams {
         code_hash: &systemprompt_oauth::services::hash_exchange_code(&code),
         user_id: &user,

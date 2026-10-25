@@ -5,11 +5,12 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_test_fixtures::{
-    DisposableDb, bounded_output, fixture_app_context_with, init_services_bootstrap,
+    DisposableDb, bounded_output, fixture_app_context_on_bootstrap_with_paths,
+    init_services_bootstrap,
 };
 
 const SERVER: &str = "cov_internal_status";
@@ -66,9 +67,10 @@ async fn internal_status_helper() {
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(&pool, database.url(), paths, Arc::new(AllowAllFilter))
-        .expect("fixture app context with owned build paths");
-    let context = CommandContext::with_app_context(
+    let app =
+        fixture_app_context_on_bootstrap_with_paths(&boot, &pool, paths, Arc::new(AllowAllFilter))
+            .expect("fixture app context with owned build paths");
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

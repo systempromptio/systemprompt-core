@@ -10,7 +10,6 @@ use std::path::PathBuf;
 
 use chrono::Utc;
 use systemprompt_catalog_fixtures::vertex_regions;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
@@ -78,9 +77,7 @@ fn bootstrap() -> &'static TestBootstrap {
 fn fixture(with_source: bool) -> Fixture {
     bootstrap();
     let tmp = TempDir::new().expect("tempdir");
-    let mut profile = ProfileBootstrap::get()
-        .expect("bootstrapped profile")
-        .clone();
+    let mut profile = bootstrap().boot.profile().clone();
     profile.services.cache_dir = Some(tmp.path().to_string_lossy().into_owned());
     profile.services.sources = if with_source {
         vec![ServicesSource {

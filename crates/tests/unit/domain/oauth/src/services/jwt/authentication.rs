@@ -14,6 +14,7 @@ fn authenticate_returns_unauthorized_when_headers_empty() {
 
     let err = AuthenticationService::authenticate(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
     )
     .expect_err("empty headers must reject");
@@ -31,6 +32,7 @@ fn authenticate_returns_unauthorized_for_basic_auth_header() {
 
     let err = AuthenticationService::authenticate(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
     )
     .expect_err("basic auth must be rejected by the bearer extractor");
@@ -45,6 +47,7 @@ fn authenticate_returns_unauthorized_for_empty_bearer_value() {
 
     let err = AuthenticationService::authenticate(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
     )
     .expect_err("empty bearer must be rejected");
@@ -62,6 +65,7 @@ fn authenticate_returns_unauthorized_for_cookie_without_access_token() {
 
     let err = AuthenticationService::authenticate(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
     )
     .expect_err("cookie without access_token must reject");

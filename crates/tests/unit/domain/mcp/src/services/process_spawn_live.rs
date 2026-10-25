@@ -49,8 +49,14 @@ fn spawn_server_launches_detached_stub() {
     let config = internal_mcp_config(&name, 59321);
     let paths = app_paths(bootstrap);
 
-    let pid = spawn_server(&systemprompt_test_fixtures::test_spawner(), &paths, &config)
-        .expect("stub spawns");
+    let pid = spawn_server(
+        &systemprompt_test_fixtures::test_spawner(),
+        &crate::harness::config(),
+        &systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        &paths,
+        &config,
+    )
+    .expect("stub spawns");
     assert!(pid > 0);
 
     let log_path = paths.system().logs().join(format!("mcp-{name}.log"));
@@ -63,6 +69,8 @@ fn spawn_server_missing_binary_errors() {
     let config = internal_mcp_config("spawn-missing", 59322);
     let err = spawn_server(
         &systemprompt_test_fixtures::test_spawner(),
+        &crate::harness::config(),
+        &systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
         &app_paths(bootstrap),
         &config,
     )
@@ -146,6 +154,8 @@ async fn spawn_server_permission_failure_creates_no_process_and_retains_its_diag
 
     let error = spawn_server(
         &systemprompt_test_fixtures::test_spawner(),
+        &crate::harness::config(),
+        &systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
         &app_paths(bootstrap),
         &config,
     )

@@ -14,6 +14,7 @@ async fn adopted(f: &Fixture) -> (ManagedResourceId, ResourceRevisionId) {
                 actor: &f.owner,
                 root: f.root.path(),
                 services: &ServicesConfig::default(),
+                sources: sources(),
             },
             &mut PublishGuard::default(),
         )

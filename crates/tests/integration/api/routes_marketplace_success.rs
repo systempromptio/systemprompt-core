@@ -14,7 +14,9 @@ use axum::Router;
 use systemprompt_api::routes::marketplace;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
+use systemprompt_test_fixtures::{
+    ensure_test_bootstrap, fixture_app_context_on_bootstrap_with_paths, test_db_pool,
+};
 use tower::ServiceExt;
 
 use super::common::{body_to_string, empty_get};
@@ -50,7 +52,8 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
         data: None,
     };
     let pool = test_db_pool().await;
-    let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
+    let ctx =
+        fixture_app_context_on_bootstrap_with_paths(b, &pool, paths, Arc::new(AllowAllFilter))?;
     Ok(marketplace::router().with_state((*ctx).clone()))
 }
 

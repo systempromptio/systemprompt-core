@@ -37,7 +37,8 @@ fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
         db,
         GatewayJournal::open(
             state_dir,
-            systemprompt_config::SecretsBootstrap::encryption_master_key()
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+                .encryption_master_key()
                 .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
@@ -48,8 +49,14 @@ fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
+            catalog: std::sync::Arc::clone(
+                systemprompt_test_fixtures::fixture_services_view().catalog(),
+            ),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher from the fixture secrets"),
+            unapplied_plane: systemprompt_manifest::profile::UnappliedPlaneMode::default(),
         },
     )
 }

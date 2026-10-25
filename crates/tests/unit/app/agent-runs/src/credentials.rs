@@ -65,10 +65,14 @@ async fn issue_then_revoke_round_trips_every_credential() {
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let creds = service
@@ -137,7 +141,7 @@ async fn issue_then_revoke_round_trips_every_credential() {
             .expect("lookup")
             .is_none()
     );
-    let revoked = systemprompt_oauth::OAuthRepository::new(&pool)
+    let revoked = systemprompt_test_fixtures::oauth_fixture_repository(&pool)
         .is_jti_revoked(creds.hook_token_jti.as_ref().expect("jti"))
         .await
         .expect("jti lookup");
@@ -153,10 +157,14 @@ async fn issue_without_plugin_mints_no_hook_token() {
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
     let creds = service.issue(request(&user, None)).await.expect("issue");
     assert!(creds.hook_token.is_none());
@@ -172,10 +180,14 @@ async fn issue_for_unknown_user_leaves_no_live_key() {
     let pool = database.test_pool().await;
     let ghost = UserId::new(uuid::Uuid::new_v4().to_string());
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
     assert!(service.issue(request(&ghost, None)).await.is_err());
     let live: i64 = sqlx::query_scalar(

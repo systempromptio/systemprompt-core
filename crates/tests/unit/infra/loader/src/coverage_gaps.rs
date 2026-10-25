@@ -51,8 +51,8 @@ fn unreadable_skill_config_surfaces_io_error() {
         return;
     }
 
-    let err =
-        ConfigLoader::load_from_path(&config_path).expect_err("unreadable skill config must error");
+    let err = ConfigLoader::load_from_path(&config_path, None)
+        .expect_err("unreadable skill config must error");
     chmod(&skill_config, 0o644);
     assert!(format!("{err:#}").contains("broken-skill"), "got {err:#}");
 }
@@ -74,8 +74,8 @@ fn unreadable_skills_catalog_dir_surfaces_io_error() {
         return;
     }
 
-    let err =
-        ConfigLoader::load_from_path(&config_path).expect_err("unreadable catalog must error");
+    let err = ConfigLoader::load_from_path(&config_path, None)
+        .expect_err("unreadable catalog must error");
     chmod(&skills_dir, 0o755);
     assert!(format!("{err:#}").contains("skills"), "got {err:#}");
 }
@@ -95,7 +95,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(main, &config_path)
+    let err = ConfigLoader::load_from_content(main, &config_path, None)
         .expect_err("directory include must fail to read");
     assert!(format!("{err:#}").contains("dir-include"), "got {err:#}");
 }
@@ -129,7 +129,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(main, &temp.path().join("config.yaml"))
+    let err = ConfigLoader::load_from_content(main, &temp.path().join("config.yaml"), None)
         .expect_err("duplicate marketplace must be rejected");
     assert!(format!("{err:#}").contains("dup-market"), "got {err:#}");
 }
@@ -155,7 +155,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let config = ConfigLoader::load_from_content(main, &config_path).expect("loads");
+    let config = ConfigLoader::load_from_content(main, &config_path, None).expect("loads");
     let instructions = config.skills.skills["guided"]
         .instructions
         .as_ref()

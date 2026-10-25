@@ -4,7 +4,6 @@
 use axum::Router;
 use axum::routing::get;
 use systemprompt_api::routes::oauth::wellknown_routes;
-use systemprompt_test_fixtures::ensure_config;
 use tower::ServiceExt;
 
 use super::common::{empty_get, setup_ctx};
@@ -20,7 +19,8 @@ async fn handle_health_returns_status() -> anyhow::Result<()> {
         .layer(axum::Extension(std::sync::Arc::new(
             systemprompt_api::services::server::SchedulerHealth::new(),
         )))
-        .with_state((*ctx).clone());
+        .with_state((*ctx).clone())
+        .layer(axum::Extension(ctx.config_arc().clone()));
     let resp = app.oneshot(empty_get("/health")).await?;
     let status = resp.status().as_u16();
     assert!(status == 200 || status == 503, "{status}");
@@ -29,9 +29,8 @@ async fn handle_health_returns_status() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn oauth_wellknown_routes_oauth_authz_server() -> anyhow::Result<()> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_routes(&ctx);
+    let app = super::common::with_config(wellknown_routes(&ctx), &ctx);
     let resp = app
         .oneshot(empty_get("/.well-known/oauth-authorization-server"))
         .await?;
@@ -41,9 +40,8 @@ async fn oauth_wellknown_routes_oauth_authz_server() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn oauth_wellknown_routes_openid_config() -> anyhow::Result<()> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_routes(&ctx);
+    let app = super::common::with_config(wellknown_routes(&ctx), &ctx);
     let resp = app
         .oneshot(empty_get("/.well-known/openid-configuration"))
         .await?;
@@ -53,9 +51,8 @@ async fn oauth_wellknown_routes_openid_config() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn oauth_wellknown_routes_protected_resource() -> anyhow::Result<()> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_routes(&ctx);
+    let app = super::common::with_config(wellknown_routes(&ctx), &ctx);
     let resp = app
         .oneshot(empty_get("/.well-known/oauth-protected-resource"))
         .await?;
@@ -65,9 +62,8 @@ async fn oauth_wellknown_routes_protected_resource() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn oauth_wellknown_routes_protected_resource_with_path() -> anyhow::Result<()> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_routes(&ctx);
+    let app = super::common::with_config(wellknown_routes(&ctx), &ctx);
     let resp = app
         .oneshot(empty_get(
             "/.well-known/oauth-protected-resource/mcp/foo/mcp",

@@ -1,6 +1,6 @@
 //! Shared tempdir profile-tree fixture for bootstrap and config-loader
-//! tests. Each nextest test runs in its own process, so installing the
-//! ProfileBootstrap / SecretsBootstrap / Config singletons per-test is safe.
+//! tests. Each test builds its own `LoadedProfile` and `SecretsService` from
+//! the tree.
 
 use std::path::{Path, PathBuf};
 

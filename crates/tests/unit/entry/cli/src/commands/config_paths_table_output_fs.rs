@@ -25,7 +25,7 @@ fn parse(args: &[&str]) -> ConfigCommands {
 
 fn table_ctx() -> CommandContext {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
     )

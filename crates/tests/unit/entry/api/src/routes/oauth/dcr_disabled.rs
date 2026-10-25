@@ -3,8 +3,7 @@
 //! With registration closed the `/register` endpoint refuses every caller and
 //! discovery stops advertising a `registration_endpoint`, so a conforming MCP
 //! client learns it must be pre-provisioned instead of failing at the POST.
-//! The flag is read from the process-wide `Config`, which this binary installs
-//! closed (see `middleware::security_trace_served_by`).
+//! The flag is read from the `Config` each test's context is built with.
 
 use std::sync::Arc;
 
@@ -18,19 +17,19 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_database_url,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 
-use crate::middleware::security_trace_served_by::ensure_config;
-
 async fn ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
-    ensure_config();
     let url = test_database_url();
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    test_app_context(&pool, &url)
+    let mut config = fixture_config(&url);
+    config.allow_dynamic_client_registration = false;
+    fixture_app_context_with_config(&pool, config).expect("fixture AppContext with DCR closed")
 }
 
 #[tokio::test]
@@ -52,7 +51,8 @@ async fn register_is_forbidden_when_dcr_is_closed() {
     );
     let app = public_router(Arc::new(JwksCache::new()))
         .with_state(state)
-        .layer(Extension(req_ctx));
+        .layer(Extension(req_ctx))
+        .layer(Extension(ctx.config_arc().clone()));
     let body = serde_json::json!({
         "client_name": "probe",
         "redirect_uris": ["https://app.example/cb"],
@@ -77,7 +77,7 @@ async fn register_is_forbidden_when_dcr_is_closed() {
 #[tokio::test]
 async fn discovery_omits_registration_endpoint_when_dcr_is_closed() {
     let ctx = ctx().await;
-    let app = wellknown_routes(&ctx);
+    let app = wellknown_routes(&ctx).layer(Extension(ctx.config_arc().clone()));
     let resp = app
         .oneshot(
             Request::builder()

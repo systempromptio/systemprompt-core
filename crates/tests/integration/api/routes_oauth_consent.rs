@@ -13,7 +13,7 @@ use systemprompt_api::routes::oauth::authenticated_router;
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_config, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -22,7 +22,6 @@ use uuid::Uuid;
 use super::common::{empty_get, read_json, setup_ctx};
 
 async fn consent_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -31,7 +30,9 @@ async fn consent_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_signing_keys(),
     );
-    Ok(authenticated_router().with_state(state))
+    Ok(authenticated_router()
+        .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {

@@ -6,7 +6,7 @@ use systemprompt_test_fixtures::ensure_test_bootstrap;
 #[test]
 fn path_and_url_accessors_derive_from_storage_and_prefix() {
     let b = ensure_test_bootstrap();
-    let cfg = FilesConfig::from_profile(&b.app_paths).expect("from_profile");
+    let cfg = FilesConfig::from_profile(b.boot.profile(), &b.app_paths).expect("from_profile");
     let root = &b.storage_path;
 
     assert_eq!(cfg.generated_images(), root.join("files/images/generated"));
@@ -34,35 +34,4 @@ fn path_and_url_accessors_derive_from_storage_and_prefix() {
     assert_eq!(cfg.video_url("/v.mp4"), "/files/files/video/v.mp4");
     assert_eq!(cfg.document_url("/d.pdf"), "/files/files/documents/d.pdf");
     assert_eq!(cfg.upload_url("/u.png"), "/files/files/uploads/u.png");
-}
-
-#[test]
-fn validator_load_without_profile_is_load_error() {
-    // No bootstrap in this process: ProfileBootstrap::get() must fail.
-    use systemprompt_files::FilesConfigValidator;
-    use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
-    use systemprompt_traits::ConfigProvider;
-
-    struct StubProvider;
-    impl ConfigProvider for StubProvider {
-        fn get(&self, _key: &str) -> Option<String> {
-            None
-        }
-        fn database_url(&self) -> &str {
-            "postgres://unused"
-        }
-        fn system_path(&self) -> &str {
-            "/unused"
-        }
-        fn api_port(&self) -> u16 {
-            0
-        }
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-    }
-
-    let mut v = FilesConfigValidator::new();
-    let err = v.load(&StubProvider).expect_err("no profile");
-    assert!(matches!(err, DomainConfigError::Load { .. }));
 }

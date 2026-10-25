@@ -26,9 +26,13 @@ fn clear_all_sessions_creates_empty_store() {
 }
 
 #[test]
-fn clear_session_succeeds_with_no_profile() {
+fn clear_session_succeeds_on_a_project_with_no_stored_session() {
     let (_dir, paths) = owned_project();
-    let _ = clear_session(&paths);
+    let profile = systemprompt_test_fixtures::ensure_test_bootstrap()
+        .boot
+        .profile();
+    clear_session(&paths, profile).unwrap();
+    assert!(load_session_store(&paths).unwrap().is_empty());
 }
 
 #[test]

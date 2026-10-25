@@ -26,7 +26,7 @@ fn parse(args: &[&str]) -> UsersCommands {
 }
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    CommandContext::with_app_context(
+    crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

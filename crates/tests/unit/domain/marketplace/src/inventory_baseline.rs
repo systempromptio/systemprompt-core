@@ -12,6 +12,7 @@ impl Fixture {
                     actor: &self.owner,
                     root,
                     services: &ServicesConfig::default(),
+                    sources: sources(),
                 },
                 &mut PublishGuard::default(),
             )
@@ -64,7 +65,7 @@ async fn a_binding_that_resolves_to_the_active_root_is_accepted() {
     let alias = links.path().join("services");
     std::os::unix::fs::symlink(f.root.path(), &alias).expect("alias");
     InventoryService::new(f.repository.clone())
-        .refresh(&f.owner, &alias, &ServicesConfig::default())
+        .refresh(&f.owner, &alias, &ServicesConfig::default(), sources())
         .await
         .expect("refresh through alias");
     let first = f.publish_from(&alias).await.remove(0);

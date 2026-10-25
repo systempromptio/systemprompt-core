@@ -58,6 +58,7 @@ async fn make_orchestrator(
         agent_state,
         app_paths(),
         systemprompt_test_fixtures::test_spawner(),
+        crate::spawn_environment(),
         None,
     )
     .await

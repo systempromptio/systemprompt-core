@@ -45,7 +45,7 @@ mod db_backed {
             })
             .await
             .expect("create client");
-        let repo = OAuthRepository::new(&pool);
+        let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
         (repo, client_id)
     }
 

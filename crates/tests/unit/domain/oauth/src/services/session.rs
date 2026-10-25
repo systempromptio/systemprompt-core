@@ -265,6 +265,7 @@ fn test_session_creation_service_new() {
         analytics,
         user,
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
     let debug_output = format!("{:?}", service);
 
@@ -282,6 +283,7 @@ fn test_session_creation_service_with_fingerprint_provider() {
         analytics,
         user,
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(fingerprint);
 }

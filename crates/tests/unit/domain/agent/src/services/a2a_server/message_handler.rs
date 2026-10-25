@@ -49,8 +49,8 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -108,8 +108,8 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -145,8 +145,8 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -198,8 +198,8 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
         Arc::new(StubAiProvider::new().with_stalled_stream()),
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
     let message = user_message(&ctx, Some(task_id.clone()), "cancel this run");
@@ -258,8 +258,8 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let foreign_ctx = ContextId::generate();
     let runtime = runtime_info("nonstream-agent");
@@ -313,8 +313,8 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
         Arc::new(StubAiProvider::new().with_text_stream(&["completed answer"])),
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("message processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&context_id, &session, &user, "nonstream-agent");
     let message = user_message(
@@ -408,8 +408,8 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
         provider.clone(),
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("message processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&context_id, &session, &user, "nonstream-agent");
 
@@ -481,8 +481,8 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
         provider.clone(),
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("message processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&context_id, &session, &user, "nonstream-agent");
 

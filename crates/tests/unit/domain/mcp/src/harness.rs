@@ -9,7 +9,7 @@
 //! state makes one process per test mandatory, and it fails quietly rather than
 //! loudly:
 //!
-//! * `ProfileBootstrap`'s `PROFILE` is a `OnceLock` with no reset. The first
+//! * `ensure_test_bootstrap` is a process-wide `OnceLock`. The first
 //!   `TestBootstrap` in a process wins permanently, and every later fixture
 //!   directory is unreachable no matter what is written into it.
 //!
@@ -33,6 +33,22 @@ static BOOTSTRAP: std::sync::OnceLock<TestBootstrap> = std::sync::OnceLock::new(
 
 pub fn bootstrap_with_services(yaml: &str) -> &'static TestBootstrap {
     BOOTSTRAP.get_or_init(|| init_services_bootstrap(yaml))
+}
+
+pub fn config() -> std::sync::Arc<systemprompt_manifest::Config> {
+    std::sync::Arc::clone(
+        BOOTSTRAP
+            .get()
+            .unwrap_or_else(|| systemprompt_test_fixtures::ensure_test_bootstrap())
+            .boot_config(),
+    )
+}
+
+pub fn services_state() -> systemprompt_loader::ServicesState {
+    BOOTSTRAP.get().map_or_else(
+        systemprompt_test_fixtures::fixture_services_state,
+        |bootstrap| bootstrap.services.clone(),
+    )
 }
 
 pub struct ExternalServerSpec<'a> {

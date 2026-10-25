@@ -156,9 +156,13 @@ async fn generate_sitemap_malformed_content_config_is_parse_error() {
     let db = test_db_pool().await;
 
     write_content_config(boot, ": not yaml [");
-    let err = generate_sitemap(content_repo(&db), &boot.app_paths)
-        .await
-        .expect_err("malformed content config");
+    let err = generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect_err("malformed content config");
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     assert!(
         matches!(err, PublishError::ContentConfigParse { .. }),
@@ -177,6 +181,7 @@ async fn prerender_content_malformed_content_config_is_parse_error() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await
@@ -200,6 +205,7 @@ async fn prerender_content_missing_content_config_is_read_error() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await
@@ -223,6 +229,7 @@ async fn prerender_content_malformed_web_config_is_web_config_error() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await
@@ -239,7 +246,7 @@ async fn load_web_config_missing_file_is_io_error() {
     let boot = ensure_test_bootstrap();
     let cfg = boot.services_path.join("web/config.yaml");
     let _ = fs::remove_file(&cfg);
-    let err = load_web_config(&boot.app_paths)
+    let err = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
         .await
         .expect_err("missing web config");
     assert!(
@@ -259,7 +266,7 @@ async fn load_web_config_rejects_nonexistent_templates_path() {
         boot,
         &web_config_yaml_with_templates_path("/nonexistent/templates/dir/zzz"),
     );
-    let err = load_web_config(&boot.app_paths)
+    let err = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
         .await
         .expect_err("nonexistent templates path must be rejected");
     assert!(
@@ -277,7 +284,9 @@ async fn get_templates_path_prefers_existing_configured_path() {
         boot,
         &web_config_yaml_with_templates_path(&tmp.path().to_string_lossy()),
     );
-    let cfg = load_web_config(&boot.app_paths).await.expect("web config");
+    let cfg = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
+        .await
+        .expect("web config");
     assert_eq!(get_templates_path(&cfg, &boot.app_paths), tmp.path());
 }
 
@@ -286,7 +295,9 @@ async fn get_templates_path_falls_back_to_web_root_when_unconfigured() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
     write_web_config(boot, &web_config_yaml_with_templates_path(""));
-    let cfg = load_web_config(&boot.app_paths).await.expect("web config");
+    let cfg = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
+        .await
+        .expect("web config");
     assert_eq!(
         get_templates_path(&cfg, &boot.app_paths),
         boot.app_paths.web().root().join("templates")
@@ -307,6 +318,7 @@ async fn prerender_content_missing_templates_dir_is_config_error() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await
@@ -346,6 +358,7 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
         closed.clone(),
         content_repo(&closed),
         content_analytics(&closed),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await

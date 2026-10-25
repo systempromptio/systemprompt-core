@@ -59,10 +59,14 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
     };
     let handler = A2aRunHandler::new(
         RunCredentialService::new(
-            RunCredentialRepositories::new(&pool),
+            RunCredentialRepositories::new(
+                &pool,
+                systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+            ),
             "https://issuer.test",
             systemprompt_users::ApiKeyLifetime::unbounded(),
             systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_config(),
         ),
         config,
     )

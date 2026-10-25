@@ -50,7 +50,7 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
     });
     let pool = seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
 
-    let ctx = AppContext::builder()
+    let ctx = AppContext::builder(fixture.boot.clone())
         .with_extensions(systemprompt_extension::ExtensionRegistry::new())
         .with_migrations(true)
         .build()
@@ -86,12 +86,12 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
 #[tokio::test]
 async fn build_fails_when_system_admin_is_missing() {
     let admin = unique_admin("miss");
-    let _fixture = boot(&BootOptions {
+    let fixture = boot(&BootOptions {
         admin_username: admin.clone(),
         ..BootOptions::default()
     });
 
-    let err = AppContext::builder()
+    let err = AppContext::builder(fixture.boot.clone())
         .with_extensions(systemprompt_extension::ExtensionRegistry::new())
         .build()
         .await
@@ -111,7 +111,7 @@ async fn build_fails_when_system_admin_is_inactive() {
     });
     let pool = seed_admin(&fixture.database_url, &admin, "inactive", &["admin"]).await;
 
-    let err = AppContext::builder()
+    let err = AppContext::builder(fixture.boot.clone())
         .with_extensions(systemprompt_extension::ExtensionRegistry::new())
         .build()
         .await
@@ -133,7 +133,7 @@ async fn build_fails_when_system_admin_lacks_admin_role() {
     });
     let pool = seed_admin(&fixture.database_url, &admin, "active", &["user"]).await;
 
-    let err = AppContext::builder()
+    let err = AppContext::builder(fixture.boot.clone())
         .with_extensions(systemprompt_extension::ExtensionRegistry::new())
         .build()
         .await
@@ -173,7 +173,7 @@ async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
     .await
     .expect("legacy context owned by the previous admin");
 
-    let ctx = AppContext::builder()
+    let ctx = AppContext::builder(fixture.boot.clone())
         .with_extensions(systemprompt_extension::ExtensionRegistry::new())
         .build()
         .await

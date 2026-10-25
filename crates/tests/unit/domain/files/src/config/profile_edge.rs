@@ -1,9 +1,7 @@
 //! `ensure_storage_structure` root-creation failure, driven by a custom
-//! profile whose storage root sits below a regular file. Initialises
-//! `ProfileBootstrap` itself, so it must not share a process with the
-//! bootstrap fixture (nextest runs one process per test).
+//! profile whose storage root sits below a regular file.
 
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
@@ -104,14 +102,14 @@ fn ensure_storage_structure_reports_uncreatable_root() {
     let profile_path = tmp.path().join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml(&system, &storage)).expect("write profile");
 
-    let profile = ProfileBootstrap::init_from_path(&profile_path).expect("init profile");
+    let profile = LoadedProfile::from_path(&profile_path).expect("load profile");
     let paths = AppPaths::from_profile(
-        &profile.paths,
+        &profile.profile().paths,
         systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths");
-    let cfg = FilesConfig::from_profile(&paths).expect("from_profile");
+    let cfg = FilesConfig::from_profile(profile.profile(), &paths).expect("from_profile");
 
     let err = cfg
         .ensure_storage_structure()

@@ -17,7 +17,7 @@ async fn agent_registry_list_enabled_empty_default() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new(&systemprompt_test_fixtures::fixture_services_view());
-    let list = registry.list_enabled_agents().expect("list");
+    let list = registry.list_enabled_agents(false);
     assert!(list.is_empty());
 }
 
@@ -37,7 +37,7 @@ async fn agent_registry_get_default_errors_when_unset() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new(&systemprompt_test_fixtures::fixture_services_view());
-    let err = registry.get_default_agent().expect_err("no default");
+    let err = registry.get_default_agent(false).expect_err("no default");
     assert!(format!("{err}").contains("default"));
 }
 
@@ -76,6 +76,11 @@ async fn agent_registry_to_agent_card_unknown_errors() {
     ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let registry = AgentRegistry::new(&systemprompt_test_fixtures::fixture_services_view());
-    let result = registry.to_agent_card("does_not_exist_xx", "http://test", vec![], None);
+    let result = registry.to_agent_card(
+        "does_not_exist_xx",
+        crate::card_site("http://test"),
+        vec![],
+        None,
+    );
     assert!(result.is_err());
 }

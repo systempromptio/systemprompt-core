@@ -1,8 +1,8 @@
 //! Extended DB-backed tests for [`McpOrchestrator`] covering lifecycle ops,
 //! target resolution, reconciliation, schema sync, validate_service, and
 //! daemon-related accessors. Relies on `ensure_test_bootstrap` to initialise
-//! Profile/Secrets/Config singletons that downstream loaders (schema_sync's
-//! `ConfigLoader::load()`) require.
+//! the boot context that downstream loaders (schema_sync's services loader)
+//! require.
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
@@ -38,7 +38,8 @@ async fn make_orchestrator() -> McpOrchestrator {
     );
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     let service_repo = ServiceRepository::new(&db, unique_instance());
     McpOrchestrator::new(
@@ -46,6 +47,7 @@ async fn make_orchestrator() -> McpOrchestrator {
         app_paths,
         registry,
         systemprompt_test_fixtures::test_spawner(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
     .expect("orchestrator")
 }

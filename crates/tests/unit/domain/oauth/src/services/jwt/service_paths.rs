@@ -33,6 +33,7 @@ fn authenticate_accepts_authority_signed_token() {
 
     let user = AuthenticationService::authenticate(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
     )
     .expect("authenticate");
@@ -47,6 +48,7 @@ fn authenticate_rejects_garbage_token() {
 
     let err = AuthenticationService::authenticate(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
     )
     .expect_err("garbage");
@@ -61,6 +63,7 @@ fn authenticate_accepts_non_uuid_subject() {
 
     let user = AuthenticationService::authenticate(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &bearer_headers(token.as_str()),
     )
     .expect("a non-UUID sub is a valid user id");
@@ -75,6 +78,7 @@ fn authenticate_rejects_sentinel_subject() {
 
     let err = AuthenticationService::authenticate(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &bearer_headers(token.as_str()),
     )
     .expect_err("the retired sentinel is not a subject");
@@ -88,6 +92,7 @@ fn authorize_service_access_accepts_valid_token() {
 
     let user = AuthorizationService::authorize_service_access(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         &ServiceName::new("mcp"),
     )
@@ -102,6 +107,7 @@ fn authorize_service_access_rejects_invalid_jwt() {
 
     let err = AuthorizationService::authorize_service_access(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         &ServiceName::new("mcp"),
     )
@@ -116,6 +122,7 @@ fn authorize_required_audience_accepts_api() {
 
     let user = AuthorizationService::authorize_required_audience(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         "api",
     )
@@ -130,6 +137,7 @@ fn authorize_required_audience_rejects_missing_audience() {
 
     let err = AuthorizationService::authorize_required_audience(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         "hook",
     )
@@ -144,6 +152,7 @@ fn authorize_required_audience_treats_unknown_string_as_resource_and_rejects() {
 
     let err = AuthorizationService::authorize_required_audience(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         "",
     )
@@ -158,6 +167,7 @@ fn authorize_any_audience_accepts_when_one_matches() {
 
     let user = AuthorizationService::authorize_any_audience(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         &["hook", "api"],
     )
@@ -172,6 +182,7 @@ fn authorize_any_audience_rejects_when_none_match() {
 
     let err = AuthorizationService::authorize_any_audience(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         &["hook"],
     )
@@ -186,6 +197,7 @@ fn authorize_any_audience_skips_invalid_entries_and_still_matches() {
 
     let user = AuthorizationService::authorize_any_audience(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         &["", "api"],
     )
@@ -203,12 +215,16 @@ fn auth_service_facade_delegates_all_paths() {
     let err = AuthService::extract_bearer_token(&HeaderMap::new()).expect_err("no header");
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 
-    let user =
-        AuthService::authenticate(&systemprompt_test_fixtures::test_signing_keys(), &headers)
-            .expect("authenticate");
+    let user = AuthService::authenticate(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+    )
+    .expect("authenticate");
     assert_eq!(user.id.to_string(), user_id.as_str());
     let user = AuthService::authorize_service_access(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         &ServiceName::new("api"),
     )
@@ -216,6 +232,7 @@ fn auth_service_facade_delegates_all_paths() {
     assert_eq!(user.id.to_string(), user_id.as_str());
     let user = AuthService::authorize_required_audience(
         &systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::test_config(),
         &headers,
         "api",
     )

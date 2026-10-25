@@ -13,11 +13,10 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
-use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
+use systemprompt_test_fixtures::{fixture_at_rest_cipher as cipher, test_db_pool};
 use systemprompt_traits::RepositoryError;
 
 async fn pool() -> (DbPool, Arc<PgPool>) {
-    ensure_test_secrets_bootstrap();
     let db = test_db_pool().await;
     let write = db.write_pool();
     (db, write)
@@ -34,7 +33,7 @@ async fn insert_raw(
     permissions: serde_json::Value,
     expires_in: &str,
 ) {
-    let token = systemprompt_security::at_rest::seal("tok").expect("seal token");
+    let token = cipher().seal("tok").expect("seal token");
     insert_raw_token(write, id, user_type, permissions, expires_in, &token).await;
 }
 
@@ -78,7 +77,7 @@ async fn find_rejects_a_row_whose_user_type_is_not_a_known_variant() {
     insert_raw(&write, &id, "sovereign", serde_json::json!([]), "1 hour").await;
 
     let err = repo
-        .find(&id)
+        .find(&cipher(), &id)
         .await
         .expect_err("an unknown user_type must not silently resolve an identity");
     assert!(
@@ -108,7 +107,7 @@ async fn find_rejects_a_row_whose_permissions_are_not_a_permission_list() {
     .await;
 
     assert!(
-        repo.find(&id).await.is_err(),
+        repo.find(&cipher(), &id).await.is_err(),
         "a non-list permissions column must fail loudly, never decode to an empty grant set"
     );
 
@@ -169,7 +168,7 @@ async fn find_drops_a_row_whose_token_does_not_open() {
     .await;
 
     assert!(
-        repo.find(&id).await.expect("find").is_none(),
+        repo.find(&cipher(), &id).await.expect("find").is_none(),
         "a token that does not open must never resolve an identity"
     );
     assert_eq!(

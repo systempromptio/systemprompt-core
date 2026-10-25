@@ -5,6 +5,7 @@
 //! with the migrate hint, and `ServicesState` fails boot on a bad catalog.
 
 use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesState};
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 use tempfile::TempDir;
 
 const ROOT: &str = r#"
@@ -95,7 +96,7 @@ fn catalog_files() -> Vec<(&'static str, &'static str)> {
 fn the_catalog_is_read_by_convention_and_includes_resolve_beside_gateway_yaml() {
     let tree = write_tree(ROOT, &catalog_files());
 
-    let config = ConfigLoader::load_from_path(&tree.root).expect("services tree loads");
+    let config = ConfigLoader::load_from_path(&tree.root, None).expect("services tree loads");
 
     assert_eq!(config.providers.providers.len(), 1);
     assert!(config.models.get("claude-sonnet-4-5").is_some());
@@ -116,7 +117,7 @@ fn an_id_declared_in_two_catalog_files_is_refused() {
     files[0] = ("credentials.yaml", Box::leak(doubled.into_boxed_str()));
     let tree = write_tree(ROOT, &files);
 
-    let err = ConfigLoader::load_from_path(&tree.root).expect_err("duplicate must fail");
+    let err = ConfigLoader::load_from_path(&tree.root, None).expect_err("duplicate must fail");
     assert!(err.to_string().contains("anthropic"), "{err}");
 }
 
@@ -125,7 +126,7 @@ fn an_include_naming_a_catalog_file_is_refused() {
     let root = format!("includes:\n  - ../ai/providers.yaml\n{ROOT}");
     let tree = write_tree(&root, &catalog_files());
 
-    let err = ConfigLoader::load_from_path(&tree.root).expect_err("outside convention");
+    let err = ConfigLoader::load_from_path(&tree.root, None).expect_err("outside convention");
     assert!(
         matches!(err, ConfigLoadError::CatalogOutsideConvention { .. }),
         "unexpected error: {err:?}"
@@ -138,7 +139,7 @@ fn a_legacy_provider_list_is_refused_with_the_migrate_hint() {
     let legacy = "providers:\n  - name: anthropic\n    wire: anthropic\n";
     let tree = write_tree(ROOT, &[("providers.yaml", legacy)]);
 
-    let err = ConfigLoader::load_from_path(&tree.root).expect_err("legacy refused");
+    let err = ConfigLoader::load_from_path(&tree.root, None).expect_err("legacy refused");
     assert!(
         matches!(err, ConfigLoadError::LegacyCatalog { .. }),
         "unexpected error: {err:?}"
@@ -156,7 +157,7 @@ fn a_route_pinning_an_undeployed_endpoint_fails_load() {
     );
     let tree = write_tree(ROOT, &files);
 
-    let err = ConfigLoader::load_from_path(&tree.root).expect_err("undeployed endpoint");
+    let err = ConfigLoader::load_from_path(&tree.root, None).expect_err("undeployed endpoint");
     assert!(err.to_string().contains("ghost"), "{err}");
 }
 
@@ -169,7 +170,8 @@ fn services_state_fails_boot_on_a_bad_catalog() {
     );
     let tree = write_tree(ROOT, &files);
 
-    let err = ServicesState::load_from_path(&tree.root).expect_err("empty endpoint url");
+    let err = ServicesState::load_from_path(&tree.root, ensure_test_bootstrap().boot.profile())
+        .expect_err("empty endpoint url");
 
     assert!(err.to_string().contains("anthropic"), "{err}");
 }

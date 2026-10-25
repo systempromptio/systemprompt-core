@@ -3,7 +3,7 @@ use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::inventory::{
     BaselineScope, InventoryService, LatestPublication, LatestPublicationStatus, PublishGuard,
-    configured_identity, scan_configured_inventory,
+    SourcesContext, configured_identity, scan_configured_inventory,
 };
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, PublicationAction,
@@ -11,6 +11,13 @@ use systemprompt_marketplace::managed::{
 };
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
+
+fn sources() -> SourcesContext<'static> {
+    SourcesContext {
+        profile: ensure_test_bootstrap().boot.profile(),
+        active_root: None,
+    }
+}
 
 struct Fixture {
     repository: ManagedRepository,
@@ -45,7 +52,12 @@ impl Fixture {
     }
     async fn refresh(&self) {
         InventoryService::new(self.repository.clone())
-            .refresh(&self.owner, self.root.path(), &ServicesConfig::default())
+            .refresh(
+                &self.owner,
+                self.root.path(),
+                &ServicesConfig::default(),
+                sources(),
+            )
             .await
             .expect("refresh");
     }
@@ -123,6 +135,7 @@ impl Fixture {
                     actor: &self.owner,
                     root: self.root.path(),
                     services: &ServicesConfig::default(),
+                    sources: sources(),
                 },
                 &mut PublishGuard::default(),
             )

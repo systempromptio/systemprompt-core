@@ -40,6 +40,11 @@ fn ctx(pool: &DbPool) -> CommandContext {
         DatabaseContext::from_pool(pool.clone()),
         test_database_url(),
     )
+    .with_boot(Some(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .clone(),
+    ))
 }
 
 fn flags(all: bool, api: bool, agents: bool, mcp: bool) -> ServiceFlags {

@@ -28,6 +28,7 @@ fn lifecycle(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> Age
         AgentServiceRepository::new(pool, instance.clone()),
         app_paths(),
         systemprompt_test_fixtures::test_spawner(),
+        crate::spawn_environment(),
         &systemprompt_test_fixtures::fixture_services_view(),
     )
 }

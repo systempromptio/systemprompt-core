@@ -1,4 +1,3 @@
-use systemprompt_manifest::Config;
 use systemprompt_runtime::StartupValidator;
 
 use crate::boot::{BootOptions, boot};
@@ -6,13 +5,19 @@ use crate::boot::{BootOptions, boot};
 #[test]
 fn domain_validation_failure_is_aggregated_and_gates_extension_validation() {
     let fixture = boot(&BootOptions::default());
-    systemprompt_config::try_init_config(None).expect("initialize config from fixture profile");
-    let mut config = Config::get().expect("installed config").clone();
+    let mut config = fixture
+        .boot
+        .try_init_config(None)
+        .expect("initialize config from fixture profile")
+        .as_ref()
+        .clone();
     let blocker = fixture._tmp.path().join("skills-is-a-file");
     std::fs::write(&blocker, "not a directory").expect("skills path blocker");
     config.skills_path = blocker.display().to_string();
 
-    let report = StartupValidator::new().validate(&config);
+    let report = StartupValidator::new(fixture.boot.clone())
+        .expect("startup validator")
+        .validate(&config);
 
     let skills = report
         .domains

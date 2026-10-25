@@ -53,10 +53,14 @@ async fn a_ttl_beyond_chrono_range_is_refused_before_anything_is_issued() {
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let err = service
@@ -78,10 +82,14 @@ async fn issue_without_purpose_mints_no_mcp_token() {
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let creds = service
@@ -105,10 +113,14 @@ async fn revoke_revokes_the_mcp_token_jti() {
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
         systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let creds = service
@@ -124,7 +136,7 @@ async fn revoke_revokes_the_mcp_token_jti() {
     );
 
     service.revoke(&creds).await.expect("revoke");
-    let revoked = systemprompt_oauth::OAuthRepository::new(&pool)
+    let revoked = systemprompt_test_fixtures::oauth_fixture_repository(&pool)
         .is_jti_revoked(&jti)
         .await
         .expect("jti lookup");

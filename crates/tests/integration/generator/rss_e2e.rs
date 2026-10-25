@@ -4,7 +4,7 @@
 //! `rss/generator.rs`.
 
 use std::path::PathBuf;
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
@@ -17,11 +17,9 @@ use systemprompt_provider_contracts::{
     ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
 };
 
-static CONFIG_INIT: Once = Once::new();
-
-fn install_test_config() {
-    CONFIG_INIT.call_once(|| {
-        let _ = Config::install(Config {
+fn test_config() -> Config {
+    {
+        Config {
             instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
             metrics_port: None,
             max_concurrent_streams: 256,
@@ -73,8 +71,8 @@ fn install_test_config() {
             login_page_url: None,
             system_admin_username: "admin".to_owned(),
             system_admin_email: None,
-        });
-    });
+        }
+    }
 }
 
 struct MockProvider {
@@ -123,7 +121,7 @@ impl RssFeedProvider for MockProvider {
 
 #[tokio::test]
 async fn generate_feed_with_single_provider_emits_xml() {
-    install_test_config();
+    let config = test_config();
 
     let provider = Arc::new(MockProvider {
         id: "mock-1",
@@ -136,7 +134,7 @@ async fn generate_feed_with_single_provider_emits_xml() {
     });
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![provider];
 
-    let feeds = generate_feed_with_providers(&providers)
+    let feeds = generate_feed_with_providers(&config, &providers)
         .await
         .expect("generate_feed_with_providers must succeed");
 
@@ -152,7 +150,7 @@ async fn generate_feed_with_single_provider_emits_xml() {
 
 #[tokio::test]
 async fn generate_feed_with_multiple_specs_and_providers() {
-    install_test_config();
+    let config = test_config();
 
     let p1 = Arc::new(MockProvider {
         id: "mock-a",
@@ -181,7 +179,7 @@ async fn generate_feed_with_multiple_specs_and_providers() {
     });
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![p1, p2];
 
-    let feeds = generate_feed_with_providers(&providers)
+    let feeds = generate_feed_with_providers(&config, &providers)
         .await
         .expect("multi-provider generation must succeed");
 
@@ -200,10 +198,10 @@ async fn generate_feed_with_multiple_specs_and_providers() {
 
 #[tokio::test]
 async fn generate_feed_errors_when_no_providers() {
-    install_test_config();
+    let config = test_config();
 
     let providers: Vec<Arc<dyn RssFeedProvider>> = Vec::new();
-    let err = generate_feed_with_providers(&providers)
+    let err = generate_feed_with_providers(&config, &providers)
         .await
         .expect_err("no providers must error");
     assert!(err.to_string().to_lowercase().contains("rss"));
@@ -211,7 +209,7 @@ async fn generate_feed_errors_when_no_providers() {
 
 #[tokio::test]
 async fn generate_feed_errors_when_provider_yields_no_specs() {
-    install_test_config();
+    let config = test_config();
 
     let provider = Arc::new(MockProvider {
         id: "mock-empty",
@@ -220,7 +218,7 @@ async fn generate_feed_errors_when_provider_yields_no_specs() {
     });
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![provider];
 
-    let err = generate_feed_with_providers(&providers)
+    let err = generate_feed_with_providers(&config, &providers)
         .await
         .expect_err("provider returning no specs must error");
     assert!(err.to_string().to_lowercase().contains("rss"));

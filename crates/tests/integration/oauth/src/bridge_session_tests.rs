@@ -20,12 +20,6 @@ fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::User
     ))
 }
 
-fn ensure_runtime() {
-    // `Config::install` is a one-shot global; ignore the error when another
-    // test in this binary already installed it.
-    let _ = Config::install(test_config());
-}
-
 fn test_config() -> Config {
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable required");
@@ -102,7 +96,7 @@ fn exchange_headers_with_session(session_id: &SessionId) -> HeaderMap {
 
 #[tokio::test]
 async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
-    ensure_runtime();
+    let config = test_config();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
     let analytics = AnalyticsService::new(
@@ -116,7 +110,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&exchange_request_headers(), None, &user_id),
+        BridgeAccessRequest::bridge(&config, &exchange_request_headers(), None, &user_id),
     )
     .await
     .expect("mint bridge access");
@@ -144,7 +138,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
 
 #[tokio::test]
 async fn bridge_session_captures_request_analytics() {
-    ensure_runtime();
+    let config = test_config();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
     let analytics = AnalyticsService::new(
@@ -159,7 +153,7 @@ async fn bridge_session_captures_request_analytics() {
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&exchange_request_headers(), caller_ip, &user_id),
+        BridgeAccessRequest::bridge(&config, &exchange_request_headers(), caller_ip, &user_id),
     )
     .await
     .expect("mint bridge access");
@@ -192,7 +186,7 @@ async fn bridge_session_captures_request_analytics() {
 
 #[tokio::test]
 async fn bridge_jwt_binds_supplied_session_id() {
-    ensure_runtime();
+    let config = test_config();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
     let analytics = AnalyticsService::new(
@@ -207,7 +201,12 @@ async fn bridge_jwt_binds_supplied_session_id() {
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&exchange_headers_with_session(&supplied), None, &user_id),
+        BridgeAccessRequest::bridge(
+            &config,
+            &exchange_headers_with_session(&supplied),
+            None,
+            &user_id,
+        ),
     )
     .await
     .expect("mint bridge access");
@@ -235,7 +234,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
 
 #[tokio::test]
 async fn repeated_mint_with_same_session_id_is_idempotent() {
-    ensure_runtime();
+    let config = test_config();
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
     let analytics = AnalyticsService::new(
@@ -254,7 +253,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&headers, None, &user_id),
+        BridgeAccessRequest::bridge(&config, &headers, None, &user_id),
     )
     .await
     .expect("first mint");
@@ -263,7 +262,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
         &analytics,
         &**analytics.session_store(),
         &user_provider(&db),
-        BridgeAccessRequest::bridge(&headers, None, &user_id),
+        BridgeAccessRequest::bridge(&config, &headers, None, &user_id),
     )
     .await
     .expect("re-mint with the same session id must not fail");

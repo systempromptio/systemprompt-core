@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use systemprompt_identifiers::JobName;
 
-use systemprompt_cli::CliConfig;
+use crate::boot_ctx::bootstrap_ctx;
+use systemprompt_cli::CommandContext;
 use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
@@ -100,8 +101,14 @@ fn make_profile(services: &Path) -> Profile {
     }
 }
 
-fn cfg() -> CliConfig {
-    CliConfig::new().with_interactive(false)
+fn boot() -> systemprompt_loader::BootContext {
+    systemprompt_test_fixtures::ensure_test_bootstrap()
+        .boot
+        .clone()
+}
+
+fn cfg() -> CommandContext {
+    bootstrap_ctx()
 }
 
 #[test]
@@ -306,7 +313,8 @@ fn validate_names_every_unregistered_scheduler_job() {
 #[test]
 fn strict_validation_names_registered_jobs_the_config_omits() {
     let config = SchedulerConfig::with_system_admin();
-    let message = unlisted_jobs_message(&config).expect("the built-in set omits the rollups");
+    let message =
+        unlisted_jobs_message(&config, &boot()).expect("the built-in set omits the rollups");
     assert!(message.contains("trace_facts_rollup"), "got: {message}");
     assert!(!message.contains("database_cleanup"), "got: {message}");
 }
@@ -314,8 +322,8 @@ fn strict_validation_names_registered_jobs_the_config_omits() {
 #[test]
 fn strict_validation_passes_once_every_job_is_named() {
     let mut config = SchedulerConfig::with_system_admin();
-    for name in systemprompt_scheduler::unlisted_job_names(&config) {
+    for name in systemprompt_scheduler::unlisted_job_names(&config, &boot()) {
         config.jobs.push(JobConfig::new(name).disabled());
     }
-    assert!(unlisted_jobs_message(&config).is_none());
+    assert!(unlisted_jobs_message(&config, &boot()).is_none());
 }

@@ -1,19 +1,17 @@
 //! Process-wide bootstrap fixture.
 //!
-//! Initialises [`ProfileBootstrap`], [`SecretsBootstrap`], the runtime
-//! [`Config`] singleton, and [`FilesConfig`] from a tempdir-backed profile
-//! bundle.
+//! Builds the owned [`BootContext`] (profile, secrets, runtime [`Config`]) and
+//! [`FilesConfig`] from a tempdir-backed profile bundle.
 
 use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{try_init_config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::LoadedProfile;
 use systemprompt_files::FilesConfig;
-use systemprompt_loader::ServicesState;
+use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
-use systemprompt_manifest::Config;
 use tempfile::TempDir;
 
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
@@ -66,12 +64,24 @@ pub struct TestBootstrap {
     pub app_paths: AppPaths,
     pub database_url: String,
     pub services: ServicesState,
+    pub boot: BootContext,
 }
 
 impl TestBootstrap {
-    pub fn files_config(&self) -> FilesConfig {
-        FilesConfig::from_profile(&self.app_paths).expect("files config from the fixture profile")
+    pub fn boot_config(&self) -> &std::sync::Arc<systemprompt_manifest::Config> {
+        self.boot
+            .config()
+            .expect("the bootstrap installs its config")
     }
+
+    pub fn files_config(&self) -> FilesConfig {
+        FilesConfig::from_profile(self.boot.profile(), &self.app_paths)
+            .expect("files config from the fixture profile")
+    }
+}
+
+pub fn test_skills_root() -> PathBuf {
+    PathBuf::from(ensure_test_bootstrap().boot.profile().paths.skills())
 }
 
 static BOOTSTRAP: OnceLock<TestBootstrap> = OnceLock::new();
@@ -125,7 +135,8 @@ pub fn init_services_bootstrap(services_config_yaml: &str) -> TestBootstrap {
 // tree that does not parse is a boot failure, so the load failure is asserted
 // rather than swallowed: a config that turned out to load would silently stop
 // exercising the caller's failure path. The returned `services` is the empty
-// config; a fresh `ConfigLoader::load()` still reads the malformed file.
+// config; a fresh `BootContext::load_services_config()` still reads the
+// malformed file.
 pub fn init_unloadable_services_bootstrap(
     api_base_url: &str,
     services_config_yaml: &str,
@@ -241,7 +252,11 @@ fn init_bootstrap_inner_expecting(
     // empty config (each nextest test is its own process, so the env gate is
     // local to messaging-test processes).
     if let Some(yaml) = services_config_yaml {
-        write_services_tree(&services_path, yaml);
+        if expect_services_load_failure {
+            write_yaml_stub(&services_path.join("config/config.yaml"));
+        } else {
+            write_services_tree(&services_path, yaml);
+        }
     } else if env::var("SYSTEMPROMPT_TEST_MESSAGING").is_ok() {
         std::fs::write(
             services_path.join("config/config.yaml"),
@@ -268,28 +283,26 @@ fn init_bootstrap_inner_expecting(
     let profile_path = tmp_path.join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml).expect("write profile.yaml");
 
-    if !ProfileBootstrap::is_initialized() {
-        if let Err(e) = ProfileBootstrap::init_from_path(&profile_path) {
-            panic!("ProfileBootstrap::init_from_path failed: {e}");
-        }
-    }
-    let profile = ProfileBootstrap::get().expect("profile initialised");
+    let loaded = LoadedProfile::from_path(&profile_path)
+        .unwrap_or_else(|e| panic!("LoadedProfile::from_path failed: {e}"));
+    let secrets = crate::secrets::block_on_secrets_load(&loaded)
+        .unwrap_or_else(|e| panic!("SecretsService::load failed: {e}"));
+    let boot = BootContext::new(loaded, secrets);
+    let profile = boot.profile();
 
-    let services = match (ServicesState::load(), expect_services_load_failure) {
+    boot.try_init_config(None)
+        .unwrap_or_else(|e| panic!("config from the fixture profile: {e}"));
+    if let (Some(yaml), true) = (services_config_yaml, expect_services_load_failure) {
+        write_services_tree(&services_path, yaml);
+    }
+
+    let services = match (ServicesState::load(&boot), expect_services_load_failure) {
         (Err(e), false) => panic!("ServicesState::load failed: {e}"),
         (Ok(_), true) => panic!("services config was expected not to load, but it did"),
         (Ok(state), false) => state,
-        (Err(_), true) => ServicesState::from_config(Default::default())
+        (Err(_), true) => ServicesState::from_config(profile, Default::default())
             .expect("the default services config resolves"),
     };
-
-    if !SecretsBootstrap::is_initialized() {
-        let _ = crate::secrets::block_on_secrets_init();
-    }
-
-    if !Config::is_initialized() {
-        let _ = try_init_config(None);
-    }
 
     let app_paths = AppPaths::from_profile(
         &profile.paths,
@@ -307,6 +320,7 @@ fn init_bootstrap_inner_expecting(
         app_paths,
         database_url,
         services,
+        boot,
     }
 }
 
@@ -357,9 +371,9 @@ fn write_yaml_stub(path: &std::path::Path) {
 
 // The seeded services config: one dispatchable agent (`oauth.required =
 // false`) plus one Slack app and one Teams app routing to it.
-// `ConfigLoader::load()` reads exactly this file, so the messaging routes
-// resolve their app, agent, and named secrets from a single deterministic
-// source.
+// `BootContext::load_services_config()` reads exactly this file, so the
+// messaging routes resolve their app, agent, and named secrets from a single
+// deterministic source.
 fn messaging_config_yaml() -> String {
     messaging_config_yaml_with_teams_endpoints(None)
 }

@@ -86,8 +86,9 @@ mod from_catalog_tests {
     #[test]
     fn no_default_image_model_means_no_provider() {
         let catalog = mock_http::default_catalog();
+        let secrets = ensure_test_secrets_bootstrap();
         assert!(
-            ImageProviderFactory::from_catalog(&Default::default(), &catalog)
+            ImageProviderFactory::from_catalog(&Default::default(), &secrets.get(), &catalog)
                 .expect("no error")
                 .is_none()
         );
@@ -95,25 +96,27 @@ mod from_catalog_tests {
 
     #[test]
     fn the_default_image_model_picks_its_first_enabled_deployment() {
-        ensure_test_secrets_bootstrap();
+        let secrets = ensure_test_secrets_bootstrap();
         let catalog = CatalogFixture::embedded_default()
             .default_image_model("gpt-image-1")
             .build();
-        let default = ImageProviderFactory::from_catalog(&Default::default(), &catalog)
-            .expect("builds")
-            .expect("a default image model yields a provider");
+        let default =
+            ImageProviderFactory::from_catalog(&Default::default(), &secrets.get(), &catalog)
+                .expect("builds")
+                .expect("a default image model yields a provider");
         assert_eq!(default.provider, "openai");
         assert_eq!(default.client.default_model(), "gpt-image-1");
     }
 
     #[test]
     fn a_default_image_model_on_a_disabled_provider_is_refused() {
-        ensure_test_secrets_bootstrap();
+        let secrets = ensure_test_secrets_bootstrap();
         let catalog = CatalogFixture::embedded_default()
             .with_provider("openai", |p| p.enabled = false)
             .default_image_model("gpt-image-1")
             .build();
-        let err = ImageProviderFactory::from_catalog(&Default::default(), &catalog).unwrap_err();
+        let err = ImageProviderFactory::from_catalog(&Default::default(), &secrets.get(), &catalog)
+            .unwrap_err();
         assert!(err.to_string().contains("gpt-image-1"), "{err}");
     }
 }

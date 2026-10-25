@@ -44,8 +44,8 @@ async fn new_constructs_against_pool() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor constructs");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 }
 
 #[tokio::test]
@@ -63,8 +63,8 @@ async fn process_message_stream_emits_text_and_complete() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("stream-agent");
     let request = request_context(&ctx, &session, &user, "stream-agent");
@@ -115,8 +115,8 @@ async fn persist_completed_task_updates_existing_row() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let request = request_context(&ctx, &session, &user, "persist-agent");
     let user_msg = user_message(&ctx, &task_id, "question");
@@ -162,8 +162,8 @@ async fn cancelling_a_running_stream_emits_exactly_one_cancelled_event() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("cancel-agent");
     let request = request_context(&ctx, &session, &user, "cancel-agent");
@@ -216,8 +216,8 @@ async fn process_message_stream_provider_failure_emits_error() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("fail-agent");
     let request = request_context(&ctx, &session, &user, "fail-agent");
@@ -253,17 +253,10 @@ async fn process_message_stream_provider_failure_emits_error() {
 
 #[tokio::test]
 async fn configured_skills_are_injected_and_missing_optional_skills_do_not_abort_streaming() {
-    use systemprompt_config::ProfileBootstrap;
-
     let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.write().await;
-    let skills_root = std::path::PathBuf::from(
-        ProfileBootstrap::get()
-            .expect("profile bootstrap")
-            .paths
-            .skills(),
-    );
+    let skills_root = systemprompt_test_fixtures::test_skills_root();
     let skill_directory = tempfile::Builder::new()
         .prefix("stream-skill-")
         .tempdir_in(&skills_root)
@@ -295,8 +288,8 @@ async fn configured_skills_are_injected_and_missing_optional_skills_do_not_abort
         provider.clone(),
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let mut runtime = runtime_info("skill-stream-agent");
     runtime.skills.include = vec![skill_id.clone(), "absent-optional-skill".to_owned()];
     let request = request_context(&ctx, &session, &user, "skill-stream-agent");
@@ -360,8 +353,8 @@ async fn partial_provider_stream_preserves_text_then_emits_one_error_without_com
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("partial-failure-agent");
     let request = request_context(&ctx, &session, &user, "partial-failure-agent");
     let message = user_message(&ctx, &task_id, "stream then fail");
@@ -446,8 +439,8 @@ async fn planned_stream_synthesizes_tool_results_before_completing_with_the_fina
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let mut runtime = runtime_info("planned-stream-agent");
     runtime.mcp_servers.include = vec!["records".to_owned()];
     let request = request_context(&ctx, &session, &user, "planned-stream-agent");
@@ -523,8 +516,8 @@ async fn planned_stream_reports_final_resynthesis_failure_without_completing() {
         provider,
         recording_webhooks(),
         systemprompt_test_fixtures::fixture_services_view(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let mut runtime = runtime_info("planned-stream-agent");
     runtime.mcp_servers.include = vec!["records".to_owned()];
     let request = request_context(&ctx, &session, &user, "planned-stream-agent");

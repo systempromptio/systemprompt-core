@@ -4,25 +4,25 @@
 
 use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_identifiers::CredentialId;
+use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, ensure_test_secrets_bootstrap, seed_user_row, test_db_pool,
-    unique_user_id,
+    ensure_test_secrets_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 
 #[tokio::test]
 async fn a_key_is_stored_found_listed_and_deleted_per_credential() {
-    ensure_test_bootstrap();
-    ensure_test_secrets_bootstrap();
+    let secrets = ensure_test_secrets_bootstrap();
+    let cipher = AtRestCipher::from_secrets(&secrets.get()).expect("cipher");
     let pool = test_db_pool().await;
     let user = unique_user_id("personal-cred");
     seed_user_row(&pool, &user, &format!("{}@personal.invalid", user.as_str()))
         .await
         .expect("seed user");
-    let repo = UserProviderCredentialRepository::new(&pool);
+    let repo = UserProviderCredentialRepository::new(&pool, cipher.clone());
     let go = CredentialId::new("opencode-go");
     let other = CredentialId::new("other-sub");
 
-    let sealed = systemprompt_security::at_rest::seal("sk-go-1").expect("seal");
+    let sealed = cipher.seal("sk-go-1").expect("seal");
     let meta = repo
         .set_key(&user, &go, &sealed, Some("Go"))
         .await
@@ -30,7 +30,7 @@ async fn a_key_is_stored_found_listed_and_deleted_per_credential() {
     assert_eq!(meta.credential, "opencode-go");
     assert_eq!(meta.label.as_deref(), Some("Go"));
 
-    let replaced = systemprompt_security::at_rest::seal("sk-go-2").expect("seal");
+    let replaced = cipher.seal("sk-go-2").expect("seal");
     repo.set_key(&user, &go, &replaced, None)
         .await
         .expect("one key per member and credential: the second store replaces the first");

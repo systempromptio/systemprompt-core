@@ -29,6 +29,7 @@ fn orchestrator(
             std::sync::Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
             std::sync::Arc::clone(ctx.spawner()),
+            std::sync::Arc::clone(ctx.secrets()),
         )
         .expect("orchestrator"),
     )

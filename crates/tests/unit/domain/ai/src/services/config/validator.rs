@@ -25,10 +25,11 @@ fn create_valid_config() -> AiConfig {
 }
 
 fn catalog_and_clients() -> (ResolvedCatalog, ProviderClients) {
-    ensure_test_secrets_bootstrap();
+    let secrets = ensure_test_secrets_bootstrap();
     let catalog = mock_http::default_catalog();
     let (clients, _withheld) =
-        ProviderClients::build(&Default::default(), &catalog).expect("clients build");
+        ProviderClients::build(&Default::default(), &secrets.get(), &catalog)
+            .expect("clients build");
     (catalog, clients)
 }
 

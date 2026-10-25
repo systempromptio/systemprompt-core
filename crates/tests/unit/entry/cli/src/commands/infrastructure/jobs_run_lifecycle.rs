@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use clap::Parser;
 use serde_json::Value;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
@@ -45,7 +45,7 @@ async fn mixed_job_run_helper() {
             .await
             .expect("seed scheduled job row");
     }
-    let ctx = CommandContext::with_app_context(
+    let ctx = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

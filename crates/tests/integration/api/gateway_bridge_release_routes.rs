@@ -19,7 +19,8 @@ use axum::body::Body;
 use axum::http::{Request, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_test_fixtures::{
-    TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
+    TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context_on,
+    test_db_pool,
 };
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
@@ -88,7 +89,7 @@ async fn app() -> anyhow::Result<(Router, String)> {
     let b = boot().await;
     let pool = test_db_pool().await;
     let fixture = seed_admin_credential(&pool, "bridge-release").await?;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context_on(&b, &pool);
     Ok((
         gateway_router(&ctx).expect("gateway router builds"),
         fixture.jwt.as_str().to_owned(),
@@ -388,6 +389,10 @@ async fn a_download_whose_asset_fetch_fails_upstream_is_a_bad_gateway() -> anyho
     Ok(())
 }
 
+fn secrets() -> std::sync::Arc<systemprompt_manifest::Secrets> {
+    systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get()
+}
+
 fn spec(api_base: &str) -> systemprompt_manifest::services::BridgeReleasesSpec {
     serde_json::from_value(serde_json::json!({
         "repo": "systempromptio/systemprompt-core",
@@ -436,7 +441,7 @@ async fn a_whole_fleet_checking_at_once_costs_one_github_round_trip() -> anyhow:
     let spec = spec(&base);
     for _ in 0..5u8 {
         let resolved = feed
-            .resolve(&spec, "darwin-arm64")
+            .resolve(&spec, &secrets(), "darwin-arm64")
             .await
             .map_err(|err| anyhow::anyhow!("{}: {err}", err.status()))?;
         assert_eq!(resolved.manifest.version, "0.32.0");
@@ -471,7 +476,7 @@ async fn a_github_outage_serves_the_last_known_release_rather_than_failing() -> 
     );
     let spec = spec(&base);
     let first = feed
-        .resolve(&spec, "darwin-arm64")
+        .resolve(&spec, &secrets(), "darwin-arm64")
         .await
         .map_err(|err| anyhow::anyhow!("{}: {err}", err.status()))?;
     assert_eq!(first.manifest.version, "0.32.0");
@@ -485,7 +490,7 @@ async fn a_github_outage_serves_the_last_known_release_rather_than_failing() -> 
         .await;
 
     let served = feed
-        .resolve(&spec, "darwin-arm64")
+        .resolve(&spec, &secrets(), "darwin-arm64")
         .await
         .map_err(|err| anyhow::anyhow!("{}: {err}", err.status()))?;
 
@@ -512,7 +517,7 @@ async fn an_outage_with_nothing_cached_still_reports_the_failure() -> anyhow::Re
 
     let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::default();
     let err = feed
-        .resolve(&spec(&base), "darwin-arm64")
+        .resolve(&spec(&base), &secrets(), "darwin-arm64")
         .await
         .expect_err("no cached release means the failure is the answer");
 

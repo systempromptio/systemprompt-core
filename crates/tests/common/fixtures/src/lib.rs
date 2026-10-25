@@ -40,21 +40,22 @@ pub use agent::{
     NotManagedSkills, ScriptedSkills, ToolExecutionLedger,
 };
 pub use app_context::{
-    default_governance_engine, default_governance_watch, ensure_config, ensure_config_with,
-    fixture_analytics_repositories, fixture_app_context_with, fixture_app_context_with_config,
-    fixture_app_context_with_extensions, fixture_app_context_with_hook,
-    fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
-    fixture_event_bridge, fixture_fingerprint_repository, fixture_services_state,
-    fixture_services_view, fixture_subject_providers, offline_rate_windows, test_app_context,
+    default_governance_engine, default_governance_watch, fixture_analytics_repositories,
+    fixture_app_context_on_bootstrap, fixture_app_context_on_bootstrap_with_paths,
+    fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
+    fixture_app_context_with_hook, fixture_app_context_with_user_repository,
+    fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_fingerprint_repository,
+    fixture_services_state, fixture_services_view, fixture_subject_providers,
+    offline_rate_windows, test_app_context, test_app_context_on, test_config, test_config_with,
     FIXTURE_JWT_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
     init_services_bootstrap, init_unloadable_services_bootstrap,
-    messaging_config_yaml_with_teams_endpoints, test_messaging_agent, TestBootstrap,
-    TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID,
-    TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
-    TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
+    messaging_config_yaml_with_teams_endpoints, test_messaging_agent, test_skills_root,
+    TestBootstrap, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID,
+    TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
+    TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_fixture_system_admin, seed_user_row,
@@ -71,13 +72,13 @@ pub use liveness::LivePids;
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
 pub use net::{bind_in_range, free_port_in_range, port_is_unheld};
 pub use oauth::{
-    pkce_pair, seed_oauth_client, OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET,
-    TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
+    oauth_fixture_pepper, oauth_fixture_repository, pkce_pair, seed_oauth_client,
+    OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET, TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
 pub use paths::{canonical_tempdir, repo_path, repo_root};
 pub use poll::{block_on, eventually};
 pub use schema::{install_extension_schemas, install_extension_schemas_with_config};
-pub use secrets::{ensure_test_secrets_bootstrap, install_named_secret};
+pub use secrets::{ensure_test_secrets_bootstrap, fixture_at_rest_cipher, install_named_secret};
 pub use service_row::seed_running_service;
 pub use subprocess::{
     announce_helper_ready, bounded_output, helper, spawn_marked_child, test_spawner, Helper,

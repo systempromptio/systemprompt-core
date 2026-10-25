@@ -137,7 +137,7 @@ async fn drive_site_auth(uri: &str) -> StatusCode {
                 req,
                 next,
                 config,
-                "https://issuer.test",
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
                 &systemprompt_test_fixtures::test_signing_keys(),
             )
             .await
@@ -330,7 +330,7 @@ async fn jti_revocation_checker_fails_closed_on_revoked() -> Result<()> {
     let epochs = systemprompt_traits::CacheEpochs::new();
     epochs.set_relay_live(true);
     let checker = JtiRevocationChecker::from_repository(
-        systemprompt_oauth::repository::OAuthRepository::new(&pool),
+        systemprompt_test_fixtures::oauth_fixture_repository(&pool),
         epochs,
     );
 

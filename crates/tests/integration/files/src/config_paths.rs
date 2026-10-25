@@ -1,7 +1,8 @@
 //! Integration tests for FilesConfig getters and URL formatters.
 //!
-//! Bootstraps `ProfileBootstrap` + `FilesConfig` via the shared `bootstrap`
-//! helper so the URL helpers can be exercised against a real storage root.
+//! Bootstraps the fixture `BootContext` + `FilesConfig` via the shared
+//! `bootstrap` helper so the URL helpers can be exercised against a real
+//! storage root.
 
 
 use crate::bootstrap::test_env;
@@ -106,9 +107,9 @@ fn files_config_validator_load_and_validate() {
     use systemprompt_files::FilesConfigValidator;
     use systemprompt_manifest::validators::DomainConfig;
 
-    let _env = test_env();
+    let env = test_env();
 
-    let v = FilesConfigValidator::new();
+    let v = FilesConfigValidator::new(env.app_paths.clone());
     let err = v
         .validate()
         .expect_err("validator with no config should error");

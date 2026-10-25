@@ -4,8 +4,8 @@
 use std::time::Duration;
 
 use systemprompt_config::{
-    BOOT_REQUIRED_SECRET_KEYS, ConfigFingerprint, ProfileBootstrap, SIGNING_KEY_PEM,
-    SecretsBootstrap, refresh_interval_for,
+    BOOT_REQUIRED_SECRET_KEYS, ConfigFingerprint, LoadedProfile, SIGNING_KEY_PEM, SecretsService,
+    refresh_interval_for,
 };
 use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 
@@ -63,8 +63,8 @@ fn the_boot_required_keys_include_the_encryption_master_key() {
     ] {
         assert!(BOOT_REQUIRED_SECRET_KEYS.contains(&key), "{key}");
     }
-    assert!(!SecretsBootstrap::required_secret_keys(false).contains(&SIGNING_KEY_PEM));
-    assert!(SecretsBootstrap::required_secret_keys(true).contains(&SIGNING_KEY_PEM));
+    assert!(!SecretsService::required_secret_keys(false).contains(&SIGNING_KEY_PEM));
+    assert!(SecretsService::required_secret_keys(true).contains(&SIGNING_KEY_PEM));
 }
 
 #[tokio::test]
@@ -74,22 +74,23 @@ async fn a_rotated_secrets_file_is_picked_up_by_a_reload() {
         base.replacen('{', &format!("{{\n  \"anthropic\": \"{provider}\","), 1)
     };
     let fx = fixture::write_tree(FILE_REFRESH_SECRETS, Some(&body("key-one")));
-    ProfileBootstrap::init_from_path(&fx.profile_path).expect("profile");
-    SecretsBootstrap::init().await.expect("secrets");
-    assert_eq!(
-        SecretsBootstrap::refresh_interval(),
-        Some(Duration::from_secs(60))
-    );
-    let before = SecretsBootstrap::generation();
-    let fingerprint_before = ConfigFingerprint::current(None).expect("fingerprint");
+    let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
+    let service = SecretsService::load(profile.clone())
+        .await
+        .expect("secrets");
+    assert_eq!(service.refresh_interval(), Some(Duration::from_secs(60)));
+    let before = service.generation();
+    let fingerprint_before =
+        ConfigFingerprint::current(profile.profile(), &service, None).expect("fingerprint");
 
     std::fs::write(&fx.secrets_path, body("key-two")).expect("rotate");
-    let outcome = SecretsBootstrap::reload().await.expect("reload");
+    let outcome = service.reload().await.expect("reload");
 
     assert!(outcome.swapped);
     assert_eq!(outcome.changed_keys, vec!["anthropic"]);
-    assert_eq!(SecretsBootstrap::generation(), before + 1);
-    let fingerprint_after = ConfigFingerprint::current(None).expect("fingerprint");
+    assert_eq!(service.generation(), before + 1);
+    let fingerprint_after =
+        ConfigFingerprint::current(profile.profile(), &service, None).expect("fingerprint");
     assert_eq!(fingerprint_after.secrets_generation, before + 1);
     assert_eq!(
         fingerprint_after.profile_sha,
@@ -107,10 +108,13 @@ async fn the_fingerprint_names_keys_but_never_exposes_values() {
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
-    ProfileBootstrap::init_from_path(&fx.profile_path).expect("profile");
-    SecretsBootstrap::init().await.expect("secrets");
+    let profile = LoadedProfile::from_path(&fx.profile_path).expect("profile");
+    let service = SecretsService::load(profile.clone())
+        .await
+        .expect("secrets");
 
-    let fingerprint = ConfigFingerprint::current(Some("f".repeat(64))).expect("fingerprint");
+    let fingerprint = ConfigFingerprint::current(profile.profile(), &service, Some("f".repeat(64)))
+        .expect("fingerprint");
     let rendered = serde_json::to_string(&fingerprint).expect("serialises");
     for value in [
         fixture::PEPPER,
@@ -129,7 +133,8 @@ async fn the_fingerprint_names_keys_but_never_exposes_values() {
         Some("ffffffffffffffff")
     );
     assert!(
-        SecretsBootstrap::key_names()
+        service
+            .key_names()
             .expect("names")
             .contains(&"encryption_master_key".to_owned())
     );
@@ -138,8 +143,8 @@ async fn the_fingerprint_names_keys_but_never_exposes_values() {
 #[test]
 fn different_secret_names_give_different_fingerprints() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, None);
-    ProfileBootstrap::init_from_path(&fx.profile_path).expect("profile");
-    let profile = ProfileBootstrap::get().expect("profile");
+    let loaded = LoadedProfile::from_path(&fx.profile_path).expect("profile");
+    let profile = loaded.profile();
     let a =
         ConfigFingerprint::compute(profile, &["a".to_owned(), "b".to_owned()], 1, None).expect("a");
     let b =

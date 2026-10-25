@@ -86,3 +86,6 @@ mod vertex_discovery_client;
 mod vertex_discovery_merge;
 #[cfg(test)]
 mod vertex_discovery_source;
+
+#[cfg(test)]
+mod boot_context_config;

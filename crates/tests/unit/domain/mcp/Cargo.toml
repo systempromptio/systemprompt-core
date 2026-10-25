@@ -25,7 +25,6 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
-systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 axum = { workspace = true }
 tower = { workspace = true }

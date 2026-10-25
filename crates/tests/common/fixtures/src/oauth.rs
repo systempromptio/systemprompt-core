@@ -9,9 +9,10 @@ use anyhow::Result;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, UserId};
-use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
+use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, OAuthRepository};
 use uuid::Uuid;
 
 pub const TEST_CLIENT_SECRET: &str = "test-secret-must-be-long-enough-32chars";
@@ -85,4 +86,18 @@ pub fn pkce_pair() -> PkcePair {
         challenge,
         method: "S256",
     }
+}
+
+pub fn oauth_fixture_pepper() -> Arc<str> {
+    Arc::from(
+        crate::bootstrap::ensure_test_bootstrap()
+            .boot
+            .secrets()
+            .oauth_at_rest_pepper()
+            .as_str(),
+    )
+}
+
+pub fn oauth_fixture_repository(pool: &DbPool) -> OAuthRepository {
+    OAuthRepository::new(pool, oauth_fixture_pepper())
 }

@@ -12,7 +12,7 @@ use std::sync::OnceLock;
 use axum::Router;
 use systemprompt_api::routes::mcp_registry_router;
 use systemprompt_test_fixtures::{
-    TestBootstrap, init_isolated_bootstrap, test_app_context, test_db_pool,
+    TestBootstrap, init_isolated_bootstrap, test_app_context_on, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -68,8 +68,8 @@ fn boot() -> &'static TestBootstrap {
 async fn app() -> anyhow::Result<Router> {
     let b = boot();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
-    Ok(mcp_registry_router(&ctx))
+    let ctx = test_app_context_on(&b, &pool);
+    Ok(super::common::with_config(mcp_registry_router(&ctx), &ctx))
 }
 
 async fn listing() -> anyhow::Result<serde_json::Value> {
@@ -154,11 +154,14 @@ async fn the_advertised_endpoint_is_synthesised_not_taken_from_config() -> anyho
 async fn protected_resource(path: &str) -> anyhow::Result<(u16, serde_json::Value)> {
     let b = boot();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context_on(&b, &pool);
     let (status, body) = body_to_string(
-        systemprompt_api::routes::oauth::wellknown_routes(&ctx)
-            .oneshot(empty_get(path))
-            .await?,
+        super::common::with_config(
+            systemprompt_api::routes::oauth::wellknown_routes(&ctx),
+            &ctx,
+        )
+        .oneshot(empty_get(path))
+        .await?,
     )
     .await?;
     Ok((status.as_u16(), serde_json::from_str(&body)?))

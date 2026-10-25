@@ -9,7 +9,6 @@
 //! This file's config installs `allow_registration: false`, so it also hosts
 //! the disabled-registration 403 gate tests for `register/start|finish`.
 
-use systemprompt_test_fixtures::ensure_config;
 
 use axum::Router;
 use axum::http::StatusCode;
@@ -21,7 +20,6 @@ use tower::ServiceExt;
 use super::common::{empty_get, json_post, read_json, setup_ctx};
 
 async fn webauthn_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -33,7 +31,8 @@ async fn webauthn_app() -> anyhow::Result<Router> {
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
-    .with_state(state))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 #[tokio::test]

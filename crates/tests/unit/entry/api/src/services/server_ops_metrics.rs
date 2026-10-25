@@ -1,7 +1,12 @@
 use systemprompt_api::services::server::metrics::install_recorder;
 use systemprompt_api::services::server::ops_metrics::OpsSampler;
 use systemprompt_identifiers::InstanceId;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_loader::BootContext;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+
+fn boot_context() -> BootContext {
+    ensure_test_bootstrap().boot.clone()
+}
 
 #[tokio::test]
 async fn one_sample_records_the_acquire_probe_and_the_scheduler_backlog() {
@@ -14,7 +19,12 @@ async fn one_sample_records_the_acquire_probe_and_the_scheduler_backlog() {
         .await
         .expect("backlog queues");
 
-    let mut sampler = OpsSampler::new(&db, true, systemprompt_logging::LogSink::default());
+    let mut sampler = OpsSampler::new(
+        boot_context(),
+        &db,
+        true,
+        systemprompt_logging::LogSink::default(),
+    );
     sampler.sample().await;
     let rendered = handle.render();
 
@@ -56,9 +66,14 @@ async fn a_non_scheduler_node_never_samples_the_backlog() {
     .await
     .expect("backlog queues");
 
-    OpsSampler::new(&db, false, systemprompt_logging::LogSink::default())
-        .sample()
-        .await;
+    OpsSampler::new(
+        boot_context(),
+        &db,
+        false,
+        systemprompt_logging::LogSink::default(),
+    )
+    .sample()
+    .await;
     let rendered = handle.render();
 
     sqlx::query("DELETE FROM projection_backlog WHERE projection = $1")

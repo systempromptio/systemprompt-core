@@ -8,7 +8,7 @@ use clap::Parser;
 use systemprompt_cli::admin::bridge::{self, BridgeCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::profile_authoring::LocalProfileBuilder;
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 
 const HELPER: &str = "commands::admin_bridge_signing_rotation::signing_rotation_helper";
 const ORIGINAL_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
@@ -25,13 +25,14 @@ fn rotate() -> BridgeCommands {
         .command
 }
 
-fn context() -> CommandContext {
+fn context(profile: &std::sync::Arc<LoadedProfile>) -> CommandContext {
     CommandContext::new(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
     )
+    .with_profile(Some(std::sync::Arc::clone(profile)))
 }
 
 #[tokio::test]
@@ -56,15 +57,15 @@ async fn signing_rotation_helper() {
     profile.security.issuer = "https://rotation.test".to_owned();
     let profile_path = fixture.path().join("profile.yaml");
     std::fs::write(&profile_path, serde_yaml::to_string(&profile).unwrap()).unwrap();
-    ProfileBootstrap::init_from_path(&profile_path).expect("initialize owned profile");
+    let loaded = LoadedProfile::from_path(&profile_path).expect("initialize owned profile");
 
     println!("BEGIN_FIRST_ROTATION");
-    bridge::execute(rotate(), &context())
+    bridge::execute(rotate(), &context(&loaded))
         .await
         .expect("first signing rotation");
     println!("END_FIRST_ROTATION");
     println!("BEGIN_SECOND_ROTATION");
-    bridge::execute(rotate(), &context())
+    bridge::execute(rotate(), &context(&loaded))
         .await
         .expect("second signing rotation");
     println!("END_SECOND_ROTATION");

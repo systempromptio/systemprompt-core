@@ -135,7 +135,6 @@ mod stored_form {
     use std::sync::Arc;
 
     use systemprompt_identifiers::UserId;
-    use systemprompt_oauth::repository::OAuthRepository;
     use systemprompt_oauth::services::issue_bridge_exchange_code;
     use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
     use systemprompt_users::{UserRepository, UserService};
@@ -147,7 +146,7 @@ mod stored_form {
     async fn the_row_holds_the_hash_of_the_issued_code_and_never_the_code() {
         ensure_test_bootstrap();
         let pool = test_db_pool().await;
-        let repo = OAuthRepository::new(&pool);
+        let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
         let id = format!("bridgehash-{}", Uuid::new_v4().simple());
         let user = UserId::new(&id);

@@ -134,15 +134,6 @@ fn a_model_without_pricing_is_a_non_retryable_404() {
 }
 
 #[test]
-fn a_secrets_store_outage_stays_a_502() {
-    let RejectionError { status, .. } = classify_dispatch_error(GatewayError::from(
-        UpstreamTargetError::SecretsUnavailable("store offline".into()),
-    ));
-
-    assert_eq!(status, StatusCode::BAD_GATEWAY);
-}
-
-#[test]
 fn an_unservable_model_is_still_persisted_for_audit() {
     let (status, _, persist) = rejection(DispatchError::PreAudit(GatewayError::from(
         UpstreamTargetError::MissingSecret {

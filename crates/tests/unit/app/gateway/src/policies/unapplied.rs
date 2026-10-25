@@ -12,8 +12,11 @@ use systemprompt_test_fixtures::{DisposableDb, record_plane_applied};
 use systemprompt_traits::CacheEpochs;
 
 fn resolver(pool: &DbPool, mode: UnappliedPlaneMode) -> PolicyResolver {
-    PolicyResolver::from_repository(AiGatewayPolicyRepository::new(pool), CacheEpochs::new())
-        .with_unapplied_mode(mode)
+    PolicyResolver::from_repository(
+        AiGatewayPolicyRepository::new(pool),
+        CacheEpochs::new(),
+        mode,
+    )
 }
 
 #[tokio::test]

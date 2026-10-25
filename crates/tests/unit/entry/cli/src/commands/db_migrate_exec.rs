@@ -101,7 +101,7 @@ async fn migrate_down_for_an_unknown_extension_fails() {
 #[tokio::test]
 async fn profile_migrate_runs_against_the_profile_database() {
     ensure_test_bootstrap();
-    let ctx = CommandContext::new(text_config(), EnvOverrides::default());
+    let ctx = crate::boot_ctx::new_with_boot(text_config(), EnvOverrides::default());
 
     execute(command(&["migrate"]), &ctx)
         .await
@@ -111,7 +111,7 @@ async fn profile_migrate_runs_against_the_profile_database() {
 #[tokio::test]
 async fn verbose_profile_migrate_reports_its_target_and_stays_a_no_op() {
     ensure_test_bootstrap();
-    let ctx = CommandContext::new(
+    let ctx = crate::boot_ctx::new_with_boot(
         text_config().with_verbosity(systemprompt_cli::VerbosityLevel::Verbose),
         EnvOverrides::default(),
     );

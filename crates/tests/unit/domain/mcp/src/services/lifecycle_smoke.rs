@@ -38,7 +38,8 @@ async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
     );
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     let database = DatabaseService::new(
         systemprompt_database::ServiceRepository::new(&db, unique_instance()),
@@ -46,7 +47,11 @@ async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
         registry,
     );
     let lifecycle = LifecycleService::new(
-        ProcessService::new(systemprompt_test_fixtures::test_spawner()),
+        ProcessService::new(
+            systemprompt_test_fixtures::test_spawner(),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        ),
         NetworkService::new(),
         database,
         MonitoringService::new(),

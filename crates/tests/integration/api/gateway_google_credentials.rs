@@ -4,7 +4,7 @@ use serde_json::json;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_test_fixtures::{
-    init_services_bootstrap, seed_admin_credential, test_app_context, test_db_pool, test_key,
+    init_services_bootstrap, seed_admin_credential, test_app_context_on, test_db_pool, test_key,
 };
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
@@ -64,7 +64,7 @@ gateway:
         upstream.uri()
     ));
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context_on(&boot, &pool);
     let app = gateway_router(&ctx).expect("gateway router builds");
     let cred = seed_admin_credential(
         &pool,

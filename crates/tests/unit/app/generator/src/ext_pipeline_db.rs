@@ -165,6 +165,7 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await
@@ -208,9 +209,14 @@ async fn prerender_pages_renders_fixture_page_with_provider_data() {
     )
     .expect("write covgenpage template");
 
-    let results = prerender_pages(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect("prerender_pages");
+    let results = prerender_pages(
+        db.clone(),
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("prerender_pages");
 
     let _ = fs::remove_file(tmpl_dir.join("covgenpage.html"));
 
@@ -252,6 +258,7 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await
@@ -285,7 +292,12 @@ async fn generate_sitemap_chunks_into_index_when_over_url_limit() {
     .expect("bulk insert 50001 rows");
 
     install_config(boot, "extpipebulk");
-    let result = generate_sitemap(content_repo(&db), &boot.app_paths).await;
+    let result = generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await;
 
     sqlx::query("DELETE FROM markdown_content WHERE source_id = 'extpipebulk'")
         .execute(pool.as_ref())
@@ -327,7 +339,9 @@ async fn get_templates_path_falls_back_when_configured_path_missing() {
         web_config_yaml_with_templates_path(""),
     )
     .expect("write web config");
-    let mut cfg = load_web_config(&boot.app_paths).await.expect("web config");
+    let mut cfg = load_web_config(ensure_test_bootstrap().boot_config(), &boot.app_paths)
+        .await
+        .expect("web config");
     cfg.paths.templates = "/nonexistent/configured/templates".to_owned();
     assert_eq!(
         get_templates_path(&cfg, &boot.app_paths),

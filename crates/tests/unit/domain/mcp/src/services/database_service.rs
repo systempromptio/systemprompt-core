@@ -34,7 +34,8 @@ async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRe
     );
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     let repo = systemprompt_database::ServiceRepository::new(&db, unique_instance());
     let svc = DatabaseService::new(repo.clone(), app_paths, registry);

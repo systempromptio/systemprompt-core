@@ -81,9 +81,11 @@ async fn live_server(prefix: &str) -> LiveServer {
         app_paths,
         RegistryService::new(
             fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_view(),
+            crate::harness::services_state(),
+            crate::harness::config(),
         ),
         systemprompt_test_fixtures::test_spawner(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
     .expect("orchestrator");
 

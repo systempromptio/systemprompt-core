@@ -124,7 +124,10 @@ async fn coverage_active_profile_is_resolved_after_explicit_override_is_removed(
     let ctx = CommandContext::new(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
-    );
+    )
+    .with_profile(Some(
+        systemprompt_config::LoadedProfile::from_path(&project.profile).unwrap(),
+    ));
     let resumed = get_or_create_session(&ctx).await.unwrap().session;
     assert_eq!(resumed.session_id, first.session_id);
     assert_eq!(resumed.user_id, user);
@@ -167,9 +170,17 @@ async fn coverage_clearing_sessions_is_persisted_and_idempotent() {
     get_or_create_session(&project.context(false))
         .await
         .unwrap();
-    clear_session(&project.paths()).unwrap();
+    clear_session(
+        &project.paths(),
+        &systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap(),
+    )
+    .unwrap();
     assert!(load_session_store(&project.paths()).unwrap().is_empty());
-    clear_session(&project.paths()).unwrap();
+    clear_session(
+        &project.paths(),
+        &systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap(),
+    )
+    .unwrap();
     get_or_create_session(&project.context(false))
         .await
         .unwrap();

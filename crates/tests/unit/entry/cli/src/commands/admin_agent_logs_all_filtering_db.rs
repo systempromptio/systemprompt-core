@@ -20,7 +20,7 @@ async fn seed(repository: &LoggingRepository, actor: &LogActor, module: &str, me
 
 #[tokio::test]
 async fn all_agent_database_logs_match_operational_modules_strip_ansi_and_hide_profile_noise() {
-    ensure_test_bootstrap();
+    let boot = ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_agent_logs_all").await;
     let pool = database.test_pool().await;
     let user = UserId::new(format!("logs-all-{}", uuid::Uuid::new_v4().simple()));
@@ -60,6 +60,7 @@ async fn all_agent_database_logs_match_operational_modules_strip_ansi_and_hide_p
             logs_dir: None,
         },
         &pool,
+        &boot.boot.load_services_config().expect("services config"),
         &CliConfig::new().with_interactive(false),
     )
     .await

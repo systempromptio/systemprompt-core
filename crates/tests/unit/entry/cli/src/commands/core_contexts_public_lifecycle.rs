@@ -16,8 +16,8 @@ use systemprompt_loader::ProfileLoader;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, bounded_output, ensure_test_bootstrap, fixture_app_context_with, seed_user_row,
-    seed_user_session,
+    DisposableDb, bounded_output, ensure_test_bootstrap,
+    fixture_app_context_on_bootstrap_with_paths, seed_user_row, seed_user_session,
 };
 
 const HELPER: &str = "commands::core_contexts_public_lifecycle::public_context_lifecycle_helper";
@@ -126,14 +126,14 @@ async fn public_context_lifecycle_helper() {
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(
+    let app = fixture_app_context_on_bootstrap_with_paths(
+        boot,
         &pool,
-        database.url(),
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
     .expect("full context app");
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json)

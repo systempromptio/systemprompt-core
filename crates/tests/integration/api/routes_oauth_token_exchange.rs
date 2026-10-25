@@ -14,7 +14,6 @@ use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{Actor, AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
@@ -22,7 +21,7 @@ use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_config, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, test_config, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -50,7 +49,6 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
 }
 
 async fn token_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -63,7 +61,8 @@ async fn token_app() -> anyhow::Result<Router> {
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .layer(middleware::from_fn(inject_context))
-    .with_state(state))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
@@ -111,7 +110,7 @@ fn enc(s: &str) -> String {
 }
 
 fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
-    let issuer = Config::get().expect("config").jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let user = AuthenticatedUser::new_with_roles(
         systemprompt_identifiers::UserId::generate(),
         "tx-subject".to_owned(),
@@ -360,7 +359,7 @@ async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
 // signed by the process-wide test authority. `aud` controls the audience
 // binding the consume path enforces against `jwt_issuer`.
 fn mint_id_jag_for(client_id: &str, aud: &str) -> String {
-    let issuer = Config::get().expect("config").jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let client_id = ClientId::new(client_id);
     mint_id_jag(&IdJagGrant {
         keys: &systemprompt_test_fixtures::test_signing_keys(),
@@ -381,7 +380,7 @@ fn mint_id_jag_for(client_id: &str, aud: &str) -> String {
 async fn id_jag_consume_returns_access_token() -> anyhow::Result<()> {
     let client = seeded_client_uuid_owner().await?;
     let app = token_app().await?;
-    let issuer = Config::get()?.jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let id_jag = mint_id_jag_for(client.client_id.as_str(), &issuer);
     let body = urlencode(&[
         ("grant_type", TOKEN_EXCHANGE_GRANT),
@@ -406,7 +405,7 @@ async fn id_jag_replay_is_rejected() -> anyhow::Result<()> {
     // issuer the assertion's aud must match. One app, cloned per request, keeps
     // the connection-pool footprint minimal.
     let app = token_app().await?;
-    let issuer = Config::get()?.jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let id_jag = mint_id_jag_for(client.client_id.as_str(), &issuer);
     let form = || {
         urlencode(&[
@@ -456,7 +455,7 @@ async fn id_jag_wrong_audience_is_rejected() -> anyhow::Result<()> {
 async fn id_jag_client_mismatch_is_rejected() -> anyhow::Result<()> {
     let client = seeded_client().await?;
     let app = token_app().await?;
-    let issuer = Config::get()?.jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     // Bind the assertion to a different client than the one authenticating.
     let id_jag = mint_id_jag_for("some-other-client", &issuer);
     let body = urlencode(&[
@@ -535,7 +534,7 @@ async fn seeded_client_with_owner() -> anyhow::Result<(OAuthClientFixture, UserI
 }
 
 fn mint_id_jag_bound_to(client_id: &str, aud: &str, sub: &str, resource: Option<&str>) -> String {
-    let issuer = Config::get().expect("config").jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let client_id = ClientId::new(client_id);
     mint_id_jag(&IdJagGrant {
         keys: &systemprompt_test_fixtures::test_signing_keys(),
@@ -565,7 +564,7 @@ fn token_subject(token: &str) -> String {
 async fn id_jag_issues_the_token_for_the_employee_not_the_client_owner() -> anyhow::Result<()> {
     let (client, owner) = seeded_client_with_owner().await?;
     let app = token_app().await?;
-    let issuer = Config::get()?.jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let employee = format!("employee-{}", Uuid::new_v4().simple());
 
     let exchange = |id_jag: String| {
@@ -618,7 +617,7 @@ async fn id_jag_issues_the_token_for_the_employee_not_the_client_owner() -> anyh
 async fn id_jag_bound_to_another_resource_is_rejected() -> anyhow::Result<()> {
     let (client, _owner) = seeded_client_with_owner().await?;
     let app = token_app().await?;
-    let issuer = Config::get()?.jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let id_jag = mint_id_jag_bound_to(
         client.client_id.as_str(),
         &issuer,
@@ -645,7 +644,7 @@ async fn id_jag_bound_to_another_resource_is_rejected() -> anyhow::Result<()> {
 async fn jwt_bearer_redeems_an_id_jag() -> anyhow::Result<()> {
     let (client, owner) = seeded_client_with_owner().await?;
     let app = token_app().await?;
-    let issuer = Config::get()?.jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let id_jag = mint_id_jag_bound_to(
         client.client_id.as_str(),
         &issuer,
@@ -692,7 +691,7 @@ async fn jwt_bearer_without_an_assertion_is_rejected() -> anyhow::Result<()> {
 async fn jwt_bearer_replay_is_rejected() -> anyhow::Result<()> {
     let (client, _owner) = seeded_client_with_owner().await?;
     let app = token_app().await?;
-    let issuer = Config::get()?.jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let id_jag = mint_id_jag_bound_to(
         client.client_id.as_str(),
         &issuer,

@@ -18,7 +18,11 @@ fn ext_auth(endpoint: &str) -> ExternalAuth {
 
 #[test]
 fn accessor_url_joins_base_and_endpoint() {
-    let url = accessor_url("https://api.example.com/", "/api/public/prov/token");
+    let url = accessor_url(
+        "https://api.example.com/",
+        "/api/public/prov/token",
+        &crate::harness::config(),
+    );
     assert!(url.ends_with("/api/public/prov/token"));
     assert!(!url.contains("com//api"));
 }

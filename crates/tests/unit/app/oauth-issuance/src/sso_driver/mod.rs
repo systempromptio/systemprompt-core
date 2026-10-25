@@ -29,19 +29,21 @@ fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
     ensure_test_bootstrap();
     let users = Arc::new(MemoryUsers::default());
     let sessions = Arc::new(CountingSessions::default());
+    let mut config = fixture_config("postgres://unused/unused");
+    config.api_external_url = api_external_url.to_owned();
+    let config = Arc::new(config);
     let service = SessionCreationService::new(
         Arc::clone(&sessions) as Arc<dyn systemprompt_traits::SessionProvider>,
         Arc::clone(&users) as Arc<dyn systemprompt_traits::UserProvider>,
         systemprompt_test_fixtures::test_signing_keys(),
+        Arc::clone(&config),
     );
-    let mut config = fixture_config("postgres://unused/unused");
-    config.api_external_url = api_external_url.to_owned();
     Harness {
         driver: SsoDriver::discover(
             db,
+            systemprompt_test_fixtures::oauth_fixture_repository(db),
             Arc::new(service),
-            Arc::new(config),
-            systemprompt_test_fixtures::fixture_services_view(),
+            config,
         ),
         users,
         sessions,

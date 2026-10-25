@@ -6,7 +6,7 @@ use std::sync::Arc;
 use clap::Parser;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
 use systemprompt_cli::paths::ResolvedPaths;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
 use systemprompt_identifiers::{
@@ -15,8 +15,8 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, TestBootstrap, bounded_output, fixture_app_context_with, fixture_user_id,
-    init_services_bootstrap,
+    DisposableDb, TestBootstrap, bounded_output, fixture_app_context_on_bootstrap_with_paths,
+    fixture_user_id, init_services_bootstrap,
 };
 use wiremock::matchers::{body_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -232,9 +232,9 @@ async fn mixed_agent_tools_helper() {
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(
+    let app = fixture_app_context_on_bootstrap_with_paths(
+        &boot,
         &pool,
-        database.url(),
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
@@ -249,7 +249,7 @@ async fn mixed_agent_tools_helper() {
         })
         .await
         .expect("register only the healthy MCP server as running");
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json)

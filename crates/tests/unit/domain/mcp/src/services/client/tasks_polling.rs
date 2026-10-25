@@ -145,9 +145,9 @@ async fn call_echo(
     let config = external_mcp_config(tag, &format!("{}/mcp", server.uri()));
     let outcome = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_view(),
-        ),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        crate::harness::config(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
     .call_tool(&config, "echo".to_owned(), None, &request_context(tag))
     .await;
@@ -358,9 +358,9 @@ async fn a_direct_input_required_tool_response_is_reissued_once_with_the_origina
         std::time::Duration::from_secs(5),
         McpClient::new(
             std::sync::Arc::default(),
-            systemprompt_mcp::services::DeploymentService::new(
-                systemprompt_test_fixtures::fixture_services_view(),
-            ),
+            systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
         )
         .call_tool(
             &config,

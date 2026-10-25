@@ -35,7 +35,7 @@ async fn known_agent_returns_ok_with_card() {
     let response = agent_card_response(
         Ok(registry_with("card_seam_agent")),
         &AgentName::new("card_seam_agent"),
-        "http://cards.invalid",
+        crate::card_site("http://cards.invalid"),
     );
 
     assert_eq!(response.status(), StatusCode::OK);
@@ -52,7 +52,7 @@ async fn unknown_agent_returns_not_found() {
     let response = agent_card_response(
         Ok(registry_with("card_seam_agent")),
         &AgentName::new("missing_agent"),
-        "http://cards.invalid",
+        crate::card_site("http://cards.invalid"),
     );
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
@@ -76,7 +76,7 @@ async fn card_assembly_failure_returns_internal_error() {
     let response = agent_card_response(
         Ok(registry),
         &AgentName::new("card_seam_alias"),
-        "http://cards.invalid",
+        crate::card_site("http://cards.invalid"),
     );
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -92,7 +92,7 @@ async fn registry_failure_returns_internal_error() {
             "injected registry failure",
         ))),
         &AgentName::new("card_seam_agent"),
-        "http://cards.invalid",
+        crate::card_site("http://cards.invalid"),
     );
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);

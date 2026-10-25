@@ -242,6 +242,7 @@ async fn prerender_excludes_non_public_rows() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await;
@@ -307,6 +308,7 @@ async fn prerender_removes_now_private_slug() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &boot.app_paths,
     )
     .await;

@@ -21,7 +21,7 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::hash_registration_token;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_config, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -40,7 +40,6 @@ fn ctx_for(user: &UserId) -> RequestContext {
 }
 
 async fn clients_app(user: UserId) -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -58,11 +57,11 @@ async fn clients_app(user: UserId) -> anyhow::Result<Router> {
     };
     Ok(authenticated_router()
         .layer(middleware::from_fn(inject))
-        .with_state(state))
+        .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn client_config_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -74,7 +73,8 @@ async fn client_config_app() -> anyhow::Result<Router> {
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
-    .with_state(state))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn seed_owner() -> anyhow::Result<UserId> {

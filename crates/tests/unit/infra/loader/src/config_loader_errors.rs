@@ -26,7 +26,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(main, &config_path)
+    let err = ConfigLoader::load_from_content(main, &config_path, None)
         .expect_err("settings in include must be rejected");
     let msg = format!("{err:#}");
     assert!(
@@ -96,7 +96,7 @@ settings:
 "#
     );
 
-    let err = ConfigLoader::load_from_content(&main, &config_path)
+    let err = ConfigLoader::load_from_content(&main, &config_path, None)
         .expect_err("duplicate agent must error");
     let msg = format!("{err:#}");
     assert!(
@@ -152,7 +152,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(main, &config_path)
+    let err = ConfigLoader::load_from_content(main, &config_path, None)
         .expect_err("duplicate mcp server must error");
     let msg = format!("{err:#}");
     assert!(
@@ -176,7 +176,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(main, &config_path)
+    let err = ConfigLoader::load_from_content(main, &config_path, None)
         .expect_err("missing include must error");
     let msg = format!("{err:#}");
     assert!(
@@ -221,7 +221,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let config = ConfigLoader::load_from_content(main, &config_path)
+    let config = ConfigLoader::load_from_content(main, &config_path, None)
         .expect("should load config with !include system prompt");
 
     let agent = config.agents.get("prompt_agent").expect("agent present");
@@ -266,7 +266,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(main, &config_path)
+    let err = ConfigLoader::load_from_content(main, &config_path, None)
         .expect_err("missing !include file must error");
     let msg = format!("{err:#}");
     assert!(
@@ -304,7 +304,7 @@ skills:
       mcp_servers: {include: []}
 "#;
 
-    let config = ConfigLoader::load_from_content(main, &config_path)
+    let config = ConfigLoader::load_from_content(main, &config_path, None)
         .expect("should load config with skill instruction include");
 
     let skill = config.skills.skills.get("my_skill").expect("skill present");
@@ -344,7 +344,7 @@ skills:
       mcp_servers: {include: []}
 "#;
 
-    let err = ConfigLoader::load_from_content(main, &config_path)
+    let err = ConfigLoader::load_from_content(main, &config_path, None)
         .expect_err("missing skill instruction include must error");
     let msg = format!("{err:#}");
     assert!(
@@ -394,8 +394,8 @@ fn validate_file_invalid_errors() {
     let config_path = temp.path().join("bad.yaml");
     std::fs::write(&config_path, "not: valid: yaml: : :").expect("write bad yaml");
 
-    let err =
-        ConfigLoader::validate_file(&config_path).expect_err("invalid YAML must fail validation");
+    let err = ConfigLoader::validate_file(&config_path, None)
+        .expect_err("invalid YAML must fail validation");
     let msg = format!("{err:#}");
     assert!(!msg.is_empty());
 }
@@ -418,7 +418,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
 
-    let err = ConfigLoader::load_from_content(main, &config_path)
+    let err = ConfigLoader::load_from_content(main, &config_path, None)
         .expect_err("broken include YAML must error");
     let msg = format!("{err:#}");
     assert!(!msg.is_empty());

@@ -23,7 +23,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
 use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::services::webauthn::hash_token;
-use systemprompt_test_fixtures::{ensure_config_with, seed_user_row, test_db_pool};
+use systemprompt_test_fixtures::{seed_user_row, test_db_pool};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -31,14 +31,18 @@ use webauthn_authenticator_rs::WebauthnAuthenticator;
 use webauthn_authenticator_rs::softtoken::SoftToken;
 use webauthn_rs::prelude::CreationChallengeResponse;
 
-use super::common::{read_json, setup_ctx};
+use super::common::{read_json, setup_ctx_customised, with_config};
 
-fn ensure_config() {
-    ensure_config_with(|config| config.api_external_url = "http://localhost".to_owned());
+async fn setup_link_ctx() -> anyhow::Result<(
+    systemprompt_database::DbPool,
+    std::sync::Arc<systemprompt_runtime::AppContext>,
+)> {
+    setup_ctx_customised(|config| config.api_external_url = "http://localhost".to_owned()).await
 }
 
 fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthState> {
     let webauthn = WebAuthnService::new(
+        ctx.config(),
         ctx.oauth_repositories().oauth.clone(),
         ctx.user_provider().expect("user"),
     )
@@ -54,13 +58,13 @@ fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthSt
 }
 
 async fn app() -> anyhow::Result<Router> {
-    ensure_config();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_link_ctx().await?;
     let state = oauth_state(&ctx)?;
-    Ok(public_router(std::sync::Arc::new(
+    let router = public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
-    .with_state(state))
+    .with_state(state);
+    Ok(with_config(router, &ctx))
 }
 
 fn get(uri: &str) -> Request<Body> {
@@ -207,8 +211,7 @@ async fn the_link_page_renders_the_passkey_template() {
 
 #[tokio::test]
 async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
-    ensure_config();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_link_ctx().await?;
     let state = oauth_state(&ctx)?;
 
     // `router()` is the merge of the public and authenticated halves; nothing
@@ -217,6 +220,7 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .with_state(state);
+    let merged = with_config(merged, &ctx);
     let resp = merged.oneshot(get("/health")).await?;
 
     assert!(resp.status().is_success(), "{}", resp.status());
@@ -249,16 +253,13 @@ async fn issue_link_token(ctx: &systemprompt_runtime::AppContext) -> (UserId, St
 }
 
 async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppContext>)> {
-    ensure_config();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_link_ctx().await?;
     let state = oauth_state(&ctx)?;
-    Ok((
-        public_router(std::sync::Arc::new(
-            systemprompt_oauth_issuance::JwksCache::new(),
-        ))
-        .with_state(state),
-        ctx,
+    let router = public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
     ))
+    .with_state(state);
+    Ok((with_config(router, &ctx), ctx))
 }
 
 async fn start_link(

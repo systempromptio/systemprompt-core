@@ -18,14 +18,14 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
 use systemprompt_oauth::services::hash_client_secret;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, TEST_CLIENT_SECRET, TEST_REDIRECT_URI, ensure_config,
-    ensure_test_bootstrap, seed_oauth_client, test_db_pool,
+    OAuthClientFixture, TEST_CLIENT_SECRET, TEST_REDIRECT_URI, ensure_test_bootstrap,
+    seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{read_json, setup_ctx};
+use super::common::{read_json, setup_ctx_customised};
 
 fn fixture_request_context() -> RequestContext {
     RequestContext::new(
@@ -43,8 +43,8 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
 }
 
 async fn token_app() -> anyhow::Result<Router> {
-    ensure_config();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) =
+        setup_ctx_customised(|c| c.allowed_resource_audiences = vec!["hook".to_owned()]).await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
@@ -56,7 +56,8 @@ async fn token_app() -> anyhow::Result<Router> {
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .layer(middleware::from_fn(inject_context))
-    .with_state(state);
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone()));
     Ok(router)
 }
 

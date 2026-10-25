@@ -41,7 +41,8 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::encryption_master_key()
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+            .encryption_master_key()
             .expect("encryption master key"),
     )
     .expect("gateway journal opens")
@@ -59,8 +60,14 @@ fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Gateway
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
+            catalog: std::sync::Arc::clone(
+                systemprompt_test_fixtures::fixture_services_view().catalog(),
+            ),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+            unapplied_plane: Default::default(),
         },
     )
 }

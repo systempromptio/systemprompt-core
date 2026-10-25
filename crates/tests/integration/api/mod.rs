@@ -389,10 +389,6 @@ mod routes_bridge_plugin_file;
 mod routes_bridge_manifest_catalog;
 
 #[cfg(test)]
-#[path = "routes_bridge_manifest_config_reload.rs"]
-mod routes_bridge_manifest_config_reload;
-
-#[cfg(test)]
 #[path = "routes_slack_edges.rs"]
 mod routes_slack_edges;
 

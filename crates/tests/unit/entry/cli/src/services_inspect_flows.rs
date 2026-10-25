@@ -114,10 +114,13 @@ fn the_ownership_summary_counts_what_the_bundle_declares() {
 
 #[test]
 fn inspect_without_a_target_explains_the_two_modes() {
-    let error = execute(&InspectArgs {
-        bundle: None,
-        active: false,
-    })
+    let error = execute(
+        &InspectArgs {
+            bundle: None,
+            active: false,
+        },
+        &crate::boot_ctx::bootstrap_ctx(),
+    )
     .expect_err("one of the two flags is required");
     let rendered = format!("{error:#}");
     assert!(rendered.contains("--bundle"), "{rendered}");
@@ -128,10 +131,13 @@ fn inspect_without_a_target_explains_the_two_modes() {
 fn inspect_names_an_archive_it_cannot_read() {
     let dir = tempfile::tempdir().expect("tempdir");
     let missing = dir.path().join("absent.tar.gz");
-    let error = execute(&InspectArgs {
-        bundle: Some(missing),
-        active: false,
-    })
+    let error = execute(
+        &InspectArgs {
+            bundle: Some(missing),
+            active: false,
+        },
+        &crate::boot_ctx::bootstrap_ctx(),
+    )
     .expect_err("a missing archive cannot be inspected");
     assert!(format!("{error:#}").contains("absent.tar.gz"), "{error:#}");
 }

@@ -203,7 +203,7 @@ async fn replay() -> Result<()> {
     let background = BackgroundTasks::new();
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),
-        systemprompt_config::SecretsBootstrap::encryption_master_key()?,
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap().encryption_master_key()?,
     )?;
     let repos = GatewayRepositories::new(
         &db,
@@ -215,8 +215,14 @@ async fn replay() -> Result<()> {
             background: background.clone(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(&db),
+            catalog: std::sync::Arc::clone(
+                systemprompt_test_fixtures::fixture_services_view().catalog(),
+            ),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+            unapplied_plane: Default::default(),
         },
     );
     let cred = seed_admin_credential(
@@ -340,7 +346,7 @@ async fn replay() -> Result<()> {
                         engines: std::sync::Arc::new(
                             systemprompt_gateway::GatewayEngines::new(
                                 Default::default(),
-                                Default::default(),
+                                systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
                             )
                             .expect("gateway engines build"),
                         ),
@@ -405,7 +411,7 @@ async fn replay() -> Result<()> {
                         engines: std::sync::Arc::new(
                             systemprompt_gateway::GatewayEngines::new(
                                 Default::default(),
-                                Default::default(),
+                                systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
                             )
                             .expect("gateway engines build"),
                         ),

@@ -5,7 +5,7 @@ use std::process::Command;
 use systemprompt_cli::admin::access_control::{
     self, AccessControlCommands, ExportYamlArgs, LintArgs,
 };
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
     DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row_with_roles,
@@ -56,7 +56,7 @@ async fn access_control_helper() {
         .execute(raw.as_ref()).await.expect("seed role rule");
     sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification, source) VALUES ('agent', 'true', 'user', 'omitted-user', 'deny', NULL, 'console:admin')")
         .execute(raw.as_ref()).await.expect("seed omitted user rule");
-    let context = CommandContext::new(
+    let context = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

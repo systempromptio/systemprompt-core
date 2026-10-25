@@ -20,10 +20,11 @@ fn publishing_service(fx: &Fixture) -> Result<ArtifactPublishingService> {
     let repositories = systemprompt_test_fixtures::a2a_repositories(&fx.db);
     let steps = Arc::new(ExecutionStepRepository::new(&fx.db));
     let skills = Arc::new(SkillService::new(
+        systemprompt_test_fixtures::test_skills_root(),
         systemprompt_test_fixtures::not_managed_skills(),
         steps,
         systemprompt_test_mocks::recording_webhooks(),
-    )?);
+    ));
     Ok(ArtifactPublishingService::new(&repositories, skills))
 }
 

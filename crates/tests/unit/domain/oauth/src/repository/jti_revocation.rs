@@ -3,7 +3,7 @@
 use chrono::{Duration, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AccessTokenId, UserId};
-use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository, OauthCleanupRepository};
+use systemprompt_oauth::repository::{JtiRevocationCache, OauthCleanupRepository};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
@@ -63,7 +63,7 @@ fn cache_capacity_zero_clamps_to_one() {
 async fn revoke_jti_then_is_revoked() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
     let uid = seeded_user(&pool).await;
     let jti = fresh_jti();
@@ -78,7 +78,7 @@ async fn revoke_jti_then_is_revoked() {
 async fn revoke_jti_is_idempotent_on_conflict() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
     let uid = seeded_user(&pool).await;
     let jti = fresh_jti();
@@ -92,7 +92,7 @@ async fn revoke_jti_is_idempotent_on_conflict() {
 async fn expired_jti_not_revoked() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
     let uid = seeded_user(&pool).await;
     let jti = fresh_jti();
@@ -106,7 +106,7 @@ async fn expired_jti_not_revoked() {
 async fn revoke_jtis_for_user_batch() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
     let uid = seeded_user(&pool).await;
     let jtis = vec![fresh_jti(), fresh_jti(), fresh_jti()];
@@ -125,7 +125,7 @@ async fn revoke_jtis_for_user_batch() {
 async fn cleanup_expired_jti_revocations_removes_past_rows() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
     let uid = seeded_user(&pool).await;
     let jti = fresh_jti();
@@ -160,7 +160,7 @@ fn cache_with_zero_capacity_is_clamped_and_usable() {
 async fn non_uuid_user_can_revoke_a_jti() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
     let uid = seeded_user(&pool).await;
     assert!(

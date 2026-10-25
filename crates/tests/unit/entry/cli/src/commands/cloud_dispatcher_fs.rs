@@ -28,7 +28,7 @@ fn ctx() -> CommandContext {
         profile: Some(boot.profile_path.to_string_lossy().to_string()),
         ..EnvOverrides::default()
     };
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

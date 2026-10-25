@@ -18,11 +18,11 @@ use axum::{Router, middleware};
 use systemprompt_api::services::middleware::{AnalyticsMiddleware, SessionMiddleware};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config};
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 
-use super::common::setup_ctx;
+use super::common::{setup_ctx, with_config};
 
 async fn ok_handler() -> &'static str {
     "ok"
@@ -33,15 +33,14 @@ async fn boom_handler() -> StatusCode {
 }
 
 async fn setup() -> Result<(DbPool, Arc<AppContext>)> {
-    let b = ensure_test_bootstrap();
-    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
+    ensure_test_bootstrap();
     setup_ctx().await
 }
 
 fn build(ctx: &Arc<AppContext>) -> Result<Router> {
     let session = SessionMiddleware::new(ctx);
     let analytics = AnalyticsMiddleware::new(ctx);
-    Ok(Router::new()
+    let app = Router::new()
         .route("/boom", get(boom_handler))
         .fallback(get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {
@@ -51,7 +50,8 @@ fn build(ctx: &Arc<AppContext>) -> Result<Router> {
         .layer(middleware::from_fn(move |req, next| {
             let mw = session.clone();
             async move { mw.handle(req, next).await }
-        })))
+        }));
+    Ok(with_config(app, ctx))
 }
 
 fn browser_agent() -> String {

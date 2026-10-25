@@ -16,7 +16,7 @@ use axum::http::{Request, StatusCode, header};
 use systemprompt_api::routes::oauth::{public_router, wellknown_routes};
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{ensure_config, mint_admin_jwt};
+use systemprompt_test_fixtures::mint_admin_jwt;
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -24,7 +24,6 @@ use uuid::Uuid;
 use super::common::{read_json, setup_ctx};
 
 async fn oauth_state() -> anyhow::Result<OAuthState> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     Ok(OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -39,7 +38,8 @@ async fn userinfo_app() -> anyhow::Result<Router> {
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
-    .with_state(oauth_state().await?))
+    .with_state(oauth_state().await?)
+    .layer(axum::Extension(systemprompt_test_fixtures::test_config())))
 }
 
 fn get_userinfo(auth: Option<&str>) -> Request<Body> {
@@ -64,7 +64,6 @@ fn json_post(uri: &str, body: serde_json::Value) -> Request<Body> {
 #[tokio::test]
 async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    ensure_config();
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
@@ -72,7 +71,9 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_signing_keys(),
     );
-    let app = systemprompt_api::routes::oauth::authenticated_router().with_state(state);
+    let app = systemprompt_api::routes::oauth::authenticated_router()
+        .with_state(state)
+        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
     let resp = app.oneshot(get_userinfo(None)).await?;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
     let v = read_json(resp).await?;
@@ -83,7 +84,9 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
 #[tokio::test]
 async fn userinfo_malformed_token_returns_invalid_token() -> anyhow::Result<()> {
     let state = oauth_state().await?;
-    let app = systemprompt_api::routes::oauth::authenticated_router().with_state(state);
+    let app = systemprompt_api::routes::oauth::authenticated_router()
+        .with_state(state)
+        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
     let resp = app
         .oneshot(get_userinfo(Some("Bearer not-a-real-token")))
         .await?;
@@ -96,9 +99,15 @@ async fn userinfo_malformed_token_returns_invalid_token() -> anyhow::Result<()> 
 #[tokio::test]
 async fn userinfo_valid_token_returns_identity() -> anyhow::Result<()> {
     let state = oauth_state().await?;
-    let app = systemprompt_api::routes::oauth::authenticated_router().with_state(state);
+    let app = systemprompt_api::routes::oauth::authenticated_router()
+        .with_state(state)
+        .layer(axum::Extension(systemprompt_test_fixtures::test_config()));
     let user = UserId::new(Uuid::new_v4().to_string());
-    let token = mint_admin_jwt(&user, "userinfo@userinfo.invalid", "https://issuer.test");
+    let token = mint_admin_jwt(
+        &user,
+        "userinfo@userinfo.invalid",
+        systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+    );
     let resp = app
         .oneshot(get_userinfo(Some(&format!("Bearer {}", token.as_str()))))
         .await?;
@@ -115,9 +124,8 @@ async fn userinfo_valid_token_returns_identity() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_routes(&ctx);
+    let app = super::common::with_config(wellknown_routes(&ctx), &ctx);
     let resp = app
         .oneshot(
             Request::builder()
@@ -133,9 +141,8 @@ async fn wellknown_trailing_slash_variant_is_served() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn wellknown_options_preflight_returns_200() -> anyhow::Result<()> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
-    let app = wellknown_routes(&ctx);
+    let app = super::common::with_config(wellknown_routes(&ctx), &ctx);
     let resp = app
         .oneshot(
             Request::builder()

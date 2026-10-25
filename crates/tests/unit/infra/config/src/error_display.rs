@@ -75,57 +75,10 @@ fn config_error_secrets_file_not_object_display() {
 }
 
 #[test]
-fn profile_bootstrap_error_not_initialized() {
-    let e = ProfileBootstrapError::NotInitialized;
-    let msg = format!("{e}");
-    assert!(
-        msg.contains("not initialized") || msg.contains("Not initialized"),
-        "got: {msg}"
-    );
-}
-
-#[test]
-fn profile_bootstrap_error_already_initialized() {
-    let e = ProfileBootstrapError::AlreadyInitialized;
-    let msg = format!("{e}");
-    assert!(
-        msg.contains("already initialized") || msg.contains("Already initialized"),
-        "got: {msg}"
-    );
-}
-
-#[test]
 fn profile_bootstrap_error_path_not_set() {
     let e = ProfileBootstrapError::PathNotSet;
     let msg = format!("{e}");
     assert!(msg.contains("SYSTEMPROMPT_PROFILE"), "got: {msg}");
-}
-
-#[test]
-fn secrets_bootstrap_error_not_initialized() {
-    let e = SecretsBootstrapError::NotInitialized;
-    let msg = format!("{e}");
-    assert!(
-        msg.contains("not initialized") || msg.contains("Not initialized"),
-        "got: {msg}"
-    );
-}
-
-#[test]
-fn secrets_bootstrap_error_already_initialized() {
-    let e = SecretsBootstrapError::AlreadyInitialized;
-    let msg = format!("{e}");
-    assert!(
-        msg.contains("already initialized") || msg.contains("Already initialized"),
-        "got: {msg}"
-    );
-}
-
-#[test]
-fn secrets_bootstrap_error_profile_not_initialized() {
-    let e = SecretsBootstrapError::ProfileNotInitialized;
-    let msg = format!("{e}");
-    assert!(msg.contains("Profile not initialized"), "got: {msg}");
 }
 
 #[test]

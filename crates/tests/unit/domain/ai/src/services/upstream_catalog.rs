@@ -12,6 +12,7 @@ use systemprompt_manifest::services::catalog::EndpointRef;
 use systemprompt_test_fixtures::catalog::{
     OPENCODE_GO_CHAT_URL, OPENCODE_GO_MESSAGES_URL, opencode_go,
 };
+use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 use systemprompt_wire::{Hosting, WireProtocol};
 
 fn personal(endpoint: &str, user: &str) -> UpstreamTarget {
@@ -80,7 +81,11 @@ fn a_personal_credential_has_no_deployment_secret() {
     let catalog = opencode_go().build();
     let binding = EndpointBinding::of_endpoint(&catalog, &EndpointRef::new("opencode-go", "chat"))
         .expect("endpoint in catalog");
-    match UpstreamTarget::from_secrets(&Default::default(), binding) {
+    match UpstreamTarget::from_secrets(
+        &Default::default(),
+        &ensure_test_secrets_bootstrap().get(),
+        binding,
+    ) {
         Err(UpstreamTargetError::PersonalCredential { credential }) => {
             assert_eq!(credential, "opencode-go");
         },

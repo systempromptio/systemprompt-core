@@ -40,7 +40,7 @@ fn migrated(tree: &Tree) -> ResolvedCatalog {
         .expect("migrate plans")
         .expect("legacy fixture needs a migration");
     write::apply(&tree.services, &plan).expect("migrate writes");
-    ConfigLoader::load_from_path(&tree.root())
+    ConfigLoader::load_from_path(&tree.root(), None)
         .expect("migrated tree loads")
         .resolve_catalog(&CatalogContext::default())
         .expect("migrated catalog resolves")
@@ -269,8 +269,8 @@ fn second_migrate_writes_nothing() {
 fn legacy_tree_is_refused_with_the_migrate_hint() {
     for fixture in FIXTURES {
         let tree = from_fixture(fixture);
-        let error =
-            ConfigLoader::load_from_path(&tree.root()).expect_err("legacy tree must not load");
+        let error = ConfigLoader::load_from_path(&tree.root(), None)
+            .expect_err("legacy tree must not load");
         assert!(
             error.to_string().contains(MIGRATE_HINT),
             "{fixture}: {error}"

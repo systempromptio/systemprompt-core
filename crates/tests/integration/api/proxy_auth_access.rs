@@ -8,9 +8,8 @@ use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::IntoResponse;
 use systemprompt_api::services::proxy::auth::access::{AccessValidator, OAuthRequirement};
 use systemprompt_identifiers::{ServiceName, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServiceModule;
-use systemprompt_test_fixtures::mint_admin_jwt;
+use systemprompt_test_fixtures::{mint_admin_jwt, test_config};
 use uuid::Uuid;
 
 use super::common::{request_context, setup_ctx};
@@ -42,7 +41,7 @@ fn requirement(required: bool, scopes: &[&str], audience: &str) -> OAuthRequirem
 }
 
 fn admin_bearer_headers() -> HeaderMap {
-    let issuer = Config::get().expect("config").jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let user = UserId::new(Uuid::new_v4().to_string());
     let token = mint_admin_jwt(&user, "proxy-access@test.invalid", &issuer);
     let mut headers = HeaderMap::new();

@@ -2,7 +2,6 @@ use std::sync::Once;
 
 use base64::Engine;
 use ed25519_dalek::SigningKey;
-use systemprompt_config::SecretsBootstrap;
 
 const SEED_B64: &str = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
@@ -81,12 +80,14 @@ fn pubkey_stable_across_jwt_secret_rotation() {
 }
 
 #[test]
-fn seed_accessor_returns_dedicated_value() {
-    ensure_bootstrap();
-    let seed = SecretsBootstrap::manifest_signing_secret_seed()
+fn seed_accessor_returns_the_dedicated_secret_not_the_jwt_secret() {
+    let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
+    let seed = secrets
+        .manifest_signing_secret_seed()
         .expect("bootstrapped manifest signing seed");
-    let raw = base64::engine::general_purpose::STANDARD
-        .decode(SEED_B64)
-        .expect("seed decode");
-    assert_eq!(&seed[..], &raw[..]);
+    assert_eq!(seed, [0u8; 32]);
+    assert_ne!(
+        &seed[..],
+        b"signing-key-independence-jwt-secret-A-32".as_slice()
+    );
 }

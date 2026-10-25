@@ -30,7 +30,11 @@ async fn missing_private_credentials_fail_initial_import_and_sync_without_launch
         )
         .await
         .expect("registered private source");
-    let orchestrator = GitSourceOrchestrator::new(repository, std::env::temp_dir());
+    let orchestrator = GitSourceOrchestrator::new(
+        repository,
+        std::env::temp_dir(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    );
     let revision = ResourceRevisionId::generate();
     for base in [None, Some(revision.clone())] {
         let request = GitSyncRequest {
@@ -46,11 +50,7 @@ async fn missing_private_credentials_fail_initial_import_and_sync_without_launch
         .await
         .expect("credential rejection before import/sync")
         .expect_err("unresolved reference");
-        assert!(matches!(
-            error,
-            OrchestrationError::CredentialUnresolved
-                | OrchestrationError::CredentialsUnavailable(_)
-        ));
+        assert!(matches!(error, OrchestrationError::CredentialUnresolved));
         assert!(!error.to_string().contains(&reference));
     }
 }

@@ -23,6 +23,7 @@ impl Fixture {
                     actor: &self.owner,
                     root: self.root.path(),
                     services: &ServicesConfig::default(),
+                    sources: sources(),
                 },
                 guard,
             )

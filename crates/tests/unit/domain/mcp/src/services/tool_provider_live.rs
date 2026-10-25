@@ -63,10 +63,12 @@ async fn setup(agent: &str) -> (McpToolProvider, McpServerId, MockServer) {
         db,
         RegistryService::new(
             fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_view(),
+            crate::harness::services_state(),
+            crate::harness::config(),
         ),
         &resilience(),
         std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     );
     (
         provider,
@@ -218,10 +220,12 @@ async fn list_tools_tolerates_unreachable_server() {
         db,
         RegistryService::new(
             fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_view(),
+            crate::harness::services_state(),
+            crate::harness::config(),
         ),
         &resilience(),
         std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     );
     let tools = provider
         .list_tools(
@@ -268,10 +272,12 @@ async fn list_tools_keeps_healthy_server_inventory_when_another_assigned_server_
         db,
         RegistryService::new(
             fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_view(),
+            crate::harness::services_state(),
+            crate::harness::config(),
         ),
         &resilience(),
         std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     );
 
     let inventory = provider

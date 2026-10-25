@@ -10,9 +10,10 @@
 
 use std::path::PathBuf;
 
+use crate::boot_ctx::bootstrap_ctx_with;
 use clap::Parser;
 use systemprompt_cli::admin::config::rate_limits::{RateLimitsCommands, execute};
-use systemprompt_cli::{CliConfig, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{CliConfig, CommandContext, OutputFormat, ScriptedPrompter};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -26,10 +27,12 @@ fn parse(args: &[&str]) -> RateLimitsCommands {
         .cmd
 }
 
-fn config() -> CliConfig {
-    CliConfig::new()
-        .with_interactive(false)
-        .with_output_format(OutputFormat::Json)
+fn config() -> CommandContext {
+    bootstrap_ctx_with(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+    )
 }
 
 fn profile_path() -> PathBuf {

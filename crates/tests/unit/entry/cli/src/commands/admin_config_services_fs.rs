@@ -12,12 +12,13 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
+use crate::boot_ctx::bootstrap_ctx;
+use systemprompt_cli::CommandContext;
 use systemprompt_cli::admin::config::services::{ServicesCommands, SetArgs, execute};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-fn cfg() -> CliConfig {
-    CliConfig::new().with_interactive(false)
+fn cfg() -> CommandContext {
+    bootstrap_ctx()
 }
 
 fn profile_path() -> std::path::PathBuf {

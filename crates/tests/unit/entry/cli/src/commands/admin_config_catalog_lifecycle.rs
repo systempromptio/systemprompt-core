@@ -3,7 +3,7 @@ use systemprompt_cli::admin::config::credential::{self, CredentialAddArgs, Crede
 use systemprompt_cli::admin::config::endpoint::{self, EndpointAddArgs, EndpointCommands};
 use systemprompt_cli::admin::config::model::{self, ModelAddArgs, ModelCommands};
 use systemprompt_cli::admin::config::provider::{self, ProviderAddArgs, ProviderCommands};
-use systemprompt_cli::{CliConfig, OutputFormat};
+use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::ModelId;
 
 const HELPER: &str = "commands::admin_config_catalog_lifecycle::catalog_file_lifecycle_helper";
@@ -25,10 +25,14 @@ providers:
         url: "https://us-central1-aiplatform.googleapis.com/v1/projects/{project}/locations/us-central1/publishers/google"
 "#;
 
-fn json_config() -> CliConfig {
-    CliConfig::new()
-        .with_interactive(false)
-        .with_output_format(OutputFormat::Json)
+fn json_config(boot: &systemprompt_test_fixtures::TestBootstrap) -> CommandContext {
+    CommandContext::new(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+    )
+    .with_boot(Some(boot.boot.clone()))
 }
 
 fn yaml(path: &std::path::Path) -> serde_yaml::Value {
@@ -90,7 +94,7 @@ async fn catalog_file_lifecycle_helper() {
     let boot = systemprompt_test_fixtures::init_services_bootstrap(BOOT_CATALOG);
     let ai = boot.services_path.join("ai");
     let providers_path = ai.join("providers.yaml");
-    let config = json_config();
+    let config = json_config(&boot);
 
     println!("BEGIN_PROVIDER_LIST");
     provider::execute(&ProviderCommands::List, &config)
@@ -266,14 +270,17 @@ async fn catalog_file_lifecycle_helper() {
     assert_eq!(files(&ai), after_remove);
 
     println!("BEGIN_DISCOVERY_EMPTY");
-    catalog::execute(&CatalogCommands::Discovery, &config, None)
+    catalog::execute(&CatalogCommands::Discovery, &config.cli, None)
         .expect("missing discovery report is informative");
     println!("END_DISCOVERY_EMPTY");
 
     use systemprompt_scheduler::jobs::vertex_discovery::VertexDiscoveryJob;
-    let report = VertexDiscoveryJob::probe(&systemprompt_test_fixtures::fixture_services_view())
-        .await
-        .expect("discovery job produces a report");
+    let report = VertexDiscoveryJob::probe(
+        &systemprompt_loader::ServicesState::load(&boot.boot).expect("services state"),
+        boot.boot.secrets().get(),
+    )
+    .await
+    .expect("discovery job produces a report");
     println!("DISCOVERY_RAN_AT={}", report.ran_at);
     assert_eq!(report.failed_publishers.len(), 1, "{report:?}");
     assert!(
@@ -281,8 +288,11 @@ async fn catalog_file_lifecycle_helper() {
         "{report:?}"
     );
     println!("BEGIN_DISCOVERY_PARTIAL");
-    systemprompt_cli::admin::config::catalog_discovery::render_discovery(Some(&report), &config)
-        .expect("partial discovery report is rendered");
+    systemprompt_cli::admin::config::catalog_discovery::render_discovery(
+        Some(&report),
+        &config.cli,
+    )
+    .expect("partial discovery report is rendered");
     println!("END_DISCOVERY_PARTIAL");
 }
 

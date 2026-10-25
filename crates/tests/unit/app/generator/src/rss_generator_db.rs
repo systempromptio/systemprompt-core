@@ -103,9 +103,13 @@ async fn generate_feed_writes_xml_with_seeded_item() {
     );
     fs::create_dir_all(boot.app_paths.web().dist()).expect("mkdir dist");
 
-    generate_feed(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("generate_feed");
+    generate_feed(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("generate_feed");
 
     cleanup(&db, &source_id).await;
 
@@ -138,9 +142,13 @@ async fn rss_provider_branding_falls_back_to_web_branding() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssbrandingnone", "");
 
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("provider");
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("provider");
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "blog",
@@ -165,9 +173,13 @@ async fn rss_provider_partial_branding_mixes_source_and_web_defaults() {
         "    branding:\n      name: \"Only Name\"",
     );
 
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("provider");
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("provider");
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "blog",
@@ -189,9 +201,13 @@ async fn rss_provider_feed_specs_skip_sources_without_enabled_sitemap() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssspecs", "");
 
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("provider");
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("provider");
     let specs = p.feed_specs();
     assert_eq!(
         specs.len(),
@@ -215,9 +231,13 @@ async fn rss_provider_fetch_items_maps_slug_through_url_pattern() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssfetchdb", "");
 
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("provider");
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("provider");
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "rssfetchdb",
@@ -289,7 +309,7 @@ async fn generate_feed_with_providers_builds_feed_from_stub() {
         metadata_fails: false,
         items_fail: false,
     })];
-    let feeds = generate_feed_with_providers(&providers)
+    let feeds = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &providers)
         .await
         .expect("feeds");
     assert_eq!(feeds.len(), 1);
@@ -306,7 +326,7 @@ async fn generate_feed_with_providers_propagates_metadata_failure() {
         metadata_fails: true,
         items_fail: false,
     })];
-    let err = generate_feed_with_providers(&providers)
+    let err = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &providers)
         .await
         .expect_err("metadata failure");
     assert!(
@@ -322,7 +342,7 @@ async fn generate_feed_with_providers_propagates_fetch_failure() {
         metadata_fails: false,
         items_fail: true,
     })];
-    let err = generate_feed_with_providers(&providers)
+    let err = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &providers)
         .await
         .expect_err("fetch failure");
     assert!(
@@ -355,9 +375,13 @@ async fn rss_provider_missing_content_config_is_read_error() {
     let _boot = ensure_test_bootstrap();
     let db = test_db_pool().await;
     let tmp = tempfile::TempDir::new().unwrap();
-    let err = DefaultRssFeedProvider::new(content_repo(&db), &tempdir_paths(&tmp))
-        .await
-        .expect_err("missing content config");
+    let err = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &tempdir_paths(&tmp),
+    )
+    .await
+    .expect_err("missing content config");
     assert!(
         matches!(err, PublishError::ContentConfigRead { .. }),
         "unexpected error: {err:?}"
@@ -373,9 +397,13 @@ async fn rss_provider_malformed_content_config_is_parse_error() {
     let cfg = paths.system().content_config().to_path_buf();
     fs::create_dir_all(cfg.parent().unwrap()).unwrap();
     fs::write(&cfg, "content_sources: [broken").unwrap();
-    let err = DefaultRssFeedProvider::new(content_repo(&db), &paths)
-        .await
-        .expect_err("malformed content config");
+    let err = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &paths,
+    )
+    .await
+    .expect_err("malformed content config");
     assert!(
         matches!(err, PublishError::ContentConfigParse { .. }),
         "unexpected error: {err:?}"
@@ -391,9 +419,13 @@ async fn rss_provider_fetch_items_with_closed_pool_is_render_failed() {
     install_content_config(boot, "blog", "rssclosedsrc", "");
 
     let closed = systemprompt_test_fixtures::closed_db_pool().await;
-    let p = DefaultRssFeedProvider::new(content_repo(&closed), &boot.app_paths)
-        .await
-        .expect("provider construction only reads config files");
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&closed),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("provider construction only reads config files");
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "rssclosedsrc",
@@ -421,9 +453,13 @@ async fn rss_provider_fetch_items_defaults_url_pattern_without_sitemap() {
     install_web_config(boot);
     install_content_config(boot, "blog", "rssnositemap", "");
 
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("provider");
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("provider");
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "rssnositemap-off",

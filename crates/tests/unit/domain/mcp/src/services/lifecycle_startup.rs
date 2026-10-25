@@ -146,7 +146,8 @@ async fn start_server_rejects_external_servers() {
     let bootstrap = ensure_test_bootstrap();
     let registry = systemprompt_mcp::services::registry::RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     let database = systemprompt_mcp::services::database::DatabaseService::new(
         systemprompt_database::ServiceRepository::new(&db, unique_instance()),
@@ -156,6 +157,8 @@ async fn start_server_rejects_external_servers() {
     let lifecycle = LifecycleService::new(
         systemprompt_mcp::services::process::ProcessService::new(
             systemprompt_test_fixtures::test_spawner(),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
         ),
         systemprompt_mcp::services::NetworkService::new(),
         database,

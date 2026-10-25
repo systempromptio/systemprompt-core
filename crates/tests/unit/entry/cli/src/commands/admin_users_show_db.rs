@@ -34,7 +34,7 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    CommandContext::with_app_context(cli, EnvOverrides::default(), test_app_context(pool, &url))
+    crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), test_app_context(pool, &url))
 }
 
 fn unique(prefix: &str) -> (String, String) {

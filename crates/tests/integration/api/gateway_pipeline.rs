@@ -47,7 +47,8 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::encryption_master_key()
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+            .encryption_master_key()
             .expect("encryption master key"),
     )
     .expect("gateway journal opens")
@@ -67,8 +68,14 @@ pub(super) fn gw_repos(
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
+            catalog: std::sync::Arc::clone(
+                systemprompt_test_fixtures::fixture_services_view().catalog(),
+            ),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+            unapplied_plane: Default::default(),
         },
     )
 }
@@ -123,7 +130,7 @@ impl JsonLogWriter {
 }
 
 pub(super) fn install_provider_api_key() {
-    // SAFETY: set before the process's first `SecretsBootstrap::try_init` (driven
+    // SAFETY: set before the process's first test bootstrap (driven
     // by `setup_ctx`); process-local under nextest's per-test process model.
     unsafe {
         std::env::set_var(API_KEY_ENV, "sk-test-anthropic-key");
@@ -269,8 +276,11 @@ pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
         std::sync::OnceLock::new();
     Arc::clone(ENGINES.get_or_init(|| {
         Arc::new(
-            systemprompt_gateway::GatewayEngines::new(Default::default(), Default::default())
-                .expect("gateway engines build"),
+            systemprompt_gateway::GatewayEngines::new(
+                Default::default(),
+                systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            )
+            .expect("gateway engines build"),
         )
     }))
 }
@@ -1542,7 +1552,8 @@ fn owned_gateway_repos(
 ) -> systemprompt_gateway::GatewayRepositories {
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir.path(),
-        systemprompt_config::SecretsBootstrap::encryption_master_key()
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+            .encryption_master_key()
             .expect("encryption master key"),
     )
     .expect("owned gateway journal");
@@ -1556,8 +1567,14 @@ fn owned_gateway_repos(
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            services: systemprompt_test_fixtures::fixture_services_view(),
-            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(pool),
+            catalog: std::sync::Arc::clone(
+                systemprompt_test_fixtures::fixture_services_view().catalog(),
+            ),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+            unapplied_plane: Default::default(),
         },
     )
 }

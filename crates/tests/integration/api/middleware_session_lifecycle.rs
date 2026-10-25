@@ -18,20 +18,18 @@ use systemprompt_api::services::middleware::SessionMiddleware;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    FIXTURE_JWT_ISSUER, ensure_test_bootstrap, fixture_config, mint_admin_jwt,
-    seed_admin_credential, seed_user_row,
+    FIXTURE_JWT_ISSUER, ensure_test_bootstrap, mint_admin_jwt, seed_admin_credential, seed_user_row,
 };
 use tower::ServiceExt;
 
-use super::common::setup_ctx;
+use super::common::{setup_ctx, with_config};
 
 async fn ok_handler() -> &'static str {
     "ok"
 }
 
 async fn router() -> Result<(DbPool, Router)> {
-    let b = ensure_test_bootstrap();
-    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
+    ensure_test_bootstrap();
     let (db, ctx) = setup_ctx().await?;
     let mw = SessionMiddleware::new(&ctx);
     let app = Router::new()
@@ -40,7 +38,7 @@ async fn router() -> Result<(DbPool, Router)> {
             let mw = mw.clone();
             async move { mw.handle(req, next).await }
         }));
-    Ok((db, app))
+    Ok((db, with_config(app, &ctx)))
 }
 
 fn get_page(headers: &[(&str, String)]) -> Request<Body> {
@@ -212,8 +210,7 @@ async fn principal_handler(
 
 #[tokio::test]
 async fn a_degraded_request_runs_as_a_fresh_anonymous_principal() -> Result<()> {
-    let b = ensure_test_bootstrap();
-    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
+    ensure_test_bootstrap();
     let (db, ctx) = setup_ctx().await?;
     let mw = SessionMiddleware::new(&ctx);
     let app = Router::new()
@@ -222,6 +219,7 @@ async fn a_degraded_request_runs_as_a_fresh_anonymous_principal() -> Result<()> 
             let mw = mw.clone();
             async move { mw.handle(req, next).await }
         }));
+    let app = with_config(app, &ctx);
     db.pool().close().await;
 
     let mut principals = Vec::new();

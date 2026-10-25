@@ -73,7 +73,14 @@ fn reload(path: &str) -> ContentConfigRaw {
 
 fn run(args: &[&str]) -> anyhow::Result<()> {
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
-    execute(parse(args), &prompter, &config())
+    execute(
+        parse(args),
+        &prompter,
+        &config(),
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .profile(),
+    )
 }
 
 #[test]

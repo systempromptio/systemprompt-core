@@ -61,7 +61,7 @@ fn start() -> Harness {
     let root = services.join("config/config.yaml");
     write_root(&root, ROOT_V1);
 
-    let watch = ConfigWatch::new(ConfigLoader::load_from_path(&root).expect("v1 loads"));
+    let watch = ConfigWatch::new(ConfigLoader::load_from_path(&root, None).expect("v1 loads"));
     let epochs = CacheEpochs::new();
     let tasks = BackgroundTasks::new();
     let signals = WatchSignals {
@@ -73,7 +73,7 @@ fn start() -> Harness {
     let reload_root = root.clone();
     watch.spawn(&tasks, signals, move || {
         let root = reload_root.clone();
-        async move { ConfigLoader::load_from_path(&root) }
+        async move { ConfigLoader::load_from_path(&root, None) }
     });
     Harness {
         _tmp: tmp,
@@ -115,7 +115,7 @@ async fn a_tree_that_fails_to_load_keeps_the_last_good_config() {
     let h = start();
     write_root(&h.root, ROOT_BROKEN);
     assert!(
-        ConfigLoader::load_from_path(&h.root).is_err(),
+        ConfigLoader::load_from_path(&h.root, None).is_err(),
         "the broken tree must not load"
     );
 

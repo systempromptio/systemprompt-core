@@ -392,7 +392,7 @@ mod dispatch {
 
     fn ctx(pool: &DbPool) -> CommandContext {
         let url = test_database_url();
-        CommandContext::with_app_context(
+        crate::boot_ctx::with_app_boot(
             cfg().with_output_format(OutputFormat::Json),
             EnvOverrides::default(),
             test_app_context(pool, &url),

@@ -1,8 +1,8 @@
 //! Unit tests for `RegistryService` construction and error-paths.
 //!
 //! The `get_enabled_servers` / `validate` / `find_server` paths rely on
-//! `Config::get()` global state, which is not initialised in unit tests,
-//! so those calls deterministically return an error here.
+//! a loaded services config, which these unit tests do not provide, so those
+//! calls deterministically return an error here.
 
 use systemprompt_mcp::RegistryService;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -11,7 +11,8 @@ use systemprompt_test_fixtures::fixture_user_id;
 fn test_new_constructs() {
     let _r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
 }
 
@@ -19,7 +20,8 @@ fn test_new_constructs() {
 fn test_clone() {
     let r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     let _r2 = r.clone();
 }
@@ -29,7 +31,8 @@ fn test_clone() {
 fn test_get_server_missing_propagates_error() {
     let r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     let result = r.get_server("nonexistent");
     result.unwrap_err();
@@ -39,7 +42,8 @@ fn test_get_server_missing_propagates_error() {
 fn test_find_server_missing_returns_error_or_none() {
     let r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     // Without a loaded Config, this errors at the loader. Either Err or
     // Ok(None) is acceptable.
@@ -50,7 +54,8 @@ fn test_find_server_missing_returns_error_or_none() {
 fn managed_and_external_servers_are_callable() {
     let r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        crate::harness::services_state(),
+        crate::harness::config(),
     );
     // Depending on global `Config` state these may load or error; both
     // accessors must at least be reachable and return the same result shape.

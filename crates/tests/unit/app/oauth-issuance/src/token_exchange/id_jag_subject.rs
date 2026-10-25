@@ -11,7 +11,6 @@ use rsa::pkcs1::EncodeRsaPrivateKey;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ClientId;
 use systemprompt_manifest::Config;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TYP;
 use systemprompt_oauth_issuance::token_exchange::id_jag_subject::{
     IdJagContext, validate_id_jag_subject,
@@ -64,7 +63,7 @@ async fn validate(
     pool: &DbPool,
     config: &Config,
 ) -> Result<Vec<String>, IssuanceError> {
-    let repo = OAuthRepository::new(pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(pool);
     let keys = test_signing_keys();
     validate_id_jag_subject(
         token,

@@ -101,15 +101,13 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
     };
 
     let (broadcaster, rec) = arc_recording_broadcaster();
-    let processor = Arc::new(
-        MessageHandler::new(
-            Arc::new(crate::repository::repos(&pool)),
-            Arc::new(StubAiProvider::new()),
-            broadcaster,
-            systemprompt_test_fixtures::fixture_services_view(),
-        )
-        .expect("processor"),
-    );
+    let processor = Arc::new(MessageHandler::new(
+        Arc::new(crate::repository::repos(&pool)),
+        Arc::new(StubAiProvider::new()),
+        broadcaster,
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    ));
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let request = request_context(&ctx, &session, &user, "loop-agent");
 

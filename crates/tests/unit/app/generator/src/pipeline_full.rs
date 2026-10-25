@@ -169,7 +169,13 @@ fn ensure_app_paths() -> AppPaths {
 async fn generate_sitemap_with_empty_sources_writes_sitemap_xml() {
     let paths = ensure_app_paths();
     let db = test_db_pool().await;
-    generate_sitemap(content_repo(&db), &paths).await.unwrap();
+    generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &paths,
+    )
+    .await
+    .unwrap();
     assert!(paths.web().dist().join("sitemap.xml").exists());
 }
 
@@ -177,7 +183,12 @@ async fn generate_sitemap_with_empty_sources_writes_sitemap_xml() {
 async fn generate_feed_with_empty_sources_runs() {
     let paths = ensure_app_paths();
     let db = test_db_pool().await;
-    let _ = generate_feed(content_repo(&db), &paths).await;
+    let _ = generate_feed(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &paths,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -185,9 +196,13 @@ async fn default_rss_feed_provider_full_config_constructs() {
     use systemprompt_provider_contracts::RssFeedProvider;
     let paths = ensure_app_paths();
     let db = test_db_pool().await;
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &paths)
-        .await
-        .unwrap();
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &paths,
+    )
+    .await
+    .unwrap();
     assert_eq!(p.provider_id(), "default-rss");
     let _ = p.feed_specs().len();
     let _ = format!("{p:?}");
@@ -196,7 +211,7 @@ async fn default_rss_feed_provider_full_config_constructs() {
 #[tokio::test]
 async fn generate_feed_with_providers_empty_providers_errors() {
     let _ = ensure_app_paths();
-    let r = generate_feed_with_providers(&[]).await;
+    let r = generate_feed_with_providers(ensure_test_bootstrap().boot_config(), &[]).await;
     assert!(r.is_err());
 }
 
@@ -210,6 +225,7 @@ async fn prerender_content_with_empty_templates_dir_runs_engine() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
+        ensure_test_bootstrap().boot_config(),
         &paths,
     )
     .await;
@@ -221,7 +237,13 @@ async fn prerender_pages_with_empty_templates_dir_runs_engine() {
     let templates_dir = paths.web().root().join("templates");
     fs::create_dir_all(&templates_dir).expect("mkdir templates");
     let db = test_db_pool().await;
-    let _ = prerender_pages(db.clone(), content_repo(&db), &paths).await;
+    let _ = prerender_pages(
+        db.clone(),
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &paths,
+    )
+    .await;
 }
 
 // The remaining tests share the same on-disk content/config.yaml. They
@@ -259,9 +281,13 @@ async fn generate_sitemap_with_source_writes_xml() {
     let dist = boot.app_paths.web().dist().to_path_buf();
     fs::create_dir_all(&dist).expect("mkdir dist");
     let db = test_db_pool().await;
-    generate_sitemap(content_repo(&db), &boot.app_paths)
-        .await
-        .unwrap();
+    generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .unwrap();
     assert!(dist.join("sitemap.xml").exists());
 }
 
@@ -270,9 +296,13 @@ async fn rss_provider_with_source_emits_feed_specs() {
     use systemprompt_provider_contracts::RssFeedProvider;
     let boot = install_content_with_source();
     let db = test_db_pool().await;
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .unwrap();
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .unwrap();
     let _ = p.feed_specs().len();
 }
 
@@ -282,7 +312,12 @@ async fn generate_feed_with_source_runs_pipeline() {
     let dist = boot.app_paths.web().dist().to_path_buf();
     fs::create_dir_all(&dist).expect("mkdir dist");
     let db = test_db_pool().await;
-    let _ = generate_feed(content_repo(&db), &boot.app_paths).await;
+    let _ = generate_feed(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -290,9 +325,13 @@ async fn rss_provider_fetch_items_for_unknown_source_errors() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
     let db = test_db_pool().await;
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .unwrap();
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .unwrap();
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "nonexistent_source_xyz",
@@ -306,9 +345,13 @@ async fn rss_provider_feed_metadata_returns_branding() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
     let db = test_db_pool().await;
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .unwrap();
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .unwrap();
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "blog",
@@ -321,9 +364,13 @@ async fn rss_provider_fetch_items_for_blog_source_runs_repo() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
     let db = test_db_pool().await;
-    let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
-        .await
-        .unwrap();
+    let p = DefaultRssFeedProvider::new(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .unwrap();
     let ctx = RssFeedContext {
         base_url: "https://example.com",
         source_name: "blog",

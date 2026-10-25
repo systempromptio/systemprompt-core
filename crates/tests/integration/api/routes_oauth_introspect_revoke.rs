@@ -21,8 +21,7 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_config, ensure_test_bootstrap, mint_admin_jwt, seed_oauth_client,
-    test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, mint_admin_jwt, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -41,7 +40,6 @@ fn ctx_for(user: &UserId) -> RequestContext {
 }
 
 async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -59,7 +57,8 @@ async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
     };
     Ok(authenticated_router()
         .layer(middleware::from_fn(inject))
-        .with_state(state))
+        .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn seeded_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
@@ -77,9 +76,13 @@ async fn seeded_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
 }
 
 fn mint_access_token(user: &UserId) -> String {
-    mint_admin_jwt(user, "introspect@introspect.invalid", "https://issuer.test")
-        .as_str()
-        .to_owned()
+    mint_admin_jwt(
+        user,
+        "introspect@introspect.invalid",
+        systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+    )
+    .as_str()
+    .to_owned()
 }
 
 fn form_post(uri: &str, body: String) -> Request<Body> {
@@ -296,7 +299,7 @@ fn unsigned_access_token(claims: serde_json::Value) -> String {
 fn base_claims() -> serde_json::Value {
     serde_json::json!({
         "sub": Uuid::new_v4().to_string(),
-        "iss": "https://issuer.test",
+        "iss": systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         "aud": ["api"],
         "exp": chrono::Utc::now().timestamp() + 3600,
         "iat": chrono::Utc::now().timestamp(),

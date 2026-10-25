@@ -195,7 +195,11 @@ fn test_all_registered_domains() {
 
 #[test]
 fn test_files_domain_priority() {
-    let validator = FilesConfigValidator::new();
+    let validator = FilesConfigValidator::new(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .clone(),
+    );
     let priority = validator.priority();
     assert!(priority > 0);
 }

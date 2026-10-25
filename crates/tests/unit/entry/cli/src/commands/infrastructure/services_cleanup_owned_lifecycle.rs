@@ -8,7 +8,7 @@ use std::process::{Child, Command};
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat, ScriptedPrompter};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
@@ -115,7 +115,7 @@ async fn cleanup_owned_helper() {
         .await
         .expect("service PID");
     let base = CliConfig::new().with_output_format(OutputFormat::Json);
-    let dry = CommandContext::with_app_context(
+    let dry = crate::boot_ctx::with_app_boot(
         base.clone().with_interactive(false),
         EnvOverrides::default(),
         app.clone(),
@@ -142,7 +142,7 @@ async fn cleanup_owned_helper() {
             .status,
         ServiceStatus::Running
     );
-    let cancel = CommandContext::with_app_context(
+    let cancel = crate::boot_ctx::with_app_boot(
         base.with_interactive(true).with_assume_terminal(true),
         EnvOverrides::default(),
         app,

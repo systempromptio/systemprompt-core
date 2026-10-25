@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, seed_user_session, test_app_context,
@@ -70,7 +70,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
     .await
     .expect("create late failure trigger");
 
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

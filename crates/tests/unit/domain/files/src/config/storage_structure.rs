@@ -10,7 +10,7 @@ fn config_with_yaml(content: Option<&str>) -> (&'static TestBootstrap, FilesConf
     if let Some(yaml) = content {
         std::fs::write(b.services_path.join("config/files.yaml"), yaml).expect("write files.yaml");
     }
-    let cfg = FilesConfig::from_profile(&b.app_paths).expect("from_profile");
+    let cfg = FilesConfig::from_profile(b.boot.profile(), &b.app_paths).expect("from_profile");
     (b, cfg)
 }
 

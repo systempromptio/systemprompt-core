@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use clap::Parser;
 use serde_json::Value;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
@@ -72,7 +72,7 @@ async fn populated_stop_helper() {
     .execute(pool.write_pool().as_ref())
     .await
     .expect("seed a row of a module the grouped stop does not select");
-    let ctx = CommandContext::with_app_context(
+    let ctx = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

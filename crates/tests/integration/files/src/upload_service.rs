@@ -1,8 +1,8 @@
 //! Integration tests for FileUploadService.
 //!
 //! Requires `DATABASE_URL` to point at a migrated Postgres instance. Bootstraps
-//! `ProfileBootstrap` and builds the `FilesConfig` via the shared `bootstrap`
-//! helper so the upload service can resolve storage roots.
+//! the fixture `BootContext` and builds the `FilesConfig` via the shared
+//! `bootstrap` helper so the upload service can resolve storage roots.
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;

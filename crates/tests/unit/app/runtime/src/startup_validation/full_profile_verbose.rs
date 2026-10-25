@@ -15,13 +15,18 @@ use crate::boot::{BootOptions, boot};
 
 fn validated_config() -> (crate::boot::BootFixture, Config) {
     let fixture = boot(&BootOptions::default());
-    systemprompt_config::try_init_config(None).expect("init config from profile");
-    (fixture, Config::get().expect("config installed").clone())
+    let config = fixture
+        .boot
+        .try_init_config(None)
+        .expect("init config from profile")
+        .as_ref()
+        .clone();
+    (fixture, config)
 }
 
 #[test]
 fn verbose_validate_reports_only_fixture_extension_failures() {
-    let (_fixture, config) = validated_config();
+    let (fixture, config) = validated_config();
 
     std::fs::write(
         std::path::Path::new(&config.services_path).join("config/covextok.yaml"),
@@ -29,7 +34,7 @@ fn verbose_validate_reports_only_fixture_extension_failures() {
     )
     .expect("write covextok config");
 
-    let mut validator = StartupValidator::new();
+    let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
     let report = validator.validate(&config);
 
     assert!(
@@ -91,7 +96,7 @@ fn verbose_validate_reports_only_fixture_extension_failures() {
 
 #[test]
 fn malformed_extension_config_reports_load_failure() {
-    let (_fixture, config) = validated_config();
+    let (fixture, config) = validated_config();
 
     std::fs::write(
         std::path::Path::new(&config.services_path).join("config/covextok.yaml"),
@@ -99,7 +104,7 @@ fn malformed_extension_config_reports_load_failure() {
     )
     .expect("write malformed covextok config");
 
-    let mut validator = StartupValidator::new();
+    let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
     let report = validator.validate(&config);
 
     let ok_ext = report
@@ -124,7 +129,7 @@ fn malformed_extension_config_reports_load_failure() {
 
 #[test]
 fn malformed_ancillary_configs_degrade_to_warnings_not_errors() {
-    let (_fixture, config) = validated_config();
+    let (fixture, config) = validated_config();
 
     // Point the three optional config paths at malformed YAML files; the
     // loaders must warn and continue rather than fail validation.
@@ -136,7 +141,7 @@ fn malformed_ancillary_configs_degrade_to_warnings_not_errors() {
     config.web_config_path.clone_from(&bad);
     config.web_metadata_path.clone_from(&bad);
 
-    let mut validator = StartupValidator::new();
+    let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
     let report = validator.validate(&config);
 
     for domain in ["content", "web"] {
@@ -159,11 +164,14 @@ fn restrictive_rate_limits_surface_as_domain_warnings() {
         stream_per_second: 5,
         ..BootOptions::default()
     });
-    systemprompt_config::try_init_config(None).expect("init config from profile");
-    let _fixture = fixture;
-    let config = Config::get().expect("config installed").clone();
+    let config = fixture
+        .boot
+        .try_init_config(None)
+        .expect("init config from profile")
+        .as_ref()
+        .clone();
 
-    let mut validator = StartupValidator::new();
+    let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
     let report = validator.validate(&config);
 
     let rate = report

@@ -1,9 +1,8 @@
 //! A tempdir-backed profile tree whose `services.sources` a test controls.
 //!
-//! `services refresh` and `admin config secret check` both read the profile
-//! singleton, so the tree is written to disk and installed through
-//! `ProfileBootstrap::init_from_path`. nextest runs one process per test, so
-//! installing the singleton per test is safe.
+//! `services refresh` and `admin config secret check` both read the loaded
+//! profile, so the tree is written to disk and loaded through
+//! `LoadedProfile::from_path`.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -183,4 +182,32 @@ pub fn https_source_with_keys(name: &str, url: &str, keys: &[String]) -> String 
         block.push_str(&format!("            - {key}\n"));
     }
     block
+}
+
+pub fn boot_for(tree: &ProfileTree) -> systemprompt_loader::BootContext {
+    let loaded = systemprompt_config::LoadedProfile::from_path(&tree.profile_path)
+        .expect("fixture profile loads");
+    let secrets = systemprompt_config::SecretsService::from_secrets(
+        std::sync::Arc::clone(&loaded),
+        (*systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get()).clone(),
+    );
+    systemprompt_loader::BootContext::new(loaded, secrets)
+}
+
+pub fn ctx_for(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::CommandContext {
+    systemprompt_cli::CommandContext::new(
+        systemprompt_cli::CliConfig::new().with_interactive(false),
+        systemprompt_cli::EnvOverrides::default(),
+    )
+    .with_boot(Some(boot.clone()))
+}
+
+pub fn json_ctx(boot: &systemprompt_loader::BootContext) -> systemprompt_cli::CommandContext {
+    systemprompt_cli::CommandContext::new(
+        systemprompt_cli::CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(systemprompt_cli::OutputFormat::Json),
+        systemprompt_cli::EnvOverrides::default(),
+    )
+    .with_boot(Some(boot.clone()))
 }

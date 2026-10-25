@@ -1,15 +1,28 @@
 use std::path::PathBuf;
 
+use std::sync::Arc;
 use systemprompt_config::{
-    ConfigError, ProfileBootstrap, SecretsBootstrap, build_from_profile, try_init_config,
-    validate_database_config,
+    ConfigError, LoadedProfile, SecretsService, build_from_profile, validate_database_config,
 };
+use systemprompt_manifest::Config;
 
 use crate::fixture;
 
-async fn boot(fx: &fixture::Fixture) {
-    ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
-    SecretsBootstrap::init().await.unwrap();
+struct Booted {
+    profile: Arc<LoadedProfile>,
+    secrets: Arc<SecretsService>,
+}
+
+impl Booted {
+    fn build(&self) -> Result<Config, ConfigError> {
+        build_from_profile(&self.profile, &self.secrets.get(), None)
+    }
+}
+
+async fn boot(fx: &fixture::Fixture) -> Booted {
+    let profile = LoadedProfile::from_path(&fx.profile_path).unwrap();
+    let secrets = SecretsService::load(profile.clone()).await.unwrap();
+    Booted { profile, secrets }
 }
 
 fn file_fixture() -> fixture::Fixture {
@@ -22,9 +35,9 @@ fn file_fixture() -> fixture::Fixture {
 #[tokio::test]
 async fn build_from_profile_resolves_paths_and_secrets() {
     let fx = file_fixture();
-    boot(&fx).await;
+    let booted = boot(&fx).await;
 
-    let config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
+    let config = booted.build().unwrap();
 
     let root = std::fs::canonicalize(fx.tmp.path()).unwrap();
     assert_eq!(
@@ -47,33 +60,12 @@ async fn build_from_profile_resolves_paths_and_secrets() {
 }
 
 #[tokio::test]
-async fn try_init_config_installs_the_global_once_and_is_idempotent() {
-    let fx = file_fixture();
-    boot(&fx).await;
-
-    try_init_config(None).unwrap();
-
-    assert!(systemprompt_manifest::Config::is_initialized());
-    try_init_config(None).unwrap();
-}
-
-#[tokio::test]
-async fn try_init_config_initializes_when_uninitialized() {
-    let fx = file_fixture();
-    boot(&fx).await;
-
-    try_init_config(None).unwrap();
-
-    assert!(systemprompt_manifest::Config::is_initialized());
-}
-
-#[tokio::test]
 async fn build_from_profile_reports_missing_paths() {
     let fx = file_fixture();
-    boot(&fx).await;
+    let booted = boot(&fx).await;
     std::fs::remove_dir_all(fx.tmp.path().join("bin")).unwrap();
 
-    let err = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap_err();
+    let err = booted.build().unwrap_err();
 
     match err {
         ConfigError::ProfilePathReport { message } => {
@@ -87,14 +79,14 @@ async fn build_from_profile_reports_missing_paths() {
 #[tokio::test]
 async fn build_from_profile_rejects_invalid_yaml_config_file() {
     let fx = file_fixture();
-    boot(&fx).await;
+    let booted = boot(&fx).await;
     std::fs::write(
         fx.tmp.path().join("services/web/config.yaml"),
         ": not: [valid yaml",
     )
     .unwrap();
 
-    let err = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap_err();
+    let err = booted.build().unwrap_err();
 
     match err {
         ConfigError::InvalidProfileYaml { field, path, .. } => {
@@ -108,12 +100,12 @@ async fn build_from_profile_rejects_invalid_yaml_config_file() {
 #[tokio::test]
 async fn build_from_profile_reports_unreadable_yaml_path() {
     let fx = file_fixture();
-    boot(&fx).await;
+    let booted = boot(&fx).await;
     let metadata = fx.tmp.path().join("services/web/metadata.yaml");
     std::fs::remove_file(&metadata).unwrap();
     std::fs::create_dir(&metadata).unwrap();
 
-    let err = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap_err();
+    let err = booted.build().unwrap_err();
 
     match err {
         ConfigError::ReadProfilePath { field, path, .. } => {
@@ -127,10 +119,10 @@ async fn build_from_profile_reports_unreadable_yaml_path() {
 #[tokio::test]
 async fn system_admin_env_override_wins_over_profile() {
     let fx = file_fixture();
-    boot(&fx).await;
+    let booted = boot(&fx).await;
     fixture::set_env("SYSTEMPROMPT_SYSTEM_ADMIN", "  env_admin  ");
 
-    let config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
+    let config = booted.build().unwrap();
 
     assert_eq!(config.system_admin_username, "env_admin");
 }
@@ -144,10 +136,10 @@ async fn blank_system_admin_without_override_errors() {
         yaml.replace("username: testadmin", "username: ' '"),
     )
     .unwrap();
-    boot(&fx).await;
+    let booted = boot(&fx).await;
     fixture::remove_env("SYSTEMPROMPT_SYSTEM_ADMIN");
 
-    let err = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap_err();
+    let err = booted.build().unwrap_err();
 
     assert!(matches!(err, ConfigError::MissingSystemAdmin));
 }
@@ -164,9 +156,9 @@ async fn absolute_signing_key_path_is_kept_verbatim() {
         ),
     )
     .unwrap();
-    boot(&fx).await;
+    let booted = boot(&fx).await;
 
-    let config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
+    let config = booted.build().unwrap();
 
     assert_eq!(config.signing_key_path, PathBuf::from("/etc/keys/sp.pem"));
 }
@@ -174,8 +166,8 @@ async fn absolute_signing_key_path_is_kept_verbatim() {
 #[tokio::test]
 async fn validate_database_config_rejects_unsupported_type() {
     let fx = file_fixture();
-    boot(&fx).await;
-    let mut config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
+    let booted = boot(&fx).await;
+    let mut config = booted.build().unwrap();
     config.database_type = "mysql".to_owned();
 
     let err = validate_database_config(&config).unwrap_err();
@@ -189,8 +181,8 @@ async fn validate_database_config_rejects_unsupported_type() {
 #[tokio::test]
 async fn validate_database_config_rejects_invalid_urls() {
     let fx = file_fixture();
-    boot(&fx).await;
-    let good = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
+    let booted = boot(&fx).await;
+    let good = booted.build().unwrap();
 
     let mut bad_read = good.clone();
     bad_read.database_url = "mysql://nope".to_owned();
@@ -220,9 +212,9 @@ async fn blank_instance_id_falls_back_to_generated_default() {
         yaml.replace("instance_id: null", "instance_id: '  '"),
     )
     .unwrap();
-    boot(&fx).await;
+    let booted = boot(&fx).await;
 
-    let config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
+    let config = booted.build().unwrap();
 
     assert!(!config.instance_id.as_str().trim().is_empty());
 }

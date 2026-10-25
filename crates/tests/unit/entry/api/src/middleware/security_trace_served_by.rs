@@ -1,89 +1,16 @@
 //! Tests for `inject_security_headers`, `inject_trace_header`, and
 //! `inject_served_by` — all stateless `axum::middleware::from_fn` middlewares
 //! that mutate the outgoing response.
-//!
-//! This binary's one-shot `Config` is installed here with
-//! `allow_dynamic_client_registration: false`; `routes::oauth::dcr_disabled`
-//! relies on that to drive the closed-registration paths.
-
-use std::sync::Once;
 
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use axum::middleware::from_fn;
+use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::get;
 use systemprompt_api::services::middleware::{inject_security_headers, inject_trace_header};
-use systemprompt_manifest::Config;
-use systemprompt_manifest::profile::{
-    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
-};
+use systemprompt_manifest::profile::SecurityHeadersConfig;
 use systemprompt_models::RequestContext;
 use tower::ServiceExt;
-
-static CONFIG_INSTALL: Once = Once::new();
-
-pub(crate) fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let _ = Config::install(test_config());
-    });
-}
-
-pub(crate) fn test_config() -> Config {
-    Config {
-        instance_id: systemprompt_identifiers::InstanceId::new("unit-test-instance"),
-        metrics_port: None,
-        max_concurrent_streams: 16,
-        role: Default::default(),
-        max_in_flight: None,
-        shutdown: Default::default(),
-        sitename: "test".to_string(),
-        database_type: "postgres".to_string(),
-        database_url: "postgres://x".to_string(),
-        database_write_url: None,
-        database_session_url: None,
-        github_link: String::new(),
-        github_token: None,
-        system_path: "/tmp".to_string(),
-        services_path: "/tmp".to_string(),
-        bin_path: "/tmp".to_string(),
-        skills_path: "/tmp".to_string(),
-        settings_path: "/tmp".to_string(),
-        content_config_path: "/tmp".to_string(),
-        geoip_database_path: None,
-        web_path: "/tmp".to_string(),
-        web_config_path: "/tmp".to_string(),
-        web_metadata_path: "/tmp".to_string(),
-        host: "127.0.0.1".to_string(),
-        port: 0,
-        api_server_url: "http://127.0.0.1".to_string(),
-        api_internal_url: "http://127.0.0.1".to_string(),
-        api_external_url: "http://127.0.0.1".to_string(),
-        jwt_issuer: "https://issuer.test".to_string(),
-        jwt_access_token_expiration: 3600,
-        jwt_refresh_token_expiration: 86_400,
-        jwt_audiences: vec![],
-        allowed_resource_audiences: vec![],
-        trusted_issuers: vec![],
-        id_jag_ttl_secs: 300,
-        signing_key_path: std::path::PathBuf::from("signing_key.pem"),
-        use_https: false,
-        rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_manifest::profile::RetentionConfig::default(),
-        planes: Default::default(),
-        cors_allowed_origins: vec![],
-        trusted_proxies: vec![],
-        is_cloud: false,
-        system_admin_username: "admin".to_string(),
-        system_admin_email: None,
-        content_negotiation: ContentNegotiationConfig::default(),
-        security_headers: SecurityHeadersConfig::default(),
-        allow_registration: false,
-        allow_dynamic_client_registration: false,
-        api_key_max_lifetime_days: None,
-        login_page_url: None,
-    }
-}
 
 #[tokio::test]
 async fn security_headers_inject_all_configured_headers() {
@@ -264,11 +191,13 @@ async fn trace_header_absent_without_context() {
 
 #[tokio::test]
 async fn served_by_injects_instance_id_when_config_present() {
-    ensure_config();
     use systemprompt_api::services::middleware::inject_served_by;
     let app = Router::new()
         .route("/", get(|| async { "ok" }))
-        .layer(from_fn(inject_served_by));
+        .layer(from_fn_with_state(
+            systemprompt_identifiers::InstanceId::new("unit-test-instance"),
+            inject_served_by,
+        ));
     let resp = app
         .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
         .await

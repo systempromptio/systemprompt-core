@@ -8,7 +8,7 @@ use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow}
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{Permission, UserType};
 use systemprompt_test_fixtures::{
-    init_services_bootstrap, seed_running_service, seed_user_row, test_app_context, test_db_pool,
+    init_services_bootstrap, seed_running_service, seed_user_row, test_app_context_on, test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -53,7 +53,7 @@ settings:
         "extension:\n  type: mcp\n  name: fixture\n  binary: fixture\n",
     )?;
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context_on(&boot, &pool);
     seed_running_service(&ctx, &name, "mcp", backend.address().port()).await?;
 
     let session_id = SessionId::new(format!("followup-{}", Uuid::new_v4().simple()));
@@ -66,6 +66,7 @@ settings:
     .await?;
     McpProxyIdentityRepository::new(&pool)
         .upsert(
+            &systemprompt_security::at_rest::AtRestCipher::from_secrets(&ctx.secrets().get())?,
             &session_id,
             &ProxyIdentityRow {
                 user_id: user_id.clone(),
@@ -106,7 +107,9 @@ settings:
         Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     ));
 
-    let response = mcp::router(&ctx).oneshot(request).await?;
+    let response = super::common::with_config(mcp::router(&ctx), &ctx)
+        .oneshot(request)
+        .await?;
     let (status, body) = body_to_string(response).await?;
     assert_eq!(status, http::StatusCode::OK, "{body}");
     assert_eq!(

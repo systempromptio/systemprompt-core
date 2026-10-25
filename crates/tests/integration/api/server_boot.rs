@@ -8,157 +8,20 @@
 //! The prometheus recorder is process-global, so this entire file builds a
 //! single API router.
 
-use std::sync::Arc;
-
-use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
-use systemprompt_config::paths::AppPaths;
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::RouteClassifier;
-use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id, test_db_pool,
-    unique_instance,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };
-use systemprompt_users::{UserRepository, UserService};
 
 #[tokio::test]
 async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
-    let test_instance = unique_instance();
     let bootstrap = ensure_test_bootstrap();
     let pool = test_db_pool().await;
 
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
 
-    let paths = PathsConfig {
-        system: "/tmp".to_string(),
-        services: "/tmp".to_string(),
-        bin: "/tmp".to_string(),
-        web_path: Some("/tmp".to_string()),
-        storage: Some("/tmp".to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app_paths = Arc::new(AppPaths::from_profile(
-        &paths,
-        systemprompt_manifest::PathResolution::Canonicalize,
-        None,
-    )?);
-
-    let ctx = Arc::new(AppContext::from_parts(
-        {
-            let analytics_repositories = Arc::new(
-                systemprompt_test_fixtures::fixture_analytics_repositories(&pool)?,
-            );
-            let analytics_service =
-                Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
-            let session_store = Arc::clone(analytics_service.session_store());
-            let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
-            DataPlane {
-                database: Arc::clone(&pool),
-                analytics_service,
-                fingerprint_repo: Some(Arc::new(
-                    systemprompt_test_fixtures::fixture_fingerprint_repository(&pool)?,
-                )),
-                user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
-                    &pool,
-                ))))),
-                a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
-                    &pool,
-                    systemprompt_agent::repository::A2aDependencies {
-                        session_usage,
-                        instance_id: test_instance.clone(),
-                        managed_skills: systemprompt_test_fixtures::not_managed_skills(),
-                        tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
-                            systemprompt_test_fixtures::ToolExecutionLedger::Exists,
-                        ),
-                    },
-                )),
-                content_repositories: Arc::new(
-                    systemprompt_content::repository::ContentRepositories::new(&pool),
-                ),
-                oauth_repositories: Arc::new(
-                    systemprompt_oauth::repository::OAuthRepositories::new(&pool),
-                ),
-                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
-                service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
-                    &pool,
-                    test_instance.clone(),
-                )),
-                coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
-                    &pool,
-                    test_instance.clone(),
-                )),
-                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
-                analytics_repositories,
-                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
-                mcp_session_repository: Arc::new(
-                    systemprompt_mcp::repository::McpSessionRepository::new(&pool),
-                ),
-                managed_repository: Arc::new(
-                    systemprompt_marketplace::managed::ManagedRepository::new(&pool),
-                ),
-            }
-        },
-        ConfigPlane {
-            config: Arc::new(config),
-            files_config: Arc::new(systemprompt_files::FilesConfig::new(
-                app_paths.storage().root().to_path_buf(),
-                systemprompt_files::FilesConfigYaml::default(),
-            )),
-            app_paths,
-            content_config: None,
-            route_classifier: Arc::new(RouteClassifier::new(None)),
-        },
-        Plugins {
-            extension_registry: Arc::new(ExtensionRegistry::new()),
-            mcp_registry: RegistryService::new(
-                fixture_user_id(),
-                systemprompt_test_fixtures::fixture_services_view(),
-            ),
-            marketplace_filter: Arc::new(AllowAllFilter),
-            marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
-            subject_providers: Default::default(),
-            subjects: Default::default(),
-        },
-        Subsystems {
-            system_admin: Arc::new(fixture_system_admin("admin")),
-            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
-            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
-            governance: systemprompt_test_fixtures::default_governance_watch(),
-            services: systemprompt_test_fixtures::fixture_services_state(),
-            cache_epochs: systemprompt_traits::CacheEpochs::new(),
-            ai_service: None,
-            artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,
-            schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
-                systemprompt_database::SchemaInstallReport::default(),
-            )),
-            event_bridge: systemprompt_test_fixtures::fixture_event_bridge(&pool),
-            event_router: systemprompt_events::EventRouter::local_only(Arc::new(
-                systemprompt_events::EventBroadcasters::new(),
-            )),
-            geoip_reader: None,
-            file_storage: systemprompt_storage::build_file_storage(
-                systemprompt_storage::FileStorageBackend::Local {
-                    root: std::env::temp_dir(),
-                },
-            ),
-            shutdown: Default::default(),
-            background_tasks: Default::default(),
-            spawner: systemprompt_test_fixtures::test_spawner(),
-            connector_tokens: Arc::default(),
-            publish_guard: Arc::new(tokio::sync::Mutex::new(
-                systemprompt_marketplace::inventory::PublishGuard::default(),
-            )),
-        },
-    ));
+    let ctx = fixture_app_context_with_config(&pool, config)?;
 
     let router = setup_api_server(
         &ctx,

@@ -24,13 +24,13 @@ use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_config_with, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{read_json, setup_ctx};
+use super::common::{read_json, setup_ctx_customised, with_config};
 
 const TOKEN_EXCHANGE_GRANT: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
@@ -42,27 +42,25 @@ const ISSUER_PLAIN: &str = "https://idp-plain.example";
 const IDJAG_TYP: &str = "oauth-id-jag+jwt";
 const DEAD_JWKS: &str = "https://127.0.0.1:1/jwks";
 
-fn ensure_config() {
-    ensure_config_with(|config| {
-        config.trusted_issuers = vec![
-            TrustedIssuer {
-                issuer: ISSUER_IDJAG.to_owned(),
-                jwks_uri: DEAD_JWKS.to_owned(),
-                audience: format!("{ISSUER_IDJAG}/aud"),
-                typ_allowlist: vec![IDJAG_TYP.to_owned()],
-                allowed_client_ids: vec![],
-                can_issue_id_jag: true,
-            },
-            TrustedIssuer {
-                issuer: ISSUER_PLAIN.to_owned(),
-                jwks_uri: DEAD_JWKS.to_owned(),
-                audience: format!("{ISSUER_PLAIN}/aud"),
-                typ_allowlist: vec![],
-                allowed_client_ids: vec![],
-                can_issue_id_jag: false,
-            },
-        ];
-    });
+fn configure(config: &mut systemprompt_manifest::Config) {
+    config.trusted_issuers = vec![
+        TrustedIssuer {
+            issuer: ISSUER_IDJAG.to_owned(),
+            jwks_uri: DEAD_JWKS.to_owned(),
+            audience: format!("{ISSUER_IDJAG}/aud"),
+            typ_allowlist: vec![IDJAG_TYP.to_owned()],
+            allowed_client_ids: vec![],
+            can_issue_id_jag: true,
+        },
+        TrustedIssuer {
+            issuer: ISSUER_PLAIN.to_owned(),
+            jwks_uri: DEAD_JWKS.to_owned(),
+            audience: format!("{ISSUER_PLAIN}/aud"),
+            typ_allowlist: vec![],
+            allowed_client_ids: vec![],
+            can_issue_id_jag: false,
+        },
+    ];
 }
 
 async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
@@ -77,8 +75,7 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
 }
 
 async fn token_app() -> anyhow::Result<Router> {
-    ensure_config();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_ctx_customised(configure).await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
@@ -86,11 +83,12 @@ async fn token_app() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_signing_keys(),
     );
-    Ok(public_router(std::sync::Arc::new(
+    let router = public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
     ))
     .layer(middleware::from_fn(inject_context))
-    .with_state(state))
+    .with_state(state);
+    Ok(with_config(router, &ctx))
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
@@ -173,7 +171,6 @@ async fn exchange(
     subject_token_type: &str,
     requested_token_type: Option<&str>,
 ) -> anyhow::Result<(http::StatusCode, serde_json::Value)> {
-    ensure_config();
     let client = seeded_client().await?;
     let app = token_app().await?;
     let mut pairs = vec![

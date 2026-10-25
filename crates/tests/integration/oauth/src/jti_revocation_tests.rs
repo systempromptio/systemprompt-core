@@ -3,7 +3,7 @@
 use crate::{create_test_user, setup_test_db};
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{AccessTokenId, UserId};
-use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository, OauthCleanupRepository};
+use systemprompt_oauth::repository::{JtiRevocationCache, OauthCleanupRepository};
 use systemprompt_traits::CacheEpochs;
 
 fn unique_jti() -> AccessTokenId {
@@ -17,7 +17,7 @@ async fn user_id(db: &systemprompt_database::DbPool) -> UserId {
 #[tokio::test]
 async fn revoked_token_visible_to_is_jti_revoked() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let jti = unique_jti();
     let user = user_id(&db).await;
 
@@ -39,7 +39,7 @@ async fn revoked_token_visible_to_is_jti_revoked() {
 #[tokio::test]
 async fn expired_revocation_row_treated_as_not_revoked() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let jti = unique_jti();
     let user = user_id(&db).await;
 
@@ -56,7 +56,7 @@ async fn expired_revocation_row_treated_as_not_revoked() {
 #[tokio::test]
 async fn revoke_is_idempotent() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let jti = unique_jti();
     let user = user_id(&db).await;
     let exp = Utc::now() + Duration::hours(1);
@@ -70,7 +70,7 @@ async fn revoke_is_idempotent() {
 #[tokio::test]
 async fn cleanup_expired_drops_only_expired_rows() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let live_jti = unique_jti();
     let dead_jti = unique_jti();
     let user = user_id(&db).await;
@@ -94,7 +94,7 @@ async fn cleanup_expired_drops_only_expired_rows() {
 #[tokio::test]
 async fn revoke_jtis_for_user_bulk() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let user = user_id(&db).await;
     let jtis: Vec<AccessTokenId> = (0..3).map(|_| unique_jti()).collect();
     let exp = Utc::now() + Duration::hours(1);

@@ -19,7 +19,7 @@ use systemprompt_manifest::services::bundle::ServicesBundleState;
 use crate::services_profile_fixture as fx;
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -185,9 +185,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     )
     .unwrap();
 
-    let mut profile = systemprompt_config::ProfileBootstrap::get()
-        .expect("bootstrap profile")
-        .clone();
+    let mut profile = boot.boot.profile().clone();
     profile.services.sources = vec![ServicesSource {
         name: SOURCE.to_owned(),
         https: None,

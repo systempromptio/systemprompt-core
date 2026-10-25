@@ -23,7 +23,8 @@ use axum::http::{Request, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_test_fixtures::{
-    TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
+    TestBootstrap, init_services_bootstrap, seed_admin_credential, test_app_context_on,
+    test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -199,7 +200,7 @@ async fn zero_limit_is_an_explicit_empty_page_with_more_available() -> anyhow::R
 async fn app() -> anyhow::Result<Router> {
     let b = boot();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &b.database_url);
+    let ctx = test_app_context_on(&b, &pool);
     Ok(gateway_router(&ctx).expect("gateway router builds"))
 }
 

@@ -100,7 +100,11 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
 
 #[tokio::test]
 async fn app_context_builder_accessor() {
-    let _b = systemprompt_runtime::AppContext::builder();
+    let _b = systemprompt_runtime::AppContext::builder(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .clone(),
+    );
 }
 
 #[tokio::test]
@@ -122,7 +126,11 @@ async fn validate_system_passes_against_live_db() -> Result<()> {
 async fn files_config_validator_refuses_to_validate_before_load() {
     use systemprompt_files::FilesConfigValidator;
     use systemprompt_manifest::validators::DomainConfig;
-    let v = FilesConfigValidator::new();
+    let v = FilesConfigValidator::new(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .clone(),
+    );
     assert!(
         v.validate().is_err(),
         "the files validator reports nothing it has not loaded"

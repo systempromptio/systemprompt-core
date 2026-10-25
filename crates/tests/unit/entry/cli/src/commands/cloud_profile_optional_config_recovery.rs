@@ -3,7 +3,7 @@
 use std::process::Command;
 
 use systemprompt_cli::cloud::profile::{self, ProfileCommands, ShowFilter};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_test_fixtures::{bounded_output, ensure_test_bootstrap};
 
 const HELPER: &str = "commands::cloud_profile_optional_config_recovery::optional_config_helper";
@@ -30,7 +30,7 @@ async fn optional_config_helper() {
     std::fs::write(&skills, "skills: [broken: yaml").unwrap();
     std::fs::write(&content, "categories: [broken: yaml").unwrap();
 
-    let context = CommandContext::new(
+    let context = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -86,10 +86,11 @@ fn profile_show_omits_broken_optional_configs_and_recovers_after_repair() {
     let broken = marked_json(&stdout, "BEGIN_BROKEN_OPTIONAL", "END_BROKEN_OPTIONAL");
     let repaired = marked_json(&stdout, "BEGIN_REPAIRED_OPTIONAL", "END_REPAIRED_OPTIONAL");
     assert_eq!(broken["title"], "Profile Configuration");
-    assert!(has_section(&broken, "environment"));
+    assert!(!has_section(&broken, "environment"));
     assert!(has_section(&broken, "settings"));
     assert!(!has_section(&broken, "skills"));
     assert!(!has_section(&broken, "content"));
+    assert!(has_section(&repaired, "environment"));
     assert!(has_section(&repaired, "skills"));
     assert!(has_section(&repaired, "content"));
 }

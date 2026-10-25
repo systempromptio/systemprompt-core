@@ -6,6 +6,7 @@
 use std::fs;
 use std::path::Path;
 
+use crate::boot_ctx::bootstrap_ctx;
 use serde::Serialize;
 use systemprompt_cli::analytics::shared::export::{
     CsvBuilder, ensure_export_dir, export_single_to_csv, export_to_csv, resolve_export_path,
@@ -29,10 +30,10 @@ fn row(name: &str, count: u32, note: Option<&str>) -> Row {
 #[test]
 fn resolve_export_path_keeps_absolute_and_parented_paths() {
     let abs = Path::new("/tmp/exports/out.csv");
-    assert_eq!(resolve_export_path(abs).unwrap(), abs);
+    assert_eq!(resolve_export_path(abs, &bootstrap_ctx()).unwrap(), abs);
 
     let rel = Path::new("subdir/out.csv");
-    assert_eq!(resolve_export_path(rel).unwrap(), rel);
+    assert_eq!(resolve_export_path(rel, &bootstrap_ctx()).unwrap(), rel);
 }
 
 #[test]
