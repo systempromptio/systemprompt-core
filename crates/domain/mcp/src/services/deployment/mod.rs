@@ -44,14 +44,14 @@ impl DeploymentService {
             .ok_or_else(|| missing_deployment(name))
     }
 
-    pub fn list_enabled_servers(&self) -> McpDomainResult<Vec<String>> {
-        let config = self.load_config();
-        Ok(config
+    #[must_use]
+    pub fn list_enabled_servers(&self) -> Vec<String> {
+        self.load_config()
             .mcp_servers
             .iter()
             .filter(|(_, deployment)| deployment.enabled)
             .map(|(name, _)| name.clone())
-            .collect())
+            .collect()
     }
 
 
