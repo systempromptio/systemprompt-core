@@ -149,6 +149,21 @@ test-group = 'logs-cleanup-db'
 filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
 test-group = 'logs-cleanup-db'
 
+# Why: an enforced `DatabaseCleanupJob` run deletes every expired row in the shared
+# database, so it removes the fixture the dry-run test seeds and then asserts is
+# still there (`without_enforce_an_expired_row_is_kept` failed in Coverage).
+[[profile.default.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
+test-group = 'logs-cleanup-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
+test-group = 'logs-cleanup-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
+test-group = 'logs-cleanup-db'
+
 [[profile.default.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
 test-group = 'logs-cleanup-db'
