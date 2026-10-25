@@ -31,7 +31,7 @@ impl<'a> DockerfileBuilder<'a> {
             })
             .ok()
             .and_then(|path| {
-                ConfigLoader::load_from_path(&path)
+                ConfigLoader::load_from_path(&path, None)
                     .inspect_err(|e| tracing::warn!(error = %e, "Failed to load services config"))
                     .ok()
             });

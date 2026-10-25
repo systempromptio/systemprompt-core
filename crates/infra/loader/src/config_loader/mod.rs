@@ -1,8 +1,7 @@
 //! Reads, parses, and merges the active services configuration.
 //!
 //! [`ConfigLoader`] is the only public entry point. It resolves the active
-//! profile (via [`systemprompt_config::ProfileBootstrap`]) to a YAML path,
-//! parses the root file, recursively resolves the `includes:` graph
+//! profile's services root to a YAML path, parses the root file, recursively resolves the `includes:` graph
 //! (rejecting cycles and duplicate definitions), reads the model catalog by
 //! convention from `services/ai/` ([`catalog`]), inlines `!include`
 //! references inside agent system prompts, skill instructions and gateway
@@ -32,11 +31,10 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_manifest::profile::Profile;
 use systemprompt_manifest::services::ServicesConfig;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
-use crate::services_root::ServicesRootBootstrap;
 
 use discovery::{discover_marketplaces, discover_plugins, discover_skills};
 use includes::resolve_includes_recursively;
@@ -47,6 +45,7 @@ use types::IncludeResolveCtx;
 pub struct ConfigLoader {
     base_path: PathBuf,
     config_path: PathBuf,
+    port_offset: Option<u16>,
 }
 
 impl ConfigLoader {
@@ -59,29 +58,46 @@ impl ConfigLoader {
         Self {
             base_path,
             config_path,
+            port_offset: None,
         }
     }
 
-    pub fn for_active_profile() -> ConfigLoadResult<Self> {
-        ProfileBootstrap::get()?;
-        let root = &ServicesRootBootstrap::require()?.path;
-        Ok(Self::new(root.join("config").join("config.yaml")))
+    #[must_use]
+    pub fn for_profile(profile: &Profile, services_root: &Path) -> Self {
+        Self::new(services_root.join("config").join("config.yaml")).with_profile(Some(profile))
     }
 
-    pub fn load() -> ConfigLoadResult<ServicesConfig> {
-        Self::for_active_profile()?.run()
+    #[must_use]
+    pub fn with_profile(mut self, profile: Option<&Profile>) -> Self {
+        self.port_offset = profile
+            .filter(|profile| !profile.services.is_identity())
+            .map(|profile| profile.services.port_offset);
+        self
     }
 
-    pub fn load_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
-        Self::new(path.to_path_buf()).run()
+    pub fn load(self) -> ConfigLoadResult<ServicesConfig> {
+        self.run()
     }
 
-    pub fn load_from_content(content: &str, path: &Path) -> ConfigLoadResult<ServicesConfig> {
-        Self::new(path.to_path_buf()).run_from_content(content)
+    pub fn load_from_path(
+        path: &Path,
+        profile: Option<&Profile>,
+    ) -> ConfigLoadResult<ServicesConfig> {
+        Self::new(path.to_path_buf()).with_profile(profile).run()
     }
 
-    pub fn validate_file(path: &Path) -> ConfigLoadResult<()> {
-        Self::load_from_path(path).map(|_| ())
+    pub fn load_from_content(
+        content: &str,
+        path: &Path,
+        profile: Option<&Profile>,
+    ) -> ConfigLoadResult<ServicesConfig> {
+        Self::new(path.to_path_buf())
+            .with_profile(profile)
+            .run_from_content(content)
+    }
+
+    pub fn validate_file(path: &Path, profile: Option<&Profile>) -> ConfigLoadResult<()> {
+        Self::load_from_path(path, profile).map(|_| ())
     }
 
     fn run(&self) -> ConfigLoadResult<ServicesConfig> {
@@ -144,10 +160,8 @@ impl ConfigLoader {
             merged.settings.config_path = Some(val);
         }
 
-        if let Ok(profile) = ProfileBootstrap::get()
-            && !profile.services.is_identity()
-        {
-            merged.apply_port_offset(profile.services.port_offset)?;
+        if let Some(port_offset) = self.port_offset {
+            merged.apply_port_offset(port_offset)?;
         }
 
         merged.validate()?;

@@ -18,7 +18,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use systemprompt_manifest::profile::Profile;
 
-use crate::bootstrap::{ProfileBootstrap, SecretsBootstrap};
+use crate::bootstrap::SecretsService;
 
 pub const FINGERPRINT_HEX_LEN: usize = 16;
 
@@ -55,19 +55,22 @@ impl ConfigFingerprint {
     }
 
     #[must_use]
-    pub fn current(services_sha: Option<String>) -> Option<Self> {
-        let profile = ProfileBootstrap::get().ok()?;
-        let keys = SecretsBootstrap::key_names()
+    pub fn current(
+        profile: &Profile,
+        secrets: &SecretsService,
+        services_sha: Option<String>,
+    ) -> Option<Self> {
+        let keys = secrets
+            .key_names()
             .inspect_err(|error| tracing::debug!(error = %error, "no secrets for fingerprint"))
             .unwrap_or_default();
         let mut fingerprint =
-            Self::compute(profile, &keys, SecretsBootstrap::generation(), services_sha)
+            Self::compute(profile, &keys, secrets.generation(), services_sha)
                 .inspect_err(|error| {
                     tracing::warn!(error = %error, "profile could not be fingerprinted");
                 })
                 .ok()?;
-        fingerprint.secrets_last_reload_at =
-            SecretsBootstrap::status().and_then(|status| status.last_reload_at);
+        fingerprint.secrets_last_reload_at = secrets.status().last_reload_at;
         Some(fingerprint)
     }
 }

@@ -14,8 +14,9 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::config::validate_postgres_url;
 use systemprompt_manifest::profile::Profile;
+use systemprompt_manifest::secrets::Secrets;
 
-use crate::bootstrap::{ProfileBootstrap, SecretsBootstrap};
+use crate::bootstrap::LoadedProfile;
 use crate::error::{ConfigError, ConfigResult};
 use crate::path_validation::{format_path_errors, validate_profile_paths};
 
@@ -29,19 +30,13 @@ struct BuildConfigPaths {
     web_metadata: String,
 }
 
-pub fn try_init_config(services_root: Option<&Path>) -> ConfigResult<()> {
-    if Config::is_initialized() {
-        return Ok(());
-    }
-    let profile = ProfileBootstrap::get()?;
-    let config = build_from_profile(profile, services_root)?;
-    Config::install(config).map_err(|_e| ConfigError::AlreadyInitialized)?;
-    Ok(())
-}
-
-pub fn build_from_profile(profile: &Profile, services_root: Option<&Path>) -> ConfigResult<Config> {
-    let profile_path =
-        ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_owned(), str::to_owned);
+pub fn build_from_profile(
+    loaded: &LoadedProfile,
+    secrets: &Secrets,
+    services_root: Option<&Path>,
+) -> ConfigResult<Config> {
+    let profile = loaded.profile();
+    let profile_path = loaded.path().to_string_lossy().into_owned();
 
     let overridden = services_root.map(|root| profile.paths.with_services_root(root));
     let paths_config = overridden.as_ref().unwrap_or(&profile.paths);
@@ -72,7 +67,7 @@ pub fn build_from_profile(profile: &Profile, services_root: Option<&Path>) -> Co
         web_config: web_config_path,
         web_metadata: web_metadata_path,
     };
-    let config = build_config(profile, paths, paths_config.services.clone())?;
+    let config = build_config(profile, secrets, paths, paths_config.services.clone())?;
 
     validate_database_config(&config)?;
     Ok(config)
@@ -122,10 +117,10 @@ pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<InstanceId> {
 
 fn build_config(
     profile: &Profile,
+    secrets: &Secrets,
     paths: BuildConfigPaths,
     services_path: String,
 ) -> ConfigResult<Config> {
-    let secrets = SecretsBootstrap::get()?;
     let system_admin_username = resolve_system_admin_username(profile)?;
 
     let instance_id = resolve_instance_id(profile)?;

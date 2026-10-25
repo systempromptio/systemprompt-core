@@ -5711,6 +5711,7 @@ dependencies = [
  "systemprompt-client",
  "systemprompt-config",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-traits",
  "systemprompt-wire",

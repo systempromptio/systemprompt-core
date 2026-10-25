@@ -24,7 +24,7 @@ use super::cache::BundleCache;
 use super::compose::{BundleMember, compose};
 use super::degraded::DegradedRecord;
 use super::error::{BundleError, BundleResult};
-use crate::services_root::{ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap};
+use crate::services_root::{ActiveServicesRoot, ServicesProvenance};
 
 use baked::{is_base, stage_baked_base};
 use fetch::{ResolvedSource, SourceContext, resolve_source};
@@ -36,19 +36,6 @@ const CONFIG_RELPATH: &str = "config/config.yaml";
 pub struct ServicesSourceBootstrap;
 
 impl ServicesSourceBootstrap {
-    pub async fn try_run(
-        profile: &Profile,
-        resolve_secret: impl Fn(&str) -> Option<String> + Send + Sync,
-        core_version: &str,
-    ) -> BundleResult<&'static ActiveServicesRoot> {
-        if let Some(active) = ServicesRootBootstrap::get() {
-            return Ok(active);
-        }
-        Self::resolve(profile, resolve_secret, core_version)
-            .await
-            .map(ServicesRootBootstrap::install)
-    }
-
     pub async fn resolve(
         profile: &Profile,
         resolve_secret: impl Fn(&str) -> Option<String> + Send + Sync,

@@ -12,22 +12,18 @@ use super::provider::DynSecretsProvider;
 use super::registry::{build_external_provider, process_env_lookup};
 use super::resolve::{ResolvedSource, resolve_source};
 use super::vault::VaultKvProvider;
-use crate::bootstrap::profile::ProfileBootstrap;
+use crate::bootstrap::profile::LoadedProfile;
 use crate::bootstrap::secrets::sources::{env, file};
 use crate::error::{ConfigError, ConfigResult};
 
-pub(super) async fn load_from_profile_config() -> ConfigResult<Secrets> {
+pub(super) async fn load_from_profile_config(profile: &LoadedProfile) -> ConfigResult<Secrets> {
     let is_deployment_host =
         systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
     let is_subprocess = std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok();
     let has_valid_pepper_in_env = std::env::var("OAUTH_AT_REST_PEPPER")
         .is_ok_and(|pepper| pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH);
 
-    let secrets_config = match ProfileBootstrap::get() {
-        Ok(profile) => profile.secrets.as_ref(),
-        Err(_e) if (is_subprocess || is_deployment_host) && has_valid_pepper_in_env => None,
-        Err(_e) => return Err(SecretsBootstrapError::ProfileNotInitialized.into()),
-    };
+    let secrets_config = profile.secrets.as_ref();
     let resolved = resolve_source(
         secrets_config,
         is_subprocess,
@@ -45,7 +41,7 @@ pub(super) async fn load_from_profile_config() -> ConfigResult<Secrets> {
         // must see, not a reason to boot on whatever the host carries.
         ResolvedSource::LocalEnvWithFileFallback(path) => {
             tracing::debug!("Profile source is 'env' but running locally, trying file first");
-            match file::resolve_and_load_file(path) {
+            match file::resolve_and_load_file(profile, path) {
                 Err(ConfigError::Secrets(SecretsBootstrapError::FileNotFound { path })) => {
                     tracing::debug!(path, "No secrets file; falling back to environment");
                     env::load_from_env()
@@ -55,7 +51,7 @@ pub(super) async fn load_from_profile_config() -> ConfigResult<Secrets> {
         },
         ResolvedSource::File(path) => {
             tracing::debug!("Loading secrets from file (profile source: file)");
-            file::resolve_and_load_file(path).inspect_err(log_secrets_failure)
+            file::resolve_and_load_file(profile, path).inspect_err(log_secrets_failure)
         },
         ResolvedSource::Vault(cfg) => load_from_vault(cfg).await,
         ResolvedSource::External(cfg) => {

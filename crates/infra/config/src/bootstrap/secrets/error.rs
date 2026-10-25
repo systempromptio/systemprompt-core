@@ -12,17 +12,6 @@ use crate::bootstrap::key_material::KeyMaterialError;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum SecretsBootstrapError {
-    #[error(
-        "Secrets not initialized. Call SecretsBootstrap::init() after ProfileBootstrap::init()"
-    )]
-    NotInitialized,
-
-    #[error("Secrets already initialized")]
-    AlreadyInitialized,
-
-    #[error("Profile not initialized. Call ProfileBootstrap::init() first")]
-    ProfileNotInitialized,
-
     #[error("Secrets file not found: {path}")]
     FileNotFound { path: String },
 

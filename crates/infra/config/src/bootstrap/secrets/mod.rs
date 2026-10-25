@@ -24,7 +24,7 @@
 //! registered for the profile's `external.kind` with
 //! [`register_secrets_source!`](crate::register_secrets_source). It sits at
 //! the same precedence as Vault and is equally fail-closed. The store is
-//! reloadable: see [`SecretsBootstrap::reload`].
+//! reloadable: see [`SecretsService::reload`].
 //!
 //! A Vault token is never written into profile YAML — `${VAULT_TOKEN}`
 //! interpolation in `profile.yaml` is forbidden. The token comes from the
@@ -44,15 +44,16 @@ mod resolve;
 mod sources;
 mod vault;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use base64::Engine;
-use systemprompt_manifest::profile::resolve_with_home;
+use systemprompt_manifest::profile::{Profile, resolve_with_home};
 use systemprompt_manifest::secrets::Secrets;
 
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 use super::master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key};
-use super::profile::ProfileBootstrap;
+use super::profile::LoadedProfile;
 use crate::error::{ConfigError, ConfigResult};
 
 pub use error::SecretsBootstrapError;
@@ -67,6 +68,8 @@ pub use reload::{
     PINNED_SECRET_KEYS, ReloadOutcome, SecretsStatus, diff_secrets, refresh_interval_for,
 };
 
+use reload::SecretsState;
+
 pub const BOOT_REQUIRED_SECRET_KEYS: &[&str] = &[
     "database_url",
     "oauth_at_rest_pepper",
@@ -77,37 +80,56 @@ pub const SIGNING_KEY_PEM: &str = "signing_key_pem";
 pub use resolve::{ResolvedSource, resolve_source};
 pub use vault::{VaultAttemptFailure, VaultError, VaultKvProvider};
 
-#[derive(Debug, Clone, Copy)]
-pub struct SecretsBootstrap;
+#[derive(Debug)]
+pub struct SecretsService {
+    profile: Arc<LoadedProfile>,
+    state: SecretsState,
+}
 
-impl SecretsBootstrap {
-    pub async fn init() -> ConfigResult<&'static Secrets> {
-        if reload::current().is_some() {
-            return Err(SecretsBootstrapError::AlreadyInitialized.into());
-        }
-
-        let secrets = loader::load_from_profile_config().await?;
-        Self::validate_identity(&secrets)?;
+impl SecretsService {
+    pub async fn load(profile: Arc<LoadedProfile>) -> ConfigResult<Arc<Self>> {
+        let secrets = loader::load_from_profile_config(&profile).await?;
+        Self::validate_identity(&profile, &secrets)?;
 
         Self::log_loaded_secrets(&secrets);
 
-        reload::install(secrets).map_err(Into::into)
+        let state = SecretsState::new(secrets, active_source_name(&profile));
+        Ok(Arc::new(Self { profile, state }))
     }
 
-    pub fn oauth_at_rest_pepper() -> Result<&'static str, SecretsBootstrapError> {
-        Ok(&Self::get()?.oauth_at_rest_pepper)
+    #[must_use]
+    pub fn from_secrets(profile: Arc<LoadedProfile>, secrets: Secrets) -> Arc<Self> {
+        let state = SecretsState::new(secrets, active_source_name(&profile));
+        Arc::new(Self { profile, state })
     }
 
-    pub fn encryption_master_key()
-    -> Result<[u8; ENCRYPTION_MASTER_KEY_BYTES], SecretsBootstrapError> {
-        let encoded = Self::get()?
+    #[must_use]
+    pub fn get(&self) -> Arc<Secrets> {
+        self.state.current()
+    }
+
+    #[must_use]
+    pub const fn profile(&self) -> &Arc<LoadedProfile> {
+        &self.profile
+    }
+
+    pub fn oauth_at_rest_pepper(&self) -> String {
+        self.get().oauth_at_rest_pepper.clone()
+    }
+
+    pub fn encryption_master_key(
+        &self,
+    ) -> Result<[u8; ENCRYPTION_MASTER_KEY_BYTES], SecretsBootstrapError> {
+        let secrets = self.get();
+        let encoded = secrets
             .get("encryption_master_key")
             .ok_or(SecretsBootstrapError::EncryptionMasterKeyRequired)?;
         decode_master_key(encoded)
     }
 
-    pub fn signing_key_pem() -> Result<Option<String>, SecretsBootstrapError> {
-        let Some(encoded) = Self::get()?.signing_key_pem.as_deref() else {
+    pub fn signing_key_pem(&self) -> Result<Option<String>, SecretsBootstrapError> {
+        let secrets = self.get();
+        let Some(encoded) = secrets.signing_key_pem.as_deref() else {
             return Ok(None);
         };
         let bytes = base64::engine::general_purpose::STANDARD
@@ -118,23 +140,27 @@ impl SecretsBootstrap {
         Ok(Some(pem))
     }
 
-    pub fn manifest_signing_secret_seed()
-    -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
-        let encoded = Self::get()?
+    pub fn manifest_signing_secret_seed(
+        &self,
+    ) -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
+        let secrets = self.get();
+        let encoded = secrets
             .manifest_signing_secret_seed
             .as_deref()
             .ok_or(SecretsBootstrapError::ManifestSeedRequired)?;
         decode_seed(encoded)
     }
 
-    pub fn rotate_manifest_signing_seed() -> ConfigResult<[u8; MANIFEST_SIGNING_SEED_BYTES]> {
-        let path = Self::resolved_secrets_file_path()?;
+    pub fn rotate_manifest_signing_seed(
+        profile: &LoadedProfile,
+    ) -> ConfigResult<[u8; MANIFEST_SIGNING_SEED_BYTES]> {
+        let path = Self::resolved_secrets_file_path(profile)?;
         let seed = generate_seed();
         persist_seed(&path, &seed)?;
         Ok(seed)
     }
 
-    fn validate_identity(secrets: &Secrets) -> ConfigResult<()> {
+    fn validate_identity(profile: &Profile, secrets: &Secrets) -> ConfigResult<()> {
         let encoded = secrets
             .manifest_signing_secret_seed
             .as_deref()
@@ -146,17 +172,17 @@ impl SecretsBootstrap {
             .ok_or(SecretsBootstrapError::EncryptionMasterKeyRequired)?;
         decode_master_key(master_key)?;
 
-        if Self::signing_key_pem_required() && secrets.signing_key_pem.is_none() {
+        if Self::signing_key_pem_required(profile) && secrets.signing_key_pem.is_none() {
             return Err(SecretsBootstrapError::SigningKeyPemRequired.into());
         }
         Ok(())
     }
 
     #[must_use]
-    pub fn signing_key_pem_required() -> bool {
+    pub fn signing_key_pem_required(profile: &Profile) -> bool {
         let is_deployment_host =
             systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
-        is_deployment_host || ProfileBootstrap::get().is_ok_and(|profile| profile.target.is_cloud())
+        is_deployment_host || profile.target.is_cloud()
     }
 
     #[must_use]
@@ -168,18 +194,14 @@ impl SecretsBootstrap {
         keys
     }
 
-    fn resolved_secrets_file_path() -> ConfigResult<PathBuf> {
-        let profile =
-            ProfileBootstrap::get().map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
+    fn resolved_secrets_file_path(profile: &LoadedProfile) -> ConfigResult<PathBuf> {
         let secrets_config = profile
             .secrets
             .as_ref()
             .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
-        let profile_path = ProfileBootstrap::get_path()
-            .map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
-        let profile_dir = Path::new(profile_path).parent().ok_or_else(|| {
+        let profile_dir = profile.path().parent().ok_or_else(|| {
             ConfigError::ProfilePathWithoutParent {
-                path: PathBuf::from(profile_path),
+                path: profile.path().to_path_buf(),
             }
         })?;
         let secrets_path = secrets_config
@@ -188,32 +210,24 @@ impl SecretsBootstrap {
         Ok(resolve_with_home(profile_dir, secrets_path))
     }
 
-    pub fn database_url() -> Result<&'static str, SecretsBootstrapError> {
-        Ok(&Self::get()?.database_url)
+    pub fn database_url(&self) -> String {
+        self.get().database_url.clone()
     }
 
-    pub fn database_write_url() -> Result<Option<&'static str>, SecretsBootstrapError> {
-        Ok(Self::get()?.database_write_url.as_deref())
-    }
-
-    pub fn get() -> Result<&'static Secrets, SecretsBootstrapError> {
-        reload::current().ok_or(SecretsBootstrapError::NotInitialized)
-    }
-
-    #[must_use]
-    pub fn is_initialized() -> bool {
-        reload::current().is_some()
-    }
-
-    pub async fn try_init() -> ConfigResult<&'static Secrets> {
-        if reload::current().is_some() {
-            return Self::get().map_err(Into::into);
-        }
-        Self::init().await
+    pub fn database_write_url(&self) -> Option<String> {
+        self.get().database_write_url.clone()
     }
 
     fn log_loaded_secrets(secrets: &Secrets) {
         let summary = build_loaded_secrets_message(secrets);
         tracing::debug!(summary = %summary, "Secrets loaded");
     }
+}
+
+fn active_source_name(profile: &Profile) -> String {
+    profile
+        .secrets
+        .as_ref()
+        .map_or("env", |config| config.source_name())
+        .to_owned()
 }

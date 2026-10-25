@@ -1,4 +1,4 @@
-//! Process-wide cell holding the services root the instance actually runs.
+//! The services root an instance actually runs.
 //!
 //! With no bundle sources configured the root is the tree baked into the
 //! image at `paths.services`. With sources it is a composed cache root, and
@@ -6,24 +6,18 @@
 //! error that forced a fallback, so an instance running yesterday's bundle
 //! can say so rather than looking healthy.
 //!
-//! The cell is installed once, before [`crate::ConfigLoader`] reads anything;
-//! [`ServicesRootBootstrap::require`] is the accessor for callers that need
-//! it, and answers the profile's baked tree while no bundle bootstrap has
-//! installed one, without claiming the cell.
+//! The boot context installs the root once, before [`crate::ConfigLoader`]
+//! reads anything; [`crate::BootContext::require_services_root`] answers the
+//! profile's baked tree while no bundle bootstrap has installed one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_config::ProfileBootstrap;
-
-use crate::error::ConfigLoadError;
-
-static ACTIVE_ROOT: OnceLock<ActiveServicesRoot> = OnceLock::new();
+use systemprompt_manifest::profile::Profile;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -52,33 +46,14 @@ pub struct ActiveServicesRoot {
     pub provenance: ServicesProvenance,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ServicesRootBootstrap;
-
-impl ServicesRootBootstrap {
-    pub fn install(root: ActiveServicesRoot) -> &'static ActiveServicesRoot {
-        ACTIVE_ROOT.get_or_init(|| root)
-    }
-
+impl ActiveServicesRoot {
     #[must_use]
-    pub fn get() -> Option<&'static ActiveServicesRoot> {
-        ACTIVE_ROOT.get()
-    }
-
-    #[must_use]
-    pub fn is_initialized() -> bool {
-        ACTIVE_ROOT.get().is_some()
-    }
-
-    pub fn require() -> Result<ActiveServicesRoot, ConfigLoadError> {
-        if let Some(root) = ACTIVE_ROOT.get() {
-            return Ok(root.clone());
-        }
-        let path = PathBuf::from(&ProfileBootstrap::get()?.paths.services);
-        Ok(ActiveServicesRoot {
+    pub fn baked(profile: &Profile) -> Self {
+        let path = PathBuf::from(&profile.paths.services);
+        Self {
             base: path.clone(),
             path,
             provenance: ServicesProvenance::Bundled,
-        })
+        }
     }
 }

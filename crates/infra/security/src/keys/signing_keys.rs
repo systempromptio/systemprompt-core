@@ -94,14 +94,19 @@ impl SigningKeys {
         })
     }
 
-    pub fn resolve(signing_key_path: &Path) -> SigningKeysResult<Self> {
-        let rsa = match systemprompt_config::SecretsBootstrap::signing_key_pem()
+    pub fn resolve(
+        signing_key_path: &Path,
+        secrets: &systemprompt_config::SecretsService,
+    ) -> SigningKeysResult<Self> {
+        let rsa = match secrets
+            .signing_key_pem()
             .map_err(SigningKeysError::Secret)?
         {
             Some(pem) => RsaSigningKey::from_pkcs8_pem(&pem)?,
             None => load_from_file(signing_key_path)?,
         };
-        let seed = systemprompt_config::SecretsBootstrap::manifest_signing_secret_seed()
+        let seed = secrets
+            .manifest_signing_secret_seed()
             .map_err(SigningKeysError::ManifestSeed)?;
         Self::new(rsa, &seed)
     }

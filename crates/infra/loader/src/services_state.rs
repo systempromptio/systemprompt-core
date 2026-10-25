@@ -29,6 +29,9 @@ use systemprompt_manifest::services::catalog::{CatalogContext, CatalogDocument, 
 use systemprompt_manifest::services::{DiscoveryReport, ServicesConfig, ServicesView};
 use systemprompt_traits::ConfigWatch;
 
+use systemprompt_manifest::profile::Profile;
+
+use crate::boot::BootContext;
 use crate::config_loader::ConfigLoader;
 use crate::error::ConfigLoadResult;
 
@@ -42,33 +45,36 @@ pub struct ServicesState {
 }
 
 impl ServicesState {
-    pub fn load() -> ConfigLoadResult<Self> {
-        Self::from_config(ConfigLoader::load()?)
+    pub fn load(boot: &BootContext) -> ConfigLoadResult<Self> {
+        Self::from_config(boot.profile(), boot.load_services_config()?)
     }
 
-    pub fn load_from_path(path: &Path) -> ConfigLoadResult<Self> {
-        Self::from_config(ConfigLoader::load_from_path(path)?)
+    pub fn load_from_path(path: &Path, profile: &Profile) -> ConfigLoadResult<Self> {
+        Self::from_config(
+            profile,
+            ConfigLoader::load_from_path(path, Some(profile))?,
+        )
     }
 
     // Why: the augmenter borrows the catalog across an await, so it is a
     // boxed future tied to that borrow — a plain `FnOnce(&mut _) -> Fut` cannot
     // name the lifetime and every real async fn fails the higher-ranked bound.
-    pub async fn load_with_discovery<F>(augment: F) -> ConfigLoadResult<Self>
+    pub async fn load_with_discovery<F>(boot: &BootContext, augment: F) -> ConfigLoadResult<Self>
     where
         F: for<'a> FnOnce(&'a mut CatalogDocument) -> DiscoveryFuture<'a>,
     {
-        let mut services = ConfigLoader::load()?;
+        let mut services = boot.load_services_config()?;
         let mut document = take_catalog(&mut services);
         let report = augment(&mut document).await;
         restore_catalog(&mut services, document);
         services.validate()?;
-        let mut state = Self::from_config(services)?;
+        let mut state = Self::from_config(boot.profile(), services)?;
         state.discovery = Some(Arc::new(report));
         Ok(state)
     }
 
-    pub fn from_config(services: ServicesConfig) -> ConfigLoadResult<Self> {
-        let catalog = services.resolve_catalog(&catalog_context())?;
+    pub fn from_config(profile: &Profile, services: ServicesConfig) -> ConfigLoadResult<Self> {
+        let catalog = services.resolve_catalog(&catalog_context(profile))?;
         Ok(Self {
             watch: ConfigWatch::new(services),
             catalog: Arc::new(catalog),
@@ -106,11 +112,8 @@ impl ServicesState {
 }
 
 #[must_use]
-pub fn catalog_context() -> CatalogContext {
-    systemprompt_config::ProfileBootstrap::get().map_or_else(
-        |_| CatalogContext::default(),
-        |profile| CatalogContext::for_install(profile.site.name.clone()),
-    )
+pub fn catalog_context(profile: &Profile) -> CatalogContext {
+    CatalogContext::for_install(profile.site.name.clone())
 }
 
 fn take_catalog(services: &mut ServicesConfig) -> CatalogDocument {

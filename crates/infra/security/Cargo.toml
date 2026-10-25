@@ -57,6 +57,7 @@ systemprompt-traits = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 
 [package.metadata.docs.rs]

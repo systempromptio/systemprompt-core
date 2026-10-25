@@ -1,16 +1,16 @@
 //! # systemprompt-config
 //!
 //! Profile-based configuration for systemprompt.io. This crate is the
-//! bootstrap layer: it loads the active profile YAML, the matching
-//! secrets document, and installs both into process-wide singletons
-//! before any other layer (database, runtime, agent) starts.
+//! bootstrap layer: it loads the active profile YAML and the matching
+//! secrets document into owned values the entry crates hand to every other
+//! layer (database, runtime, agent).
 //!
 //! ## Public surface
 //!
-//! - [`ProfileBootstrap`] / [`SecretsBootstrap`] — process-wide cells for the
-//!   active profile and secrets document, initialised in that order by the
-//!   entry-crate boot sequence.
-//! - [`try_init_config`] / [`build_from_profile`] — build a runtime
+//! - [`LoadedProfile`] / [`SecretsService`] — the active profile and the
+//!   reloadable secrets document, built in that order by the entry-crate boot
+//!   sequence.
+//! - [`build_from_profile`] — builds a runtime
 //!   [`systemprompt_manifest::Config`] from the active profile.
 //! - [`ProviderCatalogService`], [`SecurityConfigService`] — typed mutations of
 //!   the services provider registry and the profile's security section, backing
@@ -49,9 +49,9 @@ pub mod state_dir;
 
 pub use bootstrap::{
     BOOT_REQUIRED_SECRET_KEYS, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES, EnvLookup,
-    KeyMaterialError, MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS, ProfileBootstrap,
-    ProfileBootstrapError, ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM, SecretsBootstrap,
-    SecretsBootstrapError, SecretsDocument, SecretsFetch, SecretsProvider, SecretsSourceFactory,
+    KeyMaterialError, LoadedProfile, MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS,
+    ProfileBootstrapError, ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM, SecretsBootstrapError,
+    SecretsService, SecretsDocument, SecretsFetch, SecretsProvider, SecretsSourceFactory,
     SecretsSourceRegistration, SecretsStatus, SharedSecretsProvider, VaultAttemptFailure,
     VaultError, VaultKvProvider, build_external_provider, build_loaded_secrets_message,
     decode_master_key, decode_seed, diff_secrets, generate_master_key, generate_seed,
@@ -60,9 +60,7 @@ pub use bootstrap::{
 };
 pub use systemprompt_manifest::profile::ExternalSecretsConfig;
 
-pub use config_loader::{
-    build_from_profile, resolve_instance_id, try_init_config, validate_database_config,
-};
+pub use config_loader::{build_from_profile, resolve_instance_id, validate_database_config};
 pub use error::{ConfigError, ConfigResult};
 pub use fingerprint::{ConfigFingerprint, FINGERPRINT_HEX_LEN};
 #[doc(hidden)]

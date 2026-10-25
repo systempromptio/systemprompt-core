@@ -3,26 +3,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use systemprompt_manifest::profile::resolve_with_home;
 use systemprompt_manifest::secrets::Secrets;
 
-use crate::bootstrap::profile::ProfileBootstrap;
+use crate::bootstrap::profile::LoadedProfile;
 use crate::bootstrap::secrets::SecretsBootstrapError;
 use crate::error::{ConfigError, ConfigResult};
 
 pub(in crate::bootstrap::secrets) fn resolve_and_load_file(
+    profile: &LoadedProfile,
     path_str: &str,
 ) -> ConfigResult<Secrets> {
-    let profile_path =
-        ProfileBootstrap::get_path().map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
-
     let profile_dir =
-        Path::new(profile_path)
+        profile
+            .path()
             .parent()
             .ok_or_else(|| ConfigError::ProfilePathWithoutParent {
-                path: PathBuf::from(profile_path),
+                path: profile.path().to_path_buf(),
             })?;
 
     let resolved_path = resolve_with_home(profile_dir, path_str);
