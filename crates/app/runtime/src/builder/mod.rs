@@ -204,14 +204,9 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
 
-        let (repositories, user_service, system_admin, mcp_registry) = build_domain_layer(
-            &config,
-            &database,
-            content.analytics_repositories,
-            policy,
-            &services,
-        )
-        .await?;
+        let analytics = content.analytics_repositories;
+        let (repositories, user_service, system_admin, mcp_registry) =
+            build_domain_layer(&config, &database, analytics, policy, &services).await?;
 
         let (ai_service, connector_tokens) =
             ai_service::build_ai_service(&database, &repositories, &mcp_registry, &services);
@@ -233,10 +228,7 @@ impl AppContextBuilder {
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks: self.background_tasks.unwrap_or_default(),
-            spawner: Arc::new(
-                systemprompt_loader::subprocess::Spawner::new()
-                    .map_err(crate::error::RuntimeError::Spawner)?,
-            ),
+            spawner: new_spawner()?,
             publish_guard: Arc::default(),
             connector_tokens,
         };
@@ -299,4 +291,10 @@ async fn build_domain_layer(
     let mcp_registry = RegistryService::new(system_admin.id().clone(), services.clone());
     ensure_legacy_context(&repositories, &system_admin).await?;
     Ok((repositories, user_service, system_admin, mcp_registry))
+}
+
+fn new_spawner() -> RuntimeResult<Arc<systemprompt_loader::subprocess::Spawner>> {
+    systemprompt_loader::subprocess::Spawner::new()
+        .map(Arc::new)
+        .map_err(crate::error::RuntimeError::Spawner)
 }
