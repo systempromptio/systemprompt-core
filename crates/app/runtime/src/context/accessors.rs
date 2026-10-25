@@ -7,13 +7,28 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::SecretsService;
 use systemprompt_events::EventBroadcasters;
 use systemprompt_files::FilesConfig;
+use systemprompt_loader::BootContext;
+use systemprompt_manifest::Profile;
 use systemprompt_security::credential::TokenCache;
 
 use super::AppContext;
 
 impl AppContext {
+    pub const fn boot(&self) -> &BootContext {
+        &self.cfg.boot
+    }
+
+    pub fn profile(&self) -> &Profile {
+        self.cfg.boot.profile()
+    }
+
+    pub fn secrets(&self) -> &Arc<SecretsService> {
+        self.cfg.boot.secrets()
+    }
+
     pub const fn files_config(&self) -> &Arc<FilesConfig> {
         &self.cfg.files_config
     }

@@ -270,14 +270,7 @@ async fn bind_hop<'a>(
     } = target;
     enforce_route_requirements(route.as_ref(), &hop, ai_request_id)?;
 
-    let (call, billing) = super::credentials::resolve(
-        catalog,
-        &hop,
-        &owner,
-        &engines.provider_tokens,
-        &engines.secrets.get(),
-    )
-    .await?;
+    let (call, billing) = super::credentials::resolve(catalog, &hop, &owner, engines).await?;
 
     let adapter = engines
         .upstream_registry

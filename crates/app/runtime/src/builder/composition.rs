@@ -8,6 +8,7 @@ use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
 use crate::context::Plugins;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::at_rest::AtRestCipher;
@@ -181,4 +182,53 @@ pub(super) fn new_plugins(
         subject_providers: inputs.subject_providers.clone(),
         subjects: factory_ctx.subjects.clone(),
     }
+}
+
+pub(super) fn build_artifact_ingest(
+    database: &DbPool,
+    governance: &systemprompt_governance::policy::GovernanceEngine,
+) -> Arc<systemprompt_mcp::ArtifactIngest> {
+    let scanner = governance.secret_scanner().map(|s| Arc::new(s.clone()));
+    Arc::new(systemprompt_mcp::ArtifactIngest::from_db(database, scanner))
+}
+
+pub(super) async fn build_domain_layer(
+    boot: &BootContext,
+    database: &DbPool,
+    analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+    policy: systemprompt_marketplace::managed::PublicationPolicy,
+    services: &ServicesState,
+) -> RuntimeResult<(
+    RepositoryBundles,
+    Arc<UserService>,
+    Arc<systemprompt_manifest::SystemAdmin>,
+    RegistryService,
+)> {
+    let config = boot.config()?;
+    let mut repositories = build_repositories(
+        database,
+        analytics_repositories,
+        config.instance_id.clone(),
+        policy,
+        &boot.secrets().get(),
+    )?;
+    let user_service = Arc::new(
+        UserService::new(Arc::clone(&repositories.users))
+            .with_owner_reassignments(owner_reassignments(database)),
+    );
+    let system_admin = assembly::load_system_admin(config, &user_service).await?;
+    repositories.install_organization_resolver(system_admin.id());
+    let mcp_registry = RegistryService::new(
+        system_admin.id().clone(),
+        services.clone(),
+        Arc::clone(config),
+    );
+    ensure_legacy_context(&repositories, &system_admin).await?;
+    Ok((repositories, user_service, system_admin, mcp_registry))
+}
+
+pub(super) fn new_spawner() -> RuntimeResult<Arc<systemprompt_loader::subprocess::Spawner>> {
+    systemprompt_loader::subprocess::Spawner::new()
+        .map(Arc::new)
+        .map_err(crate::error::RuntimeError::Spawner)
 }
