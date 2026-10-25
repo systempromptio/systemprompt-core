@@ -1,4 +1,6 @@
 -- @supersedes-checksum: 370906b6ef8edf56
+-- @supersedes-checksum: 5c0d53d654cd763a
+-- @cost: rows=252 measured=39ms triggers=live
 -- A publication admitted by a publication gate records which gate admitted it
 -- and the digest of the evidence that gate returned.
 ALTER TABLE managed_publication_reviews ADD COLUMN IF NOT EXISTS gate_id TEXT

@@ -1,4 +1,6 @@
 -- @supersedes-checksum: d6781c409d871601
+-- @supersedes-checksum: 3e09b55c5bf7561b
+-- @cost: rows=252 measured=36ms triggers=live
 -- Cohort publication: a publication may select a revision for one cohort
 -- (a role or a subject-attribute value) instead of the resource's base
 -- selection. Reviews record the cohort they targeted.

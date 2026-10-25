@@ -1,6 +1,7 @@
 -- @supersedes-checksum: 59aded89aa904ec0
 -- @supersedes-checksum: 3557bdf9e955a0c2
 -- @supersedes-checksum: ed91b66d199d1272
+-- @supersedes-checksum: 10f783be59aa1cc5
 -- @cost: rows=300000 measured=130ms triggers=suspended
 -- @compat: breaking
 -- Gateway traffic carries a canonical class (schema/ai_requests.sql): the
@@ -21,11 +22,32 @@ ALTER TABLE ai_requests
 ALTER TABLE ai_usage_rollup_hourly
     ADD COLUMN IF NOT EXISTS traffic TEXT NOT NULL DEFAULT 'production';
 
+-- Why: bounded: matches no row. The runner suspends row triggers only on tables a
+-- parsed DML statement writes, and the guarded updates below hide theirs in a DO block.
+UPDATE ai_requests SET traffic = traffic WHERE FALSE;
+UPDATE ai_usage_rollup_hourly SET traffic = traffic WHERE FALSE;
+
 -- Why: bounded: only evaluation rows carry `synthetic`, a small slice of the table.
-UPDATE ai_requests SET traffic = 'evaluation' WHERE synthetic;
+-- Why: Postgres: a schema laid down before ai 040 never had `synthetic`, so the
+-- statement is only valid where the column exists.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = current_schema()
+                 AND table_name = 'ai_requests' AND column_name = 'synthetic') THEN
+        UPDATE ai_requests SET traffic = 'evaluation' WHERE synthetic;
+    END IF;
+END $$;
 ALTER TABLE ai_requests VALIDATE CONSTRAINT ai_requests_traffic_check;
 -- Why: bounded: the hourly rollup holds one row per bucket and key, not per request.
-UPDATE ai_usage_rollup_hourly SET traffic = 'evaluation' WHERE synthetic;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = current_schema()
+                 AND table_name = 'ai_usage_rollup_hourly' AND column_name = 'synthetic') THEN
+        UPDATE ai_usage_rollup_hourly SET traffic = 'evaluation' WHERE synthetic;
+    END IF;
+END $$;
 
 ALTER TABLE ai_usage_rollup_hourly ALTER COLUMN traffic DROP DEFAULT;
 ALTER TABLE ai_usage_rollup_hourly DROP CONSTRAINT IF EXISTS ai_usage_rollup_hourly_pkey;
