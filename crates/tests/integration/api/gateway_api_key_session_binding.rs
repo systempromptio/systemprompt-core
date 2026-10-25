@@ -1,8 +1,9 @@
 //! Session binding (credential.md §4): the session a gateway request lands on
 //! comes from the credential. An API key with no gateway-issued
 //! `x-session-id` gets a session minted and bound to it; a client's own
-//! header is recorded as `client_session_id` and never rejected; a JWT whose
-//! header contradicts its `session_id` claim is 401.
+//! header is recorded as `client_session_id` and never rejected, as is a JWT
+//! client's own header; a JWT whose header names another gateway session than
+//! its `session_id` claim is 401.
 
 use std::sync::Arc;
 
@@ -178,34 +179,73 @@ async fn a_client_session_header_is_recorded_and_never_rejected() -> Result<()> 
 }
 
 #[tokio::test]
-async fn a_jwt_header_must_equal_its_claim_and_its_absence_uses_the_claim() -> Result<()> {
+async fn a_jwt_header_naming_a_gateway_session_other_than_its_claim_is_refused() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "bind-jwt@example.invalid").await?;
+    let other = seed_admin_credential(&pool, "bind-jwt-other@example.invalid").await?;
     let extractor = jwt_extractor(&ctx);
+    let providers = SubjectProviderSet::default();
 
-    let rejection = sign_in(
-        &ctx,
-        &extractor,
-        cred.jwt.as_str(),
-        Some(&SessionId::generate()),
-        &SubjectProviderSet::default(),
-    )
-    .await
-    .expect_err("a header that contradicts the claim is refused");
-    assert_eq!(rejection.status, StatusCode::UNAUTHORIZED);
-    assert!(rejection.message.contains("X-Session-ID"));
+    for header in [
+        SessionId::generate(),
+        other.session_id.clone(),
+        SessionId::new("sess_forged-and-never-issued"),
+    ] {
+        let rejection = sign_in(
+            &ctx,
+            &extractor,
+            cred.jwt.as_str(),
+            Some(&header),
+            &providers,
+        )
+        .await
+        .expect_err("a gateway-format header that contradicts the claim is refused");
+        assert_eq!(rejection.status, StatusCode::UNAUTHORIZED);
+        assert!(rejection.message.contains("X-Session-ID"));
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_jwt_header_matching_its_claim_or_absent_uses_the_claim() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    install_test_signing_key();
+    let cred = seed_admin_credential(&pool, "bind-jwt-claim@example.invalid").await?;
+    let extractor = jwt_extractor(&ctx);
+    let providers = SubjectProviderSet::default();
+
+    for header in [None, Some(&cred.session_id)] {
+        let principal = sign_in(&ctx, &extractor, cred.jwt.as_str(), header, &providers)
+            .await
+            .expect("the claim's own session binds");
+        assert_eq!(principal.session_id(), &cred.session_id);
+        assert!(principal.client_session().is_none());
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_jwt_clients_own_session_header_is_recorded_and_never_rejected() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    install_test_signing_key();
+    let cred = seed_admin_credential(&pool, "bind-jwt-client@example.invalid").await?;
+    let extractor = jwt_extractor(&ctx);
+    let opencode = SessionId::new("ses_e8d6opencodeownsession");
 
     let principal = sign_in(
         &ctx,
         &extractor,
         cred.jwt.as_str(),
-        None,
+        Some(&opencode),
         &SubjectProviderSet::default(),
     )
     .await
-    .expect("no header binds to the claim");
+    .expect("a session the gateway never issued is not a reason to refuse");
     assert_eq!(principal.session_id(), &cred.session_id);
-    assert!(principal.client_session().is_none());
+    assert_eq!(
+        principal.client_session().map(|c| c.as_str()),
+        Some(opencode.as_str())
+    );
     Ok(())
 }

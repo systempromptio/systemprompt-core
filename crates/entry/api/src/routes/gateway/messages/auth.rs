@@ -29,10 +29,11 @@ use systemprompt_identifiers::{
 use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::JwtUserContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits, ApiKeyService};
 
 use super::error::RejectionError;
-use super::session_binding::{SessionRequest, bind_api_key_session};
+use super::session_binding::{SessionRequest, bind_api_key_session, is_client_owned};
 use crate::services::middleware::JwtContextExtractor;
 
 /// What an API key narrows its user's principal to.
@@ -137,7 +138,7 @@ pub async fn authenticate(
     let mut authed = if credential.starts_with(API_KEY_PREFIX) {
         authenticate_api_key(credential, inputs).await?
     } else {
-        authenticate_jwt(credential, inputs.header_session, inputs.jwt_extractor).await?
+        authenticate_jwt(credential, inputs).await?
     };
     authed.principal.subject = inputs
         .providers
@@ -215,18 +216,23 @@ async fn authenticate_api_key(
 
 async fn authenticate_jwt(
     credential: &str,
-    header_session: Option<&SessionId>,
-    jwt_extractor: &JwtContextExtractor,
+    inputs: AuthInputs<'_>,
 ) -> Result<AuthedPrincipal, RejectionError> {
     let jwt_token = JwtToken::new(credential);
-    let (claims, user) = jwt_extractor
+    let (claims, user) = inputs
+        .jwt_extractor
         .decode_for_gateway(&jwt_token)
         .await
         .map_err(rejection_for_token)?;
 
-    if let Some(header) = header_session
+    let mut client_session = None;
+    if let Some(header) = inputs.header_session
         && header.as_str() != claims.session_id.as_str()
     {
+        if is_client_owned(inputs.ctx, header, &claims.user_id).await? {
+            client_session = ClientSessionId::try_new(header.as_str().to_owned()).ok();
+            return Ok(jwt_principal(claims, user.roles, client_session));
+        }
         tracing::warn!(
             header_session = %header.as_str(),
             claim_session = %claims.session_id.as_str(),
@@ -239,10 +245,18 @@ async fn authenticate_jwt(
         ));
     }
 
-    Ok(AuthedPrincipal {
+    Ok(jwt_principal(claims, user.roles, client_session))
+}
+
+fn jwt_principal(
+    claims: JwtUserContext,
+    roles: Vec<String>,
+    client_session: Option<ClientSessionId>,
+) -> AuthedPrincipal {
+    AuthedPrincipal {
         principal: Principal {
             user_id: claims.user_id,
-            roles: user.roles,
+            roles,
             subject: SubjectAttributes::new(),
             attributes: claims.attributes,
             act_chain: claims.act_chain,
@@ -251,8 +265,8 @@ async fn authenticate_jwt(
         },
         trace_id: TraceId::generate(),
         session_id: claims.session_id,
-        client_session: None,
-    })
+        client_session,
+    }
 }
 
 fn rejection_for_token(error: ContextExtractionError) -> RejectionError {

@@ -21,6 +21,7 @@
 
 ### Added
 
+- `messages::auth` JWT path: an `x-session-id` that differs from the token's `session_id` claim and is not a gateway session (not `sess_…`, no active session carries it) is the client's own id (OpenCode's `ses_…`) and is recorded as the audit row's `client_session_id` instead of 401; a gateway-format or active-session header other than the claim stays 401. `session_binding::is_client_owned`.
 - `messages::session_binding`: an API-key request without a gateway-issued `x-session-id` lands on the session bound to the key, minted on first use; the client's header is recorded as the audit row's `client_session_id` when the body names none, and never rejected.
 - `JwtContextExtractor::load_user`. The user cache is bounded.
 
