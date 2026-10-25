@@ -4854,6 +4854,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.21",

@@ -42,7 +42,10 @@ pub use tools::ToolAnalyticsRepository;
 pub use tools::list_queries::ToolListParams;
 pub use traffic::{NavigationQuery, PageQuery, TrafficAnalyticsRepository};
 
+use std::sync::Arc;
+
 use systemprompt_database::DbPool;
+use systemprompt_logging::AnalyticsRepository;
 use systemprompt_traits::DynSessionStore;
 
 #[derive(Clone)]
@@ -52,6 +55,7 @@ pub struct AnalyticsRepositories {
     pub costs: CostAnalyticsRepository,
     pub engagement: EngagementRepository,
     pub events: AnalyticsEventsRepository,
+    pub event_log: Arc<AnalyticsRepository>,
 }
 
 impl std::fmt::Debug for AnalyticsRepositories {
@@ -61,6 +65,7 @@ impl std::fmt::Debug for AnalyticsRepositories {
             .field("costs", &self.costs)
             .field("engagement", &self.engagement)
             .field("events", &self.events)
+            .field("event_log", &self.event_log)
             .finish_non_exhaustive()
     }
 }
@@ -69,20 +74,23 @@ impl AnalyticsRepositories {
     pub fn new(
         db: &DbPool,
         sessions: DynSessionStore,
-        event_sink: systemprompt_traits::DynAnalyticsEventStore,
+        event_log: Arc<AnalyticsRepository>,
         content: systemprompt_traits::DynContentCatalogStats,
     ) -> Self {
+        let event_sink: systemprompt_traits::DynAnalyticsEventStore =
+            Arc::<AnalyticsRepository>::clone(&event_log);
         Self {
             session_signals: SessionSignalsRepository::new(
                 db,
-                std::sync::Arc::clone(&sessions),
-                std::sync::Arc::clone(&event_sink),
+                Arc::clone(&sessions),
+                Arc::clone(&event_sink),
                 content,
             ),
             session_store: sessions,
             costs: CostAnalyticsRepository::new(db),
             engagement: EngagementRepository::new(db),
             events: AnalyticsEventsRepository::new(event_sink),
+            event_log,
         }
     }
 }

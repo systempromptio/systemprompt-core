@@ -116,6 +116,43 @@ async fn tracked_server_error_records_error_severity_event() -> Result<()> {
     Ok(())
 }
 
+#[derive(sqlx::FromRow)]
+struct LoggedEvent {
+    severity: String,
+    endpoint: Option<String>,
+    response_time_ms: Option<i32>,
+    error_code: Option<i32>,
+}
+
+#[tokio::test]
+async fn logged_event_keeps_severity_endpoint_and_response_time() -> Result<()> {
+    let (db, ctx) = setup().await?;
+    let app = build(&ctx)?;
+    let agent = browser_agent();
+    let resp = app.oneshot(browser_get_as("/boom", &agent)).await?;
+    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    drain(&ctx).await;
+    let rows: Vec<LoggedEvent> = sqlx::query_as(
+        "SELECT severity, endpoint, response_time_ms, error_code FROM analytics_events WHERE \
+         position($1 in metadata) > 0",
+    )
+    .bind(&agent)
+    .fetch_all(db.pool().as_ref())
+    .await?;
+    assert_eq!(rows.len(), 1);
+    let event = &rows[0];
+    assert_eq!(event.severity, "error");
+    assert!(
+        event
+            .endpoint
+            .as_deref()
+            .is_some_and(|e| e.contains("/boom"))
+    );
+    assert!(event.response_time_ms.is_some_and(|ms| ms >= 0));
+    assert_eq!(event.error_code, Some(500));
+    Ok(())
+}
+
 #[tokio::test]
 async fn scanner_path_marks_session_as_scanner() -> Result<()> {
     let (_db, ctx) = setup().await?;

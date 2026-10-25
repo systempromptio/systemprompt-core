@@ -54,6 +54,7 @@ url = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 

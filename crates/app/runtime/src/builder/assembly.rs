@@ -44,13 +44,13 @@ pub(super) fn assemble_content_analytics(
     ));
     let sessions: systemprompt_traits::DynSessionStore =
         Arc::new(systemprompt_users::SessionRepository::new(database));
-    let event_store = Arc::new(systemprompt_logging::AnalyticsRepository::new(database));
+    let event_log = Arc::new(systemprompt_logging::AnalyticsRepository::new(database));
     let content_stats = Arc::new(systemprompt_content::ContentRepository::new(database));
     let analytics_repositories = Arc::new(
         systemprompt_analytics::repository::AnalyticsRepositories::new(
             database,
             Arc::clone(&sessions),
-            event_store,
+            event_log,
             content_stats,
         ),
     );
