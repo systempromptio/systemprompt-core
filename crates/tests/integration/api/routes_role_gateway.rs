@@ -102,7 +102,8 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
         NodeRole::Gateway,
         None,
         &std::sync::Arc::new(
-            systemprompt_gateway::GatewayEngines::new().expect("gateway engines build"),
+            systemprompt_gateway::GatewayEngines::new(Default::default())
+                .expect("gateway engines build"),
         ),
     )?;
     assert!(is_mounted(&gateway, "/v1/models").await?);

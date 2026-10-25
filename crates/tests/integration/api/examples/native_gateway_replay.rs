@@ -339,7 +339,7 @@ async fn replay() -> Result<()> {
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
                         engines: std::sync::Arc::new(
-                            systemprompt_gateway::GatewayEngines::new()
+                            systemprompt_gateway::GatewayEngines::new(Default::default())
                                 .expect("gateway engines build"),
                         ),
                     },
@@ -401,7 +401,7 @@ async fn replay() -> Result<()> {
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
                         engines: std::sync::Arc::new(
-                            systemprompt_gateway::GatewayEngines::new()
+                            systemprompt_gateway::GatewayEngines::new(Default::default())
                                 .expect("gateway engines build"),
                         ),
                     },

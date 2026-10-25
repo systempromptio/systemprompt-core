@@ -30,9 +30,10 @@ impl AiService {
         let AiServiceProviders {
             tools: tool_provider,
             sessions: session_provider,
+            provider_tokens,
         } = providers;
         SecretsBootstrap::get()?;
-        let (clients, withheld) = ProviderClients::build(&catalog)?;
+        let (clients, withheld) = ProviderClients::build(&provider_tokens, &catalog)?;
         ConfigValidator::validate(ai_config, &catalog, &clients, &withheld)?;
         let (default_provider, default_model) =
             Self::derive_default(&catalog, &clients, &withheld)?;

@@ -94,7 +94,7 @@ async fn opencode_parallel_tool_results_reach_an_anthropic_wire_upstream_as_one_
     let (endpoint, captured) = recording_upstream().await;
     let catalog = deepseek(&endpoint);
     let hop = catalog.deployments("deepseek-flash")[0].clone();
-    let call = UpstreamTarget::resolve(&catalog, &hop, "sk-test")
+    let call = UpstreamTarget::resolve(&Default::default(), &catalog, &hop, "sk-test")
         .expect("target")
         .call()
         .await

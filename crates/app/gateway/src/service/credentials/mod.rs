@@ -23,12 +23,16 @@
 
 pub mod google;
 
+use std::sync::Arc;
+
 use systemprompt_ai::models::BillingSource;
 use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_ai::{EndpointBinding, UpstreamCall, UpstreamTarget, UpstreamTargetError};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
-use systemprompt_security::credential::{CredentialError, CredentialScope, fill_endpoint};
+use systemprompt_security::credential::{
+    CredentialError, CredentialScope, TokenCache, fill_endpoint,
+};
 
 use super::{DispatchError, GatewayError};
 
@@ -52,11 +56,12 @@ pub async fn resolve(
     catalog: &ResolvedCatalog,
     hop: &ResolvedHop,
     owner: &KeyOwner,
+    tokens: &Arc<TokenCache>,
 ) -> Result<(UpstreamCall, BillingSource), DispatchError> {
     let binding = EndpointBinding::of_hop(catalog, hop).map_err(pre_audit)?;
     let billing = BillingSource::of(&hop.credential);
     if !hop.credential.is_personal() {
-        let target = UpstreamTarget::from_secrets(binding).map_err(pre_audit)?;
+        let target = UpstreamTarget::from_secrets(tokens, binding).map_err(pre_audit)?;
         let call = target.call().await.map_err(pre_audit)?;
         return Ok((call, billing));
     }
@@ -73,8 +78,8 @@ pub async fn resolve(
                 credential: credential.as_str().to_owned(),
             })
         })?;
-    let target =
-        UpstreamTarget::resolve_personal(binding, &key, &owner.user_id).map_err(pre_audit)?;
+    let target = UpstreamTarget::resolve_personal(tokens, binding, &key, &owner.user_id)
+        .map_err(pre_audit)?;
     let call = target.call().await.map_err(pre_audit)?;
     Ok((call, billing))
 }

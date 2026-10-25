@@ -123,9 +123,15 @@ async fn storing_a_key_probes_every_endpoint_of_the_credential() {
     let catalog = go_catalog(&server.uri(), true);
     let credential = personal_credential(&catalog, "go").expect("personal");
 
-    verify_personal_key(&catalog, credential, "sk-go", &UserId::new("member-1"))
-        .await
-        .expect("every endpoint accepts the key");
+    verify_personal_key(
+        &Default::default(),
+        &catalog,
+        credential,
+        "sk-go",
+        &UserId::new("member-1"),
+    )
+    .await
+    .expect("every endpoint accepts the key");
     server.verify().await;
 }
 
@@ -138,9 +144,15 @@ async fn a_disabled_providers_endpoint_is_not_probed() {
     let catalog = go_catalog(&server.uri(), false);
     let credential = catalog.credential("go").expect("declared");
 
-    let err = verify_personal_key(&catalog, credential, "sk-go", &UserId::new("member-1"))
-        .await
-        .expect_err("a credential with no enabled endpoint takes no key");
+    let err = verify_personal_key(
+        &Default::default(),
+        &catalog,
+        credential,
+        "sk-go",
+        &UserId::new("member-1"),
+    )
+    .await
+    .expect_err("a credential with no enabled endpoint takes no key");
     assert!(
         matches!(err, PersonalKeyError::NotPersonalCredential(_)),
         "{err:?}"
@@ -157,9 +169,15 @@ async fn a_key_any_endpoint_refuses_is_rejected() {
     let catalog = go_catalog(&server.uri(), true);
     let credential = personal_credential(&catalog, "go").expect("personal");
 
-    let err = verify_personal_key(&catalog, credential, "sk-go", &UserId::new("member-1"))
-        .await
-        .unwrap_err();
+    let err = verify_personal_key(
+        &Default::default(),
+        &catalog,
+        credential,
+        "sk-go",
+        &UserId::new("member-1"),
+    )
+    .await
+    .unwrap_err();
     assert!(
         matches!(err, PersonalKeyError::Rejected(ref label) if label == "Go"),
         "{err:?}"

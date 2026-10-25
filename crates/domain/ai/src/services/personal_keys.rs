@@ -10,12 +10,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::catalog::{
     ResolvedCatalog, ResolvedCredential, ResolvedEndpoint,
 };
+use systemprompt_security::credential::TokenCache;
 
 use super::upstream::{EndpointBinding, UpstreamCall, UpstreamTarget};
 use crate::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
@@ -80,6 +82,7 @@ pub struct PersonalKeyRequest<'a> {
 }
 
 pub async fn store_personal_key(
+    tokens: &Arc<TokenCache>,
     credentials: &UserProviderCredentialRepository,
     catalog: &ResolvedCatalog,
     request: PersonalKeyRequest<'_>,
@@ -95,7 +98,7 @@ pub async fn store_personal_key(
     if key.is_empty() || key.len() > MAX_KEY_BYTES {
         return Err(PersonalKeyError::Rejected(credential_label(credential)));
     }
-    verify_personal_key(catalog, credential, key, user_id).await?;
+    verify_personal_key(tokens, catalog, credential, key, user_id).await?;
     let label = label.map(str::trim).filter(|l| !l.is_empty());
     let sealed = systemprompt_security::at_rest::seal(key)
         .map_err(|e| PersonalKeyError::Internal(e.into()))?;
@@ -112,6 +115,7 @@ pub async fn store_personal_key(
 }
 
 pub async fn verify_personal_key(
+    tokens: &Arc<TokenCache>,
     catalog: &ResolvedCatalog,
     credential: &ResolvedCredential,
     key: &str,
@@ -126,7 +130,7 @@ pub async fn verify_personal_key(
     for endpoint in endpoints {
         let binding = EndpointBinding::of_endpoint(catalog, &endpoint.endpoint_ref())
             .map_err(|e| PersonalKeyError::Internal(e.into()))?;
-        verify_endpoint(catalog, binding, key, user_id).await?;
+        verify_endpoint(tokens, catalog, binding, key, user_id).await?;
     }
     Ok(())
 }
@@ -151,6 +155,7 @@ struct Probe<'a> {
 // `GET {endpoint}/models` for any valid key and 401/403 for a bad one, so it
 // proves the key without spending a token of the subscription.
 async fn verify_endpoint(
+    tokens: &Arc<TokenCache>,
     catalog: &ResolvedCatalog,
     binding: EndpointBinding<'_>,
     key: &str,
@@ -158,7 +163,7 @@ async fn verify_endpoint(
 ) -> Result<(), PersonalKeyError> {
     let rejected = || PersonalKeyError::Rejected(credential_label(binding.credential));
     let target =
-        UpstreamTarget::resolve_personal(binding, key, user_id).map_err(|_e| rejected())?;
+        UpstreamTarget::resolve_personal(tokens, binding, key, user_id).map_err(|_e| rejected())?;
     let call = target.call().await.map_err(|_e| rejected())?;
     let client = reqwest::Client::builder()
         .timeout(VERIFY_TIMEOUT)

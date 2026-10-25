@@ -16,9 +16,6 @@ crates/infra/config/src/bootstrap/secrets/reload.rs:RELOAD_LOCK — bootstrap ch
 crates/shared/manifest/src/config/mod.rs:CONFIG — bootstrap chain: the resolved Config read before AppContext exists
 crates/infra/loader/src/services_root.rs:ACTIVE_ROOT — bootstrap chain: the resolved services root
 
-# Gateway failover statics (config-arch session hand-off).
-crates/infra/security/src/credential/mod.rs:PROVIDER_TOKENS — debt: ProviderCredential::bearer is called from domain/ai upstream/target.rs and loader vertex_discovery (config-arch session); the owned form is TokenCache
-
 # Immutable data: compiled once, never mutated.
 crates/shared/models/src/ai/execution_plan.rs:TEMPLATE_REF_REGEX — immutable data
 crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data

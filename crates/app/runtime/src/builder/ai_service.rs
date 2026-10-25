@@ -50,6 +50,7 @@ pub(super) fn build_ai_service(
         AiServiceProviders {
             tools: tool_provider,
             sessions: session_provider,
+            provider_tokens: Arc::clone(&connector_tokens),
         },
         &repositories.ai,
     ) {

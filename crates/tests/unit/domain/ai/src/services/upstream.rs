@@ -48,8 +48,13 @@ fn service_account(token_uri: &str) -> String {
 #[tokio::test]
 async fn an_api_key_stays_first_party() {
     let catalog = mock_http::default_catalog();
-    let target =
-        UpstreamTarget::resolve(&catalog, anthropic_hop(&catalog), "sk-fixture").expect("resolves");
+    let target = UpstreamTarget::resolve(
+        &Default::default(),
+        &catalog,
+        anthropic_hop(&catalog),
+        "sk-fixture",
+    )
+    .expect("resolves");
     assert_eq!(target.hosting(), Hosting::FirstParty);
     assert_eq!(target.wire(), WireProtocol::Anthropic);
 
@@ -80,6 +85,7 @@ async fn a_service_account_reaches_claude_on_vertex() {
     let catalog = vertex_regions().build();
     let secret = service_account(&format!("{}/token", google.uri()));
     let target = UpstreamTarget::resolve(
+        &Default::default(),
         &catalog,
         hop(&catalog, "claude-sonnet-5", "claude-global"),
         &secret,
@@ -107,6 +113,7 @@ async fn a_service_account_reaches_claude_on_vertex() {
 fn a_malformed_service_account_is_refused_at_resolve() {
     let catalog = vertex_regions().build();
     let err = UpstreamTarget::resolve(
+        &Default::default(),
         &catalog,
         hop(&catalog, "claude-sonnet-5", "claude-global"),
         r#"{"type":"service_account"}"#,
@@ -122,7 +129,8 @@ fn a_malformed_service_account_is_refused_at_resolve() {
 fn a_vertex_template_without_a_project_is_refused_at_resolve() {
     let catalog = vertex_regions().build();
     let gemini = hop(&catalog, "vertex-gemini-3.8-flash", "gemini");
-    let err = UpstreamTarget::resolve(&catalog, gemini, "sk-plain").unwrap_err();
+    let err =
+        UpstreamTarget::resolve(&Default::default(), &catalog, gemini, "sk-plain").unwrap_err();
     assert!(matches!(err, UpstreamTargetError::Endpoint { .. }));
 }
 
@@ -130,6 +138,7 @@ fn a_vertex_template_without_a_project_is_refused_at_resolve() {
 fn an_api_key_is_refused_for_claude_on_vertex() {
     let catalog = vertex_regions().build();
     let err = UpstreamTarget::resolve(
+        &Default::default(),
         &catalog,
         hop(&catalog, "claude-sonnet-5", "claude-eu"),
         "sk-plain",

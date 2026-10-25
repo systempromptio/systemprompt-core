@@ -19,7 +19,13 @@ fn personal(endpoint: &str, user: &str) -> UpstreamTarget {
     let binding =
         EndpointBinding::of_endpoint(&catalog, &EndpointRef::new("opencode-go", endpoint))
             .expect("endpoint in catalog");
-    UpstreamTarget::resolve_personal(binding, "sk-member", &UserId::new(user)).expect("resolves")
+    UpstreamTarget::resolve_personal(
+        &Default::default(),
+        binding,
+        "sk-member",
+        &UserId::new(user),
+    )
+    .expect("resolves")
 }
 
 #[test]
@@ -74,7 +80,7 @@ fn a_personal_credential_has_no_deployment_secret() {
     let catalog = opencode_go().build();
     let binding = EndpointBinding::of_endpoint(&catalog, &EndpointRef::new("opencode-go", "chat"))
         .expect("endpoint in catalog");
-    match UpstreamTarget::from_secrets(binding) {
+    match UpstreamTarget::from_secrets(&Default::default(), binding) {
         Err(UpstreamTargetError::PersonalCredential { credential }) => {
             assert_eq!(credential, "opencode-go");
         },

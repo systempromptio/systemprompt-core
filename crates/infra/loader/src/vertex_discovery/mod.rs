@@ -22,7 +22,7 @@
 //! is bounded by the caller's timeout, per provider. Discovery is a
 //! convenience and boot is not: if an upstream is slow, the instance starts
 //! with the catalog it shipped with. The listing token is minted under the
-//! credential's [`TokenCacheKey`], so it is the token dispatch reuses.
+//! credential's [`TokenCacheKey`] in a cache the run owns.
 //!
 //! [`default_sources`] is the list compiled into this build — a single element
 //! today; the next upstream that can be asked for a catalog is an entry there
@@ -47,7 +47,7 @@ use std::time::Duration;
 use systemprompt_identifiers::CredentialId;
 use systemprompt_manifest::services::catalog::CatalogDocument;
 use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
-use systemprompt_security::credential::{ProviderCredential, TokenCacheKey};
+use systemprompt_security::credential::{ProviderCredential, TokenCache, TokenCacheKey};
 
 use classify::Classification;
 use source::{CatalogListing, CatalogSource, DiscoveryEndpoint};
@@ -126,10 +126,11 @@ pub async fn discover_with(
     }
 
     let http = reqwest::Client::new();
+    let tokens = TokenCache::new();
     for plan in plans {
         let name = plan.endpoint.endpoint.to_string();
         let cache_key = TokenCacheKey::platform(&plan.credential_id);
-        let auth = match plan.credential.bearer(&cache_key).await {
+        let auth = match plan.credential.bearer(&tokens, &cache_key).await {
             Ok(auth) => auth,
             Err(e) => {
                 push_failure(

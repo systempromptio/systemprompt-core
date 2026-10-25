@@ -46,7 +46,7 @@ pub fn single_endpoint_catalog(name: &str, wire: WireProtocol, url: &str) -> Res
 pub fn api_key_target(name: &str, wire: WireProtocol, endpoint: &str, key: &str) -> UpstreamTarget {
     let catalog = single_endpoint_catalog(name, wire, endpoint);
     let hop = &catalog.deployments(FIXTURE_MODEL)[0];
-    UpstreamTarget::resolve(&catalog, hop, key)
+    UpstreamTarget::resolve(&Default::default(), &catalog, hop, key)
         .expect("an API key resolves against a plain endpoint")
 }
 
@@ -56,7 +56,7 @@ pub fn seed_target(provider: &str, key: &str) -> UpstreamTarget {
         .unwrap_or_else(|e| panic!("provider '{provider}' present in default catalog: {e}"));
     let cache_key =
         systemprompt_security::credential::TokenCacheKey::platform(&binding.credential.id);
-    UpstreamTarget::bind(binding, key, cache_key)
+    UpstreamTarget::bind(&Default::default(), binding, key, cache_key)
         .expect("an API key resolves against the catalog endpoint")
 }
 

@@ -24,7 +24,8 @@ fn create(
     ImageProviderFactory::create(&ImageProviderParams {
         catalog,
         hop,
-        target: UpstreamTarget::resolve(catalog, hop, "test-key").expect("api key resolves"),
+        target: UpstreamTarget::resolve(&Default::default(), catalog, hop, "test-key")
+            .expect("api key resolves"),
     })
 }
 
@@ -86,7 +87,7 @@ mod from_catalog_tests {
     fn no_default_image_model_means_no_provider() {
         let catalog = mock_http::default_catalog();
         assert!(
-            ImageProviderFactory::from_catalog(&catalog)
+            ImageProviderFactory::from_catalog(&Default::default(), &catalog)
                 .expect("no error")
                 .is_none()
         );
@@ -98,7 +99,7 @@ mod from_catalog_tests {
         let catalog = CatalogFixture::embedded_default()
             .default_image_model("gpt-image-1")
             .build();
-        let default = ImageProviderFactory::from_catalog(&catalog)
+        let default = ImageProviderFactory::from_catalog(&Default::default(), &catalog)
             .expect("builds")
             .expect("a default image model yields a provider");
         assert_eq!(default.provider, "openai");
@@ -112,7 +113,7 @@ mod from_catalog_tests {
             .with_provider("openai", |p| p.enabled = false)
             .default_image_model("gpt-image-1")
             .build();
-        let err = ImageProviderFactory::from_catalog(&catalog).unwrap_err();
+        let err = ImageProviderFactory::from_catalog(&Default::default(), &catalog).unwrap_err();
         assert!(err.to_string().contains("gpt-image-1"), "{err}");
     }
 }

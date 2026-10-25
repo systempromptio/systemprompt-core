@@ -77,6 +77,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
             AiServiceProviders {
                 tools: tool_provider,
                 sessions: session_provider,
+                provider_tokens: Arc::clone(ctx.connector_tokens()),
             },
             ctx.ai_repositories(),
         )

@@ -144,7 +144,10 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
 }
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
-    let parts = gateway_parts(ctx, &Arc::new(GatewayEngines::new()?))?;
+    let parts = gateway_parts(
+        ctx,
+        &Arc::new(GatewayEngines::new(Arc::clone(ctx.connector_tokens()))?),
+    )?;
     Ok(common_layers(ctx, parts.traffic.merge(parts.bridge_auth)))
 }
 

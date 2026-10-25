@@ -18,6 +18,7 @@ mod routing;
 use std::sync::Arc;
 
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
+use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 use tokio_util::task::TaskTracker;
 
@@ -52,6 +53,7 @@ impl std::fmt::Debug for AiService {
 pub struct AiServiceProviders {
     pub tools: Arc<dyn ToolProvider>,
     pub sessions: DynAiSessionProvider,
+    pub provider_tokens: Arc<TokenCache>,
 }
 
 impl std::fmt::Debug for AiServiceProviders {

@@ -118,6 +118,7 @@ pub(crate) fn service_from(
         systemprompt_ai::AiServiceProviders {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
+            provider_tokens: Default::default(),
         },
         &systemprompt_ai::repository::AiRepositories::new(pool),
     )

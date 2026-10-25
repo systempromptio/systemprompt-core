@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
+use systemprompt_security::credential::TokenCache;
 use systemprompt_wire::WireProtocol;
 
 use crate::error::{AiError, ProviderCapability, Result, RoutingError};
@@ -67,7 +68,10 @@ impl ImageProviderFactory {
         }
     }
 
-    pub fn from_catalog(catalog: &ResolvedCatalog) -> Result<Option<DefaultImageProvider>> {
+    pub fn from_catalog(
+        tokens: &Arc<TokenCache>,
+        catalog: &ResolvedCatalog,
+    ) -> Result<Option<DefaultImageProvider>> {
         let Some(model) = catalog.default_image_model() else {
             return Ok(None);
         };
@@ -81,7 +85,7 @@ impl ImageProviderFactory {
                 })
             })?;
         let binding = EndpointBinding::of_hop(catalog, hop)?;
-        let target = UpstreamTarget::from_secrets(binding)?;
+        let target = UpstreamTarget::from_secrets(tokens, binding)?;
         let client = Self::create(&ImageProviderParams {
             catalog,
             hop,

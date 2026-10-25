@@ -30,7 +30,6 @@ mod key;
 mod scope;
 
 use std::fmt;
-use std::sync::LazyLock;
 
 pub use cache::TokenCache;
 pub use error::CredentialError;
@@ -97,12 +96,6 @@ pub enum ProviderCredential {
     GoogleServiceAccount(Box<ServiceAccountKey>),
 }
 
-// Why: `bearer` is called from a freshly parsed credential on every upstream
-// request (domain/ai upstream target, loader vertex discovery), so the cache
-// cannot live on the value; it is process-wide until those callers take a
-// `TokenCache` from their composition root.
-static PROVIDER_TOKENS: LazyLock<TokenCache> = LazyLock::new(TokenCache::new);
-
 impl ProviderCredential {
     pub fn parse(secret: &str) -> Result<Self, CredentialError> {
         let self_described = serde_json::from_str::<SelfDescription>(secret)
@@ -135,7 +128,11 @@ impl ProviderCredential {
         }
     }
 
-    pub async fn bearer(&self, cache_key: &TokenCacheKey) -> Result<AuthHeader, CredentialError> {
+    pub async fn bearer(
+        &self,
+        tokens: &TokenCache,
+        cache_key: &TokenCacheKey,
+    ) -> Result<AuthHeader, CredentialError> {
         match self {
             Self::ApiKey(key) => Ok(AuthHeader {
                 scheme: AuthScheme::ApiKey,
@@ -145,7 +142,7 @@ impl ProviderCredential {
                 let key_id = format!("{}:{}", self.kind().as_str(), cache_key.as_str());
                 Ok(AuthHeader {
                     scheme: AuthScheme::Bearer,
-                    value: access_token(&PROVIDER_TOKENS, &key_id, key).await?,
+                    value: access_token(tokens, &key_id, key).await?,
                 })
             },
         }

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use systemprompt_identifiers::{CredentialId, ProviderId, UserId};
 use systemprompt_manifest::services::catalog::{
@@ -11,7 +12,7 @@ use systemprompt_manifest::services::catalog::{
     ResolvedProvider,
 };
 use systemprompt_security::credential::{
-    CredentialKind, ProviderCredential, TokenCacheKey, fill_endpoint,
+    CredentialKind, ProviderCredential, TokenCache, TokenCacheKey, fill_endpoint,
 };
 use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::upstream::UpstreamDialect;
@@ -36,6 +37,7 @@ pub struct UpstreamTarget {
     endpoint: String,
     credential: ProviderCredential,
     cache_key: TokenCacheKey,
+    tokens: Arc<TokenCache>,
     extra_headers: Vec<(String, String)>,
     accepted_betas: Option<BTreeSet<AnthropicBeta>>,
     user_agent: Option<String>,
@@ -82,25 +84,28 @@ impl<'a> EndpointBinding<'a> {
 
 impl UpstreamTarget {
     pub fn resolve(
+        tokens: &Arc<TokenCache>,
         catalog: &ResolvedCatalog,
         hop: &ResolvedHop,
         secret: &str,
     ) -> Result<Self, UpstreamTargetError> {
         let binding = EndpointBinding::of_hop(catalog, hop)?;
         let key = TokenCacheKey::platform(&binding.credential.id);
-        Self::bind(binding, secret, key)
+        Self::bind(tokens, binding, secret, key)
     }
 
     pub fn resolve_personal(
+        tokens: &Arc<TokenCache>,
         binding: EndpointBinding<'_>,
         key: &str,
         user_id: &UserId,
     ) -> Result<Self, UpstreamTargetError> {
         let cache_key = TokenCacheKey::personal(&binding.credential.id, user_id);
-        Self::bind(binding, key, cache_key)
+        Self::bind(tokens, binding, key, cache_key)
     }
 
     pub fn bind(
+        tokens: &Arc<TokenCache>,
         binding: EndpointBinding<'_>,
         secret: &str,
         cache_key: TokenCacheKey,
@@ -146,6 +151,7 @@ impl UpstreamTarget {
             endpoint: url,
             credential,
             cache_key,
+            tokens: Arc::clone(tokens),
             extra_headers,
             accepted_betas: endpoint.betas.clone(),
             user_agent: provider.user_agent.clone(),
@@ -157,7 +163,10 @@ impl UpstreamTarget {
         })
     }
 
-    pub fn from_secrets(binding: EndpointBinding<'_>) -> Result<Self, UpstreamTargetError> {
+    pub fn from_secrets(
+        tokens: &Arc<TokenCache>,
+        binding: EndpointBinding<'_>,
+    ) -> Result<Self, UpstreamTargetError> {
         let credential = binding.credential;
         let Some(secret_name) = credential.platform_secret() else {
             return Err(UpstreamTargetError::PersonalCredential {
@@ -173,13 +182,13 @@ impl UpstreamTarget {
             }
         })?;
         let key = TokenCacheKey::platform(&credential.id);
-        Self::bind(binding, secret, key)
+        Self::bind(tokens, binding, secret, key)
     }
 
     pub async fn call(&self) -> Result<UpstreamCall, UpstreamTargetError> {
         let auth = self
             .credential
-            .bearer(&self.cache_key)
+            .bearer(&self.tokens, &self.cache_key)
             .await
             .map_err(|source| UpstreamTargetError::Mint {
                 credential: self.credential_id.as_str().to_owned(),

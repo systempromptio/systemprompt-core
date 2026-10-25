@@ -69,6 +69,7 @@ pub async fn set(
     let catalog = ctx.services_state().catalog();
     let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
     let meta = store_personal_key(
+        ctx.connector_tokens(),
         repository(&ctx),
         catalog,
         PersonalKeyRequest {

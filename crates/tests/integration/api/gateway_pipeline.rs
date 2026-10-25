@@ -269,7 +269,10 @@ pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
     static ENGINES: std::sync::OnceLock<Arc<systemprompt_gateway::GatewayEngines>> =
         std::sync::OnceLock::new();
     Arc::clone(ENGINES.get_or_init(|| {
-        Arc::new(systemprompt_gateway::GatewayEngines::new().expect("gateway engines build"))
+        Arc::new(
+            systemprompt_gateway::GatewayEngines::new(Default::default())
+                .expect("gateway engines build"),
+        )
     }))
 }
 

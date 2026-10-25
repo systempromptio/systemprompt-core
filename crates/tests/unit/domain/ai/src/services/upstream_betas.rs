@@ -71,7 +71,7 @@ async fn forwarded_on(catalog: &ResolvedCatalog, endpoint: &str, secret: &str) -
         .iter()
         .find(|hop| hop.endpoint.as_str() == endpoint)
         .expect("deployed");
-    let call = UpstreamTarget::resolve(catalog, hop, secret)
+    let call = UpstreamTarget::resolve(&Default::default(), catalog, hop, secret)
         .expect("resolves")
         .call()
         .await
