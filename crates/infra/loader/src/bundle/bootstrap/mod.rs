@@ -117,7 +117,7 @@ impl ServicesSourceBootstrap {
         let (composed_path, composed_hash) = compose(cache, &members)?;
         let kits: Vec<&str> = members.iter().map(|m| m.name.as_str()).collect();
         let retained = previous.composed_hash == composed_hash;
-        refuse_unloadable(&composed_path, &kits, retained)?;
+        refuse_unloadable(&composed_path, profile, &kits, retained)?;
         cache.swap_current(&composed_path)?;
 
         let state = ServicesBundleState {
@@ -164,8 +164,15 @@ impl ServicesSourceBootstrap {
     }
 }
 
-fn refuse_unloadable(composed: &Path, kits: &[&str], retained: bool) -> BundleResult<()> {
-    let Err(error) = crate::ConfigLoader::load_from_path(&composed.join(CONFIG_RELPATH)) else {
+fn refuse_unloadable(
+    composed: &Path,
+    profile: &Profile,
+    kits: &[&str],
+    retained: bool,
+) -> BundleResult<()> {
+    let Err(error) =
+        crate::ConfigLoader::load_from_path(&composed.join(CONFIG_RELPATH), Some(profile))
+    else {
         return Ok(());
     };
     if !retained && let Err(remove) = std::fs::remove_dir_all(composed) {
