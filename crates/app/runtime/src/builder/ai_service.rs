@@ -22,14 +22,14 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 
 use super::composition::RepositoryBundles;
-use crate::error::RuntimeResult;
 
 pub(super) fn build_ai_service(
     database: &DbPool,
     repositories: &RepositoryBundles,
     mcp_registry: &RegistryService,
-) -> RuntimeResult<(Option<Arc<AiService>>, Arc<TokenCache>)> {
-    let services = systemprompt_loader::ServicesBootstrap::get()?;
+    services_state: &systemprompt_loader::ServicesState,
+) -> (Option<Arc<AiService>>, Arc<TokenCache>) {
+    let services = services_state.config();
     let connector_tokens: Arc<TokenCache> = Arc::default();
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(database),
@@ -43,7 +43,7 @@ pub(super) fn build_ai_service(
     let materializer = Arc::new(systemprompt_agent::services::ContextProviderService::new(
         repositories.a2a.contexts.clone(),
     ));
-    let catalog = Arc::new(systemprompt_loader::ServicesBootstrap::catalog()?.clone());
+    let catalog = Arc::clone(services_state.catalog());
     match AiService::new(
         catalog,
         &services.ai,
@@ -53,13 +53,13 @@ pub(super) fn build_ai_service(
         },
         &repositories.ai,
     ) {
-        Ok(service) => Ok((
+        Ok(service) => (
             Some(Arc::new(service.with_context_materializer(materializer))),
             connector_tokens,
-        )),
+        ),
         Err(err) => {
             tracing::warn!(error = %err, "Inference is not configured; the runtime carries no AI service");
-            Ok((None, connector_tokens))
+            (None, connector_tokens)
         },
     }
 }

@@ -9,9 +9,7 @@
 //! Tables are deleted message rows first, so the request rows they hang off
 //! are still present for the cascade-free path. Quota windows are at most a
 //! month plus the carry-forward, so a bucket older than `QUOTA_BUCKET_DAYS`
-//! can never be read again; `DEFAULT_MESSAGES_DAYS` mirrors
-//! `ai.history.retention_days`' own default for when no services tree is
-//! loaded.
+//! can never be read again.
 //!
 //! The run also fails orphaned pending AI requests, and purges archived users
 //! past `retention.archived_users_days` that are not under legal hold.
@@ -29,10 +27,9 @@ use std::time::Instant;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
-use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::error::SchedulerResult;
 use crate::services::scheduling::job_app_context;
@@ -42,7 +39,6 @@ use self::orphans::{delete_orphaned_logs, fail_orphaned_requests};
 use self::tables::{BATCH_ROWS, RetentionOwners, RetentionPass, delete_in_batches};
 
 const QUOTA_BUCKET_DAYS: u32 = 62;
-const DEFAULT_MESSAGES_DAYS: u32 = 30;
 
 /// The tables the retention job prunes; each variant dispatches to the
 /// repository of the crate that owns the table.
@@ -150,7 +146,7 @@ impl Job for DatabaseCleanupJob {
         debug!("Job started");
         let orphaned = delete_orphaned_logs(&db_pool, ctx.enforce()).await?;
         fail_orphaned_requests(&db_pool, ctx.enforce()).await?;
-        let plan = plan(&retention);
+        let plan = plan(&retention, app.services_state());
         let mut passes = Vec::with_capacity(plan.len());
         let mut total = orphaned;
         for (target, days) in plan {
@@ -197,24 +193,13 @@ impl Job for DatabaseCleanupJob {
     }
 }
 
-fn services_messages_days() -> u32 {
-    match ServicesBootstrap::get() {
-        Ok(services) => services.ai.history.retention_days,
-        Err(error) => {
-            warn!(
-                error = %error,
-                fallback_days = DEFAULT_MESSAGES_DAYS,
-                "services config unavailable; ai_request_messages window falls back to its default"
-            );
-            DEFAULT_MESSAGES_DAYS
-        },
-    }
-}
-
-fn plan(retention: &RetentionConfig) -> Vec<(RetentionTarget, u32)> {
+fn plan(
+    retention: &RetentionConfig,
+    services: &systemprompt_loader::ServicesState,
+) -> Vec<(RetentionTarget, u32)> {
     let messages_days = retention
         .ai_request_messages_days
-        .unwrap_or_else(services_messages_days);
+        .unwrap_or_else(|| services.config().ai.history.retention_days);
     vec![
         (RetentionTarget::Logs, retention.logs_days),
         (

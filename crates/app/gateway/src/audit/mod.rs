@@ -114,6 +114,7 @@ pub struct GatewayAudit {
     user_key_billing: std::sync::atomic::AtomicBool,
     tool_validity: Arc<tool_validity::ToolValidityCache>,
     tool_validators: std::sync::OnceLock<Arc<systemprompt_ai::services::tools::ToolArgsValidator>>,
+    catalog: Arc<systemprompt_manifest::services::catalog::ResolvedCatalog>,
 }
 
 #[derive(Debug, Default)]
@@ -147,6 +148,7 @@ impl GatewayAudit {
             user_key_billing: std::sync::atomic::AtomicBool::new(false),
             tool_validity: Arc::clone(&repos.tool_validity),
             tool_validators: std::sync::OnceLock::new(),
+            catalog: Arc::clone(&repos.catalog),
         }
     }
 

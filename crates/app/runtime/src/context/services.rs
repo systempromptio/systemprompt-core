@@ -62,12 +62,17 @@ impl AppContext {
 
     #[must_use]
     pub fn services_config(&self) -> Arc<ServicesConfig> {
-        self.subsystems.services.get()
+        self.subsystems.services.config()
+    }
+
+    #[must_use]
+    pub const fn services_state(&self) -> &systemprompt_loader::ServicesState {
+        &self.subsystems.services
     }
 
     #[must_use]
     pub const fn services_watch(&self) -> &ConfigWatch<ServicesConfig> {
-        &self.subsystems.services
+        self.subsystems.services.watch()
     }
 
     pub async fn load_governance(&self) -> Result<GovernanceEngine, GovernanceEngineError> {

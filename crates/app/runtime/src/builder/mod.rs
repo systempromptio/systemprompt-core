@@ -12,6 +12,7 @@ mod ai_service;
 mod assembly;
 mod composition;
 mod core_layer;
+mod database;
 mod events;
 mod governance;
 
@@ -28,13 +29,13 @@ use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_traits::{BackgroundTasks, ConfigWatch};
+use systemprompt_traits::BackgroundTasks;
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
 pub use core_layer::discover_vertex_models;
-use core_layer::{CoreLayer, SchemaPolicy, init_core};
+use core_layer::{CoreLayer, CoreOverrides, SchemaPolicy, init_core};
 use events::event_plane;
 use governance::init_governed_extensions;
 pub(crate) use governance::load_governance;
@@ -52,14 +53,12 @@ pub struct AppContextBuilder {
     extension_registry: Option<ExtensionRegistry>,
     show_startup_warnings: bool,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
-    authz_hook: Option<SharedAuthzHook>,
-    signing_keys: Option<SigningKeys>,
+    core: CoreOverrides,
     schema: SchemaPolicy,
     migration_config: MigrationConfig,
     shutdown: Option<ShutdownRequest>,
     background_tasks: Option<BackgroundTasks>,
     event_router: Option<EventRouter>,
-    database_url: Option<String>,
 }
 
 impl std::fmt::Debug for AppContextBuilder {
@@ -68,15 +67,16 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("extension_registry", &self.extension_registry.is_some())
             .field("show_startup_warnings", &self.show_startup_warnings)
             .field("marketplace_filter", &self.marketplace_filter.is_some())
-            .field("authz_hook", &self.authz_hook.is_some())
-            .field("signing_keys", &self.signing_keys.is_some())
+            .field("authz_hook", &self.core.authz_hook.is_some())
+            .field("signing_keys", &self.core.signing_keys.is_some())
             .field("install_schemas", &self.schema.install)
             .field("verify_schema", &self.schema.verify)
-            .field("database_url_override", &self.database_url.is_some())
+            .field("database_url_override", &self.core.database_url.is_some())
             .field("migration_config", &self.migration_config)
             .field("shutdown", &self.shutdown.is_some())
             .field("background_tasks", &self.background_tasks.is_some())
             .field("event_router", &self.event_router)
+            .field("services", &self.core.services.is_some())
             .finish()
     }
 }
@@ -122,19 +122,19 @@ impl AppContextBuilder {
     where
         H: AuthzDecisionHook + 'static,
     {
-        self.authz_hook = Some(Arc::new(hook));
+        self.core.authz_hook = Some(Arc::new(hook));
         self
     }
 
     #[must_use]
     pub fn with_signing_keys(mut self, keys: SigningKeys) -> Self {
-        self.signing_keys = Some(keys);
+        self.core.signing_keys = Some(keys);
         self
     }
 
     #[must_use]
     pub fn with_shared_authz_hook(mut self, hook: SharedAuthzHook) -> Self {
-        self.authz_hook = Some(hook);
+        self.core.authz_hook = Some(hook);
         self
     }
 
@@ -158,7 +158,13 @@ impl AppContextBuilder {
 
     #[must_use]
     pub fn with_database_url(mut self, url: impl Into<String>) -> Self {
-        self.database_url = Some(url.into());
+        self.core.database_url = Some(url.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_services(mut self, services: systemprompt_loader::ServicesState) -> Self {
+        self.core.services = Some(services);
         self
     }
 
@@ -180,7 +186,8 @@ impl AppContextBuilder {
             cache_epochs,
             log_sink,
             policy,
-        } = init_core(self.authz_hook, self.signing_keys, self.database_url).await?;
+            services,
+        } = init_core(self.core).await?;
 
         let (extensions, schema_install, governance) = init_governed_extensions(
             self.extension_registry,
@@ -197,11 +204,17 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
 
-        let (repositories, user_service, system_admin, mcp_registry) =
-            build_domain_layer(&config, &database, content.analytics_repositories, policy).await?;
+        let (repositories, user_service, system_admin, mcp_registry) = build_domain_layer(
+            &config,
+            &database,
+            content.analytics_repositories,
+            policy,
+            &services,
+        )
+        .await?;
 
         let (ai_service, connector_tokens) =
-            ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
+            ai_service::build_ai_service(&database, &repositories, &mcp_registry, &services);
         let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let subsystems = Subsystems {
             ai_service,
@@ -211,7 +224,7 @@ impl AppContextBuilder {
             authz_hook,
             signing_keys,
             governance,
-            services: ConfigWatch::new(systemprompt_loader::ServicesBootstrap::get()?.clone()),
+            services,
             cache_epochs,
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(bridge),
@@ -264,6 +277,7 @@ async fn build_domain_layer(
     database: &systemprompt_database::DbPool,
     analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     policy: systemprompt_marketplace::managed::PublicationPolicy,
+    services: &systemprompt_loader::ServicesState,
 ) -> RuntimeResult<(
     composition::RepositoryBundles,
     Arc<UserService>,
@@ -282,7 +296,7 @@ async fn build_domain_layer(
     );
     let system_admin = assembly::load_system_admin(config, &user_service).await?;
     repositories.install_organization_resolver(system_admin.id());
-    let mcp_registry = RegistryService::new(system_admin.id().clone());
+    let mcp_registry = RegistryService::new(system_admin.id().clone(), services.clone());
     ensure_legacy_context(&repositories, &system_admin).await?;
     Ok((repositories, user_service, system_admin, mcp_registry))
 }

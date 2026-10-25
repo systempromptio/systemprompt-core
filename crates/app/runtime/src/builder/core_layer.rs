@@ -25,16 +25,18 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{
-    Database, MigrationConfig, PoolConfig, SchemaInstallReport, install_extension_schemas_full,
+    Database, MigrationConfig, SchemaInstallReport, install_extension_schemas_full,
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{CacheEpochs, FileStorage};
 
+use super::database::connect_database;
 use crate::error::RuntimeResult;
 
 pub(super) struct CoreLayer {
@@ -48,16 +50,21 @@ pub(super) struct CoreLayer {
     pub(super) cache_epochs: CacheEpochs,
     pub(super) log_sink: systemprompt_logging::LogSink,
     pub(super) policy: systemprompt_marketplace::managed::PublicationPolicy,
+    pub(super) services: ServicesState,
 }
 
 async fn init_services(
     secrets: &systemprompt_manifest::secrets::Secrets,
-) -> RuntimeResult<&'static systemprompt_manifest::services::ServicesConfig> {
-    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|catalog| {
-        Box::pin(discover_vertex_models(catalog))
-    })
-    .await?;
-    if let Some(gateway) = services.gateway_config() {
+    provided: Option<ServicesState>,
+) -> RuntimeResult<ServicesState> {
+    let state = match provided {
+        Some(state) => state,
+        None => {
+            ServicesState::load_with_discovery(|catalog| Box::pin(discover_vertex_models(catalog)))
+                .await?
+        },
+    };
+    if let Some(gateway) = state.config().gateway_config() {
         for reference in gateway.unresolved_secret_refs(|name| secrets.get(name).is_some()) {
             tracing::warn!(
                 reference = %reference,
@@ -65,7 +72,7 @@ async fn init_services(
             );
         }
     }
-    Ok(services)
+    Ok(state)
 }
 
 async fn resolve_services_root(
@@ -97,16 +104,27 @@ fn init_files_config(app_paths: &AppPaths) -> RuntimeResult<Arc<FilesConfig>> {
     Ok(Arc::new(files_config))
 }
 
-pub(super) async fn init_core(
-    authz_hook_override: Option<SharedAuthzHook>,
-    signing_keys_override: Option<SigningKeys>,
-    database_url_override: Option<String>,
-) -> RuntimeResult<CoreLayer> {
+#[derive(Default)]
+pub(super) struct CoreOverrides {
+    pub authz_hook: Option<SharedAuthzHook>,
+    pub signing_keys: Option<SigningKeys>,
+    pub database_url: Option<String>,
+    pub services: Option<ServicesState>,
+}
+
+pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLayer> {
+    let CoreOverrides {
+        authz_hook: authz_hook_override,
+        signing_keys: signing_keys_override,
+        database_url: database_url_override,
+        services: services_provided,
+    } = overrides;
     let profile = ProfileBootstrap::get()?;
     let secrets = SecretsBootstrap::get()?;
     let (active_root, app_paths) = resolve_services_root(profile, secrets).await?;
     let files_config = init_files_config(&app_paths)?;
-    let services = init_services(secrets).await?;
+    let services = init_services(secrets, services_provided).await?;
+    let services_config = services.config();
     let mut config = Config::get()?.clone();
     if let Some(url) = database_url_override {
         config.database_url = url;
@@ -131,14 +149,14 @@ pub(super) async fn init_core(
     crate::services_reconcile::reconcile_fetched_services(
         profile,
         active_root,
-        services,
+        &services_config,
         &database,
     )
     .await?;
 
     let policy = systemprompt_marketplace::managed::PublicationPolicy::discover(
         &database,
-        services.marketplace.clone().unwrap_or_default(),
+        services_config.marketplace.clone().unwrap_or_default(),
     )?;
 
     let cache_epochs = CacheEpochs::new();
@@ -147,7 +165,7 @@ pub(super) async fn init_core(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
-        chain_sources()?,
+        chain_sources(&services_config),
         cache_epochs.clone(),
     )?;
 
@@ -171,6 +189,7 @@ pub(super) async fn init_core(
         cache_epochs,
         log_sink,
         policy,
+        services,
     })
 }
 
@@ -192,39 +211,10 @@ pub async fn discover_vertex_models(
     .await
 }
 
-fn chain_sources() -> RuntimeResult<systemprompt_governance::authz::ChainSources> {
-    let services = systemprompt_loader::ServicesBootstrap::get()?;
-    Ok(systemprompt_governance::authz::ChainSources::from_services(
-        services,
-    ))
-}
-
-fn pool_config_from_profile(
-    profile_pool: Option<&systemprompt_manifest::profile::PoolConfig>,
-    role: systemprompt_manifest::profile::NodeRole,
-) -> PoolConfig {
-    use std::time::Duration;
-
-    let mut cfg = PoolConfig::default();
-    let Some(p) = profile_pool else {
-        return cfg;
-    };
-    if let Some(max) = p.max_connections_for(role) {
-        cfg.max_connections = max;
-    }
-    if let Some(secs) = p.acquire_timeout_secs {
-        cfg.acquire_timeout = Duration::from_secs(secs);
-    }
-    if let Some(secs) = p.idle_timeout_secs {
-        cfg.idle_timeout = Duration::from_secs(secs);
-    }
-    if let Some(secs) = p.max_lifetime_secs {
-        cfg.max_lifetime = Duration::from_secs(secs);
-    }
-    if let Some(capacity) = p.statement_cache_capacity {
-        cfg.statement_cache_capacity = capacity;
-    }
-    cfg
+fn chain_sources(
+    services: &systemprompt_manifest::services::ServicesConfig,
+) -> systemprompt_governance::authz::ChainSources {
+    systemprompt_governance::authz::ChainSources::from_services(services)
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -267,27 +257,4 @@ pub(super) async fn init_extensions(
     };
 
     Ok((Arc::new(registry), report))
-}
-
-async fn connect_database(profile: &Profile, config: &Config) -> RuntimeResult<Arc<Database>> {
-    let pool_config = pool_config_from_profile(profile.database.pool.as_ref(), profile.server.role);
-    Ok(Arc::new(
-        Database::connect(
-            &config.database_url,
-            config.database_write_url.as_deref(),
-            &pool_config,
-        )
-        .await?
-        .with_session_url(
-            config.database_session_url.as_deref(),
-            &pool_config.for_session(
-                profile
-                    .database
-                    .pool
-                    .as_ref()
-                    .and_then(|p| p.session_max_connections),
-            ),
-        )
-        .await?,
-    ))
 }

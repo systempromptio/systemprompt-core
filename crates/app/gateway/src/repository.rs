@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 
 use systemprompt_ai::repository::{
     AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestClientEvidenceRepository,
@@ -29,6 +30,7 @@ pub struct GatewayHandles {
     pub background: BackgroundTasks,
     pub cache_epochs: CacheEpochs,
     pub logging: LoggingRuntime,
+    pub catalog: Arc<ResolvedCatalog>,
 }
 
 #[derive(Clone)]
@@ -53,6 +55,7 @@ pub struct GatewayRepositories {
     pub rate_windows: RateWindowRepository,
     pub user_provider_credentials: UserProviderCredentialRepository,
     pub tool_validity: Arc<ToolValidityCache>,
+    pub catalog: Arc<ResolvedCatalog>,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -73,6 +76,7 @@ impl GatewayRepositories {
             background,
             cache_epochs,
             logging,
+            catalog,
         } = handles;
         let requests = Arc::new(AiRequestRepository::new(db));
         Self {
@@ -105,6 +109,7 @@ impl GatewayRepositories {
             rate_windows: RateWindowRepository::new(db.write_pool().as_ref().clone()),
             user_provider_credentials: UserProviderCredentialRepository::new(db),
             tool_validity: Arc::new(ToolValidityCache::default()),
+            catalog,
         }
     }
 

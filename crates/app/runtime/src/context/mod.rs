@@ -26,7 +26,7 @@ use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
-use systemprompt_manifest::services::{ServicesConfig, SystemAdmin};
+use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
@@ -98,7 +98,7 @@ pub struct Subsystems {
     pub authz_hook: SharedAuthzHook,
     pub signing_keys: SigningKeys,
     pub governance: ConfigWatch<GovernanceEngine>,
-    pub services: ConfigWatch<ServicesConfig>,
+    pub services: systemprompt_loader::ServicesState,
     pub cache_epochs: CacheEpochs,
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,

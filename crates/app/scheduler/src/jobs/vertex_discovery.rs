@@ -16,10 +16,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::services::scheduling::job_app_context;
 use async_trait::async_trait;
 use chrono::{Days, NaiveDate};
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_loader::ServicesBootstrap;
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::catalog::{CatalogDocument, ModelRegistry};
 use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
@@ -69,9 +70,10 @@ impl Job for VertexDiscoveryJob {
         "0 30 4 * * *"
     }
 
-    async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-        let scanned = Self::probe().await.map_or(0, |report| {
+        let services = job_app_context(ctx)?.services_state();
+        let scanned = Self::probe(services).await.map_or(0, |report| {
             report.discovered_priced.len() + report.discovered_unpriced.len()
         });
         Ok(JobResult::success()
@@ -81,19 +83,15 @@ impl Job for VertexDiscoveryJob {
 }
 
 impl VertexDiscoveryJob {
-    pub async fn probe() -> Option<DiscoveryReport> {
-        let Ok(booted) = ServicesBootstrap::get() else {
-            warn!("services config not initialized; skipping Vertex discovery");
-            return None;
-        };
+    pub async fn probe(services: &ServicesState) -> Option<DiscoveryReport> {
+        let booted = services.config();
         let Ok(secrets) = SecretsBootstrap::get() else {
             warn!("secret store unavailable; skipping Vertex discovery");
             return None;
         };
 
-        // Why: a clone, never the live catalog. Every reader holds a
-        // `&'static` into the OnceLock, so mutating it in place would be
-        // unsound as well as a silent mid-flight change of what is served.
+        // Why: a clone, never the live catalog, so probing cannot change what
+        // is served mid-flight.
         let mut probe = CatalogDocument {
             credentials: booted.credentials.clone(),
             providers: booted.providers.clone(),

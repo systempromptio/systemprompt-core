@@ -14,7 +14,7 @@ pub async fn refresh(
     ctx: &AppContext,
     owner: &UserId,
 ) -> Result<InventoryStatus, OrchestrationError> {
-    let services = load_services(ctx, owner).await?;
+    let services = ctx.services_config();
     Ok(
         InventoryService::new(ctx.managed_repository().as_ref().clone())
             .refresh(owner, ctx.app_paths().system().services(), &services)
@@ -27,7 +27,7 @@ pub async fn publish_latest(
     owner: &UserId,
     actor: &UserId,
 ) -> Result<Vec<LatestPublication>, OrchestrationError> {
-    let services = load_services(ctx, owner).await?;
+    let services = ctx.services_config();
     let service = InventoryService::new(ctx.managed_repository().as_ref().clone());
     service
         .refresh(owner, ctx.app_paths().system().services(), &services)
@@ -44,20 +44,4 @@ pub async fn publish_latest(
             &mut guard,
         )
         .await?)
-}
-
-async fn load_services(
-    ctx: &AppContext,
-    owner: &UserId,
-) -> Result<systemprompt_manifest::services::ServicesConfig, OrchestrationError> {
-    match systemprompt_loader::ConfigLoader::load() {
-        Ok(services) => Ok(services),
-        Err(error) => {
-            tracing::warn!(%error, "Configured inventory could not be loaded; previous inventory retained");
-            ctx.managed_repository()
-                .record_inventory_failure(owner)
-                .await?;
-            Err(OrchestrationError::InventoryLoad(error))
-        },
-    }
 }
