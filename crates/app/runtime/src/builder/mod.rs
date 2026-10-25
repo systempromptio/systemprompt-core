@@ -13,6 +13,7 @@ mod assembly;
 mod composition;
 mod core_layer;
 mod events;
+mod governance;
 
 pub use composition::owner_reassignments;
 use composition::{build_data_plane, build_plugins, build_repositories, ensure_legacy_context};
@@ -33,8 +34,10 @@ use systemprompt_users::UserService;
 use crate::context::{AppContext, ConfigPlane, DataPlane, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
 pub use core_layer::discover_vertex_models;
-use core_layer::{CoreLayer, SchemaPolicy, init_core, init_extensions};
+use core_layer::{CoreLayer, SchemaPolicy, init_core};
 use events::event_plane;
+use governance::init_governed_extensions;
+pub(crate) use governance::load_governance;
 
 /// Assembles an [`AppContext`], owning the bootstrap order described on the
 /// module.
@@ -238,40 +241,6 @@ impl AppContextBuilder {
             subsystems,
         ))
     }
-}
-
-async fn init_governed_extensions(
-    registry: Option<ExtensionRegistry>,
-    schema: SchemaPolicy,
-    migration_config: MigrationConfig,
-    database: &Arc<systemprompt_database::Database>,
-) -> RuntimeResult<(
-    Arc<ExtensionRegistry>,
-    systemprompt_database::SchemaInstallReport,
-    ConfigWatch<systemprompt_governance::policy::GovernanceEngine>,
-)> {
-    let (registry, report) = init_extensions(registry, schema, migration_config, database).await?;
-    let governance = ConfigWatch::new(load_governance(database).await?);
-    Ok((registry, report, governance))
-}
-
-pub(crate) async fn load_governance(
-    database: &systemprompt_database::DbPool,
-) -> Result<
-    systemprompt_governance::policy::GovernanceEngine,
-    systemprompt_governance::policy::GovernanceEngineError,
-> {
-    systemprompt_governance::policy::GovernanceEngine::load(
-        database.pool().as_ref(),
-        Some(systemprompt_governance::policy::RateWindowRepository::new(
-            database.write_pool().as_ref().clone(),
-        )),
-        systemprompt_config::ProfileBootstrap::get().map_or_else(
-            |_| systemprompt_manifest::profile::UnappliedPlaneMode::default(),
-            systemprompt_manifest::Profile::unapplied_plane_mode,
-        ),
-    )
-    .await
 }
 
 fn build_artifact_ingest(
