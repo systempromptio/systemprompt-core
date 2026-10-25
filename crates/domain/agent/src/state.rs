@@ -43,6 +43,10 @@ pub struct AgentState {
 
 impl AgentState {
     #[must_use]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each argument is an independently injected collaborator; the constructor is the one composition point"
+    )]
     pub fn new(
         db_pool: DbPool,
         config: Arc<Config>,

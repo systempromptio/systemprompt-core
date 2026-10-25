@@ -1,10 +1,9 @@
 //! Agent process lifecycle: start, enable, disable, restart, and crash cleanup.
 //!
 //! [`AgentLifecycle`] owns the transitions for a single agent's worker process,
-//! coordinating the database service and configured [`AppPaths`]. The free
-//! functions are thin entry points that build a lifecycle for one operation;
-//! the `operations` and `verification` submodules hold the spawn/teardown
-//! logic and startup health-check probing.
+//! coordinating the database service and configured [`AppPaths`]. The
+//! `operations` and `verification` submodules hold the spawn/teardown logic and
+//! startup health-check probing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,13 +13,10 @@ mod verification;
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ServicesState;
 use systemprompt_loader::subprocess::Spawner;
-use systemprompt_traits::StartupEventSender;
 
 use crate::repository::agent_service::AgentServiceRepository;
-use crate::services::agent_orchestration::OrchestrationResult;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 
 #[derive(Debug)]
@@ -43,51 +39,4 @@ impl AgentLifecycle {
             spawner,
         }
     }
-}
-
-pub async fn start_agent(
-    agent_service_repo: AgentServiceRepository,
-    app_paths: Arc<AppPaths>,
-    spawner: Arc<Spawner>,
-    services: &ServicesState,
-    agent_name: &AgentName,
-    events: Option<&StartupEventSender>,
-) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner, services);
-    lifecycle.start_agent(agent_name, events).await
-}
-
-pub async fn enable_agent(
-    agent_service_repo: AgentServiceRepository,
-    app_paths: Arc<AppPaths>,
-    spawner: Arc<Spawner>,
-    services: &ServicesState,
-    agent_name: &AgentName,
-    events: Option<&StartupEventSender>,
-) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner, services);
-    lifecycle.enable_agent(agent_name, events).await
-}
-
-pub async fn disable_agent(
-    agent_service_repo: AgentServiceRepository,
-    app_paths: Arc<AppPaths>,
-    spawner: Arc<Spawner>,
-    services: &ServicesState,
-    agent_name: &AgentName,
-) -> OrchestrationResult<()> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner, services);
-    lifecycle.disable_agent(agent_name).await
-}
-
-pub async fn restart_agent(
-    agent_service_repo: AgentServiceRepository,
-    app_paths: Arc<AppPaths>,
-    spawner: Arc<Spawner>,
-    services: &ServicesState,
-    agent_name: &AgentName,
-    events: Option<&StartupEventSender>,
-) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner, services);
-    lifecycle.restart_agent(agent_name, events).await
 }
