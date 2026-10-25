@@ -259,52 +259,12 @@ settings:
 "#;
 
 #[test]
-fn cached_load_survives_the_file_being_removed() {
+fn load_from_path_observes_a_write_made_after_an_earlier_load() {
     let dir = TempDir::new().expect("tempdir");
     let config_path = dir.path().join("services.yaml");
     std::fs::write(&config_path, MINIMAL_CONFIG).expect("write config");
 
-    let first = ConfigLoader::load_cached_from_path(&config_path).expect("first load reads disk");
-    std::fs::remove_file(&config_path).expect("remove config");
-
-    let second = ConfigLoader::load_cached_from_path(&config_path)
-        .expect("second load must be served from the cache, not the deleted file");
-    assert_eq!(
-        first.settings.agent_port_range,
-        second.settings.agent_port_range
-    );
-}
-
-#[test]
-fn cached_load_does_not_share_entries_across_paths() {
-    let dir = TempDir::new().expect("tempdir");
-
-    let first_path = dir.path().join("first.yaml");
-    std::fs::write(&first_path, MINIMAL_CONFIG).expect("write first");
-    ConfigLoader::load_cached_from_path(&first_path).expect("first loads");
-
-    let second_path = dir.path().join("second.yaml");
-    std::fs::write(
-        &second_path,
-        MINIMAL_CONFIG.replace("[4000, 4999]", "[4100, 4199]"),
-    )
-    .expect("write second");
-
-    let second = ConfigLoader::load_cached_from_path(&second_path).expect("second loads");
-    assert_eq!(
-        second.settings.agent_port_range,
-        (4100, 4199),
-        "a different config path must not be served the first path's cache entry"
-    );
-}
-
-#[test]
-fn reload_observes_a_write_made_after_an_earlier_cached_load() {
-    let dir = TempDir::new().expect("tempdir");
-    let config_path = dir.path().join("services.yaml");
-    std::fs::write(&config_path, MINIMAL_CONFIG).expect("write config");
-
-    ConfigLoader::load_cached_from_path(&config_path).expect("first load populates the cache");
+    ConfigLoader::load_from_path(&config_path).expect("first load");
 
     std::fs::write(
         &config_path,
@@ -312,34 +272,26 @@ fn reload_observes_a_write_made_after_an_earlier_cached_load() {
     )
     .expect("rewrite config");
 
-    let reloaded = ConfigLoader::reload_from_path(&config_path).expect("reload re-reads disk");
+    let reloaded = ConfigLoader::load_from_path(&config_path).expect("reload re-reads disk");
     assert_eq!(
         reloaded.settings.agent_port_range,
         (4200, 4299),
-        "validating your own write must not be served the pre-write cache entry"
-    );
-
-    let subsequent =
-        ConfigLoader::load_cached_from_path(&config_path).expect("cached load after reload");
-    assert_eq!(
-        subsequent.settings.agent_port_range,
-        (4200, 4299),
-        "reload must refresh the cache, not merely bypass it"
+        "validating your own write must observe what was written"
     );
 }
 
 #[test]
-fn reload_surfaces_a_write_that_no_longer_validates() {
+fn load_from_path_surfaces_a_write_that_no_longer_validates() {
     let dir = TempDir::new().expect("tempdir");
     let config_path = dir.path().join("services.yaml");
     std::fs::write(&config_path, MINIMAL_CONFIG).expect("write config");
 
-    ConfigLoader::load_cached_from_path(&config_path).expect("first load populates the cache");
+    ConfigLoader::load_from_path(&config_path).expect("first load");
 
     std::fs::write(&config_path, "agents: [not-a-map]\n").expect("write broken config");
 
     assert!(
-        ConfigLoader::reload_from_path(&config_path).is_err(),
+        ConfigLoader::load_from_path(&config_path).is_err(),
         "a post-write validation must fail on a config the write broke"
     );
 }

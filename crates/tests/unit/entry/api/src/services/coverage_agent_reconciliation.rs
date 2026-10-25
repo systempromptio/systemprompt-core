@@ -190,61 +190,19 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     assert_eq!(row.pid, None);
 }
 
-#[tokio::test]
-async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event() {
-    use futures_util::StreamExt;
-    use systemprompt_traits::StartupEvent;
-
+#[test]
+fn malformed_agent_registry_fails_the_services_load() {
     let _boot = systemprompt_test_fixtures::init_unloadable_services_bootstrap(
         "http://127.0.0.1",
         "agents: [not-a-registry]\n",
     );
-    let database =
-        systemprompt_test_fixtures::DisposableDb::with_schema("malformed_agent_registry_startup")
-            .await;
-    let pool = database.test_pool().await;
-    let ctx = test_app_context(&pool, database.url());
-    let (events, mut receiver) = systemprompt_traits::startup_channel();
 
-    let error = reconcile_agents(&ctx, Some(&events))
-        .await
-        .expect_err("malformed configured agents must block API startup");
+    let error = systemprompt_loader::ServicesState::load()
+        .expect_err("malformed configured agents must block boot");
+
     let diagnosis = error.to_string();
     assert!(
         diagnosis.contains("agents") || diagnosis.contains("sequence"),
         "registry parse diagnosis is retained: {diagnosis}"
     );
-    let (message, fatal) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
-        loop {
-            if let StartupEvent::Error { message, fatal } = receiver
-                .next()
-                .await
-                .expect("startup event channel remains open")
-            {
-                break (message, fatal);
-            }
-        }
-    })
-    .await
-    .expect("fatal registry event arrives");
-    assert!(fatal);
-    assert!(
-        message.contains("Failed to load agent registry"),
-        "{message}"
-    );
-    assert!(
-        message.contains("agents") || message.contains("sequence"),
-        "event preserves the registry parse diagnosis: {message}"
-    );
-    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM services WHERE module_name = 'agent'")
-        .fetch_one(pool.pool().as_ref())
-        .await
-        .expect("agent service count");
-    assert_eq!(
-        rows, 0,
-        "registry failure starts and persists no agent services"
-    );
-    drop(ctx);
-    pool.write_pool().close().await;
-    database.drop_now().await;
 }

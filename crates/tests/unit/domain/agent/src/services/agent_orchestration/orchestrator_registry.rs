@@ -31,7 +31,7 @@ fn app_paths() -> Arc<AppPaths> {
 
 fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(pool, instance.clone());
-    AgentDatabaseService::new(repo).expect("db service")
+    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_state())
 }
 
 fn registry_with(names_and_ports: &[(&AgentName, u16)]) -> AgentRegistry {

@@ -93,7 +93,6 @@ fn seed() -> PathBuf {
         format!("includes:\n  - ../agents/{AGENT}.yaml\nmcp_servers: {{}}\n"),
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
     root
 }
 

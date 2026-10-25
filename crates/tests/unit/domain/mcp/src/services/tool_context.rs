@@ -18,7 +18,10 @@ use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 
 async fn provider() -> McpToolProvider {
     let db = test_db_pool().await;
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     McpToolProvider::new(
         db,
         registry,

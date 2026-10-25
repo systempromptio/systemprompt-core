@@ -128,7 +128,10 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
         },
         Plugins {
             extension_registry: Arc::new(ExtensionRegistry::new()),
-            mcp_registry: RegistryService::new(fixture_user_id()),
+            mcp_registry: RegistryService::new(
+                fixture_user_id(),
+                systemprompt_test_fixtures::fixture_services_state(),
+            ),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
         },
@@ -138,7 +141,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
             signing_keys: systemprompt_test_fixtures::test_signing_keys(),
             governance: systemprompt_test_fixtures::default_governance_watch(),
-            services: systemprompt_test_fixtures::fixture_services_watch(),
+            services: systemprompt_test_fixtures::fixture_services_state(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             ai_service: None,
             artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,

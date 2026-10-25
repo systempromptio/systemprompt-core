@@ -27,7 +27,14 @@ async fn populated_registry() -> (RegistryService, McpServerId, MockServer) {
             enabled: true,
         },
     )]));
-    (RegistryService::new(fixture_user_id()), name, mock)
+    (
+        RegistryService::new(
+            fixture_user_id(),
+            systemprompt_test_fixtures::fixture_services_state(),
+        ),
+        name,
+        mock,
+    )
 }
 
 #[tokio::test]

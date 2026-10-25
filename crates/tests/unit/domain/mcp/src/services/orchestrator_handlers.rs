@@ -34,7 +34,10 @@ async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryServ
         )
         .expect("app paths"),
     );
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let database = DatabaseService::new(
         systemprompt_database::ServiceRepository::new(&db, unique_instance()),
         Arc::clone(&app_paths),

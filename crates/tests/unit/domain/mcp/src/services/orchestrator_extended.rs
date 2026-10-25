@@ -36,7 +36,10 @@ async fn make_orchestrator() -> McpOrchestrator {
         )
         .expect("app paths"),
     );
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let service_repo = ServiceRepository::new(&db, unique_instance());
     McpOrchestrator::new(
         service_repo,

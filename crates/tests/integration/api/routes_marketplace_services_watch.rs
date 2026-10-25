@@ -17,9 +17,7 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with, refresh_services_config, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
 use systemprompt_traits::{CacheDomain, ConfigVersionSource, RepositoryError, WatchSignals};
 use tower::ServiceExt;
 
@@ -48,7 +46,6 @@ impl ConfigVersionSource for FixedVersion {
 
 async fn context() -> anyhow::Result<AppContext> {
     let b = ensure_test_bootstrap();
-    refresh_services_config();
     let paths = PathsConfig {
         system: b.system_path.display().to_string(),
         services: b.services_path.display().to_string(),
@@ -69,7 +66,6 @@ fn write_late_marketplace() -> anyhow::Result<()> {
     let dir = b.services_path.join("marketplaces").join("late");
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("config.yaml"), LATE_YAML)?;
-    refresh_services_config();
     Ok(())
 }
 
@@ -87,7 +83,7 @@ async fn a_tree_change_is_not_served_until_the_watch_reloads() -> anyhow::Result
             .marketplaces
             .keys()
             .any(|id| id.as_str() == "late"),
-        "the loader memo already sees the new marketplace"
+        "the loader reads the new marketplace from disk"
     );
 
     let router = marketplace::router().with_state(ctx.clone());
@@ -112,7 +108,7 @@ async fn advancing_the_services_epoch_serves_the_new_tree() -> anyhow::Result<()
     };
     ctx.services_watch()
         .spawn(ctx.background_tasks(), signals, || async {
-            ConfigLoader::reload()
+            ConfigLoader::load()
         });
     for _ in 0..200 {
         if ctx.services_watch().reloads() > 0 {

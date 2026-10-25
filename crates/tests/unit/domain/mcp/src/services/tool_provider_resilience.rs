@@ -72,7 +72,10 @@ async fn provider_for_endpoint(
 
     let provider = McpToolProvider::new(
         db,
-        RegistryService::new(fixture_user_id()),
+        RegistryService::new(
+            fixture_user_id(),
+            systemprompt_test_fixtures::fixture_services_state(),
+        ),
         resilience,
         std::sync::Arc::default(),
     );

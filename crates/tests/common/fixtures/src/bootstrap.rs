@@ -1,8 +1,8 @@
 //! Process-wide bootstrap fixture.
 //!
-//! Initialises [`ProfileBootstrap`], [`ServicesBootstrap`],
-//! [`SecretsBootstrap`], the runtime [`Config`] singleton, and [`FilesConfig`]
-//! from a tempdir-backed profile bundle.
+//! Initialises [`ProfileBootstrap`], [`SecretsBootstrap`], the runtime
+//! [`Config`] singleton, and [`FilesConfig`] from a tempdir-backed profile
+//! bundle.
 
 use std::env;
 use std::path::PathBuf;
@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{try_init_config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
-use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use systemprompt_manifest::Config;
 use tempfile::TempDir;
@@ -65,6 +65,7 @@ pub struct TestBootstrap {
     pub storage_path: PathBuf,
     pub app_paths: AppPaths,
     pub database_url: String,
+    pub services: ServicesState,
 }
 
 impl TestBootstrap {
@@ -121,27 +122,15 @@ pub fn init_services_bootstrap(services_config_yaml: &str) -> TestBootstrap {
 }
 
 // Bootstrap whose services `config.yaml` is deliberately unloadable. A services
-// tree that does not parse is a boot failure, so `ServicesBootstrap` is left
-// uninitialised here on purpose and the failure is asserted rather than
-// swallowed: a config that turned out to load would silently stop exercising
-// the caller's failure path. `ConfigLoader::load()` is left unprimed, so the
-// first request-time load reads the malformed file from disk and fails there.
+// tree that does not parse is a boot failure, so the load failure is asserted
+// rather than swallowed: a config that turned out to load would silently stop
+// exercising the caller's failure path. The returned `services` is the empty
+// config; a fresh `ConfigLoader::load()` still reads the malformed file.
 pub fn init_unloadable_services_bootstrap(
     api_base_url: &str,
     services_config_yaml: &str,
 ) -> TestBootstrap {
     init_bootstrap_inner_expecting(Some(api_base_url), Some(services_config_yaml), true)
-}
-
-// Re-read the services tree from disk and re-prime the memoised
-// `ConfigLoader::load()` result. `ServicesBootstrap::init` primes that cache at
-// bootstrap, so files a test writes into the services tree afterwards
-// (marketplaces, plugins, skills) are invisible to every route that reads
-// through `ConfigLoader::load()` until the cache is refreshed.
-pub fn refresh_services_config() {
-    if let Err(e) = ConfigLoader::reload() {
-        panic!("ConfigLoader::reload failed: {e}");
-    }
 }
 
 const CATALOG_SECTIONS: [(&str, &str); 5] = [
@@ -286,15 +275,13 @@ fn init_bootstrap_inner_expecting(
     }
     let profile = ProfileBootstrap::get().expect("profile initialised");
 
-    if !ServicesBootstrap::is_initialized() {
-        match (ServicesBootstrap::init(), expect_services_load_failure) {
-            (Err(e), false) => panic!("ServicesBootstrap::init failed: {e}"),
-            (Ok(_), true) => {
-                panic!("services config was expected not to load, but it did")
-            },
-            _ => {},
-        }
-    }
+    let services = match (ServicesState::load(), expect_services_load_failure) {
+        (Err(e), false) => panic!("ServicesState::load failed: {e}"),
+        (Ok(_), true) => panic!("services config was expected not to load, but it did"),
+        (Ok(state), false) => state,
+        (Err(_), true) => ServicesState::from_config(Default::default())
+            .expect("the default services config resolves"),
+    };
 
     if !SecretsBootstrap::is_initialized() {
         let _ = crate::secrets::block_on_secrets_init();
@@ -319,6 +306,7 @@ fn init_bootstrap_inner_expecting(
         storage_path,
         app_paths,
         database_url,
+        services,
     }
 }
 

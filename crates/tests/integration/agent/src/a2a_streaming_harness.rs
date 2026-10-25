@@ -103,6 +103,7 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
         },
         Arc::new(repositories),
         systemprompt_test_mocks::recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     ));
 
     let oauth_state = Arc::new(

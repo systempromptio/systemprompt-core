@@ -37,6 +37,7 @@ async fn make_state() -> AgentState {
         },
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
 }
 

@@ -54,7 +54,6 @@ fn seed_catalogue() -> PathBuf {
     std::fs::create_dir_all(&plugin).unwrap();
     std::fs::write(plugin.join("config.yaml"), PLUGIN_YAML).unwrap();
 
-    systemprompt_test_fixtures::refresh_services_config();
     root
 }
 

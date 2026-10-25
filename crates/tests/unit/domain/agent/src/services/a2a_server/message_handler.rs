@@ -44,8 +44,13 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["It is ", "42."]));
-    let processor = MessageHandler::new(Arc::new(repos.clone()), provider, recording_webhooks())
-        .expect("processor");
+    let processor = MessageHandler::new(
+        Arc::new(repos.clone()),
+        provider,
+        recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    )
+    .expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -98,8 +103,13 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
     let client_task_id = TaskId::generate();
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["continuing"]));
-    let processor = MessageHandler::new(Arc::new(repos.clone()), provider, recording_webhooks())
-        .expect("processor");
+    let processor = MessageHandler::new(
+        Arc::new(repos.clone()),
+        provider,
+        recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    )
+    .expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -130,8 +140,13 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
     let client_task_id = TaskId::generate();
 
     let provider = Arc::new(StubAiProvider::new().failing_stream());
-    let processor = MessageHandler::new(Arc::new(repos.clone()), provider, recording_webhooks())
-        .expect("processor");
+    let processor = MessageHandler::new(
+        Arc::new(repos.clone()),
+        provider,
+        recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    )
+    .expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -182,6 +197,7 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
         Arc::new(repos.clone()),
         Arc::new(StubAiProvider::new().with_stalled_stream()),
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
     let runtime = runtime_info("nonstream-agent");
@@ -237,8 +253,13 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
 
     let repos = repos(&pool);
     let provider = Arc::new(StubAiProvider::new());
-    let processor = MessageHandler::new(Arc::new(repos.clone()), provider, recording_webhooks())
-        .expect("processor");
+    let processor = MessageHandler::new(
+        Arc::new(repos.clone()),
+        provider,
+        recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    )
+    .expect("processor");
 
     let foreign_ctx = ContextId::generate();
     let runtime = runtime_info("nonstream-agent");
@@ -291,6 +312,7 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
         Arc::new(repositories.clone()),
         Arc::new(StubAiProvider::new().with_text_stream(&["completed answer"])),
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("message processor");
     let runtime = runtime_info("nonstream-agent");
@@ -385,6 +407,7 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
         Arc::new(repositories.clone()),
         provider.clone(),
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("message processor");
     let runtime = runtime_info("nonstream-agent");
@@ -457,6 +480,7 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
         Arc::new(repositories.clone()),
         provider.clone(),
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("message processor");
     let runtime = runtime_info("nonstream-agent");

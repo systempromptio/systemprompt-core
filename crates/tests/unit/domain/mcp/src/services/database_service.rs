@@ -32,7 +32,10 @@ async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRe
         )
         .expect("app paths"),
     );
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let repo = systemprompt_database::ServiceRepository::new(&db, unique_instance());
     let svc = DatabaseService::new(repo.clone(), app_paths, registry);
     (svc, repo)

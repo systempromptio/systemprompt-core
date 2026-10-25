@@ -347,7 +347,7 @@ fn fixture_app_context_assembled(
         },
         Plugins {
             extension_registry,
-            mcp_registry: RegistryService::new(fixture_user_id()),
+            mcp_registry: RegistryService::new(fixture_user_id(), fixture_services_state()),
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),
         },
@@ -357,7 +357,7 @@ fn fixture_app_context_assembled(
             authz_hook,
             signing_keys: crate::jwt::test_signing_keys(),
             governance,
-            services: fixture_services_watch(),
+            services: fixture_services_state(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             ai_service: None,
             artifact_ingest: fixture_artifact_ingest(pool)?,
@@ -440,9 +440,9 @@ pub fn default_governance_watch(
 
 // The services config the test bootstrap serves, or an empty one when the
 // test runs without a services tree.
-pub fn fixture_services_watch(
-) -> systemprompt_traits::ConfigWatch<systemprompt_manifest::services::ServicesConfig> {
-    systemprompt_traits::ConfigWatch::new(
-        systemprompt_loader::ConfigLoader::load().unwrap_or_default(),
-    )
+pub fn fixture_services_state() -> systemprompt_loader::ServicesState {
+    systemprompt_loader::ServicesState::load().unwrap_or_else(|_| {
+        systemprompt_loader::ServicesState::from_config(Default::default())
+            .expect("the default services config resolves")
+    })
 }

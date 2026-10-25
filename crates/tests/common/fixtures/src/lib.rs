@@ -44,16 +44,16 @@ pub use app_context::{
     fixture_analytics_repositories, fixture_app_context_with, fixture_app_context_with_config,
     fixture_app_context_with_extensions, fixture_app_context_with_hook,
     fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
-    fixture_event_bridge, fixture_fingerprint_repository, fixture_services_watch,
+    fixture_event_bridge, fixture_fingerprint_repository, fixture_services_state,
     offline_rate_windows, test_app_context, FIXTURE_JWT_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
     init_services_bootstrap, init_unloadable_services_bootstrap,
-    messaging_config_yaml_with_teams_endpoints, refresh_services_config, test_messaging_agent,
-    TestBootstrap, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID,
-    TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
-    TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
+    messaging_config_yaml_with_teams_endpoints, test_messaging_agent, TestBootstrap,
+    TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID,
+    TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
+    TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_fixture_system_admin, seed_user_row,

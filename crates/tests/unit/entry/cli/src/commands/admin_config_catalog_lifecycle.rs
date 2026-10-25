@@ -266,12 +266,12 @@ async fn catalog_file_lifecycle_helper() {
     assert_eq!(files(&ai), after_remove);
 
     println!("BEGIN_DISCOVERY_EMPTY");
-    catalog::execute(&CatalogCommands::Discovery, &config)
+    catalog::execute(&CatalogCommands::Discovery, &config, None)
         .expect("missing discovery report is informative");
     println!("END_DISCOVERY_EMPTY");
 
     use systemprompt_scheduler::jobs::vertex_discovery::VertexDiscoveryJob;
-    let report = VertexDiscoveryJob::probe()
+    let report = VertexDiscoveryJob::probe(&systemprompt_test_fixtures::fixture_services_state())
         .await
         .expect("discovery job produces a report");
     println!("DISCOVERY_RAN_AT={}", report.ran_at);

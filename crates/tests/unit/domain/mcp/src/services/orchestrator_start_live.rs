@@ -79,7 +79,10 @@ async fn live_server(prefix: &str) -> LiveServer {
     let orchestrator = McpOrchestrator::new(
         repo.clone(),
         app_paths,
-        RegistryService::new(fixture_user_id()),
+        RegistryService::new(
+            fixture_user_id(),
+            systemprompt_test_fixtures::fixture_services_state(),
+        ),
         systemprompt_test_fixtures::test_spawner(),
     )
     .expect("orchestrator");

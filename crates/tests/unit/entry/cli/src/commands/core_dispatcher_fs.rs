@@ -182,7 +182,6 @@ marketplaces:
 "#,
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
     let out = tempfile::tempdir().unwrap();
 
     run(&[
@@ -243,7 +242,6 @@ marketplaces:
 "#,
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
     let output = tempfile::tempdir().unwrap();
     let catalog_parent = root.parent().unwrap().join("storage/files/plugins");
     std::fs::create_dir_all(&catalog_parent).unwrap();

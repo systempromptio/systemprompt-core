@@ -8,7 +8,10 @@ use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 #[tokio::test]
 async fn tool_provider_construction_and_accessors() {
     let db = test_db_pool().await;
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let resilience = ResilienceSettings::default();
     let provider = McpToolProvider::new(db, registry, &resilience, std::sync::Arc::default());
     let _ = provider.db_pool();
@@ -21,7 +24,10 @@ async fn tool_provider_list_tools_unknown_agent_returns_error_or_empty() {
     use systemprompt_identifiers::{Actor, AgentName};
     use systemprompt_traits::{ToolContext, ToolProvider};
     let db = test_db_pool().await;
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let provider = McpToolProvider::new(
         db,
         registry,

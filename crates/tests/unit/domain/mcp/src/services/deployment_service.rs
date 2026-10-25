@@ -7,7 +7,7 @@ use crate::harness::{
     ExternalServerSpec, bootstrap_with_services, config_with_servers, external_server_block,
 };
 
-fn seed_config() {
+fn seed_config() -> DeploymentService {
     let yaml = config_with_servers(&[
         external_server_block(&ExternalServerSpec {
             name: "dep_on",
@@ -22,14 +22,16 @@ fn seed_config() {
             enabled: false,
         }),
     ]);
-    let _bootstrap = bootstrap_with_services(&yaml);
+    DeploymentService::new(bootstrap_with_services(&yaml).services.clone())
 }
 
 #[test]
 fn deployment_accessors_resolve_configured_servers() {
-    seed_config();
+    let deployments = seed_config();
 
-    let deployment = DeploymentService::get_deployment("dep_on").expect("deployment resolves");
+    let deployment = deployments
+        .get_deployment("dep_on")
+        .expect("deployment resolves");
     assert!(deployment.enabled);
     assert_eq!(deployment.binary, None);
     assert_eq!(deployment.port, None);
@@ -38,20 +40,18 @@ fn deployment_accessors_resolve_configured_servers() {
         Some("http://127.0.0.1:59999/mcp")
     );
 
-    let mut enabled = DeploymentService::list_enabled_servers().expect("enabled list");
+    let mut enabled = deployments.list_enabled_servers();
     enabled.sort();
     assert_eq!(enabled, vec!["dep_on".to_owned()]);
 
-    assert!(DeploymentService::is_server_enabled("dep_on").unwrap());
-    assert!(!DeploymentService::is_server_enabled("dep_off").unwrap());
-
-    DeploymentService::validate_config().expect("config validates");
+    assert!(deployments.is_server_enabled("dep_on").unwrap());
+    assert!(!deployments.is_server_enabled("dep_off").unwrap());
 }
 
 #[test]
 fn deployment_accessors_error_for_unknown_server() {
-    seed_config();
+    let deployments = seed_config();
 
-    assert!(DeploymentService::get_deployment("missing").is_err());
-    assert!(DeploymentService::is_server_enabled("missing").is_err());
+    assert!(deployments.get_deployment("missing").is_err());
+    assert!(deployments.is_server_enabled("missing").is_err());
 }

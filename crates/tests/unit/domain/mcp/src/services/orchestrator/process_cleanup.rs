@@ -67,7 +67,10 @@ async fn fixture() -> Fixture {
     let database = DatabaseService::new(
         repo.clone(),
         app_paths,
-        RegistryService::new(fixture_user_id()),
+        RegistryService::new(
+            fixture_user_id(),
+            systemprompt_test_fixtures::fixture_services_state(),
+        ),
     );
     Fixture {
         bootstrap,

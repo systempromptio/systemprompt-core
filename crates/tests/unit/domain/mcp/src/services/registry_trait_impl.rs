@@ -13,13 +13,19 @@ use systemprompt_test_fixtures::fixture_user_id;
 
 #[tokio::test]
 async fn list_servers_is_reachable() {
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let _ = McpRegistry::list_servers(&registry).await;
 }
 
 #[tokio::test]
 async fn server_exists_is_reachable() {
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let _ = McpRegistry::server_exists(
         &registry,
         &McpServerId::try_new("nonexistent-server").expect("valid"),
@@ -29,7 +35,10 @@ async fn server_exists_is_reachable() {
 
 #[tokio::test]
 async fn find_server_is_reachable() {
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let _ = McpRegistry::find_server(
         &registry,
         &McpServerId::try_new("nonexistent-server").expect("valid"),
@@ -39,7 +48,8 @@ async fn find_server_is_reachable() {
 
 #[test]
 fn deployment_provider_reports_protocol_version() {
-    let provider = McpDeploymentProviderImpl;
+    let provider =
+        McpDeploymentProviderImpl::new(systemprompt_test_fixtures::fixture_services_state());
     assert!(
         !provider.protocol_version().is_empty(),
         "the MCP protocol version string is non-empty"
@@ -48,6 +58,7 @@ fn deployment_provider_reports_protocol_version() {
 
 #[tokio::test]
 async fn deployment_provider_load_config_is_reachable() {
-    let provider = McpDeploymentProviderImpl;
+    let provider =
+        McpDeploymentProviderImpl::new(systemprompt_test_fixtures::fixture_services_state());
     let _ = provider.load_config().await;
 }

@@ -29,13 +29,13 @@ fn lifecycle(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> Age
         AgentServiceRepository::new(pool, instance.clone()),
         app_paths(),
         systemprompt_test_fixtures::test_spawner(),
+        &systemprompt_test_fixtures::fixture_services_state(),
     )
-    .expect("lifecycle")
 }
 
 fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(pool, instance.clone());
-    AgentDatabaseService::new(repo).expect("db service")
+    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_state())
 }
 
 async fn ephemeral_listener() -> (TcpListener, u16) {

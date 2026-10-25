@@ -2,9 +2,9 @@
 //! convention from `services/ai/`: the five files merge, a gateway prompt
 //! `!include` resolves beside `gateway.yaml`, a duplicate id is refused, a
 //! catalog section outside the convention is refused, a legacy tree is refused
-//! with the migrate hint, and `ServicesBootstrap` fails boot on a bad catalog.
+//! with the migrate hint, and `ServicesState` fails boot on a bad catalog.
 
-use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesBootstrap};
+use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesState};
 use tempfile::TempDir;
 
 const ROOT: &str = r#"
@@ -161,14 +161,7 @@ fn a_route_pinning_an_undeployed_endpoint_fails_load() {
 }
 
 #[test]
-fn services_bootstrap_fails_boot_on_a_bad_catalog() {
-    let before = ServicesBootstrap::get().expect_err("nothing initialised yet");
-    assert!(
-        matches!(before, ConfigLoadError::NotInitialized),
-        "unexpected error: {before:?}"
-    );
-    assert!(!ServicesBootstrap::is_initialized());
-
+fn services_state_fails_boot_on_a_bad_catalog() {
     let mut files = catalog_files();
     files[1] = (
         "providers.yaml",
@@ -176,12 +169,7 @@ fn services_bootstrap_fails_boot_on_a_bad_catalog() {
     );
     let tree = write_tree(ROOT, &files);
 
-    let err = ServicesBootstrap::init_from_path(&tree.root).expect_err("empty endpoint url");
+    let err = ServicesState::load_from_path(&tree.root).expect_err("empty endpoint url");
 
     assert!(err.to_string().contains("anthropic"), "{err}");
-    assert!(
-        !ServicesBootstrap::is_initialized(),
-        "a failed load must leave the cell empty"
-    );
-    assert!(ServicesBootstrap::catalog().is_err());
 }

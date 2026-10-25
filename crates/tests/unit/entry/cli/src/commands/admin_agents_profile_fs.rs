@@ -87,7 +87,6 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
         agent_yaml("covlister", port, "Coverage Lister", true),
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
 
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_restart_failed").await;
@@ -200,7 +199,6 @@ fn seed_agents() -> PathBuf {
         "includes:\n  - ../agents/covlister.yaml\n  - ../agents/covdormant.yaml\nmcp_servers: {}\n",
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
     root
 }
 
@@ -386,7 +384,6 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
         agent_yaml("covlister", port, "Coverage Lister", true),
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = DisposableDb::with_schema("cli_restart_all_agents").await;
     let pool = database.test_pool().await;

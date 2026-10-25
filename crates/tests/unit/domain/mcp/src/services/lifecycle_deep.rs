@@ -45,7 +45,10 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
         )
         .expect("app paths"),
     );
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        systemprompt_test_fixtures::fixture_services_state(),
+    );
     let repo = ServiceRepository::new(&db, unique_instance());
     let database = DatabaseService::new(repo.clone(), Arc::clone(&app_paths), registry);
     let lifecycle = LifecycleService::new(

@@ -15,9 +15,6 @@ crates/infra/config/src/bootstrap/secrets/reload.rs:STATUS — bootstrap chain: 
 crates/infra/config/src/bootstrap/secrets/reload.rs:RELOAD_LOCK — bootstrap chain: serialises secrets reloads
 crates/shared/manifest/src/config/mod.rs:CONFIG — bootstrap chain: the resolved Config read before AppContext exists
 crates/infra/loader/src/services_root.rs:ACTIVE_ROOT — bootstrap chain: the resolved services root
-crates/infra/loader/src/services_bootstrap.rs:SERVICES — owned by config-arch Phase 3
-crates/infra/loader/src/services_bootstrap.rs:DISCOVERY — owned by config-arch Phase 3
-crates/infra/loader/src/config_loader/mod.rs:CONFIG_CACHE — owned by config-arch Phase 3
 
 # Gateway failover statics (config-arch session hand-off).
 crates/infra/security/src/credential/mod.rs:PROVIDER_TOKENS — debt: ProviderCredential::bearer is called from domain/ai upstream/target.rs and loader vertex_discovery (config-arch session); the owned form is TokenCache

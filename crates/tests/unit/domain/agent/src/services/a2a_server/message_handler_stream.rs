@@ -43,6 +43,7 @@ async fn new_constructs_against_pool() {
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor constructs");
 }
@@ -61,6 +62,7 @@ async fn process_message_stream_emits_text_and_complete() {
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
 
@@ -112,6 +114,7 @@ async fn persist_completed_task_updates_existing_row() {
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
 
@@ -158,6 +161,7 @@ async fn cancelling_a_running_stream_emits_exactly_one_cancelled_event() {
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
 
@@ -211,6 +215,7 @@ async fn process_message_stream_provider_failure_emits_error() {
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
 
@@ -289,6 +294,7 @@ async fn configured_skills_are_injected_and_missing_optional_skills_do_not_abort
         Arc::new(crate::repository::repos(&pool)),
         provider.clone(),
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
     let mut runtime = runtime_info("skill-stream-agent");
@@ -353,6 +359,7 @@ async fn partial_provider_stream_preserves_text_then_emits_one_error_without_com
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
     let runtime = runtime_info("partial-failure-agent");
@@ -438,6 +445,7 @@ async fn planned_stream_synthesizes_tool_results_before_completing_with_the_fina
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
     let mut runtime = runtime_info("planned-stream-agent");
@@ -514,6 +522,7 @@ async fn planned_stream_reports_final_resynthesis_failure_without_completing() {
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_state(),
     )
     .expect("processor");
     let mut runtime = runtime_info("planned-stream-agent");

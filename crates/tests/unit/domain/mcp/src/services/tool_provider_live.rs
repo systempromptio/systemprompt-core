@@ -61,7 +61,10 @@ async fn setup(agent: &str) -> (McpToolProvider, McpServerId, MockServer) {
 
     let provider = McpToolProvider::new(
         db,
-        RegistryService::new(fixture_user_id()),
+        RegistryService::new(
+            fixture_user_id(),
+            systemprompt_test_fixtures::fixture_services_state(),
+        ),
         &resilience(),
         std::sync::Arc::default(),
     );
@@ -213,7 +216,10 @@ async fn list_tools_tolerates_unreachable_server() {
 
     let provider = McpToolProvider::new(
         db,
-        RegistryService::new(fixture_user_id()),
+        RegistryService::new(
+            fixture_user_id(),
+            systemprompt_test_fixtures::fixture_services_state(),
+        ),
         &resilience(),
         std::sync::Arc::default(),
     );
@@ -260,7 +266,10 @@ async fn list_tools_keeps_healthy_server_inventory_when_another_assigned_server_
     let _bootstrap = bootstrap_with_services(&yaml);
     let provider = McpToolProvider::new(
         db,
-        RegistryService::new(fixture_user_id()),
+        RegistryService::new(
+            fixture_user_id(),
+            systemprompt_test_fixtures::fixture_services_state(),
+        ),
         &resilience(),
         std::sync::Arc::default(),
     );

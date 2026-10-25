@@ -28,13 +28,13 @@ fn lifecycle(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> Age
         AgentServiceRepository::new(pool, instance.clone()),
         app_paths(),
         systemprompt_test_fixtures::test_spawner(),
+        &systemprompt_test_fixtures::fixture_services_state(),
     )
-    .expect("lifecycle")
 }
 
 fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(pool, instance.clone());
-    AgentDatabaseService::new(repo).expect("db service")
+    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_state())
 }
 
 #[tokio::test]
@@ -212,58 +212,4 @@ async fn restart_unconfigured_agent_fails() {
     let name = unique_agent_name("lc_restart_missing");
     let result = lifecycle.restart_agent(&name, None).await;
     assert!(result.is_err(), "unconfigured agent must not restart");
-}
-
-#[tokio::test]
-async fn free_function_verbs_cover_missing_agent_paths() {
-    let pool = test_db_pool().await;
-    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    use systemprompt_agent::services::agent_orchestration::lifecycle as verbs;
-
-    let name = unique_agent_name("lc_free");
-    let repo = systemprompt_agent::repository::agent_service::AgentServiceRepository::new(
-        &pool,
-        unique_instance(),
-    );
-    assert!(
-        verbs::start_agent(
-            repo.clone(),
-            app_paths(),
-            systemprompt_test_fixtures::test_spawner(),
-            &name,
-            None
-        )
-        .await
-        .is_err()
-    );
-    assert!(
-        verbs::enable_agent(
-            repo.clone(),
-            app_paths(),
-            systemprompt_test_fixtures::test_spawner(),
-            &name,
-            None
-        )
-        .await
-        .is_err()
-    );
-    assert!(
-        verbs::restart_agent(
-            repo.clone(),
-            app_paths(),
-            systemprompt_test_fixtures::test_spawner(),
-            &name,
-            None
-        )
-        .await
-        .is_err()
-    );
-    verbs::disable_agent(
-        repo.clone(),
-        app_paths(),
-        systemprompt_test_fixtures::test_spawner(),
-        &name,
-    )
-    .await
-    .expect("disable of an unregistered agent is a no-op removal");
 }
