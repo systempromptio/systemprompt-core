@@ -9,17 +9,16 @@
 
 use anyhow::Result;
 
-use systemprompt_logging::{
-    CliService, drain_notices, is_structured_output, structured_was_emitted,
-};
+use systemprompt_logging::{CliService, OutputState};
 use systemprompt_models::artifacts::{CliArtifact, MessageArtifact, NoticeLine};
 
-pub(super) fn finalize(outcome: &Result<()>) {
-    if outcome.is_err() || !is_structured_output() || structured_was_emitted() {
+pub(super) fn finalize(output: &OutputState, outcome: &Result<()>) {
+    if outcome.is_err() || !output.is_structured_output() || output.structured_was_emitted() {
         return;
     }
 
-    let mut lines: Vec<NoticeLine> = drain_notices()
+    let mut lines: Vec<NoticeLine> = output
+        .drain_notices()
         .into_iter()
         .map(|n| NoticeLine::new(n.level, n.text))
         .collect();

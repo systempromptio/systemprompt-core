@@ -34,8 +34,3 @@ crates/entry/api/src/services/server/metrics.rs:RECORDER_INIT — serialises the
 
 # Debt: service state a later package moves onto an owner (logging, boot
 # display, process-wide HTTP clients, per-job memo, cloud credentials).
-crates/infra/logging/src/services/json_format.rs:JSON_CONSOLE — debt: CLI output mode
-crates/infra/logging/src/services/output/mod.rs:STARTUP_MODE — debt: CLI output mode
-crates/infra/logging/src/services/output/mod.rs:STRUCTURED_MODE — debt: CLI output mode
-crates/infra/logging/src/services/output/mod.rs:STRUCTURED_EMITTED — debt: CLI output mode
-crates/infra/logging/src/services/output/mod.rs:NOTICE_BUFFER — debt: CLI output buffer

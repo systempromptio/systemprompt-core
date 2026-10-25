@@ -65,7 +65,7 @@ pub async fn run_server(
         tx.startup_complete(start_time.elapsed(), format!("http://{}", addr), vec![]);
     }
 
-    systemprompt_logging::set_startup_mode(false);
+    systemprompt_logging::OutputState::current().set_startup_mode(false);
 
     serve_until_shutdown(
         &ctx,

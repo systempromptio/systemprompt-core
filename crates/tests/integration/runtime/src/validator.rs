@@ -9,12 +9,13 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use systemprompt_files::FilesConfigValidator;
-use systemprompt_logging::set_startup_mode;
+use systemprompt_logging::OutputState;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_runtime::StartupValidator;
+use tracing_subscriber::layer::SubscriberExt;
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -79,7 +80,9 @@ fn validate_returns_services_config_error_when_profile_uninitialised_quiet() {
     let _guard = STARTUP_MODE_LOCK
         .lock()
         .expect("startup-mode lock poisoned");
-    set_startup_mode(false);
+    let output = OutputState::new();
+    output.set_startup_mode(false);
+    let _scope = tracing::subscriber::set_default(tracing_subscriber::registry().with(output));
 
     let cfg = minimal_config();
     let mut validator = StartupValidator::new();
@@ -96,12 +99,10 @@ fn validate_returns_services_config_error_when_profile_uninitialised_verbose() {
     let _guard = STARTUP_MODE_LOCK
         .lock()
         .expect("startup-mode lock poisoned");
-    set_startup_mode(true);
 
     let cfg = minimal_config();
     let mut validator = StartupValidator::default();
     let report = validator.validate(&cfg);
-    set_startup_mode(false);
 
     assert!(
         report.has_errors(),

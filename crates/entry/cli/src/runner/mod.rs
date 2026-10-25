@@ -19,7 +19,7 @@ use anyhow::{Context, Result, bail};
 use clap::Parser;
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp};
-use systemprompt_logging::set_startup_mode;
+use systemprompt_logging::OutputState;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::{CliConfig, OutputFormat};
@@ -30,8 +30,9 @@ use crate::env_overrides::EnvOverrides;
 
 pub async fn run() -> Result<()> {
     install_tls_crypto_provider();
-    let outcome = Box::pin(run_inner()).await;
-    structured_output::finalize(&outcome);
+    let output = OutputState::new();
+    let outcome = Box::pin(run_inner(&output)).await;
+    structured_output::finalize(&output, &outcome);
     outcome
 }
 
@@ -50,15 +51,15 @@ fn install_tls_crypto_provider() {
     }
 }
 
-async fn run_inner() -> Result<()> {
+async fn run_inner(output: &OutputState) -> Result<()> {
     let cli = args::Cli::parse();
     stamp_api_server_identity(&cli)?;
 
-    set_startup_mode(cli.command.is_none());
+    output.set_startup_mode(cli.command.is_none());
 
     let env = EnvOverrides::from_process_env();
     let cli_config = args::build_cli_config(&cli, &env);
-    systemprompt_logging::set_structured_output(cli_config.output_format() != OutputFormat::Table);
+    output.set_structured_output(cli_config.output_format() != OutputFormat::Table);
 
     if cli.display.no_color || !cli_config.should_use_color() {
         console::set_colors_enabled(false);
@@ -68,6 +69,7 @@ async fn run_inner() -> Result<()> {
     if let Some(database_url) = cli.database.database_url.clone() {
         match cli.command.as_ref().map(args::Commands::db_url_routing) {
             Some(db_url::DbUrlRouting::Direct) => {
+                systemprompt_logging::init_deferred_console_logging(output.clone());
                 return Box::pin(run_with_database_url(
                     cli.command,
                     cli_config,
@@ -90,9 +92,11 @@ async fn run_inner() -> Result<()> {
         .as_ref()
         .map_or(CommandDescriptor::FULL, DescribeCommand::descriptor);
 
-    if !desc.database() {
+    if desc.database() {
+        systemprompt_logging::init_deferred_console_logging(output.clone());
+    } else {
         let effective_level = resolve_log_level(&cli_config, &env);
-        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref());
+        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref(), output);
     }
 
     let mut credentials = None;

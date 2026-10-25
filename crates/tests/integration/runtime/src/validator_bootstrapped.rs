@@ -6,10 +6,11 @@
 
 use std::sync::Mutex;
 
-use systemprompt_logging::set_startup_mode;
+use systemprompt_logging::OutputState;
 use systemprompt_manifest::Config;
 use systemprompt_runtime::{StartupValidator, validate_extension_configs};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
+use tracing_subscriber::layer::SubscriberExt;
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
 
@@ -19,7 +20,9 @@ fn validate_runs_full_pipeline_when_bootstrapped_quiet() {
         .lock()
         .expect("startup-mode lock poisoned");
     ensure_test_bootstrap();
-    set_startup_mode(false);
+    let output = OutputState::new();
+    output.set_startup_mode(false);
+    let _scope = tracing::subscriber::set_default(tracing_subscriber::registry().with(output));
 
     let cfg = Config::get().expect("config initialised").clone();
     let mut validator = StartupValidator::new();
@@ -44,12 +47,10 @@ fn validate_runs_full_pipeline_when_bootstrapped_verbose() {
         .lock()
         .expect("startup-mode lock poisoned");
     ensure_test_bootstrap();
-    set_startup_mode(true);
 
     let cfg = Config::get().expect("config initialised").clone();
     let mut validator = StartupValidator::default();
     let report = validator.validate(&cfg);
-    set_startup_mode(false);
 
     assert!(
         report.profile_path.is_some(),

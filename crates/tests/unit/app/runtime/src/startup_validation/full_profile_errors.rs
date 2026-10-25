@@ -63,7 +63,6 @@ fn skill_missing_content_file_errors_in_verbose_mode() {
     let _fixture = boot(&BootOptions::default());
     systemprompt_config::try_init_config(None).expect("init config from profile");
     let config = Config::get().expect("config installed").clone();
-    systemprompt_logging::set_startup_mode(true);
 
     std::fs::remove_file(
         std::path::Path::new(&config.services_path).join("skills/echo_skill/index.md"),

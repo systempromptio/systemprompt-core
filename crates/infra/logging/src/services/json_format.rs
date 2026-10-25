@@ -7,17 +7,16 @@
 //! the text the span's own field formatter already redacted.
 //!
 //! [`ConsoleEventFormat`] is the formatter the global subscriber installs. It
-//! reads the process-wide choice made by [`set_console_format`], because the
-//! subscriber is installed before the profile that names the format is loaded.
+//! reads the choice made through [`OutputState::set_console_format`], because
+//! the subscriber is installed before the profile that names the format is
+//! loaded.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::fmt;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde_json::{Map, Value};
-use systemprompt_manifest::profile::LogFormat;
 use tracing::field::{Field, Visit};
 use tracing::{Event, Subscriber};
 use tracing_subscriber::fmt::format::{Format, Full, Writer};
@@ -27,21 +26,7 @@ use tracing_subscriber::registry::LookupSpan;
 
 use crate::layer::InstanceLabel;
 use crate::sanitize::{REDACTION_PLACEHOLDER, is_redacted, is_system_sentinel};
-
-static JSON_CONSOLE: AtomicBool = AtomicBool::new(false);
-
-pub fn set_console_format(format: LogFormat) {
-    JSON_CONSOLE.store(matches!(format, LogFormat::Json), Ordering::Relaxed);
-}
-
-#[must_use]
-pub fn console_format() -> LogFormat {
-    if JSON_CONSOLE.load(Ordering::Relaxed) {
-        LogFormat::Json
-    } else {
-        LogFormat::Text
-    }
-}
+use crate::services::output::OutputState;
 
 /// One JSON object per event, with sensitive field values redacted.
 #[derive(Debug, Clone, Default)]
@@ -49,18 +34,29 @@ pub struct JsonEventFormat {
     instance: InstanceLabel,
 }
 
-/// The installed console formatter: text or JSON per [`set_console_format`].
+/// The installed console formatter: text or JSON per
+/// [`OutputState::set_console_format`].
 #[derive(Debug, Clone, Default)]
 pub struct ConsoleEventFormat {
     text: Format<Full, SystemTime>,
     json: JsonEventFormat,
+    output: OutputState,
 }
 
 impl ConsoleEventFormat {
-    pub(crate) fn labelled(instance: InstanceLabel) -> Self {
+    #[must_use]
+    pub fn with_output(output: OutputState) -> Self {
+        Self {
+            output,
+            ..Self::default()
+        }
+    }
+
+    pub(crate) fn labelled(instance: InstanceLabel, output: OutputState) -> Self {
         Self {
             text: Format::default(),
             json: JsonEventFormat { instance },
+            output,
         }
     }
 }
@@ -76,7 +72,7 @@ where
         writer: Writer<'_>,
         event: &Event<'_>,
     ) -> fmt::Result {
-        if JSON_CONSOLE.load(Ordering::Relaxed) {
+        if self.output.is_json_console() {
             self.json.format_event(ctx, writer, event)
         } else {
             self.text.format_event(ctx, writer, event)

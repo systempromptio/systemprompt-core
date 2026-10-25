@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_logging::services::cli::BrandColors;
-use systemprompt_logging::{CliService, is_structured_output};
+use systemprompt_logging::{CliService, OutputState};
 use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 
 pub fn display_validation_report(report: &StartupValidationReport) {
@@ -111,7 +111,7 @@ pub fn display_validation_warnings(report: &StartupValidationReport) {
         return;
     }
 
-    if is_structured_output() {
+    if OutputState::current().is_structured_output() {
         buffer_validation_warnings(report);
         return;
     }

@@ -24,8 +24,9 @@ const fn message_level_str(level: MessageLevel) -> &'static str {
 }
 
 pub fn message(level: MessageLevel, text: &str) {
-    if crate::services::output::is_structured_output() {
-        crate::services::output::buffer_notice(message_level_str(level), text);
+    let output = crate::services::output::OutputState::current();
+    if output.is_structured_output() {
+        output.buffer_notice(message_level_str(level), text);
         return;
     }
     stderr_writeln(format_args!(

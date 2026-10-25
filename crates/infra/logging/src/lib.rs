@@ -20,8 +20,8 @@
 //!   subscriber (with optional database sink) and return its [`LogSink`].
 //! - [`LoggingRuntime`] — the sink paired with the platform owner; built once
 //!   at bootstrap and carried by `AppContext`.
-//! - [`set_console_format`] — switch stderr between text and JSON lines
-//!   (`observability.log_format`); both redact the same fields.
+//! - [`OutputState::set_console_format`] — switch stderr between text and JSON
+//!   lines (`observability.log_format`); both redact the same fields.
 //! - [`LogSink::shutdown`] — flush the database sink's buffered and queued
 //!   entries and stop its writer task; awaited on server shutdown.
 //! - [`LoggingExtension`] — schema/extension registration via the `inventory`
@@ -60,10 +60,7 @@ pub use runtime::{LogSink, LoggingRuntime};
 pub use services::CliService;
 pub use services::{
     BufferedNotice, ConsoleEventFormat, DatabaseLogService, FilterSystemFields, JsonEventFormat,
-    LogThrottle, LoggingMaintenanceService, SYSTEM_LOG_OWNER, SystemSpan, buffer_notice,
-    console_format, drain_notices, is_startup_mode, is_structured_output, mark_structured_emitted,
-    reset_structured_emitted, set_console_format, set_startup_mode, set_structured_output,
-    structured_was_emitted,
+    LogThrottle, LoggingMaintenanceService, OutputState, SYSTEM_LOG_OWNER, SystemSpan,
 };
 
 use std::sync::OnceLock;
@@ -106,7 +103,7 @@ fn installed_proxy() -> Option<ProxyDatabaseLayer> {
     })
 }
 
-fn ensure_subscriber(level_override: Option<&str>) -> LogSink {
+fn ensure_subscriber(level_override: Option<&str>, output: OutputState) -> LogSink {
     if SUBSCRIBER_INITIALIZED.set(()).is_err() {
         return LogSink::from_proxy(installed_proxy().unwrap_or_default());
     }
@@ -120,21 +117,26 @@ fn ensure_subscriber(level_override: Option<&str>) -> LogSink {
     );
 
     let gate_active = level_override.is_none();
+    let startup_output = output.clone();
+    let armed_output = output.clone();
+    let armed_gate = FilterFn::new(move |_| armed_output.is_console_armed());
     let startup_gate = FilterFn::new(move |meta| {
-        !(gate_active && is_startup_mode()) || *meta.level() <= Level::WARN
+        !(gate_active && startup_output.is_startup_mode()) || *meta.level() <= Level::WARN
     });
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .fmt_fields(FilterSystemFields::labelled(instance.clone()))
-        .event_format(ConsoleEventFormat::labelled(instance))
+        .event_format(ConsoleEventFormat::labelled(instance, output.clone()))
         .with_writer(std::io::stderr)
         .log_internal_errors(true)
         .with_filter(base_filter)
-        .with_filter(startup_gate);
+        .with_filter(startup_gate)
+        .with_filter(armed_gate);
 
     let db_layer = proxy.clone().with_filter(build_filter("info"));
 
     tracing_subscriber::registry()
+        .with(output)
         .with(fmt_layer)
         .with(db_layer)
         .init();
@@ -143,15 +145,24 @@ fn ensure_subscriber(level_override: Option<&str>) -> LogSink {
 }
 
 pub fn init_logging(db_pool: &DbPool, instance_id: Option<InstanceId>) -> LogSink {
-    let sink = ensure_subscriber(None);
+    let output = OutputState::current();
+    let sink = ensure_subscriber(None, output.clone());
+    output.set_console_armed(true);
     sink.attach(db_pool, instance_id);
     sink
 }
 
 pub fn init_console_logging() -> LogSink {
-    init_console_logging_with_level(None)
+    init_console_logging_with_level(None, &OutputState::current())
 }
 
-pub fn init_console_logging_with_level(level: Option<&str>) -> LogSink {
-    ensure_subscriber(level)
+pub fn init_console_logging_with_level(level: Option<&str>, output: &OutputState) -> LogSink {
+    let sink = ensure_subscriber(level, output.clone());
+    output.set_console_armed(true);
+    sink
+}
+
+pub fn init_deferred_console_logging(output: OutputState) -> LogSink {
+    output.set_console_armed(false);
+    ensure_subscriber(None, output)
 }

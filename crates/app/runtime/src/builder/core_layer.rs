@@ -169,7 +169,8 @@ pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLay
         cache_epochs.clone(),
     )?;
 
-    systemprompt_logging::set_console_format(profile.observability.log_format);
+    systemprompt_logging::OutputState::current()
+        .set_console_format(profile.observability.log_format);
     let log_sink = systemprompt_logging::init_logging(&database, Some(instance_id.clone()));
 
     if config.database_write_url.is_some() {

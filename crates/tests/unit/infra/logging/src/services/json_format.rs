@@ -2,9 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use systemprompt_logging::{
-    ConsoleEventFormat, FilterSystemFields, JsonEventFormat, console_format, set_console_format,
-};
+use systemprompt_logging::{ConsoleEventFormat, FilterSystemFields, JsonEventFormat, OutputState};
 use systemprompt_manifest::profile::LogFormat;
 use tracing::{Subscriber, info, info_span};
 use tracing_subscriber::layer::SubscriberExt;
@@ -159,11 +157,12 @@ fn an_event_outside_any_span_has_no_spans_key() {
 }
 
 #[test]
-fn the_console_formatter_follows_the_process_wide_switch() {
+fn the_console_formatter_follows_the_output_state_switch() {
     let writer = CapturingWriter::default();
+    let output = OutputState::new();
     let layer = tracing_subscriber::fmt::layer()
         .fmt_fields(FilterSystemFields::new())
-        .event_format(ConsoleEventFormat::default())
+        .event_format(ConsoleEventFormat::with_output(output.clone()))
         .with_writer(writer.clone())
         .with_ansi(false);
     let subscriber = tracing_subscriber::registry()
@@ -171,11 +170,11 @@ fn the_console_formatter_follows_the_process_wide_switch() {
         .with(layer);
 
     tracing::subscriber::with_default(subscriber, || {
-        set_console_format(LogFormat::Json);
-        assert_eq!(console_format(), LogFormat::Json);
+        output.set_console_format(LogFormat::Json);
+        assert_eq!(output.console_format(), LogFormat::Json);
         info!(marker = "as-json", "first");
-        set_console_format(LogFormat::Text);
-        assert_eq!(console_format(), LogFormat::Text);
+        output.set_console_format(LogFormat::Text);
+        assert_eq!(output.console_format(), LogFormat::Text);
         info!(marker = "as-text", "second");
     });
 

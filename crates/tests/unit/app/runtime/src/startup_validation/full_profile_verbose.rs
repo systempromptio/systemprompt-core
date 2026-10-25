@@ -8,7 +8,6 @@
 //! `covassets_missing` always misses its required asset, so the final report
 //! carries exactly those extension errors when everything else is healthy.
 
-use systemprompt_logging::set_startup_mode;
 use systemprompt_manifest::Config;
 use systemprompt_runtime::StartupValidator;
 
@@ -23,7 +22,6 @@ fn validated_config() -> (crate::boot::BootFixture, Config) {
 #[test]
 fn verbose_validate_reports_only_fixture_extension_failures() {
     let (_fixture, config) = validated_config();
-    set_startup_mode(true);
 
     std::fs::write(
         std::path::Path::new(&config.services_path).join("config/covextok.yaml"),
@@ -127,7 +125,6 @@ fn malformed_extension_config_reports_load_failure() {
 #[test]
 fn malformed_ancillary_configs_degrade_to_warnings_not_errors() {
     let (_fixture, config) = validated_config();
-    set_startup_mode(true);
 
     // Point the three optional config paths at malformed YAML files; the
     // loaders must warn and continue rather than fail validation.
@@ -165,7 +162,6 @@ fn restrictive_rate_limits_surface_as_domain_warnings() {
     systemprompt_config::try_init_config(None).expect("init config from profile");
     let _fixture = fixture;
     let config = Config::get().expect("config installed").clone();
-    set_startup_mode(true);
 
     let mut validator = StartupValidator::new();
     let report = validator.validate(&config);

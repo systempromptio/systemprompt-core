@@ -17,7 +17,7 @@ use systemprompt_config::{ProfileBootstrap, SkillConfigValidator};
 use systemprompt_logging::services::cli::{
     BrandColors, render_phase_success, render_phase_warning,
 };
-use systemprompt_logging::{CliService, is_startup_mode};
+use systemprompt_logging::{CliService, OutputState};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::validators::validation_report::ValidationIssue;
 use systemprompt_manifest::validators::{
@@ -57,7 +57,7 @@ impl StartupValidator {
 
     pub fn validate(&mut self, config: &Config) -> StartupValidationReport {
         let mut report = StartupValidationReport::new();
-        let verbose = is_startup_mode();
+        let verbose = OutputState::current().is_startup_mode();
 
         if let Ok(path) = ProfileBootstrap::get_path() {
             report = report.with_profile_path(path);
