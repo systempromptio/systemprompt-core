@@ -8,12 +8,11 @@
 
 use anyhow::Result;
 use systemprompt_cloud::{CliSession, SessionKey, SessionStore};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_manifest::Profile;
 
 use crate::paths::ResolvedPaths;
 
-pub fn clear_session(paths: &ResolvedPaths) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub fn clear_session(paths: &ResolvedPaths, profile: &Profile) -> Result<()> {
     let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
     let session_key = SessionKey::from_tenant_id(tenant_id);
 

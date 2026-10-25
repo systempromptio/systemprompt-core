@@ -9,7 +9,6 @@ use crate::commands::shared::mcp_tools::direct_url;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use systemprompt_identifiers::{McpServerId, McpToolName};
-use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_models::ai::tools::CallToolResult;
 
@@ -51,7 +50,10 @@ pub struct CallArgs {
 pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let config = &ctx.cli;
     let prompter = ctx.prompter();
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
     let session_ctx = get_or_create_session(ctx).await?;
 
     let server_arg = args.server.clone();
@@ -122,6 +124,7 @@ async fn resolve_running_url(server_name: &McpServerId, ctx: &CommandContext) ->
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),
         Arc::clone(app.spawner()),
+        Arc::clone(app.secrets()),
     )
     .context("Failed to initialize MCP manager")?;
     let running_servers = manager

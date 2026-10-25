@@ -84,15 +84,11 @@ pub enum AgentsCommands {
 
 pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()> {
     let result = match command {
-        AgentsCommands::List(args) => {
-            list::execute(args, &ctx.cli).context("Failed to list agents")?
-        },
-        AgentsCommands::Show(args) => {
-            show::execute(args, ctx.prompter(), &ctx.cli).context("Failed to show agent")?
-        },
+        AgentsCommands::List(args) => list::execute(args, ctx).context("Failed to list agents")?,
+        AgentsCommands::Show(args) => show::execute(args, ctx).context("Failed to show agent")?,
         AgentsCommands::Validate(args) => {
             let (result, valid) =
-                validate::execute(&args, &ctx.cli).context("Failed to validate agents")?;
+                validate::execute(&args, ctx).context("Failed to validate agents")?;
             render_result(&result, &ctx.cli);
             if !valid {
                 bail!("Agent validation failed");
@@ -100,21 +96,19 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
             return Ok(());
         },
         AgentsCommands::Create(args) => {
-            create::execute(args, ctx.prompter(), &ctx.cli).context("Failed to create agent")?
+            create::execute(args, ctx).context("Failed to create agent")?
         },
-        AgentsCommands::Edit(args) => {
-            edit::execute(&args, ctx.prompter(), &ctx.cli).context("Failed to edit agent")?
-        },
+        AgentsCommands::Edit(args) => edit::execute(&args, ctx).context("Failed to edit agent")?,
         AgentsCommands::Delete(args) => Box::pin(delete::execute(args, ctx))
             .await
             .context("Failed to delete agent")?,
         AgentsCommands::Status(args) => status::execute(args, ctx)
             .await
             .context("Failed to get agent status")?,
-        AgentsCommands::Logs(args) => logs::execute(args, ctx.prompter(), &ctx.cli)
+        AgentsCommands::Logs(args) => logs::execute(args, ctx)
             .await
             .context("Failed to get agent logs")?,
-        AgentsCommands::Registry(args) => registry::execute(args, &ctx.cli)
+        AgentsCommands::Registry(args) => registry::execute(args, ctx)
             .await
             .context("Failed to get agent registry")?,
         AgentsCommands::Message(args) => message::execute(args, ctx)
@@ -127,7 +121,7 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
             .await
             .context("Failed to list agent tools")?,
         AgentsCommands::Run(args) => {
-            return Box::pin(run::execute(args))
+            return Box::pin(run::execute(args, ctx))
                 .await
                 .context("Failed to run agent");
         },

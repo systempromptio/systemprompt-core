@@ -19,7 +19,7 @@ use systemprompt_analytics::OverviewAnalyticsRepository;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
-use super::shared::{CsvBuilder, parse_time_range, resolve_export_path};
+use super::shared::{CsvBuilder, parse_time_range};
 use crate::CliConfig;
 use crate::shared::CommandOutput;
 
@@ -108,9 +108,8 @@ async fn execute_internal(
     let output = fetch_overview_data(repo, start, end).await?;
 
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_overview_csv(&output, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_overview_csv(&output, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(CommandOutput::card_value("Analytics Overview", &output).with_skip_render());
     }
 

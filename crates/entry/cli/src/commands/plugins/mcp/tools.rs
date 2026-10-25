@@ -17,11 +17,9 @@ use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::{McpServerId, SessionToken};
-use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_models::McpServerConfig;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct ToolsArgs {
@@ -40,20 +38,25 @@ pub struct ToolsArgs {
 
 pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let config = &ctx.cli;
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
     let session_ctx = get_or_create_session(ctx).await?;
     let session_token = session_ctx.session_token();
 
-    let ctx = AppContext::new()
+    let app = ctx
+        .app_context()
         .await
         .context("Failed to initialize application context")?;
 
     let manager = McpOrchestrator::new(
-        (**ctx.service_repository()).clone(),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
-        Arc::clone(ctx.spawner()),
+        (**app.service_repository()).clone(),
+        Arc::clone(app.app_paths_arc()),
+        app.mcp_registry().clone(),
+        Arc::clone(app.spawner()),
+        Arc::clone(app.secrets()),
     )
     .context("Failed to initialize MCP manager")?;
     let running_servers = manager

@@ -9,9 +9,9 @@
 
 use anyhow::Result;
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, CloudPath, get_cloud_paths};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{CloudStatusOutput, CredentialsInfo, ProfileInfo, TenantStatusInfo};
@@ -19,9 +19,10 @@ use crate::shared::CommandOutput;
 
 pub(super) async fn execute(
     config: &CliConfig,
+    profile: Option<&Profile>,
     credentials: Option<&CloudCredentials>,
 ) -> Result<CommandOutput> {
-    let (profile_info, tenant_id_from_profile) = load_profile_info();
+    let (profile_info, tenant_id_from_profile) = load_profile_info(profile);
     let (credentials_info, tenant_statuses) =
         load_credentials_and_tenants(config, credentials, tenant_id_from_profile.as_ref()).await?;
 
@@ -38,13 +39,9 @@ pub(super) async fn execute(
     Ok(CommandOutput::card_value("Cloud Status", &output))
 }
 
-fn load_profile_info() -> (Option<ProfileInfo>, Option<TenantId>) {
-    let profile = match ProfileBootstrap::get() {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::debug!(error = %e, "Failed to get profile bootstrap");
-            return (None, None);
-        },
+fn load_profile_info(profile: Option<&Profile>) -> (Option<ProfileInfo>, Option<TenantId>) {
+    let Some(profile) = profile else {
+        return (None, None);
     };
 
     let mut info = ProfileInfo {

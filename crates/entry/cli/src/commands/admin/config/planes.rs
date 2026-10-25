@@ -19,14 +19,13 @@ use std::sync::Arc;
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand, ValueEnum};
 use serde::Serialize;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{PLANE_NOT_APPLIED_HINT, find_config_plane_applied};
 use systemprompt_extension::prelude::{ApplyMode, ChangeActor, ChangeRequest, EntityScope};
 use systemprompt_manifest::profile::UnappliedPlaneMode;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::ConfigReconcileService;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -116,10 +115,10 @@ struct PlaneListRow {
     reconciled_at: Option<String>,
 }
 
-pub async fn execute(command: PlanesCommands, config: &CliConfig) -> Result<()> {
-    let ctx = Arc::new(AppContext::new().await?);
-    let output = run(command, &ctx).await?;
-    render_result(&output, config);
+pub async fn execute(command: PlanesCommands, ctx: &CommandContext) -> Result<()> {
+    let app = ctx.app_context().await?;
+    let output = run(command, app).await?;
+    render_result(&output, &ctx.cli);
     Ok(())
 }
 
@@ -184,17 +183,16 @@ async fn list(ctx: &AppContext, service: &ConfigReconcileService) -> Result<Comm
         ],
         &rows,
     )
-    .with_title(planes_title(&unapplied)))
+    .with_title(planes_title(
+        &unapplied,
+        ctx.profile().unapplied_plane_mode(),
+    )))
 }
 
-fn planes_title(unapplied: &[&str]) -> String {
+fn planes_title(unapplied: &[&str], mode: UnappliedPlaneMode) -> String {
     if unapplied.is_empty() {
         return "Config planes".to_owned();
     }
-    let mode = ProfileBootstrap::get().map_or_else(
-        |_| UnappliedPlaneMode::default(),
-        systemprompt_manifest::Profile::unapplied_plane_mode,
-    );
     let effect = if mode.denies() {
         "their requests are denied"
     } else {

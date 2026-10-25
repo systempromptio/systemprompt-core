@@ -14,6 +14,7 @@ use clap::Subcommand;
 
 use crate::CliConfig;
 use crate::shared::render_result;
+use systemprompt_manifest::Profile;
 
 #[derive(Debug, Subcommand)]
 pub enum SitemapCommands {
@@ -24,15 +25,16 @@ pub enum SitemapCommands {
     Generate(generate::GenerateArgs),
 }
 
-pub fn execute(command: SitemapCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: SitemapCommands, config: &CliConfig, profile: &Profile) -> Result<()> {
     match command {
         SitemapCommands::Show(args) => {
-            let result = show::execute(args, config).context("Failed to show sitemap")?;
+            let result = show::execute(args, config, profile).context("Failed to show sitemap")?;
             render_result(&result, config);
             Ok(())
         },
         SitemapCommands::Generate(args) => {
-            let result = generate::execute(&args, config).context("Failed to generate sitemap")?;
+            let result =
+                generate::execute(&args, config, profile).context("Failed to generate sitemap")?;
             render_result(&result, config);
             Ok(())
         },

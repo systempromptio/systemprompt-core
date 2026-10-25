@@ -11,14 +11,14 @@
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use std::fs;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
+use super::profile_io::profile_path;
 use super::runtime::save_profile;
 use super::types::{ServicesConfigOutput, ServicesSetOutput};
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
@@ -39,15 +39,16 @@ pub struct SetArgs {
     pub port_offset: Option<u16>,
 }
 
-pub fn execute(command: &ServicesCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: &ServicesCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        ServicesCommands::Show => execute_show(config),
-        ServicesCommands::Set(args) => execute_set(args, config),
+        ServicesCommands::Show => execute_show(ctx),
+        ServicesCommands::Set(args) => execute_set(args, ctx),
     }
 }
 
-pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
 
     let output = ServicesConfigOutput {
         port_offset: profile.services.port_offset,
@@ -61,12 +62,13 @@ pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
+pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     let Some(port_offset) = args.port_offset else {
         bail!("Must specify at least one option: --port-offset");
     };
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
 
     let old = profile.services.port_offset;

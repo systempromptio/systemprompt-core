@@ -13,9 +13,7 @@ use systemprompt_users::SessionTrafficRollupRepository;
 
 use super::{NavigationOutput, NavigationRow};
 use crate::CliConfig;
-use crate::commands::analytics::shared::{
-    export_to_csv, format_date_range, parse_time_range, resolve_export_path,
-};
+use crate::commands::analytics::shared::{export_to_csv, format_date_range, parse_time_range};
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -97,9 +95,8 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_to_csv(&output.transitions, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_to_csv(&output.transitions, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(CommandOutput::table_of(
             vec!["from_path", "to_path", "click_count", "percentage"],
             &output.transitions,

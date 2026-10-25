@@ -7,9 +7,8 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
 use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -23,8 +22,11 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
     if let Some(name) = args.name {
         let agent = services_config

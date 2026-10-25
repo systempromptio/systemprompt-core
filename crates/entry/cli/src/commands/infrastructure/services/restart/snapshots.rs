@@ -50,6 +50,7 @@ pub(super) async fn mcp_snapshots(
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
             Arc::clone(ctx.spawner()),
+            Arc::clone(ctx.secrets()),
         )?;
         manager
             .service_statuses()

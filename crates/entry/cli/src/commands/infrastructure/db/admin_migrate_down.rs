@@ -10,20 +10,21 @@ use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Config;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateDownOutput;
 
 pub(super) async fn execute_migrate_down(
-    config: &CliConfig,
+    ctx: &CommandContext,
     extension: &ExtensionId,
     count: u32,
 ) -> Result<()> {
-    let sys_config = Config::get()?;
+    let config = &ctx.cli;
+    let sys_config = ctx.config()?;
 
     let database = Arc::new(
         Database::connect(

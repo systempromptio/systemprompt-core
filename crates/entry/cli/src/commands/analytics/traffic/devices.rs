@@ -13,9 +13,7 @@ use systemprompt_users::SessionTrafficRollupRepository;
 
 use super::{DeviceRow, DevicesOutput};
 use crate::CliConfig;
-use crate::commands::analytics::shared::{
-    export_to_csv, format_date_range, parse_time_range, resolve_export_path,
-};
+use crate::commands::analytics::shared::{export_to_csv, format_date_range, parse_time_range};
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -88,9 +86,8 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_to_csv(&output.devices, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_to_csv(&output.devices, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(CommandOutput::table_of(
             vec!["device_type", "browser", "session_count"],
             &output.devices,

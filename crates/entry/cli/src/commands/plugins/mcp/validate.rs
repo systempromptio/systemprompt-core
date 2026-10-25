@@ -14,7 +14,6 @@ use crate::context::CommandContext;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
 use systemprompt_mcp::services::database::DatabaseService;
@@ -46,7 +45,10 @@ pub(super) async fn execute(
 ) -> Result<(CommandOutput, bool)> {
     let prompter = ctx.prompter();
     let config = &ctx.cli;
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
     let app = ctx
         .app_context()

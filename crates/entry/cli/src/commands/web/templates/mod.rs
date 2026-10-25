@@ -19,6 +19,7 @@ use clap::Subcommand;
 use crate::CliConfig;
 use crate::interactive::Prompter;
 use crate::shared::render_result;
+use systemprompt_loader::BootContext;
 
 #[derive(Debug, Subcommand)]
 pub enum TemplatesCommands {
@@ -42,34 +43,35 @@ pub fn execute(
     command: TemplatesCommands,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    boot: &BootContext,
 ) -> Result<()> {
     match command {
         TemplatesCommands::List(args) => {
-            let result = list::execute(args, config).context("Failed to list templates")?;
+            let result = list::execute(args, config, boot).context("Failed to list templates")?;
             render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Show(args) => {
             let result =
-                show::execute(args, prompter, config).context("Failed to show template")?;
+                show::execute(args, prompter, config, boot).context("Failed to show template")?;
             render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Create(args) => {
-            let result =
-                create::execute(args, prompter, config).context("Failed to create template")?;
+            let result = create::execute(args, prompter, config, boot)
+                .context("Failed to create template")?;
             render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Edit(args) => {
             let result =
-                edit::execute(args, prompter, config).context("Failed to edit template")?;
+                edit::execute(args, prompter, config, boot).context("Failed to edit template")?;
             render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Delete(args) => {
-            let result =
-                delete::execute(args, prompter, config).context("Failed to delete template")?;
+            let result = delete::execute(args, prompter, config, boot)
+                .context("Failed to delete template")?;
             render_result(&result, config);
             Ok(())
         },

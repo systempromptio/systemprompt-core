@@ -22,9 +22,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore};
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_identifiers::ProfileName;
-use systemprompt_loader::ProfileLoader;
+use systemprompt_loader::{BootContext, ProfileLoader};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
@@ -34,9 +33,8 @@ use crate::context::CommandContext;
 use crate::paths::ResolvedPaths;
 use crate::shared::ProfileSource;
 use context_resolver::{
-    create_new_session, extract_profile_name, initialize_profile_bootstraps,
-    resolve_profile_path_from_session, resolve_profile_path_without_session, try_session_from_env,
-    try_validate_context,
+    create_new_session, extract_profile_name, resolve_profile_path_from_session,
+    resolve_profile_path_without_session, try_session_from_env, try_validate_context,
 };
 
 #[derive(Debug)]
@@ -52,18 +50,20 @@ async fn get_session_for_profile(
     let (profile_path, profile) = crate::shared::resolve_profile_with_data(profile_input)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    if !ProfileBootstrap::is_initialized() {
-        ProfileBootstrap::init_from_path(&profile_path)
-            .with_context(|| format!("Failed to initialize profile '{}'", profile_input))?;
-    }
+    let boot = boot_for_profile(&profile_path, ctx)
+        .await
+        .with_context(|| format!("Failed to initialize profile '{}'", profile_input))?;
 
-    if !SecretsBootstrap::is_initialized() {
-        SecretsBootstrap::try_init().await.with_context(
-            || "Failed to initialize secrets. Check your profile's secrets configuration.",
-        )?;
-    }
+    get_session_for_loaded_profile(&profile, &profile_path, ProfileSource::Cli, ctx, &boot).await
+}
 
-    get_session_for_loaded_profile(&profile, &profile_path, ProfileSource::Cli, ctx).await
+async fn boot_for_profile(profile_path: &Path, ctx: &CommandContext) -> Result<BootContext> {
+    if let (Ok(boot), Ok(loaded)) = (ctx.boot(), ctx.loaded_profile())
+        && loaded.path() == profile_path
+    {
+        return Ok(boot.clone());
+    }
+    crate::boot::load_boot_from_path(profile_path).await
 }
 
 async fn get_session_for_loaded_profile(
@@ -71,6 +71,7 @@ async fn get_session_for_loaded_profile(
     profile_path: &Path,
     source: ProfileSource,
     ctx: &CommandContext,
+    boot: &BootContext,
 ) -> Result<CliSessionContext> {
     if let Some(session_ctx) = try_session_from_env(profile, &ctx.env) {
         return Ok(session_ctx);
@@ -88,7 +89,7 @@ async fn get_session_for_loaded_profile(
     {
         session.touch();
 
-        if let Some(refreshed) = try_validate_context(&mut session, &profile_name).await {
+        if let Some(refreshed) = try_validate_context(&mut session, &profile_name, boot).await {
             session = refreshed;
         }
 
@@ -110,11 +111,11 @@ async fn get_session_for_loaded_profile(
     };
 
     let session = create_new_session(
-        profile,
         &profile_ctx,
         &session_key,
         &ctx.cli,
         session_email_hint.as_deref(),
+        boot,
     )
     .await?;
 
@@ -175,10 +176,17 @@ async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliS
         )
     })?;
 
-    initialize_profile_bootstraps(&profile_path).await?;
+    let boot = boot_for_profile(&profile_path, ctx)
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to initialize profile from {}",
+                profile_path.display()
+            )
+        })?;
 
     let session_ctx =
-        get_session_for_loaded_profile(&profile, &profile_path, ProfileSource::Session, ctx)
+        get_session_for_loaded_profile(&profile, &profile_path, ProfileSource::Session, ctx, &boot)
             .await?;
     Ok(Some(session_ctx))
 }
@@ -221,27 +229,20 @@ async fn resolve_session(ctx: &CommandContext) -> Result<CliSessionContext> {
         return Ok(session_ctx);
     }
 
-    let profile = ProfileBootstrap::get()
-        .map_err(|_e| {
-            anyhow::anyhow!(
-                "Profile required.\n\nSet SYSTEMPROMPT_PROFILE environment variable to your \
-                 profile.yaml path, or use --profile <name>."
-            )
-        })?
-        .clone();
-
-    let profile_path_str = ProfileBootstrap::get_path().map_err(|_e| {
+    let loaded = ctx.loaded_profile().map_err(|_e| {
         anyhow::anyhow!(
-            "Profile path required.\n\nSet SYSTEMPROMPT_PROFILE environment variable or use \
-             --profile <name>."
+            "Profile required.\n\nSet SYSTEMPROMPT_PROFILE environment variable to your \
+             profile.yaml path, or use --profile <name>."
         )
     })?;
+    let profile = loaded.profile().clone();
+    let profile_path = loaded.path();
+    let boot = boot_for_profile(profile_path, ctx).await?;
 
     let source = if ctx.env.profile.is_some() {
         ProfileSource::Env
     } else {
         ProfileSource::Discovery
     };
-    let profile_path = Path::new(profile_path_str);
-    get_session_for_loaded_profile(&profile, profile_path, source, ctx).await
+    get_session_for_loaded_profile(&profile, profile_path, source, ctx, &boot).await
 }

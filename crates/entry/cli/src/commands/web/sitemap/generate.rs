@@ -11,7 +11,6 @@ use std::path::PathBuf;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
@@ -31,8 +30,11 @@ pub struct GenerateArgs {
     pub include_dynamic: bool,
 }
 
-pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+pub(super) fn execute(
+    args: &GenerateArgs,
+    _config: &CliConfig,
+    profile: &Profile,
+) -> Result<CommandOutput> {
     execute_with_profile(args, profile)
 }
 

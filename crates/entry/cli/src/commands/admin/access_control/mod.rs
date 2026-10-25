@@ -40,12 +40,12 @@ pub struct LintArgs;
 pub async fn execute(cmd: AccessControlCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         AccessControlCommands::ExportYaml(args) => {
-            let result = export::run(args, &ctx.cli).await?;
+            let result = export::run(args, ctx).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         AccessControlCommands::Lint(args) => {
-            let (text, exit_nonzero) = lint::run(args, &ctx.cli).await?;
+            let (text, exit_nonzero) = lint::run(args, ctx).await?;
             let result = CommandOutput::text_titled("Access-control lint", text);
             render_result(&result, &ctx.cli);
             if exit_nonzero {

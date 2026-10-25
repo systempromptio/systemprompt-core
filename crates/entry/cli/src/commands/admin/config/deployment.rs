@@ -13,7 +13,7 @@ use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::DeploymentTarget;
 
 use super::catalog_edit::{apply, parse_endpoints, read_active, render_list};
-use crate::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum DeploymentCommands {
@@ -34,10 +34,11 @@ pub struct DeploymentSetArgs {
     pub endpoints: Vec<String>,
 }
 
-pub async fn execute(command: &DeploymentCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &DeploymentCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     match command {
         DeploymentCommands::List => {
-            let document = read_active()?;
+            let document = read_active(ctx)?;
             let rows = document
                 .deployments
                 .iter()
@@ -55,7 +56,7 @@ pub async fn execute(command: &DeploymentCommands, config: &CliConfig) -> Result
                 .into_iter()
                 .map(DeploymentTarget::Endpoint)
                 .collect();
-            apply(config, "Deployments Updated", |document, context| {
+            apply(ctx, "Deployments Updated", |document, context| {
                 if document.models.get(args.model.as_str()).is_none() {
                     bail!(
                         "model '{}' is not declared; add it with `admin config model add`",

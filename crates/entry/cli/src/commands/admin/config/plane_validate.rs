@@ -17,21 +17,21 @@ use systemprompt_runtime::ConfigPlaneSet;
 
 use super::types::ConfigFileInfo;
 
-pub fn append_full_validation(target: Option<&String>, results: &mut Vec<ConfigFileInfo>) -> bool {
+pub fn append_full_validation(
+    config: &Config,
+    target: Option<&String>,
+    results: &mut Vec<ConfigFileInfo>,
+) -> bool {
     if target.is_some() {
         return true;
     }
-    let planes = plane_declaration_results();
+    let planes = plane_declaration_results(config);
     let valid = planes.iter().all(|p| p.valid);
     results.extend(planes);
     valid
 }
 
-pub fn plane_declaration_results() -> Vec<ConfigFileInfo> {
-    let config = match Config::get() {
-        Ok(config) => config,
-        Err(error) => return vec![failure("config_planes", &error.to_string())],
-    };
+pub fn plane_declaration_results(config: &Config) -> Vec<ConfigFileInfo> {
     let registry = match ExtensionRegistry::discover() {
         Ok(registry) => registry,
         Err(error) => return vec![failure("config_planes", &error.to_string())],

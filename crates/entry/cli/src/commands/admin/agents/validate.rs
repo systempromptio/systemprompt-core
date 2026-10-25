@@ -7,10 +7,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::{ValidationIssue, ValidationOutput};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_config::SecretsBootstrap;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{CatalogContext, ResolvedCatalog};
 use systemprompt_manifest::{AgentConfig, ServicesConfig};
@@ -28,16 +26,19 @@ pub struct ValidationSources<'a> {
     pub secrets: Option<&'a Secrets>,
 }
 
-pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+pub(super) fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
     let catalog = services_config
         .resolve_catalog(&CatalogContext::default())
         .context("The services catalog does not resolve")?;
-    let secrets = SecretsBootstrap::get().context("secrets are not initialised")?;
+    let secrets = ctx.secrets()?.get();
     let sources = ValidationSources {
         services_config: &services_config,
         catalog: &catalog,
-        secrets: Some(secrets),
+        secrets: Some(&secrets),
     };
 
     let mut errors = Vec::new();

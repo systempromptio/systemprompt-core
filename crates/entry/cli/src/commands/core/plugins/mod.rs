@@ -38,18 +38,18 @@ pub enum PluginsCommands {
 pub fn execute(command: PluginsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         PluginsCommands::List(args) => {
-            let result = list::execute(args, &ctx.cli).context("Failed to list plugins")?;
+            let result = list::execute(args, ctx).context("Failed to list plugins")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         PluginsCommands::Show(args) => {
-            let result = show::execute(&args, &ctx.cli).context("Failed to show plugin")?;
+            let result = show::execute(&args, ctx).context("Failed to show plugin")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         PluginsCommands::Validate(args) => {
             let (result, valid) =
-                validate::execute(args, &ctx.cli).context("Failed to validate plugins")?;
+                validate::execute(args, ctx).context("Failed to validate plugins")?;
             render_result(&result, &ctx.cli);
             if !valid {
                 bail!("Plugin validation failed");
@@ -57,8 +57,7 @@ pub fn execute(command: PluginsCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         PluginsCommands::Generate(args) => {
-            let result =
-                generate::execute(&args, &ctx.cli).context("Failed to generate plugins")?;
+            let result = generate::execute(&args, ctx).context("Failed to generate plugins")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

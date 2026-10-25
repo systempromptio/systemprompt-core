@@ -7,12 +7,11 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginComponentRef, PluginDetailOutput};
 use systemprompt_identifiers::PluginId;
-use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -20,8 +19,8 @@ pub struct ShowArgs {
     pub id: PluginId,
 }
 
-pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let plugins_path = get_plugins_path()?;
+pub(super) fn execute(args: &ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let plugins_path = ctx.boot()?.require_services_root().path.join("plugins");
     execute_with_path(args, &plugins_path)
 }
 
@@ -69,10 +68,6 @@ pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<Command
         format!("Plugin: {}", args.id),
         &output,
     ))
-}
-
-fn get_plugins_path() -> Result<std::path::PathBuf> {
-    Ok(ServicesRootBootstrap::require()?.path.join("plugins"))
 }
 
 fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_manifest::PluginConfigFile> {

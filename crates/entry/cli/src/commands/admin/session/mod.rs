@@ -73,7 +73,7 @@ pub async fn execute(cmd: SessionCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         SessionCommands::Login(args) => {
-            let result = login::execute(args, &ctx.cli).await?;
+            let result = login::execute(args, ctx).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

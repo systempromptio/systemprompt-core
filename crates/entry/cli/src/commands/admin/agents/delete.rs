@@ -17,11 +17,10 @@ use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment;
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_agent::{AgentAuth, AgentState};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_oauth::JwtValidationProviderImpl;
 
@@ -46,7 +45,10 @@ pub struct DeleteArgs {
 pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let prompter = ctx.prompter();
     let config = &ctx.cli;
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
     let agents_to_delete = resolve_targets(&args, prompter, &services_config, config)?;
 
@@ -57,7 +59,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
         config,
     )?;
 
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let profile = ctx.profile()?;
     let authoring = AgentConfigAuthoringService::new(Path::new(&profile.paths.services));
 
     let orchestrator = build_orchestrator(ctx)
@@ -80,7 +82,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     }
 
     if !deleted.is_empty() {
-        ConfigLoader::load().with_context(|| {
+        ctx.boot()?.load_services_config().with_context(|| {
             "Agent(s) deleted but configuration validation failed. Please check the configuration."
         })?;
     }
@@ -160,12 +162,12 @@ pub fn delete_success_message(deleted: &[AgentName]) -> String {
     }
 }
 
-async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
+pub(super) async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
     let app = ctx.app_context().await?;
-    let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config(app.signing_keys().clone())
-            .context("Failed to create JWT provider")?,
-    );
+    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
+        app.config(),
+        app.signing_keys().clone(),
+    ));
     let broadcaster = HttpWebhookBroadcaster::from_config(app.config())
         .context("Failed to initialize webhook broadcaster")?;
 
@@ -185,6 +187,11 @@ async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
         agent_state,
         Arc::clone(app.app_paths_arc()),
         Arc::clone(app.spawner()),
+        Arc::new(SpawnEnvironment {
+            config: Arc::clone(app.config_arc()),
+            secrets: Arc::clone(app.secrets()),
+            profile_path: app.boot().profile_path().to_path_buf(),
+        }),
         None,
     )
     .await

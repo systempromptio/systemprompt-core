@@ -31,7 +31,7 @@ pub async fn execute(cmd: KeysCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         KeysCommands::Generate(args) => generate::execute(&args),
         KeysCommands::IssuePluginToken(args) => {
-            let result = issue_plugin_token::execute(args).await?;
+            let result = issue_plugin_token::execute(args, ctx).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

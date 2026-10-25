@@ -4,19 +4,23 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
+
+use anyhow::Result;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::JobName;
+use systemprompt_loader::BootContext;
 use systemprompt_traits::Job;
 
 use super::types::{JobInfo, JobListOutput};
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
-pub(super) fn execute() -> CommandOutput {
+pub(super) fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
     let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
         tracing::error!(error = %e, "extension dependency cycle; using empty registry");
         ExtensionRegistry::new()
     });
-    let configured = configured_job_names();
+    let configured = configured_job_names(ctx.boot()?);
     let mut seen_names: HashSet<String> = HashSet::new();
     let mut jobs: Vec<JobInfo> = Vec::new();
 
@@ -36,11 +40,11 @@ pub(super) fn execute() -> CommandOutput {
     let total = jobs.len();
     let output = JobListOutput { jobs, total };
 
-    CommandOutput::table_of(
+    Ok(CommandOutput::table_of(
         vec!["name", "description", "schedule", "enabled", "scheduled"],
         &output.jobs,
     )
-    .with_title("Available Jobs")
+    .with_title("Available Jobs"))
 }
 
 fn job_info(name: &str, job: &dyn Job, configured: &HashSet<JobName>) -> JobInfo {
@@ -53,8 +57,8 @@ fn job_info(name: &str, job: &dyn Job, configured: &HashSet<JobName>) -> JobInfo
     }
 }
 
-fn configured_job_names() -> HashSet<JobName> {
-    let Ok(config) = systemprompt_loader::ConfigLoader::load() else {
+fn configured_job_names(boot: &BootContext) -> HashSet<JobName> {
+    let Ok(config) = boot.load_services_config() else {
         return HashSet::new();
     };
     let Some(scheduler) = config.scheduler else {

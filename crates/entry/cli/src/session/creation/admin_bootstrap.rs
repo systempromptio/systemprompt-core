@@ -14,9 +14,9 @@ use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{
     CliSession, CloudCredentials, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey,
 };
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::{Database, DbPool, PoolConfig};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
+use systemprompt_loader::BootContext;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{SessionGenerator, SessionParams};
@@ -29,19 +29,12 @@ pub(super) struct ResolvedSecrets {
     pub database_write_url: Option<String>,
 }
 
-pub(super) fn load_secrets() -> Result<ResolvedSecrets> {
-    let secrets = SecretsBootstrap::get().map_err(|e| {
-        anyhow::anyhow!(
-            "Secrets not initialized: {}\n\nEnsure your profile has a valid secrets \
-             configuration.\nCheck that secrets.json exists or environment variables are set.",
-            e
-        )
-    })?;
-
-    Ok(ResolvedSecrets {
+pub(super) fn load_secrets(boot: &BootContext) -> ResolvedSecrets {
+    let secrets = boot.secrets().get();
+    ResolvedSecrets {
         database_url: secrets.database_url.clone(),
         database_write_url: secrets.database_write_url.clone(),
-    })
+    }
 }
 
 pub(super) async fn connect_database(secrets: &ResolvedSecrets) -> Result<DbPool> {

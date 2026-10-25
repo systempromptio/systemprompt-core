@@ -5,8 +5,8 @@
 
 use anyhow::{Result, anyhow};
 use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, StoredTenant, TenantType};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
+use systemprompt_manifest::Profile;
 
 use crate::interactive::Prompter;
 
@@ -36,13 +36,12 @@ pub fn select_tenant<'a>(
     Ok(&tenants[selection])
 }
 
-pub fn resolve_tenant_id(tenant: Option<TenantId>) -> Result<TenantId> {
+pub fn resolve_tenant_id(tenant: Option<TenantId>, profile: Option<&Profile>) -> Result<TenantId> {
     if let Some(id) = tenant {
         return Ok(id);
     }
 
-    ProfileBootstrap::get()
-        .ok()
+    profile
         .and_then(|p| p.cloud.as_ref()?.tenant_id.clone())
         .ok_or_else(|| {
             anyhow!("No tenant specified. Use --tenant or configure a tenant in your profile.")

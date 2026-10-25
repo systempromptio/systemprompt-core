@@ -10,12 +10,9 @@ use clap::{Args, ValueEnum};
 
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
-use crate::CliConfig;
-use crate::interactive::Prompter;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum LogLevel {
@@ -68,29 +65,28 @@ pub struct LogsArgs {
     pub level: Option<LogLevel>,
 }
 
-fn get_default_logs_dir() -> PathBuf {
-    ProfileBootstrap::get()
+fn get_default_logs_dir(ctx: &CommandContext) -> PathBuf {
+    ctx.boot()
         .ok()
-        .and_then(|p| {
+        .and_then(|boot| {
+            let profile = boot.profile();
             AppPaths::from_profile(
-                &p.paths,
-                p.path_resolution(),
-                ServicesRootBootstrap::get().map(|r| r.path.as_path()),
+                &profile.paths,
+                profile.path_resolution(),
+                boot.services_root().map(|r| r.path.as_path()),
             )
             .ok()
         })
         .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
 }
 
-pub(super) async fn execute(
-    args: LogsArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: LogsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let prompter = ctx.prompter();
+    let config = &ctx.cli;
     let logs_path = args
         .logs_dir
         .as_ref()
-        .map_or_else(get_default_logs_dir, PathBuf::from);
+        .map_or_else(|| get_default_logs_dir(ctx), PathBuf::from);
 
     if args.follow {
         return execute_follow_mode(&args, prompter, config, &logs_path);
@@ -100,7 +96,7 @@ pub(super) async fn execute(
         return execute_disk_mode(&args, prompter, config, &logs_path);
     }
 
-    match execute_db_mode(&args, config).await {
+    match execute_db_mode(&args, ctx).await {
         Ok(result) => Ok(result),
         Err(e) => {
             tracing::debug!(error = %e, "DB log query failed, falling back to disk");

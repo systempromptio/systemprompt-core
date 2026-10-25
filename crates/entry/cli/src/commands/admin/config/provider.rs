@@ -16,7 +16,7 @@ use systemprompt_config::{EndpointSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
 
 use super::catalog_edit::{apply, parse_headers, parse_wire, read_active, render_list};
-use crate::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum ProviderCommands {
@@ -78,10 +78,11 @@ fn first_endpoint(args: &ProviderAddArgs) -> Result<Option<EndpointSpec>> {
 }
 
 
-pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &ProviderCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     match command {
         ProviderCommands::List => {
-            let document = read_active()?;
+            let document = read_active(ctx)?;
             let rows = document
                 .providers
                 .iter()
@@ -112,7 +113,7 @@ pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<(
                 enabled: None,
                 first_endpoint: first_endpoint(args)?,
             };
-            apply(config, "Provider Updated", |document, context| {
+            apply(ctx, "Provider Updated", |document, context| {
                 if document.providers.get(spec.id.as_str()).is_none()
                     && spec.first_endpoint.is_none()
                 {
@@ -123,10 +124,10 @@ pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<(
             })
             .await
         },
-        ProviderCommands::Enable { id } => set_enabled(config, id, true).await,
-        ProviderCommands::Disable { id } => set_enabled(config, id, false).await,
+        ProviderCommands::Enable { id } => set_enabled(ctx, id, true).await,
+        ProviderCommands::Disable { id } => set_enabled(ctx, id, false).await,
         ProviderCommands::Remove { id } => {
-            apply(config, "Provider Removed", |document, context| {
+            apply(ctx, "Provider Removed", |document, context| {
                 ProviderCatalogService::remove_provider(document, context, &ProviderId::new(id))?;
                 Ok(format!("Provider {id} removed"))
             })
@@ -135,8 +136,8 @@ pub async fn execute(command: &ProviderCommands, config: &CliConfig) -> Result<(
     }
 }
 
-async fn set_enabled(config: &CliConfig, id: &str, enabled: bool) -> Result<()> {
-    apply(config, "Provider Updated", |document, context| {
+async fn set_enabled(ctx: &CommandContext, id: &str, enabled: bool) -> Result<()> {
+    apply(ctx, "Provider Updated", |document, context| {
         let credential = document
             .providers
             .get(id)

@@ -19,6 +19,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 
+use crate::commands::analytics::shared::with_resolved_export;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
@@ -116,22 +117,30 @@ pub async fn execute(command: ToolsCommands, ctx: &CommandContext) -> Result<()>
     let db_ctx = ctx.database().await?;
     match command {
         ToolsCommands::Stats(args) => {
-            let result = stats::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                stats::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         ToolsCommands::List(args) => {
-            let result = list::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                list::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         ToolsCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         ToolsCommands::Show(args) => {
-            let result = show::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                show::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

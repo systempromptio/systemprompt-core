@@ -54,7 +54,7 @@ pub async fn reconcile_after_swap(
         .map(|(name, signed)| (name.as_str(), &signed.manifest))
         .collect();
 
-    let services = ConfigLoader::load_from_path(&root.path.join(CONFIG_RELPATH))
+    let services = ConfigLoader::load_from_path(&root.path.join(CONFIG_RELPATH), Some(profile))
         .context("Failed to load the composed services config")?;
     let pool = ctx
         .db_pool()

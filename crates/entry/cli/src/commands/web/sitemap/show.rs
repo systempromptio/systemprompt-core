@@ -9,8 +9,8 @@ use std::fs;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
 use systemprompt_models::content_config::ContentConfigRaw;
 
 use super::super::types::SitemapRoute;
@@ -21,8 +21,11 @@ pub struct ShowArgs {
     pub preview: bool,
 }
 
-pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+pub(super) fn execute(
+    args: ShowArgs,
+    config: &CliConfig,
+    profile: &Profile,
+) -> Result<CommandOutput> {
     execute_with_config_path(args, config, profile.paths.content_config().as_str())
 }
 

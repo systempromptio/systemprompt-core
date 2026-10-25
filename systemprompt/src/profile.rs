@@ -1,7 +1,7 @@
 //! Profile types — the on-disk profile schema.
 //!
 //! `Profile`, `CloudConfig`, `ProfileStyle` and `CloudValidationMode`, plus the
-//! `ProfileBootstrap` loader when the `config` feature is enabled and the
+//! `LoadedProfile` loader when the `config` feature is enabled and the
 //! `ServicesState` (the services config, provider catalog and gateway routes)
 //! when `loader` is.
 //!
@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #[cfg(feature = "config")]
-pub use systemprompt_config::{ProfileBootstrap, ProfileBootstrapError};
+pub use systemprompt_config::{LoadedProfile, ProfileBootstrapError};
 #[cfg(feature = "loader")]
 pub use systemprompt_loader::ServicesState;
 

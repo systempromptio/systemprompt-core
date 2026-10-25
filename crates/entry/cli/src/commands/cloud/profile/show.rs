@@ -8,9 +8,11 @@
 
 use anyhow::Result;
 use std::collections::HashMap;
-use systemprompt_config::ProfileBootstrap;
+use std::path::Path;
+use std::sync::Arc;
+use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
+use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::{AiConfig, Config, SkillsConfig};
 use systemprompt_models::ContentConfigRaw;
@@ -33,51 +35,53 @@ pub(super) async fn execute(
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 
-    let config = match Config::get() {
-        Ok(config) => Some(config),
-        Err(_uninitialised) => match initialize_config_from_profile(&profile_path).await {
-            Ok(()) => Some(Config::get()?),
+    let loaded = match crate::boot::load_profile(&profile_path) {
+        Ok(loaded) => Some(loaded),
+        Err(e) => {
+            CliService::warning(&format!("Config unavailable: {e}"));
+            None
+        },
+    };
+
+    let config = match &loaded {
+        Some(loaded) => match initialize_config(loaded).await {
+            Ok(config) => Some(config),
             Err(e) => {
                 CliService::warning(&format!("Config unavailable: {e}"));
                 None
             },
         },
+        None => None,
     };
 
-    let services_config = match ConfigLoader::load() {
-        Ok(services) => Some(services),
-        Err(e) => {
-            CliService::warning(&format!("Services config unavailable: {e}"));
-            None
-        },
-    };
+    let services_config = loaded.as_ref().and_then(|loaded| {
+        let profile = loaded.profile();
+        ConfigLoader::for_profile(profile, Path::new(&profile.paths.services))
+            .load()
+            .inspect_err(|e| CliService::warning(&format!("Services config unavailable: {e}")))
+            .ok()
+    });
 
-    let paths = current_app_paths();
-    let full_config =
-        build_config_for_filter(filter, config, services_config.as_ref(), paths.as_ref());
+    let paths = loaded.as_deref().and_then(current_app_paths);
+    let full_config = build_config_for_filter(
+        filter,
+        config.as_deref(),
+        services_config.as_ref(),
+        paths.as_ref(),
+    );
 
     output_config(&full_config, json_output, yaml_output, &ctx.cli);
     Ok(())
 }
 
-async fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> {
-    use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-
-    ProfileBootstrap::init_from_path(profile_path)?;
-    SecretsBootstrap::init().await?;
-    systemprompt_config::try_init_config(ServicesRootBootstrap::get().map(|r| r.path.as_path()))?;
-    Ok(())
+async fn initialize_config(loaded: &Arc<LoadedProfile>) -> Result<Arc<Config>> {
+    let boot = crate::boot::load_boot(loaded).await?;
+    Ok(Arc::clone(boot.try_init_config(None)?))
 }
 
-fn current_app_paths() -> Option<AppPaths> {
-    ProfileBootstrap::get().ok().and_then(|p| {
-        AppPaths::from_profile(
-            &p.paths,
-            p.path_resolution(),
-            ServicesRootBootstrap::get().map(|r| r.path.as_path()),
-        )
-        .ok()
-    })
+fn current_app_paths(loaded: &LoadedProfile) -> Option<AppPaths> {
+    let profile = loaded.profile();
+    AppPaths::from_profile(&profile.paths, profile.path_resolution(), None).ok()
 }
 
 fn build_config_for_filter(

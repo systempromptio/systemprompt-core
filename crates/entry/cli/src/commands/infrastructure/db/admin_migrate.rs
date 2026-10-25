@@ -11,20 +11,22 @@ use systemprompt_database::{
 use systemprompt_extension::{ExtensionRegistry, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::{Config, Profile};
+use systemprompt_manifest::Profile;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateOutput;
 
 pub(super) async fn execute_migrate(
-    config: &CliConfig,
+    ctx: &CommandContext,
     allow_checksum_drift: bool,
     repair_drift: bool,
 ) -> Result<()> {
-    let sys_config = Config::get()?;
+    let config = &ctx.cli;
+    let sys_config = ctx.config()?;
 
     if config.should_show_verbose() {
         CliService::info(&format!("System path: {}", sys_config.system_path));

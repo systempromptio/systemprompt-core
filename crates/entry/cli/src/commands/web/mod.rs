@@ -41,12 +41,14 @@ pub enum WebCommands {
 pub fn execute(command: WebCommands, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     match command {
-        WebCommands::ContentTypes(cmd) => content_types::execute(cmd, ctx.prompter(), config),
-        WebCommands::Templates(cmd) => templates::execute(cmd, ctx.prompter(), config),
-        WebCommands::Assets(cmd) => assets::execute(cmd, config),
-        WebCommands::Sitemap(cmd) => sitemap::execute(cmd, config),
+        WebCommands::ContentTypes(cmd) => {
+            content_types::execute(cmd, ctx.prompter(), config, ctx.profile()?)
+        },
+        WebCommands::Templates(cmd) => templates::execute(cmd, ctx.prompter(), config, ctx.boot()?),
+        WebCommands::Assets(cmd) => assets::execute(cmd, config, ctx.boot()?),
+        WebCommands::Sitemap(cmd) => sitemap::execute(cmd, config, ctx.profile()?),
         WebCommands::Validate(args) => {
-            let output = validate::execute(&args, config)?;
+            let output = validate::execute(&args, config, ctx.boot()?)?;
             let valid = output.valid;
             let error_count = output.errors.len();
             render_result(

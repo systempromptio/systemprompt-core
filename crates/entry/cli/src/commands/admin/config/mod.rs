@@ -136,40 +136,40 @@ pub enum ConfigCommands {
 pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         ConfigCommands::Show => {
-            let result = show::execute(&ctx.cli)?;
+            let result = show::execute(ctx)?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         ConfigCommands::List(args) => {
-            let result = list::execute(args, &ctx.cli);
+            let result = list::execute(args, ctx)?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         ConfigCommands::Validate(args) => {
-            let (result, valid) = validate::execute(&args, &ctx.cli)?;
+            let (result, valid) = validate::execute(&args, ctx)?;
             render_result(&result, &ctx.cli);
             if !valid {
                 bail!("Config validation failed");
             }
             Ok(())
         },
-        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, ctx.prompter(), &ctx.cli),
-        ConfigCommands::Server(ref cmd) => server::execute(cmd, &ctx.cli),
-        ConfigCommands::Runtime(cmd) => runtime::execute(cmd, &ctx.cli),
-        ConfigCommands::Security(ref cmd) => security::execute(cmd, &ctx.cli),
-        ConfigCommands::Services(ref cmd) => services::execute(cmd, &ctx.cli),
-        ConfigCommands::Paths(cmd) => paths::execute(cmd, &ctx.cli),
-        ConfigCommands::Credential(ref cmd) => credential::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Provider(ref cmd) => provider::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Endpoint(ref cmd) => endpoint::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Model(ref cmd) => model::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Deployment(ref cmd) => deployment::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, &ctx.cli),
+        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, ctx.prompter(), ctx),
+        ConfigCommands::Server(ref cmd) => server::execute(cmd, ctx),
+        ConfigCommands::Runtime(cmd) => runtime::execute(cmd, ctx),
+        ConfigCommands::Security(ref cmd) => security::execute(cmd, ctx),
+        ConfigCommands::Services(ref cmd) => services::execute(cmd, ctx),
+        ConfigCommands::Paths(cmd) => paths::execute(cmd, ctx),
+        ConfigCommands::Credential(ref cmd) => credential::execute(cmd, ctx).await,
+        ConfigCommands::Provider(ref cmd) => provider::execute(cmd, ctx).await,
+        ConfigCommands::Endpoint(ref cmd) => endpoint::execute(cmd, ctx).await,
+        ConfigCommands::Model(ref cmd) => model::execute(cmd, ctx).await,
+        ConfigCommands::Deployment(ref cmd) => deployment::execute(cmd, ctx).await,
+        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, ctx).await,
+        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, ctx),
         ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, &ctx.cli, ctx.services()),
         ConfigCommands::Migrate(ref args) => migrate::execute(args, ctx).await,
-        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Planes(cmd) => planes::execute(cmd, &ctx.cli).await,
+        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, ctx).await,
+        ConfigCommands::Planes(cmd) => planes::execute(cmd, ctx).await,
         ConfigCommands::Apply(ref args) => apply::execute(args, ctx).await,
     }
 }

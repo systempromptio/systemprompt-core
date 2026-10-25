@@ -67,14 +67,13 @@ struct PlaneRow {
 }
 
 pub async fn execute(args: &ApplyArgs, ctx: &CommandContext) -> Result<()> {
-    let config = &ctx.cli;
     if args.reason.trim().is_empty() {
         bail!("--reason must not be empty; it is recorded in config_change_audit");
     }
-    let app = Arc::clone(ctx.app_context().await?);
-    let report = run(args, &app).await?;
+    let app = ctx.app_context().await?;
+    let report = run(args, app).await?;
     let conflicts = report.conflicts();
-    render_result(&render(&report), config);
+    render_result(&render(&report), &ctx.cli);
     if conflicts > 0 && !report.dry_run {
         bail!(
             "{conflicts} entities changed in both the file and the database since the last \

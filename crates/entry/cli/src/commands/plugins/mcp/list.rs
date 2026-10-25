@@ -10,10 +10,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::types::{McpListOutput, McpServerSummary};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use crate::shared::project::ProjectRoot;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_models::mcp::{Deployment, McpServerType};
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -25,8 +24,11 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
     let project_root = match ProjectRoot::discover() {
         Ok(root) => Some(root),
         Err(e) => {

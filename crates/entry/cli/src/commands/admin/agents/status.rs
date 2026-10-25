@@ -5,16 +5,11 @@
 
 use anyhow::{Context, Result};
 use clap::Args;
-use std::sync::Arc;
 
 use super::types::{AgentStatusOutput, AgentStatusRow};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
-use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
-use systemprompt_agent::{AgentAuth, AgentState};
-use systemprompt_loader::ConfigLoader;
-use systemprompt_oauth::JwtValidationProviderImpl;
+use systemprompt_agent::services::agent_orchestration::AgentStatus;
 
 #[derive(Debug, Args)]
 pub struct StatusArgs {
@@ -23,37 +18,14 @@ pub struct StatusArgs {
 }
 
 pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
-    let app = ctx
-        .app_context()
+    let orchestrator = super::delete::build_orchestrator(ctx)
         .await
-        .context("Failed to initialize application context")?;
-
-    let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config(app.signing_keys().clone())
-            .context("Failed to create JWT provider")?,
-    );
-    let agent_state = Arc::new(AgentState::new(
-        Arc::clone(app.db_pool()),
-        Arc::new(app.config().clone()),
-        AgentAuth {
-            jwt_provider,
-            signing_keys: app.signing_keys().clone(),
-        },
-        Arc::clone(app.a2a_repositories()),
-        Arc::new(HttpWebhookBroadcaster::from_config(app.config())?),
-        app.services_state().view(),
-    ));
-
-    let orchestrator = AgentOrchestrator::new(
-        agent_state,
-        Arc::clone(app.app_paths_arc()),
-        Arc::clone(app.spawner()),
-        None,
-    )
-    .await
-    .context("Failed to initialize agent orchestrator")?;
+        .context("Failed to initialize agent orchestrator")?;
 
     let all_statuses = orchestrator.list_all().await?;
 

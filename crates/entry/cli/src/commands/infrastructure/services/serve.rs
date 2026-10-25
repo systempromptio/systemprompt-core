@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::Prompter;
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, ShutdownRequest, validate_system};
+use systemprompt_manifest::Profile;
+use systemprompt_runtime::{AppContext, AppContextBuilder, ShutdownRequest, validate_system};
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::port_conflict::ensure_port_free;
@@ -25,27 +25,32 @@ pub struct ServeOptions {
 pub async fn execute_with_events(
     prompter: &dyn Prompter,
     options: ServeOptions,
-    config: &CliConfig,
+    ctx: &CommandContext,
     events: Option<&StartupEventSender>,
 ) -> Result<String> {
+    let profile = ctx.profile()?;
     let ServeOptions {
         foreground,
         kill_port_process,
         run_migrations,
     } = options;
-    let port = get_api_port();
+    let port = get_api_port(profile);
 
     if events.is_none() {
         CliService::startup_banner(Some("Starting services..."));
     }
 
-    ensure_port_free(prompter, port, kill_port_process, config, events).await?;
+    ensure_port_free(prompter, port, kill_port_process, &ctx.cli, events).await?;
 
     let shutdown = ShutdownRequest::default();
-    let early = bind_early(foreground, events, shutdown.clone()).await?;
+    let early = bind_early(profile, foreground, events, shutdown.clone()).await?;
 
-    let ctx = Arc::new(
-        AppContext::builder()
+    let builder = ctx.services().cloned().into_iter().fold(
+        AppContext::builder(ctx.boot()?.clone()),
+        AppContextBuilder::with_services,
+    );
+    let app = Arc::new(
+        builder
             .with_startup_warnings(true)
             .with_shutdown(shutdown)
             .with_migrations(run_migrations)
@@ -74,15 +79,15 @@ pub async fn execute_with_events(
         CliService::phase_info("Running system validation...", None);
     }
 
-    validate_system(&ctx)
+    validate_system(&app)
         .await
         .context("System validation failed")?;
 
     if events.is_none() {
         CliService::phase_success("System validation complete", None);
-        CliService::phase_info(&format!("Node role: {}", ctx.config().role), None);
+        CliService::phase_info(&format!("Node role: {}", app.config().role), None);
     } else if let Some(tx) = events {
-        tx.info(format!("Node role: {}", ctx.config().role));
+        tx.info(format!("Node role: {}", app.config().role));
     }
 
     if events.is_none() {
@@ -99,7 +104,7 @@ pub async fn execute_with_events(
 
     if let Some(early) = early {
         systemprompt_api::services::server::run_server(
-            Arc::unwrap_or_clone(ctx),
+            Arc::unwrap_or_clone(app),
             events.cloned(),
             early,
         )
@@ -120,11 +125,12 @@ pub const fn effective_run_migrations(skip_flag: bool, migrate_on_boot: bool) ->
     !skip_flag && migrate_on_boot
 }
 
-pub async fn execute(prompter: &dyn Prompter, flags: ServeFlags, config: &CliConfig) -> Result<()> {
-    let migrate_on_boot = ProfileBootstrap::get()
-        .context("Profile not initialized")?
-        .database
-        .migrate_on_boot;
+pub async fn execute(
+    prompter: &dyn Prompter,
+    flags: ServeFlags,
+    ctx: &CommandContext,
+) -> Result<()> {
+    let migrate_on_boot = ctx.profile()?.database.migrate_on_boot;
     execute_with_events(
         prompter,
         ServeOptions {
@@ -132,7 +138,7 @@ pub async fn execute(prompter: &dyn Prompter, flags: ServeFlags, config: &CliCon
             kill_port_process: flags.kill_port_process,
             run_migrations: effective_run_migrations(flags.skip_migrate, migrate_on_boot),
         },
-        config,
+        ctx,
         None,
     )
     .await
@@ -140,6 +146,7 @@ pub async fn execute(prompter: &dyn Prompter, flags: ServeFlags, config: &CliCon
 }
 
 async fn bind_early(
+    profile: &Profile,
     foreground: bool,
     events: Option<&StartupEventSender>,
     shutdown: ShutdownRequest,
@@ -147,8 +154,8 @@ async fn bind_early(
     if !foreground {
         return Ok(None);
     }
-    let addr = get_api_addr().context("Profile not initialized; cannot determine bind address")?;
-    let timings = ProfileBootstrap::get()?.server.shutdown;
+    let addr = get_api_addr(profile);
+    let timings = profile.server.shutdown;
     systemprompt_api::services::server::bind_and_serve(&addr, events.cloned(), shutdown, timings)
         .await
         .map(Some)

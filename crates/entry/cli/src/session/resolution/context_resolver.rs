@@ -11,9 +11,9 @@ use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{
     CliSession, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey, SessionStore,
 };
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{Email, ProfileName};
+use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::auth::UserType;
@@ -63,19 +63,20 @@ pub fn extract_profile_name(profile_path: &Path) -> Result<ProfileName> {
 }
 
 pub(super) async fn create_new_session(
-    profile: &Profile,
     profile_ctx: &ProfileContext<'_>,
     session_key: &SessionKey,
     config: &crate::CliConfig,
     session_email_hint: Option<&str>,
+    boot: &BootContext,
 ) -> Result<CliSession> {
+    let profile = boot.profile();
     if session_key.is_local() || profile.is_local_trial() {
         return crate::session::creation::create_local_session(
-            profile,
             profile_ctx,
             session_key,
             config,
             session_email_hint,
+            boot,
         )
         .await;
     }
@@ -98,6 +99,7 @@ pub(super) async fn create_new_session(
             session_key,
             config,
             session_email_hint,
+            boot,
         },
     )
     .await
@@ -157,33 +159,13 @@ pub fn resolve_profile_path_without_session(
         })
 }
 
-pub(super) async fn initialize_profile_bootstraps(profile_path: &Path) -> Result<()> {
-    if !ProfileBootstrap::is_initialized() {
-        ProfileBootstrap::init_from_path(profile_path).with_context(|| {
-            format!(
-                "Failed to initialize profile from {}",
-                profile_path.display()
-            )
-        })?;
-    }
-
-    if !SecretsBootstrap::is_initialized() {
-        SecretsBootstrap::try_init()
-            .await
-            .with_context(|| "Failed to initialize secrets for session")?;
-    }
-
-    Ok(())
-}
-
 pub(super) async fn try_validate_context(
     session: &mut CliSession,
     profile_name: &ProfileName,
+    boot: &BootContext,
 ) -> Option<CliSession> {
-    let secrets = SecretsBootstrap::get()
-        .map_err(|e| tracing::debug!(error = %e, "Failed to get secrets for context validation"))
-        .ok()?;
-    let db = Database::new_postgres(&secrets.database_url)
+    let database_url = boot.secrets().database_url();
+    let db = Database::new_postgres(&database_url)
         .await
         .map_err(
             |e| tracing::debug!(error = %e, "Failed to connect to database for context validation"),

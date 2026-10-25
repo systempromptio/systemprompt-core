@@ -11,13 +11,12 @@
 use anyhow::Result;
 use clap::Subcommand;
 use std::path::Path;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
@@ -29,15 +28,16 @@ pub enum PathsCommands {
     Validate,
 }
 
-pub fn execute(command: PathsCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: PathsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        PathsCommands::Show => execute_show(config),
-        PathsCommands::Validate => execute_validate(config),
+        PathsCommands::Show => execute_show(ctx),
+        PathsCommands::Validate => execute_validate(ctx),
     }
 }
 
-pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
 
     let output = PathsConfigOutput {
         system: PathInfo {
@@ -74,8 +74,9 @@ pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
 
     let validations = collect_path_validations(profile);
     let valid = validations.iter().filter(|v| v.required).all(|v| v.exists);

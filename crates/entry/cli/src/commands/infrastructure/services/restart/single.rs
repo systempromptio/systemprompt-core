@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use anyhow::Result;
@@ -17,14 +18,15 @@ use systemprompt_scheduler::{ServiceManagementService, port_holders};
 use super::super::lifecycle;
 use super::super::types::RestartOutput;
 
-pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<CommandOutput> {
+pub async fn execute_api(prompter: &dyn Prompter, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
     let quiet = config.is_json_output();
 
     if !quiet {
         CliService::section("Restarting API Server");
     }
 
-    let port = super::get_api_port();
+    let port = super::super::get_api_port(ctx.profile()?);
     let Some(pid) = port_holders(port).await?.first().copied() else {
         if !quiet {
             CliService::warning("API server is not running");
@@ -37,7 +39,7 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
                 kill_port_process: false,
                 skip_migrate: false,
             },
-            config,
+            ctx,
         )
         .await?;
         let output = RestartOutput {
@@ -79,7 +81,7 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
             kill_port_process: false,
             skip_migrate: false,
         },
-        config,
+        ctx,
     )
     .await?;
 

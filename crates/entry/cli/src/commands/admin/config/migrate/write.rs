@@ -109,7 +109,7 @@ pub fn verify(services: &Path, plan: &MigrationPlan) -> Result<ServicesConfig> {
         };
         write(&root, synthetic)?;
     }
-    ConfigLoader::load_from_path(&root).map_err(|e| {
+    ConfigLoader::load_from_path(&root, None).map_err(|e| {
         anyhow::anyhow!("the migrated tree does not load, so nothing was written: {e}")
     })
 }

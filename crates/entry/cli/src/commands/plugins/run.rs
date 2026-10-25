@@ -7,7 +7,6 @@ use crate::context::CommandContext;
 use anyhow::{Context, Result};
 use clap::Args;
 use std::process::Stdio;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ExtensionLoader;
 use tokio::process::Command;
 
@@ -45,7 +44,7 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<()> {
             )
         })?;
 
-    let profile_path = ProfileBootstrap::get_path().context("Profile path required")?;
+    let profile_path = ctx.loaded_profile()?.path();
 
     let mut cmd = Command::new(&binary_path);
     cmd.args(&args.args)
@@ -54,9 +53,10 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<()> {
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
 
-    if let Ok(pepper) = SecretsBootstrap::oauth_at_rest_pepper() {
-        cmd.env("OAUTH_AT_REST_PEPPER", pepper);
-    }
+    cmd.env(
+        "OAUTH_AT_REST_PEPPER",
+        ctx.secrets()?.oauth_at_rest_pepper(),
+    );
 
     if ctx.cli.is_json_output() && extension.supports_json_output() {
         cmd.arg("--json");

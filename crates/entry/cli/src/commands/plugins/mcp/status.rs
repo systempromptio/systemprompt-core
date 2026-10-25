@@ -13,7 +13,6 @@ use clap::Args;
 use super::types::{McpStatusEntry, McpStatusOutput, McpStatusSummary};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
@@ -29,7 +28,10 @@ pub struct StatusArgs {
 }
 
 pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
     let app = ctx
         .app_context()
@@ -43,6 +45,7 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),
         Arc::clone(app.spawner()),
+        Arc::clone(app.secrets()),
     )
     .context("Failed to initialize MCP manager")?;
     let statuses = manager

@@ -7,10 +7,9 @@ use anyhow::{Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::Deserialize;
-use systemprompt_config::ProfileBootstrap;
 
 use super::types::{RegistryAgentInfo, RegistryOutput};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
 #[derive(Debug, Args)]
@@ -74,8 +73,9 @@ struct SkillResponse {
     name: String,
 }
 
-pub(super) async fn execute(args: RegistryArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let profile_url = ProfileBootstrap::get()
+pub(super) async fn execute(args: RegistryArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let profile_url = ctx
+        .profile()
         .ok()
         .map(|p| p.server.api_external_url.clone());
     let base_url = args

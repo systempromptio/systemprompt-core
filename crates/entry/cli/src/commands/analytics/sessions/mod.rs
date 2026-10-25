@@ -16,6 +16,7 @@ use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::commands::analytics::shared::with_resolved_export;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
@@ -81,12 +82,16 @@ pub async fn execute(command: SessionsCommands, ctx: &CommandContext) -> Result<
     let db_ctx = ctx.database().await?;
     match command {
         SessionsCommands::Stats(args) => {
-            let result = stats::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                stats::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         SessionsCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
@@ -94,7 +99,9 @@ pub async fn execute(command: SessionsCommands, ctx: &CommandContext) -> Result<
             if ctx.is_database_scoped() {
                 args.no_refresh = true;
             }
-            let result = live::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                live::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

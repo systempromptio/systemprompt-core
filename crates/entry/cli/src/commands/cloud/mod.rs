@@ -186,12 +186,13 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             .await
         },
         CloudCommands::Status => {
-            let result = status::execute(&ctx.cli, ctx.cloud_credentials()).await?;
+            let result =
+                status::execute(&ctx.cli, ctx.profile().ok(), ctx.cloud_credentials()).await?;
             crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },
         CloudCommands::Dockerfile => execute_dockerfile(&ctx.cli),
-        CloudCommands::Sync(cmd) => sync::execute(cmd, &ctx.cli).await,
+        CloudCommands::Sync(cmd) => sync::execute(cmd, ctx).await,
     }
 }
 

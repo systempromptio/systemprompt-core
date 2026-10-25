@@ -12,6 +12,7 @@ use systemprompt_loader::bundle::source::push_bundle;
 use systemprompt_loader::bundle::verify;
 
 use super::signing::ENV_PREFIX;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 const OCI_SCHEME: &str = "oci://";
@@ -39,7 +40,7 @@ pub struct PublishOutcome {
     pub version: String,
 }
 
-pub async fn execute(args: &PublishArgs) -> Result<CommandOutput> {
+pub async fn execute(args: &PublishArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let reference = args
         .to
         .strip_prefix(OCI_SCHEME)
@@ -50,7 +51,7 @@ pub async fn execute(args: &PublishArgs) -> Result<CommandOutput> {
     let manifest_json =
         serde_json::to_vec(&signed).context("Bundle manifest is not serialisable")?;
 
-    let secret = resolve_credential(args)?;
+    let secret = resolve_credential(args, ctx)?;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
@@ -69,7 +70,7 @@ pub async fn execute(args: &PublishArgs) -> Result<CommandOutput> {
     Ok(CommandOutput::card_value("Bundle Published", &outcome))
 }
 
-fn resolve_credential(args: &PublishArgs) -> Result<Option<String>> {
+fn resolve_credential(args: &PublishArgs, ctx: &CommandContext) -> Result<Option<String>> {
     if let Some(inline) = args.auth.as_deref() {
         let Some(var) = inline.strip_prefix(ENV_PREFIX) else {
             bail!("--auth must be given as env:VAR so the credential is never a shell argument");
@@ -81,8 +82,10 @@ fn resolve_credential(args: &PublishArgs) -> Result<Option<String>> {
     let Some(name) = args.auth_secret.as_deref() else {
         return Ok(None);
     };
-    let secrets = systemprompt_config::SecretsBootstrap::get()
-        .context("--auth-secret needs an initialised profile")?;
+    let secrets = ctx
+        .secrets()
+        .context("--auth-secret needs an initialised profile")?
+        .get();
     let value = secrets
         .get(name)
         .cloned()

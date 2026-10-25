@@ -10,13 +10,13 @@ use clap::Args;
 use serde::{Deserialize, Serialize};
 
 use systemprompt_cloud::CredentialsBootstrap;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{AccessTokenId, PluginId};
 use systemprompt_oauth::services::JwtSigningParams;
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_users::{UserRepository, UserService};
 
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -55,9 +55,13 @@ pub(super) struct IssuePluginTokenOutput {
     pub token: String,
 }
 
-pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput> {
-    let profile = ProfileBootstrap::get().context("No profile loaded")?;
-    let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
+pub(super) async fn execute(
+    args: IssuePluginTokenArgs,
+    ctx: &CommandContext,
+) -> Result<CommandOutput> {
+    let profile = ctx.profile()?;
+    let boot = ctx.boot()?;
+    let secrets = boot.secrets().get();
 
     if args.duration_days == 0 || args.duration_days > 365 {
         anyhow::bail!(
@@ -93,12 +97,13 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         email: user.email,
     };
 
-    let keys = crate::session::api::load_signing_keys()?;
+    let keys = crate::session::api::load_signing_keys(boot)?;
     let session_id = crate::session::api::create_local_session_row(
         &db_pool,
         &user.id,
         chrono::Duration::days(i64::from(args.duration_days)),
         keys.clone(),
+        boot,
     )
     .await
     .context("Failed to create the session row backing the plugin token")?;

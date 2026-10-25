@@ -18,23 +18,32 @@ use systemprompt_models::artifacts::ListItem;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::WireProtocol;
 
-use super::services_io::{CatalogLocation, catalog_context, commit_catalog};
+use super::services_io::{CatalogLocation, commit_catalog};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 pub async fn apply(
-    config: &CliConfig,
+    ctx: &CommandContext,
     title: &str,
     edit: impl FnOnce(&mut CatalogDocument, &CatalogContext) -> Result<String>,
 ) -> Result<()> {
-    let location = CatalogLocation::active()?;
+    let loaded = ctx.loaded_profile()?;
+    let location = CatalogLocation::active(loaded);
     let before = location.read()?;
     let mut after = before.clone();
-    let message = edit(&mut after, &catalog_context())?;
-    let services = commit_catalog(&location, &after)?;
-    let outcome =
-        super::reconcile::reconcile_authz(&services, &location.dir.display().to_string()).await;
+    let message = edit(
+        &mut after,
+        &systemprompt_loader::services_state::catalog_context(loaded.profile()),
+    )?;
+    let services = commit_catalog(&location, &after, loaded.profile())?;
+    let outcome = super::reconcile::reconcile_authz(
+        ctx.config()?,
+        &services,
+        &location.dir.display().to_string(),
+    )
+    .await;
     render_result(
         &CommandOutput::card_value(
             title,
@@ -43,7 +52,7 @@ pub async fn apply(
                 message: super::reconcile::append_reconcile_notice(message, &outcome),
             },
         ),
-        config,
+        &ctx.cli,
     );
     Ok(())
 }
@@ -56,8 +65,8 @@ pub fn render_list(config: &CliConfig, title: &str, rows: Vec<String>) {
     render_result(&CommandOutput::list(items).with_title(title), config);
 }
 
-pub fn read_active() -> Result<CatalogDocument> {
-    CatalogLocation::active()?.read()
+pub fn read_active(ctx: &CommandContext) -> Result<CatalogDocument> {
+    CatalogLocation::active(ctx.loaded_profile()?).read()
 }
 
 pub fn parse_wire(raw: &str) -> Result<WireProtocol> {

@@ -9,14 +9,13 @@ use crate::presentation::StartupRenderer;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Instant;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{StartupPlan, StartupRequest};
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel};
 
-use super::lifecycle;
+use super::{get_api_port, lifecycle};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServiceTarget {
@@ -143,7 +142,7 @@ async fn run_startup(
                 kill_port_process: options.kill_port_process,
                 run_migrations: false,
             },
-            &ctx.cli,
+            ctx,
             Some(events),
         )
         .await?;
@@ -166,12 +165,7 @@ async fn run_startup(
         events.phase_completed(Phase::McpServers);
     }
 
-    Ok(format!(
-        "http://127.0.0.1:{}",
-        ProfileBootstrap::get().map_or(systemprompt_models::defaults::DEFAULT_API_PORT, |p| p
-            .server
-            .port)
-    ))
+    Ok(format!("http://127.0.0.1:{}", get_api_port(ctx.profile()?)))
 }
 
 pub(super) async fn execute_individual_agent(

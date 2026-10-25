@@ -48,7 +48,7 @@ pub(super) async fn execute(args: TaskArgs, ctx: &CommandContext) -> Result<Comm
         Err(anyhow!("Agent name is required"))
     })?;
 
-    ensure_agent_exists(&agent)?;
+    ensure_agent_exists(&agent, ctx)?;
 
     let task_id = resolve_required(args.task, "task-id", config, || {
         Err(anyhow!("Task ID is required. Use --task-id"))

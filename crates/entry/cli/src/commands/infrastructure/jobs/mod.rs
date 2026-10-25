@@ -50,7 +50,7 @@ pub enum JobsCommands {
 pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         JobsCommands::List => {
-            render_result(&list::execute(), &ctx.cli);
+            render_result(&list::execute(ctx)?, &ctx.cli);
             Ok(())
         },
         JobsCommands::Show(args) => {

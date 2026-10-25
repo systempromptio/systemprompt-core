@@ -19,7 +19,7 @@ use systemprompt_manifest::services::gateway::{ModelGlobs, RouteAlias, RouteDepl
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute};
 
 use super::catalog_edit::{apply, parse_endpoints, read_active, render_list};
-use crate::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum GatewayCommands {
@@ -87,26 +87,26 @@ pub struct RouteAddArgs {
     pub alias: Option<String>,
 }
 
-pub async fn execute(command: &GatewayCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &GatewayCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        GatewayCommands::Route(RouteCommands::List) => list_routes(config),
-        GatewayCommands::Enable => edit(config, |spec| Ok(set_enabled(spec, true))).await,
-        GatewayCommands::Disable => edit(config, |spec| Ok(set_enabled(spec, false))).await,
+        GatewayCommands::Route(RouteCommands::List) => list_routes(ctx),
+        GatewayCommands::Enable => edit(ctx, |spec| Ok(set_enabled(spec, true))).await,
+        GatewayCommands::Disable => edit(ctx, |spec| Ok(set_enabled(spec, false))).await,
         GatewayCommands::Route(RouteCommands::Add(args)) => {
-            edit(config, |spec| add_route(spec, args)).await
+            edit(ctx, |spec| add_route(spec, args)).await
         },
         GatewayCommands::Route(RouteCommands::Remove { id }) => {
-            edit(config, |spec| remove_route(spec, id)).await
+            edit(ctx, |spec| remove_route(spec, id)).await
         },
         GatewayCommands::DefaultModel(DefaultModelCommands::Set { model }) => {
-            edit(config, |spec| {
+            edit(ctx, |spec| {
                 spec.default_model = Some(model.clone());
                 Ok(format!("Gateway default model set to {model}"))
             })
             .await
         },
         GatewayCommands::DefaultModel(DefaultModelCommands::Clear) => {
-            edit(config, |spec| {
+            edit(ctx, |spec| {
                 spec.default_model = None;
                 Ok("Gateway default model cleared".to_owned())
             })
@@ -116,10 +116,10 @@ pub async fn execute(command: &GatewayCommands, config: &CliConfig) -> Result<()
 }
 
 async fn edit(
-    config: &CliConfig,
+    ctx: &CommandContext,
     mutate: impl FnOnce(&mut GatewayConfigSpec) -> Result<String>,
 ) -> Result<()> {
-    apply(config, "Gateway Updated", |document, context| {
+    apply(ctx, "Gateway Updated", |document, context| {
         let message = mutate(spec_mut(document))?;
         document
             .resolve(context)
@@ -171,8 +171,9 @@ pub fn remove_route(spec: &mut GatewayConfigSpec, id: &str) -> Result<String> {
     Ok(format!("Route {id} removed"))
 }
 
-fn list_routes(config: &CliConfig) -> Result<()> {
-    let document = read_active()?;
+fn list_routes(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let document = read_active(ctx)?;
     let rows = document
         .gateway
         .map(|gateway| gateway.routes)

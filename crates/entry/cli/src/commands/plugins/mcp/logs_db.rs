@@ -3,39 +3,45 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use systemprompt_database::DbPool;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::LoggingRepository;
-use systemprompt_runtime::AppContext;
+use systemprompt_manifest::ServicesConfig;
 
 use super::logs::{LogLevel, LogsArgs};
 use super::types::McpLogsOutput;
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
-pub(super) async fn execute_db_mode(args: &LogsArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = Arc::new(
-        AppContext::new()
-            .await
-            .context("Failed to initialize app context")?,
-    );
-    execute_db_mode_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute_db_mode(
+    args: &LogsArgs,
+    ctx: &CommandContext,
+) -> Result<CommandOutput> {
+    let app = ctx
+        .app_context()
+        .await
+        .context("Failed to initialize app context")?;
+    let services = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services config")?;
+    execute_db_mode_with_pool(args, app.db_pool(), &services, &ctx.cli).await
 }
 
 pub async fn execute_db_mode_with_pool(
     args: &LogsArgs,
     pool: &DbPool,
+    services: &ServicesConfig,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
     let repo = LoggingRepository::new(pool);
 
-    let patterns = match &args.server {
-        Some(service) => build_service_patterns(service),
-        None => build_all_mcp_patterns()?,
-    };
+    let patterns = args.server.as_ref().map_or_else(
+        || build_all_mcp_patterns(services),
+        |service| build_service_patterns(service),
+    );
 
     let fetch_limit = if args.level.is_some() {
         (args.lines * 5) as i64
@@ -92,10 +98,8 @@ fn build_service_patterns(service: &str) -> Vec<String> {
     vec![format!("%{}%", service), "%rmcp%".to_owned()]
 }
 
-fn build_all_mcp_patterns() -> Result<Vec<String>> {
-    let services_config = ConfigLoader::load().context("Failed to load services config")?;
-
-    let mut patterns: Vec<String> = services_config
+fn build_all_mcp_patterns(services: &ServicesConfig) -> Vec<String> {
+    let mut patterns: Vec<String> = services
         .mcp_servers
         .keys()
         .flat_map(|name| vec![format!("%{}%", name)])
@@ -104,5 +108,5 @@ fn build_all_mcp_patterns() -> Result<Vec<String>> {
     patterns.push("%rmcp%".to_owned());
     patterns.push("%mcp%".to_owned());
 
-    Ok(patterns)
+    patterns
 }

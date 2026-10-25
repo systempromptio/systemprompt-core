@@ -4,19 +4,19 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::ProfileName;
 
+use super::profile_io::profile_path;
 use super::types::{
     ConfigOverviewOutput, PathsOverview, RateLimitsSummary, RuntimeOverview, SecurityOverview,
     ServerOverview,
 };
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
-pub fn execute(_config: &CliConfig) -> Result<CommandOutput> {
-    let profile = ProfileBootstrap::get()?;
-    let profile_path = ProfileBootstrap::get_path()?;
+pub fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
+    let profile = ctx.profile()?;
+    let profile_path = profile_path(ctx)?;
     let profile_name = ProfileName::try_new(profile.name.as_str()).with_context(|| {
         format!(
             "Profile name '{}' is not a valid profile name",

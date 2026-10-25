@@ -119,7 +119,7 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
             render_result(&result, &ctx.cli);
         },
         ContentCommands::DeleteSource(args) => {
-            let result = delete_source::execute(args, ctx.prompter(), &ctx.cli)
+            let result = delete_source::execute(args, ctx)
                 .await
                 .context("Failed to delete source content")?;
             render_result(&result, &ctx.cli);

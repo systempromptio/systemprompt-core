@@ -8,15 +8,14 @@
 use anyhow::Result;
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::render_current_rules;
-use systemprompt_runtime::AppContext;
 
 use super::ExportYamlArgs;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
-pub(super) async fn run(_args: ExportYamlArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let yaml = render_yaml_snapshot(ctx.db_pool()).await?;
+pub(super) async fn run(_args: ExportYamlArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    let yaml = render_yaml_snapshot(app.db_pool()).await?;
     Ok(CommandOutput::text_titled(
         "Access control (paste into services/access-control/rules.yaml)",
         yaml,

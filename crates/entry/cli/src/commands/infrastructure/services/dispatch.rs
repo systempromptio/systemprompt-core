@@ -83,7 +83,7 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
                     kill_port_process,
                     skip_migrate,
                 },
-                config,
+                ctx,
             )
             .await
         },
@@ -159,7 +159,7 @@ async fn execute_restart(
         restart::execute_all_mcp(app, config).await?
     } else {
         match target {
-            Some(RestartTarget::Api) => restart::execute_api(ctx.prompter(), config).await?,
+            Some(RestartTarget::Api) => restart::execute_api(ctx.prompter(), ctx).await?,
             Some(RestartTarget::Agent { agent }) => {
                 restart::execute_agent(app, &agent, config).await?
             },
@@ -177,8 +177,10 @@ async fn execute_restart(
     Ok(())
 }
 
-pub fn load_service_configs() -> Result<Vec<systemprompt_scheduler::ServiceConfig>> {
-    let services_config = systemprompt_loader::ConfigLoader::load()?;
+pub fn load_service_configs(
+    boot: &systemprompt_loader::BootContext,
+) -> Result<Vec<systemprompt_scheduler::ServiceConfig>> {
+    let services_config = boot.load_services_config()?;
     Ok(systemprompt_scheduler::ServiceConfig::list_from_manifest(
         &services_config,
     ))

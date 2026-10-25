@@ -7,17 +7,16 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::sync::Arc;
 
+use crate::context::CommandContext;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_agent_runs::AgentRunsExtension;
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_models::ai::DynAiProvider;
 use systemprompt_oauth::JwtValidationProviderImpl;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::UsersAiSessionProvider;
 
 #[derive(Debug, Clone, Args)]
@@ -29,18 +28,22 @@ pub struct RunArgs {
     pub port: u16,
 }
 
-pub(super) async fn execute(args: RunArgs) -> Result<()> {
-    let ctx = AppContext::new()
+pub(super) async fn execute(args: RunArgs, cmd: &CommandContext) -> Result<()> {
+    let ctx = cmd
+        .app_context()
         .await
         .context("Failed to bootstrap AppContext for agent subprocess")?;
 
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ctx
+        .boot()
+        .load_services_config()
+        .context("Failed to load services configuration")?;
     let db_pool = Arc::clone(ctx.db_pool());
 
-    let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config(ctx.signing_keys().clone())
-            .context("Failed to create JWT provider")?,
-    );
+    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
+        ctx.config(),
+        ctx.signing_keys().clone(),
+    ));
 
     let agent_state = Arc::new(
         AgentState::new(
@@ -62,6 +65,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         ctx.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
         Arc::clone(ctx.connector_tokens()),
+        Arc::clone(ctx.secrets()),
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
         systemprompt_users::SessionRepository::new(&db_pool),
@@ -70,7 +74,9 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         AiService::new(
             Arc::new(
                 services_config
-                    .resolve_catalog(&systemprompt_loader::services_state::catalog_context())
+                    .resolve_catalog(&systemprompt_loader::services_state::catalog_context(
+                        ctx.profile(),
+                    ))
                     .context("The services catalog does not resolve")?,
             ),
             &services_config.ai,
@@ -78,6 +84,8 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
                 tools: tool_provider,
                 sessions: session_provider,
                 provider_tokens: Arc::clone(ctx.connector_tokens()),
+                secrets: Arc::clone(ctx.secrets()),
+                session_ttl_seconds: ctx.mcp_registry().config().jwt_access_token_expiration,
             },
             ctx.ai_repositories(),
         )

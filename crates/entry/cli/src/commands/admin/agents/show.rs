@@ -7,10 +7,9 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
 use super::types::AgentDetailOutput;
-use crate::CliConfig;
-use crate::interactive::{Prompter, resolve_required};
+use crate::context::CommandContext;
+use crate::interactive::resolve_required;
 use crate::shared::CommandOutput;
-use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -18,12 +17,13 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(super) fn execute(
-    args: ShowArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+pub(super) fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
+    let prompter = ctx.prompter();
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name, "name", config, || {
         super::shared::prompt_agent_selection(prompter, "Select agent", &services_config)

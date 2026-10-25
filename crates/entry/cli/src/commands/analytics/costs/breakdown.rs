@@ -13,7 +13,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use super::{CostBreakdownItem, CostBreakdownOutput};
 use crate::CliConfig;
-use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range};
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -116,9 +116,8 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_to_csv(&output.items, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_to_csv(&output.items, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(breakdown_table(&output.items).with_skip_render());
     }
 

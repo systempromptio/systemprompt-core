@@ -9,11 +9,11 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_loader::ServicesRootBootstrap;
 
-pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
+use crate::context::CommandContext;
+
+pub fn resolve_export_path(user_path: &Path, ctx: &CommandContext) -> Result<PathBuf> {
     if user_path.is_absolute()
         || user_path
             .parent()
@@ -22,17 +22,40 @@ pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
         return Ok(user_path.to_path_buf());
     }
 
-    let profile = ProfileBootstrap::get().context("Profile not initialized")?;
+    let boot = ctx.boot().context("Profile not initialized")?;
+    let profile = boot.profile();
     let paths = AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
-        ServicesRootBootstrap::get().map(|r| r.path.as_path()),
+        boot.services_root().map(|r| r.path.as_path()),
     )
     .map_err(|e| anyhow::anyhow!("Failed to build paths: {}", e))?;
     let exports_dir = paths.storage().exports().to_path_buf();
 
     Ok(exports_dir.join(user_path))
 }
+
+pub fn resolve_export_option(
+    export: Option<PathBuf>,
+    ctx: &CommandContext,
+) -> Result<Option<PathBuf>> {
+    export
+        .map(|path| resolve_export_path(&path, ctx))
+        .transpose()
+}
+
+macro_rules! with_resolved_export {
+    ($args:ident, $ctx:expr) => {{
+        let mut resolved = $args;
+        resolved.export = $crate::commands::analytics::shared::resolve_export_option(
+            resolved.export.take(),
+            $ctx,
+        )?;
+        resolved
+    }};
+}
+
+pub(crate) use with_resolved_export;
 
 pub fn ensure_export_dir(path: &Path) -> Result<()> {
     if let Some(parent) = path.parent()

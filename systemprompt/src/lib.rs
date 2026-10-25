@@ -100,8 +100,7 @@ pub mod logging {
 }
 
 /// Profile / secrets / credentials configuration loaders. Drives the
-/// `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config`
-/// sequence.
+/// `LoadedProfile → SecretsService → BootContext → Config` sequence.
 #[cfg(feature = "config")]
 #[cfg_attr(docsrs, doc(cfg(feature = "config")))]
 pub mod config {

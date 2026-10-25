@@ -11,12 +11,11 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 use systemprompt_identifiers::PluginId;
-use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
@@ -27,8 +26,8 @@ pub struct ValidateArgs {
     pub id: Option<PluginId>,
 }
 
-pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
-    let services_root = &ServicesRootBootstrap::require()?.path;
+pub(super) fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
+    let services_root = &ctx.boot()?.require_services_root().path;
     let plugins_path = services_root.join("plugins");
     let skills_path = services_root.join("skills");
 

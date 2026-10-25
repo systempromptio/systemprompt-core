@@ -17,6 +17,7 @@ use clap::{Args, Subcommand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::commands::analytics::shared::with_resolved_export;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
@@ -99,17 +100,23 @@ pub async fn execute(args: CostsArgs, ctx: &CommandContext) -> Result<()> {
     let db_ctx = ctx.database().await?;
     match args.cmd.unwrap_or(CostsCommands::Summary(args.summary)) {
         CostsCommands::Summary(args) => {
-            let result = summary::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                summary::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         CostsCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         CostsCommands::Breakdown(args) => {
-            let result = breakdown::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                breakdown::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

@@ -8,7 +8,7 @@ use chrono::Duration;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
-use systemprompt_manifest::Config;
+use systemprompt_loader::BootContext;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{SessionAnalytics, SessionProvider, UserProvider};
@@ -16,11 +16,12 @@ use systemprompt_users::{UserRepository, UserService};
 
 pub const DEFAULT_CLI_SESSION_HOURS: i64 = 24;
 
-pub fn load_signing_keys() -> Result<SigningKeys> {
-    let signing_key_path = Config::get()
-        .map(|config| config.signing_key_path.clone())
-        .unwrap_or_default();
-    SigningKeys::resolve(&signing_key_path).context("Failed to load the signing keys")
+pub fn load_signing_keys(boot: &BootContext) -> Result<SigningKeys> {
+    let config = boot
+        .try_init_config(None)
+        .context("Failed to build the configuration for the signing keys")?;
+    SigningKeys::resolve(&config.signing_key_path, boot.secrets())
+        .context("Failed to load the signing keys")
 }
 
 pub async fn create_local_session_row(
@@ -28,13 +29,18 @@ pub async fn create_local_session_row(
     user: &UserId,
     ttl: Duration,
     keys: SigningKeys,
+    boot: &BootContext,
 ) -> Result<SessionId> {
+    let config = Arc::clone(
+        boot.try_init_config(None)
+            .context("Failed to build the configuration for the session service")?,
+    );
     let sessions: Arc<dyn SessionProvider> =
         Arc::new(systemprompt_users::SessionRepository::new(db_pool));
     let user_repository = Arc::new(UserRepository::new(db_pool));
     let users: Arc<dyn UserProvider> = Arc::new(UserService::new(user_repository));
 
-    SessionCreationService::new(sessions, users, keys)
+    SessionCreationService::new(sessions, users, keys, config)
         .create_authenticated_session_with_ttl(
             user,
             &SessionAnalytics::default(),

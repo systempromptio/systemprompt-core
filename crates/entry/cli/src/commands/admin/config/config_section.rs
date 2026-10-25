@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 
 use super::rate_limit_types::ResetChange;
 
@@ -122,32 +122,26 @@ impl ConfigSection {
         ]
     }
 
-    pub fn file_path(self) -> Result<PathBuf> {
-        let profile = ProfileBootstrap::get()?;
+    pub fn file_path(self, loaded: &LoadedProfile) -> PathBuf {
+        let services = Path::new(&loaded.profile().paths.services);
         match self {
-            Self::Ai => Ok(PathBuf::from(&profile.paths.services).join("ai/config.yaml")),
-            Self::Providers => {
-                Ok(PathBuf::from(&profile.paths.services).join(PROVIDERS_FILE_RELATIVE))
-            },
-            Self::Gateway => Ok(PathBuf::from(&profile.paths.services).join(GATEWAY_FILE_RELATIVE)),
-            Self::Content => Ok(PathBuf::from(&profile.paths.services).join("content/config.yaml")),
-            Self::Web => Ok(PathBuf::from(&profile.paths.services).join("web/config.yaml")),
-            Self::Scheduler => {
-                Ok(PathBuf::from(&profile.paths.services).join("scheduler/config.yaml"))
-            },
-            Self::Agents => Ok(PathBuf::from(&profile.paths.services).join("agents/config.yaml")),
-            Self::Mcp => Ok(PathBuf::from(&profile.paths.services).join("mcp/config.yaml")),
-            Self::Skills => Ok(PathBuf::from(&profile.paths.services).join("skills/config.yaml")),
-            Self::Profile => Ok(PathBuf::from(ProfileBootstrap::get_path()?)),
-            Self::Services => Ok(PathBuf::from(&profile.paths.services).join("config/config.yaml")),
+            Self::Ai => services.join("ai/config.yaml"),
+            Self::Providers => services.join(PROVIDERS_FILE_RELATIVE),
+            Self::Gateway => services.join(GATEWAY_FILE_RELATIVE),
+            Self::Content => services.join("content/config.yaml"),
+            Self::Web => services.join("web/config.yaml"),
+            Self::Scheduler => services.join("scheduler/config.yaml"),
+            Self::Agents => services.join("agents/config.yaml"),
+            Self::Mcp => services.join("mcp/config.yaml"),
+            Self::Skills => services.join("skills/config.yaml"),
+            Self::Profile => loaded.path().to_path_buf(),
+            Self::Services => services.join("config/config.yaml"),
         }
     }
 
-    pub fn all_files(self) -> Result<Vec<PathBuf>> {
-        let profile = ProfileBootstrap::get()?;
-        let services_path = PathBuf::from(&profile.paths.services);
-        let profile_path = PathBuf::from(ProfileBootstrap::get_path()?);
-        self.files_under(&services_path, &profile_path)
+    pub fn all_files(self, loaded: &LoadedProfile) -> Result<Vec<PathBuf>> {
+        let services_path = PathBuf::from(&loaded.profile().paths.services);
+        self.files_under(&services_path, loaded.path())
     }
 
     pub fn files_under(self, services_path: &Path, profile_path: &Path) -> Result<Vec<PathBuf>> {

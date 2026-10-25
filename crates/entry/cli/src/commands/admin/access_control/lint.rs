@@ -9,14 +9,13 @@ use std::collections::BTreeSet;
 use anyhow::{Result, anyhow};
 use systemprompt_governance::authz::repository::AccessControlRepository;
 use systemprompt_governance::authz::types::EntityKind;
-use systemprompt_runtime::AppContext;
 
 use super::LintArgs;
-use crate::CliConfig;
+use crate::context::CommandContext;
 
-pub(super) async fn run(_args: LintArgs, _config: &CliConfig) -> Result<(String, bool)> {
-    let ctx = AppContext::new().await?;
-    let repo = AccessControlRepository::new(ctx.db_pool());
+pub(super) async fn run(_args: LintArgs, ctx: &CommandContext) -> Result<(String, bool)> {
+    let app = ctx.app_context().await?;
+    let repo = AccessControlRepository::new(app.db_pool());
 
     let mut report = String::new();
     let mut unknown_total = 0usize;

@@ -10,14 +10,13 @@ use std::path::Path;
 use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::services::config_authoring::{
     AgentCapabilityFlags, AgentCardLinks, AgentConfigAuthoringService, AgentCreateRequest,
     AgentModelChoice, AgentPlacement,
 };
-use systemprompt_config::ProfileBootstrap;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
@@ -40,11 +39,9 @@ struct ResolvedAgentInput {
     system_prompt: String,
 }
 
-pub(super) fn execute(
-    args: CreateArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
+pub(super) fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
+    let prompter = ctx.prompter();
     let mut agent_args = args.agent;
 
     let name = resolve_required(args.name, "name", config, || prompt_name(prompter))?;
@@ -77,7 +74,7 @@ pub(super) fn execute(
     };
     let request = build_create_request(input, args.enabled, agent_args);
 
-    let agent_file = write_agent_config(request)?;
+    let agent_file = write_agent_config(request, ctx)?;
 
     CliService::success(&format!(
         "Agent '{}' created at {}",
@@ -166,8 +163,11 @@ fn build_create_request(
     }
 }
 
-fn write_agent_config(request: AgentCreateRequest) -> Result<std::path::PathBuf> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+fn write_agent_config(
+    request: AgentCreateRequest,
+    ctx: &CommandContext,
+) -> Result<std::path::PathBuf> {
+    let profile = ctx.profile()?;
     let services_dir = Path::new(&profile.paths.services);
     let name = request.name.clone();
 
@@ -176,7 +176,7 @@ fn write_agent_config(request: AgentCreateRequest) -> Result<std::path::PathBuf>
         .create(request)
         .with_context(|| format!("Failed to create agent '{}'", name))?;
 
-    ConfigLoader::load().with_context(|| {
+    ctx.boot()?.load_services_config().with_context(|| {
         format!(
             "Agent file created at {} but validation failed. Please check the configuration.",
             agent_file.display()

@@ -8,14 +8,14 @@ use clap::Args;
 use systemprompt_files::FilePersistenceMode;
 
 use super::types::{AllowedTypesOutput, FileConfigOutput, StoragePathsOutput};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ConfigArgs;
 
-pub(super) fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let files_config = super::load_files_config()?;
+pub(super) fn execute(_args: ConfigArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let files_config = super::load_files_config(ctx)?;
     let upload_config = files_config.upload();
 
     let persistence_mode = match upload_config.persistence_mode {

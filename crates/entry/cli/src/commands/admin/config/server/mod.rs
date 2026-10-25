@@ -12,13 +12,14 @@ mod cors;
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use std::fs;
-use systemprompt_config::ProfileBootstrap;
+
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
+use super::profile_io::profile_path;
 use super::types::{ServerConfigOutput, ServerSetOutput};
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -54,16 +55,17 @@ pub struct SetArgs {
     pub api_external_url: Option<String>,
 }
 
-pub fn execute(command: &ServerCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: &ServerCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        ServerCommands::Show => execute_show(config),
-        ServerCommands::Set(args) => execute_set(args, config),
-        ServerCommands::Cors(cmd) => cors::execute(cmd, config),
+        ServerCommands::Show => execute_show(ctx),
+        ServerCommands::Set(args) => execute_set(args, ctx),
+        ServerCommands::Cors(cmd) => cors::execute(cmd, ctx),
     }
 }
 
-pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
 
     let output = ServerConfigOutput {
         host: profile.server.host.clone(),
@@ -92,7 +94,8 @@ fn change(field: &str, old: String, new: String) -> ServerSetOutput {
     }
 }
 
-pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
+pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     if args.host.is_none()
         && args.port.is_none()
         && args.use_https.is_none()
@@ -106,7 +109,7 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         );
     }
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
 
     let mut changes: Vec<ServerSetOutput> = Vec::new();

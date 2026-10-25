@@ -6,7 +6,6 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ServicesSourceBootstrap;
 use systemprompt_loader::bundle::source::{AnyFetcher, BundleFetcher};
 use systemprompt_loader::bundle::{BundleCache, cache_root};
@@ -53,9 +52,12 @@ pub struct SourceRow {
 }
 
 pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let secrets = SecretsBootstrap::get()
-        .context("Secrets required to resolve the services bundle sources")?;
+    let profile = ctx.profile()?;
+    let secrets = ctx
+        .secrets()
+        .context("Secrets required to resolve the services bundle sources")?
+        .get();
+    let secrets = &*secrets;
     let cache = BundleCache::new(cache_root(profile));
     let before = cache.read_state();
 

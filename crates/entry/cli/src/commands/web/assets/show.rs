@@ -10,11 +10,11 @@ use std::fs;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
-use systemprompt_config::ProfileBootstrap;
 
 use super::super::paths::WebPaths;
 use super::super::types::AssetDetailOutput;
 use super::asset_type::determine_asset_type;
+use systemprompt_loader::BootContext;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -22,9 +22,13 @@ pub struct ShowArgs {
     pub path: String,
 }
 
-pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let web_paths = WebPaths::resolve()?;
+pub(super) fn execute(
+    args: &ShowArgs,
+    _config: &CliConfig,
+    boot: &BootContext,
+) -> Result<CommandOutput> {
+    let web_paths = WebPaths::resolve(boot)?;
+    let profile = boot.profile();
     let assets_dir = &web_paths.assets;
     let asset_path = assets_dir.join(&args.path);
 

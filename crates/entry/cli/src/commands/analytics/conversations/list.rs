@@ -16,7 +16,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use super::{ConversationListOutput, ConversationListRow};
 use crate::CliConfig;
-use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range};
 use crate::shared::CommandOutput;
 
 /// Where a conversation was held. Agent contexts carry A2A tasks; gateway
@@ -145,9 +145,8 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_to_csv(&output.conversations, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_to_csv(&output.conversations, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(
             CommandOutput::table_of(LIST_COLUMNS.to_vec(), &output.conversations)
                 .with_skip_render(),

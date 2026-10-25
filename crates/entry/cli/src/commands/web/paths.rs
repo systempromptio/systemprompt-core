@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use systemprompt_loader::ServicesRootBootstrap;
+use systemprompt_loader::BootContext;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::validators::WebConfigRaw;
 
@@ -20,8 +20,8 @@ pub struct WebPaths {
 }
 
 impl WebPaths {
-    pub fn resolve() -> Result<Self> {
-        Self::resolve_from_services_root(&ServicesRootBootstrap::require()?.path)
+    pub fn resolve(boot: &BootContext) -> Result<Self> {
+        Self::resolve_from_services_root(&boot.require_services_root().path)
     }
 
     pub fn resolve_from_profile(profile: &Profile) -> Result<Self> {

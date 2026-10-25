@@ -9,14 +9,14 @@
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_config::ProfileBootstrap;
+
 use systemprompt_manifest::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 
-use super::profile_io::{load_profile, save_profile};
+use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::ConfigMutationOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -49,10 +49,10 @@ pub struct SetArgs {
     pub acknowledgement: Option<String>,
 }
 
-pub fn execute(command: &GovernanceCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: &GovernanceCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        GovernanceCommands::Show => execute_show(config),
-        GovernanceCommands::Set(args) => execute_set(args, config),
+        GovernanceCommands::Show => execute_show(ctx),
+        GovernanceCommands::Set(args) => execute_set(args, ctx),
     }
 }
 
@@ -66,7 +66,8 @@ fn parse_mode(raw: &str) -> Result<AuthzMode> {
     }
 }
 
-fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
+fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     let mode = parse_mode(&args.mode)?;
 
     if matches!(mode, AuthzMode::Webhook) && args.url.is_none() {
@@ -81,7 +82,7 @@ fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         );
     }
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
     let (audit, quota, unapplied_planes) = profile
         .governance
@@ -118,8 +119,9 @@ fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn execute_show(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+fn execute_show(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
     let summary = profile
         .governance
         .as_ref()

@@ -53,7 +53,7 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     let Some(cmd) = (match ctx.database_context() {
         Some(db_ctx) => dispatch_standalone_migration(cmd, db_ctx, config).await?,
-        None => dispatch_profile_migration(cmd, config).await?,
+        None => dispatch_profile_migration(cmd, ctx).await?,
     }) else {
         return Ok(());
     };

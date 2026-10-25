@@ -15,7 +15,7 @@ use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::DeploymentTarget;
 
 use super::catalog_edit::{apply, parse_clients, parse_endpoints, read_active, render_list};
-use crate::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum ModelCommands {
@@ -53,10 +53,11 @@ pub struct ModelAddArgs {
     pub clients: Option<Vec<String>>,
 }
 
-pub async fn execute(command: &ModelCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &ModelCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     match command {
         ModelCommands::List => {
-            let document = read_active()?;
+            let document = read_active(ctx)?;
             let rows = document
                 .models
                 .iter()
@@ -93,14 +94,14 @@ pub async fn execute(command: &ModelCommands, config: &CliConfig) -> Result<()> 
                 deployments,
                 pricing: None,
             };
-            apply(config, "Model Updated", |document, context| {
+            apply(ctx, "Model Updated", |document, context| {
                 ProviderCatalogService::upsert_model(document, context, spec)?;
                 Ok(format!("Model {} saved", args.id))
             })
             .await
         },
         ModelCommands::Remove { id } => {
-            apply(config, "Model Removed", |document, context| {
+            apply(ctx, "Model Removed", |document, context| {
                 ProviderCatalogService::remove_model(document, context, id)?;
                 Ok(format!("Model {id} removed"))
             })

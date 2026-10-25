@@ -151,8 +151,8 @@ pub(super) async fn execute(
     let config = &cmd_ctx.cli;
     let ctx = Arc::clone(cmd_ctx.app_context().await?);
 
-    let Ok(configs) = super::load_service_configs() else {
-        let mut validator = StartupValidator::new();
+    let Ok(configs) = super::load_service_configs(ctx.boot()) else {
+        let mut validator = StartupValidator::new(ctx.boot().clone())?;
         let report = validator.validate(ctx.config());
         if report.has_errors() {
             display_validation_report(&report);
@@ -211,6 +211,7 @@ async fn mcp_service_statuses(ctx: &Arc<AppContext>) -> Result<Vec<McpServiceSta
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
         Arc::clone(ctx.spawner()),
+        Arc::clone(ctx.secrets()),
     )?;
     Ok(manager.service_statuses().await?)
 }

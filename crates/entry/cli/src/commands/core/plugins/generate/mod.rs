@@ -17,10 +17,9 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::{Path, PathBuf};
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::PluginId;
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_manifest::PluginConfigFile;
 
 use super::types::{PluginGenerateAllOutput, PluginGenerateOutput};
@@ -48,9 +47,10 @@ pub struct PluginGenerateContext<'a> {
     pub output_dir_override: Option<&'a str>,
 }
 
-pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let services_path = ServicesRootBootstrap::require()?.path;
+pub(super) fn execute(args: &GenerateArgs, cmd: &CommandContext) -> Result<CommandOutput> {
+    let boot = cmd.boot()?;
+    let profile = boot.profile();
+    let services_path = boot.require_services_root().path;
     let plugins_path = services_path.join("plugins");
     let skills_path = services_path.join("skills");
 
@@ -84,7 +84,7 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
         .join("storage")
         .join("files")
         .join("plugins");
-    marketplace::generate_marketplace_json(&plugins_path, &plugins_output_path)?;
+    marketplace::generate_marketplace_json(boot, &plugins_path, &plugins_output_path)?;
 
     let install_hint = extract_install_command(profile.site.github_link.as_deref());
 

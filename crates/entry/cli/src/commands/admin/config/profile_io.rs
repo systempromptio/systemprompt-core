@@ -13,6 +13,14 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use systemprompt_manifest::Profile;
 
+use crate::context::CommandContext;
+
+pub(super) fn profile_path(ctx: &CommandContext) -> Result<&str> {
+    let path = ctx.loaded_profile()?.path();
+    path.to_str()
+        .with_context(|| format!("Profile path is not valid UTF-8: {}", path.display()))
+}
+
 pub(super) fn load_profile(path: &str) -> Result<Profile> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read profile: {}", path))?;

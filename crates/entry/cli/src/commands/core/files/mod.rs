@@ -23,23 +23,22 @@ pub mod ai;
 
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
-use systemprompt_loader::ServicesRootBootstrap;
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
-fn load_files_config() -> Result<FilesConfig> {
-    let profile = ProfileBootstrap::get()?;
+fn load_files_config(ctx: &CommandContext) -> Result<FilesConfig> {
+    let boot = ctx.boot()?;
+    let profile = boot.profile();
     let paths = AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
-        ServicesRootBootstrap::get().map(|root| root.path.as_path()),
+        boot.services_root().map(|root| root.path.as_path()),
     )
     .context("Failed to build paths")?;
-    Ok(FilesConfig::from_profile(&paths)?)
+    Ok(FilesConfig::from_profile(profile, &paths)?)
 }
 
 #[derive(Debug, Subcommand)]
@@ -116,12 +115,12 @@ pub async fn execute(cmd: FilesCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         FilesCommands::Validate(args) => {
-            let result = validate::execute(&args, &ctx.cli).context("Failed to validate file")?;
+            let result = validate::execute(&args, ctx).context("Failed to validate file")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Config(args) => {
-            let result = config::execute(args, &ctx.cli).context("Failed to get file config")?;
+            let result = config::execute(args, ctx).context("Failed to get file config")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

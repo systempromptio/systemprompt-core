@@ -35,7 +35,6 @@ use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use clap::Args;
-use systemprompt_config::ProfileBootstrap;
 
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
@@ -65,10 +64,10 @@ pub struct MigrateArgs {
     pub services: Option<PathBuf>,
 }
 
-fn services_dir(args: &MigrateArgs) -> Result<PathBuf> {
+fn services_dir(args: &MigrateArgs, ctx: &CommandContext) -> Result<PathBuf> {
     match args.services.as_ref() {
         Some(dir) => Ok(dir.clone()),
-        None => Ok(PathBuf::from(&ProfileBootstrap::get()?.paths.services)),
+        None => Ok(PathBuf::from(&ctx.profile()?.paths.services)),
     }
 }
 
@@ -102,7 +101,7 @@ fn describe(plan: &MigrationPlan, written: &[PathBuf]) -> String {
 
 pub async fn execute(args: &MigrateArgs, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
-    let services = services_dir(args)?;
+    let services = services_dir(args, ctx)?;
     let pending = plan(&services)?;
     if args.check {
         if roles::pending(&services) {

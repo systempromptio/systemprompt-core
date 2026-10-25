@@ -14,15 +14,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::{ConfigApplyService, ConfigReconcileService, PlanePatch};
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -53,19 +51,19 @@ pub struct ExportArgs {
     pub force: bool,
 }
 
-pub async fn execute(command: SyncCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: SyncCommands, ctx: &CommandContext) -> Result<()> {
     let SyncCommands::Export(args) = command;
-    let ctx = Arc::new(AppContext::new().await?);
+    let app = ctx.app_context().await?;
     let service = ConfigApplyService::new(ConfigReconcileService::from_app_context(
-        &ctx,
-        ConfigReconcileRepository::new(ctx.db_pool()),
+        app,
+        ConfigReconcileRepository::new(app.db_pool()),
     )?);
     let patches = service.export_patches(&args.planes).await?;
     let output = match &args.out {
         Some(dir) => write_patches(&patches, dir, args.force)?,
         None => print_patches(&patches),
     };
-    render_result(&output, config);
+    render_result(&output, &ctx.cli);
     Ok(())
 }
 

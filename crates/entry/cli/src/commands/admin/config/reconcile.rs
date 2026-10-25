@@ -31,10 +31,11 @@ pub(super) enum ReconcileOutcome {
 }
 
 pub(super) async fn reconcile_authz(
+    config: &Config,
     services: &ServicesConfig,
     source_path: &str,
 ) -> ReconcileOutcome {
-    match try_reconcile(services, source_path).await {
+    match try_reconcile(config, services, source_path).await {
         Ok(()) => ReconcileOutcome::Reconciled,
         Err(err) => {
             tracing::warn!(
@@ -57,8 +58,11 @@ pub(super) fn append_reconcile_notice(message: String, outcome: &ReconcileOutcom
     }
 }
 
-async fn try_reconcile(services: &ServicesConfig, source_path: &str) -> anyhow::Result<()> {
-    let cfg = Config::get()?;
+async fn try_reconcile(
+    cfg: &Config,
+    services: &ServicesConfig,
+    source_path: &str,
+) -> anyhow::Result<()> {
     let database: DbPool = Arc::new(
         Database::connect(
             &cfg.database_url,

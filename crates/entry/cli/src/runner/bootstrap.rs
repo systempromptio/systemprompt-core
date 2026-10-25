@@ -4,24 +4,25 @@
 //! initialises secrets, credentials, paths, and config in order, and runs
 //! startup validation before a command executes.
 //!
-//! The services registry is a process-wide `OnceLock`, so the first installer
-//! wins: only the server installs it through boot-time model discovery, and a
-//! plain install there would leave the runtime's discovery pass with nothing
-//! to add to. Every other command installs the plain load.
+//! The boot sequence returns one owned [`BootContext`]: only the server runs
+//! boot-time model discovery, and every other command loads the services
+//! registry as authored.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, SessionStore};
+use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::LogLevel;
-use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };
@@ -32,7 +33,7 @@ use crate::paths::ResolvedPaths;
 use crate::shared::{ProfileSource, ResolvedProfile, resolve_profile_path};
 
 pub(super) struct ProfileContext {
-    pub profile: &'static Profile,
+    pub loaded: Arc<LoadedProfile>,
     pub source: ProfileSource,
     pub is_cloud: bool,
     pub external_db_access: bool,
@@ -46,9 +47,8 @@ pub(super) fn resolve_and_display_profile(
     has_export: bool,
 ) -> Result<ProfileContext> {
     let resolved = resolve_profile(cli_config.profile_override.as_deref(), env)?;
-    init_profile(&resolved.path)?;
-
-    let profile = ProfileBootstrap::get()?;
+    let loaded = crate::boot::load_profile(&resolved.path)?;
+    let profile = loaded.profile();
 
     let banner_requested = cli_config.verbosity >= VerbosityLevel::Verbose;
     let banner_warranted = profile.target.is_cloud();
@@ -66,11 +66,13 @@ pub(super) fn resolve_and_display_profile(
 
     let env = crate::environment::ExecutionEnvironment::from_env(env);
 
+    let is_cloud = profile.target.is_cloud();
+    let external_db_access = profile.database.external_db_access;
     Ok(ProfileContext {
-        profile,
+        loaded,
         source: resolved.source,
-        is_cloud: profile.target.is_cloud(),
-        external_db_access: profile.database.external_db_access,
+        is_cloud,
+        external_db_access,
         env,
         has_export,
     })
@@ -134,12 +136,6 @@ fn resolve_profile_path_by_name(paths: &ResolvedPaths, name: &ProfileName) -> Op
     config_path.exists().then_some(config_path)
 }
 
-fn init_profile(path: &Path) -> Result<()> {
-    ProfileBootstrap::init_from_path(path)
-        .with_context(|| format!("Profile initialization failed from: {}", path.display()))?;
-    Ok(())
-}
-
 pub(super) fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
     let content = std::fs::read_to_string(profile_path).ok()?;
     let profile: Profile = serde_yaml::from_str(&content).ok()?;
@@ -170,49 +166,45 @@ pub(super) async fn init_credentials_gracefully(
     }
 }
 
-pub(super) async fn init_secrets() -> Result<()> {
-    SecretsBootstrap::init()
-        .await
-        .context("Secrets initialization failed")?;
-    Ok(())
+pub(super) async fn init_secrets(profile: &Arc<LoadedProfile>) -> Result<BootContext> {
+    crate::boot::load_boot(profile).await
 }
 
 pub(super) async fn init_paths(
+    boot: &BootContext,
     discover_models: bool,
 ) -> Result<systemprompt_loader::ServicesState> {
-    let profile = ProfileBootstrap::get()?;
-    let secrets = SecretsBootstrap::get()
-        .context("Secrets required to resolve the services bundle sources")?;
-    let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
-        profile,
-        |name| secrets.get(name).cloned(),
-        env!("CARGO_PKG_VERSION"),
-    )
-    .await
-    .context("Failed to resolve the services bundle sources")?;
+    let profile = boot.profile();
+    let active_root = boot
+        .try_resolve_services_root(env!("CARGO_PKG_VERSION"))
+        .await
+        .context("Failed to resolve the services bundle sources")?;
     AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
         Some(active_root.path.as_path()),
     )
     .context("Failed to build paths")?;
-    systemprompt_config::try_init_config(Some(active_root.path.as_path()))
+    boot.try_init_config(Some(active_root.path.as_path()))
         .context("Failed to initialize configuration")?;
     let services = if discover_models {
-        systemprompt_loader::ServicesState::load_with_discovery(|providers| {
-            Box::pin(systemprompt_runtime::discover_vertex_models(providers))
+        let secrets = boot.secrets().get();
+        systemprompt_loader::ServicesState::load_with_discovery(boot, move |providers| {
+            Box::pin(systemprompt_runtime::discover_vertex_models(
+                providers, secrets,
+            ))
         })
         .await
     } else {
-        systemprompt_loader::ServicesState::load()
+        systemprompt_loader::ServicesState::load(boot)
     }
     .context("Failed to load the services configuration")?;
     Ok(services)
 }
 
-pub(super) fn run_validation() -> Result<()> {
-    let mut validator = StartupValidator::new();
-    let report = validator.validate(Config::get()?);
+pub(super) fn run_validation(boot: &BootContext) -> Result<()> {
+    let mut validator = StartupValidator::new(boot.clone())?;
+    let report = validator.validate(boot.config()?);
 
     if report.has_errors() {
         display_validation_report(&report);
@@ -229,14 +221,13 @@ pub(super) fn run_validation() -> Result<()> {
 pub(super) fn validate_cloud_credentials(
     env: &crate::environment::ExecutionEnvironment,
     credentials: Option<&CloudCredentials>,
+    profile: &Profile,
 ) {
     if env.is_remote_cli {
         return;
     }
 
-    let is_local_profile = ProfileBootstrap::get()
-        .ok()
-        .is_none_or(Profile::is_local_trial);
+    let is_local_profile = profile.is_local_trial();
 
     match credentials {
         Some(creds) => {

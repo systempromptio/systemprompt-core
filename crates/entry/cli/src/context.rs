@@ -17,9 +17,11 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::CloudCredentials;
+use systemprompt_config::{LoadedProfile, SecretsService};
 use systemprompt_database::DbPool;
-use systemprompt_loader::ServicesState;
-use systemprompt_runtime::{AppContext, AppContextBuilder, DatabaseContext};
+use systemprompt_loader::{BootContext, ServicesState};
+use systemprompt_manifest::{Config, Profile};
+use systemprompt_runtime::{AppContext, DatabaseContext};
 use tokio::sync::OnceCell;
 
 use crate::cli_settings::CliConfig;
@@ -36,6 +38,8 @@ pub struct CommandContext {
     database_url_override: Option<String>,
     cloud_credentials: Option<CloudCredentials>,
     services: Option<ServicesState>,
+    profile: Option<Arc<LoadedProfile>>,
+    boot: Option<BootContext>,
 }
 
 impl CommandContext {
@@ -51,6 +55,8 @@ impl CommandContext {
             database_url_override: None,
             cloud_credentials: None,
             services: None,
+            profile: None,
+            boot: None,
         }
     }
 
@@ -78,6 +84,45 @@ impl CommandContext {
     }
 
     #[must_use]
+    pub fn with_profile(mut self, profile: Option<Arc<LoadedProfile>>) -> Self {
+        self.profile = profile;
+        self
+    }
+
+    #[must_use]
+    pub fn with_boot(mut self, boot: Option<BootContext>) -> Self {
+        if let Some(boot) = &boot {
+            self.profile = Some(Arc::clone(boot.loaded_profile()));
+        }
+        self.boot = boot;
+        self
+    }
+
+    pub fn loaded_profile(&self) -> Result<&Arc<LoadedProfile>> {
+        self.profile
+            .as_ref()
+            .context("This command requires a profile; pass --profile or run 'systemprompt admin session switch <profile>'")
+    }
+
+    pub fn profile(&self) -> Result<&Profile> {
+        self.loaded_profile().map(|loaded| loaded.profile())
+    }
+
+    pub fn boot(&self) -> Result<&BootContext> {
+        self.boot
+            .as_ref()
+            .context("This command requires the profile secrets to be loaded")
+    }
+
+    pub fn secrets(&self) -> Result<&Arc<SecretsService>> {
+        self.boot().map(BootContext::secrets)
+    }
+
+    pub fn config(&self) -> Result<&Arc<Config>> {
+        Ok(self.boot()?.config()?)
+    }
+
+    #[must_use]
     pub const fn cloud_credentials(&self) -> Option<&CloudCredentials> {
         self.cloud_credentials.as_ref()
     }
@@ -99,6 +144,8 @@ impl CommandContext {
             database_url_override: None,
             cloud_credentials: None,
             services: None,
+            profile: None,
+            boot: None,
         }
     }
 
@@ -114,6 +161,8 @@ impl CommandContext {
             database_url_override: None,
             cloud_credentials: None,
             services: None,
+            profile: None,
+            boot: None,
         }
     }
 
@@ -147,20 +196,26 @@ impl CommandContext {
         if self.db.is_some() {
             bail!("This command requires full profile initialization. Remove --database-url flag.");
         }
+        let boot = self.boot()?.clone();
         self.runtime
             .get_or_try_init(|| async {
                 let mut builder = self
                     .services
                     .clone()
                     .into_iter()
-                    .fold(AppContext::builder(), AppContextBuilder::with_services);
+                    .fold(AppContext::builder(boot), |builder, services| {
+                        builder.with_services(services)
+                    });
                 if let Some(url) = &self.database_url_override {
                     builder = builder.with_database_url(url.clone());
                 }
-                builder.build().await.map(Arc::new)
+                builder
+                    .build()
+                    .await
+                    .map(Arc::new)
+                    .context("Failed to initialize application context")
             })
             .await
-            .context("Failed to initialize application context")
     }
 
     pub async fn db_pool(&self) -> Result<DbPool> {

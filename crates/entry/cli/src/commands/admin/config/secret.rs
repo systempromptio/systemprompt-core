@@ -16,12 +16,12 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_config::{ProfileBootstrap, write_private_atomic};
+use systemprompt_config::write_private_atomic;
 use systemprompt_manifest::profile::SecretsSource;
 
-use super::profile_io::{load_profile, profile_dir};
+use super::profile_io::{load_profile, profile_dir, profile_path};
 use super::types::ConfigMutationOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 const RESERVED: &[&str] = &[
@@ -52,13 +52,14 @@ pub struct SetArgs {
     pub value: String,
 }
 
-pub async fn execute(command: &SecretCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &SecretCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     let args = match command {
         SecretCommands::Set(args) => args,
-        SecretCommands::Check => return super::secret_check::execute(config).await,
+        SecretCommands::Check => return super::secret_check::execute(ctx).await,
     };
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let profile = load_profile(profile_path)?;
     let secrets_config = profile
         .secrets

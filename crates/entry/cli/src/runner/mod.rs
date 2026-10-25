@@ -101,10 +101,14 @@ async fn run_inner(output: &OutputState) -> Result<()> {
 
     let mut credentials = None;
     let mut services = None;
+    let mut profile = None;
+    let mut boot = None;
     if desc.profile() {
         let booted = profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await?;
         let loaded = booted.credentials;
         services = booted.services;
+        profile = booted.profile;
+        boot = booted.boot;
         match booted.outcome {
             profile_routing::BootstrapOutcome::RemoteExecuted => return Ok(()),
             profile_routing::BootstrapOutcome::ExternalDbUrl(external_db_url) => {
@@ -124,7 +128,9 @@ async fn run_inner(output: &OutputState) -> Result<()> {
     let ctx = CommandContext::new(cli_config, env)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
-        .with_services(services);
+        .with_services(services)
+        .with_profile(profile)
+        .with_boot(boot);
     Box::pin(dispatch_command(cli.command, &ctx)).await
 }
 

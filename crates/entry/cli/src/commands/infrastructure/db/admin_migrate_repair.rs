@@ -21,10 +21,10 @@ use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Config;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
@@ -38,8 +38,12 @@ pub(super) struct RepairArgs<'a> {
     pub json: bool,
 }
 
-pub(super) async fn execute_migrate_repair(config: &CliConfig, args: RepairArgs<'_>) -> Result<()> {
-    let sys_config = Config::get()?;
+pub(super) async fn execute_migrate_repair(
+    ctx: &CommandContext,
+    args: RepairArgs<'_>,
+) -> Result<()> {
+    let config = &ctx.cli;
+    let sys_config = ctx.config()?;
     let database = Arc::new(
         Database::connect(
             &sys_config.database_url,

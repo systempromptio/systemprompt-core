@@ -86,7 +86,7 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
                 | AdminCommands::Config(config::ConfigCommands::Migrate(_))
         )
     {
-        return Err(crate::shared::database_scoped_command_error());
+        return Err(crate::shared::database_scoped_command_error(ctx));
     }
 
     match cmd {
@@ -99,7 +99,7 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         AdminCommands::Bootstrap(args) => {
-            let result = bootstrap::execute(args, &ctx.cli).await?;
+            let result = bootstrap::execute(args, ctx).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
