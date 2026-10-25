@@ -13,13 +13,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use systemprompt_ai::repository::{CatalogMigrationRepository, LegacyMapRow};
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::DbPool;
 use systemprompt_governance::authz::AccessControlRepository;
-use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::BridgeHostPrefsRepository;
 
 use super::legacy_map::{LEGACY_MAP_FILE, LegacyMap};
@@ -44,22 +42,6 @@ pub fn read_map(services: &Path) -> Result<LegacyMap> {
         )
     })?;
     serde_yaml::from_str(&text).with_context(|| format!("Failed to parse {}", path.display()))
-}
-
-async fn connect() -> Result<DbPool> {
-    let cfg = Config::get()?;
-    Ok(Arc::new(
-        Database::connect(
-            &cfg.database_url,
-            cfg.database_write_url.as_deref(),
-            &systemprompt_database::PoolConfig::default(),
-        )
-        .await?,
-    ))
-}
-
-pub async fn apply(map: &LegacyMap) -> Result<DataReport> {
-    apply_with(&connect().await?, map).await
 }
 
 pub async fn apply_with(db: &DbPool, map: &LegacyMap) -> Result<DataReport> {

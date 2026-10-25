@@ -39,6 +39,10 @@ impl Commands {
             | Self::Admin(admin::AdminCommands::Users(_))
             | Self::Analytics(_) => DbUrlRouting::Direct,
 
+            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
+                args,
+            ))) if args.services.is_some() => DbUrlRouting::Direct,
+
             _ => DbUrlRouting::Unsupported,
         }
     }

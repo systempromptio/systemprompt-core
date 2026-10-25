@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `config migrate` rewrites `hooks.evaluation` to `hooks.judge` in `plugins/*/config.yaml` (`migrate::hooks`); with `--services` it runs under `--database-url` (`--data` uses the command context's database).
 - `config migrate` writes `route_models` (not `routes`) to `legacy_map.yaml` and no longer writes `gateway.catalog_route_id`; `--data` moves the access rules of a routing-only route and of the catalog route onto their `model/<glob>` entity (`DataReport::route_rules_moved_to_models`). `services refresh` reports `registered` and `deleted` gateway routes only; marketplace access is applied by `config apply`.
 - `admin config planes list` adds an `applied` column and titles the table NOT APPLIED with the `unapplied_planes` mode while any plane was never applied; `cloud doctor` adds a `config-planes` check reporting the mode and whether `governance`, `gateway_policies` and `access_control` are applied.
 

@@ -14,6 +14,8 @@ mod data;
 #[cfg(test)]
 mod golden;
 #[cfg(test)]
+mod hooks;
+#[cfg(test)]
 mod roles;
 #[cfg(test)]
 mod support;

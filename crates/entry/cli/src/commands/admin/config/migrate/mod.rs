@@ -11,7 +11,8 @@
 //! `--check` reports what would change and fails while a migration is pending.
 //! `--data` then moves stored data through the legacy map ([`data`]),
 //! including access rules addressed to a legacy route id. The retired
-//! `access-control/roles.yaml` is folded into `rules.yaml` ([`roles`]).
+//! `access-control/roles.yaml` is folded into `rules.yaml` ([`roles`]), and
+//! the retired plugin `hooks.evaluation` key becomes `hooks.judge` ([`hooks`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +21,7 @@ pub mod abort;
 pub mod data;
 pub mod fold;
 pub mod gateway;
+pub mod hooks;
 pub mod legacy;
 pub mod legacy_map;
 pub mod models;
@@ -37,6 +39,7 @@ use systemprompt_config::ProfileBootstrap;
 
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 pub use plan::{MigrationPlan, legacy_files, plan};
@@ -57,7 +60,7 @@ pub struct MigrateArgs {
 
     #[arg(
         long,
-        help = "services/ directory to migrate (defaults to the active profile's)"
+        help = "services/ directory to migrate (defaults to the active profile's; required with --database-url)"
     )]
     pub services: Option<PathBuf>,
 }
@@ -97,7 +100,8 @@ fn describe(plan: &MigrationPlan, written: &[PathBuf]) -> String {
     lines.join("\n")
 }
 
-pub async fn execute(args: &MigrateArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: &MigrateArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     let services = services_dir(args)?;
     let pending = plan(&services)?;
     if args.check {
@@ -106,6 +110,11 @@ pub async fn execute(args: &MigrateArgs, config: &CliConfig) -> Result<()> {
                 "{} is retired; run `systemprompt admin config migrate` to fold it into {}",
                 roles::ROLES_FILE,
                 systemprompt_governance::authz::rules_file::RULES_FILE
+            );
+        }
+        if hooks::pending(&services) {
+            bail!(
+                "plugin descriptors still say `hooks.evaluation`; run `systemprompt admin config migrate` to rename it to `hooks.judge`"
             );
         }
         let Some(plan) = pending else {
@@ -131,6 +140,16 @@ pub async fn execute(args: &MigrateArgs, config: &CliConfig) -> Result<()> {
             "nothing to migrate: the services tree is already in the 0.73 shape".to_owned(),
         ),
     }
+    for path in hooks::migrate(&services)? {
+        render(
+            config,
+            "Plugin Hooks Migrated",
+            format!(
+                "renamed hooks.evaluation to hooks.judge in {}",
+                path.display()
+            ),
+        );
+    }
     if let Some(rules) = roles::migrate(&services)? {
         render(
             config,
@@ -140,7 +159,7 @@ pub async fn execute(args: &MigrateArgs, config: &CliConfig) -> Result<()> {
     }
     if args.data {
         let map = data::read_map(&services)?;
-        let report = data::apply(&map).await?;
+        let report = data::apply_with(&ctx.db_pool().await?, &map).await?;
         render(
             config,
             "Catalog Data Migrated",
