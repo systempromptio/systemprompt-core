@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Fixed:** `admin config migrate [--check] --services <dir> --database-url <url>` runs: the admin dispatcher's database-scoped gate now lets `config migrate` through instead of refusing it with "requires full profile context".
 - **Breaking:** the `admin config provider` (`ProviderCommands`, `EnableArgs`, `DisableArgs`) and `gateway default-provider` (`DefaultProviderCommands`) command types, their outputs (`ProviderInfo`, `ProviderListOutput`, `ProviderSetOutput`) and `admin::setup::catalog::{build_registry, build_routes}` are removed with the 0.72 catalog editor.
 - `cloud doctor`'s `services-source` check reads the cache's `state.json` and degraded record instead of the process provenance.
 - `core services refresh` reports `Changed` and retries when the composed hash was never reconciled (`outcome_with_pending`); `cloud doctor` gains a `services-source` check.

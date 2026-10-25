@@ -120,6 +120,8 @@ mod time_format_tests;
 
 #[cfg(test)]
 mod config_apply_database_url;
+#[cfg(test)]
+mod config_migrate_database_url;
 #[cfg(all(test, unix))]
 mod coverage_process_flows;
 #[cfg(test)]

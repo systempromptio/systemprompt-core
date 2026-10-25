@@ -29,8 +29,14 @@ RUNG_CLI="$(realpath "${2:?usage: schema-ladder-boot.sh <rung-tag> <rung-cli> <d
 DB_URL="${3:?usage: schema-ladder-boot.sh <rung-tag> <rung-cli> <database-url>}"
 ROOT="$(git rev-parse --show-toplevel)"
 WORK="$(mktemp -d)"
-API_PORT="${LADDER_API_PORT:-18080}"
-MOCK_PORT="${LADDER_MOCK_PORT:-19100}"
+# An explicit LADDER_*_PORT is honoured (and refused when taken); otherwise the
+# kernel picks free ports, so a sibling run or a stray listener cannot clash.
+free_port() {
+    python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])'
+}
+API_PORT="${LADDER_API_PORT:-$(free_port)}"
+MOCK_PORT="${LADDER_MOCK_PORT:-$(free_port)}"
+while [ "$MOCK_PORT" = "$API_PORT" ]; do MOCK_PORT="$(free_port)"; done
 BASE="http://127.0.0.1:$API_PORT"
 SERVER_PID=""
 MOCK_PID=""
