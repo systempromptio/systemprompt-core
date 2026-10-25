@@ -9451,6 +9451,7 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-catalog-fixtures",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",

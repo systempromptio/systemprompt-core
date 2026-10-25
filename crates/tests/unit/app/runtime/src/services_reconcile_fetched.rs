@@ -9,17 +9,18 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use chrono::Utc;
+use systemprompt_catalog_fixtures::vertex_regions;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ActiveServicesRoot, ServicesBootstrap, ServicesProvenance};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::ServicesSource;
-use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::bundle::{
     BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
     ServicesBundleState, SignedBundleManifest,
 };
+use systemprompt_manifest::services::{GatewayState, ServicesConfig};
 use systemprompt_runtime::RuntimeError;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
 use systemprompt_test_fixtures::{DisposableDb, closed_db_pool, ensure_test_bootstrap};
@@ -61,6 +62,18 @@ fn fixture(with_source: bool) -> Fixture {
 
 fn services() -> &'static ServicesConfig {
     ServicesBootstrap::get().expect("bootstrapped services config")
+}
+
+fn services_with_declared_routes() -> ServicesConfig {
+    let document = vertex_regions().document().clone();
+    let spec = document.gateway.expect("the fixture declares a gateway");
+    let mut routed = ServicesConfig::default();
+    routed.credentials = document.credentials;
+    routed.providers = document.providers;
+    routed.models = document.models;
+    routed.deployments = document.deployments;
+    routed.gateway = Some(GatewayState::Resolved(spec.resolve()));
+    routed
 }
 
 fn fetched_root(path: &std::path::Path) -> ActiveServicesRoot {
@@ -186,11 +199,11 @@ async fn a_failed_projection_refuses_the_boot_and_records_nothing() {
         .expect("seed cache state");
     write_manifest(&f.cache, BundleOwnership::default());
     let db: DbPool = closed_db_pool().await;
+    let routed = services_with_declared_routes();
 
-    let err =
-        reconcile_fetched_services(&f.profile, &fetched_root(f.cache.root()), services(), &db)
-            .await
-            .expect_err("a projection that cannot reach the database must refuse the boot");
+    let err = reconcile_fetched_services(&f.profile, &fetched_root(f.cache.root()), &routed, &db)
+        .await
+        .expect_err("a projection that cannot reach the database must refuse the boot");
 
     assert!(
         matches!(err, RuntimeError::ServicesReconcile(_)),
