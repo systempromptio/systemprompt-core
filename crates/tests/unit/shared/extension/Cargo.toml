@@ -15,6 +15,7 @@ xxhash-rust = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-manifest = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }

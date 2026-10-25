@@ -52,10 +52,10 @@ pub use app_context::{
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
     init_services_bootstrap, init_unloadable_services_bootstrap,
-    messaging_config_yaml_with_teams_endpoints, test_messaging_agent, test_skills_root,
-    TestBootstrap, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID,
-    TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
-    TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
+    messaging_config_yaml_with_teams_endpoints, test_boot_profile, test_boot_services_root,
+    test_messaging_agent, test_skills_root, TestBootstrap, TEST_SLACK_BOT_TOKEN,
+    TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD,
+    TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_fixture_system_admin, seed_user_row,
@@ -65,7 +65,7 @@ pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test
 pub use disposable_db::DisposableDb;
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
-pub use jwt::{mint_admin_jwt, mint_bridge_jwt, test_signing_keys};
+pub use jwt::{mint_admin_jwt, mint_bridge_jwt, test_signing_keys, test_token_authority};
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use keystore::install_headless_keystore;
 pub use liveness::LivePids;

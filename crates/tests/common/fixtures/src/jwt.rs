@@ -80,3 +80,12 @@ pub fn mint_bridge_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken 
     let token = encode(&header, &claims, keys.encoding_key()).expect("encode bridge jwt");
     JwtToken::new(token)
 }
+
+pub fn test_token_authority(
+    issuer: &str,
+) -> std::sync::Arc<dyn systemprompt_models::auth::TokenAuthority> {
+    std::sync::Arc::new(systemprompt_security::DeploymentTokenAuthority::new(
+        test_signing_keys(),
+        issuer,
+    ))
+}

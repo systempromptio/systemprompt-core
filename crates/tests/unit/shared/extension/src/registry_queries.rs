@@ -258,6 +258,18 @@ impl ExtensionContext for StubCtx {
     fn background_tasks(&self) -> systemprompt_traits::BackgroundTasks {
         systemprompt_traits::BackgroundTasks::new()
     }
+    fn profile(&self) -> Arc<systemprompt_manifest::Profile> {
+        systemprompt_test_fixtures::test_boot_profile()
+    }
+    fn app_config(&self) -> Arc<systemprompt_manifest::Config> {
+        Arc::clone(systemprompt_test_fixtures::ensure_test_bootstrap().boot_config())
+    }
+    fn services_root(&self) -> std::path::PathBuf {
+        systemprompt_test_fixtures::test_boot_services_root()
+    }
+    fn token_authority(&self) -> Arc<dyn systemprompt_models::auth::TokenAuthority> {
+        systemprompt_test_fixtures::test_token_authority(&self.app_config().jwt_issuer)
+    }
     fn get_extension(&self, _id: &str) -> Option<Arc<dyn Extension>> {
         None
     }

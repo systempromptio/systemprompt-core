@@ -6,13 +6,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_extension::{
     Extension, ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
 };
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::RouteClassifier;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_traits::{
     AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
     FingerprintProvider, UserProvider,
@@ -78,6 +81,22 @@ impl ExtensionContext for AppContext {
         let concrete = Arc::clone(&self.cfg.config);
         let provider: Arc<dyn ConfigProvider> = concrete;
         provider
+    }
+
+    fn profile(&self) -> Arc<Profile> {
+        Arc::new(self.cfg.boot.profile().clone())
+    }
+
+    fn app_config(&self) -> Arc<Config> {
+        Arc::clone(&self.cfg.config)
+    }
+
+    fn services_root(&self) -> PathBuf {
+        self.cfg.boot.require_services_root().path
+    }
+
+    fn token_authority(&self) -> Arc<dyn TokenAuthority> {
+        Self::token_authority(self)
     }
 
     fn database(&self) -> Arc<dyn DatabaseHandle> {

@@ -17,12 +17,23 @@
 //! extension starts after a response is drained by the server's shutdown
 //! instead of being detached through `tokio::spawn`.
 //!
+//! [`ExtensionContext::profile`], [`ExtensionContext::app_config`] and
+//! [`ExtensionContext::services_root`] hand an extension the profile it was
+//! booted from, the resolved runtime configuration and the active services
+//! directory, and [`ExtensionContext::token_authority`] the deployment's
+//! [`TokenAuthority`] for verifying and minting its own JWTs. An extension
+//! never reads the signing keys, the process environment or a global for any
+//! of them.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_manifest::{Config, Profile};
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
 use systemprompt_traits::{
@@ -34,6 +45,14 @@ pub trait ExtensionContext: Send + Sync {
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId;
 
     fn config(&self) -> Arc<dyn ConfigProvider>;
+
+    fn profile(&self) -> Arc<Profile>;
+
+    fn app_config(&self) -> Arc<Config>;
+
+    fn services_root(&self) -> PathBuf;
+
+    fn token_authority(&self) -> Arc<dyn TokenAuthority>;
 
     fn database(&self) -> Arc<dyn DatabaseHandle>;
 

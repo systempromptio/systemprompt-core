@@ -548,3 +548,11 @@ governance:
         api_base_url = api_base_url,
     )
 }
+
+pub fn test_boot_profile() -> std::sync::Arc<systemprompt_manifest::Profile> {
+    std::sync::Arc::new(ensure_test_bootstrap().boot.profile().clone())
+}
+
+pub fn test_boot_services_root() -> PathBuf {
+    ensure_test_bootstrap().boot.require_services_root().path
+}
