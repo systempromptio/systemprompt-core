@@ -20,7 +20,7 @@ use systemprompt_models::ApiPaths;
 
 use super::{
     auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
-    bridge_profile_usage, bridge_release, bridge_stream, bridge_whoami, messages, otel,
+    bridge_profile_usage, bridge_stream, bridge_whoami, messages, otel,
 };
 
 pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
@@ -147,39 +147,6 @@ pub(super) fn bridge_auth_routes(
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_CAPABILITIES),
             get(auth::capabilities),
-        )
-}
-
-pub(super) fn bridge_release_routes(
-    ctx: &AppContext,
-    jwt_extractor: &Arc<JwtContextExtractor>,
-) -> Router {
-    let services_latest = ctx.services_state().clone();
-    let services_download = ctx.services_state().clone();
-    let jwt_latest = Arc::clone(jwt_extractor);
-    let jwt_download = Arc::clone(jwt_extractor);
-    let feed = Arc::new(bridge_release::ReleaseFeed::default());
-    let feed_latest = Arc::clone(&feed);
-    let feed_download = feed;
-
-    Router::new()
-        .route(
-            ApiPaths::gateway_relative(ApiPaths::BRIDGE_LATEST),
-            get(move |headers, query| {
-                let extractor = Arc::clone(&jwt_latest);
-                let feed = Arc::clone(&feed_latest);
-                let services = services_latest.clone();
-                async move { bridge_release::latest(extractor, &services, feed, headers, query).await }
-            }),
-        )
-        .route(
-            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DOWNLOAD_ROUTE),
-            get(move |headers, path| {
-                let extractor = Arc::clone(&jwt_download);
-                let feed = Arc::clone(&feed_download);
-                let services = services_download.clone();
-                async move { bridge_release::download(extractor, &services, feed, headers, path).await }
-            }),
         )
 }
 

@@ -89,7 +89,7 @@ pub struct OpenAiModelsResponse {
 }
 
 pub async fn list(
-    services_state: ServicesState,
+    axum::extract::State(services_state): axum::extract::State<ServicesState>,
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<axum::response::Response, ApiHttpError> {

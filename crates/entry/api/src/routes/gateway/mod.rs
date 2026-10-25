@@ -59,8 +59,7 @@ use systemprompt_traits::AppContext as _;
 
 use self::access_log::log_gateway_request;
 use self::routers::{
-    bridge_auth_routes, bridge_profile_routes, bridge_release_routes, bridge_session_routes,
-    inference_routes, otel_routes,
+    bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes, otel_routes,
 };
 use crate::services::middleware::{
     JtiRevocationChecker, JwtContextExtractor, RateLimitState, RouterExt,
@@ -133,15 +132,12 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
-            .merge(bridge_release_routes(ctx, &jwt_extractor))
+            .merge(bridge_release::routes(ctx, &jwt_extractor))
             .merge(otel_routes(ctx, &jwt_extractor))
-            .route("/models", {
-                let services = ctx.services_state().clone();
-                get(move |headers, query| {
-                    let services = services.clone();
-                    async move { models::list(services, headers, query).await }
-                })
-            })
+            .route(
+                "/models",
+                get(models::list).with_state(ctx.services_state().clone()),
+            )
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
     })

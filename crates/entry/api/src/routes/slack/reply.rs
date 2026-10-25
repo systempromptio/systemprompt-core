@@ -34,7 +34,7 @@ pub(super) fn spawn_reply(
         {
             inbound.sender = workspace_sender(&http, &token, user_id).await;
         }
-        let (text, ephemeral) = match dispatch_messaging(&ctx, inbound.clone()).await {
+        let (text, ephemeral) = match Box::pin(dispatch_messaging(&ctx, inbound.clone())).await {
             Ok(DispatchOutcome::Replied(reply)) => (non_empty(reply), false),
             Ok(DispatchOutcome::Denied(reason)) => (format!("⛔ {reason}"), true),
             Err(err) => {

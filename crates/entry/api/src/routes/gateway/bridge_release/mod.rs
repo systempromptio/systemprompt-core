@@ -19,15 +19,18 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
+use axum::routing::get;
+use axum::{Json, Router};
 use serde::Deserialize;
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_models::ApiPaths;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
+use systemprompt_runtime::AppContext;
 
 mod error;
 mod feed;
@@ -119,4 +122,37 @@ fn releases_spec(services: &ServicesState) -> Result<BridgeReleasesSpec, Release
         .gateway_config()
         .and_then(|g| g.bridge_releases.clone())
         .ok_or(ReleaseError::NotConfigured)
+}
+
+pub(in crate::routes::gateway) fn routes(
+    ctx: &AppContext,
+    jwt_extractor: &Arc<JwtContextExtractor>,
+) -> Router {
+    let services_latest = ctx.services_state().clone();
+    let services_download = ctx.services_state().clone();
+    let jwt_latest = Arc::clone(jwt_extractor);
+    let jwt_download = Arc::clone(jwt_extractor);
+    let feed = Arc::new(ReleaseFeed::default());
+    let feed_latest = Arc::clone(&feed);
+    let feed_download = feed;
+
+    Router::new()
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_LATEST),
+            get(move |headers, query| {
+                let extractor = Arc::clone(&jwt_latest);
+                let feed = Arc::clone(&feed_latest);
+                let services = services_latest.clone();
+                async move { latest(extractor, &services, feed, headers, query).await }
+            }),
+        )
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DOWNLOAD_ROUTE),
+            get(move |headers, path| {
+                let extractor = Arc::clone(&jwt_download);
+                let feed = Arc::clone(&feed_download);
+                let services = services_download.clone();
+                async move { download(extractor, &services, feed, headers, path).await }
+            }),
+        )
 }
