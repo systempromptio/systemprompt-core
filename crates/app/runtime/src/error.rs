@@ -92,6 +92,9 @@ pub enum RuntimeError {
     #[error(transparent)]
     Secrets(#[from] SecretsBootstrapError),
 
+    #[error(transparent)]
+    AtRest(#[from] systemprompt_security::at_rest::AtRestCipherError),
+
     #[error("services config: {0}")]
     ServicesConfig(#[from] ConfigLoadError),
 

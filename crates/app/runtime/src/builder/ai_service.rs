@@ -17,6 +17,7 @@ use systemprompt_security::credential::TokenCache;
 
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_database::DbPool;
+use systemprompt_loader::BootContext;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
@@ -24,6 +25,7 @@ use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 use super::composition::RepositoryBundles;
 
 pub(super) fn build_ai_service(
+    boot: &BootContext,
     database: &DbPool,
     repositories: &RepositoryBundles,
     mcp_registry: &RegistryService,
@@ -36,6 +38,7 @@ pub(super) fn build_ai_service(
         mcp_registry.clone(),
         &services.ai.mcp.resilience,
         Arc::clone(&connector_tokens),
+        Arc::clone(boot.secrets()),
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
         SessionRepository::new(database),
@@ -51,6 +54,8 @@ pub(super) fn build_ai_service(
             tools: tool_provider,
             sessions: session_provider,
             provider_tokens: Arc::clone(&connector_tokens),
+            secrets: Arc::clone(boot.secrets()),
+            session_ttl_seconds: mcp_registry.config().jwt_access_token_expiration,
         },
         &repositories.ai,
     ) {

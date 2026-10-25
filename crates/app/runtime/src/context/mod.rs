@@ -14,6 +14,7 @@ use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
+use systemprompt_config::SecretsService;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{
@@ -24,9 +25,10 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::{FileRepository, FilesConfig};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
+use systemprompt_loader::BootContext;
 use systemprompt_logging::LoggingRuntime;
-use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
@@ -76,6 +78,7 @@ pub struct DataPlane {
 
 #[derive(Clone)]
 pub struct ConfigPlane {
+    pub boot: BootContext,
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
     pub files_config: Arc<FilesConfig>,
@@ -136,13 +139,13 @@ pub struct AppContext {
 }
 
 impl AppContext {
-    pub async fn new() -> RuntimeResult<Self> {
-        Self::builder().build().await
+    pub async fn new(boot: BootContext) -> RuntimeResult<Self> {
+        Self::builder(boot).build().await
     }
 
     #[must_use]
-    pub fn builder() -> AppContextBuilder {
-        AppContextBuilder::new()
+    pub fn builder(boot: BootContext) -> AppContextBuilder {
+        AppContextBuilder::new(boot)
     }
 
     #[must_use]
@@ -176,6 +179,22 @@ impl AppContext {
 
     pub fn config(&self) -> &Config {
         &self.cfg.config
+    }
+
+    pub const fn config_arc(&self) -> &Arc<Config> {
+        &self.cfg.config
+    }
+
+    pub const fn boot(&self) -> &BootContext {
+        &self.cfg.boot
+    }
+
+    pub fn profile(&self) -> &Profile {
+        self.cfg.boot.profile()
+    }
+
+    pub fn secrets(&self) -> &Arc<SecretsService> {
+        self.cfg.boot.secrets()
     }
 
     pub fn content_config(&self) -> Option<&ContentConfigRaw> {

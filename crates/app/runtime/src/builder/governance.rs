@@ -8,12 +8,14 @@ use std::sync::Arc;
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_manifest::Profile;
 use systemprompt_traits::ConfigWatch;
 
 use super::core_layer::{SchemaPolicy, init_extensions};
 use crate::error::RuntimeResult;
 
 pub(super) async fn init_governed_extensions(
+    profile: &Profile,
     registry: Option<ExtensionRegistry>,
     schema: SchemaPolicy,
     migration_config: MigrationConfig,
@@ -23,12 +25,14 @@ pub(super) async fn init_governed_extensions(
     systemprompt_database::SchemaInstallReport,
     ConfigWatch<systemprompt_governance::policy::GovernanceEngine>,
 )> {
-    let (registry, report) = init_extensions(registry, schema, migration_config, database).await?;
-    let governance = ConfigWatch::new(load_governance(database).await?);
+    let (registry, report) =
+        init_extensions(profile, registry, schema, migration_config, database).await?;
+    let governance = ConfigWatch::new(load_governance(profile, database).await?);
     Ok((registry, report, governance))
 }
 
 pub(crate) async fn load_governance(
+    profile: &Profile,
     database: &systemprompt_database::DbPool,
 ) -> Result<
     systemprompt_governance::policy::GovernanceEngine,
@@ -39,10 +43,7 @@ pub(crate) async fn load_governance(
         Some(systemprompt_governance::policy::RateWindowRepository::new(
             database.write_pool().as_ref().clone(),
         )),
-        systemprompt_config::ProfileBootstrap::get().map_or_else(
-            |_| systemprompt_manifest::profile::UnappliedPlaneMode::default(),
-            systemprompt_manifest::Profile::unapplied_plane_mode,
-        ),
+        profile.unapplied_plane_mode(),
     )
     .await
 }

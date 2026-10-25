@@ -25,7 +25,7 @@ use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
-use systemprompt_manifest::Config;
+use systemprompt_loader::BootContext;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::keys::SigningKeys;
@@ -48,8 +48,8 @@ pub(crate) use governance::load_governance;
 /// back to the inventory-registered implementation (or an allow-all filter).
 /// Override these with the `with_*` methods before calling
 /// [`build`](Self::build).
-#[derive(Default)]
 pub struct AppContextBuilder {
+    boot: BootContext,
     extension_registry: Option<ExtensionRegistry>,
     show_startup_warnings: bool,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
@@ -64,6 +64,7 @@ pub struct AppContextBuilder {
 impl std::fmt::Debug for AppContextBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AppContextBuilder")
+            .field("boot", &self.boot)
             .field("extension_registry", &self.extension_registry.is_some())
             .field("show_startup_warnings", &self.show_startup_warnings)
             .field("marketplace_filter", &self.marketplace_filter.is_some())
@@ -83,8 +84,19 @@ impl std::fmt::Debug for AppContextBuilder {
 
 impl AppContextBuilder {
     #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(boot: BootContext) -> Self {
+        Self {
+            boot,
+            extension_registry: None,
+            show_startup_warnings: false,
+            marketplace_filter: None,
+            core: CoreOverrides::default(),
+            schema: SchemaPolicy::default(),
+            migration_config: MigrationConfig::default(),
+            shutdown: None,
+            background_tasks: None,
+            event_router: None,
+        }
     }
 
     #[must_use]
@@ -174,6 +186,10 @@ impl AppContextBuilder {
         self
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the one assembly sequence of the context; splitting it threads a dozen handles through helper signatures"
+    )]
     pub async fn build(self) -> RuntimeResult<AppContext> {
         let CoreLayer {
             config,
@@ -188,9 +204,10 @@ impl AppContextBuilder {
             policy,
             services,
             market,
-        } = init_core(self.core).await?;
+        } = init_core(&self.boot, self.core).await?;
 
         let (extensions, schema_install, governance) = init_governed_extensions(
+            self.boot.profile(),
             self.extension_registry,
             self.schema,
             self.migration_config,
@@ -207,10 +224,15 @@ impl AppContextBuilder {
 
         let analytics = content.analytics_repositories;
         let (repositories, user_service, system_admin, mcp_registry) =
-            build_domain_layer(&config, &database, analytics, policy, &services).await?;
+            build_domain_layer(&self.boot, &database, analytics, policy, &services).await?;
 
-        let (ai_service, connector_tokens) =
-            ai_service::build_ai_service(&database, &repositories, &mcp_registry, &services);
+        let (ai_service, connector_tokens) = ai_service::build_ai_service(
+            &self.boot,
+            &database,
+            &repositories,
+            &mcp_registry,
+            &services,
+        );
         let plugins = new_plugins(extensions, mcp_registry, self.marketplace_filter, &market);
         let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let subsystems = Subsystems {
@@ -244,6 +266,7 @@ impl AppContextBuilder {
                 repositories,
             ),
             ConfigPlane {
+                boot: self.boot,
                 config,
                 app_paths,
                 files_config,
@@ -265,7 +288,7 @@ fn build_artifact_ingest(
 }
 
 async fn build_domain_layer(
-    config: &Config,
+    boot: &BootContext,
     database: &systemprompt_database::DbPool,
     analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     policy: systemprompt_marketplace::managed::PublicationPolicy,
@@ -276,19 +299,25 @@ async fn build_domain_layer(
     Arc<systemprompt_manifest::SystemAdmin>,
     RegistryService,
 )> {
+    let config = boot.config()?;
     let mut repositories = build_repositories(
         database,
         analytics_repositories,
         config.instance_id.clone(),
         policy,
-    );
+        &boot.secrets().get(),
+    )?;
     let user_service = Arc::new(
         UserService::new(Arc::clone(&repositories.users))
             .with_owner_reassignments(owner_reassignments(database)),
     );
     let system_admin = assembly::load_system_admin(config, &user_service).await?;
     repositories.install_organization_resolver(system_admin.id());
-    let mcp_registry = RegistryService::new(system_admin.id().clone(), services.view());
+    let mcp_registry = RegistryService::new(
+        system_admin.id().clone(),
+        services.view(),
+        Arc::clone(config),
+    );
     ensure_legacy_context(&repositories, &system_admin).await?;
     Ok((repositories, user_service, system_admin, mcp_registry))
 }

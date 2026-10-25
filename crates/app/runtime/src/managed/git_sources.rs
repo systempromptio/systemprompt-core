@@ -6,7 +6,9 @@
 use std::path::PathBuf;
 
 use super::OrchestrationError;
-use systemprompt_config::SecretsBootstrap;
+use std::sync::Arc;
+
+use systemprompt_config::SecretsService;
 use systemprompt_identifiers::{ManagedSourceId, UserId};
 use systemprompt_marketplace::managed::{
     GitSyncRequest, GitSyncResult, ManagedRepository, SourceSpec,
@@ -16,13 +18,19 @@ use systemprompt_marketplace::managed::{
 pub struct GitSourceOrchestrator {
     managed: ManagedRepository,
     scratch_root: PathBuf,
+    secrets: Arc<SecretsService>,
 }
 
 impl GitSourceOrchestrator {
-    pub const fn new(managed: ManagedRepository, scratch_root: PathBuf) -> Self {
+    pub const fn new(
+        managed: ManagedRepository,
+        scratch_root: PathBuf,
+        secrets: Arc<SecretsService>,
+    ) -> Self {
         Self {
             managed,
             scratch_root,
+            secrets,
         }
     }
 
@@ -53,8 +61,7 @@ impl GitSourceOrchestrator {
                 credential_reference: Some(reference),
                 ..
             } => {
-                let secrets =
-                    SecretsBootstrap::get().map_err(OrchestrationError::CredentialsUnavailable)?;
+                let secrets = self.secrets.get();
                 let credential = secrets
                     .get(&reference)
                     .filter(|value| !value.is_empty())

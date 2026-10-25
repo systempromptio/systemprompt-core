@@ -13,8 +13,6 @@ pub mod inventory;
 pub enum OrchestrationError {
     #[error(transparent)]
     Managed(#[from] systemprompt_marketplace::managed::ManagedError),
-    #[error("Git credentials are unavailable: {0}")]
-    CredentialsUnavailable(#[source] systemprompt_config::SecretsBootstrapError),
     #[error("Git credential reference is unresolved")]
     CredentialUnresolved,
     #[error("Operation requires a registered Git source")]

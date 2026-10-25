@@ -54,6 +54,7 @@ impl std::fmt::Debug for DataPlane {
 impl std::fmt::Debug for ConfigPlane {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ConfigPlane")
+            .field("boot", &self.boot)
             .field("config", &"Config")
             .field("app_paths", &"AppPaths")
             .field("files_config", &self.files_config)

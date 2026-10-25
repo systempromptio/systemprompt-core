@@ -10,6 +10,7 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_security::at_rest::AtRestCipher;
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
@@ -88,21 +89,26 @@ pub(super) fn build_repositories(
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     instance_id: systemprompt_identifiers::InstanceId,
     publication: systemprompt_marketplace::managed::PublicationPolicy,
-) -> RepositoryBundles {
+    secrets: &systemprompt_manifest::secrets::Secrets,
+) -> RuntimeResult<RepositoryBundles> {
+    let cipher = AtRestCipher::from_secrets(secrets)?;
+    let pepper: Arc<str> = Arc::from(secrets.oauth_at_rest_pepper.as_str());
     let session_store = Arc::clone(&analytics.session_store);
     let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
     let managed = Arc::new(
         systemprompt_marketplace::managed::ManagedRepository::new(database)
             .with_publication_policy(publication),
     );
-    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database));
+    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(
+        database, cipher,
+    ));
     let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
         systemprompt_mcp::repository::ToolUsageRepository::new(database),
     );
     let managed_resolver: systemprompt_traits::DynManagedSkillResolver = Arc::new(
         systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.as_ref().clone()),
     );
-    RepositoryBundles {
+    Ok(RepositoryBundles {
         a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
             database,
             systemprompt_agent::repository::A2aDependencies {
@@ -116,7 +122,7 @@ pub(super) fn build_repositories(
             database,
         )),
         oauth: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
-            database,
+            database, pepper,
         )),
         users: Arc::new(systemprompt_users::UserRepository::new(database)),
         services: Arc::new(systemprompt_database::ServiceRepository::new(
@@ -134,7 +140,7 @@ pub(super) fn build_repositories(
             database,
         )),
         managed,
-    }
+    })
 }
 
 pub fn owner_reassignments(database: &DbPool) -> Vec<systemprompt_traits::DynOwnerReassignment> {

@@ -76,7 +76,7 @@ impl AppContext {
     }
 
     pub async fn load_governance(&self) -> Result<GovernanceEngine, GovernanceEngineError> {
-        crate::builder::load_governance(self.db_pool()).await
+        crate::builder::load_governance(self.profile(), self.db_pool()).await
     }
 
     #[must_use]

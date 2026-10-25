@@ -23,7 +23,6 @@
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{
     Database, MigrationConfig, SchemaInstallReport, install_extension_schemas_full,
     validate_write_pool_is_primary,
@@ -31,7 +30,7 @@ use systemprompt_database::{
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
-use systemprompt_loader::ServicesState;
+use systemprompt_loader::{ActiveServicesRoot, BootContext, ServicesState};
 use systemprompt_manifest::{Config, Profile};
 
 use systemprompt_security::keys::SigningKeys;
@@ -56,15 +55,18 @@ pub(super) struct CoreLayer {
 }
 
 async fn init_services(
-    secrets: &systemprompt_manifest::secrets::Secrets,
+    boot: &BootContext,
     provided: Option<ServicesState>,
 ) -> RuntimeResult<ServicesState> {
-    let state = match provided {
-        Some(state) => state,
-        None => {
-            ServicesState::load_with_discovery(|catalog| Box::pin(discover_vertex_models(catalog)))
-                .await?
-        },
+    let secrets = boot.secrets().get();
+    let state = if let Some(state) = provided {
+        state
+    } else {
+        let lookup_secrets = Arc::clone(&secrets);
+        ServicesState::load_with_discovery(boot, move |catalog| {
+            Box::pin(discover_vertex_models(catalog, lookup_secrets))
+        })
+        .await?
     };
     if let Some(gateway) = state.config().gateway_config() {
         for reference in gateway.unresolved_secret_refs(|name| secrets.get(name).is_some()) {
@@ -78,29 +80,24 @@ async fn init_services(
 }
 
 async fn resolve_services_root(
-    profile: &Profile,
-    secrets: &systemprompt_manifest::secrets::Secrets,
-) -> RuntimeResult<(
-    &'static systemprompt_loader::ActiveServicesRoot,
-    Arc<AppPaths>,
-)> {
-    let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
-        profile,
-        |name| secrets.get(name).cloned(),
-        env!("CARGO_PKG_VERSION"),
-    )
-    .await?;
+    boot: &BootContext,
+) -> RuntimeResult<(ActiveServicesRoot, Arc<AppPaths>)> {
+    let active_root = boot
+        .try_resolve_services_root(env!("CARGO_PKG_VERSION"))
+        .await?
+        .clone();
+    let profile = boot.profile();
     let app_paths = Arc::new(AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
         Some(active_root.path.as_path()),
     )?);
-    systemprompt_config::try_init_config(Some(active_root.path.as_path()))?;
+    boot.try_init_config(Some(active_root.path.as_path()))?;
     Ok((active_root, app_paths))
 }
 
-fn init_files_config(app_paths: &AppPaths) -> RuntimeResult<Arc<FilesConfig>> {
-    let files_config = FilesConfig::from_profile(app_paths)?;
+fn init_files_config(profile: &Profile, app_paths: &AppPaths) -> RuntimeResult<Arc<FilesConfig>> {
+    let files_config = FilesConfig::from_profile(profile, app_paths)?;
     files_config.validate()?;
     files_config.ensure_storage_structure()?;
     Ok(Arc::new(files_config))
@@ -114,34 +111,40 @@ pub(super) struct CoreOverrides {
     pub services: Option<ServicesState>,
 }
 
-pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLayer> {
+pub(super) async fn init_core(
+    boot: &BootContext,
+    overrides: CoreOverrides,
+) -> RuntimeResult<CoreLayer> {
     let CoreOverrides {
         authz_hook: authz_hook_override,
         signing_keys: signing_keys_override,
         database_url: database_url_override,
         services: services_provided,
     } = overrides;
-    let profile = ProfileBootstrap::get()?;
-    let secrets = SecretsBootstrap::get()?;
-    let (active_root, app_paths) = resolve_services_root(profile, secrets).await?;
-    let files_config = init_files_config(&app_paths)?;
-    let services = init_services(secrets, services_provided).await?;
+    let profile = boot.profile();
+    let secrets = boot.secrets().get();
+    let (active_root, app_paths) = resolve_services_root(boot).await?;
+    let files_config = init_files_config(profile, &app_paths)?;
+    let services = init_services(boot, services_provided).await?;
     let services_config = services.config();
-    let mut config = Config::get()?.clone();
-    if let Some(url) = database_url_override {
-        config.database_url = url;
-        config.database_write_url = None;
-        config.database_session_url = None;
-    }
-    let config = Arc::new(config);
+    let config = match database_url_override {
+        Some(url) => {
+            let mut config = Config::clone(boot.config()?);
+            config.database_url = url;
+            config.database_write_url = None;
+            config.database_session_url = None;
+            Arc::new(config)
+        },
+        None => Arc::clone(boot.config()?),
+    };
     let instance_id = config.instance_id.clone();
     let file_storage =
-        crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, secrets)
+        crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, &secrets)
             .await?;
 
     let signing_keys = match signing_keys_override {
         Some(keys) => keys,
-        None => SigningKeys::resolve(&config.signing_key_path)?,
+        None => SigningKeys::resolve(&config.signing_key_path, boot.secrets())?,
     };
 
     let database = connect_database(profile, &config).await?;
@@ -150,7 +153,7 @@ pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLay
 
     crate::services_reconcile::reconcile_fetched_services(
         profile,
-        active_root,
+        &active_root,
         &services_config,
         &database,
     )
@@ -193,13 +196,8 @@ pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLay
 
 pub async fn discover_vertex_models(
     catalog: &mut systemprompt_manifest::services::catalog::CatalogDocument,
+    secrets: Arc<systemprompt_manifest::secrets::Secrets>,
 ) -> systemprompt_manifest::services::DiscoveryReport {
-    use systemprompt_manifest::services::DiscoveryReport;
-
-    let Ok(secrets) = SecretsBootstrap::get() else {
-        tracing::warn!("secret store unavailable; skipping Vertex model discovery");
-        return DiscoveryReport::default();
-    };
     let lookup = |name: &str| secrets.get(name).cloned();
     systemprompt_loader::vertex_discovery::discover(
         catalog,
@@ -222,6 +220,7 @@ pub(super) struct SchemaPolicy {
 }
 
 pub(super) async fn init_extensions(
+    profile: &Profile,
     extension_registry: Option<ExtensionRegistry>,
     schema: SchemaPolicy,
     migration_config: MigrationConfig,
@@ -237,12 +236,11 @@ pub(super) async fn init_extensions(
         let report =
             install_extension_schemas_full(&registry, database.session(), &[], migration_config)
                 .await?;
-        crate::schema_currency::refuse_breaking(&report.ahead, ProfileBootstrap::get()?)?;
+        crate::schema_currency::refuse_breaking(&report.ahead, profile)?;
         crate::schema_currency::warn_ahead(&report.ahead);
         database.mark_schema_changed();
         report
     } else if schema.verify {
-        let profile = ProfileBootstrap::get()?;
         let ahead =
             crate::schema_currency::assert_schema_current(&registry, database.write(), profile)
                 .await?;
