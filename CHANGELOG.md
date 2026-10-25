@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Fixed:** `scripts/lint-serde-aliases.sh` no longer aborts with `allowed: unbound variable` on bash 5.1/5.2 when the allowlist is empty (an install with no aliases).
 - **Fixed:** the services bundle bootstrap load-validates the composed tree before it swaps `current` or writes `state.json`. A kit the binary cannot parse (the real case: a plugin descriptor still saying `hooks.evaluation`) is refused with the kit names and the loader's file, line and rule, and `on_fetch_failure` then serves the last good tree, then the bundled one. `/readyz` (`config.services_source`), `/health` (`services_source`, status `degraded`) and `cloud doctor` report the degraded source. `core services refresh` treats a composition whose reconcile never completed as changed, so a failed reconcile is retried instead of reporting `changed: false` forever.
 - **Fixed:** **Upgrade:** `admin config apply --database-url <url>` applies against that database and keeps the rest of the profile context (`AppContextBuilder::with_database_url`; the profile's write and session URLs are dropped). `admin config migrate --database-url <url>` requires `--services <dir>`, since without it the services directory comes from the profile.
 - **Fixed:** `admin config migrate` renames a plugin descriptor's retired `hooks.evaluation` to `hooks.judge` (comments kept) instead of leaving a tree the loader refuses, and `--check` reports it pending. It honours `--database-url` when `--services` names the tree: `--data` then runs against that database.

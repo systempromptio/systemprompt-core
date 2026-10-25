@@ -61,6 +61,8 @@ mod extension_loader;
 #[cfg(test)]
 mod extension_loader_extra;
 #[cfg(test)]
+mod lint_serde_aliases_script;
+#[cfg(test)]
 mod module_loader;
 #[cfg(test)]
 mod profile_loader;

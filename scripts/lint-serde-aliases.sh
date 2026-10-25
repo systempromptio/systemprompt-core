@@ -28,7 +28,7 @@ if [ "${#roots[@]}" -eq 0 ]; then
     roots=("$root/crates" "$root/systemprompt/src" "$root/bin/bridge/src")
 fi
 
-declare -A allowed
+declare -A allowed=()
 while IFS= read -r line; do
     line="${line%%#*}"
     line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
