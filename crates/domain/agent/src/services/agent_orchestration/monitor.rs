@@ -16,6 +16,7 @@ use tokio::time::timeout;
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::OrchestrationResult;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
+use systemprompt_loader::ServicesState;
 
 #[derive(Debug)]
 pub struct AgentMonitor {
@@ -23,10 +24,11 @@ pub struct AgentMonitor {
 }
 
 impl AgentMonitor {
-    pub fn new(agent_service_repo: AgentServiceRepository) -> OrchestrationResult<Self> {
-        let db_service = AgentDatabaseService::new(agent_service_repo)?;
-
-        Ok(Self { db_service })
+    #[must_use]
+    pub fn new(agent_service_repo: AgentServiceRepository, services: &ServicesState) -> Self {
+        Self {
+            db_service: AgentDatabaseService::new(agent_service_repo, services),
+        }
     }
 
     #[must_use]

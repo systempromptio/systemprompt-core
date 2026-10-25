@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_loader::ServicesState;
 use systemprompt_traits::{AgentInfo, AgentRegistryProvider, RegistryError, ServiceOAuthConfig};
 
 use super::registry::AgentRegistry;
@@ -14,10 +15,11 @@ pub struct AgentRegistryProviderService {
 }
 
 impl AgentRegistryProviderService {
-    pub fn new() -> Result<Self, RegistryError> {
-        let registry = AgentRegistry::new().map_err(|e| RegistryError::Unavailable(e.into()))?;
-
-        Ok(Self { registry })
+    #[must_use]
+    pub fn new(services: &ServicesState) -> Self {
+        Self {
+            registry: AgentRegistry::new(services),
+        }
     }
 
     pub const fn from_registry(registry: AgentRegistry) -> Self {

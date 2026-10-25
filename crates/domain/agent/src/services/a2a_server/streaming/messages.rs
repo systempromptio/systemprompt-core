@@ -50,7 +50,8 @@ pub struct StreamRejected;
 pub async fn create_sse_stream(
     params: CreateSseStreamParams,
 ) -> Result<ReceiverStream<Event>, StreamRejected> {
-    create_sse_stream_with_registry(params, AgentRegistry::new()).await
+    let registry = AgentRegistry::new(params.state.agent_state.services());
+    create_sse_stream_with_registry(params, Ok(registry)).await
 }
 
 pub async fn create_sse_stream_with_registry(

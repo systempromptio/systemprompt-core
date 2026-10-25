@@ -28,7 +28,11 @@ pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> i
         |c| c.api_external_url.clone(),
     );
 
-    agent_card_response(AgentRegistry::new(), &agent_name, &base_url)
+    agent_card_response(
+        Ok(AgentRegistry::new(state.agent_state.services())),
+        &agent_name,
+        &base_url,
+    )
 }
 
 pub fn agent_card_response(

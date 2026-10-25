@@ -15,6 +15,7 @@ use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
 use crate::services::registry::AgentRegistry;
 use systemprompt_identifiers::AgentName;
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::{AgentConfig, ServiceStatus};
 use systemprompt_traits::RepositoryError;
 
@@ -25,13 +26,12 @@ pub struct AgentDatabaseService {
 }
 
 impl AgentDatabaseService {
-    pub fn new(repository: AgentServiceRepository) -> OrchestrationResult<Self> {
-        let registry = AgentRegistry::new().map_err(OrchestrationError::Registry)?;
-
-        Ok(Self {
+    #[must_use]
+    pub fn new(repository: AgentServiceRepository, services: &ServicesState) -> Self {
+        Self {
             repository,
-            registry,
-        })
+            registry: AgentRegistry::new(services),
+        }
     }
 
     #[must_use]

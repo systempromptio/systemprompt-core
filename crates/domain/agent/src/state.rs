@@ -7,6 +7,7 @@
 
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_loader::ServicesState;
 use systemprompt_manifest::Config;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{DynAgentRunLauncher, DynJwtValidationProvider};
@@ -36,6 +37,7 @@ pub struct AgentState {
     auth: AgentAuth,
     repositories: Arc<A2ARepositories>,
     webhooks: DynWebhookBroadcaster,
+    services: ServicesState,
     agent_run_launcher: Option<DynAgentRunLauncher>,
 }
 
@@ -47,6 +49,7 @@ impl AgentState {
         auth: AgentAuth,
         repositories: Arc<A2ARepositories>,
         webhooks: DynWebhookBroadcaster,
+        services: ServicesState,
     ) -> Self {
         Self {
             db_pool,
@@ -54,6 +57,7 @@ impl AgentState {
             auth,
             repositories,
             webhooks,
+            services,
             agent_run_launcher: None,
         }
     }
@@ -90,6 +94,11 @@ impl AgentState {
     }
 
     #[must_use]
+    pub const fn services(&self) -> &ServicesState {
+        &self.services
+    }
+
+    #[must_use]
     pub const fn repositories(&self) -> &Arc<A2ARepositories> {
         &self.repositories
     }
@@ -108,6 +117,7 @@ impl std::fmt::Debug for AgentState {
             .field("auth", &"<AgentAuth>")
             .field("repositories", &"<A2ARepositories>")
             .field("webhooks", &self.webhooks)
+            .field("services", &self.services)
             .field("agent_run_launcher", &self.agent_run_launcher.is_some())
             .finish()
     }

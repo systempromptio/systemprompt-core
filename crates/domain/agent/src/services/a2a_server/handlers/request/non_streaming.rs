@@ -203,6 +203,7 @@ async fn send_message(
         Arc::clone(state.agent_state.repositories()),
         Arc::clone(&state.ai_service),
         state.agent_state.webhooks(),
+        state.agent_state.services().clone(),
     )?;
 
     let mut task = message_processor

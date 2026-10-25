@@ -39,7 +39,7 @@ impl MessageHandler {
         context: &RequestContext,
         active_tasks: &ActiveTasks,
     ) -> Result<Task> {
-        let agent_runtime = Self::load_agent_runtime(agent_name)?;
+        let agent_runtime = self.load_agent_runtime(agent_name)?;
         self.handle_message_with_runtime(HandleMessageParams {
             message,
             agent_runtime: &agent_runtime,

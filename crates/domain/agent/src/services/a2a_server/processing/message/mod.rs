@@ -21,6 +21,7 @@ pub use stream_service::StreamService;
 
 use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
+use systemprompt_loader::ServicesState;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -98,6 +99,7 @@ pub struct MessageHandler {
     execution_step_repo: Arc<ExecutionStepRepository>,
     publishing: ArtifactPublishingService,
     webhooks: DynWebhookBroadcaster,
+    services: ServicesState,
 }
 
 impl std::fmt::Debug for MessageHandler {
@@ -113,6 +115,7 @@ impl MessageHandler {
         repositories: Arc<A2ARepositories>,
         ai_service: DynAiProvider,
         webhooks: DynWebhookBroadcaster,
+        services: ServicesState,
     ) -> Result<Self> {
         let context_service = ContextService::new(repositories.tasks.clone());
         let execution_step_repo = Arc::new(repositories.execution_steps.clone());
@@ -131,6 +134,7 @@ impl MessageHandler {
             execution_step_repo,
             publishing,
             webhooks,
+            services,
         })
     }
 
@@ -139,10 +143,10 @@ impl MessageHandler {
         Arc::clone(&self.webhooks)
     }
 
-    pub fn load_agent_runtime(agent_name: &AgentName) -> Result<AgentRuntimeInfo> {
+    pub fn load_agent_runtime(&self, agent_name: &AgentName) -> Result<AgentRuntimeInfo> {
         use crate::services::registry::AgentRegistry;
 
-        let registry = AgentRegistry::new()?;
+        let registry = AgentRegistry::new(&self.services);
         let agent_config = registry.get_agent(agent_name.as_str())?;
 
         Ok(agent_config.into())

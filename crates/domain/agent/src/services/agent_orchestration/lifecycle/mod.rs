@@ -15,6 +15,7 @@ mod verification;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::AgentName;
+use systemprompt_loader::ServicesState;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_traits::StartupEventSender;
 
@@ -34,14 +35,13 @@ impl AgentLifecycle {
         agent_service_repo: AgentServiceRepository,
         app_paths: Arc<AppPaths>,
         spawner: Arc<Spawner>,
-    ) -> OrchestrationResult<Self> {
-        let db_service = AgentDatabaseService::new(agent_service_repo)?;
-
-        Ok(Self {
-            db_service,
+        services: &ServicesState,
+    ) -> Self {
+        Self {
+            db_service: AgentDatabaseService::new(agent_service_repo, services),
             app_paths,
             spawner,
-        })
+        }
     }
 }
 
@@ -49,10 +49,11 @@ pub async fn start_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
     spawner: Arc<Spawner>,
+    services: &ServicesState,
     agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner)?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner, services);
     lifecycle.start_agent(agent_name, events).await
 }
 
@@ -60,10 +61,11 @@ pub async fn enable_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
     spawner: Arc<Spawner>,
+    services: &ServicesState,
     agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner)?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner, services);
     lifecycle.enable_agent(agent_name, events).await
 }
 
@@ -71,9 +73,10 @@ pub async fn disable_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
     spawner: Arc<Spawner>,
+    services: &ServicesState,
     agent_name: &AgentName,
 ) -> OrchestrationResult<()> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner)?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner, services);
     lifecycle.disable_agent(agent_name).await
 }
 
@@ -81,9 +84,10 @@ pub async fn restart_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
     spawner: Arc<Spawner>,
+    services: &ServicesState,
     agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner)?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths, spawner, services);
     lifecycle.restart_agent(agent_name, events).await
 }

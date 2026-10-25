@@ -95,7 +95,7 @@ impl Server {
     ) -> Result<Self, crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
-        let registry = AgentRegistry::new()?;
+        let registry = AgentRegistry::new(agent_state.services());
         let mut config = registry.get_agent(agent_name.as_str())?;
 
         config.extract_oauth_scopes_from_card();

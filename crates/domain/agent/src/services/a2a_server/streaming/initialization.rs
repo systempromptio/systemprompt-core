@@ -52,6 +52,7 @@ fn create_processor(
         Arc::clone(state.agent_state.repositories()),
         Arc::clone(&state.ai_service),
         state.agent_state.webhooks(),
+        state.agent_state.services().clone(),
     )
     .map_err(|e| {
         tracing::error!(error = %e, "Failed to create MessageHandler");

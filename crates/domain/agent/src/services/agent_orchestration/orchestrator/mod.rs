@@ -54,10 +54,11 @@ impl AgentOrchestrator {
 
         let agent_repo = agent_state.repositories().agent_services.clone();
 
-        let db_service = AgentDatabaseService::new(agent_repo.clone())?;
-        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths, spawner)?;
-        let reconciler = AgentReconciler::new(agent_repo.clone())?;
-        let monitor = AgentMonitor::new(agent_repo)?;
+        let services = agent_state.services();
+        let db_service = AgentDatabaseService::new(agent_repo.clone(), services);
+        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths, spawner, services);
+        let reconciler = AgentReconciler::new(agent_repo.clone(), services);
+        let monitor = AgentMonitor::new(agent_repo, services);
 
         let orchestrator = Self {
             db_service,
