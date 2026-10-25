@@ -26,7 +26,7 @@ fn id() -> RouteId {
 #[test]
 fn a_plain_pattern_match_still_records_the_route() {
     assert_eq!(
-        describe_route_match(&id(), Some(&route(None)), None, None),
+        describe_route_match(Some(&id()), Some(&route(None)), None, None),
         "route:eu-route".to_owned(),
         "which route served a request is never left blank"
     );
@@ -36,7 +36,7 @@ fn a_plain_pattern_match_still_records_the_route() {
 fn a_declarative_predicate_is_recorded_on_its_own() {
     assert_eq!(
         describe_route_match(
-            &id(),
+            Some(&id()),
             Some(&route(None)),
             Some("when:tools".to_owned()),
             None
@@ -49,7 +49,7 @@ fn a_declarative_predicate_is_recorded_on_its_own() {
 fn a_selector_is_recorded_on_its_own() {
     assert_eq!(
         describe_route_match(
-            &id(),
+            Some(&id()),
             Some(&route(None)),
             None,
             Some("selector:cheap".to_owned())
@@ -66,7 +66,7 @@ fn route_governance_alone_is_enough_to_produce_a_descriptor() {
     };
 
     assert_eq!(
-        describe_route_match(&id(), Some(&route(Some(requires))), None, None),
+        describe_route_match(Some(&id()), Some(&route(Some(requires))), None, None),
         "route:eu-route;requires:european,no_retain".to_owned(),
         "a route's compliance promises belong in the audit trail even when \
          nothing else steered the request to it"
@@ -81,7 +81,7 @@ fn a_requirements_block_that_declares_nothing_is_not_a_reason() {
     };
 
     assert_eq!(
-        describe_route_match(&id(), Some(&route(Some(requires))), None, None),
+        describe_route_match(Some(&id()), Some(&route(Some(requires))), None, None),
         "route:eu-route".to_owned(),
         "an empty `requires:` block must not be reported as a governance match"
     );
@@ -96,7 +96,7 @@ fn every_reason_is_kept_and_ordered_predicate_selector_governance() {
 
     assert_eq!(
         describe_route_match(
-            &id(),
+            Some(&id()),
             Some(&route(Some(requires))),
             Some("when:tools".to_owned()),
             Some("selector:cheap".to_owned()),

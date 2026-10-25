@@ -127,7 +127,7 @@ pub(super) async fn extract_request_context(
     let provider = primary.provider.as_str().to_owned();
 
     let target = DispatchTarget::new(
-        resolution.access_route_id(),
+        resolution.route_id(),
         gateway_request.model.as_str(),
         &primary.provider,
     );

@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `config migrate` writes `route_models` (not `routes`) to `legacy_map.yaml` and no longer writes `gateway.catalog_route_id`; `--data` moves the access rules of a routing-only route and of the catalog route onto their `model/<glob>` entity (`DataReport::route_rules_moved_to_models`). `services refresh` reports `registered` and `deleted` gateway routes only; marketplace access is applied by `config apply`.
 - `admin config planes list` adds an `applied` column and titles the table NOT APPLIED with the `unapplied_planes` mode while any plane was never applied; `cloud doctor` adds a `config-planes` check reporting the mode and whether `governance`, `gateway_policies` and `access_control` are applied.
 
 - `admin config migrate` folds `access-control/roles.yaml` into `rules.yaml`, and `--data` moves access rules from legacy route ids to declared ones; `admin access-control export-yaml` renders `rules.yaml`.

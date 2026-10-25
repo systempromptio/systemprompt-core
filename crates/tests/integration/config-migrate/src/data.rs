@@ -31,7 +31,7 @@ fn map() -> LegacyMap {
                 target("opencode-go", "opencode-go/messages", "opencode-go"),
             ),
         ]),
-        routes: BTreeMap::new(),
+        route_models: BTreeMap::new(),
         dropped_models: Vec::new(),
     }
 }
@@ -159,20 +159,16 @@ async fn data_migration_moves_keys_backfills_audit_and_is_idempotent() {
 }
 
 #[tokio::test]
-async fn data_migration_moves_access_rules_from_legacy_route_ids() {
+async fn data_migration_moves_access_rules_from_legacy_routes_onto_model_entities() {
     let db = DisposableDb::with_schema("cfgmigroute").await;
     let pool = db.test_pool().await;
     let pg = pool.write_pool();
-    for (route, source) in [
-        ("star-abc123", "code:services"),
-        ("catalog", "code:services"),
-    ] {
+    for route in ["star-abc123", "catalog"] {
         sqlx::query(
             "INSERT INTO access_control_entities (entity_type, entity_id, default_included, \
-             source) VALUES ('gateway_route', $1, false, $2)",
+             source) VALUES ('gateway_route', $1, false, 'code:services')",
         )
         .bind(route)
-        .bind(source)
         .execute(pg.as_ref())
         .await
         .unwrap();
@@ -194,19 +190,23 @@ async fn data_migration_moves_access_rules_from_legacy_route_ids() {
     }
     let mut routed = map();
     routed
-        .routes
-        .insert("star-abc123".to_owned(), "catalog".to_owned());
-    routed.routes.insert("same".to_owned(), "same".to_owned());
+        .route_models
+        .insert("star-abc123".to_owned(), "claude-*".to_owned());
+    routed
+        .route_models
+        .insert("catalog".to_owned(), "claude-*".to_owned());
+    routed
+        .route_models
+        .insert("absent".to_owned(), "other-*".to_owned());
 
     let report = apply_with(&pool, &routed).await.expect("data migration");
 
     assert_eq!(
-        report.route_ids_rewritten, 1,
+        report.route_rules_moved_to_models, 2,
         "the duplicate admin grant is dropped"
     );
-    let rules: Vec<(String, String)> = sqlx::query_as(
-        "SELECT entity_id, rule_value FROM access_control_rules \
-         WHERE entity_type = 'gateway_route' ORDER BY rule_value",
+    let rules: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT entity_type, entity_id, rule_value FROM access_control_rules ORDER BY rule_value",
     )
     .fetch_all(pg.as_ref())
     .await
@@ -214,12 +214,16 @@ async fn data_migration_moves_access_rules_from_legacy_route_ids() {
     assert_eq!(
         rules,
         vec![
-            ("catalog".to_owned(), "admin".to_owned()),
-            ("catalog".to_owned(), "eng".to_owned())
+            (
+                "model".to_owned(),
+                "claude-*".to_owned(),
+                "admin".to_owned()
+            ),
+            ("model".to_owned(), "claude-*".to_owned(), "eng".to_owned())
         ]
     );
     let legacy: (i64,) = sqlx::query_as(
-        "SELECT count(*) FROM access_control_entities WHERE entity_id = 'star-abc123'",
+        "SELECT count(*) FROM access_control_entities WHERE entity_type = 'gateway_route'",
     )
     .fetch_one(pg.as_ref())
     .await
@@ -227,6 +231,6 @@ async fn data_migration_moves_access_rules_from_legacy_route_ids() {
     assert_eq!(legacy.0, 0);
 
     let again = apply_with(&pool, &routed).await.expect("second run");
-    assert_eq!(again.route_ids_rewritten, 0);
+    assert_eq!(again.route_rules_moved_to_models, 0);
     db.drop_now().await;
 }

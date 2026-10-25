@@ -33,7 +33,7 @@ pub struct GatewayAuthzRequestInput {
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub act_chain: Vec<Actor>,
     pub trace_id: TraceId,
-    pub route_id: RouteId,
+    pub route_id: Option<RouteId>,
     pub model: ModelId,
     pub provider: Option<ProviderId>,
     pub session_id: Option<SessionId>,
@@ -57,7 +57,7 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         context_id,
     } = input;
     AuthzRequest {
-        entity: EntityRef::GatewayRoute(route_id),
+        entity: route_id.map_or_else(|| EntityRef::Model(model.clone()), EntityRef::GatewayRoute),
         actor: Some(Actor::user(user_id.clone())),
         user_id,
         client_id,
@@ -73,18 +73,23 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
     }
 }
 
-/// What a pre-dispatch decision is about: the route the request resolved to,
-/// the model it asked for and the provider serving that model first.
+/// What a pre-dispatch decision is about: the route the request resolved to
+/// (none when no declared route matched), the model it asked for and the
+/// provider serving that model first.
 #[derive(Debug, Clone, Copy)]
 pub struct DispatchTarget<'a> {
-    pub route_id: &'a RouteId,
+    pub route_id: Option<&'a RouteId>,
     pub model: &'a str,
     pub provider: &'a ProviderId,
 }
 
 impl<'a> DispatchTarget<'a> {
     #[must_use]
-    pub const fn new(route_id: &'a RouteId, model: &'a str, provider: &'a ProviderId) -> Self {
+    pub const fn new(
+        route_id: Option<&'a RouteId>,
+        model: &'a str,
+        provider: &'a ProviderId,
+    ) -> Self {
         Self {
             route_id,
             model,
@@ -106,7 +111,7 @@ pub async fn enforce_authz_pre_dispatch(
         attributes,
         act_chain,
         trace_id: principal.trace_id().clone(),
-        route_id: target.route_id.clone(),
+        route_id: target.route_id.cloned(),
         model: ModelId::new(target.model),
         provider: Some(target.provider.clone()),
         session_id: Some(principal.session_id().clone()),

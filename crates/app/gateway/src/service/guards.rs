@@ -171,11 +171,11 @@ pub(super) async fn enforce_request_guards(
     if systemprompt_extension::gateway_guards().is_empty() {
         return Ok(());
     }
-    let route_id = &upstream.route_id;
+    let route_id = upstream.route_id.as_ref();
     let guard_request = systemprompt_extension::GatewayGuardRequest {
         user_id,
         model: &request.model,
-        route_id: Some(route_id),
+        route_id,
         provider: &upstream.hop.provider,
         streaming: request.stream,
         attribution: &audit.ctx.attribution,
@@ -194,7 +194,7 @@ pub(super) async fn enforce_request_guards(
     tracing::warn!(
         user_id = %user_id,
         model = %request.model,
-        route_id = %route_id,
+        route_id = ?route_id,
         kind = ?deny.kind,
         reason = %deny.message,
         "Gateway request denied by request guard"

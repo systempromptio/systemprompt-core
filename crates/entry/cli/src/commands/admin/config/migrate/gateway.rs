@@ -12,7 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
+use systemprompt_identifiers::{ModelId, ProviderId};
 use systemprompt_manifest::services::catalog::ModelRegistry;
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute};
 
@@ -134,7 +134,6 @@ pub fn spec(
     folded: &Folded,
     routes: Vec<GatewayRoute>,
     defaults: &Defaults,
-    catalog_route_id: Option<RouteId>,
 ) -> MigrateResult<Option<GatewayConfigSpec>> {
     let Some(legacy) = tree.gateway.as_ref() else {
         if routes.is_empty() && defaults.model.is_none() {
@@ -180,7 +179,6 @@ pub fn spec(
         enabled: legacy.enabled,
         routes,
         default_model: defaults.model.clone(),
-        catalog_route_id,
         quota_fault_mode: legacy.quota_fault_mode,
         require_scopes: legacy.require_scopes.clone(),
         automatic_prompt_caching: legacy.automatic_prompt_caching,

@@ -85,12 +85,12 @@ impl ModelAdmission<'_> {
 pub fn probe_route(
     catalog: &ResolvedCatalog,
     model: &str,
-) -> Option<(RouteId, Option<ProviderId>)> {
+) -> Option<(Option<RouteId>, Option<ProviderId>)> {
     catalog
         .resolve(&ModelRequest::new(model))
         .ok()
         .map(|target| {
             let provider = target.primary().map(|hop| hop.provider.clone());
-            (target.access_route_id, provider)
+            (target.route, provider)
         })
 }

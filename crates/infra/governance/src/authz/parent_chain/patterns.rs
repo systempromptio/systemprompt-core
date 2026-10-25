@@ -8,10 +8,12 @@
 //! requested model (an exact id before any glob, a longer glob before a
 //! shorter one), the `provider` entity naming the provider serving it, then
 //! the route globs matching the route id; any other entity gets its own
-//! kind's globs. Entitlements come before route globs so a `model/<glob>`
-//! narrows a blanket `gateway_route/*` grant rather than being shadowed by
-//! it. All of them sit between the entity's own rules and its marketplace
-//! chain.
+//! kind's globs. A request no declared route matched is decided on the
+//! `model` entity itself: its own rules, the `model` globs matching it, then
+//! the `provider` entity. Entitlements come before route globs so a
+//! `model/<glob>` narrows a blanket `gateway_route/*` grant rather than being
+//! shadowed by it. All of them sit between the entity's own rules and its
+//! marketplace chain.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -69,19 +71,27 @@ impl ParentChainIndex {
         facts: DecisionFacts<'_>,
     ) -> Vec<ResolveParent<'_>> {
         let mut parents = Vec::new();
-        if kind == EntityKind::GatewayRoute {
-            if let Some(model) = facts.model {
-                parents.extend(
-                    self.matching(EntityKind::Model, |pattern| glob_matches(pattern, model)),
-                );
-            }
-            if let Some(provider) = facts.provider {
-                parents.extend(self.matching(EntityKind::Provider, |name| name == provider));
-            }
+        if kind == EntityKind::GatewayRoute
+            && let Some(model) = facts.model
+        {
+            parents
+                .extend(self.matching(EntityKind::Model, |pattern| glob_matches(pattern, model)));
         }
-        parents.extend(self.matching(kind, |pattern| {
+        let own_globs = self.matching(kind, |pattern| {
             pattern != id && pattern.contains('*') && glob_matches(pattern, id)
-        }));
+        });
+        let provider = facts
+            .provider
+            .filter(|_| matches!(kind, EntityKind::GatewayRoute | EntityKind::Model))
+            .map(|provider| self.matching(EntityKind::Provider, |name| name == provider))
+            .unwrap_or_default();
+        if kind == EntityKind::Model {
+            parents.extend(own_globs);
+            parents.extend(provider);
+        } else {
+            parents.extend(provider);
+            parents.extend(own_globs);
+        }
         parents
     }
 

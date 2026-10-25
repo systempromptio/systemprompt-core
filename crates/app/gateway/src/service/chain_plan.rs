@@ -46,7 +46,7 @@ pub struct PlannedChain {
 pub fn order_chain(
     deployments: Vec<ResolvedHop>,
     strategy: SelectionStrategy,
-    route: &RouteId,
+    route: Option<&RouteId>,
     breakers: &ProviderBreakers,
     load: &DeploymentLoad,
 ) -> PlannedChain {
@@ -67,7 +67,7 @@ pub fn order_chain(
     if let Some(selected) = deployments.first() {
         metrics::counter!(
             DEPLOYMENT_SELECTED_TOTAL,
-            "route" => route.to_string(),
+            "route" => route.map_or_else(String::new, ToString::to_string),
             "provider" => selected.provider.as_str().to_owned(),
             "strategy" => strategy.as_str(),
         )

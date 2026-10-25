@@ -15,14 +15,14 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde_yaml::Value;
-use systemprompt_identifiers::{ModelId, RouteId};
+use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::catalog::{CatalogDocument, EndpointRef, detect_legacy_shape};
 use systemprompt_models::providers::without_context_variant;
 
 use super::abort::{GATEWAY_FILE, MigrateAbort};
 use super::legacy::{LegacyAi, LegacyGateway, LegacyProvider};
 use super::legacy_map::LegacyMap;
-use super::replay::LegacyTree;
+use super::replay::{DEFAULT_ROUTE_PATTERN, LegacyTree};
 use super::{fold, gateway, models, routes};
 
 const CATALOG_INCLUDES: [&str; 2] = ["../ai/providers.yaml", "../ai/gateway.yaml"];
@@ -204,13 +204,11 @@ pub fn plan(services: &Path) -> Result<Option<MigrationPlan>> {
     let LegacyInput { tree, ai, ai_value } = read_legacy(services, &found)?;
     let folded = fold::fold(&tree.providers, &ai)?;
     let built = models::build(&tree, &folded);
-    let catalog_route_id = tree.default_route_id().map(RouteId::new);
     let inputs = routes::RouteInputs {
         tree: &tree,
         folded: &folded,
         models: &built.models,
         deployments: &built.deployments,
-        catalog_route_id: catalog_route_id.as_ref(),
     };
     let mut gateway_routes = routes::aliases(&inputs)?;
     let policy = tree
@@ -220,8 +218,12 @@ pub fn plan(services: &Path) -> Result<Option<MigrationPlan>> {
         .transpose()?
         .unwrap_or_default();
     gateway_routes.extend(policy.routes);
+    let mut route_models = policy.route_models;
+    if let Some(catch_all) = tree.catch_all_route_id() {
+        route_models.insert(catch_all, DEFAULT_ROUTE_PATTERN.to_owned());
+    }
     let defaults = gateway::Defaults::derive(&tree, &ai, &built.models, &gateway_routes)?;
-    let spec = gateway::spec(&tree, &folded, gateway_routes, &defaults, catalog_route_id)?;
+    let spec = gateway::spec(&tree, &folded, gateway_routes, &defaults)?;
     let mut document = CatalogDocument {
         credentials: folded.credentials.clone(),
         providers: folded.providers.clone(),
@@ -236,7 +238,7 @@ pub fn plan(services: &Path) -> Result<Option<MigrationPlan>> {
         document,
         ai_config: rewrite_ai_config(ai_value, defaults.image_model.as_ref()),
         root_config: rewrite_root(services)?,
-        legacy_map: LegacyMap::new(&folded, policy.route_map, built.dropped),
+        legacy_map: LegacyMap::new(&folded, route_models, built.dropped),
         notes,
     }))
 }

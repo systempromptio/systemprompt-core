@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- Migration 052 runs its `synthetic` to `traffic` re-class only where the `synthetic` column exists, so it applies on schemas laid down before ai 040; it supersedes its previous checksum.
 - `AiGatewayPolicyRepository::find_plane_applied`.
 
 - `AiGatewayPolicyRepository::{list_all_on, upsert_on, delete_on}` and `GatewayPolicyWrite` replace `upsert`, `list_all_names` and `delete_by_name`.

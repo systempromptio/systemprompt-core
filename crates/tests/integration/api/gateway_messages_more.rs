@@ -306,7 +306,7 @@ async fn enforce_authz_allows_under_allow_all_hook() {
     let principal = api_key_principal("authz-allow-user");
     enforce_authz_pre_dispatch(
         &principal,
-        DispatchTarget::new(&route, "claude-test", &ProviderId::new("anthropic")),
+        DispatchTarget::new(Some(&route), "claude-test", &ProviderId::new("anthropic")),
         &ContextId::generate(),
         &hook,
     )
@@ -325,7 +325,7 @@ async fn enforce_authz_denies_under_deny_all_hook() {
         ..
     } = enforce_authz_pre_dispatch(
         &principal,
-        DispatchTarget::new(&route, "claude-test", &ProviderId::new("anthropic")),
+        DispatchTarget::new(Some(&route), "claude-test", &ProviderId::new("anthropic")),
         &ContextId::generate(),
         &hook,
     )

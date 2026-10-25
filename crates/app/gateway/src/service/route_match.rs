@@ -21,7 +21,7 @@ use super::{DispatchError, PolicyDenied};
 use crate::registry::GatewayEngines;
 
 pub fn describe_route_match(
-    route_id: &RouteId,
+    route_id: Option<&RouteId>,
     route: Option<&GatewayRoute>,
     declarative: Option<String>,
     selector: Option<String>,
@@ -39,7 +39,7 @@ pub fn describe_route_match(
             .collect();
         (!pairs.is_empty()).then(|| format!("scope:{}", pairs.join(",")))
     });
-    let identity = Some(format!("route:{route_id}"));
+    let identity = route_id.map(|id| format!("route:{id}"));
     [identity, declarative, selector, governance, scope]
         .into_iter()
         .flatten()
@@ -58,9 +58,7 @@ pub(super) async fn refine_chain(
     if !engine.has_selectors() {
         return None;
     }
-    let catalog_route = GatewayRoute::new(target.access_route_id.as_str());
-    let matched = route.unwrap_or(&catalog_route);
-    let (refined, name) = engine.refine(matched, request).await?;
+    let (refined, name) = engine.refine(route?, request).await?;
     let hops = catalog.deployments(target.model.id.as_str());
     let chain: Vec<ResolvedHop> = if refined.deployments.is_empty() {
         target.chain.clone()
@@ -94,11 +92,11 @@ pub(super) async fn refine_chain(
 
 pub fn enforce_route_requirements(
     route: Option<&GatewayRoute>,
-    route_id: &RouteId,
     hop: &ResolvedHop,
     ai_request_id: &AiRequestId,
 ) -> Result<(), DispatchError> {
-    let Some(requires) = route.and_then(|r| r.requires.as_ref()) else {
+    let Some((route_id, requires)) = route.and_then(|r| r.requires.as_ref().map(|q| (&r.id, q)))
+    else {
         return Ok(());
     };
     let unmet = requires.unmet(hop.governance);

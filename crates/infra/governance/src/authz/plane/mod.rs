@@ -11,6 +11,11 @@
 //! Boot never writes this plane: `config apply` and
 //! `/admin/sync` do, through the per-entity three-way merge.
 //!
+//! A marketplace's `access:` block is the same declaration spelled in the
+//! marketplace's own config: it is read as the `marketplace/<id>` entity with
+//! origin `code:marketplaces/<id>/config.yaml`, and declaring one entity in
+//! both places is refused.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -30,7 +35,7 @@ use systemprompt_database::DbPool;
 use crate::authz::error::{AuthzError, AuthzResult};
 use crate::authz::rules_file::{
     CanonicalEntity, DeclaredAccess, EntityTarget, RETIRED_ROLES_FILE, RULES_FILE,
-    declared_entities, read_rules_doc, render_rules_doc,
+    declared_entities, declared_marketplace_entities, read_rules_doc, render_rules_doc,
 };
 use store::PlaneTransaction;
 
@@ -60,10 +65,25 @@ impl AccessControlPlane {
                 ),
             });
         }
-        let Some(doc) = read_rules_doc(services_root).map_err(|e| invalid(&e))? else {
-            return Ok(None);
+        let doc = read_rules_doc(services_root).map_err(|e| invalid(&e))?;
+        let mut declares = doc.is_some();
+        let mut entities = match doc {
+            Some(doc) => declared_entities(&doc).map_err(|e| invalid(&e))?,
+            None => BTreeMap::new(),
         };
-        declared_entities(&doc).map(Some).map_err(|e| invalid(&e))
+        let marketplaces = declared_marketplace_entities(services_root).map_err(|e| invalid(&e))?;
+        declares |= !marketplaces.is_empty();
+        for (key, access) in marketplaces {
+            if entities.contains_key(&key) {
+                return Err(ConfigPlaneError::Invalid {
+                    plane: ACCESS_CONTROL_PLANE.to_owned(),
+                    path: access.file,
+                    message: format!("{key} is also declared in {RULES_FILE}; declare it once"),
+                });
+            }
+            entities.insert(key, access);
+        }
+        Ok(declares.then_some(entities))
     }
 }
 
@@ -122,7 +142,7 @@ impl ConfigPlane for AccessControlPlane {
             .into_iter()
             .map(|(key, access)| {
                 let origin = access.owner_bundle.clone().map_or_else(
-                    || ChangeSource::Code(RULES_FILE.to_owned()),
+                    || ChangeSource::Code(access.file.clone()),
                     ChangeSource::Bundle,
                 );
                 let value = access.canonical.to_value().map_err(|e| invalid(&e))?;

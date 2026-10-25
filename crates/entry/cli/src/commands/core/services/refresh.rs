@@ -87,18 +87,8 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
 
     if !reconciled.is_empty() {
         render_result(
-            &CommandOutput::table_of(
-                vec![
-                    "bundle",
-                    "inserted",
-                    "updated",
-                    "deleted",
-                    "protected",
-                    "inert_role_rules",
-                ],
-                &reconciled,
-            )
-            .with_title("Access Rules Reconciled"),
+            &CommandOutput::table_of(vec!["bundle", "registered", "deleted"], &reconciled)
+                .with_title("Gateway Routes Reconciled"),
             &ctx.cli,
         );
     }

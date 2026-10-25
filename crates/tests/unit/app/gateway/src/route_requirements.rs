@@ -12,7 +12,7 @@
 
 use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
 use systemprompt_gateway::service::route_match::enforce_route_requirements;
-use systemprompt_identifiers::{AiRequestId, RouteId};
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_manifest::services::ai::ModelGovernance;
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, ModelEntry, ProviderConfig, ResolvedHop,
@@ -64,13 +64,8 @@ const NOTHING: ModelGovernance = ModelGovernance {
 };
 
 fn enforce(route: &GatewayRoute, hop: &ResolvedHop, _model: &str) -> Result<(), String> {
-    enforce_route_requirements(
-        Some(route),
-        &RouteId::new("eu-route"),
-        hop,
-        &AiRequestId::generate(),
-    )
-    .map_err(|e| format!("{e:?}"))
+    enforce_route_requirements(Some(route), hop, &AiRequestId::generate())
+        .map_err(|e| format!("{e:?}"))
 }
 
 // Why: a route with no declared requirements constrains nothing. If this

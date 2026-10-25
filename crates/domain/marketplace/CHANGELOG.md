@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Migrations 018 to 020 declare a measured `@cost` (real-data timing) and supersede their previous checksums.
 - Own the base-tree hash memo on ManagedRepository.
 - Build the imported plugin config in its own step.
 - Replace glob re-exports with explicit lists.

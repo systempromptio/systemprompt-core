@@ -105,7 +105,6 @@ impl ResolvedCatalog {
             context_fallbacks,
             strategy: route.map_or(SelectionStrategy::Ordered, |r| r.strategy),
             route: route.map(|r| r.id.clone()),
-            access_route_id: route.map_or_else(|| self.catalog_route_id.clone(), |r| r.id.clone()),
         })
     }
 

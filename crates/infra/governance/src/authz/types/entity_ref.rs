@@ -18,9 +18,10 @@ use super::kinds::EntityKind;
 /// (`EntityKind`) and the typed id so they can never drift apart on the wire.
 ///
 /// `Model` and `Provider` are entitlement entities: their ids may be globs
-/// (`claude-*`) and they are never requested directly. A gateway decision
-/// consults the ones matching the request's model and provider as parent
-/// levels of the route (see `ParentChainIndex::resolve`).
+/// (`claude-*`). A gateway decision consults the ones matching the request's
+/// model and provider as parent levels of the route (see
+/// `ParentChainIndex::resolve`). A request no declared route matched is
+/// requested as its `Model`, with the matching `Provider` as a parent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "id", rename_all = "snake_case")]
 pub enum EntityRef {

@@ -3,8 +3,10 @@
 //! Written by `config migrate` next to the new files and read back by
 //! `config migrate --data`, which moves stored personal keys and the audit's
 //! `credential`/`endpoint` columns through it (`ai_catalog_legacy_map`).
-//! `routes` maps every legacy route id to the id access decisions now
-//! evaluate; `dropped_models` lists ids 0.72.1 could never dispatch.
+//! `route_models` maps each legacy route id that only routed, and the 0.72.1
+//! catalog route id, to the `model/<glob>` entity access decisions now
+//! evaluate in its place; `dropped_models` lists ids 0.72.1 could never
+//! dispatch.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,7 +33,7 @@ pub struct LegacyMap {
     #[serde(default)]
     pub providers: BTreeMap<String, LegacyProviderTarget>,
     #[serde(default)]
-    pub routes: BTreeMap<String, String>,
+    pub route_models: BTreeMap<String, String>,
     #[serde(default)]
     pub dropped_models: Vec<String>,
 }
@@ -40,7 +42,7 @@ impl LegacyMap {
     #[must_use]
     pub fn new(
         folded: &Folded,
-        routes: BTreeMap<String, String>,
+        route_models: BTreeMap<String, String>,
         dropped_models: Vec<String>,
     ) -> Self {
         Self {
@@ -58,7 +60,7 @@ impl LegacyMap {
                     )
                 })
                 .collect(),
-            routes,
+            route_models,
             dropped_models,
         }
     }

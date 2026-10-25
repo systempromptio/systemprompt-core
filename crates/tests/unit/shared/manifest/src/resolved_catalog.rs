@@ -8,7 +8,6 @@ use systemprompt_catalog_fixtures::{
 use systemprompt_manifest::services::catalog::{
     DeploymentDetail, DeploymentTarget, EndpointRef, ModelRequest, PricingOverride, ResolveError,
 };
-use systemprompt_manifest::services::synthesize_route_id;
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::WireProtocol;
 use systemprompt_wire::anthropic::AnthropicBeta;
@@ -257,15 +256,11 @@ fn capabilities_start_from_the_provider_and_apply_model_overrides() {
 }
 
 #[test]
-fn the_catalog_route_id_defaults_to_the_072_implicit_route_id() {
+fn a_request_no_declared_route_matches_has_no_route() {
     let catalog = one_platform_provider().build();
-    assert_eq!(
-        catalog.catalog_route_id(),
-        &synthesize_route_id("*", "anthropic")
-    );
     let target = catalog
         .resolve(&ModelRequest::new("claude-sonnet-5"))
         .expect("resolves");
-    assert_eq!(&target.access_route_id, catalog.catalog_route_id());
-    assert!(catalog.route_ids().contains(catalog.catalog_route_id()));
+    assert!(target.route.is_none());
+    assert!(catalog.route_ids().is_empty());
 }

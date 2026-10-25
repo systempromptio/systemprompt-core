@@ -1,13 +1,12 @@
 //! DB-backed coverage for gateway-route entity reconciliation and the wildcard
-//! grant that authorizes the *synthesized* catch-all route.
+//! grant that authorizes a declared route.
 //!
 //! This is the end-to-end proof that the unit invariants
 //! (`ResolvedCatalog::route_ids`) cannot give: that
-//! `reconcile_gateway_entities_exact` actually materializes a content-addressed
-//! `star-*` id into `access_control_entities`, that a `entity_match: "*"` rule
-//! expands onto that code-synthesized id (closing the implicit YAML-vs-code
-//! coupling), and that the resolver then allows a granted role while still
-//! denying an id that has no catalog row (`UnknownEntity`, fail-closed).
+//! `reconcile_gateway_entities_exact` actually materializes a route id into
+//! `access_control_entities`, that a grant on it lands on that id, and that the
+//! resolver then allows a granted role while still denying an id that has no
+//! catalog row (`UnknownEntity`, fail-closed).
 //!
 //! Each test scopes itself to a unique provider/default-provider so runs
 //! against the shared `DATABASE_URL` never collide, and cleans up its rows.
@@ -20,7 +19,6 @@
 use std::sync::Arc;
 
 use sqlx::PgPool;
-use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::resolver::{ResolveInput, resolve};
 use systemprompt_governance::authz::{
@@ -28,10 +26,7 @@ use systemprompt_governance::authz::{
     UpsertRuleParams, reconcile_gateway_entities_exact,
 };
 use systemprompt_identifiers::{RouteId, UserId};
-use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
-use systemprompt_manifest::services::synthesize_route_id;
 use systemprompt_test_fixtures::test_db_pool;
-use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
 
 struct Fixture {
@@ -44,10 +39,10 @@ struct Fixture {
 async fn setup() -> Fixture {
     let db = test_db_pool().await;
     let pg = db.pool();
-    // A unique provider name keeps the synthesized catch-all id (`star-<hash>`)
-    // distinct from every other test and from the live profile's routes.
+    // A unique provider name keeps the route id distinct from every other test
+    // and from the live profile's routes.
     let provider = format!("recon-{}", Uuid::new_v4().simple());
-    let default_route_id = synthesize_route_id("*", &provider);
+    let default_route_id = RouteId::new(format!("{provider}-route"));
     cleanup(&pg, &default_route_id).await;
     Fixture {
         db,
@@ -74,21 +69,6 @@ async fn cleanup(pg: &PgPool, id: &RouteId) {
     .expect("cleanup entities");
 }
 
-fn catalog_with_default(provider: &str) -> ResolvedCatalog {
-    CatalogFixture::new()
-        .credential(provider, platform("test"))
-        .provider(provider, ProviderConfig::new(provider))
-        .endpoint(
-            provider,
-            "api",
-            EndpointConfig::new(WireProtocol::Anthropic, "https://example.test/v1"),
-        )
-        .model("any", claude_model(0))
-        .deploy("any", [format!("{provider}/api").as_str()])
-        .default_model("any")
-        .build()
-}
-
 async fn role_values(pg: &PgPool, id: &RouteId) -> Vec<String> {
     sqlx::query_scalar::<_, String>(
         "SELECT rule_value FROM access_control_rules WHERE entity_type='gateway_route' AND \
@@ -107,12 +87,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
 
     // 1. Reconcile the profile's dispatchable routes (here: only the synthetic
     //    default catch-all) into the entity catalog.
-    let ids = catalog_with_default(&f.provider).route_ids();
-    assert!(
-        ids.contains(&f.default_route_id),
-        "dispatchable ids must include the synthesized catch-all {}",
-        f.default_route_id.as_str()
-    );
+    let ids = [f.default_route_id.clone()];
     let id_refs: Vec<&str> = ids.iter().map(RouteId::as_str).collect();
     reconcile_gateway_entities_exact(&repo, &id_refs, "code:test")
         .await
@@ -230,7 +205,7 @@ async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
     let f = setup().await;
     let repo = AccessControlRepository::new(&f.db);
 
-    let ids = catalog_with_default(&f.provider).route_ids();
+    let ids = [f.default_route_id.clone()];
     let id_refs: Vec<&str> = ids.iter().map(RouteId::as_str).collect();
 
     let stale = RouteId::new(format!("stale-{}", f.provider));
@@ -313,7 +288,7 @@ async fn reconcile_never_overwrites_an_entitys_declared_default_included() {
     let f = setup().await;
     let repo = AccessControlRepository::new(&f.db);
     let declared = f.default_route_id.clone();
-    let catalog_only = synthesize_route_id("catalog", &f.provider);
+    let catalog_only = RouteId::new(format!("{}-catalog", f.provider));
     cleanup(&f.pg, &catalog_only).await;
 
     repo.upsert_entity(

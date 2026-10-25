@@ -20,7 +20,7 @@ use systemprompt_wire::canonical::CanonicalRequest;
 
 use super::legacy::{LegacyDeployment, LegacyGateway, LegacyProvider, LegacyRoute};
 
-const DEFAULT_ROUTE_PATTERN: &str = "*";
+pub(super) const DEFAULT_ROUTE_PATTERN: &str = "*";
 
 #[derive(Debug, Clone)]
 pub struct LegacyTree {
@@ -86,9 +86,15 @@ impl LegacyTree {
     }
 
     #[must_use]
-    pub fn default_route_id(&self) -> Option<String> {
+    pub fn catch_all_route_id(&self) -> Option<String> {
         let gateway = self.gateway.as_ref()?;
-        self.default_route(gateway).map(|r| r.effective_id())
+        gateway
+            .catalog_route_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+            .or_else(|| self.default_route(gateway).map(|r| r.effective_id()))
     }
 
     fn exposed(&self, gateway: &LegacyGateway, requested: &str) -> bool {

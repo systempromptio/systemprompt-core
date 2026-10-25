@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE access_control_rules SET entity_type = 'model', entity_id = $2, updated_at = NOW()\n                   WHERE entity_type = 'gateway_route' AND entity_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0c617f350bc79f9bb65f0330452b882b081afc582113904f9ece75907d573baf"
+}

@@ -36,32 +36,6 @@ pub(crate) struct StoredRule {
 pub(crate) struct IngestionRepository;
 
 impl IngestionRepository {
-    pub(crate) async fn upsert_marketplace_entity(
-        conn: &mut PgConnection,
-        entity_id: &str,
-        access: Option<bool>,
-        source: &str,
-    ) -> AuthzResult<()> {
-        sqlx::query!(
-            r#"
-        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-        VALUES ('marketplace', $1, COALESCE($2, false), $3)
-        ON CONFLICT (entity_type, entity_id)
-        DO UPDATE SET default_included = COALESCE($2, access_control_entities.default_included),
-                      source = CASE WHEN $2::boolean IS NULL
-                                    THEN access_control_entities.source
-                                    ELSE EXCLUDED.source END,
-                      updated_at = NOW()
-        "#,
-            entity_id,
-            access,
-            source,
-        )
-        .execute(&mut *conn)
-        .await?;
-        Ok(())
-    }
-
     pub(crate) async fn ensure_catalog_entity(
         conn: &mut PgConnection,
         entity_kind: EntityKind,
@@ -157,30 +131,6 @@ impl IngestionRepository {
         .execute(&mut *conn)
         .await?;
         Ok(())
-    }
-
-    pub(crate) async fn delete_marketplace_bands(
-        conn: &mut PgConnection,
-        entity_ids: &[String],
-        rule_types: &[String],
-        source: &str,
-    ) -> AuthzResult<u64> {
-        let res = sqlx::query!(
-            r#"
-        DELETE FROM access_control_rules
-        WHERE entity_type = 'marketplace'
-          AND source = $3
-          AND (entity_id, rule_type) IN (
-              SELECT * FROM UNNEST($1::text[], $2::text[])
-          )
-        "#,
-            entity_ids,
-            rule_types,
-            source,
-        )
-        .execute(&mut *conn)
-        .await?;
-        Ok(res.rows_affected())
     }
 
     pub(crate) async fn delete_app_role_rules(

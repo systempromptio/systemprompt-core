@@ -37,7 +37,7 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) hop: ResolvedHop,
     pub(super) model: ResolvedModel,
     pub(super) route: Option<GatewayRoute>,
-    pub(super) route_id: RouteId,
+    pub(super) route_id: Option<RouteId>,
     pub(super) call: UpstreamCall,
     pub(super) adapter: Arc<dyn OutboundAdapter>,
     pub(super) http: reqwest::Client,
@@ -89,7 +89,7 @@ pub(super) async fn resolve_upstream<'a>(
     let planned = plan_chain(catalog, engines, request, &target, ai_request_id)?;
     let route_match_descriptor = join_segments(
         Some(describe_route_match(
-            &target.access_route_id,
+            target.route.as_ref(),
             route.as_ref(),
             declarative,
             selector,
@@ -109,7 +109,7 @@ pub(super) async fn resolve_upstream<'a>(
         BindTarget {
             model: target.model,
             route,
-            route_id: target.access_route_id,
+            route_id: target.route.clone(),
             ai_request_id,
             owner,
         },
@@ -155,7 +155,7 @@ fn plan_chain(
     let ordered = order_chain(
         target.chain.clone(),
         target.strategy,
-        &target.access_route_id,
+        target.route.as_ref(),
         &engines.breakers,
         &engines.load,
     );
@@ -168,7 +168,7 @@ fn plan_chain(
     .map_err(|exceeded| {
         tracing::warn!(
             ai_request_id = %ai_request_id,
-            route = %target.access_route_id,
+            route = ?target.route,
             model = %exceeded.model,
             estimate = exceeded.estimate,
             limit = exceeded.limit,
@@ -249,7 +249,7 @@ pub fn may_fail_over(from: &ResolvedHop, to: &ResolvedHop) -> bool {
 struct BindTarget<'r> {
     model: ResolvedModel,
     route: Option<GatewayRoute>,
-    route_id: RouteId,
+    route_id: Option<RouteId>,
     ai_request_id: &'r AiRequestId,
     owner: KeyOwner,
 }
@@ -268,7 +268,7 @@ async fn bind_hop<'a>(
         ai_request_id,
         owner,
     } = target;
-    enforce_route_requirements(route.as_ref(), &route_id, &hop, ai_request_id)?;
+    enforce_route_requirements(route.as_ref(), &hop, ai_request_id)?;
 
     let (call, billing) = super::credentials::resolve(catalog, &hop, &owner).await?;
 

@@ -40,7 +40,6 @@ pub struct ResolvedCatalog {
     deployments: BTreeMap<ModelId, Vec<ResolvedHop>>,
     routes: Vec<GatewayRoute>,
     default_model: Option<ModelId>,
-    catalog_route_id: RouteId,
     gateway_enabled: bool,
     default_image_model: Option<ModelId>,
 }
@@ -130,11 +129,7 @@ impl ResolvedCatalog {
 
     #[must_use]
     pub fn route_ids(&self) -> Vec<RouteId> {
-        let mut ids: Vec<RouteId> = self.routes.iter().map(|r| r.id.clone()).collect();
-        if !ids.contains(&self.catalog_route_id) {
-            ids.push(self.catalog_route_id.clone());
-        }
-        ids
+        self.routes.iter().map(|r| r.id.clone()).collect()
     }
 
     #[must_use]
@@ -145,11 +140,6 @@ impl ResolvedCatalog {
     #[must_use]
     pub const fn default_image_model(&self) -> Option<&ModelId> {
         self.default_image_model.as_ref()
-    }
-
-    #[must_use]
-    pub const fn catalog_route_id(&self) -> &RouteId {
-        &self.catalog_route_id
     }
 
     #[must_use]

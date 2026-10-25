@@ -1,6 +1,6 @@
 //! Re-materialise the authz catalog after a gateway or catalog edit.
 //!
-//! A new policy route or catalog route id has no `access_control_entities`
+//! A new policy route has no `access_control_entities`
 //! row until it is reconciled, so the next request would fail closed with
 //! `UnknownEntity`. After a gateway/catalog edit we hand the freshly-loaded
 //! services tree to
@@ -69,7 +69,7 @@ async fn try_reconcile(services: &ServicesConfig, source_path: &str) -> anyhow::
     );
 
     let source = format!("services:{source_path}");
-    reconcile_services_authz(&database, services, SERVICES_SOURCE, None).await?;
+    reconcile_services_authz(&database, services, SERVICES_SOURCE).await?;
     tracing::debug!(source = %source, "authz reconciled after a services edit");
     Ok(())
 }

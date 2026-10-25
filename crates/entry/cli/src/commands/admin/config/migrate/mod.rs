@@ -91,7 +91,7 @@ fn describe(plan: &MigrationPlan, written: &[PathBuf]) -> String {
     lines.push(format!(
         "{} legacy entries mapped, {} legacy routes mapped, {} undispatchable models dropped",
         plan.legacy_map.providers.len(),
-        plan.legacy_map.routes.len(),
+        plan.legacy_map.route_models.len(),
         plan.legacy_map.dropped_models.len()
     ));
     lines.join("\n")
@@ -145,12 +145,12 @@ pub async fn execute(args: &MigrateArgs, config: &CliConfig) -> Result<()> {
             config,
             "Catalog Data Migrated",
             format!(
-                "{} legacy entries recorded, {} personal keys moved, {} audit rows backfilled, {} host filters rewritten, {} legacy route ids rewritten",
+                "{} legacy entries recorded, {} personal keys moved, {} audit rows backfilled, {} host filters rewritten, {} legacy route rules moved onto model entities",
                 report.legacy_entries,
                 report.personal_keys_moved,
                 report.audit_rows_backfilled,
                 report.host_filters_rewritten,
-                report.route_ids_rewritten
+                report.route_rules_moved_to_models
             ),
         );
     }

@@ -87,8 +87,8 @@ fn unregistered_id_message(kind: EntityKind, id: &str, registered: &RegisteredEn
     };
     let hint = match kind {
         EntityKind::GatewayRoute => {
-            " — gateway route ids are the `id` of a policy route in services/ai/gateway.yaml or \
-             the catalog route id (`gateway.catalog_route_id`); check the id against those"
+            " — gateway route ids are the `id` of a policy route in services/ai/gateway.yaml; a \
+             model or provider is a `model/<id>` or `provider/<name>` entity instead"
         },
         _ => "",
     };

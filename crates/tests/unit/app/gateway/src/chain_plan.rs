@@ -182,7 +182,7 @@ fn ordered_chain_is_unchanged_and_not_described() {
             hop(&c, "large-m", "large", None),
         ],
         SelectionStrategy::Ordered,
-        &route_id(),
+        Some(&route_id()),
         &ProviderBreakers::new(),
         &DeploymentLoad::default(),
     );
@@ -283,7 +283,7 @@ fn an_empty_chain_plans_to_nothing() {
     let planned = order_chain(
         Vec::new(),
         SelectionStrategy::Ordered,
-        &route_id(),
+        Some(&route_id()),
         &ProviderBreakers::new(),
         &DeploymentLoad::default(),
     );
@@ -301,7 +301,7 @@ fn an_idle_least_busy_chain_keeps_chain_order_and_is_described() {
             hop(&c, "plan-m", "lb-plan-c", None),
         ],
         SelectionStrategy::LeastBusy,
-        &route_id(),
+        Some(&route_id()),
         &ProviderBreakers::new(),
         &DeploymentLoad::default(),
     );
@@ -321,7 +321,7 @@ fn a_weighted_chain_is_a_permutation_of_its_deployments() {
             hop(&c, "plan-m", "w-plan-b", Some(1)),
         ],
         SelectionStrategy::Weighted,
-        &route_id(),
+        Some(&route_id()),
         &ProviderBreakers::new(),
         &DeploymentLoad::default(),
     );
@@ -337,7 +337,7 @@ fn a_single_weighted_deployment_is_not_reordered_but_is_described() {
     let planned = order_chain(
         vec![hop(&c, "plan-m", "w-plan-solo", None)],
         SelectionStrategy::Weighted,
-        &route_id(),
+        Some(&route_id()),
         &ProviderBreakers::new(),
         &DeploymentLoad::default(),
     );

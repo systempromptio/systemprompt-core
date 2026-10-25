@@ -50,8 +50,8 @@ pub struct RouteResolution {
 
 impl RouteResolution {
     #[must_use]
-    pub const fn access_route_id(&self) -> &RouteId {
-        &self.target.access_route_id
+    pub const fn route_id(&self) -> Option<&RouteId> {
+        self.target.route.as_ref()
     }
 
     #[must_use]

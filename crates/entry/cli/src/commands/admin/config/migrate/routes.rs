@@ -4,7 +4,8 @@
 //! model, which forwards the model's `upstream_model`. A route that only
 //! routed (`model_pattern` → `provider`, fallbacks, a price or an upstream
 //! name) is captured by the deployments and deleted; its id maps to the
-//! catalog route id in the legacy map. A route that carried policy (`when`,
+//! `model/<model_pattern>` entity in the legacy map, which carries the rules
+//! that addressed it. A route that carried policy (`when`,
 //! `requires`, a non-ordered strategy) is kept under its legacy id, pinned to
 //! its chain's endpoints when that chain is not the model's own. A `by_scope`
 //! chain identical to the plain chain is a no-op and is dropped; one that
@@ -17,7 +18,7 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_identifiers::{ModelId, RouteId, ScopeDimension};
+use systemprompt_identifiers::{ModelId, ScopeDimension};
 use systemprompt_manifest::services::GatewayRoute;
 use systemprompt_manifest::services::catalog::{DeploymentRegistry, EndpointRef, ModelRegistry};
 use systemprompt_manifest::services::gateway::{
@@ -32,7 +33,7 @@ use super::replay::LegacyTree;
 #[derive(Debug, Default)]
 pub struct RoutesOut {
     pub routes: Vec<GatewayRoute>,
-    pub route_map: BTreeMap<String, String>,
+    pub route_models: BTreeMap<String, String>,
     pub notes: Vec<String>,
 }
 
@@ -42,7 +43,6 @@ pub struct RouteInputs<'a> {
     pub folded: &'a Folded,
     pub models: &'a ModelRegistry,
     pub deployments: &'a DeploymentRegistry,
-    pub catalog_route_id: Option<&'a RouteId>,
 }
 
 pub fn aliases(inputs: &RouteInputs<'_>) -> MigrateResult<Vec<GatewayRoute>> {
@@ -239,9 +239,7 @@ pub fn policy(inputs: &RouteInputs<'_>, legacy: &[LegacyRoute]) -> MigrateResult
             out.notes.push(format!(
                 "route '{id}' matches no migrated model and was dropped"
             ));
-            if let Some(catalog) = inputs.catalog_route_id {
-                out.route_map.insert(id, catalog.as_str().to_owned());
-            }
+            out.route_models.insert(id, route.model_pattern.clone());
             continue;
         }
         let primary = LegacyDeployment {
@@ -256,16 +254,13 @@ pub fn policy(inputs: &RouteInputs<'_>, legacy: &[LegacyRoute]) -> MigrateResult
         let carries_policy =
             route.when.is_some() || route.requires.is_some() || !route.strategy.is_ordered();
         if !carries_policy {
-            if let Some(catalog) = inputs.catalog_route_id {
-                out.route_map.insert(id, catalog.as_str().to_owned());
-            }
+            out.route_models.insert(id, route.model_pattern.clone());
             continue;
         }
         let pinned = pins(inputs.folded, &primary, &route.fallbacks);
         check_pins(inputs, &id, &route.model_pattern, &pinned)?;
         let mut policy = pinned_route(id.clone(), route, pinned);
         policy.when.clone_from(&route.when);
-        out.route_map.insert(id.clone(), id);
         out.routes.push(policy);
     }
     Ok(out)

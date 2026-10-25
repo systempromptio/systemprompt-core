@@ -162,8 +162,8 @@ impl ResolvedHop {
 /// What one request resolved to.
 ///
 /// The catalog model, its ordered chain, the context-window fallbacks, and
-/// the policy route that shaped it, if any. `access_route_id` is the route id
-/// access control evaluates: the matched route's, else the catalog route id.
+/// the policy route that shaped it, if any. A request no declared route
+/// matched has no route: access control evaluates its model and provider.
 #[derive(Debug, Clone)]
 pub struct ResolvedTarget {
     pub requested: String,
@@ -172,7 +172,6 @@ pub struct ResolvedTarget {
     pub context_fallbacks: Vec<ResolvedHop>,
     pub strategy: SelectionStrategy,
     pub route: Option<RouteId>,
-    pub access_route_id: RouteId,
 }
 
 impl ResolvedTarget {

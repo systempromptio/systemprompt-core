@@ -1,10 +1,9 @@
 //! Model-glob matching and the 0.72 route-id synthesis.
 //!
-//! [`synthesize_route_id`] is kept only to derive the default
-//! `gateway.catalog_route_id`: the id 0.72 gave its implicit `*` route, which
-//! `access_control_rules` rows still address. Declared routes always carry
-//! their own id. The hash segment labels are part of that id and never
-//! change.
+//! [`synthesize_route_id`] is kept only for `config migrate`, which names the
+//! ids 0.72 generated for its implicit routes so rules that addressed them can
+//! be moved. Declared routes always carry their own id. The hash segment
+//! labels are part of that id and never change.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

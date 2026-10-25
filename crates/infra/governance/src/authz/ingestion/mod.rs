@@ -1,9 +1,9 @@
 //! Projection of the services tree's own access declarations into the
-//! two-table authz schema: marketplace `access` blocks and messaging app
-//! seeds.
+//! two-table authz schema: messaging app seeds.
 //!
-//! `services/access-control/rules.yaml` is not ingested here; it is the
-//! `access_control` config plane, applied explicitly by `config apply`.
+//! `services/access-control/rules.yaml` and marketplace `access` blocks are not
+//! ingested here; they are the `access_control` config plane, applied
+//! explicitly by `config apply`.
 //!
 //! # Ownership
 //!
@@ -29,7 +29,6 @@
 
 mod catalog;
 pub mod glob;
-mod marketplace;
 mod messaging;
 mod scope;
 mod subjects;

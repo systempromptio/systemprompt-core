@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `GatewayAuthzRequestInput::route_id` and `DispatchTarget::route_id` are optional: a request no declared route matched is authorized as its `model` entity.
 - `/readyz` reports a never-applied governance plane under `config.unapplied` (mode, effect, apply command) and `/health` answers `degraded` with the same block under `governance`; the replica stays ready.
 
 - `enforce_authz_pre_dispatch` takes a `DispatchTarget` (route, model, serving provider); `GatewayAuthzRequestInput` gains `provider`; `bridge_admission::probe_route` returns the serving provider with the route id.

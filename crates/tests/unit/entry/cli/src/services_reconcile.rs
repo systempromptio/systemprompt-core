@@ -1,4 +1,4 @@
-//! Reconciling access rules after a `services refresh` swap.
+//! Reconciling gateway routes after a `services refresh` swap.
 //!
 //! The database is only touched when the composition actually moved. Every
 //! provenance that cannot name a new composed hash must return before a pool
@@ -215,11 +215,8 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
         .expect("project fetched composition");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].bundle, SOURCE);
-    assert_eq!(rows[0].inserted, 0);
-    assert_eq!(rows[0].updated, 0);
+    assert_eq!(rows[0].registered, 0);
     assert_eq!(rows[0].deleted, 0);
-    assert_eq!(rows[0].protected, 0);
-    assert!(rows[0].inert_role_rules.is_empty());
     assert_eq!(
         cache.read_state().last_reconciled_hash.as_deref(),
         Some(COMPOSED_HASH),

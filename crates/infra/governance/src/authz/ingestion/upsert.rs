@@ -1,10 +1,8 @@
-//! Row-level upsert primitives shared by the config and marketplace
-//! ingestion passes.
+//! Row-level upsert primitives shared by the ingestion passes.
 //!
 //! A [`Target`] is one resolved `(entity, rule_type, rule_value, access)`
-//! tuple. [`upsert_entity_row`] / [`upsert_marketplace_entity_row`] satisfy the
-//! `access_control_rules` FK and carry the authoritative `default_included`
-//! flag; [`upsert_target`] performs the idempotent insert-or-update and reports
+//! tuple. [`ensure_catalog_entity_row`] satisfies the `access_control_rules`
+//! FK; [`upsert_target`] performs the idempotent insert-or-update and reports
 //! the [`UpsertOutcome`].
 //!
 //! Every rule row carries the provenance of the pass that wrote it, in the
@@ -18,7 +16,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgConnection;
-use systemprompt_manifest::services::MarketplaceAccess;
 
 use crate::authz::error::AuthzResult;
 use crate::authz::repository::ingestion::IngestionRepository;
@@ -36,20 +33,6 @@ pub(super) enum UpsertOutcome {
     Updated,
     Skipped,
     Protected,
-}
-
-// Why: marketplace manifests usually carry no `access:` block (the access
-// plane declares it), and serde defaults an absent block to
-// `default_included: false`. Only a block that declares something may write
-// the access columns; otherwise an existing row keeps what the plane set.
-pub(super) async fn upsert_marketplace_entity_row(
-    conn: &mut PgConnection,
-    entity_id: &str,
-    access: &MarketplaceAccess,
-    source: &str,
-) -> AuthzResult<()> {
-    let declared = access.is_declared().then_some(access.default_included);
-    IngestionRepository::upsert_marketplace_entity(conn, entity_id, declared, source).await
 }
 
 pub(super) async fn ensure_catalog_entity_row(

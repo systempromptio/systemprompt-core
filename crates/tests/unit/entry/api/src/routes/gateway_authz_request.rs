@@ -21,7 +21,7 @@ fn forwards_roles_and_attributes_to_authz_request() {
         attributes: attrs.clone(),
         act_chain: Vec::new(),
         trace_id: TraceId::new("trace-x"),
-        route_id: RouteId::new("route-1"),
+        route_id: Some(RouteId::new("route-1")),
         model: ModelId::new("claude-3"),
         provider: None,
         session_id: None,
@@ -46,4 +46,23 @@ fn forwards_roles_and_attributes_to_authz_request() {
         Some(&ContextId::from_uuid(uuid::Uuid::from_u128(1)))
     );
     assert!(req.task_id.is_none());
+}
+
+#[test]
+fn a_request_no_route_matched_is_decided_on_its_model() {
+    let req = build_gateway_authz_request(GatewayAuthzRequestInput {
+        user_id: UserId::new("user_1"),
+        roles: Vec::new(),
+        attributes: BTreeMap::new(),
+        act_chain: Vec::new(),
+        trace_id: TraceId::new("trace-x"),
+        route_id: None,
+        model: ModelId::new("claude-3"),
+        provider: None,
+        session_id: None,
+        client_id: None,
+        context_id: ContextId::from_uuid(uuid::Uuid::from_u128(1)),
+    });
+
+    assert!(matches!(req.entity, EntityRef::Model(ref model) if model.as_str() == "claude-3"));
 }

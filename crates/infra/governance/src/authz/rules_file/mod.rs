@@ -4,12 +4,14 @@
 //! instance may ship no rules), [`declared_entities`] reduces it to one
 //! canonical value per entity, and [`render_rules_doc`] writes canonical
 //! values back as the file. The access-control config plane is built on these
-//! three; nothing else parses the file.
+//! three; nothing else parses the file. A marketplace's `access:` block is
+//! read into the same canonical form by [`declared_marketplace_entities`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod canonical;
+mod marketplace;
 mod types;
 mod validate;
 
@@ -22,6 +24,7 @@ pub use types::{
     RETIRED_ROLES_FILE, RULES_FILE, RulesDoc,
 };
 
+pub use marketplace::declared_marketplace_entities;
 pub use validate::{RulesProblem, RulesProblems};
 
 use crate::authz::error::{AuthzError, AuthzResult};
@@ -57,12 +60,13 @@ pub fn read_rules_doc(services_root: &Path) -> AuthzResult<Option<RulesDoc>> {
     }
 }
 
-/// One declared entity: its canonical value and the bundle that owns it,
-/// keyed by `<kind>/<id>` as the file wrote it.
+/// One declared entity: its canonical value, the bundle that owns it and the
+/// services-relative `file` that declared it, keyed by `<kind>/<id>`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclaredAccess {
     pub canonical: CanonicalEntity,
     pub owner_bundle: Option<String>,
+    pub file: String,
 }
 
 pub fn declared_entities(doc: &RulesDoc) -> AuthzResult<BTreeMap<String, DeclaredAccess>> {
@@ -75,6 +79,7 @@ pub fn declared_entities(doc: &RulesDoc) -> AuthzResult<BTreeMap<String, Declare
                 DeclaredAccess {
                     canonical: from_decl(decl),
                     owner_bundle: decl.owner_bundle().map(str::to_owned),
+                    file: RULES_FILE.to_owned(),
                 },
             ))
         })

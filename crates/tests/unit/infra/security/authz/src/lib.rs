@@ -3,7 +3,6 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
-#[cfg(test)]
 mod access_plane_db;
 #[cfg(test)]
 mod act_chain;
@@ -11,7 +10,6 @@ mod act_chain;
 mod actor_kind_schema;
 #[cfg(test)]
 mod authz_context;
-#[cfg(test)]
 #[cfg(test)]
 mod db_sink_actor;
 #[cfg(test)]
@@ -33,11 +31,6 @@ mod hook_runtime;
 #[cfg(test)]
 mod hooks_and_composite;
 #[cfg(test)]
-mod ingestion_db;
-#[cfg(test)]
-mod ingestion_ownership;
-#[cfg(test)]
-#[cfg(test)]
 mod kind_sql_roundtrip;
 #[cfg(test)]
 mod marketplace_floor;
@@ -45,10 +38,6 @@ mod marketplace_floor;
 mod parent_chain;
 #[cfg(test)]
 mod profile_governance;
-#[cfg(test)]
-mod reconcile_bundles;
-#[cfg(test)]
-mod reconcile_services;
 #[cfg(test)]
 mod registered_entities;
 #[cfg(test)]
@@ -67,3 +56,8 @@ mod rules_file;
 mod subject_attributes;
 #[cfg(test)]
 mod webhook_hook;
+
+#[cfg(test)]
+mod ingest_scope;
+#[cfg(test)]
+mod marketplace_access_plane;

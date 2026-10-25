@@ -76,7 +76,7 @@ pub fn resolve_id(catalog: &ResolvedCatalog, requested: &str) -> Value {
     if gateway {
         out.insert("strategy".into(), json!(target.strategy));
     }
-    let route_id = gateway.then(|| target.access_route_id.as_str().to_owned());
+    let route_id = target.route.as_ref().map(|route| route.as_str().to_owned());
     out.insert("chain".into(), hops(&target.chain, route_id.as_deref()));
     if !target.context_fallbacks.is_empty() {
         out.insert(
@@ -113,8 +113,8 @@ fn scope_chains(catalog: &ResolvedCatalog, requested: &str, model: &str) -> Opti
         if let Ok(target) =
             catalog.resolve(&ModelRequest::new(requested).with_attribution(&attribution))
         {
-            let route_id = target.access_route_id.as_str().to_owned();
-            chains.insert(value.clone(), hops(&target.chain, Some(&route_id)));
+            let route_id = target.route.as_ref().map(|route| route.as_str().to_owned());
+            chains.insert(value.clone(), hops(&target.chain, route_id.as_deref()));
         }
     }
     dimension

@@ -32,7 +32,6 @@ fn a_scope_route_pins_only_the_requests_it_matches() {
         pinned.route.as_ref().map(|r| r.as_str()),
         Some("project-commerce-eu-only")
     );
-    assert_eq!(pinned.access_route_id.as_str(), "project-commerce-eu-only");
     let endpoints: Vec<&str> = pinned.chain.iter().map(|h| h.endpoint.as_str()).collect();
     assert_eq!(endpoints, vec!["claude-eu"]);
 

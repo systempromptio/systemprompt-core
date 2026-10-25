@@ -97,7 +97,7 @@ async fn allowed_for(
     let provider = ProviderId::new("parity-provider");
     enforce_authz_pre_dispatch(
         principal,
-        DispatchTarget::new(&route, model, &provider),
+        DispatchTarget::new(Some(&route), model, &provider),
         &ContextId::generate(),
         hook,
     )

@@ -5,9 +5,9 @@
 //! entry name onto its credential id, backfills `ai_requests.credential` and
 //! `endpoint` in batches of `BATCH` rows until none is left, rewrites
 //! the 0.72 `anthropic` host-filter tag to the `claude` client family, and
-//! moves access rules addressed to a generated legacy route id onto the
-//! declared id the map names. Every step is idempotent;
-//! `ai_requests.provider` keeps its historical values.
+//! moves access rules addressed to a generated legacy route id (and to the
+//! 0.72.1 catalog route id) onto the `model/<glob>` entity the map names. Every
+//! step is idempotent; `ai_requests.provider` keeps its historical values.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,7 +32,7 @@ pub struct DataReport {
     pub personal_keys_moved: u64,
     pub audit_rows_backfilled: u64,
     pub host_filters_rewritten: u64,
-    pub route_ids_rewritten: u64,
+    pub route_rules_moved_to_models: u64,
 }
 
 pub fn read_map(services: &Path) -> Result<LegacyMap> {
@@ -98,14 +98,13 @@ pub async fn apply_with(db: &DbPool, map: &LegacyMap) -> Result<DataReport> {
     report.host_filters_rewritten = BridgeHostPrefsRepository::new(db)
         .update_model_protocol_tag("anthropic", "claude")
         .await?;
-    let renames: Vec<(&str, &str)> = map
-        .routes
+    let moves: Vec<(&str, &str)> = map
+        .route_models
         .iter()
-        .filter(|(legacy, declared)| legacy != declared)
-        .map(|(legacy, declared)| (legacy.as_str(), declared.as_str()))
+        .map(|(legacy, model)| (legacy.as_str(), model.as_str()))
         .collect();
-    report.route_ids_rewritten = AccessControlRepository::new(db)
-        .update_route_ids(&renames)
+    report.route_rules_moved_to_models = AccessControlRepository::new(db)
+        .move_route_rules_to_models(&moves)
         .await?;
     Ok(report)
 }

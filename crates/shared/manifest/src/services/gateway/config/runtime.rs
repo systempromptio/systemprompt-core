@@ -3,15 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
+use systemprompt_identifiers::ModelId;
 
 use crate::services::gateway::config::{
-    BridgeReleasesSpec, CATALOG_ROUTE_PATTERN, GatewayConfigSpec, QuotaFaultMode,
-    default_auth_scheme, default_inference_path_prefix,
+    BridgeReleasesSpec, GatewayConfigSpec, QuotaFaultMode, default_auth_scheme,
+    default_inference_path_prefix,
 };
 use crate::services::gateway::override_rule::SystemPromptRule;
 use crate::services::gateway::route::GatewayRoute;
-use crate::services::gateway::route_id::synthesize_route_id;
 
 /// Runtime gateway configuration: the post-resolution shape every non-loader
 /// caller sees.
@@ -24,7 +23,6 @@ pub struct GatewayConfig {
     pub enabled: bool,
     pub routes: Vec<GatewayRoute>,
     pub default_model: Option<ModelId>,
-    pub catalog_route_id: Option<RouteId>,
     pub quota_fault_mode: QuotaFaultMode,
     pub require_scopes: Vec<systemprompt_identifiers::ScopeDimension>,
     pub automatic_prompt_caching: bool,
@@ -40,7 +38,6 @@ impl Default for GatewayConfig {
             enabled: false,
             routes: Vec::new(),
             default_model: None,
-            catalog_route_id: None,
             quota_fault_mode: QuotaFaultMode::default(),
             require_scopes: Vec::new(),
             automatic_prompt_caching: true,
@@ -59,22 +56,11 @@ impl GatewayConfig {
     }
 
     #[must_use]
-    pub fn effective_catalog_route_id(&self, default_provider: Option<&ProviderId>) -> RouteId {
-        self.catalog_route_id.clone().unwrap_or_else(|| {
-            synthesize_route_id(
-                CATALOG_ROUTE_PATTERN,
-                default_provider.map_or("", ProviderId::as_str),
-            )
-        })
-    }
-
-    #[must_use]
     pub fn to_spec(&self) -> GatewayConfigSpec {
         GatewayConfigSpec {
             enabled: self.enabled,
             routes: self.routes.clone(),
             default_model: self.default_model.clone(),
-            catalog_route_id: self.catalog_route_id.clone(),
             quota_fault_mode: self.quota_fault_mode,
             require_scopes: self.require_scopes.clone(),
             automatic_prompt_caching: self.automatic_prompt_caching,

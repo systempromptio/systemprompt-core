@@ -171,3 +171,51 @@ fn a_decision_without_facts_ignores_entitlements() {
     );
     assert!(decision.permits());
 }
+
+fn decide_model(index: &ParentChainIndex, roles: &[&str], model: &str) -> Decision {
+    let user = fixture_user_id();
+    let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
+    index.resolve(
+        EntityKind::Model,
+        model,
+        ResolveBase {
+            rules: &[],
+            user_id: &user,
+            user_roles: &roles,
+            default_included: None,
+            attributes: &NO_SUBJECT_ATTRIBUTES,
+            dimensions: &[],
+            facts: DecisionFacts {
+                model: Some(model),
+                provider: Some("vertex"),
+            },
+        },
+    )
+}
+
+#[test]
+fn a_request_no_route_matched_is_decided_on_its_model_then_its_provider() {
+    let idx = index(vec![
+        level(
+            EntityRef::Model(ModelId::new("claude-opus-*")),
+            vec![role("eng", Access::Allow)],
+            false,
+        ),
+        level(
+            EntityRef::Provider(ProviderId::new("vertex")),
+            vec![role("user", Access::Allow)],
+            false,
+        ),
+    ]);
+
+    assert!(!decide_model(&idx, &["user"], "claude-opus-5").permits());
+    assert!(decide_model(&idx, &["eng"], "claude-opus-5").permits());
+    assert!(
+        decide_model(&idx, &["user"], "claude-sonnet-5").permits(),
+        "a model no entitlement names falls through to its provider"
+    );
+    assert!(
+        !decide_model(&index(Vec::new()), &["user"], "claude-sonnet-5").permits(),
+        "with nothing declared the request fails closed"
+    );
+}

@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `RouteResolution::access_route_id` is `route_id` and returns `Option<&RouteId>`; `order_chain` takes `Option<&RouteId>`, `describe_route_match` and the bound upstream's `route_id` are optional, and route selectors apply only to a request a declared route matched.
 - `PolicyResolver` follows the profile's `governance.unapplied_planes` (`with_unapplied_mode`): with `ai_gateway_policies` empty and the `gateway_policies` plane never applied, `deny` returns `PolicyUnavailable::NotApplied` in either fault mode and `warn` serves the permissive spec with a warning per request.
 
 - `GatewayPoliciesPlane` and the `gateway` extension replace the boot ingest (`load_from_yaml`, `GatewayPolicyIngestionService` and its options and report are deleted; `GatewayPolicyError` keeps only `Invalid`).

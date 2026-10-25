@@ -62,18 +62,6 @@ impl ResolvedCatalog {
 
         let (providers, endpoints) = project_providers(input.providers, context)?;
 
-        let catalog_route_id = input.gateway.map_or_else(
-            || GatewayConfig::default().effective_catalog_route_id(None),
-            |gateway| {
-                let default_provider = gateway
-                    .default_model
-                    .as_ref()
-                    .and_then(|m| input.deployments.get(m.as_str()))
-                    .and_then(<[_]>::first)
-                    .map(|target| &target.endpoint().provider);
-                gateway.effective_catalog_route_id(default_provider)
-            },
-        );
         let mut catalog = Self {
             credentials,
             providers,
@@ -82,7 +70,6 @@ impl ResolvedCatalog {
             deployments: BTreeMap::new(),
             routes: input.gateway.map(|g| g.routes.clone()).unwrap_or_default(),
             default_model: input.gateway.and_then(|g| g.default_model.clone()),
-            catalog_route_id,
             gateway_enabled: input.gateway.is_some_and(|g| g.enabled),
             default_image_model: input.default_image_model.cloned(),
         };
