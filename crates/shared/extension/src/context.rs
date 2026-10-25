@@ -22,10 +22,12 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::InstanceId;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
 use systemprompt_traits::{
-    BackgroundTasks, ConfigProvider, DatabaseHandle, DynAdvisoryLocks, DynInstanceRegistry,
-    DynLeaseRepository, ExtensionSecret, FileStorage, UnavailableCoordination,
+    BackgroundTasks, ConfigProvider, ConfigWatch, DatabaseHandle, DynAdvisoryLocks,
+    DynInstanceRegistry, DynLeaseRepository, ExtensionSecret, FileStorage, UnavailableCoordination,
 };
 
 pub trait ExtensionContext: Send + Sync {
@@ -62,6 +64,10 @@ pub trait ExtensionContext: Send + Sync {
     fn has_extension(&self, id: &str) -> bool {
         self.get_extension(id).is_some()
     }
+
+    fn services_config(&self) -> ConfigWatch<ServicesConfig>;
+
+    fn resolved_catalog(&self) -> Arc<ResolvedCatalog>;
 
     fn config_planes(&self) -> ConfigPlaneResult<ConfigPlaneSet> {
         Err(ConfigPlaneError::PlanesUnavailable)

@@ -58,6 +58,16 @@ impl AppContextTrait for AppContext {
 }
 
 impl ExtensionContext for AppContext {
+    fn services_config(
+        &self,
+    ) -> systemprompt_traits::ConfigWatch<systemprompt_manifest::services::ServicesConfig> {
+        self.services_state().watch().clone()
+    }
+
+    fn resolved_catalog(&self) -> Arc<systemprompt_manifest::services::catalog::ResolvedCatalog> {
+        Arc::clone(self.services_state().catalog())
+    }
+
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
         self.system_admin().id().clone()
     }

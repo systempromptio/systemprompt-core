@@ -138,6 +138,21 @@ impl systemprompt_traits::FileStorage for StubFiles {
 }
 
 impl ExtensionContext for StubCtx {
+    fn services_config(
+        &self,
+    ) -> systemprompt_traits::ConfigWatch<systemprompt_manifest::services::ServicesConfig> {
+        systemprompt_traits::ConfigWatch::new(
+            systemprompt_manifest::services::ServicesConfig::default(),
+        )
+    }
+    fn resolved_catalog(&self) -> Arc<systemprompt_manifest::services::catalog::ResolvedCatalog> {
+        systemprompt_loader::ServicesState::from_config(
+            systemprompt_manifest::services::ServicesConfig::default(),
+        )
+        .expect("default services config resolves")
+        .catalog()
+        .clone()
+    }
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
         systemprompt_identifiers::UserId::new("extension-test-owner")
     }

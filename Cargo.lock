@@ -5171,6 +5171,7 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",

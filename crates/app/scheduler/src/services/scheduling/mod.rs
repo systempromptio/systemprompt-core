@@ -254,6 +254,8 @@ pub(crate) fn make_job_context(
         .with(Arc::clone(app_context.app_paths_arc()))
         .with(Arc::clone(app_context.files_config()))
         .with(app_context.signing_keys().clone())
+        .with(app_context.services_state().watch().clone())
+        .with(Arc::clone(app_context.services_state().catalog()))
         .with(BudgetedDb::new(Arc::clone(&db_pool), budget))
         .with(db_pool)
         .with(app_context);
