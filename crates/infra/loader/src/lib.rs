@@ -22,9 +22,9 @@
 //!   serverless model it returns is folded into the provider registry.
 //! - [`services_root`] — the process-wide cell naming the services root the
 //!   instance actually runs, with its provenance.
-//! - [`services_bootstrap`] — the process-wide cell holding the loaded services
-//!   config (provider catalog and gateway included), initialised right after
-//!   the profile at boot.
+//! - [`services_state`] — [`ServicesState`], the owned services config, its
+//!   resolved catalog and the discovery report, built once at boot and handed
+//!   to every consumer.
 //! - [`error`] — public error types ([`ConfigLoadError`], [`ConfigWriteError`],
 //!   [`ExtensionLoadError`]).
 //!
