@@ -2,8 +2,8 @@
 //!
 //! `Profile`, `CloudConfig`, `ProfileStyle` and `CloudValidationMode`, plus the
 //! `ProfileBootstrap` loader when the `config` feature is enabled and the
-//! `ServicesState` (the services config, provider catalog and gateway routes) when `loader`
-//! is.
+//! `ServicesState` (the services config, provider catalog and gateway routes)
+//! when `loader` is.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
