@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `bundle::degraded` (`DegradedRecord`, `BundleCache::{read,write,clear}_degraded`): the on-disk record of a fallback boot.
 - `ServicesSourceBootstrap` load-validates the composed tree before swapping `current` or writing `state.json`; an unloadable composition falls back per `on_fetch_failure` with an error naming the sources and the loader's file, line and rule.
 - The loader reads the model catalog by convention from `services/ai/{credentials,providers,models,deployments,gateway}.yaml` and refuses a catalog section (`credentials:`, `providers:`, `models:`, `deployments:`, `gateway:`) in the root or any include with `ConfigLoadError::CatalogOutsideConvention`; every file is checked by `detect_legacy_shape` and a pre-0.73 tree fails with `ConfigLoadError::LegacyCatalog` naming `systemprompt admin config migrate`. New variants `CatalogDocument` and `Catalog` (boxed); `DuplicateProvider` is deleted.
 - `ServicesBootstrap::catalog()` returns the booted `ResolvedCatalog`, resolved with `{install}` expanded from the profile's `site.name` (`services_bootstrap::catalog_context`); `ServicesBootstrap::providers()` is deleted and `try_init_with_discovery` augments a `CatalogDocument`.

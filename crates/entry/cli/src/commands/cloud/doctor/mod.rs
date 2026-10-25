@@ -166,7 +166,7 @@ pub(in crate::commands::cloud) async fn run(
     checks.push(check_extension_configs(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
     checks.push(plane_checks::check_config_planes(profile, &secrets).await);
-    checks.push(plane_checks::check_services_source());
+    checks.push(plane_checks::check_services_source(profile));
     if distributed {
         checks.extend(distributed::run(profile, &secrets).await);
     }

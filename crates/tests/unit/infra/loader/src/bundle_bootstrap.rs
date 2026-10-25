@@ -452,4 +452,21 @@ async fn a_kit_the_binary_cannot_load_is_never_swapped_in() {
         good_hash,
         "the state still names the last good composition"
     );
+    let record = BundleCache::new(cache.path())
+        .read_degraded()
+        .expect("the fallback is recorded on disk for `cloud doctor`");
+    assert_eq!(record.serving, "last_good");
+    assert!(record.error.contains("evaluation"), "{}", record.error);
+
+    let again = ServicesSourceBootstrap::resolve(&p, no_secrets, CORE)
+        .await
+        .expect("the good origin boots again");
+    assert!(matches!(
+        again.provenance,
+        ServicesProvenance::Fetched { .. }
+    ));
+    assert!(
+        BundleCache::new(cache.path()).read_degraded().is_none(),
+        "a composition that loads clears the record"
+    );
 }

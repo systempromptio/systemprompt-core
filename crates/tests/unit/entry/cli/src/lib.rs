@@ -122,3 +122,5 @@ mod time_format_tests;
 mod config_apply_database_url;
 #[cfg(all(test, unix))]
 mod coverage_process_flows;
+#[cfg(test)]
+mod services_reconcile_retry;

@@ -27,6 +27,7 @@
 pub mod bootstrap;
 pub mod cache;
 pub mod compose;
+pub mod degraded;
 pub mod error;
 pub mod extract;
 pub mod pack;
@@ -37,6 +38,7 @@ pub mod verify;
 pub use bootstrap::{ServicesSourceBootstrap, cache_root};
 pub use cache::BundleCache;
 pub use compose::{BundleMember, compose, composed_hash};
+pub use degraded::DegradedRecord;
 pub use error::{BundleError, BundleResult, VerifyFailure};
 pub use extract::{BUNDLE_TREE_PREFIX, ExtractOptions, TarLayout, extract_bytes, extract_tarball};
 pub use provenance::{

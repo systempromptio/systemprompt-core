@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- `cloud doctor`'s `services-source` check reads the cache's `state.json` and degraded record instead of the process provenance.
 - `core services refresh` reports `Changed` and retries when the composed hash was never reconciled (`outcome_with_pending`); `cloud doctor` gains a `services-source` check.
 - `config apply` honours `--database-url` through `CommandContext::with_database_url_override`; `config migrate --database-url` requires `--services`.
 - `config migrate` rewrites `hooks.evaluation` to `hooks.judge` in `plugins/*/config.yaml` (`migrate::hooks`); with `--services` it runs under `--database-url` (`--data` uses the command context's database).

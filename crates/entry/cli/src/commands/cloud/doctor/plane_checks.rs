@@ -80,21 +80,38 @@ pub(super) async fn check_config_planes(
     }
 }
 
-pub(super) fn check_services_source() -> CheckResult {
-    use systemprompt_loader::{ServicesProvenance, ServicesRootBootstrap};
+pub(super) fn check_services_source(profile: &Profile) -> CheckResult {
+    use systemprompt_loader::bundle::{BundleCache, cache_root};
     const SOURCE: &str = "services-source";
-    match ServicesRootBootstrap::get().map(|root| &root.provenance) {
-        Some(ServicesProvenance::LastGood { error, .. }) => CheckResult::warn(
-            SOURCE,
-            format!("serving the last good services composition after: {error}"),
-        ),
-        Some(ServicesProvenance::BundledFallback { error }) => CheckResult::warn(
-            SOURCE,
-            format!("serving the bundled services tree after: {error}"),
-        ),
-        Some(ServicesProvenance::Bundled | ServicesProvenance::Fetched { .. }) => {
-            CheckResult::pass(SOURCE, "serving the configured services sources")
-        },
-        None => CheckResult::pass(SOURCE, "no services sources resolved in this process"),
+    if profile.services.sources.is_empty() {
+        return CheckResult::pass(SOURCE, "no services sources are pinned");
     }
+    let cache = BundleCache::new(cache_root(profile));
+    if let Some(record) = cache.read_degraded() {
+        return CheckResult::warn(
+            SOURCE,
+            format!(
+                "serving the {} services tree since {}: {}",
+                record.serving, record.recorded_at, record.error
+            ),
+        );
+    }
+    let state = cache.read_state();
+    if state.composed_hash.is_empty() {
+        return CheckResult::pass(SOURCE, "sources are pinned and not fetched yet");
+    }
+    if state.last_reconciled_hash.as_deref() != Some(state.composed_hash.as_str()) {
+        return CheckResult::warn(
+            SOURCE,
+            format!(
+                "composition {} was fetched but never reconciled; run `systemprompt core \
+                 services refresh`",
+                state.composed_hash
+            ),
+        );
+    }
+    CheckResult::pass(
+        SOURCE,
+        format!("composition {} is reconciled", state.composed_hash),
+    )
 }

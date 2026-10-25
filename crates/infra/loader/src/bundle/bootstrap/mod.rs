@@ -22,6 +22,7 @@ use systemprompt_manifest::services::bundle::ServicesBundleState;
 
 use super::cache::BundleCache;
 use super::compose::{BundleMember, compose};
+use super::degraded::DegradedRecord;
 use super::error::{BundleError, BundleResult};
 use crate::services_root::{ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap};
 
@@ -64,10 +65,21 @@ impl ServicesSourceBootstrap {
 
         let cache = BundleCache::new(cache_root(profile));
         match Self::compose_sources(profile, &cache, &resolve_secret, core_version).await {
-            Ok(active) => Ok(active),
+            Ok(active) => {
+                if let Err(error) = cache.clear_degraded() {
+                    tracing::warn!(error = %error, "Could not clear the degraded services record");
+                }
+                Ok(active)
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Services bundle refresh failed");
-                Self::fall_back(profile, &cache, e)
+                let active = Self::fall_back(profile, &cache, e)?;
+                if let Some(record) = DegradedRecord::for_provenance(&active.provenance)
+                    && let Err(error) = cache.write_degraded(&record)
+                {
+                    tracing::warn!(error = %error, "Could not record the degraded services source");
+                }
+                Ok(active)
             },
         }
     }
