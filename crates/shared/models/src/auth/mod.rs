@@ -14,6 +14,7 @@ pub mod cloud_claims;
 pub mod enums;
 pub mod permission;
 pub mod roles;
+pub mod token_authority;
 pub mod types;
 
 pub use claims::{ActClaim, CustomClaims, JwtClaims, MAX_ACT_CHAIN_DEPTH, RegisteredClaims};
@@ -25,4 +26,5 @@ pub use permission::{
     Permission, parse_permissions, parse_roles, permissions_to_string, roles_to_string,
 };
 pub use roles::BaseRoles;
+pub use token_authority::{TokenAuthority, TokenError, TokenResult, UserJwtRequest};
 pub use types::{AuthRequestError, AuthenticatedUser, BEARER_PREFIX, PkceMethod, ResponseType};

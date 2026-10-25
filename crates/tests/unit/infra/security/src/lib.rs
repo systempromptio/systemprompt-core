@@ -39,6 +39,8 @@ mod jwt_extract;
 #[cfg(test)]
 mod jwt_validate;
 #[cfg(test)]
+mod token_authority;
+#[cfg(test)]
 mod manifest_signing_jcs;
 #[cfg(test)]
 mod manifest_signing_keys;

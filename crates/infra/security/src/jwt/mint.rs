@@ -8,7 +8,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, Header, encode};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
@@ -17,6 +16,7 @@ use systemprompt_models::auth::{
 };
 
 use crate::error::{JwtError, JwtResult};
+use crate::jwt::encode_rs256;
 use crate::keys::SigningKeys;
 
 #[derive(Debug)]
@@ -68,9 +68,7 @@ impl JwtService {
             },
         };
 
-        let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some(keys.active_kid().to_owned());
-        let token = encode(&header, &claims, keys.encoding_key()).map_err(JwtError::from)?;
+        let token = encode_rs256(keys, &claims).map_err(JwtError::from)?;
 
         Ok(JwtToken::new(token))
     }

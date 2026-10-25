@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, Header, encode};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_models::auth::{
@@ -13,6 +12,7 @@ use systemprompt_models::auth::{
 };
 
 use crate::error::{JwtError, JwtResult};
+use crate::jwt::encode_rs256;
 use crate::keys::SigningKeys;
 
 #[derive(Debug)]
@@ -75,9 +75,7 @@ impl SessionGenerator {
             },
         };
 
-        let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some(self.keys.active_kid().to_owned());
-        let token = encode(&header, &claims, self.keys.encoding_key()).map_err(JwtError::from)?;
+        let token = encode_rs256(&self.keys, &claims).map_err(JwtError::from)?;
 
         Ok(SessionToken::new(token))
     }
