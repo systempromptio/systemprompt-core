@@ -554,5 +554,10 @@ pub fn test_boot_profile() -> std::sync::Arc<systemprompt_manifest::Profile> {
 }
 
 pub fn test_boot_services_root() -> PathBuf {
-    ensure_test_bootstrap().boot.require_services_root().path
+    test_boot_active_services_root().path
+}
+
+pub fn test_boot_active_services_root() -> systemprompt_manifest::services::root::ActiveServicesRoot
+{
+    ensure_test_bootstrap().boot.require_services_root()
 }

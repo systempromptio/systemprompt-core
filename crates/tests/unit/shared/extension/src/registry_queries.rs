@@ -263,8 +263,8 @@ impl ExtensionContext for StubCtx {
     fn app_config(&self) -> Arc<systemprompt_manifest::Config> {
         Arc::clone(systemprompt_test_fixtures::ensure_test_bootstrap().boot_config())
     }
-    fn services_root(&self) -> std::path::PathBuf {
-        systemprompt_test_fixtures::test_boot_services_root()
+    fn services_root(&self) -> systemprompt_manifest::services::root::ActiveServicesRoot {
+        systemprompt_test_fixtures::test_boot_active_services_root()
     }
     fn token_authority(&self) -> Arc<dyn systemprompt_models::auth::TokenAuthority> {
         systemprompt_test_fixtures::test_token_authority(&self.app_config().jwt_issuer)

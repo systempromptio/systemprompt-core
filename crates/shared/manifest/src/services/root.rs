@@ -6,9 +6,8 @@
 //! error that forced a fallback, so an instance running yesterday's bundle
 //! can say so rather than looking healthy.
 //!
-//! The boot context installs the root once, before [`crate::ConfigLoader`]
-//! reads anything; [`crate::BootContext::require_services_root`] answers the
-//! profile's baked tree while no bundle bootstrap has installed one.
+//! The boot context installs the root once, before the services config is
+//! read, and extensions read it through `ExtensionContext::services_root`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,8 +15,8 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use crate::profile::Profile;
 use serde::{Deserialize, Serialize};
-use systemprompt_manifest::profile::Profile;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]

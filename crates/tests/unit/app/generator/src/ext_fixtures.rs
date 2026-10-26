@@ -264,7 +264,10 @@ impl Extension for GenProviders {
         }
     }
 
-    fn component_renderers(&self) -> Vec<Arc<dyn ComponentRenderer>> {
+    fn component_renderers(
+        &self,
+        _ctx: &dyn systemprompt_extension::ExtensionContext,
+    ) -> Vec<Arc<dyn ComponentRenderer>> {
         vec![
             Arc::new(GenComponent {
                 id: "gen_comp_hi",
@@ -297,7 +300,10 @@ impl Extension for GenProviders {
         ]
     }
 
-    fn template_data_extenders(&self) -> Vec<Arc<dyn TemplateDataExtender>> {
+    fn template_data_extenders(
+        &self,
+        _ctx: &dyn systemprompt_extension::ExtensionContext,
+    ) -> Vec<Arc<dyn TemplateDataExtender>> {
         vec![
             Arc::new(GenExtender {
                 id: "gen_ext_ok",
@@ -310,11 +316,17 @@ impl Extension for GenProviders {
         ]
     }
 
-    fn page_data_providers(&self) -> Vec<Arc<dyn PageDataProvider>> {
+    fn page_data_providers(
+        &self,
+        _ctx: &dyn systemprompt_extension::ExtensionContext,
+    ) -> Vec<Arc<dyn PageDataProvider>> {
         vec![Arc::new(GenPageData)]
     }
 
-    fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {
+    fn page_prerenderers(
+        &self,
+        _ctx: &dyn systemprompt_extension::ExtensionContext,
+    ) -> Vec<Arc<dyn PagePrerenderer>> {
         vec![
             Arc::new(GenPrerenderer {
                 page_type: "covgenpage",
@@ -334,7 +346,10 @@ impl Extension for GenProviders {
         ]
     }
 
-    fn content_data_providers(&self) -> Vec<Arc<dyn ContentDataProvider>> {
+    fn content_data_providers(
+        &self,
+        _ctx: &dyn systemprompt_extension::ExtensionContext,
+    ) -> Vec<Arc<dyn ContentDataProvider>> {
         vec![
             Arc::new(GenContentData {
                 id: "gen_cd_all",

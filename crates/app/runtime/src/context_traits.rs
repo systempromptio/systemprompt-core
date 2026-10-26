@@ -6,7 +6,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
@@ -91,8 +90,8 @@ impl ExtensionContext for AppContext {
         Arc::clone(&self.cfg.config)
     }
 
-    fn services_root(&self) -> PathBuf {
-        self.cfg.boot.require_services_root().path
+    fn services_root(&self) -> systemprompt_manifest::services::root::ActiveServicesRoot {
+        self.cfg.boot.require_services_root()
     }
 
     fn token_authority(&self) -> Arc<dyn TokenAuthority> {

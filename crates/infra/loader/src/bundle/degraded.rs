@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::cache::BundleCache;
 use super::error::{BundleError, BundleResult};
-use crate::services_root::ServicesProvenance;
+use systemprompt_manifest::services::root::ServicesProvenance;
 
 const DEGRADED_FILE: &str = "degraded.json";
 

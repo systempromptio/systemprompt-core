@@ -44,19 +44,19 @@ pub use app_context::{
     fixture_app_context_on_bootstrap, fixture_app_context_on_bootstrap_with_paths,
     fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
     fixture_app_context_with_hook, fixture_app_context_with_user_repository,
-    fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_fingerprint_repository,
-    fixture_secret_store, fixture_services_state, fixture_services_view, fixture_subject_providers,
-    offline_rate_windows, test_app_context, test_app_context_on, test_config, test_config_with,
-    FIXTURE_JWT_ISSUER,
+    fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_extension_context,
+    fixture_fingerprint_repository, fixture_secret_store, fixture_services_state,
+    fixture_services_view, fixture_subject_providers, offline_rate_windows, test_app_context,
+    test_app_context_on, test_config, test_config_with, FIXTURE_JWT_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
     init_services_bootstrap, init_unloadable_services_bootstrap,
-    messaging_config_yaml_with_teams_endpoints, test_boot_profile, test_boot_services_root,
-    test_messaging_agent, test_skills_root, TestBootstrap, FIXTURE_EXTERNAL_URL,
-    TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID,
-    TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
-    TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
+    messaging_config_yaml_with_teams_endpoints, test_boot_active_services_root, test_boot_profile,
+    test_boot_services_root, test_messaging_agent, test_skills_root, TestBootstrap,
+    FIXTURE_EXTERNAL_URL, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID,
+    TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
+    TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_fixture_system_admin, seed_user_row,

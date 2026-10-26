@@ -14,7 +14,7 @@ use crate::managed::{
 use std::collections::BTreeMap;
 use std::path::Path;
 use systemprompt_identifiers::{ManagedReconciliationId, ResourceRevisionId, UserId};
-use systemprompt_loader::ActiveServicesRoot;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_models::feedback::inventory::InventoryAvailability;
 
 struct AuthoringCapture {

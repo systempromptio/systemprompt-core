@@ -10,7 +10,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::{ExtensionContext, ExtensionRegistry};
 use systemprompt_manifest::{Config, WebConfig};
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{ContentDataProvider, Dependencies};
@@ -21,6 +21,7 @@ use systemprompt_templates::{
 use tokio::fs;
 
 use crate::error::{GeneratorResult, PublishError};
+use crate::prerender::engine::PrerenderEnv;
 use crate::templates::{get_templates_path, load_web_config};
 
 pub(super) struct PrerenderAssets {
@@ -64,10 +65,9 @@ impl std::fmt::Debug for PrerenderContext {
 pub(super) async fn load_prerender_context(
     db_pool: DbPool,
     content_repo: ContentRepository,
-    config: &Config,
-    paths: &AppPaths,
+    env: PrerenderEnv<'_>,
 ) -> GeneratorResult<PrerenderContext> {
-    let assets = Arc::new(load_prerender_assets(config, paths).await?);
+    let assets = Arc::new(load_prerender_assets(env.config, env.paths, env.extensions).await?);
 
     let dependencies = Dependencies::new()
         .with(db_pool)
@@ -82,6 +82,7 @@ pub(super) async fn load_prerender_context(
 async fn load_prerender_assets(
     config: &Config,
     paths: &AppPaths,
+    ext_ctx: &dyn ExtensionContext,
 ) -> GeneratorResult<PrerenderAssets> {
     let config_path = paths.system().content_config();
 
@@ -111,7 +112,8 @@ async fn load_prerender_assets(
     }
 
     let registry_builder = base_registry_builder(&extension_template_path).await?;
-    let (registry_builder, mut content_data_providers) = register_extensions(registry_builder)?;
+    let (registry_builder, mut content_data_providers) =
+        register_extensions(registry_builder, ext_ctx)?;
 
     content_data_providers.sort_by_key(|p| p.priority());
 
@@ -149,6 +151,7 @@ async fn base_registry_builder(
 
 fn register_extensions(
     mut registry_builder: TemplateRegistryBuilder,
+    ext_ctx: &dyn ExtensionContext,
 ) -> GeneratorResult<(TemplateRegistryBuilder, Vec<Arc<dyn ContentDataProvider>>)> {
     let extensions = ExtensionRegistry::discover()?;
 
@@ -156,11 +159,11 @@ fn register_extensions(
     let mut contributing = 0usize;
 
     for ext in extensions.extensions() {
-        let providers = ext.page_data_providers();
-        let prerenderers = ext.page_prerenderers();
-        let content_providers = ext.content_data_providers();
-        let components = ext.component_renderers();
-        let extenders = ext.template_data_extenders();
+        let providers = ext.page_data_providers(ext_ctx);
+        let prerenderers = ext.page_prerenderers(ext_ctx);
+        let content_providers = ext.content_data_providers(ext_ctx);
+        let components = ext.component_renderers(ext_ctx);
+        let extenders = ext.template_data_extenders(ext_ctx);
 
         if !providers.is_empty()
             || !prerenderers.is_empty()

@@ -12,8 +12,8 @@ use chrono::Utc;
 use systemprompt_cli::CommandContext;
 use systemprompt_cli::core::services::inspect::{InspectArgs, execute};
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 use crate::services_profile_fixture as fx;
 

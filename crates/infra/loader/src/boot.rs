@@ -24,7 +24,7 @@ use systemprompt_models::errors::GlobalConfigError;
 use crate::bundle::{BundleResult, ServicesSourceBootstrap};
 use crate::config_loader::ConfigLoader;
 use crate::error::ConfigLoadResult;
-use crate::services_root::ActiveServicesRoot;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 
 #[derive(Clone)]
 pub struct BootContext {

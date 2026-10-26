@@ -24,7 +24,7 @@ use super::cache::BundleCache;
 use super::compose::{BundleMember, compose};
 use super::degraded::DegradedRecord;
 use super::error::{BundleError, BundleResult};
-use crate::services_root::{ActiveServicesRoot, ServicesProvenance};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 use baked::{is_base, stage_baked_base};
 use fetch::{ResolvedSource, SourceContext, resolve_source};

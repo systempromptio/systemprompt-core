@@ -13,8 +13,8 @@ use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::core::services::reconcile::reconcile_after_swap;
 use systemprompt_cli::env_overrides::EnvOverrides;
 use systemprompt_loader::bundle::BundleCache;
-use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 use crate::services_profile_fixture as fx;
 

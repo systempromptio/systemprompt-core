@@ -84,19 +84,22 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
-    fn component_renderers(&self) -> Vec<Arc<dyn ComponentRenderer>> {
+    fn component_renderers(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn ComponentRenderer>> {
         vec![]
     }
 
-    fn template_data_extenders(&self) -> Vec<Arc<dyn TemplateDataExtender>> {
+    fn template_data_extenders(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Vec<Arc<dyn TemplateDataExtender>> {
         vec![]
     }
 
-    fn page_data_providers(&self) -> Vec<Arc<dyn PageDataProvider>> {
+    fn page_data_providers(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn PageDataProvider>> {
         vec![]
     }
 
-    fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {
+    fn page_prerenderers(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn PagePrerenderer>> {
         vec![]
     }
 
@@ -104,7 +107,10 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
-    fn content_data_providers(&self) -> Vec<Arc<dyn ContentDataProvider>> {
+    fn content_data_providers(
+        &self,
+        _ctx: &dyn ExtensionContext,
+    ) -> Vec<Arc<dyn ContentDataProvider>> {
         vec![]
     }
 

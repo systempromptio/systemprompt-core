@@ -182,8 +182,11 @@ async fn prerender_content_malformed_content_config_is_parse_error() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        ensure_test_bootstrap().boot_config(),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect_err("malformed content config");
@@ -206,8 +209,11 @@ async fn prerender_content_missing_content_config_is_read_error() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        ensure_test_bootstrap().boot_config(),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect_err("missing content config");
@@ -230,8 +236,11 @@ async fn prerender_content_malformed_web_config_is_web_config_error() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        ensure_test_bootstrap().boot_config(),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect_err("malformed web config");
@@ -319,8 +328,11 @@ async fn prerender_content_missing_templates_dir_is_config_error() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        ensure_test_bootstrap().boot_config(),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect_err("missing templates dir");
@@ -359,8 +371,11 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
         closed.clone(),
         content_repo(&closed),
         content_analytics(&closed),
-        ensure_test_bootstrap().boot_config(),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&closed).as_ref(),
+        },
     )
     .await
     .expect_err("closed pool must fail content fetch");

@@ -148,6 +148,8 @@ async fn serve_until_shutdown(
 
 fn start_runner_services(ctx: &AppContext) {
     let shared = Arc::new(ctx.clone());
+    let concrete = Arc::clone(&shared);
+    let extension_ctx: Arc<dyn systemprompt_extension::ExtensionContext> = concrete;
     let mut started = 0usize;
     for extension in ctx.extension_registry().extensions() {
         for service in extension.runner_services() {
@@ -156,6 +158,7 @@ fn start_runner_services(ctx: &AppContext) {
             let dependencies = Dependencies::new()
                 .with(Arc::clone(ctx.app_paths_arc()))
                 .with(Arc::clone(ctx.db_pool()))
+                .with(Arc::clone(&extension_ctx))
                 .with(Arc::clone(&shared));
             let job_ctx = JobContext::new(actor, dependencies);
             ctx.background_tasks()

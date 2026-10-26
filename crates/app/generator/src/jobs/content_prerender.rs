@@ -5,16 +5,18 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
+
 use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
+use systemprompt_extension::ExtensionContext;
 use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::{
     Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
 };
 
-use crate::prerender::prerender_content;
+use crate::prerender::{PrerenderEnv, prerender_content};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ContentPrerenderJob;
@@ -42,16 +44,26 @@ impl Job for ContentPrerenderJob {
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let paths = ctx.get::<Arc<AppPaths>>()?.as_ref();
         let config = ctx.get::<Arc<Config>>()?.as_ref();
+        let ext_ctx = ctx.get::<Arc<dyn ExtensionContext>>()?;
 
         tracing::info!("Job started");
         let content_repo = ContentRepository::new(&db_pool);
         let content_analytics = ContentAnalyticsRepository::new(&db_pool);
-        prerender_content(db_pool, content_repo, content_analytics, config, paths)
-            .await
-            .map_err(|e| ProviderError::Rendering {
-                context: "content prerender".to_owned(),
-                source: Box::new(e),
-            })?;
+        prerender_content(
+            db_pool,
+            content_repo,
+            content_analytics,
+            PrerenderEnv {
+                config,
+                paths,
+                extensions: ext_ctx.as_ref(),
+            },
+        )
+        .await
+        .map_err(|e| ProviderError::Rendering {
+            context: "content prerender".to_owned(),
+            source: Box::new(e),
+        })?;
         let duration_ms = start_time.elapsed().as_millis() as u64;
         tracing::info!(duration_ms = duration_ms, "Job completed");
 

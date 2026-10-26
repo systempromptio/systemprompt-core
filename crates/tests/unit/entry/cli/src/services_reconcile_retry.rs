@@ -18,12 +18,12 @@ use systemprompt_cli::core::services::refresh::{
 };
 use systemprompt_cli::env_overrides::EnvOverrides;
 use systemprompt_loader::bundle::BundleCache;
-use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_manifest::profile::ServicesSource;
 use systemprompt_manifest::services::bundle::{
     BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
     ServicesBundleState, SignedBundleManifest,
 };
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};

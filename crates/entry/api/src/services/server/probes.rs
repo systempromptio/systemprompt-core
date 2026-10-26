@@ -183,7 +183,7 @@ fn flag_degraded_services_source(ctx: &AppContext, config: &mut serde_json::Valu
 
 // JSON: `/readyz` and `/health` carry this block as an open JSON object.
 pub(super) fn degraded_services_source(ctx: &AppContext) -> Option<serde_json::Value> {
-    use systemprompt_loader::ServicesProvenance;
+    use systemprompt_manifest::services::root::ServicesProvenance;
     match &ctx.boot().services_root()?.provenance {
         ServicesProvenance::LastGood { error, .. } => Some(json!({
             "serving": "last_good",

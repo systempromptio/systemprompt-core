@@ -11,7 +11,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_config::ConfigFingerprint;
-use systemprompt_loader::{BootContext, ServicesProvenance};
+use systemprompt_loader::BootContext;
+use systemprompt_manifest::services::root::ServicesProvenance;
 
 pub(super) const CONFIG_INFO: &str = "systemprompt_config_info";
 

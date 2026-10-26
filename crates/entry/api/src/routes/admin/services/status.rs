@@ -6,8 +6,8 @@
 use axum::Json;
 use axum::extract::State;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_loader::services_root::ActiveServicesRoot;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_runtime::AppContext;
 
 use super::{ProvenanceView, ServicesStatusResponse, provenance_view, source_views};

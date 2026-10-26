@@ -153,11 +153,14 @@ fn describe_active(boot: &BootContext) -> Result<ActiveReport> {
         .join(", ");
 
     let (provenance, composed_hash, detail) = match &root.provenance {
-        systemprompt_loader::ServicesProvenance::Bundled => ("bundled", None, None),
-        systemprompt_loader::ServicesProvenance::Fetched { composed_hash, .. } => {
-            ("fetched", Some(composed_hash.clone()), None)
+        systemprompt_manifest::services::root::ServicesProvenance::Bundled => {
+            ("bundled", None, None)
         },
-        systemprompt_loader::ServicesProvenance::LastGood {
+        systemprompt_manifest::services::root::ServicesProvenance::Fetched {
+            composed_hash,
+            ..
+        } => ("fetched", Some(composed_hash.clone()), None),
+        systemprompt_manifest::services::root::ServicesProvenance::LastGood {
             composed_hash,
             error,
         } => (
@@ -165,7 +168,7 @@ fn describe_active(boot: &BootContext) -> Result<ActiveReport> {
             Some(composed_hash.clone()),
             Some(error.clone()),
         ),
-        systemprompt_loader::ServicesProvenance::BundledFallback { error } => {
+        systemprompt_manifest::services::root::ServicesProvenance::BundledFallback { error } => {
             ("bundled_fallback", None, Some(error.clone()))
         },
     };

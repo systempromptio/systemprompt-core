@@ -225,8 +225,11 @@ async fn prerender_content_with_empty_templates_dir_runs_engine() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        ensure_test_bootstrap().boot_config(),
-        &paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await;
 }
@@ -240,8 +243,11 @@ async fn prerender_pages_with_empty_templates_dir_runs_engine() {
     let _ = prerender_pages(
         db.clone(),
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
-        &paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await;
 }

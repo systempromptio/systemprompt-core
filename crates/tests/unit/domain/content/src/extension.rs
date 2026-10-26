@@ -53,24 +53,33 @@ fn test_schemas_include_core_tables() {
     }
 }
 
-#[test]
-fn test_page_prerenderers_includes_homepage() {
+#[tokio::test]
+async fn test_page_prerenderers_includes_homepage() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let ext = ContentExtension;
-    let prerenderers = ext.page_prerenderers();
+    let prerenderers = ext.page_prerenderers(ctx.as_ref());
     assert_eq!(prerenderers.len(), 1);
 }
 
-#[test]
-fn test_page_data_providers_two_branding_providers() {
+#[tokio::test]
+async fn test_page_data_providers_two_branding_providers() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let ext = ContentExtension;
-    let providers = ext.page_data_providers();
+    let providers = ext.page_data_providers(ctx.as_ref());
     assert_eq!(providers.len(), 2);
 }
 
-#[test]
-fn test_component_renderers_one_renderer() {
+#[tokio::test]
+async fn test_component_renderers_one_renderer() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let ext = ContentExtension;
-    let renderers = ext.component_renderers();
+    let renderers = ext.component_renderers(ctx.as_ref());
     assert_eq!(renderers.len(), 1);
 }
 

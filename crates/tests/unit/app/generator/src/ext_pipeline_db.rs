@@ -167,8 +167,11 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        ensure_test_bootstrap().boot_config(),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect("prerender_content");
@@ -214,8 +217,11 @@ async fn prerender_pages_renders_fixture_page_with_provider_data() {
     let results = prerender_pages(
         db.clone(),
         content_repo(&db),
-        ensure_test_bootstrap().boot_config(),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect("prerender_pages");
@@ -260,8 +266,11 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        ensure_test_bootstrap().boot_config(),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect("empty source must complete without error");

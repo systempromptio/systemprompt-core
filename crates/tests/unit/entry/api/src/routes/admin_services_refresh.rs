@@ -11,7 +11,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::admin::services::{RefreshLock, RefreshQuery, refresh};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesProvenance};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};

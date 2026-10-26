@@ -556,6 +556,14 @@ pub fn fixture_subject_providers(
     )
 }
 
+pub fn fixture_extension_context(
+    pool: &DbPool,
+) -> Arc<dyn systemprompt_extension::ExtensionContext> {
+    let concrete = test_app_context_on(crate::bootstrap::ensure_test_bootstrap(), pool);
+    let ctx: Arc<dyn systemprompt_extension::ExtensionContext> = concrete;
+    ctx
+}
+
 pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {
     let concrete = Arc::clone(crate::bootstrap::ensure_test_bootstrap().boot.secrets());
     let store: Arc<dyn systemprompt_traits::SecretStore> = concrete;

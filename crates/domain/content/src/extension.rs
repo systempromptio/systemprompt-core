@@ -64,18 +64,18 @@ impl Extension for ContentExtension {
         extension_migrations!()
     }
 
-    fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {
+    fn page_prerenderers(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn PagePrerenderer>> {
         vec![Arc::new(DefaultHomepagePrerenderer)]
     }
 
-    fn page_data_providers(&self) -> Vec<Arc<dyn PageDataProvider>> {
+    fn page_data_providers(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn PageDataProvider>> {
         vec![
             default_branding_provider(),
             default_list_branding_provider(),
         ]
     }
 
-    fn component_renderers(&self) -> Vec<Arc<dyn ComponentRenderer>> {
+    fn component_renderers(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn ComponentRenderer>> {
         vec![default_list_items_renderer()]
     }
 }

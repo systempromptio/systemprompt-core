@@ -12,13 +12,13 @@ use chrono::Utc;
 use systemprompt_catalog_fixtures::vertex_regions;
 use systemprompt_database::DbPool;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::ServicesSource;
 use systemprompt_manifest::services::bundle::{
     BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
     ServicesBundleState, SignedBundleManifest,
 };
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_manifest::services::{GatewayState, ServicesConfig};
 use systemprompt_runtime::RuntimeError;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};

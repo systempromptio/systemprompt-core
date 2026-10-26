@@ -30,7 +30,8 @@ use systemprompt_database::{
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
-use systemprompt_loader::{ActiveServicesRoot, BootContext, ServicesState};
+use systemprompt_loader::{BootContext, ServicesState};
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
 
 use systemprompt_security::keys::SigningKeys;

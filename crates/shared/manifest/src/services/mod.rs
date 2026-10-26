@@ -32,6 +32,7 @@ pub mod marketplace_publication;
 pub mod mcp;
 pub mod plugin;
 pub mod registry;
+pub mod root;
 pub mod rules;
 pub mod runtime;
 pub mod scheduler;

@@ -23,7 +23,7 @@ use systemprompt_manifest::services::bundle::{BUNDLE_ALLOWED_DIRS, ServicesBundl
 
 use super::bootstrap::cache_root;
 use super::cache::BundleCache;
-use crate::services_root::{ActiveServicesRoot, ServicesProvenance};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 /// One pinned bundle as the cache last recorded it. `pinned_digest` is what
 /// the profile asks for and `active_digest` is what was fetched; they differ

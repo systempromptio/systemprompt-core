@@ -23,7 +23,9 @@ use crate::models::{SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+
 use systemprompt_database::{BudgetedDb, DbPool};
+use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::{Actor, JobName, UserId};
 use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
@@ -260,8 +262,15 @@ pub(crate) fn make_job_context(
         .with(db_pool)
         .with(Arc::clone(app_context.config_arc()))
         .with(Arc::clone(app_context.oauth_repositories()))
+        .with(extension_context(&app_context))
         .with(app_context);
     JobContext::new(actor, dependencies)
+}
+
+fn extension_context(app_context: &Arc<AppContext>) -> Arc<dyn ExtensionContext> {
+    let concrete = Arc::clone(app_context);
+    let ext: Arc<dyn ExtensionContext> = concrete;
+    ext
 }
 
 pub(crate) fn deployment_dependencies(boot: &BootContext) -> Dependencies {

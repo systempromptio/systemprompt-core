@@ -22,8 +22,6 @@
 //!   serverless model it returns is folded into the provider registry.
 //! - [`boot`] — [`BootContext`], the owned profile, secrets, resolved config
 //!   and services root the entry crates build once at startup.
-//! - [`services_root`] — the services root the instance actually runs, with its
-//!   provenance.
 //! - [`services_state`] — [`ServicesState`], the owned services config, its
 //!   resolved catalog and the discovery report, built once at boot and handed
 //!   to every consumer.
@@ -42,7 +40,6 @@ pub mod extension_binary_index;
 pub mod extension_loader;
 pub mod module_loader;
 pub mod profile_loader;
-pub mod services_root;
 pub mod services_state;
 pub mod subprocess;
 pub mod vertex_discovery;
@@ -59,5 +56,4 @@ pub use extension_binary_index::ExtensionBinaryIndex;
 pub use extension_loader::{ExtensionLoader, ExtensionValidationResult};
 pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
-pub use services_root::{ActiveServicesRoot, ServicesProvenance};
 pub use services_state::{DiscoveryFuture, ServicesState, catalog_context};

@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesProvenance};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 #[test]

@@ -28,7 +28,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::services::ServicesView;
@@ -50,7 +49,7 @@ pub trait ExtensionContext: Send + Sync {
 
     fn app_config(&self) -> Arc<Config>;
 
-    fn services_root(&self) -> PathBuf;
+    fn services_root(&self) -> systemprompt_manifest::services::root::ActiveServicesRoot;
 
     fn token_authority(&self) -> Arc<dyn TokenAuthority>;
 
