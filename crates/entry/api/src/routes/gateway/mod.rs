@@ -104,6 +104,7 @@ pub fn gateway_repositories(
             cache_epochs: ctx.cache_epochs().clone(),
             logging: ctx.logging().clone(),
             services: ctx.services_state().view(),
+            subject_providers: ctx.subject_providers().clone(),
         },
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
@@ -143,11 +144,17 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
     })
 }
 
+pub fn gateway_engines(
+    ctx: &AppContext,
+) -> Result<GatewayEngines, systemprompt_gateway::GatewayEnginesError> {
+    GatewayEngines::new(
+        Arc::clone(ctx.connector_tokens()),
+        systemprompt_extension::GatewayGuards::discover(ctx),
+    )
+}
+
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
-    let parts = gateway_parts(
-        ctx,
-        &Arc::new(GatewayEngines::new(Arc::clone(ctx.connector_tokens()))?),
-    )?;
+    let parts = gateway_parts(ctx, &Arc::new(gateway_engines(ctx)?))?;
     Ok(common_layers(ctx, parts.traffic.merge(parts.bridge_auth)))
 }
 

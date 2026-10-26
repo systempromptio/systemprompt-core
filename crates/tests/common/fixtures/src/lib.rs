@@ -45,7 +45,8 @@ pub use app_context::{
     fixture_app_context_with_extensions, fixture_app_context_with_hook,
     fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
     fixture_event_bridge, fixture_fingerprint_repository, fixture_services_state,
-    fixture_services_view, offline_rate_windows, test_app_context, FIXTURE_JWT_ISSUER,
+    fixture_services_view, fixture_subject_providers, offline_rate_windows, test_app_context,
+    FIXTURE_JWT_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,

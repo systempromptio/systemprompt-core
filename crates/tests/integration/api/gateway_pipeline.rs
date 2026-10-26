@@ -68,6 +68,7 @@ pub(super) fn gw_repos(
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
         },
     )
 }
@@ -268,7 +269,7 @@ pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
         std::sync::OnceLock::new();
     Arc::clone(ENGINES.get_or_init(|| {
         Arc::new(
-            systemprompt_gateway::GatewayEngines::new(Default::default())
+            systemprompt_gateway::GatewayEngines::new(Default::default(), Default::default())
                 .expect("gateway engines build"),
         )
     }))
@@ -1464,7 +1465,7 @@ systemprompt_extension::register_gateway_guard!(CoverageGatewayGuard);
 
 async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(
         &pool,
         &format!("guard-{}@example.invalid", uuid::Uuid::new_v4()),
@@ -1487,7 +1488,8 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
         .model(model, ModelEntry::new(vec![ClientFamily::Claude]))
         .deploy(model, [format!("{PROVIDER}/api").as_str()])
         .build();
-    let di = inputs(&cred, canonical_request(model, false), false);
+    let mut di = inputs(&cred, canonical_request(model, false), false);
+    di.engines = Arc::new(systemprompt_api::routes::gateway::gateway_engines(&ctx)?);
     let id = di.ctx.ai_request_id.clone();
     let error = GatewayService::dispatch(
         &gateway_config(PROVIDER),
@@ -1555,6 +1557,7 @@ fn owned_gateway_repos(
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(pool),
         },
     )
 }

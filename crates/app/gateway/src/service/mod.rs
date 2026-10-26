@@ -206,14 +206,7 @@ async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
         },
     );
     enforce_quota(opened.db, opened.repos, audit, admission).await?;
-    enforce_request_guards(
-        opened.db,
-        &opened.ctx.user_id,
-        &opened.upstream,
-        &opened.request,
-        audit,
-    )
-    .await
+    enforce_request_guards(opened).await
 }
 
 async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, DispatchError> {

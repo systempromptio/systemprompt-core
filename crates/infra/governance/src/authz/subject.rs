@@ -209,3 +209,40 @@ impl SubjectProviderSet {
         gather_subject_attributes(&self.0, user_id).await
     }
 }
+
+#[async_trait]
+impl systemprompt_traits::SubjectAttributes for SubjectProviderSet {
+    async fn values_for(
+        &self,
+        user: &UserId,
+        dimension: &str,
+    ) -> Result<Vec<String>, systemprompt_traits::SubjectAttributesError> {
+        let provider = self.find(dimension).ok_or_else(|| {
+            systemprompt_traits::SubjectAttributesError::UnknownDimension(dimension.to_owned())
+        })?;
+        provider.values_for(user).await.map_err(|source| {
+            systemprompt_traits::SubjectAttributesError::Provider {
+                dimension: dimension.to_owned(),
+                source: source.into(),
+            }
+        })
+    }
+
+    async fn resolve_all(
+        &self,
+        user: &UserId,
+    ) -> Result<Vec<(String, Vec<String>)>, systemprompt_traits::SubjectAttributesError> {
+        let mut all = Vec::with_capacity(self.0.len());
+        for provider in self.0.iter() {
+            let dimension = provider.dimension().rule_type.as_str().to_owned();
+            let values = provider.values_for(user).await.map_err(|source| {
+                systemprompt_traits::SubjectAttributesError::Provider {
+                    dimension: dimension.clone(),
+                    source: source.into(),
+                }
+            })?;
+            all.push((dimension, values));
+        }
+        Ok(all)
+    }
+}

@@ -80,8 +80,8 @@ pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{ExtensionConfigError, LoaderError};
 pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
-    GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
-    GatewayRequestGuardRegistration, gateway_guards, run_gateway_guards,
+    GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
+    GatewayRequestGuardRegistration,
 };
 pub use health::{
     BoxedReadinessSource, MetricDescriptor, MetricKind, ReadinessCheck, ReadinessFailure,
@@ -101,8 +101,7 @@ pub mod prelude {
     pub use crate::context::{DynExtensionContext, ExtensionContext};
     pub use crate::error::{ExtensionConfigError, LoaderError};
     pub use crate::gateway_guard::{
-        GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
-        run_gateway_guards,
+        GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
     };
     pub use crate::registry::ExtensionRegistry;
     pub use crate::seed::Seed;

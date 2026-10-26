@@ -62,6 +62,10 @@ impl ExtensionContext for AppContext {
         self.services_state().view()
     }
 
+    fn subject_attributes(&self) -> Arc<dyn systemprompt_traits::SubjectAttributes> {
+        Arc::new(self.subject_providers().clone())
+    }
+
     fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {
         Arc::<systemprompt_security::credential::TokenCache>::clone(self.connector_tokens())
     }

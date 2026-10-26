@@ -134,6 +134,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             ),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
+            subject_providers: Default::default(),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),

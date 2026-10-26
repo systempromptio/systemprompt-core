@@ -127,6 +127,7 @@ async fn plane_debug_impls_flag_optional_members() {
         ),
         marketplace_filter: Arc::new(AllowAllFilter),
         marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
+        subject_providers: Default::default(),
     };
     let dbg = format!("{plugins:?}");
     assert!(dbg.contains("Plugins"), "got: {dbg}");

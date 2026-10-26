@@ -89,6 +89,7 @@ pub struct Plugins {
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub marketplace_cache: Arc<MarketplaceCache>,
+    pub subject_providers: systemprompt_governance::authz::SubjectProviderSet,
 }
 
 #[derive(Clone)]
@@ -263,6 +264,10 @@ impl AppContext {
 
     pub const fn mcp_registry(&self) -> &RegistryService {
         &self.plugins.mcp_registry
+    }
+
+    pub const fn subject_providers(&self) -> &systemprompt_governance::authz::SubjectProviderSet {
+        &self.plugins.subject_providers
     }
 
     pub const fn authz_hook(&self) -> &SharedAuthzHook {

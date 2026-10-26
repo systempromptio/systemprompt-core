@@ -215,6 +215,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             ),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
+            subject_providers: Default::default(),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),

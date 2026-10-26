@@ -216,6 +216,7 @@ async fn replay() -> Result<()> {
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(&db),
         },
     );
     let cred = seed_admin_credential(
@@ -337,8 +338,11 @@ async fn replay() -> Result<()> {
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
                         engines: std::sync::Arc::new(
-                            systemprompt_gateway::GatewayEngines::new(Default::default())
-                                .expect("gateway engines build"),
+                            systemprompt_gateway::GatewayEngines::new(
+                                Default::default(),
+                                Default::default(),
+                            )
+                            .expect("gateway engines build"),
                         ),
                     },
                 ),
@@ -399,8 +403,11 @@ async fn replay() -> Result<()> {
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
                         engines: std::sync::Arc::new(
-                            systemprompt_gateway::GatewayEngines::new(Default::default())
-                                .expect("gateway engines build"),
+                            systemprompt_gateway::GatewayEngines::new(
+                                Default::default(),
+                                Default::default(),
+                            )
+                            .expect("gateway engines build"),
                         ),
                     },
                 ),

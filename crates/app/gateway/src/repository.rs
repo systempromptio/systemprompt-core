@@ -14,7 +14,7 @@ use systemprompt_ai::repository::{
     AiThoughtSignatureRepository, UserProviderCredentialRepository,
 };
 use systemprompt_database::DbPool;
-use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::RateWindowRepository;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
@@ -32,6 +32,7 @@ pub struct GatewayHandles {
     pub cache_epochs: CacheEpochs,
     pub logging: LoggingRuntime,
     pub services: ServicesView,
+    pub subject_providers: SubjectProviderSet,
 }
 
 #[derive(Clone)]
@@ -78,6 +79,7 @@ impl GatewayRepositories {
             cache_epochs,
             logging,
             services,
+            subject_providers,
         } = handles;
         let requests = Arc::new(AiRequestRepository::new(db));
         Self {
@@ -103,11 +105,7 @@ impl GatewayRepositories {
             quota_sharding: QuotaConfig::default(),
             background,
             logging,
-            subject_providers: SubjectProviderSet::discover(&AuthzHookContext {
-                pool: db.pool(),
-                sink: Arc::new(NullAuditSink),
-                services: services.clone(),
-            }),
+            subject_providers,
             rate_windows: RateWindowRepository::new(db.write_pool().as_ref().clone()),
             user_provider_credentials: UserProviderCredentialRepository::new(db),
             tool_validity: Arc::new(ToolValidityCache::default()),

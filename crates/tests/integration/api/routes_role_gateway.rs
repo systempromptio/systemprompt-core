@@ -102,7 +102,7 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
         NodeRole::Gateway,
         None,
         &std::sync::Arc::new(
-            systemprompt_gateway::GatewayEngines::new(Default::default())
+            systemprompt_gateway::GatewayEngines::new(Default::default(), Default::default())
                 .expect("gateway engines build"),
         ),
     )?;

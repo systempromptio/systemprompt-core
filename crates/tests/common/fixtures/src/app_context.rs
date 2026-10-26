@@ -350,6 +350,7 @@ fn fixture_app_context_assembled(
             mcp_registry: RegistryService::new(fixture_user_id(), fixture_services_view()),
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),
+            subject_providers: fixture_subject_providers(pool),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
@@ -435,6 +436,18 @@ pub fn default_governance_watch(
             Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),
+    )
+}
+
+pub fn fixture_subject_providers(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_governance::authz::SubjectProviderSet {
+    systemprompt_governance::authz::SubjectProviderSet::discover(
+        &systemprompt_governance::authz::AuthzHookContext {
+            pool: db.pool(),
+            sink: std::sync::Arc::new(systemprompt_governance::authz::NullAuditSink),
+            services: fixture_services_view(),
+        },
     )
 }
 

@@ -64,6 +64,7 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Ga
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
         },
     )
 }

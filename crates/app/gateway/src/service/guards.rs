@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_traits::RepositoryError;
 
@@ -162,13 +161,17 @@ fn count_denial(decision: &quota::QuotaDecision, policy: &GatewayPolicySpec) {
 }
 
 pub(super) async fn enforce_request_guards(
-    db: &DbPool,
-    user_id: &UserId,
-    upstream: &ResolvedUpstream<'_>,
-    request: &CanonicalRequest,
-    audit: &GatewayAudit,
+    opened: &super::OpenedDispatch<'_>,
 ) -> Result<(), DispatchError> {
-    if systemprompt_extension::gateway_guards().is_empty() {
+    let guards = &opened.engines.guards;
+    let (db, user_id, upstream, request, audit) = (
+        opened.db,
+        &opened.ctx.user_id,
+        &opened.upstream,
+        &opened.request,
+        &opened.audit,
+    );
+    if guards.is_empty() {
         return Ok(());
     }
     let route_id = upstream.route_id.as_ref();
@@ -186,7 +189,7 @@ pub(super) async fn enforce_request_guards(
             "Request guards require a database connection",
         ))
     } else {
-        systemprompt_extension::run_gateway_guards(db.as_ref(), &guard_request).await
+        guards.run(db.as_ref(), &guard_request).await
     };
     let Err(deny) = outcome else {
         return Ok(());
