@@ -76,7 +76,9 @@ pub mod runner_service;
 pub mod secret;
 pub use process_liveness::ProcessLiveness;
 pub use runner_service::RunnerService;
-pub use secret::ExtensionSecret;
+pub use secret::{
+    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretStore, SecretStoreError, SecretsStatus,
+};
 pub mod storage;
 pub mod stream_drain;
 pub mod tool_executions;

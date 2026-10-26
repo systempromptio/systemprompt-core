@@ -135,11 +135,10 @@ impl ExtensionContext for AppContext {
         locks
     }
 
-    fn secret(&self, name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
-        self.secrets()
-            .get()
-            .custom_secret(name)
-            .map(|value| systemprompt_traits::ExtensionSecret::new(value.clone()))
+    fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
+        let concrete = Arc::clone(Self::secrets(self));
+        let store: Arc<dyn systemprompt_traits::SecretStore> = concrete;
+        store
     }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {

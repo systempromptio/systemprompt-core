@@ -556,6 +556,12 @@ pub fn fixture_subject_providers(
     )
 }
 
+pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {
+    let concrete = Arc::clone(crate::bootstrap::ensure_test_bootstrap().boot.secrets());
+    let store: Arc<dyn systemprompt_traits::SecretStore> = concrete;
+    store
+}
+
 pub fn fixture_services_view() -> systemprompt_manifest::services::ServicesView {
     fixture_services_state().view()
 }

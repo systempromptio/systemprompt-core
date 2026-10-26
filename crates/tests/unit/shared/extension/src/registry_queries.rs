@@ -233,6 +233,9 @@ impl ExtensionContext for StubCtx {
     fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {
         Arc::new(StubTokens)
     }
+    fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
+        systemprompt_test_fixtures::fixture_secret_store()
+    }
     fn services(&self) -> systemprompt_manifest::services::ServicesView {
         systemprompt_test_fixtures::fixture_services_view()
     }
@@ -516,8 +519,13 @@ async fn a_context_without_coordination_refuses_liveness_and_leases() {
 }
 
 #[test]
-fn a_context_without_secrets_hands_out_none_and_never_prints_a_value() {
-    assert!(StubCtx.secret("encryption_master_key").is_none());
+fn an_unknown_secret_is_none_and_a_secret_never_prints_its_value() {
+    assert!(
+        StubCtx
+            .secrets()
+            .secret("sp_no_such_secret_registry")
+            .is_none()
+    );
     let secret = systemprompt_traits::ExtensionSecret::new("s3cr3t".to_owned());
     assert_eq!(secret.expose(), "s3cr3t");
     assert!(!format!("{secret:?}").contains("s3cr3t"));

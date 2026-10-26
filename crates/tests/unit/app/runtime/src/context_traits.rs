@@ -67,10 +67,15 @@ async fn the_extension_view_resolves_loaded_secrets_and_refuses_unknown_ones() {
     let view: &dyn ExtensionContext = ctx.as_ref();
 
     let key = view
+        .secrets()
         .secret("encryption_master_key")
         .expect("the fixture secrets carry an encryption master key");
     assert!(!key.expose().is_empty());
-    assert!(view.secret("sp_no_such_secret_ctx_traits").is_none());
+    assert!(
+        view.secrets()
+            .secret("sp_no_such_secret_ctx_traits")
+            .is_none()
+    );
 }
 
 #[tokio::test]

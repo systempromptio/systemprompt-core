@@ -17,8 +17,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, PoisonError, RwLock};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
-use serde::Serialize;
+use chrono::Utc;
 use systemprompt_manifest::profile::{MIN_EXTERNAL_REFRESH_SECS, SecretsConfig, SecretsSource};
 use systemprompt_manifest::secrets::Secrets;
 
@@ -36,21 +35,7 @@ pub const PINNED_SECRET_KEYS: &[&str] = &[
     "jwt_secret",
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ReloadOutcome {
-    pub generation: u64,
-    pub changed_keys: Vec<String>,
-    pub swapped: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct SecretsStatus {
-    pub source: String,
-    pub generation: u64,
-    pub initialised_at: DateTime<Utc>,
-    pub last_reload_at: Option<DateTime<Utc>>,
-    pub last_error: Option<String>,
-}
+pub use systemprompt_traits::{ReloadOutcome, SecretsStatus};
 
 #[derive(Debug)]
 pub(super) struct SecretsState {

@@ -38,7 +38,7 @@ use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
 use systemprompt_traits::{
     BackgroundTasks, ConfigProvider, DatabaseHandle, DynAdvisoryLocks, DynInstanceRegistry,
-    DynLeaseRepository, ExtensionSecret, FileStorage, ProviderTokenCache, UnavailableCoordination,
+    DynLeaseRepository, FileStorage, ProviderTokenCache, SecretStore, UnavailableCoordination,
 };
 
 pub trait ExtensionContext: Send + Sync {
@@ -74,9 +74,7 @@ pub trait ExtensionContext: Send + Sync {
         Arc::new(UnavailableCoordination)
     }
 
-    fn secret(&self, _name: &str) -> Option<ExtensionSecret> {
-        None
-    }
+    fn secrets(&self) -> Arc<dyn SecretStore>;
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn crate::Extension>>;
 

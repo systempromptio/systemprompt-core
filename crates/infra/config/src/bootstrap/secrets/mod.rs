@@ -42,6 +42,7 @@ mod registry;
 mod reload;
 mod resolve;
 mod sources;
+mod store;
 mod vault;
 
 use std::path::PathBuf;

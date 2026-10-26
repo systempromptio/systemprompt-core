@@ -201,6 +201,9 @@ impl ExtensionContext for MockExtensionContext {
     fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {
         Arc::new(StubTokens)
     }
+    fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
+        systemprompt_test_fixtures::fixture_secret_store()
+    }
     fn services(&self) -> systemprompt_manifest::services::ServicesView {
         systemprompt_test_fixtures::fixture_services_view()
     }
