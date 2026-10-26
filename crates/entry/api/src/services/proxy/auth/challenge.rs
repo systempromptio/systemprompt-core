@@ -20,24 +20,24 @@ use crate::services::request_base_url::resolve as resolve_request_base_url;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::keys::SigningKeys;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct AuthValidator;
 
 impl AuthValidator {
     pub(super) fn validate_service_access(
-        keys: &SigningKeys,
+        authority: &dyn TokenAuthority,
         config: &Config,
         headers: &HeaderMap,
         service_name: &ServiceName,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let result = AuthService::authorize_service_access(keys, config, headers, service_name);
+        let result =
+            AuthService::authorize_service_access(authority, config, headers, service_name);
 
         if let Err(status) = &result {
             let trace_id =
@@ -149,7 +149,7 @@ pub(crate) fn build_mcp_unknown_service_challenge(
     req_context: Option<&RequestContext>,
 ) -> Option<ProxyError> {
     let status_code = AuthValidator::validate_service_access(
-        ctx.signing_keys(),
+        ctx.token_authority().as_ref(),
         ctx.config(),
         headers,
         service_name,

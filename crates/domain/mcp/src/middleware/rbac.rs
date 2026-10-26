@@ -19,9 +19,8 @@ use systemprompt_governance::authz::{
 use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId};
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
+use systemprompt_models::auth::{AuthenticatedUser, JwtClaims, TokenAuthority};
 use systemprompt_models::execution::context::ExecutionContext;
-use systemprompt_security::keys::SigningKeys;
 
 use super::{extract_bearer_token, extract_request_context};
 
@@ -85,7 +84,7 @@ impl AuthResult {
 
 #[derive(Debug, Clone, Copy)]
 pub struct JwtVerifier<'a> {
-    pub keys: &'a SigningKeys,
+    pub authority: &'a dyn TokenAuthority,
     pub config: &'a systemprompt_manifest::Config,
 }
 
@@ -145,7 +144,8 @@ pub async fn enforce_rbac_from_registry(
         )
     })?;
 
-    let claims = validate_and_extract_claims(verifier.keys, verifier.config, server_id, &token)?;
+    let claims =
+        validate_and_extract_claims(verifier.authority, verifier.config, server_id, &token)?;
     validate_audience(server_id, &claims, oauth_config)?;
     validate_scopes_for_permissions(server_id, &claims.get_permissions(), oauth_config)?;
 

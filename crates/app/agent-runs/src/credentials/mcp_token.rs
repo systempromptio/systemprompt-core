@@ -11,11 +11,8 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AccessTokenId, SessionId, UserId};
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_oauth::services::{
-    JwtConfig, JwtSigningParams, generate_jwt, load_authenticated_user,
-};
-use systemprompt_security::keys::SigningKeys;
+use systemprompt_models::auth::{JwtAudience, TokenAuthority, UserJwtRequest};
+use systemprompt_oauth::services::load_authenticated_user;
 use systemprompt_traits::UserProvider;
 
 use crate::error::{AgentRunsError, AgentRunsResult};
@@ -27,8 +24,7 @@ pub(super) struct MintedMcpToken {
 }
 
 pub(super) struct McpTokenRequest<'a> {
-    pub issuer: &'a str,
-    pub keys: &'a SigningKeys,
+    pub authority: &'a dyn TokenAuthority,
     pub user_id: &'a UserId,
     pub session_id: &'a SessionId,
     pub ttl: chrono::Duration,
@@ -43,21 +39,23 @@ pub(super) async fn mint_mcp_token(
         .await
         .map_err(|source| AgentRunsError::PluginToken { source })?;
     let jti = AccessTokenId::generate();
-    let config = JwtConfig {
+    let request = UserJwtRequest {
         permissions: user.permissions().to_vec(),
+        user,
+        session_id: req.session_id.clone(),
+        jti: jti.clone(),
         audience: vec![JwtAudience::Mcp],
-        expires_in: req.ttl,
-        resource: None,
-        plugin_id: None,
+        ttl: req.ttl,
         client_id: None,
         purpose: Some(req.purpose.to_owned()),
+        plugin_id: None,
     };
-    let signing = JwtSigningParams {
-        issuer: req.issuer,
-        keys: req.keys,
-    };
-    let token = generate_jwt(&user, config, jti.clone(), req.session_id, &signing)
-        .map_err(|source| AgentRunsError::PluginToken { source })?;
+    let token =
+        req.authority
+            .mint_user_jwt(&request)
+            .map_err(|source| AgentRunsError::PluginToken {
+                source: source.into(),
+            })?;
     Ok(MintedMcpToken {
         token,
         jti,

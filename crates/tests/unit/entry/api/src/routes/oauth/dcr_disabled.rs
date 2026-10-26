@@ -40,7 +40,7 @@ async fn register_is_forbidden_when_dcr_is_closed() {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     let req_ctx = RequestContext::new(
         SessionId::generate(),

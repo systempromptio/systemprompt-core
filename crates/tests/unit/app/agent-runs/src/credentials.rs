@@ -69,9 +69,8 @@ async fn issue_then_revoke_round_trips_every_credential() {
             &pool,
             systemprompt_test_fixtures::oauth_fixture_repository(&pool),
         ),
-        ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
         systemprompt_test_fixtures::test_config(),
     );
 
@@ -161,9 +160,8 @@ async fn issue_without_plugin_mints_no_hook_token() {
             &pool,
             systemprompt_test_fixtures::oauth_fixture_repository(&pool),
         ),
-        ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
         systemprompt_test_fixtures::test_config(),
     );
     let creds = service.issue(request(&user, None)).await.expect("issue");
@@ -184,9 +182,8 @@ async fn issue_for_unknown_user_leaves_no_live_key() {
             &pool,
             systemprompt_test_fixtures::oauth_fixture_repository(&pool),
         ),
-        ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
         systemprompt_test_fixtures::test_config(),
     );
     assert!(service.issue(request(&ghost, None)).await.is_err());

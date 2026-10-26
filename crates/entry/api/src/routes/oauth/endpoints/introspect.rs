@@ -91,9 +91,8 @@ fn introspect_token(
     token: &str,
 ) -> Option<IntrospectResponse> {
     match validate_jwt_token(
-        state.signing_keys(),
+        state.token_authority().as_ref(),
         token,
-        &config.jwt_issuer,
         &config.jwt_audiences,
     ) {
         Ok(claims) => Some(IntrospectResponse {

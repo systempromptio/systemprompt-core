@@ -166,7 +166,7 @@ pub(super) async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrch
     let app = ctx.app_context().await?;
     let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
         app.config(),
-        app.signing_keys().clone(),
+        app.token_authority(),
     ));
     let broadcaster = HttpWebhookBroadcaster::from_config(app.config())
         .context("Failed to initialize webhook broadcaster")?;

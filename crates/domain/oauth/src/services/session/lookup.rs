@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{AnonymousSessionInfo, MAX_SESSION_AGE_SECONDS, SessionCreationService};
-use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt_with_expiry};
+use crate::services::generation::generate_anonymous_jwt_with_expiry;
 use systemprompt_identifiers::{ClientId, JwtToken, UserId};
 use systemprompt_models::auth::UserRole;
 
@@ -47,15 +47,11 @@ impl SessionCreationService {
             return None;
         }
 
-        let signing = JwtSigningParams {
-            issuer: &self.config.jwt_issuer,
-            keys: &self.keys,
-        };
         let token = generate_anonymous_jwt_with_expiry(
+            self.authority.as_ref(),
             &user_id,
             &session_id,
             client_id,
-            &signing,
             self.config.jwt_access_token_expiration,
         )
         .inspect_err(|e| {

@@ -264,7 +264,9 @@ fn test_session_creation_service_new() {
     let service = SessionCreationService::new(
         analytics,
         user,
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
         systemprompt_test_fixtures::test_config(),
     );
     let debug_output = format!("{:?}", service);
@@ -282,7 +284,9 @@ fn test_session_creation_service_with_fingerprint_provider() {
     let _service = SessionCreationService::new(
         analytics,
         user,
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
         systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(fingerprint);

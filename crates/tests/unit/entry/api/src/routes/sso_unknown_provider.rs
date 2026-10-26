@@ -22,7 +22,7 @@ async fn app() -> axum::Router {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     router(SsoRouteState::build(&ctx, &oauth)).layer(axum::Extension(ctx.config_arc().clone()))
 }

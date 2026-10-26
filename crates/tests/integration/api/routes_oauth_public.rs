@@ -20,7 +20,7 @@ async fn public_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
@@ -36,7 +36,7 @@ async fn authenticated_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(authenticated_router()
         .with_state(state)
@@ -211,7 +211,7 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     let app = systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
@@ -279,7 +279,7 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     let app = systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),
@@ -368,7 +368,7 @@ async fn dcr_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(
         systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(

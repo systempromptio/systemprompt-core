@@ -46,7 +46,7 @@ async fn clients_app(user: UserId) -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     let inject = move |mut req: Request<Body>, next: Next| {
         let ctx = ctx_for(&user);
@@ -68,7 +68,7 @@ async fn client_config_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     Ok(public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),

@@ -41,6 +41,7 @@ use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
 use systemprompt_manifest::Config;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{CookieExtractor, HeaderExtractor};
 use systemprompt_traits::{ExtractSignals, SessionProvider};
 use systemprompt_users::UserService;
@@ -57,6 +58,7 @@ pub struct SessionMiddleware {
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
     config: Arc<Config>,
+    signing_keys: SigningKeys,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
@@ -72,7 +74,7 @@ impl SessionMiddleware {
         let session_creation_service = Arc::new(SessionCreationService::new(
             analytics,
             Arc::new(user_service),
-            ctx.signing_keys().clone(),
+            ctx.token_authority(),
             Arc::clone(ctx.config_arc()),
         ));
 
@@ -81,6 +83,7 @@ impl SessionMiddleware {
             session_creation_service,
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
             config: Arc::clone(ctx.config_arc()),
+            signing_keys: ctx.signing_keys().clone(),
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
             )),

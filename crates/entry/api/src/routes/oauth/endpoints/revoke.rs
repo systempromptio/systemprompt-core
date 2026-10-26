@@ -152,9 +152,8 @@ async fn revoke_access_token(
     caller: &Caller<'_>,
 ) -> Result<(), OAuthHttpError> {
     let claims = match validate_jwt_token(
-        state.signing_keys(),
+        state.token_authority().as_ref(),
         token,
-        &config.jwt_issuer,
         &config.jwt_audiences,
     ) {
         Ok(claims) => claims,

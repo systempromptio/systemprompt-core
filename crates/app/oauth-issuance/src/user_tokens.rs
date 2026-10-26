@@ -78,7 +78,7 @@ pub async fn generate_tokens_by_user_id(
     let session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
-        state.signing_keys().clone(),
+        Arc::clone(state.token_authority()),
         Arc::clone(config),
     );
     let analytics = state.analytics_provider().extract_analytics(

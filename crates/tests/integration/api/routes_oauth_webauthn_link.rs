@@ -52,7 +52,7 @@ fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthSt
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     )
     .with_webauthn(Arc::new(webauthn)))
 }

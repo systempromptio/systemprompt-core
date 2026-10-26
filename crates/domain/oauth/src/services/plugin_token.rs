@@ -12,9 +12,10 @@
 
 
 use systemprompt_identifiers::{AccessTokenId, PluginId, SessionId, UserId};
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
+use systemprompt_models::auth::{
+    AuthenticatedUser, JwtAudience, Permission, TokenAuthority, UserJwtRequest,
+};
 
-use super::generation::{JwtConfig, JwtSigningParams, generate_jwt};
 use crate::error::OauthResult;
 
 #[derive(Debug, Clone)]
@@ -36,7 +37,7 @@ pub struct PluginTokenService;
 impl PluginTokenService {
     pub fn issue(
         subject: PluginTokenSubject,
-        signing: &JwtSigningParams<'_>,
+        authority: &dyn TokenAuthority,
         plugin_id: PluginId,
         duration_days: u32,
         session_id: &SessionId,
@@ -52,17 +53,21 @@ impl PluginTokenService {
 
         let jti = AccessTokenId::generate();
 
-        let config = JwtConfig {
+        let request = UserJwtRequest {
+            user: authenticated,
+            session_id: session_id.clone(),
+            jti: jti.clone(),
             permissions,
-            audience: vec![JwtAudience::Hook],
-            expires_in: chrono::Duration::days(i64::from(duration_days)),
-            resource: Some("plugin".to_owned()),
-            plugin_id: Some(plugin_id),
+            audience: vec![
+                JwtAudience::Hook,
+                JwtAudience::Resource("plugin".to_owned()),
+            ],
+            ttl: chrono::Duration::days(i64::from(duration_days)),
             client_id: None,
             purpose: None,
+            plugin_id: Some(plugin_id),
         };
-
-        let token = generate_jwt(&authenticated, config, jti.clone(), session_id, signing)?;
+        let token = authority.mint_user_jwt(&request)?;
 
         Ok(IssuedPluginToken { token, jti })
     }

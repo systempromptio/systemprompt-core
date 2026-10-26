@@ -15,7 +15,9 @@ async fn from_config_validates_authority_signed_token() {
 
     let validator = JwtTokenValidator::from_config(
         &systemprompt_test_fixtures::test_config(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
     );
     let user = validator
         .validate_token(token.as_str())
@@ -30,9 +32,8 @@ async fn from_config_validates_authority_signed_token() {
 async fn validate_token_rejects_garbage() {
     ensure_test_bootstrap();
     let validator = JwtTokenValidator::new(
-        "test".to_owned(),
+        systemprompt_test_fixtures::test_token_authority("test"),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
     );
 
     let err = validator
@@ -49,9 +50,8 @@ async fn validate_token_rejects_wrong_issuer() {
     let token = mint_admin_jwt(&user_id, "wrongiss@test.invalid", "other-issuer");
 
     let validator = JwtTokenValidator::new(
-        "test".to_owned(),
+        systemprompt_test_fixtures::test_token_authority("test"),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
     );
     let err = validator
         .validate_token(token.as_str())
@@ -68,7 +68,9 @@ async fn validate_token_accepts_non_uuid_subject() {
 
     let validator = JwtTokenValidator::from_config(
         &systemprompt_test_fixtures::test_config(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
     );
     let user = validator
         .validate_token(token.as_str())
@@ -85,7 +87,9 @@ async fn validate_token_rejects_sentinel_subject() {
 
     let validator = JwtTokenValidator::from_config(
         &systemprompt_test_fixtures::test_config(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
     );
     let err = validator
         .validate_token(token.as_str())

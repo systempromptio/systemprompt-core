@@ -380,9 +380,8 @@ mod jwt_minting {
         .expect("mint");
 
         let claims = validate_jwt_token(
-            &systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &token,
-            "test",
             &[JwtAudience::Api],
         )
         .expect("decode");
@@ -417,9 +416,8 @@ mod jwt_minting {
         .expect("mint");
 
         let claims = validate_jwt_token(
-            &systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &token,
-            "test",
             &[JwtAudience::Api],
         )
         .expect("decode");
@@ -452,9 +450,8 @@ mod jwt_minting {
         .expect("mint");
 
         let claims = validate_jwt_token(
-            &systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &token,
-            "test",
             &[JwtAudience::Api],
         )
         .expect("decode");
@@ -505,9 +502,8 @@ mod jwt_minting {
         .expect("mint");
 
         let claims = validate_jwt_token(
-            &systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &token,
-            "test",
             &[JwtAudience::Api],
         )
         .expect("decode");
@@ -525,18 +521,17 @@ mod jwt_minting {
         let client = ClientId::new("client_anon_gen");
 
         let token = generate_anonymous_jwt_with_expiry(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &user_id,
             &session,
             &client,
-            &signing(&systemprompt_test_fixtures::test_signing_keys()),
             3600,
         )
         .expect("mint");
 
         let claims = validate_jwt_token(
-            &systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &token,
-            "test",
             &[JwtAudience::Api],
         )
         .expect("decode");
@@ -553,10 +548,10 @@ mod jwt_minting {
     fn generate_anonymous_jwt_with_expiry_rejects_more_than_a_year() {
         ensure_test_bootstrap();
         let err = generate_anonymous_jwt_with_expiry(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &UserId::new(Uuid::new_v4().to_string()),
             &SessionId::generate(),
             &ClientId::new("client_anon_overflow"),
-            &signing(&systemprompt_test_fixtures::test_signing_keys()),
             366 * 24 * 3600,
         )
         .expect_err("expiry beyond one year must fail");
@@ -568,18 +563,17 @@ mod jwt_minting {
         ensure_test_bootstrap();
         let user_id = UserId::new(Uuid::new_v4().to_string());
         let token = generate_anonymous_jwt_with_expiry(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &user_id,
             &SessionId::generate(),
             &ClientId::new("client_anon_exp"),
-            &signing(&systemprompt_test_fixtures::test_signing_keys()),
             900,
         )
         .expect("mint");
 
         let claims = validate_jwt_token(
-            &systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &token,
-            "test",
             &[JwtAudience::Api],
         )
         .expect("decode");

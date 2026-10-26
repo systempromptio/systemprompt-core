@@ -140,7 +140,7 @@ async fn mint(ctx: &AppContext, request: SessionRequest<'_>) -> Result<SessionId
     SessionCreationService::new(
         sessions,
         users,
-        ctx.signing_keys().clone(),
+        ctx.token_authority(),
         Arc::clone(ctx.config_arc()),
     )
     .create_authenticated_session(request.user_id, &session_analytics, SessionSource::Api)

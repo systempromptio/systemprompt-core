@@ -97,7 +97,7 @@ fn build_session_service(state: &OAuthState, config: Arc<Config>) -> SessionCrea
     let mut session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
-        state.signing_keys().clone(),
+        Arc::clone(state.token_authority()),
         config,
     );
     if let Some(fp_provider) = state.fingerprint_provider() {

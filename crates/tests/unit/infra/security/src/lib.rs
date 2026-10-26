@@ -39,8 +39,6 @@ mod jwt_extract;
 #[cfg(test)]
 mod jwt_validate;
 #[cfg(test)]
-mod token_authority;
-#[cfg(test)]
 mod manifest_signing_jcs;
 #[cfg(test)]
 mod manifest_signing_keys;
@@ -82,6 +80,8 @@ mod session_generator;
 mod signing_key_independence;
 #[cfg(test)]
 mod signing_key_pem_roundtrip;
+#[cfg(test)]
+mod token_authority;
 
 #[cfg(test)]
 mod connector_grant;

@@ -36,7 +36,7 @@ impl OrchestratorHandles {
 pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
     let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
         ctx.config(),
-        ctx.signing_keys().clone(),
+        ctx.token_authority(),
     ));
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),

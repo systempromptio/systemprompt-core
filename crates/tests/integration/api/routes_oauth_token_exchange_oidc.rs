@@ -81,7 +81,7 @@ async fn token_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     let router = public_router(std::sync::Arc::new(
         systemprompt_oauth_issuance::JwksCache::new(),

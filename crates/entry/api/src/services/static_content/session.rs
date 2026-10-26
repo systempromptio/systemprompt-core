@@ -35,9 +35,8 @@ pub async fn ensure_session(
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers)
         && let Ok(claims) = validate_jwt_token(
-            ctx.signing_keys(),
+            ctx.token_authority().as_ref(),
             &token,
-            &config.jwt_issuer,
             &config.jwt_audiences,
         )
         && let Some(session_id) = claims.custom.session_id
@@ -57,7 +56,7 @@ pub async fn ensure_session(
     let session_service = SessionCreationService::new(
         analytics,
         Arc::new(user_service),
-        ctx.signing_keys().clone(),
+        ctx.token_authority(),
         Arc::clone(ctx.config_arc()),
     );
 

@@ -28,6 +28,7 @@ use systemprompt_identifiers::{AgentRunId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_provider_contracts::JobContext;
+use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::RunnerService;
 use systemprompt_users::ApiKeyLifetime;
@@ -145,9 +146,11 @@ impl RunnerService for A2aRunnerService {
         let handler = A2aRunHandler::new(
             RunCredentialService::new(
                 repos.credentials,
-                &runner.issuer,
                 ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
-                signing_keys,
+                Arc::new(DeploymentTokenAuthority::new(
+                    signing_keys,
+                    config.jwt_issuer.clone(),
+                )),
                 Arc::clone(&config),
             ),
             runner,

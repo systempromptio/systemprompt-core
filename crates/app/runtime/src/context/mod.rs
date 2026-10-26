@@ -36,8 +36,6 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::credential::TokenCache;
-use systemprompt_models::auth::TokenAuthority;
-use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
@@ -290,14 +288,6 @@ impl AppContext {
     #[must_use]
     pub const fn signing_keys(&self) -> &SigningKeys {
         &self.subsystems.signing_keys
-    }
-
-    #[must_use]
-    pub fn token_authority(&self) -> Arc<dyn TokenAuthority> {
-        Arc::new(DeploymentTokenAuthority::new(
-            self.subsystems.signing_keys.clone(),
-            self.cfg.config.jwt_issuer.clone(),
-        ))
     }
 
     #[must_use]

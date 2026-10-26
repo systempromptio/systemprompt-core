@@ -19,7 +19,7 @@ pub enum OauthError {
     TokenInvalid(String),
 
     #[error("token rejected: {0}")]
-    TokenRejected(#[source] systemprompt_security::AuthError),
+    TokenRejected(#[source] systemprompt_models::auth::TokenError),
 
     #[error("token signed with `{got}`, expected `{expected}`")]
     TokenAlgMismatch { got: String, expected: String },
@@ -173,22 +173,26 @@ impl From<sqlx::Error> for OauthError {
     }
 }
 
-impl From<systemprompt_security::AuthError> for OauthError {
-    fn from(err: systemprompt_security::AuthError) -> Self {
-        use jsonwebtoken::errors::ErrorKind;
-        use systemprompt_security::AuthError;
+impl From<systemprompt_models::auth::TokenError> for OauthError {
+    fn from(err: systemprompt_models::auth::TokenError) -> Self {
+        use systemprompt_models::auth::TokenError;
         match err {
-            AuthError::UnsupportedAlgorithm { got } => Self::TokenAlgMismatch {
+            TokenError::UnsupportedAlgorithm { got } => Self::TokenAlgMismatch {
                 got,
                 expected: "RS256".to_owned(),
             },
-            AuthError::MissingKid => Self::TokenMissingKid,
-            AuthError::UnknownKid(kid) => Self::TokenUnknownKid { kid },
-            AuthError::InvalidToken(e) if matches!(e.kind(), ErrorKind::ExpiredSignature) => {
-                Self::Expired("Token has expired".to_owned())
-            },
+            TokenError::KidMismatch => Self::TokenMissingKid,
+            TokenError::UnknownKid(kid) => Self::TokenUnknownKid { kid },
+            TokenError::Expired => Self::Expired("Token has expired".to_owned()),
+            TokenError::InvalidLifetime { seconds } => Self::InvalidTokenLifetime { seconds },
             other => Self::TokenRejected(other),
         }
+    }
+}
+
+impl From<systemprompt_security::AuthError> for OauthError {
+    fn from(err: systemprompt_security::AuthError) -> Self {
+        Self::from(systemprompt_models::auth::TokenError::from(err))
     }
 }
 

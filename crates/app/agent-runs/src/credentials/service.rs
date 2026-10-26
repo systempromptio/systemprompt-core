@@ -2,10 +2,10 @@
 //!
 //! Issue order is PAT, gateway session, MCP token, hook token; a failure after
 //! the PAT revokes what was already issued, so a failed issue leaves nothing
-//! live. `issuer` is the instance's JWT issuer (`Config::jwt_issuer`), which
-//! the hook token validator checks. Revoke revokes the PAT, ends the session
-//! and revokes the MCP and hook tokens' `jti`s; every step runs even when an
-//! earlier one failed, and the first failure is returned.
+//! live. The tokens are minted by the deployment's `TokenAuthority`, whose
+//! issuer the hook token validator checks. Revoke revokes the PAT, ends the
+//! session and revokes the MCP and hook tokens' `jti`s; every step runs even
+//! when an earlier one failed, and the first failure is returned.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,9 +13,9 @@
 use std::sync::Arc;
 
 use systemprompt_manifest::Config;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_oauth::OAuthRepository;
 use systemprompt_oauth::services::SessionCreationService;
-use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{SessionProvider, UserProvider};
 use systemprompt_users::{
     ApiKeyLifetime, ApiKeyService, SessionRepository, UserRepository, UserService,
@@ -37,13 +37,13 @@ pub struct RunCredentialService {
     creator: SessionCreationService,
     user_provider: Arc<dyn UserProvider>,
     oauth: OAuthRepository,
-    issuer: String,
+    authority: Arc<dyn TokenAuthority>,
 }
 
 impl std::fmt::Debug for RunCredentialService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RunCredentialService")
-            .field("issuer", &self.issuer)
+            .field("authority", &self.authority)
             .finish_non_exhaustive()
     }
 }
@@ -51,9 +51,8 @@ impl std::fmt::Debug for RunCredentialService {
 impl RunCredentialService {
     pub fn new(
         repos: RunCredentialRepositories,
-        issuer: impl Into<String>,
         lifetime: ApiKeyLifetime,
-        signing_keys: SigningKeys,
+        authority: Arc<dyn TokenAuthority>,
         config: Arc<Config>,
     ) -> Self {
         let RunCredentialRepositories {
@@ -69,13 +68,13 @@ impl RunCredentialService {
             creator: SessionCreationService::new(
                 session_provider,
                 Arc::clone(&user_provider),
-                signing_keys,
+                Arc::clone(&authority),
                 config,
             ),
             user_provider,
             oauth,
             users,
-            issuer: issuer.into(),
+            authority,
         }
     }
 
@@ -105,8 +104,7 @@ impl RunCredentialService {
             let minted = mint_mcp_token(
                 self.user_provider.as_ref(),
                 McpTokenRequest {
-                    issuer: &self.issuer,
-                    keys: self.creator.signing_keys(),
+                    authority: self.authority.as_ref(),
                     user_id: &req.user_id,
                     session_id: &credentials.gateway_session_id,
                     ttl,
@@ -132,8 +130,7 @@ impl RunCredentialService {
         let minted = mint_hook_token(
             &self.users,
             HookTokenRequest {
-                issuer: &self.issuer,
-                keys: self.creator.signing_keys(),
+                authority: self.authority.as_ref(),
                 user_id: &req.user_id,
                 plugin_id,
                 session_id: &credentials.gateway_session_id,

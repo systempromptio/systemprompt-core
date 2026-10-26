@@ -30,7 +30,7 @@ async fn oauth_state() -> anyhow::Result<OAuthState> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     ))
 }
 
@@ -69,7 +69,7 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     let app = systemprompt_api::routes::oauth::authenticated_router()
         .with_state(state)

@@ -12,8 +12,8 @@ use std::sync::Arc;
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::WebAuthnService;
+use systemprompt_oauth::{OAuthSigning, OAuthState};
 use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as AppContextTrait;
@@ -43,7 +43,10 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
         analytics,
         sessions,
         users,
-        ctx.signing_keys().clone(),
+        OAuthSigning {
+            keys: ctx.signing_keys().clone(),
+            authority: ctx.token_authority(),
+        },
     )
     .with_mcp_registry(mcp_registry);
     match webauthn {

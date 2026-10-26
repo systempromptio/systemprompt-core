@@ -81,7 +81,10 @@ impl ServerHandler for RbacProbe {
                 &probe.hook,
                 &services,
                 &systemprompt_mcp::middleware::JwtVerifier {
-                    keys: &systemprompt_test_fixtures::test_signing_keys(),
+                    authority: systemprompt_test_fixtures::test_token_authority(
+                        &crate::harness::config().jwt_issuer,
+                    )
+                    .as_ref(),
                     config: &crate::harness::config(),
                 },
             )

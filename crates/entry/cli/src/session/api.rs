@@ -40,7 +40,11 @@ pub async fn create_local_session_row(
     let user_repository = Arc::new(UserRepository::new(db_pool));
     let users: Arc<dyn UserProvider> = Arc::new(UserService::new(user_repository));
 
-    SessionCreationService::new(sessions, users, keys, config)
+    let authority = Arc::new(systemprompt_security::DeploymentTokenAuthority::new(
+        keys,
+        config.jwt_issuer.clone(),
+    ));
+    SessionCreationService::new(sessions, users, authority, config)
         .create_authenticated_session_with_ttl(
             user,
             &SessionAnalytics::default(),

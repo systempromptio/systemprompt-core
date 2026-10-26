@@ -9,10 +9,8 @@
 
 use systemprompt_identifiers::{AccessTokenId, SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::{AuthenticatedUser, Permission};
-use systemprompt_oauth::services::{
-    JwtConfig, JwtSigningParams, SessionCreationService, generate_jwt,
-};
+use systemprompt_models::auth::{AuthenticatedUser, Permission, UserJwtRequest};
+use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::SessionAnalytics;
 use systemprompt_traits::sso::SsoError;
 
@@ -62,27 +60,21 @@ pub async fn mint_browser_session(
         permissions.clone(),
         subject.roles.to_vec(),
     );
-    let jwt_config = JwtConfig {
+    let request = UserJwtRequest {
+        user,
+        session_id: session_id.clone(),
+        jti: AccessTokenId::generate(),
         permissions,
         audience: config.jwt_audiences.clone(),
-        expires_in: chrono::Duration::seconds(config.jwt_access_token_expiration),
-        resource: None,
-        plugin_id: None,
+        ttl: chrono::Duration::seconds(config.jwt_access_token_expiration),
         client_id: None,
         purpose: None,
+        plugin_id: None,
     };
-    let signing = JwtSigningParams {
-        issuer: &config.jwt_issuer,
-        keys: session_service.signing_keys(),
-    };
-    let access_token = generate_jwt(
-        &user,
-        jwt_config,
-        AccessTokenId::generate(),
-        &session_id,
-        &signing,
-    )
-    .map_err(SsoError::internal)?;
+    let access_token = session_service
+        .token_authority()
+        .mint_user_jwt(&request)
+        .map_err(SsoError::internal)?;
 
     Ok(MintedSession {
         access_token,

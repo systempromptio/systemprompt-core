@@ -57,9 +57,8 @@ async fn a_ttl_beyond_chrono_range_is_refused_before_anything_is_issued() {
             &pool,
             systemprompt_test_fixtures::oauth_fixture_repository(&pool),
         ),
-        ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
         systemprompt_test_fixtures::test_config(),
     );
 
@@ -86,9 +85,8 @@ async fn issue_without_purpose_mints_no_mcp_token() {
             &pool,
             systemprompt_test_fixtures::oauth_fixture_repository(&pool),
         ),
-        ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
         systemprompt_test_fixtures::test_config(),
     );
 
@@ -117,9 +115,8 @@ async fn revoke_revokes_the_mcp_token_jti() {
             &pool,
             systemprompt_test_fixtures::oauth_fixture_repository(&pool),
         ),
-        ISSUER,
         systemprompt_users::ApiKeyLifetime::unbounded(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
         systemprompt_test_fixtures::test_config(),
     );
 

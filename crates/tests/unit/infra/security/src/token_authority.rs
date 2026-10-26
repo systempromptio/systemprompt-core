@@ -88,8 +88,8 @@ fn verify_bearer_reports_an_expired_token() {
     )
     .expect("claims");
     claims.registered.exp = (Utc::now() - Duration::hours(1)).timestamp();
-    let token = systemprompt_security::jwt::encode_rs256(&test_signing_keys(), &claims)
-        .expect("encode");
+    let token =
+        systemprompt_security::jwt::encode_rs256(&test_signing_keys(), &claims).expect("encode");
     let err = authority
         .verify_bearer(&token, &[JwtAudience::Mcp])
         .expect_err("expired");
@@ -183,8 +183,8 @@ fn verify_session_cookie_refuses_a_forged_user_type() {
     )
     .expect("claims");
     claims.custom.user_type = systemprompt_models::auth::UserType::Admin;
-    let token = systemprompt_security::jwt::encode_rs256(&test_signing_keys(), &claims)
-        .expect("encode");
+    let token =
+        systemprompt_security::jwt::encode_rs256(&test_signing_keys(), &claims).expect("encode");
     let err = authority.verify_session_cookie(&token).expect_err("type");
     assert!(matches!(err, TokenError::Rejected(_)));
 }
@@ -230,7 +230,10 @@ fn sign_claims_stamps_the_active_kid_and_verifies() {
     let token = authority.sign_claims(&claims).expect("sign");
     let header = decode_header(&token).expect("header");
     assert_eq!(header.alg, Algorithm::RS256);
-    assert_eq!(header.kid.as_deref(), Some(test_signing_keys().active_kid()));
+    assert_eq!(
+        header.kid.as_deref(),
+        Some(test_signing_keys().active_kid())
+    );
     let verified = authority
         .verify_bearer(&token, &[JwtAudience::Mcp])
         .expect("verify");

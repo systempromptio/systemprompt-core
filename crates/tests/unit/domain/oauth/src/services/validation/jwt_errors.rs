@@ -21,9 +21,8 @@ fn forge_jwt(header_json: &str) -> String {
 #[test]
 fn empty_token_is_rejected() {
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         "",
-        "issuer",
         &[JwtAudience::Api],
     )
     .expect_err("empty input must fail header decode");
@@ -34,9 +33,8 @@ fn empty_token_is_rejected() {
 #[test]
 fn garbage_token_is_rejected() {
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         "not-a-jwt",
-        "issuer",
         &[JwtAudience::Api],
     )
     .expect_err("garbage input must fail header decode");
@@ -47,9 +45,8 @@ fn garbage_token_is_rejected() {
 #[test]
 fn two_segment_token_is_rejected() {
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         "aaa.bbb",
-        "issuer",
         &[JwtAudience::Api],
     )
     .expect_err("two-segment input must fail header decode");
@@ -62,9 +59,8 @@ fn rs256_without_kid_yields_token_missing_kid() {
     let token = forge_jwt(r#"{"alg":"RS256","typ":"JWT"}"#);
 
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         &token,
-        "issuer",
         &[JwtAudience::Api],
     )
     .expect_err("missing kid must be rejected");
@@ -77,9 +73,8 @@ fn rs256_with_unknown_kid_yields_unknown_kid_or_lookup_failure() {
     let token = forge_jwt(r#"{"alg":"RS256","kid":"unknown-key-id","typ":"JWT"}"#);
 
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         &token,
-        "issuer",
         &[JwtAudience::Api],
     )
     .expect_err("unknown kid must be rejected");

@@ -1,9 +1,10 @@
 //! Tests for `ExtensionRegistry::discover` in `registry/discovery.rs`.
 //!
-//! The unit-test binary registers exactly one extension through `inventory`
-//! (`InventoryExt`, below), the one way an extension exists, so `discover()`
-//! exercises the inventory-iteration branch; count assertions account for
-//! that single registration.
+//! The unit-test binary registers `InventoryExt` (below) through `inventory`,
+//! the one way an extension exists, so `discover()` exercises the
+//! inventory-iteration branch. The binary links the fixture crate for its
+//! context stubs, so the registry also holds the platform extensions it
+//! carries; assertions name `InventoryExt` rather than count.
 
 
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
@@ -52,9 +53,8 @@ fn discover_finds_the_inventory_registered_extension() {
 fn discover_returns_ok() {
     let registry = ExtensionRegistry::discover().expect("discover should not error");
     registry.validate().expect("discovered registry validates");
-    assert_eq!(
-        registry.len(),
-        1,
-        "discovery sees exactly the inventory registration"
+    assert!(
+        registry.has(INVENTORY_ID),
+        "discovery sees the inventory registration"
     );
 }

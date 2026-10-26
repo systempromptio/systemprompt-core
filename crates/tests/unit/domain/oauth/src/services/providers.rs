@@ -9,9 +9,8 @@ use systemprompt_traits::JwtValidationProvider;
 #[test]
 fn new_constructs_with_issuer_and_audiences() {
     let provider = JwtValidationProviderImpl::new(
-        "https://issuer.test".to_string(),
+        systemprompt_test_fixtures::test_token_authority("https://issuer.test"),
         vec![JwtAudience::Api, JwtAudience::Web],
-        systemprompt_test_fixtures::test_signing_keys(),
     );
     let debug = format!("{:?}", provider);
 
@@ -23,9 +22,8 @@ fn new_constructs_with_issuer_and_audiences() {
 #[test]
 fn generate_secure_token_delegates_to_helper() {
     let provider = JwtValidationProviderImpl::new(
-        "issuer".to_string(),
+        systemprompt_test_fixtures::test_token_authority("issuer"),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
     );
 
     let token = provider.generate_secure_token("auth");
@@ -37,9 +35,8 @@ fn generate_secure_token_delegates_to_helper() {
 #[test]
 fn generate_secure_token_returns_unique_values() {
     let provider = JwtValidationProviderImpl::new(
-        "issuer".to_string(),
+        systemprompt_test_fixtures::test_token_authority("issuer"),
         Vec::new(),
-        systemprompt_test_fixtures::test_signing_keys(),
     );
 
     let a = provider.generate_secure_token("tok");
@@ -51,9 +48,8 @@ fn generate_secure_token_returns_unique_values() {
 #[test]
 fn validate_token_rejects_malformed_input() {
     let provider = JwtValidationProviderImpl::new(
-        "https://issuer.test".to_string(),
+        systemprompt_test_fixtures::test_token_authority("https://issuer.test"),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
     );
 
     let err = provider
@@ -82,7 +78,9 @@ mod config_backed {
 
         let provider = JwtValidationProviderImpl::from_config(
             &systemprompt_test_fixtures::test_config(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority(
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+            ),
         );
         let claims = provider
             .validate_token(token.as_str())
@@ -102,7 +100,9 @@ mod config_backed {
 
         let provider = JwtValidationProviderImpl::from_config(
             &systemprompt_test_fixtures::test_config(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority(
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+            ),
         );
         let err = provider
             .validate_token(token.as_str())
@@ -153,7 +153,9 @@ mod config_backed {
 
         let provider = JwtValidationProviderImpl::from_config(
             &systemprompt_test_fixtures::test_config(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority(
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+            ),
         );
         let err = provider
             .validate_token(&token)
@@ -169,7 +171,9 @@ mod config_backed {
         ensure_test_bootstrap();
         let provider = JwtValidationProviderImpl::from_config(
             &systemprompt_test_fixtures::test_config(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority(
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+            ),
         );
         let user_uuid = Uuid::new_v4();
 
@@ -209,7 +213,9 @@ mod config_backed {
         ensure_test_bootstrap();
         let provider = JwtValidationProviderImpl::from_config(
             &systemprompt_test_fixtures::test_config(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority(
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+            ),
         );
 
         let err = provider
@@ -226,7 +232,9 @@ mod config_backed {
         ensure_test_bootstrap();
         let provider = JwtValidationProviderImpl::from_config(
             &systemprompt_test_fixtures::test_config(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority(
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+            ),
         );
 
         let err = provider
@@ -243,7 +251,9 @@ mod config_backed {
         ensure_test_bootstrap();
         let provider = JwtValidationProviderImpl::from_config(
             &systemprompt_test_fixtures::test_config(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority(
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+            ),
         );
 
         provider
@@ -256,7 +266,9 @@ mod config_backed {
         ensure_test_bootstrap();
         let provider = JwtValidationProviderImpl::from_config(
             &systemprompt_test_fixtures::test_config(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_token_authority(
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+            ),
         );
 
         let token = provider
@@ -277,9 +289,8 @@ mod config_backed {
 #[test]
 fn validate_token_rejects_empty_string() {
     let provider = JwtValidationProviderImpl::new(
-        "issuer".to_string(),
+        systemprompt_test_fixtures::test_token_authority("issuer"),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
     );
 
     let err = provider

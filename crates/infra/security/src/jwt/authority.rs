@@ -103,7 +103,7 @@ impl From<AuthError> for TokenError {
                 ErrorKind::InvalidIssuer => Self::InvalidIssuer,
                 _ => Self::Malformed(Box::new(inner)),
             },
-            other @ AuthError::UnsupportedAlgorithm { .. } => Self::Malformed(Box::new(other)),
+            AuthError::UnsupportedAlgorithm { got } => Self::UnsupportedAlgorithm { got },
             other => Self::Rejected(Box::new(other)),
         }
     }

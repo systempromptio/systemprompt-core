@@ -16,7 +16,10 @@ fn authorize_service_access_returns_unauthorized_without_token() {
     let headers = HeaderMap::new();
 
     let err = AuthorizationService::authorize_service_access(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &ServiceName::new("mcp"),
@@ -35,7 +38,10 @@ fn authorize_service_access_returns_unauthorized_for_basic_auth() {
     );
 
     let err = AuthorizationService::authorize_service_access(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &ServiceName::new("api"),
@@ -50,7 +56,10 @@ fn authorize_required_audience_returns_unauthorized_without_token() {
     let headers = HeaderMap::new();
 
     let err = AuthorizationService::authorize_required_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         "api",
@@ -65,7 +74,10 @@ fn authorize_any_audience_returns_unauthorized_without_token() {
     let headers = HeaderMap::new();
 
     let err = AuthorizationService::authorize_any_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &["api", "web"],
@@ -80,7 +92,10 @@ fn authorize_any_audience_returns_unauthorized_with_empty_allow_list() {
     let headers = HeaderMap::new();
 
     let err = AuthorizationService::authorize_any_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &[],

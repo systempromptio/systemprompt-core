@@ -42,7 +42,7 @@ pub(super) async fn execute(args: RunArgs, cmd: &CommandContext) -> Result<()> {
 
     let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
         ctx.config(),
-        ctx.signing_keys().clone(),
+        ctx.token_authority(),
     ));
 
     let agent_state = Arc::new(

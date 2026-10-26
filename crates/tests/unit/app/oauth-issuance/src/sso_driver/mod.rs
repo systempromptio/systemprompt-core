@@ -35,7 +35,9 @@ fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
     let service = SessionCreationService::new(
         Arc::clone(&sessions) as Arc<dyn systemprompt_traits::SessionProvider>,
         Arc::clone(&users) as Arc<dyn systemprompt_traits::UserProvider>,
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
         Arc::clone(&config),
     );
     Harness {

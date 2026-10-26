@@ -5,18 +5,17 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::auth::{JwtClaims, Permission};
-use systemprompt_security::keys::SigningKeys;
+use systemprompt_models::auth::{JwtClaims, Permission, TokenAuthority};
 
 use crate::services::auth::validate_jwt_token;
 
 pub fn validate_and_extract_claims(
-    keys: &SigningKeys,
+    authority: &dyn TokenAuthority,
     config: &systemprompt_manifest::Config,
     server_id: &McpServerId,
     token: &str,
 ) -> Result<JwtClaims, McpError> {
-    validate_jwt_token(keys, token, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
+    validate_jwt_token(authority, token, &config.jwt_audiences).map_err(|e| {
         tracing::error!(server = %server_id, error = %e, "JWT validation failed");
         McpError::invalid_request(format!("Invalid JWT token: {e}"), None)
     })

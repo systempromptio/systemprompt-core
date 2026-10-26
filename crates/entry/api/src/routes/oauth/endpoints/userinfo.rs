@@ -64,9 +64,8 @@ fn get_userinfo(
     token: &str,
 ) -> anyhow::Result<UserinfoResponse> {
     let claims = validate_jwt_token(
-        state.signing_keys(),
+        state.token_authority().as_ref(),
         token,
-        &config.jwt_issuer,
         &config.jwt_audiences,
     )?;
 

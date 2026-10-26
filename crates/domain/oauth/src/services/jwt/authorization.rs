@@ -9,16 +9,15 @@ use http::{HeaderMap, StatusCode};
 use std::str::FromStr;
 use systemprompt_identifiers::{ServiceName, UserId};
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenAuthority};
 use systemprompt_security::TokenExtractor;
-use systemprompt_security::keys::SigningKeys;
 
 #[derive(Debug, Copy, Clone)]
 pub struct AuthorizationService;
 
 impl AuthorizationService {
     pub fn authorize_service_access(
-        keys: &SigningKeys,
+        authority: &dyn TokenAuthority,
         config: &Config,
         headers: &HeaderMap,
         service_name: &ServiceName,
@@ -32,12 +31,9 @@ impl AuthorizationService {
             );
             return Err(StatusCode::UNAUTHORIZED);
         };
-        let Ok(claims) = jwt_validation::validate_jwt_token(
-            keys,
-            &token,
-            &config.jwt_issuer,
-            &config.jwt_audiences,
-        ) else {
+        let Ok(claims) =
+            jwt_validation::validate_jwt_token(authority, &token, &config.jwt_audiences)
+        else {
             tracing::warn!(
                 service = %service_name,
                 "JWT validation failed"
@@ -58,7 +54,7 @@ impl AuthorizationService {
     }
 
     pub fn authorize_required_audience(
-        keys: &SigningKeys,
+        authority: &dyn TokenAuthority,
         config: &Config,
         headers: &HeaderMap,
         required_audience: &str,
@@ -66,13 +62,8 @@ impl AuthorizationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-        let claims = jwt_validation::validate_jwt_token(
-            keys,
-            &token,
-            &config.jwt_issuer,
-            &config.jwt_audiences,
-        )
-        .map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let claims = jwt_validation::validate_jwt_token(authority, &token, &config.jwt_audiences)
+            .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
         let required_aud =
             JwtAudience::from_str(required_audience).map_err(|_e| StatusCode::BAD_REQUEST)?;
@@ -85,7 +76,7 @@ impl AuthorizationService {
     }
 
     pub fn authorize_any_audience(
-        keys: &SigningKeys,
+        authority: &dyn TokenAuthority,
         config: &Config,
         headers: &HeaderMap,
         allowed_audiences: &[&str],
@@ -93,13 +84,8 @@ impl AuthorizationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-        let claims = jwt_validation::validate_jwt_token(
-            keys,
-            &token,
-            &config.jwt_issuer,
-            &config.jwt_audiences,
-        )
-        .map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let claims = jwt_validation::validate_jwt_token(authority, &token, &config.jwt_audiences)
+            .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
         let allowed_auds: Vec<JwtAudience> = allowed_audiences
             .iter()

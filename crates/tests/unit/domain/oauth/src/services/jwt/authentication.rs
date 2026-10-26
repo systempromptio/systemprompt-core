@@ -13,7 +13,10 @@ fn authenticate_returns_unauthorized_when_headers_empty() {
     let headers = HeaderMap::new();
 
     let err = AuthenticationService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
     )
@@ -31,7 +34,10 @@ fn authenticate_returns_unauthorized_for_basic_auth_header() {
     );
 
     let err = AuthenticationService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
     )
@@ -46,7 +52,10 @@ fn authenticate_returns_unauthorized_for_empty_bearer_value() {
     headers.insert("authorization", "Bearer ".parse().expect("parse header"));
 
     let err = AuthenticationService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
     )
@@ -64,7 +73,10 @@ fn authenticate_returns_unauthorized_for_cookie_without_access_token() {
     );
 
     let err = AuthenticationService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
     )

@@ -89,3 +89,10 @@ pub fn test_token_authority(
         issuer,
     ))
 }
+
+pub fn test_oauth_signing() -> systemprompt_oauth::OAuthSigning {
+    systemprompt_oauth::OAuthSigning {
+        keys: test_signing_keys(),
+        authority: test_token_authority(crate::app_context::FIXTURE_JWT_ISSUER),
+    }
+}

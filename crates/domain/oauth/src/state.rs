@@ -8,10 +8,20 @@ use crate::error::{OauthError, OauthResult};
 use crate::repository::OAuthRepository;
 use crate::services::webauthn::WebAuthnService;
 use std::sync::Arc;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     AnalyticsProvider, FingerprintProvider, McpRegistryProvider, SessionProvider, UserProvider,
 };
+
+/// The deployment's signing material as the OAuth flows consume it: the keys
+/// the issuing grants sign with and the authority the verifying and session
+/// paths go through.
+#[derive(Clone, Debug)]
+pub struct OAuthSigning {
+    pub keys: SigningKeys,
+    pub authority: Arc<dyn TokenAuthority>,
+}
 
 #[derive(Clone)]
 pub struct OAuthState {
@@ -22,7 +32,7 @@ pub struct OAuthState {
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
     webauthn: Option<Arc<WebAuthnService>>,
-    signing_keys: SigningKeys,
+    signing: OAuthSigning,
 }
 
 impl std::fmt::Debug for OAuthState {
@@ -41,7 +51,7 @@ impl std::fmt::Debug for OAuthState {
                 &self.mcp_registry.as_ref().map(|_| "<registry>"),
             )
             .field("webauthn", &self.webauthn.is_some())
-            .field("signing_keys", &self.signing_keys)
+            .field("signing", &self.signing)
             .finish()
     }
 }
@@ -53,7 +63,7 @@ impl OAuthState {
         analytics_provider: Arc<dyn AnalyticsProvider>,
         session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
-        signing_keys: SigningKeys,
+        signing: OAuthSigning,
     ) -> Self {
         Self {
             oauth_repository,
@@ -63,7 +73,7 @@ impl OAuthState {
             fingerprint_provider: None,
             mcp_registry: None,
             webauthn: None,
-            signing_keys,
+            signing,
         }
     }
 
@@ -96,7 +106,11 @@ impl OAuthState {
     }
 
     pub const fn signing_keys(&self) -> &SigningKeys {
-        &self.signing_keys
+        &self.signing.keys
+    }
+
+    pub const fn token_authority(&self) -> &Arc<dyn TokenAuthority> {
+        &self.signing.authority
     }
 
     pub const fn oauth_repository(&self) -> &OAuthRepository {

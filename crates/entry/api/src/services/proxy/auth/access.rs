@@ -20,11 +20,10 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServiceModule;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, Permission};
+use systemprompt_models::auth::{AuthenticatedUser, Permission, TokenAuthority};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider, RegistryError};
 
 use super::challenge::{AuthValidator, ChallengeRequest, challenge_or_error};
@@ -75,7 +74,7 @@ impl AccessValidator {
             })
         };
         let authenticated_user = match AuthValidator::validate_service_access(
-            ctx.signing_keys(),
+            ctx.token_authority().as_ref(),
             ctx.config(),
             headers,
             service_name,
@@ -92,7 +91,7 @@ impl AccessValidator {
             },
         };
         if let Err(status_code) = enforce_required_audience(
-            ctx.signing_keys(),
+            ctx.token_authority().as_ref(),
             ctx.config(),
             headers,
             service_name,
@@ -165,7 +164,7 @@ fn registry_lookup_error(service_name: &ServiceName, error: RegistryError) -> Pr
 }
 
 fn enforce_required_audience(
-    keys: &SigningKeys,
+    authority: &dyn TokenAuthority,
     config: &Config,
     headers: &HeaderMap,
     service_name: &ServiceName,
@@ -174,7 +173,7 @@ fn enforce_required_audience(
     if audience.is_empty() {
         return Ok(());
     }
-    AuthService::authorize_required_audience(keys, config, headers, audience)
+    AuthService::authorize_required_audience(authority, config, headers, audience)
         .map(|_user| ())
         .inspect_err(|status| {
             tracing::warn!(

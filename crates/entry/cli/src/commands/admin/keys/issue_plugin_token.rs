@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{AccessTokenId, PluginId};
-use systemprompt_oauth::services::JwtSigningParams;
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
+use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_users::{UserRepository, UserService};
 
 use crate::context::CommandContext;
@@ -110,10 +110,7 @@ pub(super) async fn execute(
 
     let issued = PluginTokenService::issue(
         subject,
-        &JwtSigningParams {
-            issuer: &profile.security.issuer,
-            keys: &keys,
-        },
+        &DeploymentTokenAuthority::new(keys, profile.security.issuer.clone()),
         args.plugin_id.clone(),
         args.duration_days,
         &session_id,

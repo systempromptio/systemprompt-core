@@ -74,14 +74,14 @@ domain_error! {
         AuthRequired(String),
 
         #[error(
-            "token issuer does not match `{expected}`; the token predates a change to \
+            "token issuer does not match this deployment; the token predates a change to \
              `security.issuer`. Re-authenticate with \
              `systemprompt admin session login --force-new`"
         )]
-        TokenIssuerMismatch { expected: String },
+        TokenIssuerMismatch,
 
         #[error("token rejected: {0}")]
-        TokenRejected(#[from] systemprompt_security::AuthError),
+        TokenRejected(#[from] systemprompt_models::auth::TokenError),
 
         #[error("External MCP auth unavailable for {server}: {message}")]
         ExternalAuthUnavailable { server: String, message: String },

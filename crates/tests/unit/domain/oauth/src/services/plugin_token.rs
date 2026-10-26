@@ -5,7 +5,6 @@ use base64::Engine;
 use jsonwebtoken::{Algorithm, decode_header};
 use systemprompt_identifiers::{PluginId, SessionId, UserId};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission};
-use systemprompt_oauth::services::JwtSigningParams;
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 
 const ISSUER: &str = "https://issuer.test";
@@ -30,10 +29,7 @@ fn decode_claims(token: &str) -> JwtClaims {
 fn issue_mints_rs256_token_with_kid_header() {
     let issued = PluginTokenService::issue(
         subject(),
-        &JwtSigningParams {
-            issuer: ISSUER,
-            keys: &systemprompt_test_fixtures::test_signing_keys(),
-        },
+        systemprompt_test_fixtures::test_token_authority(ISSUER).as_ref(),
         PluginId::new("cowork-bundle"),
         30,
         &SessionId::generate(),
@@ -51,10 +47,7 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
     let session_id = SessionId::generate();
     let issued = PluginTokenService::issue(
         subject(),
-        &JwtSigningParams {
-            issuer: ISSUER,
-            keys: &systemprompt_test_fixtures::test_signing_keys(),
-        },
+        systemprompt_test_fixtures::test_token_authority(ISSUER).as_ref(),
         PluginId::new("cowork-bundle"),
         30,
         &session_id,
@@ -98,10 +91,7 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
 fn issue_sets_expiry_from_duration_days() {
     let issued = PluginTokenService::issue(
         subject(),
-        &JwtSigningParams {
-            issuer: ISSUER,
-            keys: &systemprompt_test_fixtures::test_signing_keys(),
-        },
+        systemprompt_test_fixtures::test_token_authority(ISSUER).as_ref(),
         PluginId::new("cowork-bundle"),
         30,
         &SessionId::generate(),
@@ -120,10 +110,7 @@ fn issue_sets_expiry_from_duration_days() {
 fn issue_rejects_duration_beyond_one_year() {
     PluginTokenService::issue(
         subject(),
-        &JwtSigningParams {
-            issuer: ISSUER,
-            keys: &systemprompt_test_fixtures::test_signing_keys(),
-        },
+        systemprompt_test_fixtures::test_token_authority(ISSUER).as_ref(),
         PluginId::new("cowork-bundle"),
         366,
         &SessionId::generate(),
@@ -135,10 +122,7 @@ fn issue_rejects_duration_beyond_one_year() {
 fn issue_generates_unique_jti_per_token() {
     let first = PluginTokenService::issue(
         subject(),
-        &JwtSigningParams {
-            issuer: ISSUER,
-            keys: &systemprompt_test_fixtures::test_signing_keys(),
-        },
+        systemprompt_test_fixtures::test_token_authority(ISSUER).as_ref(),
         PluginId::new("cowork-bundle"),
         30,
         &SessionId::generate(),
@@ -146,10 +130,7 @@ fn issue_generates_unique_jti_per_token() {
     .expect("first token");
     let second = PluginTokenService::issue(
         subject(),
-        &JwtSigningParams {
-            issuer: ISSUER,
-            keys: &systemprompt_test_fixtures::test_signing_keys(),
-        },
+        systemprompt_test_fixtures::test_token_authority(ISSUER).as_ref(),
         PluginId::new("cowork-bundle"),
         30,
         &SessionId::generate(),

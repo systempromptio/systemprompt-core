@@ -49,9 +49,8 @@ fn hs256_token_yields_alg_mismatch() {
     .expect("encode hs256");
 
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         &token,
-        "issuer",
         &[JwtAudience::Api],
     )
     .expect_err("HS256 must be rejected before signature check");

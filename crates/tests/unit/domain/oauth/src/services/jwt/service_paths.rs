@@ -32,7 +32,10 @@ fn authenticate_accepts_authority_signed_token() {
     let (user_id, headers) = minted_headers("authn@test.invalid");
 
     let user = AuthenticationService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
     )
@@ -47,7 +50,10 @@ fn authenticate_rejects_garbage_token() {
     let headers = bearer_headers("garbage.token.value");
 
     let err = AuthenticationService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
     )
@@ -62,7 +68,10 @@ fn authenticate_accepts_non_uuid_subject() {
     let token = mint_admin_jwt(&user_id, "svc@test.invalid", "https://issuer.test");
 
     let user = AuthenticationService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &bearer_headers(token.as_str()),
     )
@@ -77,7 +86,10 @@ fn authenticate_rejects_sentinel_subject() {
     let token = mint_admin_jwt(&user_id, "unset@test.invalid", "https://issuer.test");
 
     let err = AuthenticationService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &bearer_headers(token.as_str()),
     )
@@ -91,7 +103,10 @@ fn authorize_service_access_accepts_valid_token() {
     let (user_id, headers) = minted_headers("svcacc@test.invalid");
 
     let user = AuthorizationService::authorize_service_access(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &ServiceName::new("mcp"),
@@ -106,7 +121,10 @@ fn authorize_service_access_rejects_invalid_jwt() {
     let headers = bearer_headers("still.not.ajwt");
 
     let err = AuthorizationService::authorize_service_access(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &ServiceName::new("mcp"),
@@ -121,7 +139,10 @@ fn authorize_required_audience_accepts_api() {
     let (user_id, headers) = minted_headers("reqaud@test.invalid");
 
     let user = AuthorizationService::authorize_required_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         "api",
@@ -136,7 +157,10 @@ fn authorize_required_audience_rejects_missing_audience() {
     let (_user_id, headers) = minted_headers("noaud@test.invalid");
 
     let err = AuthorizationService::authorize_required_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         "hook",
@@ -151,7 +175,10 @@ fn authorize_required_audience_treats_unknown_string_as_resource_and_rejects() {
     let (_user_id, headers) = minted_headers("badaud@test.invalid");
 
     let err = AuthorizationService::authorize_required_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         "",
@@ -166,7 +193,10 @@ fn authorize_any_audience_accepts_when_one_matches() {
     let (user_id, headers) = minted_headers("anyaud@test.invalid");
 
     let user = AuthorizationService::authorize_any_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &["hook", "api"],
@@ -181,7 +211,10 @@ fn authorize_any_audience_rejects_when_none_match() {
     let (_user_id, headers) = minted_headers("noneaud@test.invalid");
 
     let err = AuthorizationService::authorize_any_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &["hook"],
@@ -196,7 +229,10 @@ fn authorize_any_audience_skips_invalid_entries_and_still_matches() {
     let (user_id, headers) = minted_headers("mixaud@test.invalid");
 
     let user = AuthorizationService::authorize_any_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &["", "api"],
@@ -216,14 +252,20 @@ fn auth_service_facade_delegates_all_paths() {
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 
     let user = AuthService::authenticate(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
     )
     .expect("authenticate");
     assert_eq!(user.id.to_string(), user_id.as_str());
     let user = AuthService::authorize_service_access(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         &ServiceName::new("api"),
@@ -231,7 +273,10 @@ fn auth_service_facade_delegates_all_paths() {
     .expect("service access");
     assert_eq!(user.id.to_string(), user_id.as_str());
     let user = AuthService::authorize_required_audience(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
         &systemprompt_test_fixtures::test_config(),
         &headers,
         "api",

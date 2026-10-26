@@ -9,9 +9,8 @@ use systemprompt_models::auth::JwtAudience;
 #[test]
 fn rejects_malformed_token() {
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         "not-a-jwt",
-        "issuer",
         &[JwtAudience::Mcp],
     )
     .unwrap_err();
@@ -25,9 +24,8 @@ fn rejects_malformed_token() {
 #[test]
 fn rejects_empty_token() {
     validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("iss").as_ref(),
         "",
-        "iss",
         &[JwtAudience::Mcp],
     )
     .unwrap_err();
@@ -40,9 +38,8 @@ fn rejects_non_rs256_token() {
     // placeholders.
     let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.signature";
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         token,
-        "issuer",
         &[JwtAudience::Mcp],
     )
     .unwrap_err();
@@ -58,9 +55,8 @@ fn rejects_rs256_token_without_kid() {
     // RS256 header without `kid`.
     let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.e30.signature";
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         token,
-        "issuer",
         &[JwtAudience::Mcp],
     )
     .unwrap_err();
@@ -76,9 +72,8 @@ fn rejects_rs256_token_with_unknown_kid() {
     // RS256 header with kid="nope". {"alg":"RS256","kid":"nope","typ":"JWT"}
     let token = "eyJhbGciOiJSUzI1NiIsImtpZCI6Im5vcGUiLCJ0eXAiOiJKV1QifQ.e30.signature";
     let err = validate_jwt_token(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_token_authority("issuer").as_ref(),
         token,
-        "issuer",
         &[JwtAudience::Mcp],
     )
     .unwrap_err();

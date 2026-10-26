@@ -62,13 +62,10 @@ pub(super) async fn refresh_session_for_user(
         })?;
 
     let token = systemprompt_oauth::services::generation::generate_anonymous_jwt_with_expiry(
+        session_creation_service.token_authority().as_ref(),
         user_id,
         &session_id,
         &ClientId::new("sp_web".to_owned()),
-        &systemprompt_oauth::services::JwtSigningParams {
-            issuer: &config.jwt_issuer,
-            keys: session_creation_service.signing_keys(),
-        },
         config.jwt_access_token_expiration,
     )
     .map_err(|e| {
