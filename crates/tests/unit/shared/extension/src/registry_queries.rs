@@ -198,25 +198,36 @@ impl systemprompt_traits::ProviderTokenCache for StubTokens {
 struct StubSubjects;
 
 #[async_trait::async_trait]
-impl systemprompt_traits::SubjectAttributes for StubSubjects {
+impl systemprompt_models::authz::SubjectAttributeSource for StubSubjects {
+    fn dimensions(&self) -> &[systemprompt_models::authz::SubjectDimension] {
+        &[]
+    }
+
     async fn values_for(
         &self,
         _user: &systemprompt_identifiers::UserId,
-        dimension: &str,
-    ) -> Result<Vec<String>, systemprompt_traits::SubjectAttributesError> {
-        Err(systemprompt_traits::SubjectAttributesError::UnknownDimension(dimension.to_owned()))
+        dimension: &systemprompt_models::authz::SubjectDimension,
+    ) -> Result<Vec<String>, systemprompt_models::authz::SubjectSourceError> {
+        Err(
+            systemprompt_models::authz::SubjectSourceError::UnknownDimension(
+                dimension.rule_type.as_str().to_owned(),
+            ),
+        )
     }
 
     async fn resolve_all(
         &self,
         _user: &systemprompt_identifiers::UserId,
-    ) -> Result<Vec<(String, Vec<String>)>, systemprompt_traits::SubjectAttributesError> {
-        Ok(Vec::new())
+    ) -> Result<
+        systemprompt_models::authz::SubjectAttributes,
+        systemprompt_models::authz::SubjectSourceError,
+    > {
+        Ok(systemprompt_models::authz::SubjectAttributes::new())
     }
 }
 
 impl ExtensionContext for StubCtx {
-    fn subject_attributes(&self) -> Arc<dyn systemprompt_traits::SubjectAttributes> {
+    fn subject_attributes(&self) -> Arc<dyn systemprompt_models::authz::SubjectAttributeSource> {
         Arc::new(StubSubjects)
     }
     fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {

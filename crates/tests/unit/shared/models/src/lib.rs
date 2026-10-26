@@ -20,6 +20,9 @@ mod a2a;
 mod enforcement_mode;
 
 #[cfg(test)]
+mod subject_source_handle;
+
+#[cfg(test)]
 mod a2a_artifact_metadata;
 
 #[cfg(test)]

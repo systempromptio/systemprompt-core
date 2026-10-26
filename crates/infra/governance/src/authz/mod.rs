@@ -81,9 +81,9 @@ pub use runtime::build_authz_hook;
 pub use scope_binding::ScopeBindingError;
 pub use subject::{
     NO_SUBJECT_ATTRIBUTES, ROLE_PRECEDENCE, SharedSubjectAttributeProvider,
-    SubjectAttributeProvider, SubjectAttributes, SubjectDimension, SubjectProviderRegistration,
-    SubjectProviderSet, USER_PRECEDENCE, dimensions_of, discover_subject_providers,
-    gather_subject_attributes,
+    SubjectAttributeProvider, SubjectAttributeSource, SubjectAttributes, SubjectDimension,
+    SubjectProviderRegistration, SubjectProviderSet, SubjectSourceError, USER_PRECEDENCE,
+    dimensions_of, discover_subject_providers, gather_subject_attributes,
 };
 pub use subject_directory::{
     RoleDirectory, RoleDirectoryRegistration, SharedRoleDirectory, discover_role_directory,

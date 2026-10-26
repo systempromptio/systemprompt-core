@@ -19,6 +19,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::authz::SubjectSourceHandle;
 
 use crate::registry::MarketplaceFactoryContext;
 use systemprompt_governance::authz::{
@@ -163,10 +164,13 @@ impl PublicationPolicy {
         db: &DbPool,
         config: ManagedMarketplaceConfig,
         services: ServicesView,
+        subjects: SubjectSourceHandle,
+        providers: SubjectProviderSet,
     ) -> Result<Self> {
         let factory_ctx = MarketplaceFactoryContext {
             db: Arc::clone(db),
             services: services.clone(),
+            subjects: subjects.clone(),
         };
         let gates = discover_publication_gates()
             .into_iter()
@@ -180,11 +184,12 @@ impl PublicationPolicy {
             pool: db.pool(),
             sink: Arc::new(NullAuditSink),
             services,
+            subjects,
         };
         Ok(Self::new(
             config,
             gates,
-            SubjectProviderSet::discover(&hook_ctx),
+            providers,
             discover_role_directory(&hook_ctx),
         ))
     }

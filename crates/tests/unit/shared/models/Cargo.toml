@@ -20,6 +20,7 @@ systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }

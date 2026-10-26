@@ -29,7 +29,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use sqlx::PgPool;
 use systemprompt_identifiers::{ModelId, ProviderId};
-use systemprompt_traits::CacheEpochs;
 
 use super::audit::{AuthzAuditSink, AuthzSource};
 use super::error::{AuthzError, AuthzResult};
@@ -37,22 +36,17 @@ use super::hook::AuthzDecisionHook;
 use super::parent_chain::{
     ChainIndexCache, ChainSources, DecisionFacts, ParentChainIndex, ResolveBase,
 };
-use super::registry::AuthzHookContext;
+use super::registry::AuthzWiring;
 use super::repository::AccessControlRepository;
 use super::rule_based_cache::{EntityRules, EntityRulesCache};
-use super::subject::{
-    SharedSubjectAttributeProvider, SubjectDimension, dimensions_of, discover_subject_providers,
-    gather_subject_attributes,
-};
+use super::subject::{SubjectAttributeSource, SubjectProviderSet};
 use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason, EntityKind};
-use systemprompt_manifest::services::ServicesView;
 
 #[derive(Clone)]
 pub struct RuleBasedHook {
     repo: AccessControlRepository,
     sink: Arc<dyn AuthzAuditSink>,
-    providers: Vec<SharedSubjectAttributeProvider>,
-    dimensions: Vec<SubjectDimension>,
+    providers: SubjectProviderSet,
     sources: Arc<ChainSources>,
     cache: Arc<ChainIndexCache>,
     entity_cache: Arc<EntityRulesCache>,
@@ -64,29 +58,22 @@ impl std::fmt::Debug for RuleBasedHook {
             .field("repo", &self.repo)
             .field("sink", &self.sink)
             .field("providers", &self.providers)
-            .field("dimensions", &self.dimensions)
             .finish_non_exhaustive()
     }
 }
 
 impl RuleBasedHook {
     #[must_use]
-    pub fn new(
-        pool: Arc<PgPool>,
-        sink: Arc<dyn AuthzAuditSink>,
-        sources: ChainSources,
-        epochs: CacheEpochs,
-        services: ServicesView,
-    ) -> Self {
-        let providers = discover_subject_providers(&AuthzHookContext {
-            pool: Arc::clone(&pool),
-            sink: Arc::clone(&sink),
-            services,
-        });
+    pub fn new(pool: Arc<PgPool>, sink: Arc<dyn AuthzAuditSink>, wiring: AuthzWiring) -> Self {
+        let AuthzWiring {
+            sources,
+            epochs,
+            providers,
+            ..
+        } = wiring;
         Self {
             repo: AccessControlRepository::from_pool(pool),
             sink,
-            dimensions: dimensions_of(&providers),
             providers,
             sources: Arc::new(sources),
             cache: Arc::new(ChainIndexCache::with_default_bounds(epochs)),
@@ -134,7 +121,7 @@ impl RuleBasedHook {
         let index = self.chain_index().await?;
         let cached = self.entity_rules(&index, kind, id).await?;
         let EntityRules { entity, rules } = cached.as_ref();
-        let attributes = gather_subject_attributes(&self.providers, &req.user_id).await?;
+        let attributes = self.providers.gather(&req.user_id).await?;
         let model = req.context.gateway_invocation_model();
         let provider = req.context.gateway_invocation_provider();
         let decision = index.resolve(
@@ -146,7 +133,7 @@ impl RuleBasedHook {
                 user_roles: &req.roles,
                 default_included: entity.as_ref().map(|e| e.default_included),
                 attributes: &attributes,
-                dimensions: &self.dimensions,
+                dimensions: self.providers.dimensions(),
                 facts: DecisionFacts {
                     model: model.as_ref().map(ModelId::as_str),
                     provider: provider.as_ref().map(ProviderId::as_str),

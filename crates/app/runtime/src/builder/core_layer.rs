@@ -33,6 +33,7 @@ use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::{Config, Profile};
+
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{CacheEpochs, FileStorage};
 
@@ -51,6 +52,7 @@ pub(super) struct CoreLayer {
     pub(super) log_sink: systemprompt_logging::LogSink,
     pub(super) policy: systemprompt_marketplace::managed::PublicationPolicy,
     pub(super) services: ServicesState,
+    pub(super) market: super::authz::PluginInputs,
 }
 
 async fn init_services(
@@ -112,17 +114,6 @@ pub(super) struct CoreOverrides {
     pub services: Option<ServicesState>,
 }
 
-fn authz_wiring(
-    services: &ServicesState,
-    epochs: CacheEpochs,
-) -> systemprompt_governance::authz::AuthzWiring {
-    systemprompt_governance::authz::AuthzWiring {
-        sources: chain_sources(&services.config()),
-        epochs,
-        services: services.view(),
-    }
-}
-
 pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLayer> {
     let CoreOverrides {
         authz_hook: authz_hook_override,
@@ -165,18 +156,13 @@ pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLay
     )
     .await?;
 
-    let policy = systemprompt_marketplace::managed::PublicationPolicy::discover(
-        &database,
-        services_config.marketplace.clone().unwrap_or_default(),
-        services.view(),
-    )?;
-
     let cache_epochs = CacheEpochs::new();
-    let authz_hook = systemprompt_governance::authz::build_authz_hook(
-        profile.governance.as_ref(),
-        database.write_pool(),
+    let (policy, authz_hook, market) = super::authz::authz_stage(
+        profile,
+        &database,
+        &services,
         authz_hook_override,
-        authz_wiring(&services, cache_epochs.clone()),
+        &cache_epochs,
     )?;
 
     systemprompt_logging::OutputState::current()
@@ -201,6 +187,7 @@ pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLay
         log_sink,
         policy,
         services,
+        market,
     })
 }
 
@@ -222,7 +209,7 @@ pub async fn discover_vertex_models(
     .await
 }
 
-fn chain_sources(
+pub(super) fn chain_sources(
     services: &systemprompt_manifest::services::ServicesConfig,
 ) -> systemprompt_governance::authz::ChainSources {
     systemprompt_governance::authz::ChainSources::from_services(services)

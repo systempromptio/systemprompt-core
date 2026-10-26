@@ -58,7 +58,7 @@ domain_error! {
             marketplace: String,
             rule_type: String,
             #[source]
-            source: Box<AuthzError>,
+            source: Box<systemprompt_models::authz::RuleTypeError>,
         },
 
         #[error("access-control rules: {0}")]

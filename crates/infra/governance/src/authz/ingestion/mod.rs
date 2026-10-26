@@ -39,6 +39,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::authz::SubjectSourceHandle;
 
 use super::audit::NullAuditSink;
 use super::registry::AuthzHookContext;
@@ -95,16 +96,21 @@ pub struct AccessControlIngestionService {
 }
 
 impl AccessControlIngestionService {
-    pub fn new(db: &DbPool, services: ServicesView) -> Self {
+    pub fn new(db: &DbPool, services: ServicesView, subjects: SubjectSourceHandle) -> Self {
         let write_pool = db.write_pool();
-        Self::from_pool(write_pool, services)
+        Self::from_pool(write_pool, services, subjects)
     }
 
-    pub fn from_pool(pool: Arc<PgPool>, services: ServicesView) -> Self {
+    pub fn from_pool(
+        pool: Arc<PgPool>,
+        services: ServicesView,
+        subjects: SubjectSourceHandle,
+    ) -> Self {
         let role_directory = discover_role_directory(&AuthzHookContext {
             pool: Arc::clone(&pool),
             sink: Arc::new(NullAuditSink),
             services,
+            subjects,
         });
         Self {
             write_pool: pool,

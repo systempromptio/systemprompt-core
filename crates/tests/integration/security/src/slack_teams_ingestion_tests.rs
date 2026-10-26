@@ -114,6 +114,7 @@ async fn slack_happy_path_projects_entity_and_rules() {
     let service = AccessControlIngestionService::new(
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
+        Default::default(),
     );
 
     let report = service
@@ -166,6 +167,7 @@ async fn teams_happy_path_projects_entity_and_rules() {
     let service = AccessControlIngestionService::new(
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
+        Default::default(),
     );
 
     let report = service
@@ -189,6 +191,7 @@ async fn disabled_and_empty_role_apps_produce_no_rows() {
     let service = AccessControlIngestionService::new(
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
+        Default::default(),
     );
 
     let mut apps = HashMap::new();
@@ -227,6 +230,7 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
     let service = AccessControlIngestionService::new(
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
+        Default::default(),
     );
 
     // First pass seeds both workspaces.
@@ -273,6 +277,7 @@ async fn re_ingest_without_override_is_idempotent() {
     let service = AccessControlIngestionService::new(
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
+        Default::default(),
     );
 
     service

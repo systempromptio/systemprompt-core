@@ -23,11 +23,11 @@
 use std::sync::Arc;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
 use systemprompt_traits::{
     BackgroundTasks, ConfigProvider, DatabaseHandle, DynAdvisoryLocks, DynInstanceRegistry,
-    DynLeaseRepository, ExtensionSecret, FileStorage, ProviderTokenCache, SubjectAttributes,
-    UnavailableCoordination,
+    DynLeaseRepository, ExtensionSecret, FileStorage, ProviderTokenCache, UnavailableCoordination,
 };
 
 pub trait ExtensionContext: Send + Sync {
@@ -67,7 +67,7 @@ pub trait ExtensionContext: Send + Sync {
 
     fn services(&self) -> ServicesView;
 
-    fn subject_attributes(&self) -> Arc<dyn SubjectAttributes>;
+    fn subject_attributes(&self) -> Arc<dyn SubjectAttributeSource>;
 
     fn provider_tokens(&self) -> Arc<dyn ProviderTokenCache>;
 

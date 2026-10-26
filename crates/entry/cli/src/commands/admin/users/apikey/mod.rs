@@ -13,7 +13,6 @@ use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand};
 use serde::Serialize;
 use std::sync::Arc;
-use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
@@ -107,13 +106,11 @@ pub(super) async fn execute(cmd: ApiKeyCommands, ctx: &CommandContext) -> Result
     match cmd {
         ApiKeyCommands::Issue(args) => {
             if !args.scopes.is_empty() {
-                SubjectProviderSet::discover(&AuthzHookContext {
-                    pool: pool.pool(),
-                    sink: Arc::new(NullAuditSink),
-                    services: ctx.app_context().await?.services_state().view(),
-                })
-                .verify_scope_bindings(&args.user, &args.scopes)
-                .await?;
+                ctx.app_context()
+                    .await?
+                    .subject_providers()
+                    .verify_scope_bindings(&args.user, &args.scopes)
+                    .await?;
             }
             issue::execute(&service, args).await
         },

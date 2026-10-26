@@ -20,12 +20,14 @@
 use std::sync::Arc;
 
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::authz::SubjectSourceHandle;
 use systemprompt_traits::CacheEpochs;
 
 use super::audit::AuthzAuditSink;
 use super::composite::CompositeAuthzHook;
 use super::hook::SharedAuthzHook;
 use super::parent_chain::ChainSources;
+use super::subject::SubjectProviderSet;
 
 /// The chain sources, cache epochs and services a rule-based hook is wired
 /// from at the composition root.
@@ -34,6 +36,8 @@ pub struct AuthzWiring {
     pub sources: ChainSources,
     pub epochs: CacheEpochs,
     pub services: ServicesView,
+    pub subjects: SubjectSourceHandle,
+    pub providers: SubjectProviderSet,
 }
 
 impl std::fmt::Debug for AuthzWiring {
@@ -52,6 +56,7 @@ pub struct AuthzHookContext {
     pub pool: Arc<sqlx::PgPool>,
     pub sink: Arc<dyn AuthzAuditSink>,
     pub services: ServicesView,
+    pub subjects: SubjectSourceHandle,
 }
 
 impl std::fmt::Debug for AuthzHookContext {

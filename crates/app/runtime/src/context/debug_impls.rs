@@ -71,6 +71,7 @@ impl std::fmt::Debug for Plugins {
             .field("marketplace_filter", &self.marketplace_filter)
             .field("marketplace_cache", &self.marketplace_cache)
             .field("subject_providers", &self.subject_providers)
+            .field("subjects", &self.subjects)
             .finish()
     }
 }

@@ -62,8 +62,8 @@ impl ExtensionContext for AppContext {
         self.services_state().view()
     }
 
-    fn subject_attributes(&self) -> Arc<dyn systemprompt_traits::SubjectAttributes> {
-        Arc::new(self.subject_providers().clone())
+    fn subject_attributes(&self) -> Arc<dyn systemprompt_models::authz::SubjectAttributeSource> {
+        Arc::new(self.subject_handle().clone())
     }
 
     fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {

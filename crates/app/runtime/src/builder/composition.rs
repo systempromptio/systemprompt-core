@@ -3,12 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::authz::PluginInputs;
 use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
 use crate::context::Plugins;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
-use systemprompt_loader::ServicesState;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 
@@ -160,23 +159,20 @@ pub fn owner_reassignments(database: &DbPool) -> Vec<systemprompt_traits::DynOwn
     ]
 }
 
-pub(super) fn build_plugins(
+pub(super) fn new_plugins(
     extension_registry: Arc<ExtensionRegistry>,
     mcp_registry: RegistryService,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
-    database: &DbPool,
-    services: &ServicesState,
+    inputs: &PluginInputs,
 ) -> Plugins {
+    let factory_ctx = &inputs.factory;
     Plugins {
         extension_registry,
         mcp_registry,
         marketplace_filter: marketplace_filter
-            .unwrap_or_else(|| assembly::build_marketplace_filter(database, services.view())),
+            .unwrap_or_else(|| assembly::build_marketplace_filter(factory_ctx)),
         marketplace_cache: Arc::default(),
-        subject_providers: SubjectProviderSet::discover(&AuthzHookContext {
-            pool: database.pool(),
-            sink: Arc::new(NullAuditSink),
-            services: services.view(),
-        }),
+        subject_providers: inputs.subject_providers.clone(),
+        subjects: factory_ctx.subjects.clone(),
     }
 }

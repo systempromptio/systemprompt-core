@@ -56,6 +56,7 @@ async fn reserve(
                 pool: db.pool(),
                 sink: std::sync::Arc::new(NullAuditSink),
                 services: systemprompt_test_fixtures::fixture_services_view(),
+                subjects: Default::default(),
             }),
             subjects: QuotaSubjects {
                 user_id: &user,

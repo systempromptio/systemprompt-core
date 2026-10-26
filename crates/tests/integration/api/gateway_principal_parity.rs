@@ -147,9 +147,13 @@ async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_rout
     let hook: SharedAuthzHook = Arc::new(RuleBasedHook::new(
         pool_arc,
         Arc::new(NullAuditSink),
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
-        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+        },
     ));
 
     let extractor = super::gateway_api_key_session_binding::jwt_extractor(&ctx);

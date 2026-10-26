@@ -9,9 +9,9 @@ use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::Database;
 use systemprompt_manifest::Config;
-use systemprompt_manifest::services::{ServicesView, SystemAdmin, SystemAdminConfig};
+use systemprompt_manifest::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_marketplace::{
     AllowAllFilter, MarketplaceFactoryContext, MarketplaceFilter, discover_filters,
 };
@@ -110,15 +110,10 @@ async fn resolve_system_admin(
 }
 
 pub(super) fn build_marketplace_filter(
-    database: &DbPool,
-    services: ServicesView,
+    ctx: &MarketplaceFactoryContext,
 ) -> Arc<dyn MarketplaceFilter> {
-    let ctx = MarketplaceFactoryContext {
-        db: Arc::clone(database),
-        services,
-    };
     for reg in discover_filters() {
-        match (reg.factory)(&ctx) {
+        match (reg.factory)(ctx) {
             Ok(filter) => {
                 tracing::debug!(
                     priority = reg.priority,

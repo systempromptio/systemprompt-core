@@ -1,23 +1,23 @@
 //! Builder that assembles an [`AppContext`] from profile + config state.
 //!
 //! The builder owns the bootstrap order: profile -> paths -> files ->
-//! database -> logging -> extensions -> ancillary services. Failures at
-//! any step propagate as [`RuntimeError`](crate::error::RuntimeError).
-//! Subsystem resolution helpers live in [`assembly`].
+//! database -> logging -> extensions -> ancillary services. A failing step
+//! propagates as [`RuntimeError`](crate::error::RuntimeError); helpers live
+//! in [`assembly`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod ai_service;
 mod assembly;
+mod authz;
 mod composition;
 mod core_layer;
 mod database;
 mod events;
 mod governance;
-
 pub use composition::owner_reassignments;
-use composition::{build_data_plane, build_plugins, build_repositories, ensure_legacy_context};
+use composition::{build_data_plane, build_repositories, ensure_legacy_context, new_plugins};
 
 use std::sync::Arc;
 
@@ -187,6 +187,7 @@ impl AppContextBuilder {
             log_sink,
             policy,
             services,
+            market,
         } = init_core(self.core).await?;
 
         let (extensions, schema_install, governance) = init_governed_extensions(
@@ -210,8 +211,7 @@ impl AppContextBuilder {
 
         let (ai_service, connector_tokens) =
             ai_service::build_ai_service(&database, &repositories, &mcp_registry, &services);
-        let filter = self.marketplace_filter;
-        let plugins = build_plugins(extensions, mcp_registry, filter, &database, &services);
+        let plugins = new_plugins(extensions, mcp_registry, self.marketplace_filter, &market);
         let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let subsystems = Subsystems {
             ai_service,

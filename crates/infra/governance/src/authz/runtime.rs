@@ -69,6 +69,7 @@ pub fn build_authz_hook(
             pool: Arc::clone(&pool),
             sink: Arc::clone(&sink),
             services: wiring.services.clone(),
+            subjects: wiring.subjects.clone(),
         })
     });
 
@@ -156,13 +157,7 @@ fn compose_rule_based(
     wiring: AuthzWiring,
     tail: Vec<SharedAuthzHook>,
 ) -> SharedAuthzHook {
-    let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(
-        pool,
-        sink,
-        wiring.sources,
-        wiring.epochs,
-        wiring.services,
-    ));
+    let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(pool, sink, wiring));
     let mut hooks = Vec::with_capacity(tail.len() + 1);
     hooks.push(rule_based);
     hooks.extend(tail);

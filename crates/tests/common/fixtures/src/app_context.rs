@@ -351,6 +351,7 @@ fn fixture_app_context_assembled(
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),
             subject_providers: fixture_subject_providers(pool),
+            subjects: Default::default(),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
@@ -447,6 +448,7 @@ pub fn fixture_subject_providers(
             pool: db.pool(),
             sink: std::sync::Arc::new(systemprompt_governance::authz::NullAuditSink),
             services: fixture_services_view(),
+            subjects: Default::default(),
         },
     )
 }

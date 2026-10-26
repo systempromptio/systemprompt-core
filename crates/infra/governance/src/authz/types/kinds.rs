@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::borrow::Cow;
 use std::fmt;
 use std::str::FromStr;
 
@@ -11,129 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::authz::error::AuthzError;
 
-/// Open subject-dimension vocabulary bound to `access_control_rules.rule_type`.
-///
-/// Core mints exactly two: [`RuleType::USER`] and [`RuleType::ROLE`]. Every
-/// other dimension (department, cost centre, clearance, ...) is an extension
-/// concern, minted with [`RuleType::extension`] and taught to the resolver via
-/// a [`SubjectDimension`][sd] registered by
-/// [`register_subject_attribute_provider!`][macro]. Core never interprets an
-/// extension slug. [`RuleType::extension_static`] mints a literal slug in a
-/// `const`, so a malformed one fails the build instead of a runtime check.
-///
-/// This mirrors [`AuthzContext`][ctx]: the column is an open vocabulary
-/// validated at the Rust boundary rather than by a SQL `CHECK`, so an
-/// unrecognised-but-well-formed slug is data, not an error.
-///
-/// [sd]: crate::authz::subject::SubjectDimension
-/// [macro]: crate::register_subject_attribute_provider
-/// [ctx]: super::request::AuthzContext
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct RuleType(Cow<'static, str>);
-
-impl RuleType {
-    pub const USER: Self = Self(Cow::Borrowed("user"));
-    pub const ROLE: Self = Self(Cow::Borrowed("role"));
-
-    pub fn extension(slug: impl Into<Cow<'static, str>>) -> Result<Self, AuthzError> {
-        let slug = slug.into();
-        if !is_extension_slug(slug.as_bytes()) {
-            return Err(AuthzError::InvalidRuleType(slug.into_owned()));
-        }
-        Ok(Self(slug))
-    }
-
-    #[must_use]
-    pub const fn extension_static(slug: &'static str) -> Self {
-        assert!(
-            is_extension_slug(slug.as_bytes()),
-            "extension rule type must be [a-z0-9_], not edged by `_`, and not `user` or `role`"
-        );
-        Self(Cow::Borrowed(slug))
-    }
-
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-const fn is_extension_slug(slug: &[u8]) -> bool {
-    if matches!(slug, [] | [b'_', ..] | [.., b'_'])
-        || bytes_eq(slug, b"user")
-        || bytes_eq(slug, b"role")
-    {
-        return false;
-    }
-    let mut rest = slug;
-    while let [byte, tail @ ..] = rest {
-        if !(byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_') {
-            return false;
-        }
-        rest = tail;
-    }
-    true
-}
-
-const fn bytes_eq(left: &[u8], right: &[u8]) -> bool {
-    if left.len() != right.len() {
-        return false;
-    }
-    let (mut left, mut right) = (left, right);
-    while let ([a, left_tail @ ..], [b, right_tail @ ..]) = (left, right) {
-        if *a != *b {
-            return false;
-        }
-        left = left_tail;
-        right = right_tail;
-    }
-    true
-}
-
-impl fmt::Display for RuleType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl From<&str> for RuleType {
-    fn from(s: &str) -> Self {
-        match s {
-            "user" => Self::USER,
-            "role" => Self::ROLE,
-            other => Self(Cow::Owned(other.to_owned())),
-        }
-    }
-}
-
-impl sqlx::Type<sqlx::Postgres> for RuleType {
-    fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
-        <str as sqlx::Type<sqlx::Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &<sqlx::Postgres as sqlx::Database>::TypeInfo) -> bool {
-        <str as sqlx::Type<sqlx::Postgres>>::compatible(ty)
-    }
-}
-
-impl<'q> sqlx::Encode<'q, sqlx::Postgres> for RuleType {
-    fn encode_by_ref(
-        &self,
-        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer,
-    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
-        <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode(self.as_str(), buf)
-    }
-}
-
-impl<'r> sqlx::Decode<'r, sqlx::Postgres> for RuleType {
-    fn decode(
-        value: <sqlx::Postgres as sqlx::Database>::ValueRef<'r>,
-    ) -> Result<Self, sqlx::error::BoxDynError> {
-        let raw = <&str as sqlx::Decode<'r, sqlx::Postgres>>::decode(value)?;
-        Ok(Self::from(raw))
-    }
-}
+pub use systemprompt_models::authz::RuleType;
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, sqlx::Type,

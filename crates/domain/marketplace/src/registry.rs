@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::authz::SubjectSourceHandle;
 
 use crate::error::MarketplaceFilterError;
 use crate::filter::MarketplaceFilter;
@@ -22,6 +23,7 @@ use crate::filter::MarketplaceFilter;
 pub struct MarketplaceFactoryContext {
     pub db: DbPool,
     pub services: ServicesView,
+    pub subjects: SubjectSourceHandle,
 }
 
 impl std::fmt::Debug for MarketplaceFactoryContext {

@@ -101,6 +101,7 @@ fn providers(p: &systemprompt_database::DbPool) -> SubjectProviderSet {
         pool: p.pool(),
         sink: std::sync::Arc::new(NullAuditSink),
         services: systemprompt_test_fixtures::fixture_services_view(),
+        subjects: Default::default(),
     })
 }
 
