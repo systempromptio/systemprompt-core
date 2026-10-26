@@ -151,7 +151,8 @@ pub fn spawn_marked_child(helper_test: &str, service_name: &str) -> MarkedChild 
 
 // Why: a hang guard, not a latency budget. Each child boots a full CLI runtime
 // (config load, DB pool, migrations check); under a parallel nextest run on a
-// loaded host, 30s tripped on that startup cost, not on hangs. It stays below nextest's 180s terminate-after.
+// loaded host, 30s tripped on that startup cost, not on hangs. It stays below
+// nextest's 180s terminate-after.
 const BOUNDED_OUTPUT_TIMEOUT: Duration = Duration::from_secs(120);
 
 pub fn bounded_output(mut command: Command, label: &str) -> Output {
