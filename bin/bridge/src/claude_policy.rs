@@ -66,7 +66,7 @@ pub fn is_bridge_loopback_mcp_url(raw: &str) -> bool {
     url::Url::parse(raw).is_ok_and(|url| {
         url.scheme() == "http"
             && matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"))
-            && url.path().starts_with("/mcp/")
+            && systemprompt_models::ApiPaths::mcp_server_slug(url.path()).is_some()
     })
 }
 
