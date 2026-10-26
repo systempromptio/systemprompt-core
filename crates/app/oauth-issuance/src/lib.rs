@@ -23,7 +23,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #[doc(hidden)]
-pub use inventory as __inventory;
+pub use ::inventory as __inventory;
 
 pub mod client_credentials;
 pub mod error;

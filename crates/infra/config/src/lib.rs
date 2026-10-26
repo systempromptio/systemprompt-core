@@ -60,11 +60,11 @@ pub use bootstrap::{
 };
 pub use systemprompt_manifest::profile::ExternalSecretsConfig;
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
 pub use config_loader::{build_from_profile, resolve_instance_id, validate_database_config};
 pub use error::{ConfigError, ConfigResult};
 pub use fingerprint::{ConfigFingerprint, FINGERPRINT_HEX_LEN};
-#[doc(hidden)]
-pub use inventory as __inventory;
 pub use paths::{
     AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths, WritableRoot,
 };

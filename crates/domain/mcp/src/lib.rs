@@ -49,7 +49,7 @@ pub mod services;
 pub(crate) mod tool;
 
 #[doc(hidden)]
-pub use inventory as __inventory;
+pub use ::inventory as __inventory;
 
 pub use extension::McpExtension;
 

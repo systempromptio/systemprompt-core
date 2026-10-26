@@ -56,7 +56,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #[doc(hidden)]
-pub use inventory as __inventory;
+pub use ::inventory as __inventory;
 
 pub mod bundle;
 mod candidate;

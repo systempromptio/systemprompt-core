@@ -16,7 +16,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[doc(hidden)]
-pub use inventory as __inventory;
+pub use ::inventory as __inventory;
 
 mod macros;
 

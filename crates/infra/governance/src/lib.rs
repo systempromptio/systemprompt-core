@@ -21,7 +21,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #[doc(hidden)]
-pub use inventory as __inventory;
+pub use ::inventory as __inventory;
 
 pub mod authz;
 pub mod decision_retention;
