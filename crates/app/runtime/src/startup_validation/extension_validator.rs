@@ -57,22 +57,20 @@ pub(super) fn validate_extensions(
     }
 
     let profile = boot.profile();
-    let paths = AppPaths::from_profile(
+    match AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
         boot.services_root().map(|r| r.path.as_path()),
-    )
-    .ok();
-
-    match paths {
-        Some(paths) => validate_extension_assets(&extensions, &paths, report, verbose),
-        None if verbose => {
-            CliService::output(&format!(
-                "  {} Asset validation skipped (profile not loaded)",
-                BrandColors::dim("○")
+    ) {
+        Ok(paths) => validate_extension_assets(&extensions, &paths, report, verbose),
+        Err(e) => {
+            let mut ext_report = ValidationReport::new("ext:assets".to_owned());
+            ext_report.add_error(ValidationIssue::new(
+                "extension_asset_paths",
+                format!("Failed to resolve the profile paths for asset validation: {e}"),
             ));
+            report.add_extension(ext_report);
         },
-        None => {},
     }
 }
 
