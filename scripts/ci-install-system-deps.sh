@@ -7,7 +7,7 @@
 # the whole job timeout in this step and the job is cancelled without a
 # diagnosis. Here every apt command runs under `timeout`, apt itself is told to
 # give up on a silent connection and on a held lock, and the whole sequence is
-# retried a bounded number of times. The worst case is about ten and a half
+# retried a bounded number of times, finishing any dpkg run a timeout cut short. The worst case is about ten and a half
 # minutes (two more when `ripgrep` is requested); the workflow step's
 # `timeout-minutes` is the last backstop.
 #
@@ -123,6 +123,16 @@ APT_OPTS=(
 # trigger alone can take minutes and is never needed in CI.
 sudo rm -f /var/lib/man-db/auto-update
 
+# A dependency that upgrades udev or systemd triggers an initramfs rebuild
+# (dracut on 26.04 images), which a CI job never boots and which alone can
+# outlast the install timeout. Both generators are diverted to a no-op.
+for generator in /usr/sbin/update-initramfs /usr/bin/dracut; do
+    if [ -e "$generator" ] && ! dpkg-divert --list "$generator" | grep -q .; then
+        sudo dpkg-divert --local --rename --add "$generator" >/dev/null
+        sudo ln -sf /bin/true "$generator"
+    fi
+done
+
 apt_bounded() {
     local limit=$1
     shift
@@ -143,6 +153,10 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
     echo "::warning::system dependency install attempt $attempt/$ATTEMPTS failed (exit $status; 124 = timed out)"
     if [ "$attempt" -lt "$ATTEMPTS" ]; then
         sleep $((attempt * 10))
+        # Why: a timed-out install leaves dpkg half-configured, and apt refuses
+        # every later install until it is finished.
+        sudo DEBIAN_FRONTEND=noninteractive timeout --kill-after=10 "$INSTALL_TIMEOUT_S" \
+            dpkg --configure -a || true
     fi
 done
 
