@@ -215,6 +215,24 @@ fonts:
     family: OpenSans
     fallback: sans-serif
 YAML
+# Why: from 0.73 the loader derives every API URL and the JWT issuer from
+# server.external_url and refuses a profile that states them; older rungs
+# require them stated.
+if git -C "$ROOT" grep -q extra_cors_origins "$RUNG" -- crates/shared/manifest/src/profile; then
+    SERVER_URLS="  external_url: $BASE
+  extra_cors_origins:
+    - http://127.0.0.1"
+    JWT_ISSUER=""
+else
+    SERVER_URLS="  api_server_url: $BASE
+  api_internal_url: $BASE
+  api_external_url: $BASE
+  use_https: false
+  cors_allowed_origins:
+    - http://127.0.0.1"
+    JWT_ISSUER="  jwt_issuer: https://issuer.test
+"
+fi
 cat > "$WORK/profile/profile.yaml" <<YAML
 name: ladder
 display_name: Schema Ladder Old Binary
@@ -228,12 +246,7 @@ database:
 server:
   host: 127.0.0.1
   port: $API_PORT
-  api_server_url: $BASE
-  api_internal_url: $BASE
-  api_external_url: $BASE
-  use_https: false
-  cors_allowed_origins:
-    - http://127.0.0.1
+$SERVER_URLS
   content_negotiation:
     enabled: false
     markdown_suffix: .md
@@ -256,8 +269,7 @@ paths:
   storage: $WORK/storage
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.test
-  jwt_access_token_expiration: 3600
+$JWT_ISSUER  jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences:
     - api
