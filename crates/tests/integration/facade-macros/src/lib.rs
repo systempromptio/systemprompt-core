@@ -54,6 +54,21 @@ impl GatewayRequestGuard for ProbeGuard {
 
 systemprompt::extension::register_gateway_guard!(ProbeGuard);
 
+const FILTER_PRIORITY: i32 = 7_301;
+
+fn probe_filter(
+    _ctx: &systemprompt::marketplace::MarketplaceFactoryContext,
+) -> Result<
+    std::sync::Arc<dyn systemprompt::marketplace::MarketplaceFilter>,
+    systemprompt::marketplace::MarketplaceFilterError,
+> {
+    Ok(std::sync::Arc::new(
+        systemprompt::marketplace::AllowAllFilter,
+    ))
+}
+
+systemprompt::marketplace::register_marketplace_filter!(probe_filter, priority = FILTER_PRIORITY);
+
 #[test]
 fn the_scanner_registered_through_the_facade_is_collected() {
     let names: Vec<&str> = systemprompt::gateway::__inventory::iter::<
@@ -73,4 +88,14 @@ fn the_guard_registered_through_the_facade_is_collected() {
         .into_iter()
         .count();
     assert!(registered >= 1);
+}
+
+#[test]
+fn the_marketplace_filter_registered_through_the_facade_is_collected() {
+    let found = systemprompt::marketplace::__inventory::iter::<
+        systemprompt::marketplace::MarketplaceFilterRegistration,
+    >
+        .into_iter()
+        .any(|registration| registration.priority == FILTER_PRIORITY);
+    assert!(found);
 }
