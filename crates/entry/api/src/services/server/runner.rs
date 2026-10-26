@@ -1,9 +1,8 @@
 //! Server run loop: MCP orchestrator wiring and lifecycle supervision.
 //!
-//! The startup phases a node runs follow its `server.role`
-//! ([`super::routes::role::lifecycle_plan`]): a gateway node spawns no MCP
-//! servers or agents and runs no scheduler; a runner node does neither and
-//! instead starts every extension's [`systemprompt_traits::RunnerService`].
+//! Phases follow `server.role` ([`super::routes::role::lifecycle_plan`]): a
+//! gateway node runs no MCP servers, agents or scheduler; a runner node starts
+//! each extension's [`systemprompt_traits::RunnerService`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -148,8 +147,6 @@ async fn serve_until_shutdown(
 
 fn start_runner_services(ctx: &AppContext) {
     let shared = Arc::new(ctx.clone());
-    let concrete = Arc::clone(&shared);
-    let extension_ctx: Arc<dyn systemprompt_extension::ExtensionContext> = concrete;
     let mut started = 0usize;
     for extension in ctx.extension_registry().extensions() {
         for service in extension.runner_services() {
@@ -158,7 +155,9 @@ fn start_runner_services(ctx: &AppContext) {
             let dependencies = Dependencies::new()
                 .with(Arc::clone(ctx.app_paths_arc()))
                 .with(Arc::clone(ctx.db_pool()))
-                .with(Arc::clone(&extension_ctx))
+                .with::<Arc<dyn systemprompt_extension::ExtensionContext>>(
+                    Arc::<AppContext>::clone(&shared),
+                )
                 .with(Arc::clone(&shared));
             let job_ctx = JobContext::new(actor, dependencies);
             ctx.background_tasks()
