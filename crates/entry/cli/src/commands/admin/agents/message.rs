@@ -117,7 +117,7 @@ pub(super) async fn execute(args: MessageArgs, ctx: &CommandContext) -> Result<C
         Err(anyhow!("Agent name is required"))
     })?;
 
-    ensure_agent_exists(&agent)?;
+    ensure_agent_exists(&agent, ctx)?;
 
     let message_text = resolve_required(args.message, "message", config, || {
         Err(anyhow!("Message text is required. Use -m or --message"))

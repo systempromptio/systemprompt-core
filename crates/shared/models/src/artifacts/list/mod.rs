@@ -15,7 +15,7 @@ use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName, SourceId};
+use systemprompt_identifiers::{ArtifactElementId, McpExecutionId, SkillId, SkillName, SourceId};
 
 fn default_artifact_type() -> String {
     "list".to_owned()
@@ -24,7 +24,7 @@ fn default_artifact_type() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ListItem {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
+    pub id: Option<ArtifactElementId>,
     pub title: String,
     pub summary: String,
     pub link: String,
@@ -59,8 +59,8 @@ impl ListItem {
         }
     }
 
-    pub fn with_id(mut self, id: impl Into<String>) -> Self {
-        self.id = Some(id.into());
+    pub fn with_id(mut self, id: ArtifactElementId) -> Self {
+        self.id = Some(id);
         self
     }
 

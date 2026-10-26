@@ -5,8 +5,9 @@
 //! Completions and Responses) are parsed into a canonical form, dispatched to
 //! an upstream provider via the [`protocol`] adapters, and rendered back in the
 //! caller's protocol. [`GatewayService`] orchestrates the flow; supporting
-//! modules cover gateway [`policies`] (the declarative spec, its YAML
-//! bootstrap, resolution, and the safety-scanner, route-selector and
+//! modules cover gateway [`policies`] (the declarative spec, its
+//! `gateway_policies` config plane, resolution, and the safety-scanner,
+//! route-selector and
 //! system-prompt-override extension contracts), [`quota`] enforcement, usage
 //! [`captures`], [`pricing`], the upstream and safety-scanner [`registry`],
 //! remote [`image_fetch`], the streaming [`stream_tap`], and the [`audit`]
@@ -19,10 +20,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
+
 pub mod artifact_scanner;
 pub mod audit;
 pub mod captures;
 pub mod error;
+pub mod extension;
 pub mod image_fetch;
 pub mod parse;
 pub mod policies;
@@ -31,6 +36,7 @@ pub mod protocol;
 pub mod quota;
 pub mod registry;
 pub mod repository;
+pub mod routing;
 pub mod service;
 pub mod signature_cache;
 pub mod stream_tap;
@@ -46,23 +52,26 @@ pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::CapturedToolUse;
 pub use error::{GatewayAuditError, GatewayAuditResult};
 pub use policies::{
-    API_KEY_QUOTA_SUBJECT, CATEGORY_SCANNER_FAILURE, CalendarPeriod, Finding, FindingSpan,
-    GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyError,
-    GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
-    IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
-    NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
-    OverrideError, OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY,
-    PHASE_RESPONSE, PartReplacement, PolicyResolver, PolicyUnavailable, QuotaMode, QuotaWindow,
-    RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
-    SafetyConfig, SafetyHistoryMode, SafetyMode, SafetyScanner, SafetyScannerRegistration,
-    ScanError, ScannerFactory, ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
-    SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT, WindowSpan,
-    load_from_yaml as load_gateway_policies_from_yaml,
+    CATEGORY_SCANNER_FAILURE, CalendarPeriod, Finding, FindingSpan, GATEWAY_POLICIES_FILE,
+    GATEWAY_POLICIES_PLANE, GatewayPoliciesPlane, GatewayPolicyConfig, GatewayPolicyEntry,
+    GatewayPolicyError, GatewayPolicySpec, HeuristicConfig, HeuristicScanner, NullScanner,
+    OverrideAction, OverrideContext, OverrideContextBuilder, OverrideError, OverridePolicy,
+    OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE,
+    PartReplacement, PolicyResolver, PolicyUnavailable, QuotaWindow, RouteSelector,
+    RouteSelectorChain, RouteSelectorError, RouteSelectorRegistration, SafetyConfig,
+    SafetyHistoryMode, SafetyScanner, SafetyScannerRegistration, ScanError, ScannerFactory,
+    ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
+    SystemPromptOverrideRegistration, WindowSpan,
 };
 pub use protocol::{
     CanonicalEvent, CanonicalRequest, CanonicalResponse, InboundAdapter, OutboundAdapter,
     OutboundAdapterRegistration, OutboundCtx, OutboundOutcome,
 };
-pub use registry::{GatewayUpstreamRegistry, SafetyScannerRegistry};
-pub use repository::GatewayRepositories;
+pub use registry::{
+    GatewayEngines, GatewayEnginesError, GatewayUpstreamRegistry, SafetyScannerRegistry,
+};
+pub use repository::{GatewayHandles, GatewayRepositories};
+pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};
+#[doc(hidden)]
+pub use systemprompt_extension::ExtensionContext as __ExtensionContext;

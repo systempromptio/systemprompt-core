@@ -11,6 +11,7 @@ mod revisions;
 mod sources;
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -18,11 +19,16 @@ use systemprompt_identifiers::{
     ManagedResourceId, ManagedSourceId, ResourceRevisionId, SourceSnapshotId,
 };
 
-use super::{DependencyRef, RevisionFiles};
+use super::{DependencyRef, PublicationPolicy, RevisionFiles};
+use crate::catalog::VerifiedRevisions;
+use systemprompt_loader::bundle::BaseTreeHashMemo;
 
 #[derive(Debug, Clone)]
 pub struct ManagedRepository {
     pub(crate) pool: PgPool,
+    verified: Arc<VerifiedRevisions>,
+    tree_hash: Arc<BaseTreeHashMemo>,
+    publication: Arc<PublicationPolicy>,
 }
 
 impl ManagedRepository {
@@ -31,7 +37,28 @@ impl ManagedRepository {
     pub fn new(db: &systemprompt_database::DbPool) -> Self {
         Self {
             pool: db.write_pool().as_ref().clone(),
+            verified: Arc::new(VerifiedRevisions::default()),
+            tree_hash: Arc::new(BaseTreeHashMemo::new()),
+            publication: Arc::new(PublicationPolicy::default()),
         }
+    }
+
+    #[must_use]
+    pub fn with_publication_policy(mut self, policy: PublicationPolicy) -> Self {
+        self.publication = Arc::new(policy);
+        self
+    }
+
+    pub(crate) fn publication_policy(&self) -> &PublicationPolicy {
+        &self.publication
+    }
+
+    pub(crate) fn base_tree_hash_memo(&self) -> &BaseTreeHashMemo {
+        &self.tree_hash
+    }
+
+    pub(crate) fn verified_revisions(&self) -> &VerifiedRevisions {
+        &self.verified
     }
 }
 
@@ -45,6 +72,7 @@ pub enum ResourceKind {
     Plugin,
     Marketplace,
     Supporting,
+    Rule,
 }
 
 impl ResourceKind {
@@ -54,6 +82,7 @@ impl ResourceKind {
             Self::Plugin => "plugin",
             Self::Marketplace => "marketplace",
             Self::Supporting => "supporting",
+            Self::Rule => "rule",
         }
     }
 }

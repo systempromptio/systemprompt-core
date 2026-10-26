@@ -20,7 +20,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
+
 pub mod authz;
+pub mod decision_retention;
 pub mod policy;
 
 pub use authz::CompositeAuthzHook;
+pub use decision_retention::GovernanceDecisionRetention;

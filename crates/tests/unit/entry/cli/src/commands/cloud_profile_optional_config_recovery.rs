@@ -1,11 +1,10 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 
 use systemprompt_cli::cloud::profile::{self, ProfileCommands, ShowFilter};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
+use systemprompt_test_fixtures::{bounded_output, ensure_test_bootstrap};
 
 const HELPER: &str = "commands::cloud_profile_optional_config_recovery::optional_config_helper";
 
@@ -31,7 +30,7 @@ async fn optional_config_helper() {
     std::fs::write(&skills, "skills: [broken: yaml").unwrap();
     std::fs::write(&content, "categories: [broken: yaml").unwrap();
 
-    let context = CommandContext::new(
+    let context = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -55,36 +54,6 @@ async fn optional_config_helper() {
     println!("END_REPAIRED_OPTIONAL");
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().expect("profile stdout capture");
-    let stderr = tempfile::NamedTempFile::new().expect("profile stderr capture");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().unwrap()))
-        .stderr(Stdio::from(stderr.reopen().unwrap()));
-    let mut child = command.spawn().expect("spawn profile helper");
-    let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll profile helper") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap profile helper");
-            panic!(
-                "profile helper timed out ({status})\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&std::fs::read(stdout.path()).unwrap()),
-                String::from_utf8_lossy(&std::fs::read(stderr.path()).unwrap())
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 fn marked_json(stdout: &str, start: &str, end: &str) -> serde_json::Value {
     let json = stdout
         .split_once(start)
@@ -106,7 +75,7 @@ fn has_section(artifact: &serde_json::Value, name: &str) -> bool {
 fn profile_show_omits_broken_optional_configs_and_recovers_after_repair() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "cloud profile optional config recovery");
     assert!(
         output.status.success(),
         "profile helper failed\nstdout:\n{}\nstderr:\n{}",
@@ -117,10 +86,11 @@ fn profile_show_omits_broken_optional_configs_and_recovers_after_repair() {
     let broken = marked_json(&stdout, "BEGIN_BROKEN_OPTIONAL", "END_BROKEN_OPTIONAL");
     let repaired = marked_json(&stdout, "BEGIN_REPAIRED_OPTIONAL", "END_REPAIRED_OPTIONAL");
     assert_eq!(broken["title"], "Profile Configuration");
-    assert!(has_section(&broken, "environment"));
+    assert!(!has_section(&broken, "environment"));
     assert!(has_section(&broken, "settings"));
     assert!(!has_section(&broken, "skills"));
     assert!(!has_section(&broken, "content"));
+    assert!(has_section(&repaired, "environment"));
     assert!(has_section(&repaired, "skills"));
     assert!(has_section(&repaired, "content"));
 }

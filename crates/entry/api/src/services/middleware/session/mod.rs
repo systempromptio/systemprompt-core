@@ -29,6 +29,7 @@ mod skip;
 pub use attestation::{SessionAttestationError, attest_session};
 pub use skip::should_skip_session_tracking;
 
+use crate::error::ApiHttpError;
 use axum::extract::{ConnectInfo, Request};
 use axum::http::header;
 use axum::middleware::Next;
@@ -37,9 +38,10 @@ use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
-use systemprompt_models::api::ApiError;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{CookieExtractor, HeaderExtractor};
 use systemprompt_traits::{ExtractSignals, SessionProvider};
 use systemprompt_users::UserService;
@@ -55,7 +57,8 @@ pub struct SessionMiddleware {
     analytics_service: Arc<AnalyticsService>,
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
-    jwt_issuer: Arc<str>,
+    config: Arc<Config>,
+    signing_keys: SigningKeys,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
@@ -71,13 +74,16 @@ impl SessionMiddleware {
         let session_creation_service = Arc::new(SessionCreationService::new(
             analytics,
             Arc::new(user_service),
+            ctx.token_authority(),
+            Arc::clone(ctx.config_arc()),
         ));
 
         Self {
             analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
-            jwt_issuer: Arc::from(ctx.config().jwt_issuer.as_str()),
+            config: Arc::clone(ctx.config_arc()),
+            signing_keys: ctx.signing_keys().clone(),
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
             )),
@@ -87,7 +93,7 @@ impl SessionMiddleware {
         }
     }
 
-    pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiError> {
+    pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiHttpError> {
         let caller_ip = super::client_addr::resolve_client_ip(
             request.headers(),
             request.extensions().get::<ConnectInfo<SocketAddr>>(),

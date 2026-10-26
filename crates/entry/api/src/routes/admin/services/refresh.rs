@@ -2,10 +2,11 @@
 //!
 //! Re-resolves the configured sources, recomposes the tree and — when the
 //! composition changed — projects the new composition into the authz tables
-//! and refreshes the skill inventory, all in-process. The routes that hand
-//! marketplaces, plugins and skills to clients reload the services tree per
-//! request through the `current` link the recompose just swapped, so a
-//! marketplace-only kit is live the moment this returns. `restart=true`
+//! and refreshes the skill inventory, all in-process. It then advances the
+//! `services` epoch, and the services watch re-reads the tree through the
+//! `current` link the recompose just swapped, so the routes that hand
+//! marketplaces, plugins and skills to clients serve a marketplace-only kit
+//! without a restart. `restart=true`
 //! remains an explicit opt-in for the one thing a running process cannot
 //! re-read: the static services config behind governance hooks.
 //!
@@ -13,24 +14,22 @@
 //! router receives as an axum extension (see `extension_mount`), so a console
 //! that has authorised a caller by its own rule — a marketplace participant
 //! syncing their own kit, say — runs the same refresh the admin route runs
-//! without minting an admin token. One process-wide lock guards both. The
+//! without minting an admin token. One lock, built once with the router,
+//! guards both. The
 //! handle never restarts the process: an extension router is authorised by
 //! `AuthzPolicy::user()`, so the restart stays on the admin route alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::LazyLock;
 use std::time::Duration;
 
 use axum::Json;
 use axum::extract::{Extension, Query, State};
 use serde::Deserialize;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_loader::services_root::ServicesRootBootstrap;
 use systemprompt_loader::{ConfigLoadError, ConfigLoader, ServicesSourceBootstrap};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_models::RequestContext;
@@ -38,6 +37,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_runtime::managed::inventory::publish_latest;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
 use systemprompt_runtime::{AppContext, RuntimeError};
+use systemprompt_traits::CacheDomain;
 
 use super::{
     RefreshLock, ServicesRefreshResponse, composed_hash_of, provenance_view, source_views,
@@ -46,17 +46,6 @@ use crate::error::ApiHttpError;
 
 const RESTART_DELAY: Duration = Duration::from_millis(250);
 const RESTART_REASON: &str = "admin services refresh";
-
-// Why: one lock for the process, not one per router. The admin route and every
-// extension handle share it, so two callers on different routes cannot fetch
-// at once. `RefreshLock` clones share the mutex, so the router's extension is
-// a clone of this same lock.
-static REFRESH_LOCK: LazyLock<RefreshLock> = LazyLock::new(RefreshLock::default);
-
-#[must_use]
-pub fn process_refresh_lock() -> RefreshLock {
-    REFRESH_LOCK.clone()
-}
 
 /// In-process handle to the fetch-verify-compose-reconcile pipeline.
 #[derive(Debug, Clone)]
@@ -67,14 +56,7 @@ pub struct ServicesRefresh {
 
 impl ServicesRefresh {
     #[must_use]
-    pub fn new(ctx: &AppContext) -> Self {
-        Self::with_lock(ctx, process_refresh_lock())
-    }
-
-    // Why: the lock is injectable so a test can hold it and prove the second
-    // caller is refused; production always passes the process lock.
-    #[must_use]
-    pub fn with_lock(ctx: &AppContext, lock: RefreshLock) -> Self {
+    pub fn new(ctx: &AppContext, lock: RefreshLock) -> Self {
         Self {
             ctx: ctx.clone(),
             lock,
@@ -132,18 +114,19 @@ async fn run_refresh(
     actor: &UserId,
     restart: bool,
 ) -> Result<ServicesRefreshResponse, ApiHttpError> {
-    let profile = ProfileBootstrap::get()?;
-    let secrets = SecretsBootstrap::get()?;
+    let profile = ctx.profile();
+    let secrets = ctx.secrets().get();
 
-    // Why: the boot-time root is a static; after an in-place import the cache
-    // state names the composition actually being served, so "changed" is
-    // measured against that and a repeat import is a no-op.
+    // Why: the boot-time root is fixed for the process; after an in-place import
+    // the cache state names the composition actually being served, so "changed"
+    // is measured against that and a repeat import is a no-op.
     let cache = BundleCache::new(cache_root(profile));
     let previous = cache.read_state();
     let served_hash = (!previous.composed_hash.is_empty())
         .then_some(previous.composed_hash.clone())
         .or_else(|| {
-            ServicesRootBootstrap::get()
+            ctx.boot()
+                .services_root()
                 .and_then(composed_hash_of)
                 .map(str::to_owned)
         });
@@ -163,15 +146,18 @@ async fn run_refresh(
     let unreconciled = new_hash.is_some() && previous.last_reconciled_hash != new_hash;
     let mut reconciled = false;
     if changed || unreconciled {
-        // Why: the boot-time root is a static that still names the previous
-        // tree; the recomposed tree is the one whose config is projected.
-        let services =
-            ConfigLoader::reload_from_path(&resolved.path.join("config").join("config.yaml"))
-                .map_err(RefreshError::RecomposedConfig)?;
+        // Why: the boot-time root still names the previous tree; the
+        // recomposed tree is the one whose config is projected.
+        let services = ConfigLoader::load_from_path(
+            &resolved.path.join("config").join("config.yaml"),
+            Some(profile),
+        )
+        .map_err(RefreshError::RecomposedConfig)?;
         let outcome = reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
             .await
             .map_err(RefreshError::Reconcile)?;
         reconciled = outcome == ReconcileOutcome::Projected;
+        ctx.cache_epochs().advance(CacheDomain::Services);
 
         let system_admin = ctx.system_admin().id().clone();
         if let Err(error) = publish_latest(ctx, &system_admin, actor).await {

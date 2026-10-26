@@ -6,14 +6,17 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
+
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
+use systemprompt_extension::ExtensionContext;
+use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::{
     Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
 };
 
-use crate::prerender::prerender_pages;
+use crate::prerender::{PrerenderEnv, prerender_pages};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PagePrerenderJob;
@@ -40,15 +43,25 @@ impl Job for PagePrerenderJob {
         let start_time = std::time::Instant::now();
         let db_pool = Arc::clone(ctx.get::<DbPool>()?);
         let paths = ctx.get::<Arc<AppPaths>>()?.as_ref();
+        let config = ctx.get::<Arc<Config>>()?.as_ref();
+        let ext_ctx = ctx.get::<Arc<dyn ExtensionContext>>()?;
 
         tracing::info!("Job started");
         let content_repo = ContentRepository::new(&db_pool);
-        let results = prerender_pages(db_pool, content_repo, paths)
-            .await
-            .map_err(|e| ProviderError::Rendering {
-                context: "page prerender".to_owned(),
-                source: Box::new(e),
-            })?;
+        let results = prerender_pages(
+            db_pool,
+            content_repo,
+            PrerenderEnv {
+                config,
+                paths,
+                extensions: ext_ctx.as_ref(),
+            },
+        )
+        .await
+        .map_err(|e| ProviderError::Rendering {
+            context: "page prerender".to_owned(),
+            source: Box::new(e),
+        })?;
         let pages_rendered = results.len() as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

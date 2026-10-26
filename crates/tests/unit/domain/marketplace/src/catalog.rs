@@ -492,6 +492,7 @@ fn load_plugins_empty_config_returns_empty() {
         artifacts: &[],
         plugins_root: &plugins_root,
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let plugins = load_plugins(
         &config,

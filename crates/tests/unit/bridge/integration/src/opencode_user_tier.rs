@@ -1,23 +1,21 @@
-//! `OpenCode` 2.x loads only the user config, so the probe reads that tier: a
-//! provider block there is the host's real state, and one left only in the
-//! retired admin tier marks an enrolled host that sync must re-apply.
+//! With the provider in the user tier the probe reads the user config and the
+//! token file; with an admin-managed (MDM) provider only the token file.
 
 use std::path::Path;
 
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileRemoval, ProfileState};
-use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
+use systemprompt_bridge::integration::opencode::OPENCODE_CLI_HOST as OPENCODE_HOST;
 use tempfile::TempDir;
 
 use crate::support::{inputs_for, probe_env};
 
-const RETIRED_BLOCK: &str = r#"{
-  "provider": {
+const MDM_BLOCK: &str = r#"{
+  "providers": {
     "systemprompt": {
-      "npm": "@ai-sdk/openai-compatible",
-      "options": { "baseURL": "http://127.0.0.1:48217/v1" }
+      "package": "aisdk:@ai-sdk/openai-compatible",
+      "settings": { "baseURL": "https://gateway.example/v1", "apiKey": "{file:~/.config/opencode/systemprompt.token}" }
     }
-  },
-  "enabled_providers": ["systemprompt"]
+  }
 }"#;
 
 fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
@@ -97,25 +95,25 @@ fn the_probe_never_shows_the_api_key() {
     });
     let shown = snapshot
         .profile_keys
-        .get("provider.systemprompt.options.apiKey")
-        .expect("the key's presence is reported");
+        .get("systemprompt.token")
+        .expect("the token's presence is reported");
     let token = crate::support::host_token(systemprompt_models::bridge::host::HostKind::OpenCode);
     assert_ne!(shown, &token, "the raw host token must not reach the GUI");
 }
 
 #[test]
-fn a_block_only_in_the_retired_admin_tier_is_stale_so_sync_moves_it() {
-    let snapshot = sandbox(Some(RETIRED_BLOCK), |_| OPENCODE_HOST.probe(&probe_env()));
+fn an_mdm_provider_reads_as_absent_until_the_token_is_written() {
+    let snapshot = sandbox(Some(MDM_BLOCK), |_| OPENCODE_HOST.probe(&probe_env()));
     assert!(
-        matches!(snapshot.profile_state, ProfileState::Stale { .. }),
-        "an enrolled host whose block OpenCode 2.x never reads must be re-applied: {:?}",
+        !matches!(snapshot.profile_state, ProfileState::Installed),
+        "{:?}",
         snapshot.profile_state
     );
 }
 
 #[test]
-fn after_reinstall_a_retired_admin_tier_no_longer_holds_the_state_back() {
-    let snapshot = sandbox(Some(RETIRED_BLOCK), |_| {
+fn an_mdm_provider_with_the_token_written_is_installed() {
+    let snapshot = sandbox(Some(MDM_BLOCK), |_| {
         install();
         OPENCODE_HOST.probe(&probe_env())
     });
@@ -123,6 +121,14 @@ fn after_reinstall_a_retired_admin_tier_no_longer_holds_the_state_back() {
         matches!(snapshot.profile_state, ProfileState::Installed),
         "{:?}",
         snapshot.profile_state
+    );
+    assert!(
+        snapshot
+            .profile_source
+            .as_deref()
+            .is_some_and(|p| p.contains("managed")),
+        "{:?}",
+        snapshot.profile_source
     );
 }
 
@@ -142,9 +148,9 @@ fn removal_treats_an_identical_managed_and_user_path_as_one_tier() {
         shared.join("opencode.json"),
         r#"{
           "operator": {"retain": true},
-          "provider": {"systemprompt": {
-            "npm": "@ai-sdk/openai-compatible",
-            "options": {"baseURL": "http://127.0.0.1:48217/v1"}
+          "providers": {"systemprompt": {
+            "package": "aisdk:@ai-sdk/openai-compatible",
+            "settings": {"baseURL": "http://127.0.0.1:48217/v1"}
           }}
         }"#,
     )

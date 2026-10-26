@@ -1,4 +1,5 @@
-//! Process-wide memo of verified managed revision bundles.
+//! Memo of verified managed revision bundles, owned by the
+//! [`crate::managed::ManagedRepository`] that loads them.
 //!
 //! A published revision is immutable and its bundle digest is checked before
 //! it is stored, so an entry keyed by revision id and digest can be reused
@@ -18,20 +19,34 @@ const CAPACITY: usize = 1024;
 
 type Key = (ResourceRevisionId, String);
 
-static VERIFIED: Mutex<BTreeMap<Key, Arc<RevisionBundle>>> = Mutex::new(BTreeMap::new());
-
-pub(super) fn get(revision: &ResourceRevisionId, digest: &str) -> Option<Arc<RevisionBundle>> {
-    VERIFIED
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .get(&(revision.clone(), digest.to_owned()))
-        .cloned()
+#[derive(Debug, Default)]
+pub(crate) struct VerifiedRevisions {
+    entries: Mutex<BTreeMap<Key, Arc<RevisionBundle>>>,
 }
 
-pub(super) fn insert(revision: ResourceRevisionId, digest: String, bundle: Arc<RevisionBundle>) {
-    let mut guard = VERIFIED.lock().unwrap_or_else(PoisonError::into_inner);
-    if guard.len() >= CAPACITY {
-        guard.clear();
+impl VerifiedRevisions {
+    pub(crate) fn get(
+        &self,
+        revision: &ResourceRevisionId,
+        digest: &str,
+    ) -> Option<Arc<RevisionBundle>> {
+        self.entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(&(revision.clone(), digest.to_owned()))
+            .cloned()
     }
-    guard.insert((revision, digest), bundle);
+
+    pub(crate) fn insert(
+        &self,
+        revision: ResourceRevisionId,
+        digest: String,
+        bundle: Arc<RevisionBundle>,
+    ) {
+        let mut guard = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
+        if guard.len() >= CAPACITY {
+            guard.clear();
+        }
+        guard.insert((revision, digest), bundle);
+    }
 }

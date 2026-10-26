@@ -73,12 +73,13 @@ pub use extension::DatabaseExtension;
 
 pub use models::{
     ColumnInfo, DatabaseInfo, DatabaseQuery, DatabaseTransaction, DbValue, FromDbValue, IndexInfo,
-    JsonRow, QueryResult, QueryRow, QuerySelector, TableInfo, ToDbValue, parse_database_datetime,
+    JsonRow, QueryResult, QueryRow, QuerySelector, TableInfo, ToDbValue, escape_like,
+    parse_database_datetime,
 };
 
 pub use services::{
     BoxFuture, BudgetedDb, Database, DatabaseCliDisplay, DatabaseExt, DatabaseProvider, DbPool,
-    PoolConfig, PostgresProvider, SqlExecutor, mark_schema_changed, with_transaction_retry,
+    PoolConfig, PostgresProvider, SchemaEpoch, SqlExecutor, with_transaction_retry,
 };
 
 pub use error::DatabaseResult;
@@ -99,10 +100,11 @@ pub use lifecycle::{
 pub use repository::{
     CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
     INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError,
-    InstanceLeaseRepository, PgDbPool, ReleaseGate, ReleaseRun, ReleaseStampError,
-    ReleaseStampRepository, ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus,
-    SessionAdvisoryLock, SessionAdvisoryLocks, StampOutcome, UpsertServiceProcessInput,
-    release_key,
+    InstanceLeaseRepository, PLANE_NOT_APPLIED_HINT, PgConfigVersion, PgDbPool, PlaneTransaction,
+    Reaped, ReapedService, ReleaseGate, ReleaseRun, ReleaseStampError, ReleaseStampRepository,
+    ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus, SessionAdvisoryLock,
+    SessionAdvisoryLocks, StampOutcome, UpsertServiceProcessInput, find_config_plane_applied,
+    record_config_plane_applied, release_key, with_change_context,
 };
 
 pub use admin::{

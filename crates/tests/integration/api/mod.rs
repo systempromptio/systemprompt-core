@@ -9,6 +9,10 @@ mod routes_marketplace;
 mod routes_marketplace_success;
 
 #[cfg(test)]
+#[path = "routes_marketplace_services_watch.rs"]
+mod routes_marketplace_services_watch;
+
+#[cfg(test)]
 #[path = "routes_gateway_auth.rs"]
 mod routes_gateway_auth;
 
@@ -175,6 +179,8 @@ mod stream_tap_accumulator;
 #[path = "protocol_matrix.rs"]
 mod protocol_matrix;
 
+#[cfg(test)]
+mod routes_agent_runs;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
@@ -383,10 +389,6 @@ mod routes_bridge_plugin_file;
 mod routes_bridge_manifest_catalog;
 
 #[cfg(test)]
-#[path = "routes_bridge_manifest_config_error.rs"]
-mod routes_bridge_manifest_config_error;
-
-#[cfg(test)]
 #[path = "routes_slack_edges.rs"]
 mod routes_slack_edges;
 
@@ -584,6 +586,10 @@ mod api_error_redaction;
 mod gateway_attribution;
 
 #[cfg(test)]
+#[path = "gateway_traffic.rs"]
+mod gateway_traffic;
+
+#[cfg(test)]
 #[path = "gateway_quota_reservation.rs"]
 mod gateway_quota_reservation;
 
@@ -598,3 +604,11 @@ mod gateway_api_key_limits;
 #[cfg(test)]
 #[path = "gateway_rate_windows.rs"]
 mod gateway_rate_windows;
+
+#[cfg(test)]
+#[path = "gateway_principal_parity.rs"]
+mod gateway_principal_parity;
+
+#[cfg(test)]
+#[path = "gateway_api_key_session_binding.rs"]
+mod gateway_api_key_session_binding;

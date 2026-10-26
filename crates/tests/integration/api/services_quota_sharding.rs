@@ -55,6 +55,9 @@ async fn reserve(
             providers: &SubjectProviderSet::discover(&AuthzHookContext {
                 pool: db.pool(),
                 sink: std::sync::Arc::new(NullAuditSink),
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                subjects: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
             }),
             subjects: QuotaSubjects {
                 user_id: &user,

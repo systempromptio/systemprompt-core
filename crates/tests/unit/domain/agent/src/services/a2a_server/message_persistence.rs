@@ -33,8 +33,12 @@ fn publishing(
     webhooks: DynWebhookBroadcaster,
 ) -> ArtifactPublishingService {
     let steps = Arc::new(ExecutionStepRepository::new(pool));
-    let skills =
-        Arc::new(SkillService::new(not_managed_skills(), steps, webhooks).expect("skills"));
+    let skills = Arc::new(SkillService::new(
+        systemprompt_test_fixtures::test_skills_root(),
+        not_managed_skills(),
+        steps,
+        webhooks,
+    ));
     ArtifactPublishingService::new(repositories, skills)
 }
 

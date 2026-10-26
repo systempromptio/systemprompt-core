@@ -119,10 +119,6 @@ fn validated_schema_for_each_artifact() {
     }
 }
 
-/// The MCP spec requires a tool's `outputSchema` root to carry
-/// `"type": "object"`, and Claude Desktop parks the entire server on the
-/// first tool that violates it. `CliArtifact` is the case that regressed:
-/// a tagged enum whose schemars output is a bare `oneOf` with no `type`.
 #[test]
 fn every_validated_schema_is_an_object_schema() {
     let schemas = [
@@ -151,13 +147,6 @@ fn every_validated_schema_is_an_object_schema() {
     }
 }
 
-/// The drift gate: the outputSchema a tool advertises and the
-/// structuredContent it serializes come from the SAME type via two different
-/// derives (schemars vs serde). A `skip_serializing_if` the schema still
-/// marks required — or any other disagreement between the two views — makes
-/// every client-side validator reject the payload. Serialize minimal
-/// (None/empty) instances of every artifact and validate each against its own
-/// advertised schema.
 #[test]
 fn minimal_payloads_of_every_artifact_validate_against_their_advertised_schema() {
     use systemprompt_models::artifacts::{Column, NoticeLine};

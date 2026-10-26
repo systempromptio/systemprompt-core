@@ -16,7 +16,8 @@ use self::content::{flatten_content_text, parse_assistant_message, parse_user_co
 use self::params::{parse_reasoning_effort, parse_response_format, parse_tool, parse_tool_choice};
 
 use super::super::super::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, Role, SystemBlock,
 };
 use super::super::InboundParseError;
 
@@ -37,6 +38,48 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .map_or(DEFAULT_MAX_TOKENS, |v| v as u32);
 
     let (system, messages) = parse_messages(value.get("messages"))?;
+    let sampling = parse_sampling(value);
+    let tools = value
+        .get("tools")
+        .and_then(Value::as_array)
+        .map_or_else(Vec::new, |arr| {
+            arr.iter().filter_map(parse_tool).collect::<Vec<_>>()
+        });
+    let tool_choice = parse_tool_choice(value)?;
+    let stream = parse_stream(value);
+    let reasoning_effort = value
+        .get("reasoning_effort")
+        .and_then(Value::as_str)
+        .and_then(parse_reasoning_effort);
+    let response_format = value.get("response_format").and_then(parse_response_format);
+    let metadata = value.get("metadata").cloned();
+
+    Ok(CanonicalRequest {
+        model: ModelId::new(model),
+        cache_control: None,
+        system,
+        messages,
+        max_tokens,
+        stream,
+        metadata,
+        response_format,
+        forwarded_surface: ForwardedSurface::default(),
+        sampling,
+        tooling: CanonicalTooling {
+            tools,
+            tool_choice,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort,
+        },
+    })
+}
+
+// JSON: inbound wire JSON, parsed leniently into canonical form.
+fn parse_sampling(value: &Value) -> CanonicalSampling {
     let temperature = value
         .get("temperature")
         .and_then(Value::as_f64)
@@ -54,19 +97,6 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
             _ => None,
         })
         .unwrap_or_else(Vec::new);
-    let tools = value
-        .get("tools")
-        .and_then(Value::as_array)
-        .map_or_else(Vec::new, |arr| {
-            arr.iter().filter_map(parse_tool).collect::<Vec<_>>()
-        });
-    let tool_choice = parse_tool_choice(value)?;
-    let stream = parse_stream(value);
-    let reasoning_effort = value
-        .get("reasoning_effort")
-        .and_then(Value::as_str)
-        .and_then(parse_reasoning_effort);
-    let response_format = value.get("response_format").and_then(parse_response_format);
     let presence_penalty = value
         .get("presence_penalty")
         .and_then(Value::as_f64)
@@ -75,31 +105,14 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .get("frequency_penalty")
         .and_then(Value::as_f64)
         .map(|v| v as f32);
-    let metadata = value.get("metadata").cloned();
-
-    Ok(CanonicalRequest {
-        model: ModelId::new(model),
-        cache_control: None,
-        system,
-        messages,
-        max_tokens,
+    CanonicalSampling {
         temperature,
         top_p,
         top_k: None,
         stop_sequences,
-        tools,
-        tool_choice,
-        stream,
-        thinking: None,
-        metadata,
-        response_format,
-        reasoning_effort,
-        search: None,
-        code_execution: false,
         presence_penalty,
         frequency_penalty,
-        forwarded_surface: ForwardedSurface::default(),
-    })
+    }
 }
 
 // JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently

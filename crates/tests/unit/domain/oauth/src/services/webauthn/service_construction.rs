@@ -4,7 +4,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
@@ -68,10 +67,14 @@ impl UserProvider for NoopUsers {
 async fn service_new_rejects_ip_address_relying_party() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
 
-    let err = WebAuthnService::new(repo, Arc::new(NoopUsers))
-        .expect_err("webauthn-rs rejects an IP-address RP ID");
+    let err = WebAuthnService::new(
+        &systemprompt_test_fixtures::test_config(),
+        repo,
+        Arc::new(NoopUsers),
+    )
+    .expect_err("webauthn-rs rejects an IP-address RP ID");
     assert!(matches!(
         err,
         systemprompt_oauth::error::OauthError::WebAuthnCeremony(_)

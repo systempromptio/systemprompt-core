@@ -74,12 +74,13 @@ impl systemprompt_traits::SessionStore for SessionRepository {
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
-    async fn mark_as_behavioral_bot(
-        &self,
-        session_id: &SessionId,
-        reason: &str,
-    ) -> AnalyticsResult<()> {
-        Self::mark_as_behavioral_bot(self, session_id, reason)
+    async fn mark_ghost_sessions_as_bots(&self) -> AnalyticsResult<u64> {
+        Self::mark_ghost_sessions_as_bots(self)
+            .await
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
+    }
+    async fn mark_no_js_sessions_as_bots(&self, engaged: &[SessionId]) -> AnalyticsResult<u64> {
+        Self::mark_no_js_sessions_as_bots(self, engaged)
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }

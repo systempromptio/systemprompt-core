@@ -1,8 +1,8 @@
 // End-to-end tests for the AiService orchestration pipeline, driven against
-// wiremock provider endpoints. AiService::new builds its providers from a
-// ProviderRegistry whose endpoint we override to the mock server URI, so the
-// full generate / tool / stream / plan / response paths run against canned
-// HTTP bodies and persist audit rows to the migrated test DB.
+// wiremock provider endpoints. AiService::new builds its clients from a
+// ResolvedCatalog whose endpoint URL we override to the mock server URI, so
+// the full generate / tool / stream / plan / response paths run against
+// canned HTTP bodies and persist audit rows to the migrated test DB.
 
 mod ai_service;
 mod image_service;
@@ -16,8 +16,11 @@ use std::sync::Arc;
 use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_manifest::services::{AiConfig, AiProviderConfig, ProviderRegistry};
+use systemprompt_manifest::services::AiConfig;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::RequestContext;
+use systemprompt_security::at_rest::AtRestCipher;
+use systemprompt_test_fixtures::catalog::CatalogFixture;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, ensure_test_secrets_bootstrap, seed_user_row, seed_user_session,
     test_db_pool, unique_user_id,
@@ -55,61 +58,80 @@ pub(crate) fn noop_session_provider() -> DynAiSessionProvider {
     Arc::new(NoopSessionProvider)
 }
 
-// A registry seeded from the embedded catalog with the chosen provider's
-// endpoint rewritten to the mock server. The endpoint field is public, so the
-// override is a direct assignment.
-pub(crate) fn registry_with_endpoint(provider: &str, endpoint: String) -> ProviderRegistry {
-    let mut registry = ProviderRegistry::default_seed().expect("default catalog parses");
-    let entry = registry
-        .providers
-        .iter_mut()
-        .find(|p| p.name.as_str() == provider)
-        .unwrap_or_else(|| panic!("provider '{provider}' present in default catalog"));
-    entry.endpoint = endpoint;
-    registry
+pub(crate) const fn default_model_of(provider: &str) -> &'static str {
+    match provider.as_bytes() {
+        b"openai" => "gpt-4.1",
+        b"gemini" => "gemini-2.5-flash",
+        _ => "claude-sonnet-5",
+    }
 }
 
-// A single-provider AI policy whose default_provider matches and whose entry is
-// enabled. The api_key secret is absent in tests; build_providers keeps the
-// provider enabled with an empty key (the mock endpoint needs no auth).
-pub(crate) fn ai_config(provider: &str) -> AiConfig {
-    let mut providers = std::collections::HashMap::new();
-    providers.insert(
-        provider.to_owned(),
-        AiProviderConfig {
-            enabled: true,
-            ..AiProviderConfig::default()
-        },
-    );
+// The embedded default catalog with `provider`'s `api` endpoint pointed at
+// the mock server, every other provider disabled, and gateway.default_model
+// set to one of `provider`'s models, so the in-process default is that
+// provider. The secrets bootstrap supplies placeholder keys.
+pub(crate) fn fixture_with_endpoint(provider: &str, endpoint: String) -> CatalogFixture {
+    let base = CatalogFixture::embedded_default();
+    let others: Vec<String> = base
+        .document()
+        .providers
+        .providers
+        .keys()
+        .filter(|id| id.as_str() != provider)
+        .map(|id| id.as_str().to_owned())
+        .collect();
+    let mut fixture = base.with_provider(provider, |p| {
+        p.endpoints
+            .get_mut("api")
+            .unwrap_or_else(|| panic!("provider '{provider}' has an api endpoint"))
+            .url = endpoint;
+    });
+    for other in others {
+        fixture = fixture.with_provider(&other, |p| p.enabled = false);
+    }
+    fixture.default_model(default_model_of(provider))
+}
+
+pub(crate) fn catalog_with_endpoint(provider: &str, endpoint: String) -> Arc<ResolvedCatalog> {
+    Arc::new(fixture_with_endpoint(provider, endpoint).build())
+}
+
+pub(crate) fn ai_config() -> AiConfig {
     AiConfig {
-        default_provider: provider.to_owned(),
         default_max_output_tokens: Some(512),
-        providers,
         ..AiConfig::default()
     }
 }
 
 pub(crate) async fn bootstrapped_pool() -> DbPool {
     ensure_test_bootstrap();
-    ensure_test_secrets_bootstrap();
     test_db_pool().await
+}
+
+pub(crate) fn service_from(
+    pool: &DbPool,
+    catalog: Arc<ResolvedCatalog>,
+) -> systemprompt_ai::error::Result<AiService> {
+    let secrets = ensure_test_secrets_bootstrap();
+    let cipher = AtRestCipher::from_secrets(&secrets.get()).expect("cipher");
+    AiService::new(
+        catalog,
+        &ai_config(),
+        systemprompt_ai::AiServiceProviders {
+            tools: Arc::new(NoopToolProvider::new()),
+            sessions: noop_session_provider(),
+            provider_tokens: Default::default(),
+            secrets,
+            session_ttl_seconds: 3600,
+        },
+        &systemprompt_ai::repository::AiRepositories::new(pool, cipher),
+    )
 }
 
 // Build an AiService whose `provider` upstream points at `endpoint`, backed by
 // the real test DB so audit writes succeed.
 pub(crate) fn service(pool: &DbPool, provider: &str, endpoint: String) -> AiService {
-    let registry = registry_with_endpoint(provider, endpoint);
-    let config = ai_config(provider);
-    AiService::new(
-        &registry,
-        &config,
-        systemprompt_ai::AiServiceProviders {
-            tools: Arc::new(NoopToolProvider::new()),
-            sessions: noop_session_provider(),
-        },
-        &systemprompt_ai::repository::AiRepositories::new(pool),
-    )
-    .expect("AiService builds")
+    service_from(pool, catalog_with_endpoint(provider, endpoint)).expect("AiService builds")
 }
 
 // Seed a user plus a session row and return a RequestContext carrying both,

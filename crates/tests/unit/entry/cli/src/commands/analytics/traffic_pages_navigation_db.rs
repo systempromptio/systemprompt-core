@@ -46,9 +46,6 @@ struct Session {
     is_bot: bool,
 }
 
-/// Seed one user with the given sessions, all started a minute ago so the
-/// default 24h window covers them. Returns the unique path prefix the pages
-/// carry, so assertions can ignore rows other tests left behind.
 async fn seed_sessions(pool: &DbPool, sessions: &[Session]) -> String {
     let user_id = unique_user_id("clitrafficpages");
     let email = format!("{}@clitrafficpages.invalid", user_id.as_str());

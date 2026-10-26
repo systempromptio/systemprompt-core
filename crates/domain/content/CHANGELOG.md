@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Changed
+
+- The ready snapshot parses frontmatter through the ingestion parser.
+- The content owner reassignment is declared through `systemprompt_database::owner_reassignment!` and runs in one transaction.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

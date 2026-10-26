@@ -51,7 +51,7 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     match command {
         McpCommands::List(args) => {
-            let result = list::execute(args, config).context("Failed to list MCP servers")?;
+            let result = list::execute(args, ctx).context("Failed to list MCP servers")?;
             render_result(&result, config);
             Ok(())
         },
@@ -63,7 +63,7 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         McpCommands::Validate(args) => {
-            let (result, valid) = validate::execute(args, ctx)
+            let (result, valid) = Box::pin(validate::execute(args, ctx))
                 .await
                 .context("Failed to validate MCP server")?;
             render_result(&result, config);
@@ -73,7 +73,7 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         McpCommands::Logs(args) => {
-            let result = logs::execute(args, ctx.prompter(), config)
+            let result = logs::execute(args, ctx)
                 .await
                 .context("Failed to get MCP server logs")?;
             render_result(&result, config);

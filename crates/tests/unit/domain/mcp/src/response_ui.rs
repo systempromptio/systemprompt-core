@@ -8,7 +8,10 @@ use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
     UserId,
 };
-use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpResponseBuilder, ToolIdentity};
+use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
+use systemprompt_mcp::{
+    ArtifactIngest, ClientProfile, McpResponseBuilder, ResponseServices, ToolIdentity,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CardSection, CliArtifact, Column, ColumnType, PresentationCardArtifact, TableArtifact,
@@ -47,7 +50,15 @@ async fn build(artifact: CliArtifact, repo: &ArtifactIngest) -> CallToolResult {
         &exec_id,
         &ui_client(),
     )
-    .build("summary", repo, "cli", Some("User Directory".to_owned()))
+    .build(
+        "summary",
+        ResponseServices {
+            ingest: repo,
+            renderers: &create_default_registry(),
+        },
+        "cli",
+        Some("User Directory".to_owned()),
+    )
     .await
     .expect("response builds")
 }
@@ -195,7 +206,10 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
     )
     .build(
         "recovery summary",
-        &failed_repo,
+        ResponseServices {
+            ingest: &failed_repo,
+            renderers: &create_default_registry(),
+        },
         "cli",
         Some("Recovery table".to_owned()),
     )
@@ -232,7 +246,10 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
     )
     .build(
         "recovery summary",
-        &recovered_repo,
+        ResponseServices {
+            ingest: &recovered_repo,
+            renderers: &create_default_registry(),
+        },
         "cli",
         Some("Recovery table".to_owned()),
     )

@@ -6,12 +6,12 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ServicesSourceBootstrap;
 use systemprompt_loader::bundle::source::{AnyFetcher, BundleFetcher};
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::{Profile, Secrets};
+use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
 use crate::context::CommandContext;
@@ -52,9 +52,12 @@ pub struct SourceRow {
 }
 
 pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let secrets = SecretsBootstrap::get()
-        .context("Secrets required to resolve the services bundle sources")?;
+    let profile = ctx.profile()?;
+    let secrets = ctx
+        .secrets()
+        .context("Secrets required to resolve the services bundle sources")?
+        .get();
+    let secrets = &*secrets;
     let cache = BundleCache::new(cache_root(profile));
     let before = cache.read_state();
 
@@ -87,18 +90,8 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
 
     if !reconciled.is_empty() {
         render_result(
-            &CommandOutput::table_of(
-                vec![
-                    "bundle",
-                    "inserted",
-                    "updated",
-                    "deleted",
-                    "protected",
-                    "inert_role_rules",
-                ],
-                &reconciled,
-            )
-            .with_title("Access Rules Reconciled"),
+            &CommandOutput::table_of(vec!["bundle", "registered", "deleted"], &reconciled)
+                .with_title("Gateway Routes Reconciled"),
             &ctx.cli,
         );
     }
@@ -153,6 +146,15 @@ async fn check_sources(
 }
 
 #[must_use]
+pub fn outcome_with_pending(rows: &[SourceRow], reconcile_pending: bool) -> RefreshOutcome {
+    if reconcile_pending {
+        RefreshOutcome::Changed
+    } else {
+        outcome_for(rows)
+    }
+}
+
+#[must_use]
 pub fn outcome_for(rows: &[SourceRow]) -> RefreshOutcome {
     if rows.iter().any(|row| row.changed) {
         RefreshOutcome::Changed
@@ -178,10 +180,12 @@ async fn swap_sources(
 
     let after = cache.read_state();
     let rows = diff_states(before, &after);
-    let outcome = outcome_for(&rows);
+    let reconcile_pending =
+        pending_composed_hash(&root, after.last_reconciled_hash.as_deref()).is_some();
+    let outcome = outcome_with_pending(&rows, reconcile_pending);
 
     let reconciled = if outcome == RefreshOutcome::Changed {
-        reconcile_after_swap(profile, &root, cache, ctx).await?
+        Box::pin(reconcile_after_swap(profile, &root, cache, ctx)).await?
     } else {
         Vec::new()
     };

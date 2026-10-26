@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::extract::{Extension, Path, State};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -54,7 +55,7 @@ fn caller_may_read(req_ctx: &RequestContext, execution: &ToolExecution) -> bool 
 }
 
 fn not_found() -> Response {
-    ApiError::not_found("Execution not found").into_response()
+    ApiHttpError::not_found("Execution not found").into_response()
 }
 
 async fn handle_get_execution(
@@ -64,14 +65,14 @@ async fn handle_get_execution(
 ) -> Response {
     let execution_id = match McpExecutionId::try_new(raw_execution_id) {
         Ok(id) => id,
-        Err(error) => return ApiError::from(error).into_response(),
+        Err(error) => return ApiHttpError::from(ApiError::from(error)).into_response(),
     };
     let execution = match state.repo.find_by_id(&execution_id).await {
         Ok(Some(execution)) if caller_may_read(&req_ctx, &execution) => execution,
         Ok(_) => return not_found(),
         Err(e) => {
             tracing::error!(execution_id = %execution_id, error = %e, "Failed to get execution");
-            return ApiError::internal_error("Failed to get execution").into_response();
+            return ApiHttpError::internal("Failed to get execution", e).into_response();
         },
     };
 
@@ -79,7 +80,7 @@ async fn handle_get_execution(
         Ok(v) => v,
         Err(e) => {
             tracing::error!(execution_id = %execution_id, error = %e, "Invalid input JSON");
-            return ApiError::internal_error("Stored execution input is not valid JSON")
+            return ApiHttpError::internal("Stored execution input is not valid JSON", e)
                 .into_response();
         },
     };

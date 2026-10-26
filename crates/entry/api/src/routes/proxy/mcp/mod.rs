@@ -5,12 +5,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 mod discovery;
 mod executions;
 
 pub use executions::{ExecutionsState, ToolExecutionResponse, executions_router};
 
-use crate::services::proxy::ProxyEngine;
+use crate::services::proxy::ProxyService;
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::routing::{any, get};
@@ -62,9 +64,15 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
 pub fn router(ctx: &AppContext) -> Router {
     let repo = crate::repository::tool_usage(ctx.db_pool());
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let engine = ProxyEngine::new(identities)
-        .with_tool_usage_repo(repo, ctx.tool_call_intents())
-        .with_artifact_ingest(ctx.artifact_ingest_arc());
+    let engine = ProxyService::new(
+        identities,
+        Arc::clone(ctx.connector_tokens()),
+        &ctx.services_state().view(),
+        Arc::clone(ctx.config_arc()),
+        Arc::clone(ctx.secrets()),
+    )
+    .with_tool_usage_repo(repo, ctx.tool_call_intents())
+    .with_artifact_ingest(ctx.artifact_ingest_arc());
 
     let state = McpState { ctx: ctx.clone() };
 

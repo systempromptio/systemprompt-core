@@ -5,21 +5,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
-use systemprompt_identifiers::{LocaleCode, SourceId};
+
 use systemprompt_manifest::{Config, WebConfig};
 use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 
+use super::database_urls::{FetchParams, fetch_urls_from_database};
 use super::xml::{SitemapUrl, SitemapUrlAlternate, build_sitemap_index, build_sitemap_xml};
 use crate::error::{GeneratorResult as Result, PublishError};
 use crate::templates::load_web_config;
 
 const MAX_URLS_PER_SITEMAP: usize = 50_000;
-const SLUG_PLACEHOLDER: &str = "{slug}";
 
 struct SitemapContext {
     config: ContentConfigRaw,
@@ -29,8 +28,12 @@ struct SitemapContext {
     web_dir: std::path::PathBuf,
 }
 
-pub async fn generate_sitemap(content_repo: ContentRepository, paths: &AppPaths) -> Result<()> {
-    let ctx = load_sitemap_context(content_repo, paths).await?;
+pub async fn generate_sitemap(
+    content_repo: ContentRepository,
+    config: &Config,
+    paths: &AppPaths,
+) -> Result<()> {
+    let ctx = load_sitemap_context(content_repo, config, paths).await?;
     let urls = collect_sitemap_urls(&ctx).await?;
     write_sitemap_files(&ctx.web_dir, &urls, &ctx.base_url).await?;
     tracing::debug!(url_count = urls.len(), "Sitemap generation completed");
@@ -39,9 +42,9 @@ pub async fn generate_sitemap(content_repo: ContentRepository, paths: &AppPaths)
 
 async fn load_sitemap_context(
     content_repo: ContentRepository,
+    config: &Config,
     paths: &AppPaths,
 ) -> Result<SitemapContext> {
-    let global_config = Config::get()?;
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path).await.map_err(|source| {
@@ -51,21 +54,21 @@ async fn load_sitemap_context(
         }
     })?;
 
-    let config: ContentConfigRaw =
+    let content_config: ContentConfigRaw =
         serde_yaml::from_str(&yaml_content).map_err(|source| PublishError::ContentConfigParse {
             path: config_path.to_path_buf(),
             source,
         })?;
 
-    let web_config = load_web_config(paths).await?;
+    let web_config = load_web_config(config, paths).await?;
 
     let web_dir = paths.web().dist().to_path_buf();
-    let base_url = global_config.api_external_url.clone();
+    let base_url = config.api_external_url.clone();
 
     tracing::debug!(base_url = %base_url, "Using base URL");
 
     Ok(SitemapContext {
-        config,
+        config: content_config,
         web_config,
         content_repo,
         base_url,
@@ -232,63 +235,4 @@ async fn write_sitemap_index(
     crate::atomic::write_atomic(&path, index_xml.as_bytes()).await?;
     tracing::debug!(file_count = chunks.len(), "Generated sitemap index");
     Ok(())
-}
-
-struct FetchParams<'a> {
-    content_repo: &'a ContentRepository,
-    web_config: &'a WebConfig,
-    source_id: &'a SourceId,
-    url_pattern: &'a str,
-    priority: f32,
-    changefreq: &'a str,
-    base_url: &'a str,
-}
-
-async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<SitemapUrl>> {
-    let repo = params.content_repo;
-
-    let pairs = repo
-        .list_slugs_with_locales_by_source(params.source_id)
-        .await
-        .map_err(|e| PublishError::content("Failed to fetch content for sitemap", e))?;
-
-    let mut by_slug: HashMap<String, Vec<LocaleCode>> = HashMap::new();
-    for (slug, locale) in pairs {
-        by_slug.entry(slug).or_default().push(locale);
-    }
-
-    let i18n = &params.web_config.i18n;
-    let lastmod = Utc::now().format("%Y-%m-%d").to_string();
-
-    let mut urls = Vec::new();
-    for (slug, locales) in by_slug {
-        let relative = params.url_pattern.replace(SLUG_PLACEHOLDER, &slug);
-        let default_url = format!("{}{}", params.base_url, relative);
-
-        for locale in &locales {
-            let prefix = i18n.locale_prefix(locale);
-            let alternates = locales
-                .iter()
-                .filter(|alt| i18n.supported_locales.contains(alt))
-                .map(|alt| SitemapUrlAlternate {
-                    hreflang: alt.to_string(),
-                    href: format!("{}{}{}", params.base_url, i18n.locale_prefix(alt), relative),
-                })
-                .chain(std::iter::once(SitemapUrlAlternate {
-                    hreflang: "x-default".to_owned(),
-                    href: default_url.clone(),
-                }))
-                .collect();
-
-            urls.push(SitemapUrl {
-                loc: format!("{}{}{}", params.base_url, prefix, relative),
-                lastmod: lastmod.clone(),
-                changefreq: params.changefreq.to_owned(),
-                priority: params.priority,
-                alternates,
-            });
-        }
-    }
-
-    Ok(urls)
 }

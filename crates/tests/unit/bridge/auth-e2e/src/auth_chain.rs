@@ -3,6 +3,7 @@ use std::io::Write;
 use systemprompt_bridge::auth::{self, ChainError, cache};
 use systemprompt_bridge::config::{Config, PatConfig, SessionConfig};
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
+use systemprompt_test_fixtures::block_on;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -17,14 +18,6 @@ fn sandbox_vars(home: &TempDir) -> Vec<(&'static str, Option<String>)> {
         ("SP_BRIDGE_PAT", None),
         ("SP_BRIDGE_CONFIG", None),
     ]
-}
-
-fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(fut)
 }
 
 fn auth_response_body() -> serde_json::Value {

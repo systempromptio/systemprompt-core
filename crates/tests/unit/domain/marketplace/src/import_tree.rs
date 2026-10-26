@@ -53,7 +53,7 @@ fn report_lists_every_imported_entity() {
 #[test]
 fn imported_tree_loads_through_the_config_loader() {
     let (dest, _report) = import_good();
-    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
+    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"), None)
         .expect("imported tree loads");
 
     assert_eq!(services.marketplaces.len(), 1);
@@ -65,7 +65,7 @@ fn imported_tree_loads_through_the_config_loader() {
 #[test]
 fn marketplace_access_rules_survive_the_sidecar() {
     let (dest, _report) = import_good();
-    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
+    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"), None)
         .expect("imported tree loads");
     let marketplace = services
         .marketplaces
@@ -90,7 +90,7 @@ fn marketplace_access_rules_survive_the_sidecar() {
 #[test]
 fn plugin_derives_skills_and_takes_the_rest_from_the_sidecar() {
     let (dest, _report) = import_good();
-    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
+    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"), None)
         .expect("imported tree loads");
 
     let alpha = services.plugins.get("alpha-tools").expect("alpha-tools");
@@ -115,7 +115,7 @@ fn plugin_derives_skills_and_takes_the_rest_from_the_sidecar() {
 #[test]
 fn category_falls_back_to_the_marketplace_entry() {
     let (dest, _report) = import_good();
-    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
+    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"), None)
         .expect("imported tree loads");
 
     let beta = services.plugins.get("beta-reports").expect("beta-reports");
@@ -275,7 +275,7 @@ fn a_plugin_source_outside_the_marketplace_tree_is_refused() {
 #[test]
 fn sidecar_and_frontmatter_titles_become_display_names() {
     let (dest, _report) = import_good();
-    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
+    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"), None)
         .expect("imported tree loads");
 
     let marketplace = services

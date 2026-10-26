@@ -6,7 +6,7 @@
 use systemprompt_identifiers::{DeviceCertId, UserId};
 
 use crate::error::Result;
-use crate::models::{UserDeviceCert, UserDeviceCertRow};
+use crate::models::UserDeviceCert;
 use crate::repository::UserRepository;
 
 #[derive(Debug)]
@@ -23,11 +23,11 @@ impl UserRepository {
         params: EnrollDeviceCertParams<'_>,
     ) -> Result<UserDeviceCert> {
         let row = sqlx::query_as!(
-            UserDeviceCertRow,
+            UserDeviceCert,
             r#"
             INSERT INTO user_device_certs (id, user_id, fingerprint, label)
             VALUES ($1, $2, $3, $4)
-            RETURNING id, user_id, fingerprint, label, enrolled_at, revoked_at
+            RETURNING id, user_id as "user_id: UserId", fingerprint, label, enrolled_at, revoked_at
             "#,
             params.id.as_str(),
             params.user_id.as_str(),
@@ -35,8 +35,7 @@ impl UserRepository {
             params.label,
         )
         .fetch_one(&*self.write_pool)
-        .await
-        .map(UserDeviceCert::from)?;
+        .await?;
         Ok(row)
     }
 
@@ -45,17 +44,16 @@ impl UserRepository {
         fingerprint: &str,
     ) -> Result<Option<UserDeviceCert>> {
         let row = sqlx::query_as!(
-            UserDeviceCertRow,
+            UserDeviceCert,
             r#"
-            SELECT id, user_id, fingerprint, label, enrolled_at, revoked_at
+            SELECT id, user_id as "user_id: UserId", fingerprint, label, enrolled_at, revoked_at
             FROM user_device_certs
             WHERE fingerprint = $1 AND revoked_at IS NULL
             "#,
             fingerprint,
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map(|row| row.map(UserDeviceCert::from))?;
+        .await?;
         Ok(row)
     }
 
@@ -64,9 +62,9 @@ impl UserRepository {
         user_id: &UserId,
     ) -> Result<Vec<UserDeviceCert>> {
         let rows = sqlx::query_as!(
-            UserDeviceCertRow,
+            UserDeviceCert,
             r#"
-            SELECT id, user_id, fingerprint, label, enrolled_at, revoked_at
+            SELECT id, user_id as "user_id: UserId", fingerprint, label, enrolled_at, revoked_at
             FROM user_device_certs
             WHERE user_id = $1
             ORDER BY enrolled_at DESC
@@ -74,12 +72,7 @@ impl UserRepository {
             user_id.as_str(),
         )
         .fetch_all(&*self.write_pool)
-        .await
-        .map(|rows| {
-            rows.into_iter()
-                .map(UserDeviceCert::from)
-                .collect::<Vec<_>>()
-        })?;
+        .await?;
         Ok(rows)
     }
 

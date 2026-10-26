@@ -1,9 +1,10 @@
 //! Config-section model and YAML helpers shared across the `admin config` tree.
 //!
 //! [`ConfigSection`] enumerates the profile and per-service config locations
-//! — including the provider catalog and gateway routes, which are services
-//! files (`ai/providers.yaml`, `ai/gateway.yaml`) rather than profile sections
-//! — and resolves them to filesystem paths, while [`read_yaml_file`] and
+//! — including the model catalog (`ai/{credentials,providers,models,
+//! deployments}.yaml`) and the gateway (`ai/gateway.yaml`), services files the
+//! loader reads by convention rather than profile sections — and resolves them
+//! to filesystem paths, while [`read_yaml_file`] and
 //! [`write_yaml_file`] back the editing commands. The remaining types are the
 //! serializable outputs rendered by the list, validate, and import/export
 //! flows.
@@ -16,14 +17,20 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 
 use super::rate_limit_types::ResetChange;
 
 pub const PROVIDERS_FILE_RELATIVE: &str = "ai/providers.yaml";
 pub const GATEWAY_FILE_RELATIVE: &str = "ai/gateway.yaml";
-pub const PROVIDERS_INCLUDE_RELATIVE: &str = "../ai/providers.yaml";
-pub const GATEWAY_INCLUDE_RELATIVE: &str = "../ai/gateway.yaml";
+
+fn catalog_files(services_path: &Path) -> Vec<PathBuf> {
+    systemprompt_manifest::services::catalog::CATALOG_FILES
+        .iter()
+        .filter(|name| **name != "gateway.yaml")
+        .map(|name| services_path.join("ai").join(name))
+        .collect()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidateOutput {
@@ -115,46 +122,42 @@ impl ConfigSection {
         ]
     }
 
-    pub fn file_path(self) -> Result<PathBuf> {
-        let profile = ProfileBootstrap::get()?;
+    pub fn file_path(self, loaded: &LoadedProfile) -> PathBuf {
+        let services = Path::new(&loaded.profile().paths.services);
         match self {
-            Self::Ai => Ok(PathBuf::from(&profile.paths.services).join("ai/config.yaml")),
-            Self::Providers => {
-                Ok(PathBuf::from(&profile.paths.services).join(PROVIDERS_FILE_RELATIVE))
-            },
-            Self::Gateway => Ok(PathBuf::from(&profile.paths.services).join(GATEWAY_FILE_RELATIVE)),
-            Self::Content => Ok(PathBuf::from(&profile.paths.services).join("content/config.yaml")),
-            Self::Web => Ok(PathBuf::from(&profile.paths.services).join("web/config.yaml")),
-            Self::Scheduler => {
-                Ok(PathBuf::from(&profile.paths.services).join("scheduler/config.yaml"))
-            },
-            Self::Agents => Ok(PathBuf::from(&profile.paths.services).join("agents/config.yaml")),
-            Self::Mcp => Ok(PathBuf::from(&profile.paths.services).join("mcp/config.yaml")),
-            Self::Skills => Ok(PathBuf::from(&profile.paths.services).join("skills/config.yaml")),
-            Self::Profile => Ok(PathBuf::from(ProfileBootstrap::get_path()?)),
-            Self::Services => Ok(PathBuf::from(&profile.paths.services).join("config/config.yaml")),
+            Self::Ai => services.join("ai/config.yaml"),
+            Self::Providers => services.join(PROVIDERS_FILE_RELATIVE),
+            Self::Gateway => services.join(GATEWAY_FILE_RELATIVE),
+            Self::Content => services.join("content/config.yaml"),
+            Self::Web => services.join("web/config.yaml"),
+            Self::Scheduler => services.join("scheduler/config.yaml"),
+            Self::Agents => services.join("agents/config.yaml"),
+            Self::Mcp => services.join("mcp/config.yaml"),
+            Self::Skills => services.join("skills/config.yaml"),
+            Self::Profile => loaded.path().to_path_buf(),
+            Self::Services => services.join("config/config.yaml"),
         }
     }
 
-    pub fn all_files(self) -> Result<Vec<PathBuf>> {
-        let profile = ProfileBootstrap::get()?;
-        let services_path = PathBuf::from(&profile.paths.services);
-        let profile_path = PathBuf::from(ProfileBootstrap::get_path()?);
-        self.files_under(&services_path, &profile_path)
+    pub fn all_files(self, loaded: &LoadedProfile) -> Result<Vec<PathBuf>> {
+        let services_path = PathBuf::from(&loaded.profile().paths.services);
+        self.files_under(&services_path, loaded.path())
     }
 
     pub fn files_under(self, services_path: &Path, profile_path: &Path) -> Result<Vec<PathBuf>> {
         match self {
             Self::Profile => Ok(vec![profile_path.to_path_buf()]),
             Self::Services => Ok(vec![services_path.join("config/config.yaml")]),
-            Self::Ai => Ok(Self::collect_yaml_files(&services_path.join("ai"))?
-                .into_iter()
-                .filter(|p| {
-                    p != &services_path.join(PROVIDERS_FILE_RELATIVE)
-                        && p != &services_path.join(GATEWAY_FILE_RELATIVE)
-                })
-                .collect()),
-            Self::Providers => Ok(vec![services_path.join(PROVIDERS_FILE_RELATIVE)]),
+            Self::Ai => {
+                let catalog = catalog_files(services_path);
+                Ok(Self::collect_yaml_files(&services_path.join("ai"))?
+                    .into_iter()
+                    .filter(|p| {
+                        !catalog.contains(p) && p != &services_path.join(GATEWAY_FILE_RELATIVE)
+                    })
+                    .collect())
+            },
+            Self::Providers => Ok(catalog_files(services_path)),
             Self::Gateway => Ok(vec![services_path.join(GATEWAY_FILE_RELATIVE)]),
             Self::Content => Self::collect_yaml_files(&services_path.join("content")),
             Self::Web => Self::collect_yaml_files(&services_path.join("web")),

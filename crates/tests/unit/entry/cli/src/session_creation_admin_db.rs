@@ -9,15 +9,14 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::session::creation::helpers::{
+use systemprompt_cli::session::creation::admin_bootstrap::{
     generate_admin_token, get_or_create_admin, resolve_admin_with_fallback,
     resolve_credentialed_user_email, resolve_local_admin,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,
-    test_db_pool,
+    closed_db_pool, ensure_test_bootstrap, seed_user_row_with_roles, test_db_pool,
 };
 use uuid::Uuid;
 
@@ -175,7 +174,6 @@ async fn a_missing_user_is_provisioned_as_an_admin_named_for_the_address() {
 #[tokio::test]
 async fn the_minted_token_names_its_user_and_is_not_empty() {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let (_name, email) = seed(&pool, &["admin"], "active").await;
     let user = get_or_create_admin(&pool, &email, "test")
@@ -183,8 +181,13 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
         .expect("resolve admin");
 
     let session_id = SessionId::generate();
-    let token = generate_admin_token("https://issuer.invalid", &user, &session_id)
-        .expect("minting an admin token should succeed");
+    let token = generate_admin_token(
+        "https://issuer.invalid",
+        systemprompt_test_fixtures::test_signing_keys(),
+        &user,
+        &session_id,
+    )
+    .expect("minting an admin token should succeed");
 
     assert!(
         !token.as_str().is_empty(),
@@ -205,7 +208,7 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
 // silently open a session as someone else.
 mod tenant_fallback {
     use super::{seed, test_db_pool, unique};
-    use systemprompt_cli::session::creation::helpers::resolve_tenant_admin_with_fallback;
+    use systemprompt_cli::session::creation::admin_bootstrap::resolve_tenant_admin_with_fallback;
     use systemprompt_cloud::CloudCredentials;
     use systemprompt_identifiers::{CloudAuthToken, Email};
 
@@ -217,8 +220,6 @@ mod tenant_fallback {
         )
     }
 
-    /// `users.email` is `VARCHAR(255)`, so an over-long address fails to insert
-    /// and gives the fallback a deterministic failure to react to.
     fn unresolvable_email() -> String {
         format!("{}@toolong.invalid", "x".repeat(300))
     }
@@ -306,13 +307,13 @@ mod tenant_fallback {
 // another's.
 mod cli_context {
     use super::{pname, seed, test_db_pool};
-    use systemprompt_cli::session::creation::helpers::{create_cli_context, get_or_create_admin};
+    use systemprompt_cli::session::creation::admin_bootstrap::{
+        create_cli_context, get_or_create_admin,
+    };
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::{SessionId, UserId};
     use systemprompt_test_fixtures::seed_user_session;
 
-    /// `user_contexts.session_id` is a foreign key, so the session row has to
-    /// exist before a context can point at it.
     async fn session_for(pool: &DbPool, user_id: &UserId) -> SessionId {
         let session = SessionId::generate();
         seed_user_session(pool, user_id, &session)

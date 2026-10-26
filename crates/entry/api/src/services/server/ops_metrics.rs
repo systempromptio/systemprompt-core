@@ -22,6 +22,7 @@ use metrics_exporter_prometheus::{BuildError, Matcher, PrometheusBuilder};
 use sqlx::PgPool;
 use systemprompt_config::ConfigFingerprint;
 use systemprompt_database::Database;
+use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::job_metrics::{
     JOB_DURATION_BUCKETS, SCHEDULER_JOB_DURATION_SECONDS, SCHEDULER_JOB_RUNS_TOTAL,
@@ -93,7 +94,12 @@ pub(super) fn describe() {
 }
 
 pub(super) fn spawn_samplers(ctx: &AppContext, runs_scheduler: bool) {
-    let mut sampler = OpsSampler::new(ctx.db_pool(), runs_scheduler);
+    let mut sampler = OpsSampler::new(
+        ctx.boot().clone(),
+        ctx.db_pool(),
+        runs_scheduler,
+        ctx.logging().sink().clone(),
+    );
     ctx.background_tasks()
         .spawn_cancellable("ops_metrics", |cancel| async move {
             let mut tick = tokio::time::interval(SAMPLE_INTERVAL);
@@ -115,12 +121,19 @@ pub struct OpsSampler {
     backlog_pool: Option<Arc<PgPool>>,
     backlog_due: Instant,
     seen_projections: HashSet<String>,
+    boot: BootContext,
     config_info: Option<ConfigFingerprint>,
+    log_sink: systemprompt_logging::LogSink,
 }
 
 impl OpsSampler {
     #[must_use]
-    pub fn new(db: &Database, runs_scheduler: bool) -> Self {
+    pub fn new(
+        boot: BootContext,
+        db: &Database,
+        runs_scheduler: bool,
+        log_sink: systemprompt_logging::LogSink,
+    ) -> Self {
         let write = db.write_pool();
         let read = db.pool();
         let read = (!Arc::ptr_eq(&read, &write)).then_some(read);
@@ -131,7 +144,9 @@ impl OpsSampler {
             backlog_pool,
             backlog_due: Instant::now(),
             seen_projections: HashSet::new(),
+            boot,
             config_info: None,
+            log_sink,
         }
     }
 
@@ -140,9 +155,8 @@ impl OpsSampler {
         if let Some(read) = self.read.as_ref() {
             probe_acquire("read", read).await;
         }
-        super::config_fingerprint::publish(&mut self.config_info);
-        metrics::counter!(LOG_ENTRIES_DROPPED_TOTAL)
-            .absolute(systemprompt_logging::dropped_log_entries());
+        super::config_fingerprint::publish(&self.boot, &mut self.config_info);
+        metrics::counter!(LOG_ENTRIES_DROPPED_TOTAL).absolute(self.log_sink.dropped_entries());
         if let Some(pool) = self.backlog_pool.as_ref()
             && Instant::now() >= self.backlog_due
         {

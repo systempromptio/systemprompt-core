@@ -1,12 +1,11 @@
 //! Full in-process bootstrap fixture: a tempdir profile tree (system,
 //! services, storage, bin), a secrets.json wired to the test database, and
-//! ProfileBootstrap + SecretsBootstrap initialisation. Each test that uses
-//! this runs in its own nextest process, so the global OnceLock singletons
-//! are safe to install per-test.
+//! the `BootContext` loaded from that profile and its secrets.
 
 use std::path::Path;
 
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
+use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use tempfile::TempDir;
 
@@ -17,6 +16,7 @@ pub const SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 pub struct BootFixture {
     pub _tmp: TempDir,
     pub database_url: String,
+    pub boot: BootContext,
 }
 
 pub struct BootOptions {
@@ -45,7 +45,6 @@ impl Default for BootOptions {
     }
 }
 
-// Builds the tree and installs ProfileBootstrap + SecretsBootstrap.
 pub fn boot(opts: &BootOptions) -> BootFixture {
     let database_url = systemprompt_test_fixtures::test_database_url();
     let tmp = tempfile::tempdir().expect("create boot tempdir");
@@ -76,6 +75,9 @@ pub fn boot(opts: &BootOptions) -> BootFixture {
     )
     .expect("write services config");
     std::fs::write(services_dir.join("ai/config.yaml"), AI_CONFIG).expect("write ai config");
+    for (name, body) in CATALOG {
+        std::fs::write(services_dir.join("ai").join(name), body).expect("write catalog file");
+    }
     std::fs::write(
         services_dir.join("skills/echo_skill/config.yaml"),
         "id: echo_skill\nname: Echo Skill\ndescription: Boot fixture skill\n",
@@ -140,12 +142,14 @@ pub fn boot(opts: &BootOptions) -> BootFixture {
     )
     .expect("write profile.yaml");
 
-    ProfileBootstrap::init_from_path(&profile_path).expect("init profile bootstrap");
-    systemprompt_test_fixtures::secrets::block_on_secrets_init().expect("init secrets bootstrap");
+    let profile = LoadedProfile::from_path(&profile_path).expect("load the fixture profile");
+    let secrets = systemprompt_test_fixtures::secrets::block_on_secrets_load(&profile)
+        .expect("load the fixture secrets");
 
     BootFixture {
         _tmp: tmp,
         database_url,
+        boot: BootContext::new(profile, secrets),
     }
 }
 
@@ -196,22 +200,36 @@ fn services_config(mcp_servers_yaml: &str) -> String {
 {mcp_servers_yaml}settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
-  providers:
-    anthropic:
-      enabled: true
-      default_model: claude-sonnet-4-5
 "
     )
 }
 
+const CATALOG: [(&str, &str); 5] = [
+    (
+        "credentials.yaml",
+        "credentials:\n  anthropic: { kind: platform, secret: anthropic }\n",
+    ),
+    (
+        "providers.yaml",
+        "providers:\n  anthropic:\n    credential: anthropic\n    endpoints:\n      api: { wire: anthropic, url: \"https://api.anthropic.com/v1\" }\n",
+    ),
+    (
+        "models.yaml",
+        "models:\n  claude-sonnet-4-5:\n    clients: [claude]\n",
+    ),
+    (
+        "deployments.yaml",
+        "deployments:\n  claude-sonnet-4-5: [anthropic/api]\n",
+    ),
+    (
+        "gateway.yaml",
+        "gateway:\n  enabled: false\n  default_model: claude-sonnet-4-5\n",
+    ),
+];
+
 const AI_CONFIG: &str = r"ai:
-  default_provider: anthropic
-  providers:
-    anthropic:
-      enabled: true
-      default_model: claude-sonnet-4-5
+  sampling:
+    fallback_enabled: false
 ";
 
 const WEB_CONFIG: &str = r"branding:
@@ -252,11 +270,8 @@ database:
 {pool}server:
   host: 127.0.0.1
   port: 8080
-  api_server_url: http://127.0.0.1
-  api_internal_url: http://127.0.0.1
-  api_external_url: http://127.0.0.1
-  use_https: false
-  cors_allowed_origins:
+  external_url: http://127.0.0.1
+  extra_cors_origins:
     - http://127.0.0.1
   instance_id: null
   max_concurrent_streams: 256
@@ -269,7 +284,6 @@ paths:
   storage: {storage}
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences:

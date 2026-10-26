@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT ip_address, COUNT(*) as session_count\n            FROM v_clean_traffic\n            WHERE started_at >= NOW() - INTERVAL '24 hours'\n              AND ip_address IS NOT NULL\n            GROUP BY ip_address\n            HAVING COUNT(*) >= $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ip_address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "v_clean_traffic",
+            "name": "ip_address"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "5a7525e6a13cc2a59ac098bc0ccb770b66b2dec86bafba4d034f8f50272ed892"
+}

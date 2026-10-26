@@ -9,15 +9,13 @@ use crate::presentation::StartupRenderer;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Instant;
-use systemprompt_cloud::CredentialsBootstrap;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{StartupPlan, StartupRequest};
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel};
 
-use super::lifecycle;
+use super::{get_api_port, lifecycle};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServiceTarget {
@@ -115,13 +113,10 @@ async fn run_startup(
 
     events.phase_started(Phase::PreFlight);
 
-    match CredentialsBootstrap::get() {
-        Ok(Some(_)) => {
-            events.info("Cloud credentials available");
-        },
-        Ok(None) | Err(_) => {
-            events.info("Running in local-only mode (no cloud sync)");
-        },
+    if ctx.cloud_credentials().is_some() {
+        events.info("Cloud credentials available");
+    } else {
+        events.info("Running in local-only mode (no cloud sync)");
     }
 
     events.phase_completed(Phase::PreFlight);
@@ -147,7 +142,7 @@ async fn run_startup(
                 kill_port_process: options.kill_port_process,
                 run_migrations: false,
             },
-            &ctx.cli,
+            ctx,
             Some(events),
         )
         .await?;
@@ -170,10 +165,7 @@ async fn run_startup(
         events.phase_completed(Phase::McpServers);
     }
 
-    Ok(format!(
-        "http://127.0.0.1:{}",
-        ProfileBootstrap::get().map_or(8080, |p| p.server.port)
-    ))
+    Ok(format!("http://127.0.0.1:{}", get_api_port(ctx.profile()?)))
 }
 
 pub(super) async fn execute_individual_agent(
@@ -184,7 +176,7 @@ pub(super) async fn execute_individual_agent(
     CliService::section(&format!("Starting Agent: {}", agent));
 
     let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
-    let name = lifecycle::resolve_agent_name(agent).await?;
+    let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
     let service_id = orchestrator.start_agent(&name, None).await?;
 
     CliService::success(&format!(

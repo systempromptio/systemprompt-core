@@ -21,7 +21,9 @@ use systemprompt_models::mcp::Correlation;
 use super::classify::Classified;
 use super::{ArtifactIngest, FINGERPRINT_WINDOW_SECONDS, IngestRequest, PROXIMITY_WINDOW_SECONDS};
 use crate::error::McpDomainResult;
-use crate::models::{ExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult};
+use crate::models::{
+    McpToolExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult,
+};
 use crate::repository::{ArtifactCorrelation, McpArtifactRecord, ProximityProbe};
 
 #[derive(Debug, Clone)]
@@ -232,7 +234,7 @@ fn new_execution(
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: ExecutionStatus::from_error(error_message.is_some()).to_string(),
+        status: McpToolExecutionStatus::from_error(error_message.is_some()).to_string(),
         error_message,
         started_at,
         completed_at: request.source.is_server_observed().then(Utc::now),

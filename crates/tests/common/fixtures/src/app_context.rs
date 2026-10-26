@@ -9,7 +9,7 @@
 //! [`test_app_context`] panics when the context cannot be assembled: a test
 //! whose context is missing fails rather than skips (see [`crate::db`]).
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
@@ -17,6 +17,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
+use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
@@ -110,6 +111,17 @@ pub fn fixture_config(database_url: &str) -> Config {
     }
 }
 
+pub fn test_config() -> Arc<Config> {
+    test_config_with(|_| {})
+}
+
+pub fn test_config_with(customize: impl FnOnce(&mut Config)) -> Arc<Config> {
+    let mut config = fixture_config("postgres://x");
+    config.allowed_resource_audiences = vec!["hook".to_owned()];
+    customize(&mut config);
+    Arc::new(config)
+}
+
 pub fn test_app_context(pool: &DbPool, database_url: &str) -> Arc<AppContext> {
     fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
         .unwrap_or_else(|e| panic!("fixture AppContext over the test database: {e:#}"))
@@ -117,6 +129,7 @@ pub fn test_app_context(pool: &DbPool, database_url: &str) -> Arc<AppContext> {
 
 fn tmp_paths() -> PathsConfig {
     PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),
@@ -166,6 +179,7 @@ pub fn fixture_app_context_with_extensions(
             authz_hook: hook,
             user_repository,
             extension_registry: Arc::new(extension_registry),
+            services: None,
         },
     )
 }
@@ -177,6 +191,7 @@ struct FixtureSeams {
     authz_hook: SharedAuthzHook,
     user_repository: Arc<systemprompt_users::UserRepository>,
     extension_registry: Arc<ExtensionRegistry>,
+    services: Option<systemprompt_loader::ServicesState>,
 }
 
 // Build a fixture context whose user repository is supplied by the test —
@@ -199,6 +214,7 @@ pub fn fixture_app_context_with_user_repository(
             authz_hook: hook,
             user_repository,
             extension_registry: Arc::new(ExtensionRegistry::new()),
+            services: None,
         },
     )
 }
@@ -237,6 +253,7 @@ fn fixture_app_context_full(
             authz_hook,
             user_repository,
             extension_registry: Arc::new(ExtensionRegistry::new()),
+            services: None,
         },
     )
 }
@@ -247,15 +264,98 @@ fn fixture_app_context_assembled(
     paths: PathsConfig,
     seams: FixtureSeams,
 ) -> Result<Arc<AppContext>> {
+    fixture_app_context_assembled_on(
+        crate::bootstrap::ensure_test_bootstrap(),
+        pool,
+        config,
+        paths,
+        seams,
+    )
+}
+
+pub fn test_app_context_on(
+    bootstrap: &crate::bootstrap::TestBootstrap,
+    pool: &DbPool,
+) -> Arc<AppContext> {
+    fixture_app_context_on_bootstrap_with_paths(
+        bootstrap,
+        pool,
+        bootstrap.boot.profile().paths.clone(),
+        Arc::new(AllowAllFilter),
+    )
+    .unwrap_or_else(|e| panic!("fixture AppContext on the supplied bootstrap: {e:#}"))
+}
+
+pub fn fixture_app_context_on_bootstrap(
+    bootstrap: &crate::bootstrap::TestBootstrap,
+    pool: &DbPool,
+    config: Config,
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
+    fixture_app_context_assembled_on(
+        bootstrap,
+        pool,
+        config,
+        bootstrap.boot.profile().paths.clone(),
+        FixtureSeams {
+            marketplace_filter,
+            authz_hook: hook,
+            user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
+            services: None,
+        },
+    )
+}
+
+pub fn fixture_app_context_on_bootstrap_with_paths(
+    bootstrap: &crate::bootstrap::TestBootstrap,
+    pool: &DbPool,
+    paths: PathsConfig,
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
+    let services = systemprompt_loader::ServicesState::load(&bootstrap.boot)
+        .unwrap_or_else(|_| bootstrap.services.clone());
+    let mut config = fixture_config(&bootstrap.database_url);
+    config.system_path = paths.system.clone();
+    config.services_path = paths.services.clone();
+    config.bin_path = paths.bin.clone();
+    fixture_app_context_assembled_on(
+        bootstrap,
+        pool,
+        config,
+        paths,
+        FixtureSeams {
+            marketplace_filter,
+            authz_hook: hook,
+            user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
+            services: Some(services),
+        },
+    )
+}
+
+fn fixture_app_context_assembled_on(
+    bootstrap: &crate::bootstrap::TestBootstrap,
+    pool: &DbPool,
+    config: Config,
+    paths: PathsConfig,
+    seams: FixtureSeams,
+) -> Result<Arc<AppContext>> {
     let FixtureSeams {
         marketplace_filter,
         authz_hook,
         user_repository,
         extension_registry,
+        services,
     } = seams;
-    let governance = Arc::new(
-        systemprompt_governance::policy::GovernanceEngine::from_services_root(
-            std::path::Path::new(&paths.services),
+    let services = services.unwrap_or_else(|| bootstrap.services.clone());
+    let governance = systemprompt_traits::ConfigWatch::new(
+        systemprompt_governance::policy::GovernanceEngine::from_config(
+            &systemprompt_governance::policy::GovernanceConfig::defaults(),
             Some(systemprompt_governance::policy::RateWindowRepository::new(
                 pool.write_pool().as_ref().clone(),
             )),
@@ -276,6 +376,14 @@ fn fixture_app_context_assembled(
             root: app_paths.storage().root().to_path_buf(),
         });
     let instance_id = config.instance_id.clone();
+    let config = Arc::new(config);
+    let fixture_boot = &bootstrap.boot;
+    let boot = BootContext::new(
+        Arc::clone(fixture_boot.loaded_profile()),
+        Arc::clone(fixture_boot.secrets()),
+    );
+    boot.install_config(config.as_ref().clone())?;
+    let boot_secrets = boot.secrets().get();
     let ctx = AppContext::from_parts(
         DataPlane {
             database: Arc::clone(pool),
@@ -301,6 +409,7 @@ fn fixture_app_context_assembled(
             ),
             oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
                 pool,
+                Arc::from(boot_secrets.oauth_at_rest_pepper.as_str()),
             )),
             user_repository,
             service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
@@ -311,7 +420,10 @@ fn fixture_app_context_assembled(
                 pool,
                 instance_id,
             )),
-            ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)),
+            ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(
+                pool,
+                systemprompt_security::at_rest::AtRestCipher::from_secrets(&boot_secrets)?,
+            )),
             analytics_repositories,
             file_repository: Arc::new(systemprompt_files::FileRepository::new(pool)),
             mcp_session_repository: Arc::new(
@@ -322,36 +434,54 @@ fn fixture_app_context_assembled(
             ),
         },
         ConfigPlane {
-            config: Arc::new(config),
+            boot,
+            config: Arc::clone(&config),
+            files_config: Arc::new(systemprompt_files::FilesConfig::new(
+                app_paths.storage().root().to_path_buf(),
+                systemprompt_files::FilesConfigYaml::default(),
+            )),
             app_paths,
             content_config: None,
             route_classifier: Arc::new(RouteClassifier::new(None)),
         },
         Plugins {
             extension_registry,
-            mcp_registry: RegistryService::new(fixture_user_id()),
+            mcp_registry: RegistryService::new(
+                fixture_user_id(),
+                services.view(),
+                Arc::clone(&config),
+            ),
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),
+            subject_providers: fixture_subject_providers(pool),
+            subjects: Default::default(),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
+            logging: crate::fixture_logging_runtime(),
             authz_hook,
+            signing_keys: crate::jwt::test_signing_keys(),
             governance,
+            services,
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             ai_service: None,
             artifact_ingest: fixture_artifact_ingest(pool)?,
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
-            event_bridge: Arc::new(OnceLock::new()),
-            event_router: systemprompt_events::EventRouter::local_only(),
+            event_bridge: fixture_event_bridge(pool),
+            event_router: systemprompt_events::EventRouter::local_only(Arc::new(
+                systemprompt_events::EventBroadcasters::new(),
+            )),
             geoip_reader: None,
             file_storage,
             shutdown: Default::default(),
             background_tasks: Default::default(),
+            spawner: crate::subprocess::test_spawner(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),
+            connector_tokens: Arc::default(),
         },
     );
 
@@ -360,6 +490,18 @@ fn fixture_app_context_assembled(
 
 // An ingest over the fixture pool with no scanners: the narrow waist itself,
 // not the installation's policy.
+pub fn fixture_event_bridge(pool: &DbPool) -> Arc<systemprompt_events::EventBridgeHandle> {
+    Arc::new(
+        systemprompt_events::PostgresEventBridge::new(
+            pool.write_pool().as_ref().clone(),
+            crate::unique_instance(),
+            systemprompt_traits::CacheEpochs::new(),
+            Arc::new(systemprompt_events::EventBroadcasters::new()),
+        )
+        .into_idle_handle(),
+    )
+}
+
 pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
     Ok(Arc::new(systemprompt_mcp::ArtifactIngest::from_db(
         db, None,
@@ -388,4 +530,65 @@ pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::Gover
         )
         .expect("the default governance chain always builds"),
     )
+}
+
+pub fn default_governance_watch(
+) -> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
+    systemprompt_traits::ConfigWatch::new(
+        systemprompt_governance::policy::GovernanceEngine::from_config(
+            &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            Some(offline_rate_windows()),
+        )
+        .expect("the default governance chain always builds"),
+    )
+}
+
+pub fn fixture_subject_providers(
+    db: &systemprompt_database::DbPool,
+) -> systemprompt_governance::authz::SubjectProviderSet {
+    systemprompt_governance::authz::SubjectProviderSet::discover(
+        &systemprompt_governance::authz::AuthzHookContext {
+            pool: db.pool(),
+            sink: std::sync::Arc::new(systemprompt_governance::authz::NullAuditSink),
+            services: fixture_services_view(),
+            subjects: Default::default(),
+            secrets: fixture_secret_store(),
+        },
+    )
+}
+
+pub fn fixture_extension_context(
+    pool: &DbPool,
+) -> Arc<dyn systemprompt_extension::ExtensionContext> {
+    let concrete = test_app_context_on(crate::bootstrap::ensure_test_bootstrap(), pool);
+    let ctx: Arc<dyn systemprompt_extension::ExtensionContext> = concrete;
+    ctx
+}
+
+pub fn offline_extension_context() -> Arc<dyn systemprompt_extension::ExtensionContext> {
+    let pool: DbPool = Arc::new(systemprompt_database::Database::from_pools(
+        crate::db::lazy_pg_pool(),
+        None,
+    ));
+    fixture_extension_context(&pool)
+}
+
+pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {
+    let concrete = Arc::clone(crate::bootstrap::ensure_test_bootstrap().boot.secrets());
+    let store: Arc<dyn systemprompt_traits::SecretStore> = concrete;
+    store
+}
+
+pub fn fixture_services_view() -> systemprompt_manifest::services::ServicesView {
+    fixture_services_state().view()
+}
+
+// The services config the test bootstrap serves, or an empty one when the
+// test runs without a services tree.
+pub fn fixture_services_state() -> systemprompt_loader::ServicesState {
+    let boot = &crate::bootstrap::ensure_test_bootstrap().boot;
+    systemprompt_loader::ServicesState::load(boot).unwrap_or_else(|_| {
+        systemprompt_loader::ServicesState::from_config(boot.profile(), Default::default())
+            .expect("the default services config resolves")
+    })
 }

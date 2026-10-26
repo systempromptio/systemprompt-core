@@ -149,6 +149,7 @@ async fn fixture_with(
                 comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
                 ),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await

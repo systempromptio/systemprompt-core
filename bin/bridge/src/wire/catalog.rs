@@ -1,13 +1,13 @@
 //! The gateway's inference catalog as the webview receives it: providers
-//! grouped with their models, how fresh the catalog is, and the Claude-only
-//! subset Claude Desktop is given.
+//! grouped with their models and client families, how fresh the catalog is,
+//! and the Claude-client subset Claude Desktop is given.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
 
-use crate::gateway::model_view::{CatalogGroup, desktop_models};
+use crate::gateway::model_view::{CatalogGroup, claude_models};
 use crate::verdict::{Tone, Verdict};
 
 /// One provider of the catalog. `configured` false means the gateway lists it
@@ -17,7 +17,7 @@ use crate::verdict::{Tone, Verdict};
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct CatalogProviderPayload {
     pub name: String,
-    pub surface: &'static str,
+    pub clients: Vec<&'static str>,
     pub configured: bool,
     pub models: Vec<String>,
     pub config_issue: Option<String>,
@@ -27,7 +27,7 @@ impl From<CatalogGroup> for CatalogProviderPayload {
     fn from(group: CatalogGroup) -> Self {
         Self {
             name: group.name,
-            surface: group.surface.as_tag(),
+            clients: group.clients.iter().map(|c| c.as_tag()).collect(),
             configured: group.configured,
             models: group.models,
             config_issue: group.config_issue,
@@ -76,8 +76,8 @@ impl CatalogFreshnessPayload {
 }
 
 /// The one model catalog every view renders. `total` counts the distinct
-/// models of configured providers; `desktop_models` is the subset Claude
-/// Desktop is given.
+/// models of configured providers; `desktop_models` is the subset advertised
+/// to Claude clients, which Claude Desktop is given.
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
@@ -97,6 +97,7 @@ impl InferenceCatalogPayload {
         freshness: CatalogFreshnessPayload,
         fetched_at_unix: Option<u64>,
     ) -> Self {
+        let desktop_models = claude_models(&groups);
         let served: Vec<String> = groups
             .iter()
             .filter(|g| g.configured)
@@ -105,7 +106,7 @@ impl InferenceCatalogPayload {
         Self {
             verdict: freshness.verdict(served.len()),
             total: served.len(),
-            desktop_models: desktop_models(&served),
+            desktop_models,
             providers: groups
                 .into_iter()
                 .map(CatalogProviderPayload::from)

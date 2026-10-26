@@ -99,6 +99,7 @@ fn marketplace_with_source_ref(
         }],
         external_plugins: Vec::new(),
         claude_code: None,
+        opencode: None,
     }
 }
 

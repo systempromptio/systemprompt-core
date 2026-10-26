@@ -50,6 +50,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
+
 mod asset;
 #[expect(
     clippy::panic,
@@ -71,7 +74,6 @@ pub mod migration;
 pub mod purge;
 pub mod registry;
 pub mod router;
-pub mod runtime_config;
 pub mod seed;
 mod traits;
 
@@ -81,8 +83,8 @@ pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{ExtensionConfigError, LoaderError};
 pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
-    GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
-    GatewayRequestGuardRegistration, gateway_guards, run_gateway_guards,
+    GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
+    GatewayRequestGuardRegistration,
 };
 pub use health::{
     BoxedReadinessSource, MetricDescriptor, MetricKind, ReadinessCheck, ReadinessFailure,
@@ -102,8 +104,7 @@ pub mod prelude {
     pub use crate::context::{DynExtensionContext, ExtensionContext};
     pub use crate::error::{ExtensionConfigError, LoaderError};
     pub use crate::gateway_guard::{
-        GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
-        run_gateway_guards,
+        GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
     };
     pub use crate::registry::ExtensionRegistry;
     pub use crate::seed::Seed;
@@ -114,14 +115,15 @@ pub mod prelude {
     };
 
     pub use systemprompt_provider_contracts::{
-        ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ComponentContext,
-        ComponentRenderer, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet,
-        ContentDataContext, ContentDataProvider, DeclaredState, DriftKind, DriftRow,
-        EffectiveAuthority, EntityScope, FrameOptions, FrontmatterContext, FrontmatterProcessor,
-        PageContext, PageDataProvider, PagePrepareContext, PagePrerenderer, PageRenderSpec,
-        PlaceholderMapping, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx, PlaneWriter,
-        RenderedComponent, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
-        RssFeedSpec, SitemapContext, SitemapProvider, SitemapSourceSpec, SitemapUrlEntry,
-        TemplateDataExtender, TemplateDefinition, TemplateProvider, TemplateSource,
+        ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ChangeSource,
+        ComponentContext, ComponentRenderer, ConfigPlane, ConfigPlaneError, ConfigPlaneResult,
+        ConfigPlaneSet, ContentDataContext, ContentDataProvider, DeclaredEntities, DeclaredEntity,
+        DeclaredState, DriftKind, DriftRow, EffectiveAuthority, EntityScope, FrameOptions,
+        FrontmatterContext, FrontmatterProcessor, PageContext, PageDataProvider,
+        PagePrepareContext, PagePrerenderer, PageRenderSpec, PlaceholderMapping, PlaneContext,
+        PlaneEffect, PlaneSnapshot, PlaneTx, PlaneWriter, RenderedComponent, ResolvedEntities,
+        ResolvedEntity, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
+        SitemapContext, SitemapProvider, SitemapSourceSpec, SitemapUrlEntry, TemplateDataExtender,
+        TemplateDefinition, TemplateProvider, TemplateSource,
     };
 }

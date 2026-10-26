@@ -1,11 +1,11 @@
 //! Boot-time resolution of the services root from configured bundle sources.
 //!
-//! The happy path is fetch, verify, compose, swap, record. Every other path
-//! is a named fallback carrying the error that caused it: an instance serving
-//! last-good content reports [`ServicesProvenance::LastGood`] with the failure
-//! text, so "we are running yesterday's bundle" is visible rather than
-//! inferred from a log line that scrolled past. `fail_closed` refuses to boot
-//! instead.
+//! The happy path is fetch, verify, compose, load-validate, swap, record. Every
+//! other path is a named fallback carrying the error that caused it: an
+//! instance serving last-good content reports [`ServicesProvenance::LastGood`]
+//! with the failure text, so "we are running yesterday's bundle" is visible
+//! rather than inferred from a log line that scrolled past. `fail_closed`
+//! refuses to boot instead.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +14,7 @@ pub mod baked;
 mod fetch;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use systemprompt_manifest::profile::{FetchFailurePolicy, Profile};
@@ -22,31 +22,20 @@ use systemprompt_manifest::services::bundle::ServicesBundleState;
 
 use super::cache::BundleCache;
 use super::compose::{BundleMember, compose};
+use super::degraded::DegradedRecord;
 use super::error::{BundleError, BundleResult};
-use crate::services_root::{ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 use baked::{is_base, stage_baked_base};
 use fetch::{ResolvedSource, SourceContext, resolve_source};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(60);
+const CONFIG_RELPATH: &str = "config/config.yaml";
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServicesSourceBootstrap;
 
 impl ServicesSourceBootstrap {
-    pub async fn try_run(
-        profile: &Profile,
-        resolve_secret: impl Fn(&str) -> Option<String> + Send + Sync,
-        core_version: &str,
-    ) -> BundleResult<&'static ActiveServicesRoot> {
-        if let Some(active) = ServicesRootBootstrap::get() {
-            return Ok(active);
-        }
-        Self::resolve(profile, resolve_secret, core_version)
-            .await
-            .map(ServicesRootBootstrap::install)
-    }
-
     pub async fn resolve(
         profile: &Profile,
         resolve_secret: impl Fn(&str) -> Option<String> + Send + Sync,
@@ -63,10 +52,21 @@ impl ServicesSourceBootstrap {
 
         let cache = BundleCache::new(cache_root(profile));
         match Self::compose_sources(profile, &cache, &resolve_secret, core_version).await {
-            Ok(active) => Ok(active),
+            Ok(active) => {
+                if let Err(error) = cache.clear_degraded() {
+                    tracing::warn!(error = %error, "Could not clear the degraded services record");
+                }
+                Ok(active)
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Services bundle refresh failed");
-                Self::fall_back(profile, &cache, e)
+                let active = Self::fall_back(profile, &cache, e)?;
+                if let Some(record) = DegradedRecord::for_provenance(&active.provenance)
+                    && let Err(error) = cache.write_degraded(&record)
+                {
+                    tracing::warn!(error = %error, "Could not record the degraded services source");
+                }
+                Ok(active)
             },
         }
     }
@@ -102,11 +102,7 @@ impl ServicesSourceBootstrap {
             .first()
             .is_some_and(|r| is_base(&r.signed.manifest))
         {
-            let base = stage_baked_base(
-                cache,
-                std::path::Path::new(&profile.paths.services),
-                core_version,
-            )?;
+            let base = stage_baked_base(cache, Path::new(&profile.paths.services), core_version)?;
             resolved.insert(0, base);
         }
 
@@ -119,6 +115,9 @@ impl ServicesSourceBootstrap {
             })
             .collect();
         let (composed_path, composed_hash) = compose(cache, &members)?;
+        let kits: Vec<&str> = members.iter().map(|m| m.name.as_str()).collect();
+        let retained = previous.composed_hash == composed_hash;
+        refuse_unloadable(&composed_path, profile, &kits, retained)?;
         cache.swap_current(&composed_path)?;
 
         let state = ServicesBundleState {
@@ -163,6 +162,29 @@ impl ServicesSourceBootstrap {
             FetchFailurePolicy::UseBundled => bundled_fallback(profile, error),
         }
     }
+}
+
+fn refuse_unloadable(
+    composed: &Path,
+    profile: &Profile,
+    kits: &[&str],
+    retained: bool,
+) -> BundleResult<()> {
+    let Err(error) =
+        crate::ConfigLoader::load_from_path(&composed.join(CONFIG_RELPATH), Some(profile))
+    else {
+        return Ok(());
+    };
+    if !retained && let Err(remove) = std::fs::remove_dir_all(composed) {
+        tracing::warn!(error = %remove, path = %composed.display(), "Could not remove the rejected composition");
+    }
+    Err(BundleError::policy_context(
+        format!(
+            "the composed services tree (sources: {}) does not load, so it was not swapped in",
+            kits.join(", ")
+        ),
+        error,
+    ))
 }
 
 fn last_good(

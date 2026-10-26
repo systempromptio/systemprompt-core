@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agent_runs SET harness_digest = $2 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "89a1180e9c16af5cfe1908f91e93e3c6d77a2138b2b1481718bf54d668ef78ce"
+}

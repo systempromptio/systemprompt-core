@@ -26,7 +26,7 @@ fn parse(args: &[&str]) -> ConfigCommands {
 }
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -58,22 +58,27 @@ async fn an_unknown_authz_mode_is_rejected() {
 }
 
 #[tokio::test]
-async fn webhook_mode_requires_a_url() {
-    let err = run(&["governance", "set", "--mode", "webhook"])
-        .await
-        .unwrap_err();
-    assert!(format!("{err:#}").contains("requires --url"), "{err:#}");
-}
-
-#[tokio::test]
-async fn webhook_mode_with_a_url_is_written_with_its_timeout() {
-    run(&[
+async fn webhook_mode_rejects_a_stated_url() {
+    let err = Harness::try_parse_from([
+        "config",
         "governance",
         "set",
         "--mode",
         "webhook",
         "--url",
-        "https://cov-authz.example/decide",
+        "https://x.example",
+    ])
+    .unwrap_err();
+    assert!(err.to_string().contains("--url"), "{err}");
+}
+
+#[tokio::test]
+async fn webhook_mode_is_written_with_its_timeout_and_no_url() {
+    run(&[
+        "governance",
+        "set",
+        "--mode",
+        "webhook",
         "--timeout-ms",
         "750",
     ])
@@ -81,8 +86,8 @@ async fn webhook_mode_with_a_url_is_written_with_its_timeout() {
     .unwrap();
 
     let yaml = profile_yaml();
-    assert!(yaml.contains("cov-authz.example"), "{yaml}");
     assert!(yaml.contains("750"), "{yaml}");
+    assert!(!yaml.contains("govern/authz"), "{yaml}");
 
     run(&["governance", "show"]).await.unwrap();
 }

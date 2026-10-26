@@ -26,7 +26,7 @@ pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[SyncOnlyAgent {
     id: HostKind::ClaudeCode,
     display_name: "Claude Code",
     description: "Governed through the gateway; skills and plugins sync from here.",
-    icon: "claude-code",
+    icon: HostKind::ClaudeCode.as_str(),
 }];
 
 #[must_use]

@@ -14,7 +14,7 @@ use systemprompt_cli::cloud::doctor::{
     check_signing_key,
 };
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::services::ProviderRegistry;
+use systemprompt_manifest::services::catalog::{CredentialRegistry, DefaultCatalog};
 
 fn fixture_profile() -> (Profile, PathBuf) {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -107,29 +107,24 @@ fn an_absolute_signing_key_path_ignores_the_profile_directory() {
 
 #[test]
 fn provider_credentials_are_reported_per_missing_secret() {
-    let empty = ProviderRegistry::default();
+    let empty = CredentialRegistry::default();
     let none_declared = check_provider_secrets(&empty, &secrets(&[]));
     assert_eq!(none_declared.name, "providers");
     assert_eq!(none_declared.status, CheckStatus::Pass);
 
-    let registry = ProviderRegistry::default_seed().unwrap();
-    let result = check_provider_secrets(&registry, &secrets(&[]));
+    let credentials = DefaultCatalog::document().unwrap().credentials;
+    let result = check_provider_secrets(&credentials, &secrets(&[]));
     assert_eq!(result.status, CheckStatus::Fail);
-    for provider in &registry.providers {
-        assert!(
-            result.detail.contains(provider.name.as_str()),
-            "{}",
-            result.detail
-        );
+    for (id, _) in credentials.iter() {
+        assert!(result.detail.contains(id.as_str()), "{}", result.detail);
     }
 
     let all_present = secrets(
-        &registry
-            .providers
+        &credentials
             .iter()
-            .filter_map(|p| p.api_key_secret.as_ref().map(|s| (s.as_str(), "value")))
+            .filter_map(|(_, c)| c.secret.as_ref().map(|s| (s.as_str(), "value")))
             .collect::<Vec<_>>(),
     );
-    let satisfied = check_provider_secrets(&registry, &all_present);
+    let satisfied = check_provider_secrets(&credentials, &all_present);
     assert_eq!(satisfied.status, CheckStatus::Pass, "{}", satisfied.detail);
 }

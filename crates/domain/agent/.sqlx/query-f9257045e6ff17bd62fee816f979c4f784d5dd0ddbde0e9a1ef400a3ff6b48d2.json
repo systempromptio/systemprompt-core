@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM user_contexts uc\n            WHERE uc.context_id = ANY($1)\n              AND NOT EXISTS (\n                SELECT 1 FROM task_messages tm WHERE tm.context_id = uc.context_id\n              )\n              AND uc.created_at < NOW() - make_interval(hours => $2::int)\n              AND (uc.kind != $3 OR uc.session_id IS NULL)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f9257045e6ff17bd62fee816f979c4f784d5dd0ddbde0e9a1ef400a3ff6b48d2"
+}

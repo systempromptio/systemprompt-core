@@ -17,16 +17,30 @@
 mod a2a;
 
 #[cfg(test)]
+mod enforcement_mode;
+
+#[cfg(test)]
+mod subject_source_handle;
+
+#[cfg(test)]
 mod a2a_artifact_metadata;
 
 #[cfg(test)]
 mod a2a_task_metadata;
 
 #[cfg(test)]
+mod task_state_short_names;
+
+#[cfg(test)]
+mod plugin_manifest_no_alias;
+
+#[cfg(test)]
 mod ai;
 
 #[cfg(test)]
 mod api;
+#[cfg(test)]
+mod api_paths_bridge;
 #[cfg(test)]
 mod api_responses_specialized;
 
@@ -71,14 +85,6 @@ mod validators;
 #[cfg(test)]
 mod profile;
 
-#[cfg(test)]
-mod profile_gateway;
-
-#[cfg(test)]
-mod profile_gateway_chains;
-
-#[cfg(test)]
-mod profile_gateway_hidden;
 
 #[cfg(test)]
 mod profile_secrets_vault;
@@ -119,19 +125,6 @@ mod oci_reference;
 #[cfg(test)]
 mod services_bundle;
 
-#[cfg(test)]
-mod provider_catalog_parity;
-#[cfg(test)]
-mod provider_model_lookup;
-#[cfg(test)]
-mod vertex_rate_card;
-
-#[cfg(test)]
-mod provider_extra_headers;
-#[cfg(test)]
-mod provider_project_placeholder;
-#[cfg(test)]
-mod provider_protocol_filter;
 
 #[cfg(test)]
 mod wire_codec;
@@ -162,8 +155,6 @@ mod routing;
 #[cfg(test)]
 mod marketplace;
 
-#[cfg(test)]
-mod gateway_cache_pricing_gate;
 
 #[cfg(test)]
 mod gateway_hash;
@@ -256,10 +247,13 @@ mod errors_models;
 mod env_interpolation;
 
 #[cfg(test)]
-mod time_format_tests;
+mod domain_config;
 
 #[cfg(test)]
 mod users_summary;
+
+#[cfg(test)]
+mod validation_report;
 
 #[cfg(test)]
 mod oauth_models;
@@ -315,6 +309,10 @@ mod wire_stream_usage_order;
 
 #[cfg(test)]
 mod profile_config_planes;
+#[cfg(test)]
+mod profile_layering;
+#[cfg(test)]
+mod profile_unapplied_planes;
 #[cfg(test)]
 mod profile_validation;
 
@@ -381,6 +379,3 @@ mod feedback_contracts;
 
 #[cfg(test)]
 mod skill_frontmatter_render;
-
-#[cfg(test)]
-mod personal_key_sharing;

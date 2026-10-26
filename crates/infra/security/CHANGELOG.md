@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- `ProviderCredential::bearer` takes a `TokenCacheKey` (`TokenCacheKey::platform(&CredentialId)`, `TokenCacheKey::personal(&CredentialId, &UserId)`) instead of a string, so minted tokens are cached per catalog credential: every endpoint of one credential shares a token and two credentials never do.
+- `RateWindow`, `DeploymentService`, `McpClient`, `McpDeploymentProviderImpl`, `ProcessService`, `FilterSystemFields` and `JsonEventFormat` no longer implement `Copy`, and `OutboundCtx`, `ServiceAccountTokens`, `StreamEvent`, `ImageProviderParams`, `ProviderClientParams`, `UpstreamTarget`, `McpClient`, `ProcessService`, `JwtTokenValidator`, `JwtValidationProviderImpl` and `HookTokenValidator` are no longer `UnwindSafe` or `RefUnwindSafe`, because they hold the injected config, token authority, token cache or spawner handles. Migrate by cloning where a copy was implied, and by wrapping in `AssertUnwindSafe` where one crosses `catch_unwind`.
+- `ClientCredentialsError::ConfigUnavailable`, `UserTokenError::Config` and `ConnectorGrantError::Secrets` are removed, because the config and secrets arrive as arguments; `UserTokenParams` gains `config: &Arc<Config>`. `credential::cache::token_for` is the method `TokenCache::token_for(&self, key, mint)`. Migrate by adding `config` to `UserTokenParams` literals, dropping the removed match arms, and calling `token_for` on the `TokenCache` the caller owns.
+
+
 ## [0.71.0] - 2026-10-18
 
 ### Removed

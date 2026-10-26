@@ -15,7 +15,7 @@ use systemprompt_api::services::middleware::{
     ContextExtractor, JtiRevocationChecker, JwtContextExtractor,
 };
 use systemprompt_identifiers::JwtToken;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
+use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_traits::UserProvider;
 use systemprompt_users::UserService;
 
@@ -23,7 +23,6 @@ use super::common::setup_ctx;
 
 async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtractor)> {
     let (db, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let analytics = Arc::clone(&ctx.analytics_repositories().session_store);
     let user_provider: Arc<dyn UserProvider> =
         Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
@@ -34,7 +33,13 @@ async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtract
     let issuer = ctx.config().jwt_issuer.clone();
     Ok((
         db,
-        JwtContextExtractor::new(analytics, user_provider, jti, issuer),
+        JwtContextExtractor::new(
+            analytics,
+            user_provider,
+            jti,
+            issuer,
+            systemprompt_test_fixtures::test_signing_keys(),
+        ),
     ))
 }
 

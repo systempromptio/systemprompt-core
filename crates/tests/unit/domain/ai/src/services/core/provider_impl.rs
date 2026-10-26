@@ -9,17 +9,13 @@ use std::sync::Arc;
 use futures::StreamExt;
 use systemprompt_ai::models::ai::{AiMessage, AiRequest};
 use systemprompt_ai::models::tools::McpTool;
-use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_models::ai::{
     AiProvider, GenerateResponseParams, GoogleSearchParams, StreamChunk,
 };
 use systemprompt_models::errors::AiInferenceError;
 
-use super::{
-    ai_config, bootstrapped_pool, noop_session_provider, registry_with_endpoint, seeded_context,
-    service,
-};
+use super::{bootstrapped_pool, fixture_with_endpoint, seeded_context, service, service_from};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
@@ -81,25 +77,11 @@ async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
-    let registry = registry_with_endpoint(ANTHROPIC, server.uri());
-    let mut config = ai_config(ANTHROPIC);
-    config
-        .providers
-        .get_mut(ANTHROPIC)
-        .expect("configured anthropic policy")
-        .resilience
-        .retry_attempts = 1;
+    let catalog = fixture_with_endpoint(ANTHROPIC, server.uri())
+        .with_provider(ANTHROPIC, |p| p.resilience.retry_attempts = 1)
+        .build();
     let service = Arc::new(
-        AiService::new(
-            &registry,
-            &config,
-            systemprompt_ai::AiServiceProviders {
-                tools: Arc::new(NoopToolProvider::new()),
-                sessions: noop_session_provider(),
-            },
-            &systemprompt_ai::repository::AiRepositories::new(&pool),
-        )
-        .expect("service with one-attempt provider builds"),
+        service_from(&pool, Arc::new(catalog)).expect("service with one-attempt provider builds"),
     );
     let svc: Arc<dyn AiProvider> = service.clone();
     let (user, context) = seeded_context(&pool).await;
@@ -221,7 +203,8 @@ async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
     assert!(matches!(
         err,
         AiInferenceError::Configuration(cause)
-            if cause.to_string() == "provider not-configured is not configured"
+            if cause.to_string().starts_with("provider not-configured")
+                && cause.to_string().ends_with("is not configured")
     ));
     assert!(
         server
@@ -346,7 +329,7 @@ async fn health_check_reports_a_status_per_configured_provider() {
 
     let health = svc.health_check().await.expect("health check");
     assert_eq!(
-        health.get("provider_anthropic"),
+        health.get("provider_anthropic/api"),
         Some(&true),
         "the only configured provider must report healthy against a live mock, got {health:?}"
     );

@@ -1,34 +1,17 @@
-//! Tests for ConfigValidator.
+//! Tests for ConfigValidator over the resolved catalog.
 
 use crate::services::providers::mock_http;
-use std::collections::HashMap;
-use std::sync::Arc;
-use systemprompt_wire::WireProtocol;
 
 use systemprompt_ai::services::config::ConfigValidator;
-use systemprompt_ai::services::providers::ProviderClient;
-use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
-use systemprompt_manifest::services::{
-    AiConfig, AiProviderConfig, HistoryConfig, McpConfig, SamplingConfig,
-};
+use systemprompt_ai::{ProviderClients, WithheldEndpoint};
+use systemprompt_manifest::services::catalog::{EndpointRef, ResolvedCatalog};
+use systemprompt_manifest::services::{AiConfig, HistoryConfig, McpConfig, SamplingConfig};
+use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 
 fn create_valid_config() -> AiConfig {
-    let mut providers = HashMap::new();
-    providers.insert(
-        "openai".to_string(),
-        AiProviderConfig {
-            enabled: true,
-            default_model: "gpt-4".to_string(),
-            default_image_model: String::new(),
-            google_search_enabled: false,
-            ..AiProviderConfig::default()
-        },
-    );
-
     AiConfig {
-        default_provider: "openai".to_string(),
         default_max_output_tokens: Some(4096),
-        providers,
+        default_image_model: None,
         sampling: SamplingConfig {
             enable_smart_routing: true,
             fallback_enabled: true,
@@ -41,112 +24,72 @@ fn create_valid_config() -> AiConfig {
     }
 }
 
-fn built_providers(names: &[&str]) -> HashMap<String, Arc<dyn ProviderClient>> {
-    names
-        .iter()
-        .map(|name| {
-            let provider: Arc<dyn ProviderClient> =
-                Arc::new(AnthropicProvider::with_target(mock_http::api_key_target(
-                    "anthropic",
-                    WireProtocol::Anthropic,
-                    "http://localhost",
-                    "k",
-                )));
-            ((*name).to_string(), provider)
-        })
-        .collect()
+fn catalog_and_clients() -> (ResolvedCatalog, ProviderClients) {
+    let secrets = ensure_test_secrets_bootstrap();
+    let catalog = mock_http::default_catalog();
+    let (clients, _withheld) =
+        ProviderClients::build(&Default::default(), &secrets.get(), &catalog)
+            .expect("clients build");
+    (catalog, clients)
 }
 
-mod validate_providers_tests {
+fn validate(config: &AiConfig) -> systemprompt_ai::error::Result<()> {
+    let (catalog, clients) = catalog_and_clients();
+    ConfigValidator::validate(config, &catalog, &clients, &[])
+}
+
+mod validate_connectivity_tests {
     use super::*;
 
     #[test]
-    fn valid_config_passes() {
-        let config = create_valid_config();
-        ConfigValidator::validate(&config, &built_providers(&["openai"]), &[])
-            .expect("valid config should pass validation");
-    }
-
-    #[test]
-    fn rejects_no_enabled_providers() {
-        let config = create_valid_config();
-
-        let err = ConfigValidator::validate(&config, &built_providers(&[]), &[]).unwrap_err();
-
-        assert!(err.to_string().contains("No AI providers"));
-    }
-
-    #[test]
-    fn includes_missing_env_vars_in_error() {
-        let config = create_valid_config();
-
-        let missing = vec!["OPENAI_API_KEY not set".to_string()];
-        let error = ConfigValidator::validate(&config, &built_providers(&[]), &missing)
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("OPENAI_API_KEY"));
-    }
-
-    #[test]
-    fn rejects_default_provider_without_connectivity() {
-        let config = create_valid_config();
-
-        let err =
-            ConfigValidator::validate(&config, &built_providers(&["anthropic"]), &[]).unwrap_err();
-
-        assert!(err.to_string().contains("no connectivity"));
-    }
-
-    #[test]
-    fn rejects_unknown_default_provider() {
-        let mut config = create_valid_config();
-        config.default_provider = "unknown".to_string();
-
-        let err =
-            ConfigValidator::validate(&config, &built_providers(&["openai"]), &[]).unwrap_err();
-
-        assert!(err.to_string().contains("must be an enabled entry"));
-    }
-
-    #[test]
-    fn rejects_disabled_default_provider() {
-        let mut config = create_valid_config();
-
-        config.providers.insert(
-            "anthropic".to_string(),
-            AiProviderConfig {
-                enabled: true,
-                default_model: "claude-3".to_string(),
-                default_image_model: String::new(),
-                google_search_enabled: false,
-                ..AiProviderConfig::default()
-            },
+    fn accepts_a_catalog_with_served_endpoints() {
+        let (catalog, clients) = catalog_and_clients();
+        assert!(
+            !clients.is_empty(),
+            "the default catalog's three endpoints have keys"
         );
-
-        config.providers.get_mut("openai").unwrap().enabled = false;
-
-        let err =
-            ConfigValidator::validate(&config, &built_providers(&["anthropic"]), &[]).unwrap_err();
-
-        assert!(err.to_string().contains("must be an enabled entry"));
+        ConfigValidator::validate(&create_valid_config(), &catalog, &clients, &[])
+            .expect("served endpoints pass");
     }
 
     #[test]
-    fn accepts_multiple_enabled_providers() {
-        let mut config = create_valid_config();
-        config.providers.insert(
-            "anthropic".to_string(),
-            AiProviderConfig {
-                enabled: true,
-                default_model: "claude-3".to_string(),
-                default_image_model: String::new(),
-                google_search_enabled: false,
-                ..AiProviderConfig::default()
-            },
+    fn rejects_no_usable_endpoint() {
+        let catalog = mock_http::default_catalog();
+        let err = ConfigValidator::validate(
+            &create_valid_config(),
+            &catalog,
+            &ProviderClients::default(),
+            &[],
+        )
+        .unwrap_err();
+        let message = err.to_string();
+        assert!(
+            message.contains("No AI provider endpoint is usable"),
+            "{message}"
         );
+        assert!(
+            message.contains("anthropic"),
+            "names the enabled providers: {message}"
+        );
+    }
 
-        ConfigValidator::validate(&config, &built_providers(&["openai", "anthropic"]), &[])
-            .expect("multiple enabled providers should pass");
+    #[test]
+    fn names_every_withheld_endpoint_and_why() {
+        let catalog = mock_http::default_catalog();
+        let withheld = [WithheldEndpoint {
+            endpoint: EndpointRef::new("openai", "api"),
+            reason: "credential 'openai' secret 'openai' is not configured".to_owned(),
+        }];
+        let err = ConfigValidator::validate(
+            &create_valid_config(),
+            &catalog,
+            &ProviderClients::default(),
+            &withheld,
+        )
+        .unwrap_err();
+        let message = err.to_string();
+        assert!(message.contains("openai/api"), "{message}");
+        assert!(message.contains("is not configured"), "{message}");
     }
 }
 
@@ -158,8 +101,7 @@ mod validate_mcp_tests {
         let mut config = create_valid_config();
         config.mcp.resilience.connect_timeout_ms = 0;
 
-        let err =
-            ConfigValidator::validate(&config, &built_providers(&["openai"]), &[]).unwrap_err();
+        let err = validate(&config).unwrap_err();
 
         assert!(err.to_string().contains("connect timeout"));
     }
@@ -169,8 +111,7 @@ mod validate_mcp_tests {
         let mut config = create_valid_config();
         config.mcp.resilience.request_timeout_ms = 0;
 
-        let err =
-            ConfigValidator::validate(&config, &built_providers(&["openai"]), &[]).unwrap_err();
+        let err = validate(&config).unwrap_err();
 
         assert!(err.to_string().contains("execution timeout"));
     }
@@ -180,8 +121,7 @@ mod validate_mcp_tests {
         let mut config = create_valid_config();
         config.mcp.resilience.retry_attempts = 0;
 
-        ConfigValidator::validate(&config, &built_providers(&["openai"]), &[])
-            .expect("zero retry attempts should pass");
+        validate(&config).expect("zero retry attempts should pass");
     }
 }
 
@@ -194,8 +134,7 @@ mod validate_sampling_tests {
         config.sampling.enable_smart_routing = false;
         config.sampling.fallback_enabled = false;
 
-        ConfigValidator::validate(&config, &built_providers(&["openai"]), &[])
-            .expect("disabled routing should pass");
+        validate(&config).expect("disabled routing should pass");
     }
 }
 
@@ -207,8 +146,7 @@ mod validate_history_tests {
         let mut config = create_valid_config();
         config.history.retention_days = 0;
 
-        ConfigValidator::validate(&config, &built_providers(&["openai"]), &[])
-            .expect("zero retention should pass");
+        validate(&config).expect("zero retention should pass");
     }
 
     #[test]
@@ -216,7 +154,6 @@ mod validate_history_tests {
         let mut config = create_valid_config();
         config.history.retention_days = 500;
 
-        ConfigValidator::validate(&config, &built_providers(&["openai"]), &[])
-            .expect("high retention should pass");
+        validate(&config).expect("high retention should pass");
     }
 }

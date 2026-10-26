@@ -1,20 +1,87 @@
-use systemprompt_cli::admin::config::catalog::{
-    self, CatalogCommands, ModelAddArgs, ModelCommands, ProviderAddArgs, ProviderCommands,
-};
-use systemprompt_cli::{CliConfig, OutputFormat};
-use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
+use systemprompt_cli::admin::config::catalog::{self, CatalogCommands};
+use systemprompt_cli::admin::config::credential::{self, CredentialAddArgs, CredentialCommands};
+use systemprompt_cli::admin::config::endpoint::{self, EndpointAddArgs, EndpointCommands};
+use systemprompt_cli::admin::config::model::{self, ModelAddArgs, ModelCommands};
+use systemprompt_cli::admin::config::provider::{self, ProviderAddArgs, ProviderCommands};
+use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_identifiers::ModelId;
 
 const HELPER: &str = "commands::admin_config_catalog_lifecycle::catalog_file_lifecycle_helper";
 
-fn json_config() -> CliConfig {
-    CliConfig::new()
-        .with_interactive(false)
-        .with_output_format(OutputFormat::Json)
+const BOOT_CATALOG: &str = r#"
+credentials:
+  boot_provider_key: { kind: platform, secret: boot_provider_key }
+  bad_vertex: { kind: platform, secret: bad_vertex }
+providers:
+  boot-provider:
+    credential: boot_provider_key
+    endpoints:
+      api: { wire: openai-chat, url: "https://boot.example.invalid/v1" }
+  vertex:
+    credential: bad_vertex
+    endpoints:
+      gemini:
+        wire: gemini
+        url: "https://us-central1-aiplatform.googleapis.com/v1/projects/{project}/locations/us-central1/publishers/google"
+"#;
+
+fn json_config(boot: &systemprompt_test_fixtures::TestBootstrap) -> CommandContext {
+    CommandContext::new(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+    )
+    .with_boot(Some(boot.boot.clone()))
 }
 
-fn providers(path: &std::path::Path) -> serde_yaml::Value {
-    serde_yaml::from_str(&std::fs::read_to_string(path).expect("read provider catalog"))
-        .expect("provider catalog is YAML")
+fn yaml(path: &std::path::Path) -> serde_yaml::Value {
+    serde_yaml::from_str(&std::fs::read_to_string(path).expect("read catalog file"))
+        .expect("catalog file is YAML")
+}
+
+fn files(ai: &std::path::Path) -> Vec<String> {
+    [
+        "credentials.yaml",
+        "providers.yaml",
+        "models.yaml",
+        "deployments.yaml",
+    ]
+    .iter()
+    .map(|name| std::fs::read_to_string(ai.join(name)).unwrap_or_default())
+    .collect()
+}
+
+fn provider_add(id: &str, credential: &str, headers: Vec<String>) -> ProviderCommands {
+    ProviderCommands::Add(ProviderAddArgs {
+        id: id.to_owned(),
+        credential: credential.to_owned(),
+        display_name: None,
+        user_agent: None,
+        headers,
+        endpoint: None,
+        wire: Some("openai-chat".to_owned()),
+        url: Some("https://models.example.invalid/v1".to_owned()),
+    })
+}
+
+fn endpoint_add(wire: &str, url: &str) -> EndpointCommands {
+    EndpointCommands::Add(EndpointAddArgs {
+        provider: "fixture-openai".to_owned(),
+        id: "api".to_owned(),
+        wire: wire.to_owned(),
+        url: url.to_owned(),
+    })
+}
+
+fn model_add(deployment: &str) -> ModelCommands {
+    ModelCommands::Add(ModelAddArgs {
+        id: ModelId::new("fixture-model"),
+        deployments: vec![deployment.to_owned()],
+        upstream_model: Some("vendor-model-2026".to_owned()),
+        display_name: None,
+        clients: Some(vec!["openai".to_owned()]),
+    })
 }
 
 #[tokio::test]
@@ -24,263 +91,198 @@ async fn catalog_file_lifecycle_helper() {
         std::env::set_var("SYSTEMPROMPT_CUSTOM_SECRETS", "bad_vertex");
         std::env::set_var("bad_vertex", r#"{"type":"service_account"}"#);
     }
-    let boot = systemprompt_test_fixtures::init_services_bootstrap(
-        r#"
-providers:
-  - name: boot-provider
-    wire: openai-chat
-    surface: openai
-    endpoint: https://boot.example.invalid/v1
-    api_key_secret: boot_provider_key
-  - name: vertex
-    wire: gemini
-    surface: gemini
-    endpoint: https://us-central1-aiplatform.googleapis.com/v1/projects/{project}/locations/us-central1/publishers/google
-    api_key_secret: bad_vertex
-"#,
-    );
+    let boot = systemprompt_test_fixtures::init_services_bootstrap(BOOT_CATALOG);
     let ai = boot.services_path.join("ai");
-    std::fs::create_dir_all(&ai).expect("create AI services directory");
-    let catalog_path = ai.join("providers.yaml");
+    let providers_path = ai.join("providers.yaml");
+    let config = json_config(&boot);
 
     println!("BEGIN_PROVIDER_LIST");
-    catalog::execute(
-        &CatalogCommands::Provider(ProviderCommands::List),
-        &json_config(),
-    )
-    .await
-    .expect("list booted provider");
+    provider::execute(&ProviderCommands::List, &config)
+        .await
+        .expect("list booted provider");
     println!("END_PROVIDER_LIST");
 
-    std::fs::write(&catalog_path, "providers: [\n").expect("write broken provider catalog");
-    let malformed = catalog::execute(
-        &CatalogCommands::Provider(ProviderCommands::Add(ProviderAddArgs {
-            name: ProviderId::new("fixture-openai"),
-            wire: "openai-chat".to_owned(),
-            surface: "openai".to_owned(),
-            endpoint: "https://models.example.invalid/v1/chat/completions".to_owned(),
-            api_key_secret: SecretName::new("fixture_openai_key"),
-            headers: vec![],
-        })),
-        &json_config(),
+    let original = std::fs::read_to_string(&providers_path).expect("booted providers.yaml");
+    std::fs::write(&providers_path, "providers: [\n").expect("write broken providers.yaml");
+    let malformed = provider::execute(
+        &provider_add("fixture-openai", "boot_provider_key", vec![]),
+        &config,
     )
     .await
-    .expect_err("malformed provider source is visible");
+    .expect_err("malformed catalog source is visible");
     println!("MALFORMED_ERROR={malformed:#}");
     assert_eq!(
-        std::fs::read_to_string(&catalog_path).unwrap(),
+        std::fs::read_to_string(&providers_path).unwrap(),
         "providers: [\n"
     );
-    std::fs::remove_file(&catalog_path).expect("remove malformed provider source before repair");
+    std::fs::write(&providers_path, original).expect("repair providers.yaml");
 
-    println!("BEGIN_PROVIDER_ADD");
-    catalog::execute(
-        &CatalogCommands::Provider(ProviderCommands::Add(ProviderAddArgs {
-            name: ProviderId::new("fixture-openai"),
-            wire: "openai-chat".to_owned(),
-            surface: "openai".to_owned(),
-            endpoint: "https://models.example.invalid/v1/chat/completions".to_owned(),
-            api_key_secret: SecretName::new("fixture_openai_key"),
-            headers: vec!["X-Fixture=enabled".to_owned()],
-        })),
-        &json_config(),
+    credential::execute(
+        &CredentialCommands::Add(CredentialAddArgs {
+            id: "fixture_openai_key".to_owned(),
+            kind: "platform".to_owned(),
+            secret: Some("fixture_openai_key".to_owned()),
+            label: None,
+        }),
+        &config,
     )
     .await
-    .expect("add provider");
-    println!("END_PROVIDER_ADD");
-    let stored = providers(&catalog_path);
-    assert_eq!(stored["providers"][0]["name"], "fixture-openai");
-    assert_eq!(
-        stored["providers"][0]["extra_headers"]["X-Fixture"],
-        "enabled"
-    );
-    let root = std::fs::read_to_string(boot.services_path.join("config/config.yaml"))
-        .expect("read services root");
-    assert!(root.contains("../ai/providers.yaml"), "{root}");
-
-    let before_invalid = std::fs::read_to_string(&catalog_path).unwrap();
-    for args in [
-        ProviderAddArgs {
-            name: ProviderId::new("bad-wire"),
-            wire: "unknown-wire".to_owned(),
-            surface: "openai".to_owned(),
-            endpoint: "https://invalid.example".to_owned(),
-            api_key_secret: SecretName::new("bad"),
-            headers: vec![],
-        },
-        ProviderAddArgs {
-            name: ProviderId::new("bad-surface"),
-            wire: "openai-chat".to_owned(),
-            surface: "unknown-surface".to_owned(),
-            endpoint: "https://invalid.example".to_owned(),
-            api_key_secret: SecretName::new("bad"),
-            headers: vec![],
-        },
-        ProviderAddArgs {
-            name: ProviderId::new("bad-header"),
-            wire: "openai-chat".to_owned(),
-            surface: "openai".to_owned(),
-            endpoint: "https://invalid.example".to_owned(),
-            api_key_secret: SecretName::new("bad"),
-            headers: vec!["missing-separator".to_owned()],
-        },
+    .expect("add credential");
+    let before_invalid = files(&ai);
+    for result in [
+        provider::execute(
+            &provider_add(
+                "bad-header",
+                "fixture_openai_key",
+                vec!["missing-separator".to_owned()],
+            ),
+            &config,
+        )
+        .await,
+        provider::execute(
+            &provider_add("bad-credential", "absent_key", vec![]),
+            &config,
+        )
+        .await,
+        endpoint::execute(
+            &endpoint_add("unknown-wire", "https://invalid.example"),
+            &config,
+        )
+        .await,
     ] {
-        assert!(
-            catalog::execute(
-                &CatalogCommands::Provider(ProviderCommands::Add(args)),
-                &json_config(),
-            )
-            .await
-            .is_err()
-        );
-        assert_eq!(
-            std::fs::read_to_string(&catalog_path).unwrap(),
-            before_invalid
-        );
+        assert!(result.is_err());
+        assert_eq!(files(&ai), before_invalid);
     }
 
+    println!("BEGIN_PROVIDER_ADD");
+    provider::execute(
+        &provider_add(
+            "fixture-openai",
+            "fixture_openai_key",
+            vec!["X-Fixture=enabled".to_owned()],
+        ),
+        &config,
+    )
+    .await
+    .expect("add provider with its first endpoint");
+    println!("END_PROVIDER_ADD");
+    let stored = yaml(&providers_path);
+    assert_eq!(
+        stored["providers"]["fixture-openai"]["extra_headers"]["X-Fixture"],
+        "enabled"
+    );
+    assert_eq!(
+        stored["providers"]["fixture-openai"]["endpoints"]["api"]["wire"],
+        "openai-chat"
+    );
+    let root = std::fs::read_to_string(boot.services_path.join("config/config.yaml")).unwrap();
+    assert!(
+        !root.contains("../ai/providers.yaml"),
+        "the catalog is read by convention: {root}"
+    );
+
     println!("BEGIN_MODEL_ADD");
-    catalog::execute(
-        &CatalogCommands::Model(ModelCommands::Add(ModelAddArgs {
-            provider: ProviderId::new("fixture-openai"),
-            id: ModelId::new("fixture-model"),
-            aliases: vec![ModelId::new("fixture-latest")],
-            upstream_model: Some("vendor-model-2026".to_owned()),
-        })),
-        &json_config(),
-    )
-    .await
-    .expect("add model");
+    model::execute(&model_add("fixture-openai/api"), &config)
+        .await
+        .expect("add model");
     println!("END_MODEL_ADD");
-    let stored = providers(&catalog_path);
-    let model = &stored["providers"][0]["models"][0];
-    assert_eq!(model["id"], "fixture-model");
-    assert_eq!(model["aliases"][0], "fixture-latest");
-    assert_eq!(model["upstream_model"], "vendor-model-2026");
-
-    catalog::execute(
-        &CatalogCommands::Provider(ProviderCommands::Add(ProviderAddArgs {
-            name: ProviderId::new("fixture-openai"),
-            wire: "openai-responses".to_owned(),
-            surface: "openai".to_owned(),
-            endpoint: "https://responses.example.invalid/v1/responses".to_owned(),
-            api_key_secret: SecretName::new("fixture_responses_key"),
-            headers: vec![],
-        })),
-        &json_config(),
-    )
-    .await
-    .expect("replace provider connectivity");
-    let stored = providers(&catalog_path);
-    assert_eq!(stored["providers"][0]["wire"], "openai-responses");
+    let models = yaml(&ai.join("models.yaml"));
     assert_eq!(
-        stored["providers"][0]["endpoint"],
-        "https://responses.example.invalid/v1/responses"
+        models["models"]["fixture-model"]["upstream_model"],
+        "vendor-model-2026"
     );
-    assert_eq!(stored["providers"][0]["models"][0]["id"], "fixture-model");
+    assert_eq!(models["models"]["fixture-model"]["clients"][0], "openai");
+    let deployments = yaml(&ai.join("deployments.yaml"));
+    assert_eq!(
+        deployments["deployments"]["fixture-model"][0],
+        "fixture-openai/api"
+    );
 
-    let before_unknown = std::fs::read_to_string(&catalog_path).unwrap();
-    let unknown = catalog::execute(
-        &CatalogCommands::Model(ModelCommands::Add(ModelAddArgs {
-            provider: ProviderId::new("absent-provider"),
-            id: ModelId::new("orphan-model"),
-            aliases: vec![],
-            upstream_model: None,
-        })),
-        &json_config(),
+    endpoint::execute(
+        &endpoint_add("openai-responses", "https://responses.example.invalid/v1"),
+        &config,
     )
     .await
-    .expect_err("model cannot be added to an absent provider");
+    .expect("replace endpoint connectivity");
+    let stored = yaml(&providers_path);
+    assert_eq!(
+        stored["providers"]["fixture-openai"]["endpoints"]["api"]["wire"],
+        "openai-responses"
+    );
+    assert_eq!(
+        yaml(&ai.join("models.yaml"))["models"]["fixture-model"]["upstream_model"],
+        "vendor-model-2026"
+    );
+
+    let before_unknown = files(&ai);
+    let unknown = model::execute(&model_add("absent-provider/api"), &config)
+        .await
+        .expect_err("a model cannot be deployed on an absent endpoint");
     println!("UNKNOWN_PROVIDER_ERROR={unknown:#}");
-    assert_eq!(
-        std::fs::read_to_string(&catalog_path).unwrap(),
-        before_unknown
-    );
-
-    let missing_model = catalog::execute(
-        &CatalogCommands::Model(ModelCommands::Remove {
-            provider: ProviderId::new("fixture-openai"),
+    assert_eq!(files(&ai), before_unknown);
+    let missing_model = model::execute(
+        &ModelCommands::Remove {
             id: ModelId::new("absent-model"),
-        }),
-        &json_config(),
+        },
+        &config,
     )
     .await
     .expect_err("removing an absent model is visible");
     println!("MISSING_MODEL_ERROR={missing_model:#}");
-    assert_eq!(
-        std::fs::read_to_string(&catalog_path).unwrap(),
-        before_unknown
-    );
+    assert_eq!(files(&ai), before_unknown);
 
     println!("BEGIN_MODEL_REMOVE");
-    catalog::execute(
-        &CatalogCommands::Model(ModelCommands::Remove {
-            provider: ProviderId::new("fixture-openai"),
+    model::execute(
+        &ModelCommands::Remove {
             id: ModelId::new("fixture-model"),
-        }),
-        &json_config(),
+        },
+        &config,
     )
     .await
     .expect("remove model");
     println!("END_MODEL_REMOVE");
-    let stored = providers(&catalog_path);
-    let models = &stored["providers"][0]["models"];
     assert!(
-        models.is_null() || models.as_sequence().is_some_and(Vec::is_empty),
-        "removed model must not remain in the serialized catalog: {stored:?}"
+        yaml(&ai.join("models.yaml"))["models"]
+            .get("fixture-model")
+            .is_none()
     );
 
     println!("BEGIN_PROVIDER_REMOVE");
-    catalog::execute(
-        &CatalogCommands::Provider(ProviderCommands::Remove {
-            name: ProviderId::new("fixture-openai"),
-        }),
-        &json_config(),
+    provider::execute(
+        &ProviderCommands::Remove {
+            id: "fixture-openai".to_owned(),
+        },
+        &config,
     )
     .await
     .expect("remove provider");
     println!("END_PROVIDER_REMOVE");
-    assert!(
-        providers(&catalog_path)["providers"]
-            .as_sequence()
-            .expect("providers sequence")
-            .is_empty()
-    );
-
-    let empty_catalog = std::fs::read_to_string(&catalog_path).unwrap();
-    let missing_provider = catalog::execute(
-        &CatalogCommands::Provider(ProviderCommands::Remove {
-            name: ProviderId::new("fixture-openai"),
-        }),
-        &json_config(),
+    let after_remove = files(&ai);
+    let missing_provider = provider::execute(
+        &ProviderCommands::Remove {
+            id: "fixture-openai".to_owned(),
+        },
+        &config,
     )
     .await
     .expect_err("removing an absent provider is visible");
     println!("MISSING_PROVIDER_ERROR={missing_provider:#}");
-    assert_eq!(
-        std::fs::read_to_string(&catalog_path).unwrap(),
-        empty_catalog
-    );
+    assert_eq!(files(&ai), after_remove);
 
     println!("BEGIN_DISCOVERY_EMPTY");
-    catalog::execute(&CatalogCommands::Discovery, &json_config())
-        .await
+    catalog::execute(&CatalogCommands::Discovery, &config.cli, None)
         .expect("missing discovery report is informative");
     println!("END_DISCOVERY_EMPTY");
 
     use systemprompt_scheduler::jobs::vertex_discovery::VertexDiscoveryJob;
-    use systemprompt_traits::{Job, JobContext};
-    let context = JobContext::new(
-        systemprompt_test_fixtures::fixture_actor(),
-        systemprompt_traits::Dependencies::new(),
-    );
-    let result = VertexDiscoveryJob
-        .execute(&context)
-        .await
-        .expect("run owned discovery job");
-    assert!(result.success, "discovery report job must complete");
-    let report = systemprompt_scheduler::jobs::vertex_discovery::latest_report()
-        .expect("scheduler publishes its latest discovery report");
+    let report = VertexDiscoveryJob::probe(
+        &systemprompt_loader::ServicesState::load(&boot.boot)
+            .expect("services state")
+            .view(),
+        boot.boot.secrets().get(),
+    )
+    .await
+    .expect("discovery job produces a report");
     println!("DISCOVERY_RAN_AT={}", report.ran_at);
     assert_eq!(report.failed_publishers.len(), 1, "{report:?}");
     assert!(
@@ -288,9 +290,11 @@ providers:
         "{report:?}"
     );
     println!("BEGIN_DISCOVERY_PARTIAL");
-    catalog::execute(&CatalogCommands::Discovery, &json_config())
-        .await
-        .expect("partial discovery report is rendered");
+    systemprompt_cli::admin::config::catalog_discovery::render_discovery(
+        Some(&report),
+        &config.cli,
+    )
+    .expect("partial discovery report is rendered");
     println!("END_DISCOVERY_PARTIAL");
 }
 
@@ -333,28 +337,33 @@ fn catalog_file_lifecycle_is_durable_and_structured() {
     );
     let stdout = String::from_utf8(output.stdout).expect("catalog output UTF-8");
     assert!(stdout.contains("MALFORMED_ERROR="), "{stdout}");
-    assert!(stdout.contains("Failed to parse"), "{stdout}");
-    assert!(stdout.contains("ai/providers.yaml"), "{stdout}");
+    assert!(stdout.contains("providers.yaml"), "{stdout}");
     assert!(stdout.contains("UNKNOWN_PROVIDER_ERROR="), "{stdout}");
-    assert!(stdout.contains("absent-provider"), "{stdout}");
+    assert!(stdout.contains("absent-provider/api"), "{stdout}");
     assert!(stdout.contains("MISSING_MODEL_ERROR="), "{stdout}");
     assert!(stdout.contains("absent-model"), "{stdout}");
     assert!(stdout.contains("MISSING_PROVIDER_ERROR="), "{stdout}");
 
-    for (marker, expected) in [
+    for (marker, title, expected) in [
         (
             "PROVIDER_ADD",
-            "Provider fixture-openai (wire openai-chat, surface openai) added",
+            "Provider Updated",
+            "Provider fixture-openai saved",
         ),
-        ("MODEL_ADD", "Model fixture-model added to fixture-openai"),
+        ("MODEL_ADD", "Model Updated", "Model fixture-model saved"),
         (
             "MODEL_REMOVE",
-            "Model fixture-model removed from fixture-openai",
+            "Model Removed",
+            "Model fixture-model removed",
         ),
-        ("PROVIDER_REMOVE", "Provider fixture-openai removed"),
+        (
+            "PROVIDER_REMOVE",
+            "Provider Removed",
+            "Provider fixture-openai removed",
+        ),
     ] {
         let value = marked_json(&stdout, marker);
-        assert_eq!(value["title"], "Provider Registry Updated", "{value}");
+        assert_eq!(value["title"], title, "{value}");
         let message = value["sections"]
             .as_array()
             .expect("card sections")
@@ -378,7 +387,10 @@ fn catalog_file_lifecycle_is_durable_and_structured() {
         })
         .unwrap_or_else(|| panic!("boot provider missing: {list}"));
     assert!(
-        item["title"].as_str().unwrap().contains("0 models"),
+        item["title"]
+            .as_str()
+            .unwrap()
+            .contains("credential boot_provider_key"),
         "{list}"
     );
 

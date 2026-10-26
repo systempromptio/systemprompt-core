@@ -10,23 +10,20 @@
 //! branch that matters for a linking flow (a bad or replayed link token must
 //! never attach a credential to an account).
 
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
-use axum::http::{Request, Response, StatusCode, header};
+use axum::http::{Request, StatusCode, header};
 use axum::response::IntoResponse;
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_api::routes::oauth::webauthn::link::link_passkey_page;
 use systemprompt_identifiers::{ChallengeId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
 use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::services::webauthn::hash_token;
-use systemprompt_test_fixtures::{
-    fixture_config, install_test_signing_key, seed_user_row, test_db_pool,
-};
+use systemprompt_test_fixtures::{seed_user_row, test_db_pool};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -34,20 +31,18 @@ use webauthn_authenticator_rs::WebauthnAuthenticator;
 use webauthn_authenticator_rs::softtoken::SoftToken;
 use webauthn_rs::prelude::CreationChallengeResponse;
 
-use super::common::setup_ctx;
+use super::common::{read_json, setup_ctx_customised, with_config};
 
-static CONFIG_INSTALL: Once = Once::new();
-
-fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let mut config = fixture_config("postgres://x");
-        config.api_external_url = "http://localhost".to_owned();
-        let _ = Config::install(config);
-    });
+async fn setup_link_ctx() -> anyhow::Result<(
+    systemprompt_database::DbPool,
+    std::sync::Arc<systemprompt_runtime::AppContext>,
+)> {
+    setup_ctx_customised(|config| config.api_external_url = "http://localhost".to_owned()).await
 }
 
 fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthState> {
     let webauthn = WebAuthnService::new(
+        ctx.config(),
         ctx.oauth_repositories().oauth.clone(),
         ctx.user_provider().expect("user"),
     )
@@ -57,16 +52,19 @@ fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthSt
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     )
     .with_webauthn(Arc::new(webauthn)))
 }
 
 async fn app() -> anyhow::Result<Router> {
-    ensure_config();
-    install_test_signing_key();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_link_ctx().await?;
     let state = oauth_state(&ctx)?;
-    Ok(public_router().with_state(state))
+    let router = public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state);
+    Ok(with_config(router, &ctx))
 }
 
 fn get(uri: &str) -> Request<Body> {
@@ -83,11 +81,6 @@ fn json_post(uri: &str, body: serde_json::Value) -> Request<Body> {
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from(body.to_string()))
         .expect("build")
-}
-
-async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {
-    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    Ok(serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
 }
 
 fn credential() -> serde_json::Value {
@@ -218,13 +211,16 @@ async fn the_link_page_renders_the_passkey_template() {
 
 #[tokio::test]
 async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
-    ensure_config();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_link_ctx().await?;
     let state = oauth_state(&ctx)?;
 
     // `router()` is the merge of the public and authenticated halves; nothing
     // in the suite builds it, so a route lost from the merge would go unnoticed.
-    let merged = systemprompt_api::routes::oauth::router().with_state(state);
+    let merged = systemprompt_api::routes::oauth::router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state);
+    let merged = with_config(merged, &ctx);
     let resp = merged.oneshot(get("/health")).await?;
 
     assert!(resp.status().is_success(), "{}", resp.status());
@@ -257,11 +253,13 @@ async fn issue_link_token(ctx: &systemprompt_runtime::AppContext) -> (UserId, St
 }
 
 async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppContext>)> {
-    ensure_config();
-    install_test_signing_key();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_link_ctx().await?;
     let state = oauth_state(&ctx)?;
-    Ok((public_router().with_state(state), ctx))
+    let router = public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state);
+    Ok((with_config(router, &ctx), ctx))
 }
 
 async fn start_link(

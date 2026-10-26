@@ -1,16 +1,12 @@
-//! Global runtime [`Config`] singleton and validation helpers.
+//! Runtime [`Config`] and validation helpers.
 //!
-//! [`Config`] is the resolved, flat configuration installed once at
-//! startup into a process-wide `OnceLock` and read via [`Config::get`].
-//! Submodules cover postgres-URL validation.
-//! Accessors return [`systemprompt_models::errors::GlobalConfigError`] when not
-//! initialized.
+//! [`Config`] is the resolved, flat configuration the boot sequence builds once
+//! and hands to its readers. Submodules cover postgres-URL validation.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
-use std::sync::OnceLock;
 pub use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::ConfigProvider;
 
@@ -22,8 +18,6 @@ mod validation;
 
 pub use paths::PathNotConfiguredError;
 pub use validation::validate_postgres_url;
-
-static CONFIG: OnceLock<Config> = OnceLock::new();
 
 pub const DEFAULT_MAX_CONCURRENT_STREAMS: usize = 256;
 
@@ -185,20 +179,6 @@ impl std::fmt::Debug for Config {
 }
 
 impl Config {
-    pub fn is_initialized() -> bool {
-        CONFIG.get().is_some()
-    }
-
-    pub fn get() -> Result<&'static Self, systemprompt_models::errors::GlobalConfigError> {
-        CONFIG
-            .get()
-            .ok_or(systemprompt_models::errors::GlobalConfigError::NotInitialized)
-    }
-
-    pub fn install(config: Self) -> Result<(), Box<Self>> {
-        CONFIG.set(config).map_err(Box::new)
-    }
-
     pub fn logs_path(&self) -> String {
         format!("{}/logs", self.system_path)
     }

@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `list_skill_resolutions`, `list_skill_resolutions_for` and `revoked_skill_keys` are `list_resolutions(owner, kind)`, `list_resolutions_for(owner, consumer, kind)` and `revoked_keys(owner, consumer, kind)`, `SkillResolutionRow` is `ResourceResolutionRow`, and `CatalogContent::{with,without}_organization_skills` are `{with,without}_organization_resources`. Migrate by passing `ResourceKind::Skill` for the previous behaviour.
+- **Breaking:** a managed plugin or rule (`ResourceKind::Rule`, migration `020_managed_rule_kind`) is withheld from the catalogue unless the consumer resolves it to a published generation, and a resolved one is served from its verified revision.
+- **Breaking:** `PublicationRequest` gains `cohort: Option<CohortSelector>`, and `expected_generation` is compared against the resource's latest publication generation, base or cohort. Migrate by adding `cohort: None` and reading `ManagedRepository::publication_head_generation` before publishing.
+- **Breaking:** `bridge_user_host_prefs.host_id` and `bridge_user_host_model_prefs.host_id` are constrained to the seven host ids (migration `021_bridge_host_prefs_host_check`); rows naming any other id are dropped.
+- **Breaking:** `TaskState::from_str` is the one task-state parser and retired serde aliases are removed.
+- `BundleContent` gains `managed_plugin_files: &BTreeMap<PluginId, RevisionFiles>`, so a managed plugin's files come from its published revision as managed skills' do. Migrate by adding `managed_plugin_files` to struct literals (an empty map when no managed plugin is resolved).
+
+### Added
+
+- `PublicationGate` and `register_publication_gate!`: extension-registered checks that run before a publication is recorded (migration `018_publication_gate` records the admitting gate and evidence digest).
+- Cohort publication through `marketplace.rings` (migration `019_publication_cohorts`); `Withdraw` with a cohort clears that override.
+- `ManagedRepository::with_publication_policy` and `PublicationPolicy::{new, discover}`.
+
+### Changed
+
+- Migrations 018 to 020 declare a measured `@cost`.
+- `ManagedRepository` owns the base-tree hash memo and the verified-revision memo.
+- `systemprompt_marketplace::inventory` re-exports an explicit item list instead of a glob.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

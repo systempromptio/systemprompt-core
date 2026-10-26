@@ -12,7 +12,7 @@ use systemprompt_gateway::{
     ScanError, ScannerSettings, Severity, register_safety_scanner,
 };
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
@@ -88,7 +88,12 @@ impl SafetyScanner for ConfigReadingScanner {
     }
 }
 
-register_safety_scanner!(ConfigReadingScanner::from_settings, name = READER);
+register_safety_scanner!(
+    |_: &dyn systemprompt_extension::ExtensionContext, settings: &ScannerSettings| {
+        ConfigReadingScanner::from_settings(settings)
+    },
+    name = READER
+);
 
 struct UnreachableScanner;
 
@@ -113,7 +118,10 @@ impl SafetyScanner for UnreachableScanner {
     }
 }
 
-register_safety_scanner!(|_: &ScannerSettings| UnreachableScanner, name = UNREACHABLE);
+register_safety_scanner!(
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| UnreachableScanner,
+    name = UNREACHABLE
+);
 
 async fn install_policy(pool: &DbPool, safety: serde_json::Value) -> anyhow::Result<()> {
     sqlx::query(
@@ -179,7 +187,7 @@ async fn an_extension_scanner_reads_its_own_config_from_the_policy() -> anyhow::
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let di = inputs(&cred, request_with("please look at zebra-needle"), false);
     let id = di.ctx.ai_request_id.clone();
@@ -233,7 +241,7 @@ async fn an_open_scanner_failure_is_recorded_and_the_request_proceeds() -> anyho
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let di = inputs(&cred, request_with("an ordinary question"), false);
     let id = di.ctx.ai_request_id.clone();

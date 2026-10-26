@@ -1,19 +1,12 @@
 use super::repos;
-use systemprompt_identifiers::AgentName;
 use systemprompt_manifest::services::ServiceStatus;
-use systemprompt_test_fixtures::test_db_pool;
-use systemprompt_traits::RepositoryError;
-use uuid::Uuid;
-
-fn unique_name(prefix: &str) -> AgentName {
-    AgentName::new(format!("{prefix}-{}", Uuid::new_v4()))
-}
+use systemprompt_test_fixtures::{test_db_pool, unique_agent_name};
 
 #[tokio::test]
 async fn register_and_get_status_running() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let name = unique_name("svc-running");
+    let name = unique_agent_name("svc-running");
 
     r.agent_services
         .register_agent(&name, 4242, 9100)
@@ -41,7 +34,7 @@ async fn register_and_get_status_running() {
 async fn register_starting_then_mark_running() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let name = unique_name("svc-starting");
+    let name = unique_agent_name("svc-starting");
 
     r.agent_services
         .register_agent_starting(&name, 1, 9101)
@@ -74,7 +67,7 @@ async fn register_starting_then_mark_running() {
 async fn mark_crashed_clears_pid() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let name = unique_name("svc-crash");
+    let name = unique_agent_name("svc-crash");
     r.agent_services
         .register_agent(&name, 99, 9102)
         .await
@@ -98,7 +91,7 @@ async fn mark_stopped_and_error_clear_pid() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
 
-    let stopped = unique_name("svc-stop");
+    let stopped = unique_agent_name("svc-stop");
     r.agent_services
         .register_agent(&stopped, 5, 9103)
         .await
@@ -113,7 +106,7 @@ async fn mark_stopped_and_error_clear_pid() {
     assert_eq!(s.status, ServiceStatus::Stopped);
     assert_eq!(s.pid, None);
 
-    let errored = unique_name("svc-err");
+    let errored = unique_agent_name("svc-err");
     r.agent_services
         .register_agent(&errored, 6, 9104)
         .await
@@ -132,28 +125,25 @@ async fn mark_stopped_and_error_clear_pid() {
 }
 
 #[tokio::test]
-async fn unrecognised_stored_status_is_invalid_data() {
+async fn unrecognised_stored_status_is_refused_by_the_check() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let name = unique_name("svc-garbled");
+    let name = unique_agent_name("svc-garbled");
     r.agent_services
         .register_agent(&name, 7, 9105)
         .await
         .expect("register");
 
     let raw = pool.pool();
-    sqlx::query("UPDATE services SET status = 'degraded' WHERE name = $1")
+    let refused = sqlx::query("UPDATE services SET status = 'degraded' WHERE name = $1")
         .bind(name.as_str())
         .execute(raw.as_ref())
         .await
-        .expect("garble status");
-
-    let err = r
-        .agent_services
-        .find_agent_status(&name)
-        .await
-        .expect_err("a status outside the agent vocabulary is corrupt");
-    assert!(matches!(err, RepositoryError::Decode { .. }), "got {err}");
+        .expect_err("a status outside the service vocabulary is refused by the CHECK");
+    let code = refused
+        .as_database_error()
+        .and_then(|e| e.code().map(|c| c.to_string()));
+    assert_eq!(code.as_deref(), Some("23514"), "got {refused}");
 
     r.agent_services.remove_agent_service(&name).await.ok();
 }
@@ -162,7 +152,7 @@ async fn unrecognised_stored_status_is_invalid_data() {
 async fn list_running_agents_includes_registered() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let name = unique_name("svc-list");
+    let name = unique_agent_name("svc-list");
     r.agent_services
         .register_agent(&name, 31337, 9106)
         .await
@@ -184,7 +174,7 @@ async fn get_status_unknown_returns_none() {
     let r = repos(&pool);
     let result = r
         .agent_services
-        .find_agent_status(&unique_name("never-registered"))
+        .find_agent_status(&unique_agent_name("never-registered"))
         .await
         .expect("status");
     assert!(result.is_none());
@@ -194,7 +184,7 @@ async fn get_status_unknown_returns_none() {
 async fn register_twice_upserts() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let name = unique_name("svc-upsert");
+    let name = unique_agent_name("svc-upsert");
     r.agent_services
         .register_agent(&name, 1, 9107)
         .await
@@ -220,7 +210,7 @@ async fn remove_unknown_is_ok() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     r.agent_services
-        .remove_agent_service(&unique_name("ghost"))
+        .remove_agent_service(&unique_agent_name("ghost"))
         .await
         .expect("remove ok");
 }

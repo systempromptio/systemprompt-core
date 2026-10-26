@@ -324,11 +324,11 @@ pub(crate) fn skill_service(pool: &DbPool) -> systemprompt_agent::services::Skil
     let steps =
         Arc::new(systemprompt_agent::repository::execution::ExecutionStepRepository::new(pool));
     systemprompt_agent::services::SkillService::new(
+        systemprompt_test_fixtures::test_skills_root(),
         systemprompt_test_fixtures::not_managed_skills(),
         steps,
         systemprompt_test_mocks::recording_webhooks(),
     )
-    .expect("skill service")
 }
 
 pub(crate) fn make_agent_state(pool: &DbPool) -> Arc<AgentState> {
@@ -346,9 +346,13 @@ pub(crate) fn make_agent_state_for(pool: &DbPool, instance: &InstanceId) -> Arc<
     Arc::new(AgentState::new(
         Arc::clone(pool),
         Arc::new(config),
-        stub_jwt(),
+        systemprompt_agent::AgentAuth {
+            jwt_provider: stub_jwt(),
+            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+        },
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_view(),
     ))
 }
 
@@ -358,6 +362,7 @@ pub(crate) fn make_oauth_state(pool: &DbPool) -> Arc<AgentOAuthState> {
         AgentOAuthConfig::default(),
         "test-issuer".to_owned(),
         vec![],
+        systemprompt_test_fixtures::test_signing_keys(),
     ))
 }
 
@@ -471,9 +476,13 @@ pub(crate) fn make_handler_state_with_launcher(
         AgentState::new(
             Arc::clone(pool),
             Arc::new(config),
-            stub_jwt(),
+            systemprompt_agent::AgentAuth {
+                jwt_provider: stub_jwt(),
+                signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+            },
             Arc::new(repos),
             systemprompt_test_mocks::recording_webhooks(),
+            systemprompt_test_fixtures::fixture_services_view(),
         )
         .with_agent_run_launcher(launcher),
     );

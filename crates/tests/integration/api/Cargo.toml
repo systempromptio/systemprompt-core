@@ -14,37 +14,36 @@ path = "mod.rs"
 workspace = true
 
 [package.metadata.cargo-machete]
-# register_gateway_guard! expands to ::inventory::submit! in this crate.
+# register_gateway_guard! and register_run_origin! expand to ::inventory::submit! in this crate.
 ignored = ["inventory"]
 
 [dependencies]
+systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
 inventory = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-api = { workspace = true }
 systemprompt-gateway = { workspace = true }
-systemprompt-config = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
-systemprompt-storage = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-oauth = { workspace = true }
+systemprompt-oauth-issuance = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-ai = { workspace = true }
-systemprompt-analytics = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
-systemprompt-files = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-agent-runs = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["json"] }
 systemprompt-slack = { workspace = true }

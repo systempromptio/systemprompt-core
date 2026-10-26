@@ -6,14 +6,14 @@ use std::sync::Arc;
 
 use axum::body::to_bytes;
 use axum::http::StatusCode;
-use systemprompt_api::routes::gateway::messages::auth::{ApiKeyPrincipal, AuthedPrincipal};
+use systemprompt_api::routes::gateway::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
 use systemprompt_api::routes::gateway::messages::extract::scope::{
     api_key_windows, enforce_key_model_allowlist,
 };
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_identifiers::{ScopeDimension, SessionId, TraceId};
 use systemprompt_models::attribution::{RequestAttribution, ScopeBinding};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
 use systemprompt_wire::WireProtocol;
@@ -27,14 +27,24 @@ use super::gateway_pipeline::{
 };
 
 fn principal(record: UserApiKey) -> AuthedPrincipal {
-    AuthedPrincipal::ApiKey(ApiKeyPrincipal {
-        api_key_id: record.id,
-        limits: record.limits,
-        scopes: record.scopes,
-        user_id: record.user_id,
+    AuthedPrincipal {
+        principal: Principal {
+            user_id: record.user_id,
+            roles: vec!["user".to_owned()],
+            subject: systemprompt_governance::authz::SubjectAttributes::new(),
+            attributes: std::collections::BTreeMap::new(),
+            act_chain: Vec::new(),
+            client_id: None,
+            scopes: Some(KeyScopes {
+                api_key_id: record.id,
+                limits: record.limits,
+                scopes: record.scopes,
+            }),
+        },
         trace_id: TraceId::generate(),
-        attested_session: SessionId::generate(),
-    })
+        session_id: SessionId::generate(),
+        client_session: None,
+    }
 }
 
 async fn issue(
@@ -107,9 +117,7 @@ async fn key_limits_become_an_api_key_window_and_bound_scopes_ride_the_principal
     assert_eq!(windows[0].window_seconds, 600);
     assert_eq!(windows[0].max_requests, Some(3));
     assert_eq!(windows[0].max_cost_microdollars, Some(9_000));
-    let AuthedPrincipal::ApiKey(key) = &principal else {
-        panic!("api key principal");
-    };
+    let key = principal.api_key().expect("api key principal");
     assert_eq!(key.scopes, bound.to_vec());
 
     let unlimited =
@@ -129,9 +137,7 @@ async fn a_per_key_request_ceiling_denies_the_second_request_as_api_key() -> any
         ..ApiKeyLimits::default()
     };
     let principal = principal(issue(&pool, &cred.user_id, limits, &[]).await);
-    let AuthedPrincipal::ApiKey(key) = &principal else {
-        panic!("api key principal");
-    };
+    let key = principal.api_key().expect("api key principal");
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -147,7 +153,7 @@ async fn a_per_key_request_ceiling_denies_the_second_request_as_api_key() -> any
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let repos = gw_repos(&pool);
     let keyed = |request| {

@@ -7,6 +7,7 @@
 use axum::http::{HeaderMap, StatusCode, header};
 use systemprompt_identifiers::ManagedResourceId;
 use systemprompt_marketplace::managed::ManagedError;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 use systemprompt_runtime::AppContext;
@@ -46,19 +47,12 @@ pub(super) async fn resource(
     host: EvaluatorClient,
 ) -> Result<(), ConsumerHttpError> {
     let identity = authenticate_device(ctx, credential).await?;
-    let profile = systemprompt_config::ProfileBootstrap::get().map_err(|error| {
-        tracing::warn!(%error, "consumer: profile unavailable");
-        ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
-    })?;
-    let services =
-        crate::routes::gateway::bridge_data::load_services_config().map_err(|error| {
-            tracing::warn!(%error, "consumer: services config load failed");
-            ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
-        })?;
+    let profile = ctx.profile();
+    let services = ctx.services_config();
     if !services
         .instance_enabled_hosts()
         .iter()
-        .any(|value| host.accepts_host_name(value.as_str()))
+        .any(|value| host.accepts(*value))
     {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
@@ -66,7 +60,7 @@ pub(super) async fn resource(
         ctx,
         profile,
         &identity.consumer_id,
-        services,
+        (*services).clone(),
         crate::routes::gateway::bridge_resolved::Freshness::Memo,
     )
     .await
@@ -81,10 +75,11 @@ pub(super) async fn resource(
             .as_ref()
             .is_some_and(|publication| &publication.resource_id == resource)
             && (skill.hosts.is_empty()
-                || skill
-                    .hosts
-                    .iter()
-                    .any(|value| host.accepts_host_name(value.as_str())))
+                || skill.hosts.iter().any(|value| {
+                    value
+                        .parse::<HostKind>()
+                        .is_ok_and(|value| host.accepts(value))
+                }))
     }) {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }

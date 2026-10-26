@@ -3,12 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::api::ApiError;
+use systemprompt_security::at_rest::AtRestCipherError;
 use systemprompt_traits::RegistryError;
 use thiserror::Error;
 
@@ -113,6 +115,9 @@ pub enum ProxyError {
         #[source]
         source: McpDomainError,
     },
+
+    #[error("the at-rest cipher is unavailable")]
+    AtRestUnavailable(#[from] AtRestCipherError),
 }
 
 #[derive(Debug, Error)]
@@ -143,6 +148,7 @@ impl ProxyError {
             Self::UrlConstructionFailed { .. }
             | Self::DatabaseError { .. }
             | Self::RegistryUnavailable { .. }
+            | Self::AtRestUnavailable(_)
             | Self::RegistryLookupFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BodyExtractionFailed { .. }
             | Self::InvalidMethod { .. }
@@ -176,6 +182,7 @@ impl ProxyError {
             Self::InvalidServiceName { .. } => "invalid_service_name",
             Self::InvalidIdentifier(_) => "invalid_identifier",
             Self::RegistryUnavailable { .. } => "registry_unavailable",
+            Self::AtRestUnavailable(_) => "at_rest_unavailable",
             Self::RegistryLookupFailed { .. } => "registry_lookup_failed",
             Self::ProviderNotConnected { .. } => "provider_not_connected",
             Self::ExternalResolveFailed { .. } => "external_resolve_failed",
@@ -206,9 +213,10 @@ impl IntoResponse for ProxyError {
             | StatusCode::BAD_GATEWAY
             | StatusCode::GATEWAY_TIMEOUT => ApiError::service_unavailable("Proxy request failed")
                 .with_details(cause_chain(&self)),
-            _ => ApiError::internal_error("Proxy request failed").with_details(cause_chain(&self)),
+            _ => ApiError::internal("Proxy request failed", self.to_string())
+                .with_details(cause_chain(&self)),
         };
-        api_error.with_error_key(error_key).into_response()
+        ApiHttpError::from(api_error.with_error_key(error_key)).into_response()
     }
 }
 

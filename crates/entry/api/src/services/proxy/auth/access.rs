@@ -17,9 +17,10 @@ use crate::services::proxy::backend::ProxyError;
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServiceModule;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, Permission};
+use systemprompt_models::auth::{AuthenticatedUser, Permission, TokenAuthority};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
@@ -72,21 +73,30 @@ impl AccessValidator {
                 has_authorization,
             })
         };
-        let authenticated_user =
-            match AuthValidator::validate_service_access(headers, service_name, req_context) {
-                Ok(user) => user,
-                Err(status_code) => {
-                    if let Some(outcome) =
-                        mcp_session_fallback(requirement.module, service_name, headers, status_code)
-                    {
-                        return outcome;
-                    }
-                    return Err(challenge(status_code));
-                },
-            };
-        if let Err(status_code) =
-            enforce_required_audience(headers, service_name, &requirement.audience)
-        {
+        let authenticated_user = match AuthValidator::validate_service_access(
+            ctx.token_authority().as_ref(),
+            ctx.config(),
+            headers,
+            service_name,
+            req_context,
+        ) {
+            Ok(user) => user,
+            Err(status_code) => {
+                if let Some(outcome) =
+                    mcp_session_fallback(requirement.module, service_name, headers, status_code)
+                {
+                    return outcome;
+                }
+                return Err(challenge(status_code));
+            },
+        };
+        if let Err(status_code) = enforce_required_audience(
+            ctx.token_authority().as_ref(),
+            ctx.config(),
+            headers,
+            service_name,
+            &requirement.audience,
+        ) {
             return Err(challenge(status_code));
         }
         ensure_required_scopes(service_name, &requirement.scopes, &authenticated_user)?;
@@ -101,11 +111,12 @@ async fn lookup_oauth_requirement(
 ) -> Result<OAuthRequirement, ProxyError> {
     match service.module_name {
         ServiceModule::Agent => {
-            let registry = AgentRegistryProviderService::new()
-                .map_err(|error| registry_lookup_error(service_name, error))?;
+            let registry = AgentRegistryProviderService::new(
+                &ctx.services_state().view(),
+                ctx.config().is_cloud,
+            );
             let info = registry
                 .get_agent(service_name.as_str())
-                .await
                 .map_err(|error| registry_lookup_error(service_name, error))?;
             Ok(OAuthRequirement {
                 module: ServiceModule::Agent,
@@ -153,6 +164,8 @@ fn registry_lookup_error(service_name: &ServiceName, error: RegistryError) -> Pr
 }
 
 fn enforce_required_audience(
+    authority: &dyn TokenAuthority,
+    config: &Config,
     headers: &HeaderMap,
     service_name: &ServiceName,
     audience: &str,
@@ -160,7 +173,7 @@ fn enforce_required_audience(
     if audience.is_empty() {
         return Ok(());
     }
-    AuthService::authorize_required_audience(headers, audience)
+    AuthService::authorize_required_audience(authority, config, headers, audience)
         .map(|_user| ())
         .inspect_err(|status| {
             tracing::warn!(

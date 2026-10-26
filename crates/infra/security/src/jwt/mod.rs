@@ -19,10 +19,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod authority;
 pub mod decode;
 pub mod mint;
 pub mod validate;
 
+pub use authority::{DeploymentTokenAuthority, encode_rs256, user_claims};
 pub use decode::{JwtUserContext, extract_user_context};
 pub use mint::{AdminTokenParams, JwtService};
 pub use validate::{

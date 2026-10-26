@@ -9,6 +9,7 @@ use systemprompt_mcp::services::database::state::get_binary_mtime_for_service;
 
 fn paths_with_bin(bin_dir: &str) -> AppPaths {
     let cfg = PathsConfig {
+        root: None,
         system: "/tmp".to_owned(),
         services: "/tmp".to_owned(),
         bin: bin_dir.to_owned(),

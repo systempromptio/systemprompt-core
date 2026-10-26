@@ -261,7 +261,14 @@ fn test_session_creation_service_new() {
     let analytics: Arc<dyn SessionProvider> = Arc::new(MockAnalyticsProvider);
     let user: Arc<dyn UserProvider> = Arc::new(MockUserProvider);
 
-    let service = SessionCreationService::new(analytics, user);
+    let service = SessionCreationService::new(
+        analytics,
+        user,
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
+    );
     let debug_output = format!("{:?}", service);
 
     assert!(debug_output.contains("SessionCreationService"));
@@ -274,8 +281,15 @@ fn test_session_creation_service_with_fingerprint_provider() {
     let user: Arc<dyn UserProvider> = Arc::new(MockUserProvider);
     let fingerprint: Arc<dyn FingerprintProvider> = Arc::new(MockFingerprintProvider);
 
-    let _service =
-        SessionCreationService::new(analytics, user).with_fingerprint_provider(fingerprint);
+    let _service = SessionCreationService::new(
+        analytics,
+        user,
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
+    )
+    .with_fingerprint_provider(fingerprint);
 }
 
 

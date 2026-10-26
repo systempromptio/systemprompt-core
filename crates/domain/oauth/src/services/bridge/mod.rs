@@ -26,6 +26,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,
 };
@@ -45,6 +46,7 @@ pub struct BridgeAuthResult {
 
 #[derive(Debug)]
 pub struct BridgeAccessRequest<'a> {
+    pub config: &'a Config,
     pub request_headers: &'a HeaderMap,
     pub caller_ip: Option<IpAddr>,
     pub user_id: &'a UserId,
@@ -56,11 +58,13 @@ pub struct BridgeAccessRequest<'a> {
 
 impl<'a> BridgeAccessRequest<'a> {
     pub fn bridge(
+        config: &'a Config,
         request_headers: &'a HeaderMap,
         caller_ip: Option<IpAddr>,
         user_id: &'a UserId,
     ) -> Self {
         Self {
+            config,
             request_headers,
             caller_ip,
             user_id,
@@ -110,12 +114,14 @@ async fn adopt_or_mint_session(
 }
 
 pub async fn issue_bridge_access(
+    keys: &SigningKeys,
     analytics: &dyn AnalyticsProvider,
     sessions: &dyn SessionProvider,
     users: &dyn UserProvider,
     request: BridgeAccessRequest<'_>,
 ) -> Result<BridgeAuthResult> {
     let BridgeAccessRequest {
+        config: global_config,
         request_headers,
         caller_ip,
         user_id,
@@ -127,8 +133,6 @@ pub async fn issue_bridge_access(
 
     let auth_user = load_authenticated_user(users, user_id).await?;
 
-    let global_config = Config::get()?;
-
     let session_id = adopt_or_mint_session(sessions, request_headers, user_id).await;
     let trace_id = TraceId::generate();
     let policy_version = PolicyVersion::unversioned();
@@ -137,6 +141,7 @@ pub async fn issue_bridge_access(
     let config = build_bridge_jwt_config(&auth_user, ttl, purpose);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
+        keys,
     };
     let token = generate_jwt(
         &auth_user,

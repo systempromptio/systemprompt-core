@@ -1,5 +1,5 @@
 // DB-backed tests for the non-streaming message pipeline
-// (`MessageProcessor::handle_message_with_runtime`): full run against a
+// (`MessageHandler::handle_message_with_runtime`): full run against a
 // stubbed provider (task persisted, completed, response text captured),
 // task-id reuse from the inbound message, and the context-validation
 // failure path.
@@ -10,7 +10,7 @@ use systemprompt_identifiers::AgentName;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::services::a2a_server::ActiveTasks;
 use systemprompt_agent::services::a2a_server::processing::message::{
-    HandleMessageParams, MessageProcessor,
+    HandleMessageParams, MessageHandler,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_test_mocks::recording_webhooks;
@@ -44,8 +44,13 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["It is ", "42."]));
-    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider, recording_webhooks())
-        .expect("processor");
+    let processor = MessageHandler::new(
+        Arc::new(repos.clone()),
+        provider,
+        recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -98,8 +103,13 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
     let client_task_id = TaskId::generate();
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["continuing"]));
-    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider, recording_webhooks())
-        .expect("processor");
+    let processor = MessageHandler::new(
+        Arc::new(repos.clone()),
+        provider,
+        recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -130,8 +140,13 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
     let client_task_id = TaskId::generate();
 
     let provider = Arc::new(StubAiProvider::new().failing_stream());
-    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider, recording_webhooks())
-        .expect("processor");
+    let processor = MessageHandler::new(
+        Arc::new(repos.clone()),
+        provider,
+        recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
@@ -178,12 +193,13 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
     let task_id = TaskId::generate();
     let active = ActiveTasks::default();
     let active_for_run = active.clone();
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(repos.clone()),
         Arc::new(StubAiProvider::new().with_stalled_stream()),
         recording_webhooks(),
-    )
-    .expect("processor");
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
     let message = user_message(&ctx, Some(task_id.clone()), "cancel this run");
@@ -237,8 +253,13 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
 
     let repos = repos(&pool);
     let provider = Arc::new(StubAiProvider::new());
-    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider, recording_webhooks())
-        .expect("processor");
+    let processor = MessageHandler::new(
+        Arc::new(repos.clone()),
+        provider,
+        recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    );
 
     let foreign_ctx = ContextId::generate();
     let runtime = runtime_info("nonstream-agent");
@@ -287,12 +308,13 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
     .await
     .expect("create message failure trigger");
 
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(repositories.clone()),
         Arc::new(StubAiProvider::new().with_text_stream(&["completed answer"])),
         recording_webhooks(),
-    )
-    .expect("message processor");
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&context_id, &session, &user, "nonstream-agent");
     let message = user_message(
@@ -381,12 +403,13 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
     .expect("create transition failure trigger");
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["must not run"]));
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(repositories.clone()),
         provider.clone(),
         recording_webhooks(),
-    )
-    .expect("message processor");
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&context_id, &session, &user, "nonstream-agent");
 
@@ -453,12 +476,13 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
         .expect("make context storage unavailable");
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["must not run"]));
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(repositories.clone()),
         provider.clone(),
         recording_webhooks(),
-    )
-    .expect("message processor");
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    );
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&context_id, &session, &user, "nonstream-agent");
 

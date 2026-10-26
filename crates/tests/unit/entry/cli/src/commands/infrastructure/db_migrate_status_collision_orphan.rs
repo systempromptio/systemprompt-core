@@ -1,13 +1,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::DisposableDb;
+use systemprompt_test_fixtures::{DisposableDb, bounded_output};
 
 const HELPER: &str =
     "commands::infrastructure::db_migrate_status_collision_orphan::dirty_status_helper";
@@ -87,41 +86,11 @@ async fn dirty_status_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().unwrap();
-    let stderr = tempfile::NamedTempFile::new().unwrap();
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().unwrap()))
-        .stderr(Stdio::from(stderr.reopen().unwrap()));
-    let mut child = command.spawn().expect("spawn migration status helper");
-    let deadline = Instant::now() + Duration::from_secs(25);
-    loop {
-        if let Some(status) = child.try_wait().unwrap() {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().unwrap();
-            panic!(
-                "migration status helper timed out ({status})\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&std::fs::read(stdout.path()).unwrap()),
-                String::from_utf8_lossy(&std::fs::read(stderr.path()).unwrap())
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 #[test]
 fn status_diagnoses_collision_and_orphan_without_mutating_the_ledger() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "db migrate status collision orphan");
     assert!(
         output.status.success(),
         "dirty status helper failed\nstdout:\n{}\nstderr:\n{}",

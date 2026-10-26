@@ -213,28 +213,40 @@ fn extension_default_has_template_providers_is_false() {
     assert!(!ext.has_template_providers());
 }
 
-#[test]
-fn extension_default_component_renderers_is_empty() {
+#[tokio::test]
+async fn extension_default_component_renderers_is_empty() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let ext = MinimalExt;
-    assert!(ext.component_renderers().is_empty());
+    assert!(ext.component_renderers(ctx.as_ref()).is_empty());
 }
 
-#[test]
-fn extension_default_template_data_extenders_is_empty() {
+#[tokio::test]
+async fn extension_default_template_data_extenders_is_empty() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let ext = MinimalExt;
-    assert!(ext.template_data_extenders().is_empty());
+    assert!(ext.template_data_extenders(ctx.as_ref()).is_empty());
 }
 
-#[test]
-fn extension_default_page_data_providers_is_empty() {
+#[tokio::test]
+async fn extension_default_page_data_providers_is_empty() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let ext = MinimalExt;
-    assert!(ext.page_data_providers().is_empty());
+    assert!(ext.page_data_providers(ctx.as_ref()).is_empty());
 }
 
-#[test]
-fn extension_default_page_prerenderers_is_empty() {
+#[tokio::test]
+async fn extension_default_page_prerenderers_is_empty() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let ext = MinimalExt;
-    assert!(ext.page_prerenderers().is_empty());
+    assert!(ext.page_prerenderers(ctx.as_ref()).is_empty());
 }
 
 #[test]
@@ -243,10 +255,13 @@ fn extension_default_frontmatter_processors_is_empty() {
     assert!(ext.frontmatter_processors().is_empty());
 }
 
-#[test]
-fn extension_default_content_data_providers_is_empty() {
+#[tokio::test]
+async fn extension_default_content_data_providers_is_empty() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let ext = MinimalExt;
-    assert!(ext.content_data_providers().is_empty());
+    assert!(ext.content_data_providers(ctx.as_ref()).is_empty());
 }
 
 #[test]

@@ -239,7 +239,11 @@ async fn prerender_renders_item_html_with_toc_for_both_locales() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect("prerender_content");
@@ -295,7 +299,11 @@ async fn prerender_renders_parent_list_route_with_index_content() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect("prerender_content");
@@ -338,7 +346,11 @@ async fn prerender_list_route_without_index_content_sets_flag_false() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect("prerender_content");
@@ -370,7 +382,11 @@ async fn prerender_errors_with_template_not_found_for_item() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect_err("no template registered for content type 'article'");
@@ -401,7 +417,11 @@ async fn prerender_errors_with_template_not_found_for_list_route() {
         db.clone(),
         content_repo(&db),
         content_analytics(&db),
-        &boot.app_paths,
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
     )
     .await
     .expect_err("list template missing while parent route enabled");
@@ -428,9 +448,17 @@ async fn prerender_pages_renders_homepage_when_template_exists() {
     )
     .expect("write homepage template");
 
-    let results = prerender_pages(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect("prerender_pages");
+    let results = prerender_pages(
+        db.clone(),
+        content_repo(&db),
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
+    )
+    .await
+    .expect("prerender_pages");
 
     let _ = fs::remove_file(tmpl_dir.join("homepage.html"));
 

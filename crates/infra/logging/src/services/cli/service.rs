@@ -15,7 +15,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
 
 use super::display;
-use super::output::mark_structured_emitted;
+use super::output::OutputState;
 use super::theme::{EmphasisType, ItemStatus, MessageLevel, Theme};
 
 #[derive(Copy, Clone, Debug)]
@@ -75,9 +75,13 @@ impl CliService {
         }
     }
 
+    pub fn json_string<T: Serialize + ?Sized>(value: &T) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(value)
+    }
+
     pub fn json<T: Serialize>(value: &T) {
-        mark_structured_emitted();
-        match serde_json::to_string_pretty(value) {
+        OutputState::current().mark_structured_emitted();
+        match Self::json_string(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
                 if let Err(e) = writeln!(stdout, "{json}") {
@@ -89,7 +93,7 @@ impl CliService {
     }
 
     pub fn json_compact<T: Serialize>(value: &T) {
-        mark_structured_emitted();
+        OutputState::current().mark_structured_emitted();
         match serde_json::to_string(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
@@ -102,7 +106,7 @@ impl CliService {
     }
 
     pub fn yaml<T: Serialize>(value: &T) {
-        mark_structured_emitted();
+        OutputState::current().mark_structured_emitted();
         match serde_yaml::to_string(value) {
             Ok(yaml) => {
                 let mut stdout = std::io::stdout();

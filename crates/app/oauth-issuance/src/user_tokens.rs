@@ -17,7 +17,7 @@ use systemprompt_manifest::Config;
 use systemprompt_models::auth::{
     AuthenticatedUser, Permission, parse_permissions, permissions_to_string,
 };
-use systemprompt_models::errors::{GlobalConfigError, ParseEnumError};
+use systemprompt_models::errors::ParseEnumError;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::services::{
     JwtConfig, JwtSigningParams, SessionCreationError, SessionCreationService, generate_jwt,
@@ -32,8 +32,6 @@ use crate::{RequestOrigin, TokenResponse};
 /// Failure minting a user-bound token pair.
 #[derive(Debug, Error)]
 pub enum UserTokenError {
-    #[error("Configuration unavailable")]
-    Config(#[from] GlobalConfigError),
     #[error("Scope is required for token generation")]
     MissingScope,
     #[error("Requested scope is not a list of known permissions")]
@@ -54,6 +52,7 @@ pub struct UserTokenParams<'a> {
     pub origin: RequestOrigin<'a>,
     pub resource: Option<&'a str>,
     pub family_id: Option<&'a str>,
+    pub config: &'a Arc<Config>,
 }
 
 #[derive(Debug)]
@@ -67,7 +66,8 @@ pub async fn generate_tokens_by_user_id(
     params: UserTokenParams<'_>,
     state: &OAuthState,
 ) -> Result<GeneratedTokens, UserTokenError> {
-    let expires_in = Config::get()?.jwt_access_token_expiration;
+    let config = params.config;
+    let expires_in = config.jwt_access_token_expiration;
 
     let scope_str = params.scope.ok_or(UserTokenError::MissingScope)?;
 
@@ -78,6 +78,8 @@ pub async fn generate_tokens_by_user_id(
     let session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
+        Arc::clone(state.token_authority()),
+        Arc::clone(config),
     );
     let analytics = state.analytics_provider().extract_analytics(
         params.origin.headers,
@@ -91,7 +93,7 @@ pub async fn generate_tokens_by_user_id(
         .await?;
 
     let jwt_and_refresh =
-        create_jwt_and_refresh_token(repo, &user, final_permissions, &session_id, &params).await?;
+        create_jwt_and_refresh_token(state, &user, final_permissions, &session_id, &params).await?;
 
     if let Err(e) = repo.update_client_last_used(params.client_id).await {
         tracing::warn!(
@@ -122,15 +124,16 @@ struct JwtAndRefreshToken {
 }
 
 async fn create_jwt_and_refresh_token(
-    repo: &OAuthRepository,
+    state: &OAuthState,
     user: &AuthenticatedUser,
     permissions: Vec<Permission>,
     session_id: &SessionId,
     params: &UserTokenParams<'_>,
 ) -> Result<JwtAndRefreshToken, UserTokenError> {
+    let repo = state.oauth_repository();
+    let global_config = params.config.as_ref();
     let scope_string = permissions_to_string(&permissions);
     let access_token_jti = AccessTokenId::generate();
-    let global_config = Config::get()?;
     let config = JwtConfig {
         permissions,
         audience: global_config.jwt_audiences.clone(),
@@ -142,6 +145,7 @@ async fn create_jwt_and_refresh_token(
     };
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
+        keys: state.signing_keys(),
     };
     let access_token = generate_jwt(user, config, access_token_jti, session_id, &signing)?;
 

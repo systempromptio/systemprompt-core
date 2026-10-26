@@ -1,58 +1,63 @@
 //! Wiremock-driven HTTP harness shared by the anthropic/openai/gemini
 //! provider drivers. Each helper spins up a fresh `MockServer`, registers a
 //! canned response, and yields the base endpoint; `api_key_target` resolves
-//! a catalog entry pointed at it, the same way the factory resolves one, so
-//! the provider is constructed via `with_target`.
-
-use std::collections::HashMap;
-use systemprompt_manifest::services::providers::surface_for;
+//! a one-endpoint catalog pointed at it, the same way the in-process service
+//! resolves a hop, so the provider is constructed via `with_target`.
 
 use serde_json::json;
-use systemprompt_ai::UpstreamTarget;
-use systemprompt_identifiers::{ProviderId, SecretName};
-use systemprompt_manifest::services::{
-    ModelGovernance, ProviderEntry, ProviderModel, ProviderRegistry,
+use systemprompt_ai::services::providers::{ServedModel, served_models_on};
+use systemprompt_ai::{EndpointBinding, UpstreamTarget};
+use systemprompt_manifest::services::catalog::{
+    CatalogContext, DefaultCatalog, EndpointConfig, EndpointRef, ProviderConfig, ResolvedCatalog,
 };
+use systemprompt_test_fixtures::catalog::{CatalogFixture, model, platform, priced};
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-pub fn seed_models(provider: &str) -> Vec<ProviderModel> {
-    ProviderRegistry::default_seed()
+pub const FIXTURE_MODEL: &str = "fixture-model";
+
+pub fn default_catalog() -> ResolvedCatalog {
+    DefaultCatalog::document()
         .expect("embedded default catalog parses")
-        .find_provider(provider)
-        .unwrap_or_else(|| panic!("provider '{provider}' present in default catalog"))
-        .models
-        .clone()
+        .resolve(&CatalogContext::default())
+        .expect("embedded default catalog resolves")
+}
+
+pub fn seed_models(provider: &str) -> Vec<ServedModel> {
+    let models = served_models_on(&default_catalog(), &EndpointRef::new(provider, "api"));
+    assert!(
+        !models.is_empty(),
+        "provider '{provider}' present in default catalog"
+    );
+    models
+}
+
+pub fn single_endpoint_catalog(name: &str, wire: WireProtocol, url: &str) -> ResolvedCatalog {
+    CatalogFixture::new()
+        .credential(name, platform(name))
+        .provider(name, ProviderConfig::new(name))
+        .endpoint(name, "api", EndpointConfig::new(wire, url))
+        .model(FIXTURE_MODEL, model(&[], 200_000, priced(1.0, 2.0, 0.1)))
+        .deploy(FIXTURE_MODEL, [format!("{name}/api").as_str()])
+        .build()
 }
 
 pub fn api_key_target(name: &str, wire: WireProtocol, endpoint: &str, key: &str) -> UpstreamTarget {
-    let entry = ProviderEntry {
-        name: ProviderId::new(name),
-        display_name: None,
-        description: None,
-        wire,
-        surface: surface_for(wire),
-        endpoint: endpoint.to_owned(),
-        api_key_secret: Some(SecretName::new(name)),
-        credential: Default::default(),
-        credential_from: None,
-        user_agent: None,
-        forward_headers: Vec::new(),
-        extra_headers: HashMap::new(),
-        accepted_betas: None,
-        models: Vec::new(),
-        governance: ModelGovernance::default(),
-    };
-    UpstreamTarget::resolve(&entry, key).expect("an API key resolves against a plain endpoint")
+    let catalog = single_endpoint_catalog(name, wire, endpoint);
+    let hop = &catalog.deployments(FIXTURE_MODEL)[0];
+    UpstreamTarget::resolve(&Default::default(), &catalog, hop, key)
+        .expect("an API key resolves against a plain endpoint")
 }
 
 pub fn seed_target(provider: &str, key: &str) -> UpstreamTarget {
-    let registry = ProviderRegistry::default_seed().expect("embedded default catalog parses");
-    let entry = registry
-        .find_provider(provider)
-        .unwrap_or_else(|| panic!("provider '{provider}' present in default catalog"));
-    UpstreamTarget::resolve(entry, key).expect("an API key resolves against the catalog endpoint")
+    let catalog = default_catalog();
+    let binding = EndpointBinding::of_endpoint(&catalog, &EndpointRef::new(provider, "api"))
+        .unwrap_or_else(|e| panic!("provider '{provider}' present in default catalog: {e}"));
+    let cache_key =
+        systemprompt_security::credential::TokenCacheKey::platform(&binding.credential.id);
+    UpstreamTarget::bind(&Default::default(), binding, key, cache_key)
+        .expect("an API key resolves against the catalog endpoint")
 }
 
 pub async fn anthropic_messages_success(body: serde_json::Value) -> MockServer {

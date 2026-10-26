@@ -1,4 +1,5 @@
 use super::sandbox::{Sandbox, argv};
+use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::cli::run_with_args;
 
 fn config_file(sb: &Sandbox) -> std::path::PathBuf {
@@ -174,7 +175,8 @@ fn oauth_client_status_reports_an_unprovisioned_client() {
         let _ = run_with_args(&argv(&["oauth-client"]));
         let _ = run_with_args(&argv(&["oauth-client", "status"]));
         let _ = run_with_args(&argv(&["oauth-client", "bogus"]));
-        systemprompt_bridge::auth::plugin_oauth::load_creds().expect("creds load is infallible")
+        systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
+            .expect("creds load is infallible")
     });
     assert!(
         creds.is_none(),

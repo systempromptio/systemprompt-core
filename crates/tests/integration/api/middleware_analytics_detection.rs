@@ -18,11 +18,11 @@ use axum::{Router, middleware};
 use systemprompt_api::services::middleware::{AnalyticsMiddleware, SessionMiddleware};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config, install_test_signing_key};
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 
-use super::common::setup_ctx;
+use super::common::{setup_ctx, with_config};
 
 async fn ok_handler() -> &'static str {
     "ok"
@@ -33,16 +33,14 @@ async fn boom_handler() -> StatusCode {
 }
 
 async fn setup() -> Result<(DbPool, Arc<AppContext>)> {
-    let b = ensure_test_bootstrap();
-    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
-    install_test_signing_key();
+    ensure_test_bootstrap();
     setup_ctx().await
 }
 
 fn build(ctx: &Arc<AppContext>) -> Result<Router> {
     let session = SessionMiddleware::new(ctx);
     let analytics = AnalyticsMiddleware::new(ctx);
-    Ok(Router::new()
+    let app = Router::new()
         .route("/boom", get(boom_handler))
         .fallback(get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {
@@ -52,7 +50,8 @@ fn build(ctx: &Arc<AppContext>) -> Result<Router> {
         .layer(middleware::from_fn(move |req, next| {
             let mw = session.clone();
             async move { mw.handle(req, next).await }
-        })))
+        }));
+    Ok(with_config(app, ctx))
 }
 
 fn browser_agent() -> String {
@@ -114,6 +113,43 @@ async fn tracked_server_error_records_error_severity_event() -> Result<()> {
         event_severities(&db, &agent).await,
         vec!["error".to_owned()]
     );
+    Ok(())
+}
+
+#[derive(sqlx::FromRow)]
+struct LoggedEvent {
+    severity: String,
+    endpoint: Option<String>,
+    response_time_ms: Option<i32>,
+    error_code: Option<i32>,
+}
+
+#[tokio::test]
+async fn logged_event_keeps_severity_endpoint_and_response_time() -> Result<()> {
+    let (db, ctx) = setup().await?;
+    let app = build(&ctx)?;
+    let agent = browser_agent();
+    let resp = app.oneshot(browser_get_as("/boom", &agent)).await?;
+    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    drain(&ctx).await;
+    let rows: Vec<LoggedEvent> = sqlx::query_as(
+        "SELECT severity, endpoint, response_time_ms, error_code FROM analytics_events WHERE \
+         position($1 in metadata) > 0",
+    )
+    .bind(&agent)
+    .fetch_all(db.pool().as_ref())
+    .await?;
+    assert_eq!(rows.len(), 1);
+    let event = &rows[0];
+    assert_eq!(event.severity, "error");
+    assert!(
+        event
+            .endpoint
+            .as_deref()
+            .is_some_and(|e| e.contains("/boom"))
+    );
+    assert!(event.response_time_ms.is_some_and(|ms| ms >= 0));
+    assert_eq!(event.error_code, Some(500));
     Ok(())
 }
 

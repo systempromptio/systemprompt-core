@@ -1,20 +1,20 @@
 use systemprompt_bridge::gateway::catalog::{
     CatalogFetchError, CatalogFreshness, InferenceCatalog,
 };
-use systemprompt_bridge::gateway::model_view::{catalog_models, desktop_models};
+use systemprompt_bridge::gateway::model_view::catalog_models;
 use systemprompt_bridge::gateway::types::ProviderHealth;
 
 const GATEWAY: &str = "https://gateway.example.com";
 
 fn providers() -> Vec<ProviderHealth> {
     serde_json::from_value(serde_json::json!([
-        { "name": "vertex-claude", "surface": "anthropic", "configured": true,
+        { "name": "vertex-claude", "credential": "vertex", "clients": ["claude"], "configured": true,
           "models": ["claude-opus-5-5", "claude-sonnet-5"] },
-        { "name": "vertex-gemini", "surface": "gemini", "configured": true,
+        { "name": "vertex-gemini", "credential": "vertex", "clients": ["gemini"], "configured": true,
           "models": ["gemini-3-pro", "claude-opus-5-5"] },
-        { "name": "glm", "surface": "openai", "configured": false,
+        { "name": "glm", "credential": "zai", "clients": ["openai"], "configured": false,
           "models": [], "config_issue": "secret ZAI_API_KEY is absent" },
-        { "name": "minimax", "surface": "backend", "configured": true,
+        { "name": "minimax", "credential": "minimax", "clients": [], "configured": true,
           "models": ["MiniMax-M2"] }
     ]))
     .expect("provider fixture parses")
@@ -96,19 +96,4 @@ fn catalog_groups_advertised_providers_with_distinct_models() {
         groups[2].config_issue.as_deref(),
         Some("secret ZAI_API_KEY is absent")
     );
-}
-
-#[test]
-fn desktop_models_keep_claude_ids_once() {
-    let models: Vec<String> = [
-        "claude-opus-5-5",
-        "gemini-3-pro",
-        "claude-fable-5-1",
-        "claude-opus-5-5",
-        "glm-5",
-    ]
-    .iter()
-    .map(|s| (*s).to_owned())
-    .collect();
-    assert_eq!(desktop_models(&models), ["claude-opus-5-5"]);
 }

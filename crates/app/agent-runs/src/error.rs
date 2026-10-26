@@ -13,9 +13,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AgentRunsError {
-    #[error("unknown headless host '{value}'")]
-    UnknownHost { value: String },
-
     #[error("unknown permission mode '{value}'")]
     UnknownPermissionMode { value: String },
 

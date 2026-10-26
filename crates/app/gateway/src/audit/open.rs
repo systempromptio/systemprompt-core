@@ -27,8 +27,11 @@ impl GatewayAudit {
         .streaming(self.ctx.is_streaming)
         .request_kind(RequestKind::classify(self.ctx.max_tokens))
         .attribution(self.ctx.attribution.clone());
-        if let Some(instance_id) = systemprompt_logging::instance_id() {
+        if let Some(instance_id) = self.logging.instance_id() {
             record = record.instance_id(instance_id.clone());
+        }
+        if let Some(hop) = &self.ctx.hop {
+            record = record.hop(hop.clone());
         }
         if let Some(s) = &self.ctx.session_id {
             record = record.session_id(s.clone());
@@ -65,6 +68,13 @@ impl GatewayAudit {
             "Gateway identity requires an authenticated session and trace",
         )?;
         let record = self.build_record();
+        if self
+            .tool_validators
+            .set(self.tool_validity.validators_for(&request.tooling.tools))
+            .is_err()
+        {
+            tracing::debug!(request_id = %self.ctx.ai_request_id, "tool validators already bound");
+        }
 
         if !self.ctx.context_bound {
             self.context_materializer

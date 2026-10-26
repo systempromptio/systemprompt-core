@@ -44,6 +44,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
+
 mod component;
 pub mod config_plane;
 mod content_data;
@@ -67,10 +70,11 @@ pub use component::{
     ComponentContext, ComponentRenderer, PartialSource, PartialTemplate, RenderedComponent,
 };
 pub use config_plane::{
-    ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ConfigPlane,
-    ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet, DeclaredState, DriftKind, DriftRow,
-    EffectiveAuthority, EntityScope, PlaneAuthority, PlaneContext, PlaneEffect, PlaneSnapshot,
-    PlaneTx, PlaneWriter, diff_snapshots,
+    ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ChangeSource,
+    ChangeSourceError, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet,
+    DeclaredEntities, DeclaredEntity, DeclaredState, DriftKind, DriftRow, EffectiveAuthority,
+    EntityScope, PlaneAuthority, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx, PlaneWriter,
+    ResolvedEntities, ResolvedEntity, diff_snapshots, entity_hash, resolve_apply,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, MissingDependency};

@@ -61,7 +61,7 @@ fn args(root: &Path, base: Option<PathBuf>, strict: bool) -> ValidateArgs {
 }
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

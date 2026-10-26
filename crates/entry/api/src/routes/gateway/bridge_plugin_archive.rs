@@ -13,7 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::VecDeque;
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use axum::body::{Body, Bytes};
 use axum::http::{HeaderValue, header};
@@ -32,7 +32,8 @@ const MEMO_CAPACITY: usize = 64;
 
 const MEMO_BYTES: usize = 256 * 1024 * 1024;
 
-static PACKED: Mutex<VecDeque<(String, Bytes)>> = Mutex::new(VecDeque::new());
+#[derive(Debug, Clone, Default)]
+pub struct ArchiveMemo(Arc<Mutex<VecDeque<(String, Bytes)>>>);
 
 // Why: The sha of an `archive/<sha256>` plugin path, or `None` for a file path.
 #[must_use]
@@ -43,6 +44,7 @@ pub fn archive_sha(relative_path: &str) -> Option<&str> {
 }
 
 pub(super) async fn serve(
+    memo: &ArchiveMemo,
     ctx: &AppContext,
     user_id: &UserId,
     id: &PluginId,
@@ -66,10 +68,10 @@ pub(super) async fn serve(
     }
     let key = current.sha256.as_str().to_owned();
 
-    let bytes = if let Some(bytes) = memo_get(&key) {
+    let bytes = if let Some(bytes) = memo.get(&key) {
         bytes
     } else {
-        let bundles = std::sync::Arc::clone(&resolved.bundles);
+        let bundles = Arc::clone(&resolved.bundles);
         let plugin = id.clone();
         let packed =
             tokio::task::spawn_blocking(move || bundles.get(&plugin).map(pack).transpose())
@@ -78,7 +80,7 @@ pub(super) async fn serve(
                 .map_err(|e| BridgeError::internal("plugin archive: packing failed", e))?
                 .ok_or(BridgeError::PluginNotFound)?;
         let bytes = Bytes::from(packed);
-        memo_put(key.clone(), bytes.clone());
+        memo.put(key.clone(), bytes.clone());
         bytes
     };
 
@@ -108,24 +110,26 @@ pub fn pack(bundle: &PluginBundle) -> systemprompt_loader::BundleResult<Vec<u8>>
     )
 }
 
-fn memo_get(sha256: &str) -> Option<Bytes> {
-    PACKED
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .iter()
-        .find(|(key, _)| key == sha256)
-        .map(|(_, bytes)| bytes.clone())
-}
+impl ArchiveMemo {
+    fn get(&self, sha256: &str) -> Option<Bytes> {
+        self.0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .find(|(key, _)| key == sha256)
+            .map(|(_, bytes)| bytes.clone())
+    }
 
-fn memo_put(sha256: String, bytes: Bytes) {
-    let mut guard = PACKED.lock().unwrap_or_else(PoisonError::into_inner);
-    guard.retain(|(key, _)| key != &sha256);
-    guard.push_back((sha256, bytes));
-    while guard.len() > MEMO_CAPACITY
-        || guard.iter().map(|(_, bytes)| bytes.len()).sum::<usize>() > MEMO_BYTES
-    {
-        if guard.pop_front().is_none() {
-            break;
+    fn put(&self, sha256: String, bytes: Bytes) {
+        let mut guard = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        guard.retain(|(key, _)| key != &sha256);
+        guard.push_back((sha256, bytes));
+        while guard.len() > MEMO_CAPACITY
+            || guard.iter().map(|(_, bytes)| bytes.len()).sum::<usize>() > MEMO_BYTES
+        {
+            if guard.pop_front().is_none() {
+                break;
+            }
         }
     }
 }

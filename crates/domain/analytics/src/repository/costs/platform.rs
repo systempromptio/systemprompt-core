@@ -6,9 +6,9 @@
 //! (`report_ai_usage_hourly`), widening the window to whole UTC hours at its
 //! start; the agent of a request is the one its task had when the request
 //! was written; the billing-source split reads the rollup's personal-key
-//! share. Two reads stay on `report_ai_requests` for their window: the
-//! per-user breakdown, whose conversation count is a distinct count of
-//! contexts no rollup can add up, and the trend series, which is per request.
+//! share. The per-user breakdown, which counts conversations, lives in
+//! `conversations`; the trend series stays on `report_ai_requests` for its
+//! window, being per request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,11 +16,8 @@
 use super::CostAnalyticsRepository;
 use crate::Result;
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::UserId;
 
-use crate::models::reporting::{
-    CostBreakdownRow, CostSummaryRow, CostTrendRow, CostUserBreakdownRow, PreviousCostRow,
-};
+use crate::models::reporting::{CostBreakdownRow, CostSummaryRow, CostTrendRow, PreviousCostRow};
 
 impl CostAnalyticsRepository {
     pub async fn get_summary(
@@ -40,7 +37,7 @@ impl CostAnalyticsRepository {
                 SUM(cache_creation_tokens)::bigint as "cache_creation_tokens"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic
+              AND traffic = 'production'
             "#,
             start,
             end
@@ -61,7 +58,7 @@ impl CostAnalyticsRepository {
             SELECT SUM(cost_microdollars)::bigint as "cost"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic
+              AND traffic = 'production'
             "#,
             start,
             end
@@ -87,7 +84,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens), 0)::bigint as "tokens!"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic
+              AND traffic = 'production'
               AND model <> ''
             GROUP BY model
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -118,7 +115,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(tokens), 0)::bigint as "tokens!"
             FROM report_ai_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND NOT synthetic
+              AND traffic = 'production'
               AND provider <> ''
             GROUP BY provider
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -152,7 +149,7 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(user_key_tokens), 0)::bigint AS key_tokens
                 FROM report_ai_usage_hourly
                 WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-                  AND NOT synthetic
+                  AND traffic = 'production'
             )
             SELECT
                 split.name as "name!",
@@ -167,39 +164,6 @@ impl CostAnalyticsRepository {
             ) AS split(name, cost, requests, tokens)
             WHERE split.requests > 0
             ORDER BY split.cost DESC
-            LIMIT $3
-            "#,
-            start,
-            end,
-            limit
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .map_err(Into::into)
-    }
-
-    pub async fn get_breakdown_by_user(
-        &self,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-        limit: i64,
-    ) -> Result<Vec<CostUserBreakdownRow>> {
-        sqlx::query_as!(
-            CostUserBreakdownRow,
-            r#"
-            SELECT
-                r.user_id as "user_id!: UserId",
-                u.name as "name?",
-                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
-                COUNT(*)::bigint as "requests!",
-                COALESCE(SUM(r.tokens_used), 0)::bigint as "tokens!",
-                COUNT(DISTINCT r.context_id)::bigint as "conversations!"
-            FROM report_ai_requests r
-            LEFT JOIN report_users u ON u.id = r.user_id
-            WHERE r.created_at >= $1 AND r.created_at < $2
-              AND NOT r.synthetic
-            GROUP BY r.user_id, u.name
-            ORDER BY SUM(r.cost_microdollars) DESC NULLS LAST
             LIMIT $3
             "#,
             start,
@@ -228,7 +192,7 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(tokens), 0)::bigint as "tokens!"
                 FROM report_ai_usage_hourly
                 WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-                  AND NOT synthetic
+                  AND traffic = 'production'
                   AND agent_name <> ''
                 GROUP BY agent_name
                 ORDER BY SUM(cost_microdollars) DESC NULLS LAST
@@ -243,7 +207,7 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(tokens), 0)::bigint as "tokens!"
                 FROM report_ai_usage_hourly
                 WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-                  AND NOT synthetic
+                  AND traffic = 'production'
                   AND agent_name = ''
                 HAVING SUM(request_count) > 0
             )
@@ -271,7 +235,7 @@ impl CostAnalyticsRepository {
                 tokens_used
             FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
-              AND NOT synthetic
+              AND traffic = 'production'
             ORDER BY created_at
             "#,
             start,

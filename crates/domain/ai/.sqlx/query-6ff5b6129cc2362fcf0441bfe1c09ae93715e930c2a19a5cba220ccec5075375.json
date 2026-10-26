@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM user_provider_credentials WHERE user_id = $1 AND credential = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6ff5b6129cc2362fcf0441bfe1c09ae93715e930c2a19a5cba220ccec5075375"
+}

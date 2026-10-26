@@ -12,11 +12,30 @@ use systemprompt_test_fixtures::{DisposableDb, fixture_actor};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 
 async fn seed(pool: &DbPool, user: &str, at: DateTime<Utc>, count: i64, cost_each: i64) {
+    seed_as(
+        pool,
+        user,
+        at,
+        count,
+        cost_each,
+        ("completed", "production"),
+    )
+    .await;
+}
+
+async fn seed_as(
+    pool: &DbPool,
+    user: &str,
+    at: DateTime<Utc>,
+    count: i64,
+    cost_each: i64,
+    (status, traffic): (&str, &str),
+) {
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, status, \
-         cost_microdollars, actor_kind, actor_id, created_at) \
+         cost_microdollars, actor_kind, actor_id, traffic, created_at) \
          SELECT 'req-' || md5(random()::text || g::text), 'rq-' || md5(random()::text || g::text), \
-                $1, 'ctx-anomaly', 'anthropic', 'claude-test', 'completed', $2, 'user', $1, \
+                $1, 'ctx-anomaly', 'anthropic', 'claude-test', $5, $2, 'user', $1, $6, \
                 $3 + (g || ' seconds')::interval \
          FROM generate_series(1, $4) AS g",
     )
@@ -24,6 +43,8 @@ async fn seed(pool: &DbPool, user: &str, at: DateTime<Utc>, count: i64, cost_eac
     .bind(cost_each)
     .bind(at)
     .bind(count)
+    .bind(status)
+    .bind(traffic)
     .execute(pool.pool().as_ref())
     .await
     .expect("seed ai_requests");
@@ -66,6 +87,17 @@ async fn a_spike_over_the_baseline_is_flagged_and_a_flat_profile_is_not() {
         20_000,
     )
     .await;
+    for kind in [("completed", "evaluation"), ("failed", "production")] {
+        seed_as(
+            &pool,
+            "anomaly-flat",
+            window() + Duration::minutes(20),
+            500,
+            90_000,
+            kind,
+        )
+        .await;
+    }
     seed(
         &pool,
         "anomaly-spiky",

@@ -18,14 +18,16 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use anyhow::{Result, anyhow};
 use clap::Args;
 
 use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput, read_yaml_file};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_loader::ConfigLoader;
+use systemprompt_config::LoadedProfile;
+use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::Profile;
 use systemprompt_scheduler::SchedulerConfig;
 
@@ -45,7 +47,7 @@ pub struct ValidateArgs {
     pub schema: bool,
 }
 
-pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
+pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
     if args.schema {
         return print_profile_schema();
     }
@@ -57,12 +59,18 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
         }
     }
 
-    let (mut results, mut all_valid) =
-        validate_files(files_for_target(args.target.as_deref())?, args.strict);
+    let (mut results, mut all_valid) = validate_files(
+        files_for_target(ctx.loaded_profile()?, args.target.as_deref())?,
+        args.strict,
+    );
 
-    all_valid &= super::plane_validate::append_full_validation(args.target.as_ref(), &mut results);
+    all_valid &= super::plane_validate::append_full_validation(
+        ctx.config()?,
+        args.target.as_ref(),
+        &mut results,
+    );
 
-    if let Some(error) = scheduler_catalog_error(&results, args.strict) {
+    if let Some(error) = scheduler_catalog_error(ctx.boot()?, &results, args.strict) {
         all_valid = false;
         for file in &mut results {
             if file.section == "scheduler" && file.error.is_none() {
@@ -78,16 +86,19 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
     }))
 }
 
-fn files_for_target(target: Option<&str>) -> Result<Vec<std::path::PathBuf>> {
+fn files_for_target(
+    loaded: &LoadedProfile,
+    target: Option<&str>,
+) -> Result<Vec<std::path::PathBuf>> {
     let Some(target) = target else {
         let mut all_files = Vec::new();
         for section in ConfigSection::all() {
-            all_files.extend(section.all_files()?);
+            all_files.extend(section.all_files(loaded)?);
         }
         return Ok(all_files);
     };
     match target.parse::<ConfigSection>() {
-        Ok(section) => Ok(section.all_files()?),
+        Ok(section) => Ok(section.all_files(loaded)?),
         Err(_) => Ok(vec![std::path::PathBuf::from(target)]),
     }
 }
@@ -137,16 +148,18 @@ fn render(output: &ConfigValidateOutput) -> (CommandOutput, bool) {
 
 fn print_profile_schema() -> Result<(CommandOutput, bool)> {
     let schema = schemars::schema_for!(Profile);
-    let json = serde_json::to_string_pretty(&schema)
+    let json = CliService::json_string(&schema)
         .map_err(|e| anyhow!("failed to serialize Profile JSON schema: {e}"))?;
     Ok((CommandOutput::text(json), true))
 }
 
 fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| anyhow!("failed to read profile {}: {e}", path.display()))?;
+    let loaded = Profile::load_from_path(path).and_then(|profile| {
+        profile.validate_committed(path)?;
+        Ok(profile)
+    });
 
-    match Profile::from_yaml(&content, path) {
+    match loaded {
         Ok(profile) => {
             let output = ConfigValidateOutput {
                 files: vec![ConfigFileInfo {
@@ -176,7 +189,11 @@ fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)
     }
 }
 
-fn scheduler_catalog_error(files: &[ConfigFileInfo], strict: bool) -> Option<String> {
+fn scheduler_catalog_error(
+    boot: &BootContext,
+    files: &[ConfigFileInfo],
+    strict: bool,
+) -> Option<String> {
     if !files
         .iter()
         .any(|file| file.section == "scheduler" && file.error.is_none())
@@ -184,20 +201,23 @@ fn scheduler_catalog_error(files: &[ConfigFileInfo], strict: bool) -> Option<Str
         return None;
     }
 
-    match ConfigLoader::load() {
+    match boot.load_services_config() {
         Ok(services) => {
             let scheduler = services
                 .scheduler
                 .unwrap_or_else(SchedulerConfig::with_system_admin);
-            unknown_jobs_message(&scheduler)
-                .or_else(|| strict.then(|| unlisted_jobs_message(&scheduler)).flatten())
+            unknown_jobs_message(&scheduler).or_else(|| {
+                strict
+                    .then(|| unlisted_jobs_message(&scheduler, boot))
+                    .flatten()
+            })
         },
         Err(e) => Some(format!("failed to load merged services config: {e}")),
     }
 }
 
-pub fn unlisted_jobs_message(config: &SchedulerConfig) -> Option<String> {
-    let unlisted = systemprompt_scheduler::unlisted_job_names(config);
+pub fn unlisted_jobs_message(config: &SchedulerConfig, boot: &BootContext) -> Option<String> {
+    let unlisted = systemprompt_scheduler::unlisted_job_names(config, boot);
     if unlisted.is_empty() {
         return None;
     }

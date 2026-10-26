@@ -9,6 +9,8 @@ use systemprompt_identifiers::{
     ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId,
 };
 
+use systemprompt_traits::RepositoryError;
+
 use crate::models::{LogEntry, LogFilter, LogLevel, LoggingError};
 
 struct LogRow {
@@ -27,36 +29,38 @@ struct LogRow {
     instance_id: Option<InstanceId>,
 }
 
-fn row_to_entry(r: LogRow) -> LogEntry {
-    LogEntry {
+fn row_to_entry(r: LogRow) -> Result<LogEntry, LoggingError> {
+    let level = r
+        .level
+        .parse::<LogLevel>()
+        .map_err(|e| RepositoryError::decode(format!("log {} level", r.id), e))?;
+    let metadata = r
+        .metadata
+        .as_deref()
+        .map(serde_json::from_str)
+        .transpose()
+        .map_err(|e| RepositoryError::decode(format!("log {} metadata", r.id), e))?;
+    let context_id = r
+        .context_id_text
+        .as_deref()
+        .map(ContextId::try_new)
+        .transpose()
+        .map_err(|e| RepositoryError::decode(format!("log {} context_id", r.id), e))?;
+    Ok(LogEntry {
         id: r.id,
         timestamp: r.timestamp,
-        level: r.level.parse().unwrap_or(LogLevel::Info),
+        level,
         module: r.module,
         message: r.message,
-        metadata: r.metadata.as_ref().and_then(|m| {
-            serde_json::from_str(m)
-                .map_err(|e| {
-                    tracing::warn!(error = %e, raw = %m, "Failed to parse log metadata JSON");
-                    e
-                })
-                .ok()
-        }),
+        metadata,
         user_id: r.user_id,
         session_id: r.session_id,
         task_id: r.task_id,
         trace_id: r.trace_id,
-        context_id: r.context_id_text.and_then(|s| {
-            ContextId::try_new(&s)
-                .map_err(|e| {
-                    tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from log row");
-                    e
-                })
-                .ok()
-        }),
+        context_id,
         client_id: r.client_id,
         instance_id: r.instance_id,
-    }
+    })
 }
 
 pub(in crate::repository) async fn get_log(
@@ -85,7 +89,7 @@ pub(in crate::repository) async fn get_log(
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(row_to_entry))
+    row.map(row_to_entry).transpose()
 }
 
 pub(in crate::repository) async fn list_logs(
@@ -112,7 +116,7 @@ pub(in crate::repository) async fn list_logs(
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().map(row_to_entry).collect())
+    rows.into_iter().map(row_to_entry).collect()
 }
 
 pub(in crate::repository) async fn list_logs_paginated(
@@ -163,7 +167,10 @@ pub(in crate::repository) async fn list_logs_paginated(
         since_filter,
     )
     .await?;
-    let entries = rows.into_iter().map(row_to_entry).collect();
+    let entries = rows
+        .into_iter()
+        .map(row_to_entry)
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok((entries, count))
 }
@@ -232,5 +239,5 @@ pub(in crate::repository) async fn list_logs_by_module_patterns(
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().map(row_to_entry).collect())
+    rows.into_iter().map(row_to_entry).collect()
 }

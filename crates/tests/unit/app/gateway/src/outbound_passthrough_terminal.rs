@@ -8,39 +8,28 @@
 //! in the one token that is wrong, and a consistent body is byte-identical.
 
 use super::support;
-use std::collections::HashMap;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
 use serde_json::{Value, json};
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, Role,
 };
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_gateway::protocol::outbound::{OutboundAdapter, OutboundCtx, OutboundOutcome};
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-fn route() -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new("r1")),
-        name: None,
-        description: None,
-        model_pattern: "*".into(),
-        provider: ProviderId::new("anthropic"),
-        upstream_model: Some("upstream-1".into()),
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+fn route() -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        "anthropic",
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    )
 }
 
 fn request(stream: bool) -> CanonicalRequest {
@@ -53,22 +42,28 @@ fn request(stream: bool) -> CanonicalRequest {
             content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 64,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -138,8 +133,9 @@ async fn relay_buffered(upstream: &Value) -> Bytes {
     let req = request(false);
     let raw = raw_request(false);
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -169,8 +165,9 @@ async fn relay_streaming(sse: &str) -> String {
     let req = request(true);
     let raw = raw_request(true);
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

@@ -6,17 +6,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use std::fs;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{Environment, LogLevel, OutputFormat as ProfileOutputFormat};
 
+use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -43,15 +41,16 @@ pub struct SetArgs {
     pub no_color: Option<bool>,
 }
 
-pub fn execute(command: RuntimeCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: RuntimeCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        RuntimeCommands::Show => execute_show(config),
-        RuntimeCommands::Set(args) => execute_set(args, config),
+        RuntimeCommands::Show => execute_show(ctx),
+        RuntimeCommands::Set(args) => execute_set(args, ctx),
     }
 }
 
-pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
 
     let output = RuntimeConfigOutput {
         environment: profile.runtime.environment.to_string(),
@@ -69,7 +68,8 @@ pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
+pub(super) fn execute_set(args: SetArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     if args.environment.is_none()
         && args.log_level.is_none()
         && args.output_format.is_none()
@@ -81,7 +81,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         );
     }
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
 
     let mut changes: Vec<RuntimeSetOutput> = Vec::new();
@@ -146,19 +146,5 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
-}
-
-fn load_profile(path: &str) -> Result<Profile> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("Failed to read profile: {}", path))?;
-    let profile: Profile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse profile: {}", path))?;
-    Ok(profile)
-}
-
-pub(super) fn save_profile(profile: &Profile, path: &str) -> Result<()> {
-    let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
-    fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
     Ok(())
 }

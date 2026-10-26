@@ -48,7 +48,7 @@ metrics = { workspace = true }
 tokio = { workspace = true }
 
 # systemprompt.io dependencies
-systemprompt-models = { workspace = true }
+systemprompt-models = { workspace = true, features = ["sqlx"] }
 systemprompt-manifest = { workspace = true }
 systemprompt-client = { workspace = true }
 systemprompt-database = { workspace = true }

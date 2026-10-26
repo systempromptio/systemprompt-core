@@ -10,9 +10,13 @@
 use axum::body::Body;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{Request, StatusCode};
+use std::sync::Arc;
+
 use systemprompt_api::services::server::metrics::{
-    install_recorder, metrics_router, serve_metrics_listener,
+    MetricsState, install_recorder, metrics_router, serve_metrics_listener,
 };
+use systemprompt_api::services::server::readiness::ReadinessState;
+use systemprompt_events::EventBroadcasters;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_test_fixtures::free_port_in_range;
 use tower::ServiceExt;
@@ -43,15 +47,18 @@ async fn the_metrics_route_renders_the_prometheus_exposition_format() {
         install_recorder(&InstanceId::new("fixture-instance"), &[]).expect("recorder installs");
     metrics::counter!("test_render_probe_total").increment(1);
 
-    let response = metrics_router(handle)
-        .oneshot(
-            Request::builder()
-                .uri("/metrics")
-                .body(Body::empty())
-                .expect("request builds"),
-        )
-        .await
-        .expect("router answers");
+    let response = metrics_router(MetricsState {
+        handle,
+        broadcasters: Arc::new(EventBroadcasters::new()),
+    })
+    .oneshot(
+        Request::builder()
+            .uri("/metrics")
+            .body(Body::empty())
+            .expect("request builds"),
+    )
+    .await
+    .expect("router answers");
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -83,9 +90,17 @@ async fn the_metrics_listener_binds_and_serves_its_own_address() {
     let port = free_port_in_range(19_400..19_500).expect("a free port");
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
 
-    let listener = serve_metrics_listener(addr, handle)
-        .await
-        .expect("the listener binds");
+    let readiness = ReadinessState::new();
+    let listener = serve_metrics_listener(
+        addr,
+        MetricsState {
+            handle,
+            broadcasters: Arc::new(EventBroadcasters::new()),
+        },
+        &readiness,
+    )
+    .await
+    .expect("the listener binds");
 
     let connected = tokio::net::TcpStream::connect(addr).await;
     assert!(
@@ -108,7 +123,16 @@ async fn a_port_already_held_is_reported_rather_than_silently_unserved() {
         .expect("bind a port to hold");
     let addr = held.local_addr().expect("held address");
 
-    let result = serve_metrics_listener(addr, handle).await;
+    let readiness = ReadinessState::new();
+    let result = serve_metrics_listener(
+        addr,
+        MetricsState {
+            handle,
+            broadcasters: Arc::new(EventBroadcasters::new()),
+        },
+        &readiness,
+    )
+    .await;
 
     assert!(
         result.is_err(),

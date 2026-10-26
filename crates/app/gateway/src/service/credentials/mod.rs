@@ -1,7 +1,10 @@
 //! The credential the gateway presents to an upstream provider.
 //!
 //! This module is a thin view over [`UpstreamTarget`], the seam the gateway
-//! shares with the in-process AI service: the target looks the secret up,
+//! shares with the in-process AI service. A hop's credential decides whose key
+//! is presented and who is billed: a platform credential's secret, or the
+//! member's own key stored under a personal credential id. The target looks
+//! the secret up,
 //! parses it into a credential, fills the endpoint from the credential's
 //! scope and mints the auth header. It decides nothing about credential types
 //! or hosting itself, which is the point — a new credential kind is a new
@@ -20,34 +23,17 @@
 
 pub mod google;
 
+use systemprompt_ai::models::BillingSource;
 use systemprompt_ai::repository::UserProviderCredentialRepository;
-use systemprompt_ai::{UpstreamCall, UpstreamTarget, UpstreamTargetError};
+use systemprompt_ai::{EndpointBinding, UpstreamCall, UpstreamTarget, UpstreamTargetError};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::services::ProviderEntry;
+use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
 use systemprompt_security::credential::{CredentialError, CredentialScope, fill_endpoint};
 
-use super::{DispatchError, GatewayError};
+use super::{DispatchError, GatewayEngines, GatewayError};
 
-/// Whose account an upstream call bills, recorded as
-/// `ai_requests.billing_source`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BillingSource {
-    Platform,
-    UserKey,
-}
-
-impl BillingSource {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Platform => "platform",
-            Self::UserKey => "user_key",
-        }
-    }
-}
-
-/// The caller a `credential: user` provider is served for: their stored key
-/// is the only credential such a provider may present.
+/// The caller a personal credential is served for: their stored key is the
+/// only key such a hop may present.
 #[derive(Debug, Clone)]
 pub struct KeyOwner {
     pub credentials: UserProviderCredentialRepository,
@@ -63,31 +49,37 @@ pub fn fill_project(endpoint: &str, project: Option<&str>) -> Result<String, Cre
 }
 
 pub async fn resolve(
-    provider: &ProviderEntry,
+    catalog: &ResolvedCatalog,
+    hop: &ResolvedHop,
     owner: &KeyOwner,
+    engines: &GatewayEngines,
 ) -> Result<(UpstreamCall, BillingSource), DispatchError> {
-    if !provider.is_user_credential() {
-        let target = UpstreamTarget::from_secrets(provider).map_err(pre_audit)?;
+    let tokens = &engines.provider_tokens;
+    let binding = EndpointBinding::of_hop(catalog, hop).map_err(pre_audit)?;
+    let billing = BillingSource::of(&hop.credential);
+    if !hop.credential.is_personal() {
+        let target = UpstreamTarget::from_secrets(tokens, &engines.secrets.get(), binding)
+            .map_err(pre_audit)?;
         let call = target.call().await.map_err(pre_audit)?;
-        return Ok((call, BillingSource::Platform));
+        return Ok((call, billing));
     }
-    let name = provider.credential_owner();
+    let credential = &hop.credential.id;
     let key = owner
         .credentials
-        .find_key(&owner.user_id, name)
+        .find_key(&owner.user_id, credential)
         .await
         .map_err(|e| {
             DispatchError::pre_audit(GatewayError::internal("personal key lookup failed", e))
         })?
         .ok_or_else(|| {
             DispatchError::pre_audit(GatewayError::PersonalKeyRequired {
-                provider: name.to_owned(),
+                credential: credential.as_str().to_owned(),
             })
         })?;
-    let target =
-        UpstreamTarget::resolve_personal(provider, &key, &owner.user_id).map_err(pre_audit)?;
+    let target = UpstreamTarget::resolve_personal(tokens, binding, &key, &owner.user_id)
+        .map_err(pre_audit)?;
     let call = target.call().await.map_err(pre_audit)?;
-    Ok((call, BillingSource::UserKey))
+    Ok((call, billing))
 }
 
 fn pre_audit(error: UpstreamTargetError) -> DispatchError {

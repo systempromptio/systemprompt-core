@@ -10,7 +10,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::repository::{OAuthRepository, PostgresReplayGuard};
 use systemprompt_oauth::services::SessionCreationService;
@@ -75,23 +74,21 @@ impl std::fmt::Debug for SsoDriver {
 
 impl SsoDriver {
     pub fn discover(
-        db: &DbPool,
+        ctx: &SsoHookContext,
+        oauth: OAuthRepository,
         session_service: Arc<SessionCreationService>,
-        config: Arc<Config>,
     ) -> Self {
-        let ctx = SsoHookContext {
-            db: Arc::clone(db),
-            config: Arc::clone(&config),
-        };
+        let db = &ctx.db;
+        let config = Arc::clone(&ctx.config);
         let SsoRepositories {
             oauth: repo,
             login_events,
-        } = SsoRepositories::new(db);
+        } = SsoRepositories::new(db, oauth);
         let mut sinks: Vec<Arc<dyn AuthEventSink>> =
             vec![Arc::new(PostgresAuthEventSink::new(login_events))];
-        sinks.extend(discover_sinks(&ctx));
-        let providers = discover_providers(&ctx);
-        let roles = discover_role_resolver(&ctx);
+        sinks.extend(discover_sinks(ctx));
+        let providers = discover_providers(ctx);
+        let roles = discover_role_resolver(ctx);
         if !providers.is_empty() {
             tracing::info!(
                 providers = ?providers.iter().map(|p| p.id()).collect::<Vec<_>>(),

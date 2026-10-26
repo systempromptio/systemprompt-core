@@ -13,143 +13,29 @@ use std::sync::{Arc, OnceLock};
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::Request;
-use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
-use systemprompt_config::paths::AppPaths;
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
-use systemprompt_manifest::profile::PathsConfig;
-use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::RouteClassifier;
-use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id,
-    install_test_signing_key, test_db_pool, unique_instance,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };
-use systemprompt_users::{UserRepository, UserService};
 use tower::ServiceExt;
 
 async fn boot_server() -> anyhow::Result<axum::Router> {
-    let test_instance = unique_instance();
     let bootstrap = ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
 
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
 
-    let paths = PathsConfig {
-        system: "/tmp".to_string(),
-        services: "/tmp".to_string(),
-        bin: "/tmp".to_string(),
-        web_path: Some("/tmp".to_string()),
-        storage: Some("/tmp".to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    };
-    let app_paths = Arc::new(AppPaths::from_profile(
-        &paths,
-        systemprompt_manifest::PathResolution::Canonicalize,
+    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let router = setup_api_server(
+        &ctx,
         None,
-    )?);
-
-    let ctx = Arc::new(AppContext::from_parts(
-        {
-            let analytics_repositories = Arc::new(
-                systemprompt_test_fixtures::fixture_analytics_repositories(&pool)?,
-            );
-            let analytics_service =
-                Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
-            let session_store = Arc::clone(analytics_service.session_store());
-            let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
-            DataPlane {
-                database: Arc::clone(&pool),
-                analytics_service,
-                fingerprint_repo: Some(Arc::new(
-                    systemprompt_test_fixtures::fixture_fingerprint_repository(&pool)?,
-                )),
-                user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
-                    &pool,
-                ))))),
-                a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
-                    &pool,
-                    systemprompt_agent::repository::A2aDependencies {
-                        session_usage,
-                        instance_id: test_instance.clone(),
-                        managed_skills: systemprompt_test_fixtures::not_managed_skills(),
-                        tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
-                            systemprompt_test_fixtures::ToolExecutionLedger::Exists,
-                        ),
-                    },
-                )),
-                content_repositories: Arc::new(
-                    systemprompt_content::repository::ContentRepositories::new(&pool),
-                ),
-                oauth_repositories: Arc::new(
-                    systemprompt_oauth::repository::OAuthRepositories::new(&pool),
-                ),
-                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
-                service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
-                    &pool,
-                    test_instance.clone(),
-                )),
-                coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
-                    &pool,
-                    test_instance.clone(),
-                )),
-                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
-                analytics_repositories,
-                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
-                mcp_session_repository: Arc::new(
-                    systemprompt_mcp::repository::McpSessionRepository::new(&pool),
-                ),
-                managed_repository: Arc::new(
-                    systemprompt_marketplace::managed::ManagedRepository::new(&pool),
-                ),
-            }
-        },
-        ConfigPlane {
-            config: Arc::new(config),
-            app_paths,
-            content_config: None,
-            route_classifier: Arc::new(RouteClassifier::new(None)),
-        },
-        Plugins {
-            extension_registry: Arc::new(ExtensionRegistry::new()),
-            mcp_registry: RegistryService::new(fixture_user_id()),
-            marketplace_filter: Arc::new(AllowAllFilter),
-            marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
-        },
-        Subsystems {
-            system_admin: Arc::new(fixture_system_admin("admin")),
-            authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
-            governance: systemprompt_test_fixtures::default_governance_engine(),
-            cache_epochs: systemprompt_traits::CacheEpochs::new(),
-            ai_service: None,
-            artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,
-            schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
-                systemprompt_database::SchemaInstallReport::default(),
-            )),
-            event_bridge: Arc::new(OnceLock::new()),
-            event_router: systemprompt_events::EventRouter::local_only(),
-            geoip_reader: None,
-            file_storage: systemprompt_storage::build_file_storage(
-                systemprompt_storage::FileStorageBackend::Local {
-                    root: std::env::temp_dir(),
-                },
-            ),
-            shutdown: Default::default(),
-            background_tasks: Default::default(),
-            publish_guard: Arc::new(tokio::sync::Mutex::new(
-                systemprompt_marketplace::inventory::PublishGuard::default(),
-            )),
-        },
-    ));
-    let router = setup_api_server(&ctx, None)
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
-    Ok(router)
+        &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    Ok(router.layer(axum::Extension(Arc::new(
+        systemprompt_api::services::server::SchedulerHealth::new(),
+    ))))
 }
 
 static BOOT_GATE: OnceLock<()> = OnceLock::new();

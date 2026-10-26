@@ -1,0 +1,15 @@
+[package]
+name = "systemprompt-facade-macros-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Registration macros expand in a crate that reaches core only through the facade"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt = { workspace = true }
+async-trait = { workspace = true }

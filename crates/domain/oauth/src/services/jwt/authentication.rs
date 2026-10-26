@@ -6,33 +6,34 @@
 use crate::services::validation::jwt as jwt_validation;
 use http::{HeaderMap, StatusCode};
 use systemprompt_identifiers::UserId;
-use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_manifest::Config;
+use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_security::TokenExtractor;
 
 #[derive(Debug, Copy, Clone)]
 pub struct AuthenticationService;
 
 impl AuthenticationService {
-    pub fn authenticate(headers: &HeaderMap) -> Result<AuthenticatedUser, StatusCode> {
+    pub fn authenticate(
+        authority: &dyn TokenAuthority,
+        config: &Config,
+        headers: &HeaderMap,
+    ) -> Result<AuthenticatedUser, StatusCode> {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-        let config =
-            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let claims = jwt_validation::validate_jwt_token(authority, &token, &config.jwt_audiences)
+            .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
-        let claims =
-            jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-                .map_err(|_e| StatusCode::UNAUTHORIZED)?;
-
-        let user_id =
-            UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let user_id = UserId::try_new(claims.registered.sub.as_str())
+            .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 
         Ok(AuthenticatedUser::new_with_roles(
             user_id,
-            claims.username.clone(),
-            claims.email,
+            claims.custom.username.clone(),
+            claims.custom.email,
             permissions,
             roles,
         ))

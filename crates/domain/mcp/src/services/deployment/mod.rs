@@ -9,8 +9,9 @@
 
 use crate::Deployment;
 use crate::error::{McpDomainError, McpDomainResult};
-use systemprompt_loader::ConfigLoader;
+use std::sync::Arc;
 use systemprompt_manifest::ServicesConfig;
+use systemprompt_manifest::services::ServicesView;
 
 fn missing_deployment(name: &str) -> McpDomainError {
     McpDomainError::Configuration(format!(
@@ -18,16 +19,24 @@ fn missing_deployment(name: &str) -> McpDomainError {
     ))
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct DeploymentService;
+#[derive(Debug, Clone)]
+pub struct DeploymentService {
+    services: ServicesView,
+}
 
 impl DeploymentService {
-    pub fn load_config() -> McpDomainResult<ServicesConfig> {
-        ConfigLoader::load().map_err(Into::into)
+    #[must_use]
+    pub const fn new(services: ServicesView) -> Self {
+        Self { services }
     }
 
-    pub fn get_deployment(name: &str) -> McpDomainResult<Deployment> {
-        let config = Self::load_config()?;
+    #[must_use]
+    pub fn load_config(&self) -> Arc<ServicesConfig> {
+        self.services.config()
+    }
+
+    pub fn get_deployment(&self, name: &str) -> McpDomainResult<Deployment> {
+        let config = self.load_config();
         config
             .mcp_servers
             .get(name)
@@ -35,28 +44,23 @@ impl DeploymentService {
             .ok_or_else(|| missing_deployment(name))
     }
 
-    pub fn list_enabled_servers() -> McpDomainResult<Vec<String>> {
-        let config = Self::load_config()?;
-        Ok(config
+    #[must_use]
+    pub fn list_enabled_servers(&self) -> Vec<String> {
+        self.load_config()
             .mcp_servers
             .iter()
             .filter(|(_, deployment)| deployment.enabled)
             .map(|(name, _)| name.clone())
-            .collect())
+            .collect()
     }
 
 
-    pub fn is_server_enabled(name: &str) -> McpDomainResult<bool> {
-        let config = Self::load_config()?;
+    pub fn is_server_enabled(&self, name: &str) -> McpDomainResult<bool> {
+        let config = self.load_config();
         config
             .mcp_servers
             .get(name)
             .map(|d| d.enabled)
             .ok_or_else(|| missing_deployment(name))
-    }
-
-    pub fn validate_config() -> McpDomainResult<()> {
-        ConfigLoader::load()?;
-        Ok(())
     }
 }

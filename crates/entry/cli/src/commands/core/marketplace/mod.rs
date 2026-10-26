@@ -15,7 +15,6 @@ use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use serde::Serialize;
 use systemprompt_identifiers::UserId;
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_marketplace::{
     AllowAllFilter, AssembleRequest, ManifestService, ManifestTrace, MarketplaceCache,
 };
@@ -56,7 +55,9 @@ struct ExplainRow {
 pub async fn execute(command: MarketplaceCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         MarketplaceCommands::Explain(args) => {
-            let result = explain(&args).await.context("Failed to explain manifest")?;
+            let result = explain(&args, ctx)
+                .await
+                .context("Failed to explain manifest")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
@@ -68,11 +69,13 @@ pub async fn execute(command: MarketplaceCommands, ctx: &CommandContext) -> Resu
     }
 }
 
-pub async fn explain(args: &ExplainArgs) -> Result<CommandOutput> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let services =
-        systemprompt_loader::ConfigLoader::load().context("Failed to load services config")?;
-    let services_root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
+pub async fn explain(args: &ExplainArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let boot = ctx.boot()?;
+    let profile = boot.profile();
+    let services = boot
+        .load_services_config()
+        .context("Failed to load services config")?;
+    let services_root = boot.require_services_root().path;
     let user_id = UserId::new(
         args.user
             .clone()

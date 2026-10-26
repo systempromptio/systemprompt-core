@@ -1,19 +1,23 @@
-//! Personal provider keys: which providers take one, and storing one after an
-//! upstream check proves it works.
+//! Personal credentials: which ones take a member's own key, and storing one.
 //!
-//! Both the gateway's `/v1/me/provider-credentials` route and any in-process
-//! console call [`store_personal_key`], so a key is verified and sealed the
-//! same way whichever surface the user added it from.
+//! A key is stored, under its catalog credential id, once every endpoint it
+//! authenticates proves it works; the provider-credentials route calls
+//! [`store_personal_key`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
+use systemprompt_manifest::services::catalog::{
+    ResolvedCatalog, ResolvedCredential, ResolvedEndpoint,
+};
+use systemprompt_security::credential::TokenCache;
+use systemprompt_traits::ProviderTokenCache;
 
-use super::upstream::UpstreamTarget;
+use super::upstream::{EndpointBinding, UpstreamCall, UpstreamTarget};
 use crate::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
 
 const VERIFY_TIMEOUT: Duration = Duration::from_secs(10);
@@ -21,158 +25,209 @@ const MAX_KEY_BYTES: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PersonalKeyError {
-    #[error("provider '{0}' does not take a personal key")]
-    NotPersonalProvider(String),
+    #[error("credential '{0}' does not take a personal key")]
+    NotPersonalCredential(String),
     #[error("{0} rejected the key; check it was copied whole and the subscription is active")]
     Rejected(String),
-    #[error("{provider} could not verify the key (upstream answered {status}); try again shortly")]
-    Unverified { provider: String, status: String },
+    #[error(
+        "{credential} could not verify the key (upstream answered {status}); try again shortly"
+    )]
+    Unverified { credential: String, status: String },
     #[error("personal key could not be stored")]
     Internal(#[source] systemprompt_traits::BoxedSource),
 }
 
 #[must_use]
-pub fn personal_providers(registry: &ProviderRegistry) -> Vec<ProviderEntry> {
-    registry
-        .providers
-        .iter()
-        .filter(|entry| entry.takes_own_personal_key())
-        .cloned()
+pub fn personal_credentials(catalog: &ResolvedCatalog) -> Vec<&ResolvedCredential> {
+    catalog
+        .credentials()
+        .filter(|credential| credential.is_personal())
+        .filter(|credential| !credential_endpoints(catalog, credential).is_empty())
         .collect()
 }
 
-pub fn personal_provider(
-    registry: &ProviderRegistry,
-    name: &str,
-) -> Result<ProviderEntry, PersonalKeyError> {
-    personal_providers(registry)
+pub fn personal_credential<'c>(
+    catalog: &'c ResolvedCatalog,
+    id: &str,
+) -> Result<&'c ResolvedCredential, PersonalKeyError> {
+    personal_credentials(catalog)
         .into_iter()
-        .find(|entry| entry.name.as_str() == name)
-        .ok_or_else(|| PersonalKeyError::NotPersonalProvider(name.to_owned()))
+        .find(|credential| credential.id.as_str() == id)
+        .ok_or_else(|| PersonalKeyError::NotPersonalCredential(id.to_owned()))
+}
+
+#[must_use]
+pub fn credential_endpoints<'c>(
+    catalog: &'c ResolvedCatalog,
+    credential: &'c ResolvedCredential,
+) -> Vec<&'c ResolvedEndpoint> {
+    catalog
+        .endpoints_for_credential(credential.id.as_str())
+        .filter(|endpoint| {
+            catalog
+                .provider(endpoint.provider.as_str())
+                .is_some_and(|provider| provider.enabled)
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct PersonalKeyRequest<'a> {
     pub user_id: &'a UserId,
-    pub provider: &'a str,
+    pub credential: &'a str,
     pub key: &'a str,
     pub label: Option<&'a str>,
 }
 
 pub async fn store_personal_key(
+    tokens: &Arc<dyn ProviderTokenCache>,
     credentials: &UserProviderCredentialRepository,
-    registry: &ProviderRegistry,
+    catalog: &ResolvedCatalog,
     request: PersonalKeyRequest<'_>,
 ) -> Result<UserProviderCredentialMeta, PersonalKeyError> {
     let PersonalKeyRequest {
         user_id,
-        provider,
+        credential,
         key,
         label,
     } = request;
-    let entry = personal_provider(registry, provider)?;
+    let credential = personal_credential(catalog, credential)?;
     let key = key.trim();
     if key.is_empty() || key.len() > MAX_KEY_BYTES {
-        return Err(PersonalKeyError::Rejected(provider_label(&entry)));
+        return Err(PersonalKeyError::Rejected(credential_label(credential)));
     }
-    verify_upstream(&entry, key, user_id).await?;
+    verify_personal_key(tokens, catalog, credential, key, user_id).await?;
     let label = label.map(str::trim).filter(|l| !l.is_empty());
-    let sealed = systemprompt_security::at_rest::seal(key)
+    let cipher = credentials.cipher();
+    let sealed = cipher
+        .seal(key)
         .map_err(|e| PersonalKeyError::Internal(e.into()))?;
     let meta = credentials
-        .set_key(user_id, entry.name.as_str(), &sealed, label)
+        .set_key(user_id, &credential.id, &sealed, label)
         .await
         .map_err(|e| PersonalKeyError::Internal(e.into()))?;
     tracing::info!(
         user_id = %user_id,
-        provider = %entry.name.as_str(),
+        credential = %credential.id.as_str(),
         "Personal provider key stored"
     );
     Ok(meta)
 }
 
+pub async fn verify_personal_key(
+    tokens: &Arc<dyn ProviderTokenCache>,
+    catalog: &ResolvedCatalog,
+    credential: &ResolvedCredential,
+    key: &str,
+    user_id: &UserId,
+) -> Result<(), PersonalKeyError> {
+    let tokens = TokenCache::from_handle(tokens)
+        .ok_or_else(|| PersonalKeyError::Internal("foreign token cache".into()))?;
+    let endpoints = credential_endpoints(catalog, credential);
+    if endpoints.is_empty() {
+        return Err(PersonalKeyError::NotPersonalCredential(
+            credential.id.as_str().to_owned(),
+        ));
+    }
+    for endpoint in endpoints {
+        let binding = EndpointBinding::of_endpoint(catalog, &endpoint.endpoint_ref())
+            .map_err(|e| PersonalKeyError::Internal(e.into()))?;
+        verify_endpoint(&tokens, catalog, binding, key, user_id).await?;
+    }
+    Ok(())
+}
+
 #[must_use]
-pub fn provider_label(entry: &ProviderEntry) -> String {
-    entry
-        .display_name
+pub fn credential_label(credential: &ResolvedCredential) -> String {
+    credential
+        .label
         .clone()
-        .unwrap_or_else(|| entry.name.as_str().to_owned())
+        .unwrap_or_else(|| credential.id.as_str().to_owned())
+}
+
+struct Probe<'a> {
+    catalog: &'a ResolvedCatalog,
+    binding: EndpointBinding<'a>,
+    client: reqwest::Client,
+    call: UpstreamCall,
+    user_id: &'a UserId,
 }
 
 // Why: OpenCode Go and every OpenAI- or Anthropic-compatible upstream answer
 // `GET {endpoint}/models` for any valid key and 401/403 for a bad one, so it
 // proves the key without spending a token of the subscription.
-async fn verify_upstream(
-    entry: &ProviderEntry,
+async fn verify_endpoint(
+    tokens: &Arc<TokenCache>,
+    catalog: &ResolvedCatalog,
+    binding: EndpointBinding<'_>,
     key: &str,
     user_id: &UserId,
 ) -> Result<(), PersonalKeyError> {
-    let rejected = || PersonalKeyError::Rejected(provider_label(entry));
-    let unverified = |status: String| PersonalKeyError::Unverified {
-        provider: provider_label(entry),
-        status,
-    };
-    let target = UpstreamTarget::resolve_personal(entry, key, user_id).map_err(|_e| rejected())?;
+    let rejected = || PersonalKeyError::Rejected(credential_label(binding.credential));
+    let target =
+        UpstreamTarget::resolve_personal(tokens, binding, key, user_id).map_err(|_e| rejected())?;
     let call = target.call().await.map_err(|_e| rejected())?;
-    let url = format!("{}/models", call.endpoint().trim_end_matches('/'));
     let client = reqwest::Client::builder()
         .timeout(VERIFY_TIMEOUT)
         .build()
         .map_err(|e| PersonalKeyError::Internal(e.into()))?;
+    let url = format!("{}/models", call.endpoint().trim_end_matches('/'));
     let mut request = client.get(&url);
-    for (name, value) in call.headers(entry.wire) {
+    for (name, value) in call.headers(binding.endpoint.wire) {
         if !name.eq_ignore_ascii_case("content-type") {
             request = request.header(name, value);
         }
     }
     let response = request.send().await.map_err(|error| {
         tracing::warn!(
-            provider = %entry.name.as_str(),
+            endpoint = %binding.endpoint.endpoint_ref(),
             %error,
             "Personal key check got no response"
         );
-        unverified("no response".to_owned())
+        Verdict::Unverified("no response".to_owned()).into_error(binding.credential)
     })?;
     let status = response.status().as_u16();
     if matches!(status, 404 | 405) {
-        return probe_completion(&client, &call, entry, user_id).await;
+        let probe = Probe {
+            catalog,
+            binding,
+            client,
+            call,
+            user_id,
+        };
+        return probe_completion(&probe).await;
     }
-    classify(status, false).map_err(|verdict| verdict.into_error(entry))
+    classify(status, false).map_err(|verdict| verdict.into_error(binding.credential))
 }
 
 // Why: OpenCode Go serves no `/models` listing (404) and answers a malformed
 // body with a 500 before it checks the key, so the only request that proves a
 // key there is a well-formed one-token completion; a bad key is then a 401.
-async fn probe_completion(
-    client: &reqwest::Client,
-    call: &super::upstream::UpstreamCall,
-    entry: &ProviderEntry,
-    user_id: &UserId,
-) -> Result<(), PersonalKeyError> {
-    let Some(model) = entry.models.iter().find(|m| !m.hidden) else {
-        return Err(Verdict::Unverified("no model to probe".to_owned()).into_error(entry));
+async fn probe_completion(probe: &Probe<'_>) -> Result<(), PersonalKeyError> {
+    let Probe {
+        catalog,
+        binding,
+        client,
+        call,
+        user_id,
+    } = probe;
+    let wire = binding.endpoint.wire;
+    let Some(upstream_model) = probe_model(catalog, binding.endpoint) else {
+        return Err(
+            Verdict::Unverified("no model to probe".to_owned()).into_error(binding.credential)
+        );
     };
-    let upstream_model = model.effective_upstream_model(model.id.as_str());
     // JSON: provider request body — a one-token probe in the upstream wire format.
     let body = serde_json::json!({
         "model": upstream_model,
         "max_tokens": 1,
         "messages": [{"role": "user", "content": "ping"}],
     });
-    let session = format!(
-        "ses_keycheck_{}",
-        user_id
-            .as_str()
-            .chars()
-            .filter(char::is_ascii_alphanumeric)
-            .take(20)
-            .collect::<String>()
-    );
-    let forward = vec![("x-opencode-session".to_owned(), session)];
+    let forward = vec![("x-opencode-session".to_owned(), probe_session(user_id))];
     let mut request = client
-        .post(call.url(entry.wire, upstream_model, false))
+        .post(call.url(wire, &upstream_model, false))
         .body(body.to_string());
-    for (name, value) in call.headers_forwarding(entry.wire, &forward) {
+    for (name, value) in call.headers_forwarding(wire, &forward) {
         request = request.header(name, value);
     }
     let status = request
@@ -180,15 +235,40 @@ async fn probe_completion(
         .await
         .map_err(|error| {
             tracing::warn!(
-                provider = %entry.name.as_str(),
+                endpoint = %binding.endpoint.endpoint_ref(),
                 %error,
                 "Personal key probe got no response"
             );
-            Verdict::Unverified("no response".to_owned()).into_error(entry)
+            Verdict::Unverified("no response".to_owned()).into_error(binding.credential)
         })?
         .status()
         .as_u16();
-    classify(status, true).map_err(|verdict| verdict.into_error(entry))
+    classify(status, true).map_err(|verdict| verdict.into_error(binding.credential))
+}
+
+fn probe_session(user_id: &UserId) -> String {
+    format!(
+        "ses_keycheck_{}",
+        user_id
+            .as_str()
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .take(20)
+            .collect::<String>()
+    )
+}
+
+fn probe_model(catalog: &ResolvedCatalog, endpoint: &ResolvedEndpoint) -> Option<String> {
+    let target = endpoint.endpoint_ref();
+    let mut models: Vec<_> = catalog.models().collect();
+    models.sort_by_key(|model| !model.is_advertised());
+    models.into_iter().find_map(|model| {
+        catalog
+            .deployments(model.id.as_str())
+            .iter()
+            .find(|hop| hop.endpoint_ref() == target)
+            .map(|hop| hop.upstream_model.clone())
+    })
 }
 
 enum Verdict {
@@ -197,11 +277,11 @@ enum Verdict {
 }
 
 impl Verdict {
-    fn into_error(self, entry: &ProviderEntry) -> PersonalKeyError {
+    fn into_error(self, credential: &ResolvedCredential) -> PersonalKeyError {
         match self {
-            Self::Rejected => PersonalKeyError::Rejected(provider_label(entry)),
+            Self::Rejected => PersonalKeyError::Rejected(credential_label(credential)),
             Self::Unverified(status) => PersonalKeyError::Unverified {
-                provider: provider_label(entry),
+                credential: credential_label(credential),
                 status,
             },
         }

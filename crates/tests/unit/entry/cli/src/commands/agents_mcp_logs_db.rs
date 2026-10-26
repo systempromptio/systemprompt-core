@@ -15,6 +15,13 @@ use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use uuid::Uuid;
 
 
+fn services() -> systemprompt_manifest::ServicesConfig {
+    systemprompt_test_fixtures::ensure_test_bootstrap()
+        .boot
+        .load_services_config()
+        .expect("services config")
+}
+
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)
 }
@@ -63,9 +70,10 @@ async fn agent_logs_db_returns_matching_entries() {
     let msg = format!("agent-log-needle-{}", Uuid::new_v4().simple());
     seed_log(&pool, &format!("agent.{token}"), &msg).await;
 
-    let out = agent_logs_db::execute_db_mode_with_pool(&agent_args(&token), &pool, &cfg())
-        .await
-        .unwrap();
+    let out =
+        agent_logs_db::execute_db_mode_with_pool(&agent_args(&token), &pool, &services(), &cfg())
+            .await
+            .unwrap();
 
     assert!(contains(&out, &msg));
     assert!(contains(&out, "database"));
@@ -78,9 +86,10 @@ async fn mcp_logs_db_returns_matching_entries() {
     let msg = format!("mcp-log-needle-{}", Uuid::new_v4().simple());
     seed_log(&pool, &format!("mcp.{token}"), &msg).await;
 
-    let out = mcp_logs_db::execute_db_mode_with_pool(&mcp_args(&token, None), &pool, &cfg())
-        .await
-        .unwrap();
+    let out =
+        mcp_logs_db::execute_db_mode_with_pool(&mcp_args(&token, None), &pool, &services(), &cfg())
+            .await
+            .unwrap();
 
     assert!(contains(&out, &msg));
     assert!(contains(&out, "database"));
@@ -96,6 +105,7 @@ async fn mcp_logs_db_level_filter_keeps_error() {
     let out = mcp_logs_db::execute_db_mode_with_pool(
         &mcp_args(&token, Some(mcp_logs::LogLevel::Error)),
         &pool,
+        &services(),
         &cfg(),
     )
     .await

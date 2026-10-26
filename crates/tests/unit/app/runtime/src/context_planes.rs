@@ -3,7 +3,7 @@
 //! `from_parts` embedder path) against the test database; tests skip when no
 //! database is configured.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_config::paths::AppPaths;
@@ -18,6 +18,7 @@ use systemprompt_test_fixtures::{fixture_system_admin, unique_instance};
 
 fn tmp_paths() -> PathsConfig {
     PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),
@@ -67,6 +68,7 @@ async fn plane_debug_impls_flag_optional_members() {
         )),
         oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
             &pool,
+            Arc::from("pepper"),
         )),
         user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
         service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
@@ -77,7 +79,13 @@ async fn plane_debug_impls_flag_optional_members() {
             &pool,
             test_instance.clone(),
         )),
-        ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
+        ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(
+            &pool,
+            systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+        )),
         analytics_repositories: Arc::new(
             systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
                 .expect("analytics repositories"),
@@ -95,20 +103,28 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("fingerprint_repo: false"), "got: {dbg}");
     assert!(dbg.contains("user_service: false"), "got: {dbg}");
 
+    let app_paths = Arc::new(
+        AppPaths::from_profile(
+            &tmp_paths(),
+            systemprompt_manifest::PathResolution::Canonicalize,
+            None,
+        )
+        .expect("app paths"),
+    );
     let cfg = ConfigPlane {
         config: Arc::new(systemprompt_test_fixtures::app_context::fixture_config(
             &url,
         )),
-        app_paths: Arc::new(
-            AppPaths::from_profile(
-                &tmp_paths(),
-                systemprompt_manifest::PathResolution::Canonicalize,
-                None,
-            )
-            .expect("app paths"),
-        ),
+        files_config: Arc::new(systemprompt_files::FilesConfig::new(
+            app_paths.storage().root().to_path_buf(),
+            systemprompt_files::FilesConfigYaml::default(),
+        )),
+        app_paths,
         content_config: Some(content_config()),
         route_classifier: Arc::new(RouteClassifier::new(None)),
+        boot: systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .clone(),
     };
     let dbg = format!("{cfg:?}");
     assert!(dbg.contains("ConfigPlane"), "got: {dbg}");
@@ -116,9 +132,15 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let plugins = Plugins {
         extension_registry: Arc::new(ExtensionRegistry::new()),
-        mcp_registry: RegistryService::new(systemprompt_test_fixtures::fixture_user_id()),
+        mcp_registry: RegistryService::new(
+            systemprompt_test_fixtures::fixture_user_id(),
+            systemprompt_test_fixtures::fixture_services_view(),
+            systemprompt_test_fixtures::test_config(),
+        ),
         marketplace_filter: Arc::new(AllowAllFilter),
         marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
+        subject_providers: Default::default(),
+        subjects: Default::default(),
     };
     let dbg = format!("{plugins:?}");
     assert!(dbg.contains("Plugins"), "got: {dbg}");
@@ -126,8 +148,11 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let subsystems = Subsystems {
         system_admin: Arc::new(fixture_system_admin("planeadmin")),
+        logging: systemprompt_test_fixtures::fixture_logging_runtime(),
         authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
-        governance: systemprompt_test_fixtures::default_governance_engine(),
+        signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+        governance: systemprompt_test_fixtures::default_governance_watch(),
+        services: systemprompt_test_fixtures::fixture_services_state(),
         cache_epochs: systemprompt_traits::CacheEpochs::new(),
         ai_service: None,
         artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)
@@ -135,8 +160,10 @@ async fn plane_debug_impls_flag_optional_members() {
         schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
             systemprompt_database::SchemaInstallReport::default(),
         )),
-        event_bridge: Arc::new(OnceLock::new()),
-        event_router: systemprompt_events::EventRouter::local_only(),
+        event_bridge: systemprompt_test_fixtures::fixture_event_bridge(&pool),
+        event_router: systemprompt_events::EventRouter::local_only(Arc::new(
+            systemprompt_events::EventBroadcasters::new(),
+        )),
         geoip_reader: None,
         file_storage: systemprompt_storage::build_file_storage(
             systemprompt_storage::FileStorageBackend::Local {
@@ -145,18 +172,17 @@ async fn plane_debug_impls_flag_optional_members() {
         ),
         shutdown: Default::default(),
         background_tasks: Default::default(),
+        spawner: systemprompt_test_fixtures::test_spawner(),
         publish_guard: Arc::new(tokio::sync::Mutex::new(
             systemprompt_marketplace::inventory::PublishGuard::default(),
         )),
+        connector_tokens: Arc::default(),
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");
     assert!(dbg.contains("system_admin: \"planeadmin\""), "got: {dbg}");
-    assert!(dbg.contains("event_bridge: false"), "got: {dbg}");
-    assert!(
-        dbg.contains("event_router: EventRouter { outbox: None }"),
-        "got: {dbg}"
-    );
+    assert!(dbg.contains("event_bridge: NotStarted"), "got: {dbg}");
+    assert!(dbg.contains("outbox: None"), "got: {dbg}");
     assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
     let ctx = AppContext::from_parts(data, cfg, plugins, subsystems);

@@ -6,9 +6,9 @@
 
 use std::path::PathBuf;
 
+use systemprompt_manifest::validators::validation_report::{ValidationIssue, ValidationWarning};
+use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 use systemprompt_runtime::{display_validation_report, display_validation_warnings};
-use systemprompt_traits::validation_report::{ValidationIssue, ValidationWarning};
-use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 fn report_with_errors() -> StartupValidationReport {
     let mut report = StartupValidationReport::new()

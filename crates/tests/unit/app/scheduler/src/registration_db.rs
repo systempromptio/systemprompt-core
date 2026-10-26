@@ -16,7 +16,7 @@ use systemprompt_logging::{LogLevel, LoggingRepository};
 use systemprompt_manifest::services::UnlistedJobs;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService, SchedulerStartup};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_traits::{Job, JobContext, JobResult, JobScope};
+use systemprompt_traits::{Dependencies, Job, JobContext, JobResult, JobScope};
 
 const TICK_JOB: &str = "sp_test_registration_tick_job";
 const UNCONFIGURED_JOB: &str = "sp_test_registration_unconfigured_job";
@@ -69,7 +69,7 @@ impl Job for UnconfiguredJob {
         false
     }
 
-    fn configured(&self) -> bool {
+    fn configured(&self, _deployment: &Dependencies) -> bool {
         false
     }
 

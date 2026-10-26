@@ -1,0 +1,18 @@
+# Process statics the core-globals gate accepts, one per line:
+#   path:NAME — reason
+# Entries marked "debt" are service state that a later package moves into an
+# owner; they are listed so the gate ratchets (no new statics) rather than
+# accepted as a pattern. "immutable data" marks compiled regexes, const tables
+# and link-time inventories that are set once and never mutated.
+
+# Immutable data: compiled once, never mutated.
+crates/shared/models/src/ai/execution_plan.rs:TEMPLATE_REF_REGEX — immutable data: the compiled form of a literal pattern
+crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data: the compiled form of a literal pattern
+
+# Third-party set-once globals mirrored by a static.
+crates/infra/logging/src/lib.rs:SUBSCRIBER_INITIALIZED — external constraint: tracing's process-global default dispatcher is set-once
+crates/entry/api/src/services/server/metrics.rs:RECORDER — external constraint: the metrics crate's process-global recorder is set-once
+crates/entry/api/src/services/server/metrics.rs:RECORDER_INIT — external constraint: serialises the single install of that recorder
+
+# Debt: service state a later package moves onto an owner (logging, boot
+# display, process-wide HTTP clients, per-job memo, cloud credentials).

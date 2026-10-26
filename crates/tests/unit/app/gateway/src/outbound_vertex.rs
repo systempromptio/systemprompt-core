@@ -6,7 +6,7 @@
 //! of `x-api-key`, `anthropic_version` in the body in place of the header, and
 //! no `model` field — for the translated and the passthrough lanes alike.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
 use futures_util::StreamExt;
 use serde_json::{Value, json};
@@ -14,12 +14,12 @@ use systemprompt_ai::UpstreamCall;
 
 use super::support;
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, Role,
 };
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_gateway::protocol::outbound::{OutboundAdapter, OutboundCtx, OutboundOutcome};
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 use systemprompt_wire::Hosting;
 use systemprompt_wire::anthropic::AnthropicBeta;
@@ -41,24 +41,14 @@ fn vertex_call(endpoint: &str) -> UpstreamCall {
     )
 }
 
-fn route() -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new("claude-vertex")),
-        name: None,
-        description: None,
-        model_pattern: "claude-*".into(),
-        provider: ProviderId::new("vertex-anthropic"),
-        upstream_model: None,
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+fn route() -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        "vertex-anthropic",
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "m",
+    )
 }
 
 fn request(stream: bool) -> CanonicalRequest {
@@ -71,22 +61,28 @@ fn request(stream: bool) -> CanonicalRequest {
             content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 64,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -127,8 +123,9 @@ async fn buffered_request_posts_raw_predict_with_bearer_and_body_version() {
         ("anthropic-beta".to_owned(), "fixture-beta".to_owned()),
     ];
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5@fixture",
         model_limits: None,
@@ -191,8 +188,9 @@ async fn streaming_request_posts_stream_raw_predict() {
     let req = request(true);
     let call = vertex_call(&server.uri());
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5@fixture",
         model_limits: None,
@@ -233,8 +231,9 @@ fn passthrough_body_drops_model_and_carries_the_vertex_version() {
         .unwrap(),
     );
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5@fixture",
         model_limits: None,
@@ -265,8 +264,9 @@ async fn first_party_anthropic_keeps_messages_path_and_api_key() {
     let req = request(false);
     let call = support::api_key_call(&server.uri(), "sk-fixture");
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5",
         model_limits: None,
@@ -297,8 +297,9 @@ async fn an_undeclared_beta_is_not_forwarded_to_vertex() {
     let call = vertex_call(&server.uri());
     let forwarded = [("anthropic-beta".to_owned(), "fixture-beta".to_owned())];
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5@fixture",
         model_limits: None,
@@ -317,8 +318,6 @@ async fn an_undeclared_beta_is_not_forwarded_to_vertex() {
     );
 }
 
-/// What Claude Code 2.1.283 sends: the context-management flag and the body
-/// field it gates, together.
 fn raw_with_context_management() -> bytes::Bytes {
     bytes::Bytes::from(
         serde_json::to_vec(&json!({
@@ -353,8 +352,9 @@ async fn send_context_management(
         format!("{CONTEXT_MANAGEMENT},advisor-tool-2026-03-01"),
     )];
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &call,
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "claude-sonnet-5",
         model_limits: None,

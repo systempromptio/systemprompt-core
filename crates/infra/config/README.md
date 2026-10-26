@@ -19,7 +19,7 @@ The crate loads the profile YAML, reads the secrets document it references, and 
 
 | Module | Purpose |
 |--------|---------|
-| `bootstrap` | Process-wide cells for the active profile and secrets (`ProfileBootstrap`, `SecretsBootstrap`), plus the manifest-signing seed helpers. Ordering (profile before secrets) is a runtime invariant of the entry-crate boot sequence. |
+| `bootstrap` | The owned profile and secrets the boot sequence builds (`LoadedProfile`, `SecretsService`), plus the manifest-signing seed helpers. Ordering (profile before secrets) is a runtime invariant of the entry-crate boot sequence. |
 | `config_loader` | Builds a runtime `Config` from the active profile (`init_config`, `try_init_config`, `build_from_profile`); `validate_database_config` checks database wiring before startup. |
 | `profile_loader` | `load_profile_with_catalog` — profile YAML parsing with optional catalog overlay. |
 | `profile_gateway` | Profile lookup gateway used during routing resolution. |
@@ -34,18 +34,16 @@ The crate loads the profile YAML, reads the secrets document it references, and 
 
 ```toml
 [dependencies]
-systemprompt-config = "0.72"
+systemprompt-config = "0.73"
 ```
 
 ```rust
-use systemprompt_config::{
-    ConfigResult, ProfileBootstrap, SecretsBootstrap, init_config_from_profile,
-};
+use systemprompt_config::{ConfigResult, LoadedProfile, SecretsService, build_from_profile};
 
-fn boot() -> ConfigResult<()> {
-    let profile = ProfileBootstrap::init()?;
-    SecretsBootstrap::init()?;
-    let config = init_config_from_profile(profile)?;
+async fn boot(path: &std::path::Path) -> ConfigResult<()> {
+    let profile = LoadedProfile::from_path(path)?;
+    let secrets = SecretsService::load(profile.clone()).await?;
+    let config = build_from_profile(&profile, &secrets.get(), None)?;
     let _ = config;
     Ok(())
 }

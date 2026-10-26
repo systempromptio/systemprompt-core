@@ -44,6 +44,7 @@ fn fixture() -> AuthzRequest {
 fn governance_with(mode: AuthzMode, url: Option<&str>, ack: Option<&str>) -> GovernanceConfig {
     GovernanceConfig {
         quota: Default::default(),
+        unapplied_planes: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode,
@@ -62,8 +63,14 @@ async fn no_governance_block_yields_deny_all() {
         None,
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect("build ok");
     let decision = hook.evaluate(fixture()).await;
@@ -80,8 +87,14 @@ async fn disabled_mode_yields_deny_all() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect("build ok");
     let decision = hook.evaluate(fixture()).await;
@@ -95,8 +108,14 @@ async fn webhook_mode_without_url_errors() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect_err("missing url must fail bootstrap");
     assert!(matches!(
@@ -112,8 +131,14 @@ async fn webhook_mode_with_blank_url_errors() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect_err("blank url must fail bootstrap");
     assert!(matches!(
@@ -133,8 +158,14 @@ async fn webhook_mode_with_metadata_ip_url_errors() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect_err("cloud-metadata url must fail bootstrap");
     assert!(matches!(
@@ -150,8 +181,14 @@ async fn webhook_mode_with_private_range_url_errors() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect_err("private-range url must fail bootstrap");
     assert!(matches!(
@@ -167,8 +204,14 @@ async fn webhook_mode_with_non_loopback_http_url_errors() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect_err("non-loopback http url must fail bootstrap");
     assert!(matches!(
@@ -184,8 +227,14 @@ async fn unrestricted_without_acknowledgement_errors() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect_err("missing acknowledgement must fail bootstrap");
     assert!(matches!(
@@ -201,8 +250,14 @@ async fn unrestricted_with_wrong_acknowledgement_errors() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect_err("wrong acknowledgement must fail bootstrap");
     assert!(matches!(
@@ -222,8 +277,14 @@ async fn unrestricted_with_correct_acknowledgement_yields_allow_all() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect("build ok with acknowledgement");
     let decision = hook.evaluate(fixture()).await;
@@ -237,8 +298,14 @@ async fn webhook_mode_composes_the_rule_based_hook_ahead_of_the_webhook() {
         Some(&cfg),
         pool().await,
         None,
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     )
     .expect("build ok");
     let shape = format!("{hook:?}");
@@ -276,6 +343,10 @@ mod extension_mode {
         async fn evaluate(&self, _req: AuthzRequest) -> AuthzDecision {
             AuthzDecision::Allow
         }
+
+        async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+            self.evaluate(req).await
+        }
     }
 
     #[derive(Debug)]
@@ -292,6 +363,10 @@ mod extension_mode {
                 policy: self.0.to_owned(),
             }
         }
+
+        async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+            self.evaluate(req).await
+        }
     }
 
     #[tokio::test]
@@ -301,8 +376,14 @@ mod extension_mode {
             Some(&cfg),
             pool().await,
             None,
-            ChainSources::default(),
-            systemprompt_traits::CacheEpochs::new(),
+            systemprompt_governance::authz::AuthzWiring {
+                sources: ChainSources::default(),
+                epochs: systemprompt_traits::CacheEpochs::new(),
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                subjects: Default::default(),
+                providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            },
         )
         .expect_err("extension mode without hook must fail bootstrap");
         assert!(matches!(
@@ -319,8 +400,14 @@ mod extension_mode {
             Some(&cfg),
             pool().await,
             Some(injected),
-            ChainSources::default(),
-            systemprompt_traits::CacheEpochs::new(),
+            systemprompt_governance::authz::AuthzWiring {
+                sources: ChainSources::default(),
+                epochs: systemprompt_traits::CacheEpochs::new(),
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                subjects: Default::default(),
+                providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            },
         )
         .expect("extension hook under webhook mode is used in place of the webhook");
     }
@@ -333,8 +420,14 @@ mod extension_mode {
             Some(&cfg),
             pool().await,
             Some(injected),
-            ChainSources::default(),
-            systemprompt_traits::CacheEpochs::new(),
+            systemprompt_governance::authz::AuthzWiring {
+                sources: ChainSources::default(),
+                epochs: systemprompt_traits::CacheEpochs::new(),
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                subjects: Default::default(),
+                providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            },
         )
         .expect_err("extension hook supplied under disabled mode must fail bootstrap");
         assert!(matches!(
@@ -357,8 +450,14 @@ mod extension_mode {
             Some(&cfg),
             pool().await,
             Some(injected),
-            ChainSources::default(),
-            systemprompt_traits::CacheEpochs::new(),
+            systemprompt_governance::authz::AuthzWiring {
+                sources: ChainSources::default(),
+                epochs: systemprompt_traits::CacheEpochs::new(),
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                subjects: Default::default(),
+                providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            },
         )
         .expect_err("extension hook supplied under unrestricted mode must fail bootstrap");
         assert!(matches!(
@@ -376,8 +475,14 @@ mod extension_mode {
             None,
             pool().await,
             Some(injected),
-            ChainSources::default(),
-            systemprompt_traits::CacheEpochs::new(),
+            systemprompt_governance::authz::AuthzWiring {
+                sources: ChainSources::default(),
+                epochs: systemprompt_traits::CacheEpochs::new(),
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                subjects: Default::default(),
+                providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            },
         )
         .expect_err("extension hook supplied without governance must fail bootstrap");
         assert!(matches!(
@@ -394,8 +499,14 @@ mod extension_mode {
             Some(&cfg),
             pool().await,
             Some(injected),
-            ChainSources::default(),
-            systemprompt_traits::CacheEpochs::new(),
+            systemprompt_governance::authz::AuthzWiring {
+                sources: ChainSources::default(),
+                epochs: systemprompt_traits::CacheEpochs::new(),
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                subjects: Default::default(),
+                providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            },
         )
         .expect("build ok");
         let shape = format!("{hook:?}");
@@ -495,6 +606,10 @@ mod extension_mode {
     impl AuthzDecisionHook for RecordingHook {
         async fn evaluate(&self, _req: AuthzRequest) -> AuthzDecision {
             self.recorder.lock().unwrap().push(self.label);
+            self.decision.clone()
+        }
+
+        async fn probe(&self, _req: AuthzRequest) -> AuthzDecision {
             self.decision.clone()
         }
     }

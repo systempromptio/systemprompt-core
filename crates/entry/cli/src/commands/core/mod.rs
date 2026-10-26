@@ -60,7 +60,7 @@ pub enum CoreCommands {
 pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
     if ctx.is_database_scoped() && !matches!(cmd, CoreCommands::Content(_) | CoreCommands::Files(_))
     {
-        return Err(crate::shared::database_scoped_command_error());
+        return Err(crate::shared::database_scoped_command_error(ctx));
     }
 
     match cmd {

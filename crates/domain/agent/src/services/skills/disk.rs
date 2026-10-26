@@ -4,10 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
-use std::path::{Path, PathBuf};
-use systemprompt_config::ProfileBootstrap;
+use std::path::Path;
 use systemprompt_identifiers::SkillId;
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
 pub(super) struct LoadedDiskSkill {
@@ -15,15 +13,6 @@ pub(super) struct LoadedDiskSkill {
     pub(super) name: String,
     pub(super) description: String,
     pub(super) instructions: String,
-}
-
-pub(super) fn resolve_skills_root() -> Result<PathBuf> {
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| AgentServiceError::operation("Profile not initialized for SkillService", e))?;
-    Ok(ServicesRootBootstrap::active_path_or(
-        &profile.paths.services,
-        "skills",
-    ))
 }
 
 pub(super) fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<LoadedDiskSkill> {

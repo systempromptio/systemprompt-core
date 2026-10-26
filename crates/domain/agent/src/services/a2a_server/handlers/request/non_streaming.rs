@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use systemprompt_identifiers::{AgentName, TaskId};
@@ -28,7 +29,7 @@ use crate::models::a2a::{A2aRequestParams, A2aResponse, SendMessageResult, Task,
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
-use crate::services::a2a_server::processing::message::MessageProcessor;
+use crate::services::a2a_server::processing::message::MessageHandler;
 use crate::services::shared::AgentServiceError;
 
 use super::list_tasks::{ListTasksError, list_caller_tasks, trim_history};
@@ -199,11 +200,13 @@ async fn send_message(
         return Ok(task);
     }
 
-    let message_processor = MessageProcessor::new(
+    let message_processor = MessageHandler::new(
         Arc::clone(state.agent_state.repositories()),
         Arc::clone(&state.ai_service),
         state.agent_state.webhooks(),
-    )?;
+        state.agent_state.services().clone(),
+        PathBuf::from(&state.agent_state.config().skills_path),
+    );
 
     let mut task = message_processor
         .handle_message(message, agent_name, context, &state.active_tasks)

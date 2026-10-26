@@ -208,9 +208,13 @@ async fn generate_sitemap_emits_per_slug_urls_with_hreflang_alternates() {
     seed_two_locale_post(&db).await;
     install_config(boot);
 
-    generate_sitemap(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("generate_sitemap");
+    generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("generate_sitemap");
 
     let xml = fs::read_to_string(boot.app_paths.web().dist().join("sitemap.xml"))
         .expect("read sitemap.xml");
@@ -260,9 +264,13 @@ async fn generate_sitemap_emits_parent_route_urls_for_each_locale() {
     seed_two_locale_post(&db).await;
     install_config(boot);
 
-    generate_sitemap(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("generate_sitemap");
+    generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("generate_sitemap");
 
     let xml = fs::read_to_string(boot.app_paths.web().dist().join("sitemap.xml"))
         .expect("read sitemap.xml");
@@ -315,9 +323,13 @@ async fn generate_sitemap_excludes_non_public_rows() {
 
     install_config(boot);
 
-    generate_sitemap(content_repo(&db), &boot.app_paths)
-        .await
-        .expect("generate_sitemap");
+    generate_sitemap(
+        content_repo(&db),
+        ensure_test_bootstrap().boot_config(),
+        &boot.app_paths,
+    )
+    .await
+    .expect("generate_sitemap");
 
     let xml = fs::read_to_string(boot.app_paths.web().dist().join("sitemap.xml"))
         .expect("read sitemap.xml");

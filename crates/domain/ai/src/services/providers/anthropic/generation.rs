@@ -10,11 +10,11 @@
 use std::time::Instant;
 
 use serde_json::Value;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, ProviderId};
 use systemprompt_wire::anthropic;
 use systemprompt_wire::canonical::{CanonicalContent, ResponseFormat};
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, ProviderError, Result};
 use crate::models::ai::AiResponse;
 use crate::models::tools::ToolCall;
 use crate::services::providers::canonical_bridge::{
@@ -138,11 +138,12 @@ pub(super) async fn generate_with_schema(
             CanonicalContent::ToolUse { input, .. } => Some(serde_json::to_string(input)),
             _ => None,
         })
-        .ok_or_else(|| AiError::ProviderError {
-            provider: "anthropic".to_owned(),
-            message: "structured-output response carried no tool_use block".to_owned(),
+        .ok_or_else(|| {
+            AiError::Provider(ProviderError::NoStructuredOutput {
+                provider: ProviderId::new("anthropic"),
+            })
         })?
-        .map_err(AiError::SerializationError)?;
+        .map_err(AiError::Serialization)?;
     ai_response.content = structured;
     ai_response.tool_calls = Vec::new();
     Ok(ai_response)

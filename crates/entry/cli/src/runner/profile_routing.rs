@@ -10,12 +10,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use anyhow::{Context, Result, bail};
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_cloud::CloudCredentials;
+use systemprompt_config::LoadedProfile;
 use systemprompt_identifiers::JobName;
+use systemprompt_loader::BootContext;
 
 use super::routing_decision::{RoutingDecision, decide_routing};
 use super::{args, bootstrap};
+use systemprompt_loader::ServicesState;
+
 use crate::cli_settings::CliConfig;
 use crate::commands::{admin, infrastructure};
 use crate::descriptor::{CommandDescriptor, RoutingClass};
@@ -35,20 +41,51 @@ pub enum BootstrapOutcome {
     ExternalDbUrl(String),
 }
 
+pub(super) struct Bootstrapped {
+    pub outcome: BootstrapOutcome,
+    pub credentials: Option<CloudCredentials>,
+    pub services: Option<ServicesState>,
+    pub profile: Option<Arc<LoadedProfile>>,
+    pub boot: Option<BootContext>,
+}
+
+impl Bootstrapped {
+    const fn new(outcome: BootstrapOutcome, credentials: Option<CloudCredentials>) -> Self {
+        Self {
+            outcome,
+            credentials,
+            services: None,
+            profile: None,
+            boot: None,
+        }
+    }
+
+    fn with_services(mut self, services: Option<ServicesState>) -> Self {
+        self.services = services;
+        self
+    }
+
+    fn with_profile(mut self, profile: Arc<LoadedProfile>, boot: Option<BootContext>) -> Self {
+        self.profile = Some(profile);
+        self.boot = boot;
+        self
+    }
+}
+
 pub(super) async fn bootstrap_profile(
     cli: &args::Cli,
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
     env: &EnvOverrides,
-) -> Result<BootstrapOutcome> {
+) -> Result<Bootstrapped> {
     let has_export = args::has_local_export_flag(cli.command.as_ref());
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
-    require_explicit_cloud_profile(ProfileBootstrap::get()?, ctx.source, desc)?;
+    require_explicit_cloud_profile(ctx.loaded.profile(), ctx.source, desc)?;
     if enforce_routing_policy(&ctx, cli, desc, cli_config).await?
         == BootstrapOutcome::RemoteExecuted
     {
-        return Ok(BootstrapOutcome::RemoteExecuted);
+        return Ok(Bootstrapped::new(BootstrapOutcome::RemoteExecuted, None));
     }
 
     let needs_cloud = is_cloud_bypass_command(cli.command.as_ref());
@@ -63,15 +100,14 @@ async fn enforce_routing_policy(
 ) -> Result<BootstrapOutcome> {
     let class = desc.routing_class();
     if !ctx.env.is_deployment_host && class != RoutingClass::LocalOnly && !ctx.has_export {
-        let profile = ProfileBootstrap::get()?;
-        return try_remote_routing(cli, profile, cli_config, desc).await;
+        return try_remote_routing(cli, ctx.loaded.profile(), cli_config, desc).await;
     }
 
     if ctx.has_export && ctx.is_cloud && !ctx.external_db_access {
         bail!(
             "Export with cloud profile '{}' requires external database access.\nEnable \
              external_db_access in the profile or use a local profile.",
-            ctx.profile.name
+            ctx.loaded.name
         );
     }
 
@@ -83,7 +119,7 @@ async fn enforce_routing_policy(
         bail!(
             "Cloud profile '{}' selected but this command doesn't support remote execution.\nUse \
              a local profile with --profile <name> or enable external database access.",
-            ctx.profile.name
+            ctx.loaded.name
         );
     }
 
@@ -126,33 +162,50 @@ async fn initialize_post_routing(
     ctx: &bootstrap::ProfileContext,
     desc: &CommandDescriptor,
     needs_cloud: bool,
-) -> Result<BootstrapOutcome> {
-    if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
-        bootstrap::init_credentials_gracefully(needs_cloud).await?;
-    }
+) -> Result<Bootstrapped> {
+    let credentials = if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
+        bootstrap::init_credentials_gracefully(needs_cloud).await?
+    } else {
+        None
+    };
 
-    if desc.secrets() {
-        bootstrap::init_secrets().await?;
-    }
+    let boot = if desc.secrets() {
+        Some(bootstrap::init_secrets(&ctx.loaded).await?)
+    } else {
+        None
+    };
 
     if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_deployment_host {
-        let secrets = SecretsBootstrap::get().context("Secrets required for external DB access")?;
-        let db_url = secrets.effective_database_url(true).to_owned();
-        return Ok(BootstrapOutcome::ExternalDbUrl(db_url));
+        let boot = boot
+            .as_ref()
+            .context("Secrets required for external DB access")?;
+        let db_url = boot.secrets().get().effective_database_url(true).to_owned();
+        return Ok(
+            Bootstrapped::new(BootstrapOutcome::ExternalDbUrl(db_url), credentials)
+                .with_profile(Arc::clone(&ctx.loaded), Some(boot.clone())),
+        );
     }
 
+    let mut services = None;
     if desc.paths() {
-        bootstrap::init_paths(desc.discovers_models()).await?;
+        let boot = boot
+            .as_ref()
+            .context("Secrets required to resolve the services paths")?;
+        services = Some(bootstrap::init_paths(boot, desc.discovers_models()).await?);
         if !desc.skip_validation() {
-            bootstrap::run_validation()?;
+            bootstrap::run_validation(boot)?;
         }
     }
 
     if !ctx.is_cloud {
-        bootstrap::validate_cloud_credentials(&ctx.env);
+        bootstrap::validate_cloud_credentials(&ctx.env, credentials.as_ref(), ctx.loaded.profile());
     }
 
-    Ok(BootstrapOutcome::ContinueLocal)
+    Ok(
+        Bootstrapped::new(BootstrapOutcome::ContinueLocal, credentials)
+            .with_services(services)
+            .with_profile(Arc::clone(&ctx.loaded), boot),
+    )
 }
 
 async fn try_remote_routing(
@@ -164,7 +217,7 @@ async fn try_remote_routing(
     use super::routing;
 
     let decision = decide_routing(
-        routing::determine_execution_target(),
+        routing::determine_execution_target(profile),
         profile,
         desc.routing_class(),
         desc.data_impact(),

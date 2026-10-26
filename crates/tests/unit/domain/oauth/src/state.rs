@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use http::HeaderMap;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
@@ -169,12 +168,13 @@ impl McpRegistryProvider for NullRegistry {
 async fn base_state() -> OAuthState {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     OAuthState::new(
         repo,
         Arc::new(NullAnalytics),
         Arc::new(NullAnalytics),
         Arc::new(NullUsers),
+        systemprompt_test_fixtures::test_oauth_signing(),
     )
 }
 

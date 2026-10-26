@@ -8,11 +8,14 @@ use axum::Router;
 use systemprompt_api::routes::gateway::gateway_router;
 use tower::ServiceExt;
 
-use super::common::{empty_get, json_post, setup_ctx};
+use super::common::{empty_get, json_post, setup_ctx, with_config};
 
 async fn router() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
-    Ok(gateway_router(&ctx).expect("gateway router builds"))
+    Ok(with_config(
+        gateway_router(&ctx).expect("gateway router builds"),
+        &ctx,
+    ))
 }
 
 #[tokio::test]

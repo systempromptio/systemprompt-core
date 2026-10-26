@@ -7,12 +7,10 @@ use std::time::{Duration, Instant};
 use clap::Parser;
 use serde_json::Value;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
-use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
-};
+use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_app_context};
 
 const HELPER: &str = "commands::infrastructure::jobs_run_lifecycle::mixed_job_run_helper";
 const SUCCESS_JOB: &str = "cleanup_inactive_sessions";
@@ -34,7 +32,6 @@ fn parse(args: &[&str]) -> JobsCommands {
 #[ignore = "re-executed by mixed_manual_run_reports_rows_and_persists_each_outcome"]
 async fn mixed_job_run_helper() {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_jobs_run").await;
     let info_path =
         std::env::var_os("JOBS_RUN_DATABASE_INFO").expect("private database info channel");
@@ -48,7 +45,7 @@ async fn mixed_job_run_helper() {
             .await
             .expect("seed scheduled job row");
     }
-    let ctx = CommandContext::with_app_context(
+    let ctx = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

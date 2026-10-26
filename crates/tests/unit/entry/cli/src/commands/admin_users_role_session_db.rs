@@ -29,7 +29,7 @@ fn parse(args: &[&str]) -> UsersCommands {
 
 fn ctx(pool: &DbPool) -> CommandContext {
     let url = test_database_url();
-    CommandContext::with_app_context(
+    crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -275,6 +275,8 @@ async fn session_list_recent_and_active_for_seeded_user() {
         &pool,
         &user.id,
         chrono::Duration::hours(DEFAULT_CLI_SESSION_HOURS),
+        systemprompt_test_fixtures::test_signing_keys(),
+        &systemprompt_test_fixtures::ensure_test_bootstrap().boot,
     )
     .await
     .unwrap();

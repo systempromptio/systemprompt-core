@@ -185,7 +185,7 @@ async fn seed(pool: &sqlx::PgPool) -> SeededTrace {
                                       output_tokens, cost_microdollars, latency_ms, status,
                                       actor_kind, actor_id, completed_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, 'anthropic', 'claude-sonnet-4-5', 1024, 250,
-                     125, 4200, 1800, 'success', 'user', $3, NOW())",
+                     125, 4200, 1800, 'completed', 'user', $3, NOW())",
         )
         .bind(id)
         .bind(format!("req-{id}"))

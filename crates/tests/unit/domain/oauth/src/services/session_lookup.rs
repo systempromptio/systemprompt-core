@@ -16,7 +16,7 @@ use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_oauth::{
     CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };
-use systemprompt_test_fixtures::{ensure_test_bootstrap, install_test_signing_key};
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
     ExtractSignals, FingerprintProvider, SessionAnalytics, SessionProvider, UserProvider,
@@ -219,7 +219,6 @@ fn anonymous_input<'a>(
 #[tokio::test]
 async fn fingerprint_limit_reuses_session_and_user_from_one_row() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(Some(recent_session(
         "sess_recent",
@@ -230,6 +229,10 @@ async fn fingerprint_limit_reuses_session_and_user_from_one_row() {
         Arc::new(StubUserProvider {
             known_user: Some(user_with_role("user_existing", "anonymous")),
         }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 5,
@@ -261,7 +264,6 @@ async fn fingerprint_limit_reuses_session_and_user_from_one_row() {
 #[tokio::test]
 async fn recent_anonymous_session_is_returned_without_creating_a_new_one() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(Some(recent_session(
         "sess_recent",
@@ -272,6 +274,10 @@ async fn recent_anonymous_session_is_returned_without_creating_a_new_one() {
         Arc::new(StubUserProvider {
             known_user: Some(user_with_role("user_existing", "anonymous")),
         }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 1,
@@ -294,7 +300,6 @@ async fn recent_anonymous_session_is_returned_without_creating_a_new_one() {
 #[tokio::test]
 async fn registered_users_session_is_never_reused_for_a_matching_fingerprint() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(Some(recent_session(
         "sess_victim",
@@ -305,6 +310,10 @@ async fn registered_users_session_is_never_reused_for_a_matching_fingerprint() {
         Arc::new(StubUserProvider {
             known_user: Some(user_with_role("user_victim", "user")),
         }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 9,
@@ -328,7 +337,6 @@ async fn registered_users_session_is_never_reused_for_a_matching_fingerprint() {
 #[tokio::test]
 async fn session_whose_owner_cannot_be_loaded_is_not_reused() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(Some(recent_session(
         "sess_recent",
@@ -337,6 +345,10 @@ async fn session_whose_owner_cannot_be_loaded_is_not_reused() {
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let request_analytics = SessionAnalytics::default();
@@ -354,7 +366,6 @@ async fn session_whose_owner_cannot_be_loaded_is_not_reused() {
 #[tokio::test]
 async fn recent_session_without_user_falls_through_to_fresh_creation() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(Some(recent_session(
         "sess_recent",
@@ -363,6 +374,10 @@ async fn recent_session_without_user_falls_through_to_fresh_creation() {
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let request_analytics = SessionAnalytics::default();
@@ -386,7 +401,6 @@ async fn recent_session_without_user_falls_through_to_fresh_creation() {
 #[tokio::test]
 async fn create_authenticated_session_persists_for_known_user() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(None));
     let user_id = UserId::new("user_known");
@@ -395,6 +409,10 @@ async fn create_authenticated_session_persists_for_known_user() {
         Arc::new(StubUserProvider {
             known_user: Some(anon_user("user_known")),
         }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let session_id = service
@@ -413,6 +431,10 @@ async fn create_authenticated_session_rejects_unknown_user() {
     let service = SessionCreationService::new(
         Arc::new(StubAnalyticsProvider::new(None)) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let user_id = UserId::new("user_missing");
@@ -602,12 +624,15 @@ impl FingerprintProvider for ReusableLookupFailsProvider {
 #[tokio::test]
 async fn failing_reusable_session_lookup_falls_through_to_fresh_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(None));
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(ReusableLookupFailsProvider));
 
@@ -624,7 +649,6 @@ async fn failing_reusable_session_lookup_falls_through_to_fresh_session() {
 #[tokio::test]
 async fn at_limit_failing_recent_lookup_falls_through_to_fresh_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(FailingAnalyticsProvider {
         created_sessions: AtomicUsize::new(0),
@@ -632,6 +656,10 @@ async fn at_limit_failing_recent_lookup_falls_through_to_fresh_session() {
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 9,
@@ -652,12 +680,15 @@ async fn at_limit_failing_recent_lookup_falls_through_to_fresh_session() {
 #[tokio::test]
 async fn failing_fingerprint_count_falls_through_to_fresh_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(None));
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(FailingFingerprintProvider));
 
@@ -675,12 +706,15 @@ async fn failing_fingerprint_count_falls_through_to_fresh_session() {
 #[tokio::test]
 async fn at_limit_without_reusable_session_creates_fresh_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(None));
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 5,
@@ -701,7 +735,6 @@ async fn at_limit_without_reusable_session_creates_fresh_session() {
 #[tokio::test]
 async fn at_limit_with_recent_session_lacking_user_creates_fresh_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(StubAnalyticsProvider::new(Some(recent_session(
         "sess_orphan",
@@ -710,6 +743,10 @@ async fn at_limit_with_recent_session_lacking_user_creates_fresh_session() {
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 9,
@@ -729,7 +766,6 @@ async fn at_limit_with_recent_session_lacking_user_creates_fresh_session() {
 #[tokio::test]
 async fn failing_analytics_lookup_falls_through_to_fresh_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let analytics = Arc::new(FailingAnalyticsProvider {
         created_sessions: AtomicUsize::new(0),
@@ -737,6 +773,10 @@ async fn failing_analytics_lookup_falls_through_to_fresh_session() {
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let request_analytics = SessionAnalytics::default();
@@ -753,13 +793,16 @@ async fn failing_analytics_lookup_falls_through_to_fresh_session() {
 #[tokio::test(start_paused = true)]
 async fn slow_session_lookup_times_out_and_creates_fresh_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
 
     let service = SessionCreationService::new(
         Arc::new(SlowAnalyticsProvider {
             inner: StubAnalyticsProvider::new(Some(recent_session("sess_slow", Some("user_slow")))),
         }) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let request_analytics = SessionAnalytics::default();
@@ -780,6 +823,10 @@ async fn ensure_anonymous_user_resolves_user_and_fingerprint() {
     let service = SessionCreationService::new(
         Arc::new(StubAnalyticsProvider::new(None)) as Arc<dyn SessionProvider>,
         Arc::new(StubUserProvider { known_user: None }),
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let (user_id, fingerprint) = service

@@ -11,7 +11,9 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 use systemprompt_bridge::cowork_compat::PERSONAL_SESSION_UUID;
-use systemprompt_bridge::integration::cowork_plugins::{ResolveTargetError, pick_target};
+use systemprompt_bridge::integration::cowork_plugins::{
+    ResolveTargetError, TargetSource, pick_target,
+};
 
 const PERSONAL: &str = PERSONAL_SESSION_UUID;
 const REAL_ORG: &str = "f8e4d915-1111-2222-3333-444444444444";
@@ -51,7 +53,7 @@ fn personal_session_wins_over_another_usable_org() {
     let candidates = vec![(t(1_000), personal.clone()), (t(9_000), real)];
 
     let picked = pick_target(&candidates).expect("a personal session resolves");
-    assert_eq!(picked.as_deref(), Some(personal.as_path()));
+    assert_eq!(picked, Some((personal, TargetSource::Personal)));
 }
 
 #[test]
@@ -63,7 +65,7 @@ fn single_usable_org_is_selected() {
     let candidates = vec![(t(1_000), usable.clone()), (t(9_000), half_init)];
 
     let picked = pick_target(&candidates).expect("one usable session resolves");
-    assert_eq!(picked.as_deref(), Some(usable.as_path()));
+    assert_eq!(picked, Some((usable, TargetSource::OnlySession)));
 }
 
 #[test]
@@ -111,5 +113,5 @@ fn half_initialised_personal_dir_is_skipped_for_personal_match() {
     let candidates = vec![(t(1_000), half_init), (t(9_000), real.clone())];
 
     let picked = pick_target(&candidates).expect("the real org resolves");
-    assert_eq!(picked.as_deref(), Some(real.as_path()));
+    assert_eq!(picked, Some((real, TargetSource::OnlySession)));
 }

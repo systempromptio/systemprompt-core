@@ -19,13 +19,11 @@ impl std::fmt::Debug for AppContext {
             .field("user_service", &self.data.user_service.is_some())
             .field("app_paths", &"AppPaths")
             .field("marketplace_filter", &self.plugins.marketplace_filter)
-            .field(
-                "event_bridge",
-                &self.subsystems.event_bridge.get().is_some(),
-            )
+            .field("event_bridge", &self.subsystems.event_bridge.status())
             .field("system_admin", &self.subsystems.system_admin.username())
             .field("mcp_registry", &"RegistryService")
             .field("authz_hook", &"SharedAuthzHook")
+            .field("signing_keys", &self.subsystems.signing_keys)
             .field("governance", &self.subsystems.governance)
             .finish()
     }
@@ -56,8 +54,10 @@ impl std::fmt::Debug for DataPlane {
 impl std::fmt::Debug for ConfigPlane {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ConfigPlane")
+            .field("boot", &self.boot)
             .field("config", &"Config")
             .field("app_paths", &"AppPaths")
+            .field("files_config", &self.files_config)
             .field("content_config", &self.content_config.is_some())
             .field("route_classifier", &"RouteClassifier")
             .finish()
@@ -71,6 +71,8 @@ impl std::fmt::Debug for Plugins {
             .field("mcp_registry", &"RegistryService")
             .field("marketplace_filter", &self.marketplace_filter)
             .field("marketplace_cache", &self.marketplace_cache)
+            .field("subject_providers", &self.subject_providers)
+            .field("subjects", &self.subjects)
             .finish()
     }
 }
@@ -79,8 +81,11 @@ impl std::fmt::Debug for Subsystems {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Subsystems")
             .field("system_admin", &self.system_admin.username())
+            .field("logging", &self.logging)
             .field("authz_hook", &"SharedAuthzHook")
+            .field("signing_keys", &self.signing_keys)
             .field("governance", &self.governance)
+            .field("services", &self.services)
             .field("cache_epochs", &self.cache_epochs)
             .field("ai_service", &self.ai_service.is_some())
             .field("artifact_ingest", &self.artifact_ingest)
@@ -88,7 +93,7 @@ impl std::fmt::Debug for Subsystems {
                 "schema_install_clean",
                 &self.schema_install.boot().is_clean(),
             )
-            .field("event_bridge", &self.event_bridge.get().is_some())
+            .field("event_bridge", &self.event_bridge.status())
             .field("event_router", &self.event_router)
             .field("geoip_reader", &self.geoip_reader.is_some())
             .field("file_storage", &"FileStorage")
@@ -97,7 +102,9 @@ impl std::fmt::Debug for Subsystems {
                 "background_tasks_in_flight",
                 &self.background_tasks.in_flight(),
             )
+            .field("spawner", &"Spawner")
             .field("publish_guard", &"Mutex<PublishGuard>")
+            .field("connector_tokens", &"TokenCache")
             .finish()
     }
 }

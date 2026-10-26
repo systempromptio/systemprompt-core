@@ -1,33 +1,37 @@
 use std::collections::BTreeMap;
 
 use systemprompt_models::auth::{
-    ActClaim, JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, Permission, RateLimitTier, TokenType,
-    UserType,
+    ActClaim, CustomClaims, JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, Permission, RateLimitTier,
+    RegisteredClaims, TokenType, UserType,
 };
 
 fn claims(scope: Vec<Permission>, aud: Vec<JwtAudience>) -> JwtClaims {
     JwtClaims {
-        sub: "user_1".to_owned(),
-        iat: 1_000,
-        exp: 5_000,
-        nbf: None,
-        iss: "test-issuer".to_owned(),
-        aud,
-        jti: "jti-1".to_owned(),
-        scope,
-        username: "alice".to_owned(),
-        email: "alice@example.com".to_owned(),
-        user_type: UserType::User,
-        roles: vec!["editor".to_owned()],
-        attributes: BTreeMap::new(),
-        client_id: None,
-        token_type: TokenType::Bearer,
-        auth_time: 1_000,
-        session_id: None,
-        rate_limit_tier: Some(RateLimitTier::User),
-        plugin_id: None,
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: "user_1".to_owned(),
+            iat: 1_000,
+            exp: 5_000,
+            nbf: None,
+            iss: "test-issuer".to_owned(),
+            aud,
+            jti: "jti-1".to_owned(),
+        },
+        custom: CustomClaims {
+            scope,
+            username: "alice".to_owned(),
+            email: "alice@example.com".to_owned(),
+            user_type: UserType::User,
+            roles: vec!["editor".to_owned()],
+            attributes: BTreeMap::new(),
+            client_id: None,
+            token_type: TokenType::Bearer,
+            auth_time: 1_000,
+            session_id: None,
+            rate_limit_tier: Some(RateLimitTier::User),
+            plugin_id: None,
+            act: None,
+            purpose: None,
+        },
     }
 }
 
@@ -114,19 +118,20 @@ mod jwt_claims_serde {
             vec![Permission::Admin, Permission::User],
             vec![JwtAudience::Api, JwtAudience::Resource("acme".to_owned())],
         );
-        c.attributes
+        c.custom
+            .attributes
             .insert("acme.desk".to_owned(), serde_json::json!("fixed-income"));
         let json = serde_json::to_string(&c).expect("serialize");
         let back: JwtClaims = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(back.sub, c.sub);
-        assert_eq!(back.scope, c.scope);
-        assert_eq!(back.aud, c.aud);
-        assert_eq!(back.roles, c.roles);
+        assert_eq!(back.registered.sub, c.registered.sub);
+        assert_eq!(back.custom.scope, c.custom.scope);
+        assert_eq!(back.registered.aud, c.registered.aud);
+        assert_eq!(back.custom.roles, c.custom.roles);
         assert_eq!(
-            back.attributes.get("acme.desk"),
+            back.custom.attributes.get("acme.desk"),
             Some(&serde_json::json!("fixed-income"))
         );
-        assert_eq!(back.rate_limit_tier, Some(RateLimitTier::User));
+        assert_eq!(back.custom.rate_limit_tier, Some(RateLimitTier::User));
     }
 
     #[test]
@@ -138,7 +143,7 @@ mod jwt_claims_serde {
         let json = serde_json::to_string(&c).expect("serialize");
         let back: JwtClaims = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(
-            back.aud,
+            back.registered.aud,
             vec![JwtAudience::Resource("custom-aud".to_owned())]
         );
     }
@@ -147,7 +152,7 @@ mod jwt_claims_serde {
     fn empty_roles_and_attributes_are_omitted() {
         let c = claims(vec![Permission::User], vec![JwtAudience::Api]);
         let mut bare = c;
-        bare.roles.clear();
+        bare.custom.roles.clear();
         let value = serde_json::to_value(&bare).expect("serialize");
         assert!(value.get("roles").is_none());
         assert!(value.get("attributes").is_none());
@@ -202,5 +207,79 @@ mod act_claim_depth {
         let back: ActClaim = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back, chain);
         assert_eq!(back.depth(), 2);
+    }
+}
+
+mod jwt_claims_wire {
+    use super::*;
+    use systemprompt_identifiers::{ClientId, PluginId, SessionId};
+
+    fn full() -> JwtClaims {
+        JwtClaims {
+            registered: RegisteredClaims {
+                sub: "user_1".to_owned(),
+                iat: 1_000,
+                exp: 5_000,
+                nbf: Some(900),
+                iss: "test-issuer".to_owned(),
+                aud: vec![JwtAudience::Api],
+                jti: "jti-1".to_owned(),
+            },
+            custom: CustomClaims {
+                scope: vec![Permission::User],
+                username: "alice".to_owned(),
+                email: "alice@example.com".to_owned(),
+                user_type: UserType::User,
+                roles: vec!["editor".to_owned()],
+                attributes: BTreeMap::from([("team".to_owned(), serde_json::json!("core"))]),
+                client_id: Some(ClientId::new("client_1")),
+                token_type: TokenType::Bearer,
+                auth_time: 1_000,
+                session_id: Some(SessionId::new("sess_1")),
+                rate_limit_tier: Some(RateLimitTier::User),
+                plugin_id: Some(PluginId::new("plugin_1")),
+                act: Some(ActClaim {
+                    iss: "actor-issuer".to_owned(),
+                    sub: "actor_1".to_owned(),
+                    act: Box::new(None),
+                }),
+                purpose: Some("bridge".to_owned()),
+            },
+        }
+    }
+
+    #[test]
+    fn serialises_in_the_flat_wire_order() {
+        let json = serde_json::to_string(&full()).expect("serialise");
+        assert_eq!(
+            json,
+            r#"{"sub":"user_1","iat":1000,"exp":5000,"nbf":900,"iss":"test-issuer","aud":["api"],"jti":"jti-1","scope":"user","username":"alice","email":"alice@example.com","user_type":"user","roles":["editor"],"attributes":{"team":"core"},"client_id":"client_1","token_type":"Bearer","auth_time":1000,"session_id":"sess_1","rate_limit_tier":"user","plugin_id":"plugin_1","act":{"iss":"actor-issuer","sub":"actor_1"},"purpose":"bridge"}"#
+        );
+    }
+
+    #[test]
+    fn round_trips() {
+        let json = serde_json::to_string(&full()).expect("serialise");
+        let back: JwtClaims = serde_json::from_str(&json).expect("deserialise");
+        assert_eq!(serde_json::to_string(&back).expect("reserialise"), json);
+    }
+
+    #[test]
+    fn empty_optionals_are_omitted() {
+        let json = serde_json::to_string(&claims(vec![Permission::User], vec![])).expect("ser");
+        for key in [
+            "nbf",
+            "attributes",
+            "client_id",
+            "session_id",
+            "plugin_id",
+            "act",
+            "purpose",
+        ] {
+            assert!(
+                !json.contains(&format!("\"{key}\"")),
+                "{key} present in {json}"
+            );
+        }
     }
 }

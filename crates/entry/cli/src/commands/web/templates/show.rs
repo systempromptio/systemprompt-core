@@ -18,6 +18,7 @@ use crate::shared::CommandOutput;
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateDetailOutput, TemplatesConfig};
 use super::selection::prompt_template_selection;
+use systemprompt_loader::BootContext;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -32,8 +33,9 @@ pub(super) fn execute(
     args: ShowArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    boot: &BootContext,
 ) -> Result<CommandOutput> {
-    execute_in_dir(args, prompter, config, &WebPaths::resolve()?.templates)
+    execute_in_dir(args, prompter, config, &WebPaths::resolve(boot)?.templates)
 }
 
 pub fn execute_in_dir(

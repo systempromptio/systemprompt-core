@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- The prelude exports `ChangeSource`, `DeclaredEntities`, `DeclaredEntity`, `ResolvedEntities` and `ResolvedEntity` for config planes.
+
+### Changed
+
+- Compile-time inventory is the only extension registration path.
+- Move process statics into owned state.
+- ExtensionContext::background_tasks and SecretsBootstrap::encryption_master_key.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

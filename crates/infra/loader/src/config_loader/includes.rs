@@ -49,6 +49,7 @@ pub(super) fn resolve_includes_recursively(
     })?;
 
     reject_settings_at_include(&content, &canonical)?;
+    super::catalog::refuse_legacy(&canonical, &content)?;
 
     let mut included: ServicesConfig =
         serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
@@ -56,6 +57,7 @@ pub(super) fn resolve_includes_recursively(
             source: e,
         })?;
 
+    super::catalog::refuse_catalog_sections(&canonical, &included)?;
     let nested_includes = std::mem::take(&mut included.includes);
 
     ctx.chain.push(canonical.clone());
@@ -67,10 +69,15 @@ pub(super) fn resolve_includes_recursively(
     let file_dir = canonical.parent().unwrap_or(base_path).to_path_buf();
     super::merge::resolve_system_prompt_includes(&file_dir, &mut included)?;
     super::merge::resolve_skill_instruction_includes(&file_dir, &mut included)?;
-    super::gateway::resolve_file_gateway_includes(&file_dir, &mut included)?;
-    merge_into(ctx.merged, included)?;
+    merge_into(ctx.merged, included, declares_section(&content, "ai"))?;
 
     Ok(())
+}
+
+fn declares_section(content: &str, section: &str) -> bool {
+    serde_yaml::from_str::<serde_yaml::Value>(content)
+        .ok()
+        .is_some_and(|value| value.get(section).is_some())
 }
 
 fn reject_settings_at_include(content: &str, path: &Path) -> ConfigLoadResult<()> {

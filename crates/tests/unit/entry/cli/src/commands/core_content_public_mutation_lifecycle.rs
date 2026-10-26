@@ -5,13 +5,13 @@ use std::sync::Arc;
 use clap::Parser;
 use systemprompt_cli::core::content::verify::{self, VerifyArgs};
 use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_identifiers::SourceId;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context_with, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, fixture_app_context_on_bootstrap_with_paths,
 };
 
 #[derive(Debug, Parser)]
@@ -30,7 +30,6 @@ fn parse(args: &[&str]) -> CoreCommands {
 async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     let database = DisposableDb::with_schema("cli_content_mutation").await;
     let boot = ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = database.test_pool().await;
     let repository = ContentRepository::new(&pool);
     let source = SourceId::new("owned-source".to_owned());
@@ -62,6 +61,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
         .expect("seed sibling content");
     let sibling_before = serde_json::to_value(&sibling).expect("serialize sibling");
     let paths = PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -71,14 +71,14 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(
+    let app = fixture_app_context_on_bootstrap_with_paths(
+        boot,
         &pool,
-        database.url(),
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
     .expect("full app context");
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

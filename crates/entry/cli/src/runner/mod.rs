@@ -17,8 +17,9 @@ mod structured_output;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
+use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp};
-use systemprompt_logging::set_startup_mode;
+use systemprompt_logging::OutputState;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::{CliConfig, OutputFormat};
@@ -29,8 +30,9 @@ use crate::env_overrides::EnvOverrides;
 
 pub async fn run() -> Result<()> {
     install_tls_crypto_provider();
-    let outcome = Box::pin(run_inner()).await;
-    structured_output::finalize(&outcome);
+    let output = OutputState::new();
+    let outcome = Box::pin(run_inner(&output)).await;
+    structured_output::finalize(&output, &outcome);
     outcome
 }
 
@@ -49,28 +51,31 @@ fn install_tls_crypto_provider() {
     }
 }
 
-async fn run_inner() -> Result<()> {
+async fn run_inner(output: &OutputState) -> Result<()> {
     let cli = args::Cli::parse();
     stamp_api_server_identity(&cli)?;
 
-    set_startup_mode(cli.command.is_none());
+    output.set_startup_mode(cli.command.is_none());
 
     let env = EnvOverrides::from_process_env();
     let cli_config = args::build_cli_config(&cli, &env);
-    systemprompt_logging::set_structured_output(cli_config.output_format() != OutputFormat::Table);
+    output.set_structured_output(cli_config.output_format() != OutputFormat::Table);
 
     if cli.display.no_color || !cli_config.should_use_color() {
         console::set_colors_enabled(false);
     }
 
+    let database_url_override = cli.database.database_url.clone();
     if let Some(database_url) = cli.database.database_url.clone() {
         match cli.command.as_ref().map(args::Commands::db_url_routing) {
             Some(db_url::DbUrlRouting::Direct) => {
+                systemprompt_logging::init_deferred_console_logging(output.clone());
                 return Box::pin(run_with_database_url(
                     cli.command,
                     cli_config,
                     env,
                     &database_url,
+                    None,
                 ))
                 .await;
             },
@@ -87,13 +92,24 @@ async fn run_inner() -> Result<()> {
         .as_ref()
         .map_or(CommandDescriptor::FULL, DescribeCommand::descriptor);
 
-    if !desc.database() {
+    if desc.database() {
+        systemprompt_logging::init_deferred_console_logging(output.clone());
+    } else {
         let effective_level = resolve_log_level(&cli_config, &env);
-        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref());
+        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref(), output);
     }
 
+    let mut credentials = None;
+    let mut services = None;
+    let mut profile = None;
+    let mut boot = None;
     if desc.profile() {
-        match profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await? {
+        let booted = profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await?;
+        let loaded = booted.credentials;
+        services = booted.services;
+        profile = booted.profile;
+        boot = booted.boot;
+        match booted.outcome {
             profile_routing::BootstrapOutcome::RemoteExecuted => return Ok(()),
             profile_routing::BootstrapOutcome::ExternalDbUrl(external_db_url) => {
                 return Box::pin(run_with_database_url(
@@ -101,14 +117,20 @@ async fn run_inner() -> Result<()> {
                     cli_config,
                     env,
                     &external_db_url,
+                    loaded,
                 ))
                 .await;
             },
-            profile_routing::BootstrapOutcome::ContinueLocal => {},
+            profile_routing::BootstrapOutcome::ContinueLocal => credentials = loaded,
         }
     }
 
-    let ctx = CommandContext::new(cli_config, env);
+    let ctx = CommandContext::new(cli_config, env)
+        .with_cloud_credentials(credentials)
+        .with_database_url_override(database_url_override)
+        .with_services(services)
+        .with_profile(profile)
+        .with_boot(boot);
     Box::pin(dispatch_command(cli.command, &ctx)).await
 }
 
@@ -170,14 +192,16 @@ async fn run_with_database_url(
     cli_config: CliConfig,
     env: EnvOverrides,
     database_url: &str,
+    credentials: Option<CloudCredentials>,
 ) -> Result<()> {
     let db_ctx = DatabaseContext::from_url(database_url)
         .await
         .context("Failed to connect to database")?;
 
-    systemprompt_logging::init_logging(&db_ctx.db_pool_arc());
+    systemprompt_logging::init_logging(&db_ctx.db_pool_arc(), None);
 
-    let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned());
+    let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned())
+        .with_cloud_credentials(credentials);
     Box::pin(dispatch_command(command, &ctx)).await
 }
 

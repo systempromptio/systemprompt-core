@@ -12,12 +12,30 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::authz::SubjectSourceHandle;
 
 use crate::error::MarketplaceFilterError;
 use crate::filter::MarketplaceFilter;
 
+/// What a marketplace factory may read while building its filter or gate.
+#[derive(Clone)]
+pub struct MarketplaceFactoryContext {
+    pub db: DbPool,
+    pub services: ServicesView,
+    pub subjects: SubjectSourceHandle,
+    pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
+}
+
+impl std::fmt::Debug for MarketplaceFactoryContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MarketplaceFactoryContext")
+            .finish_non_exhaustive()
+    }
+}
+
 type MarketplaceFilterFactory =
-    fn(&DbPool) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError>;
+    fn(&MarketplaceFactoryContext) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct MarketplaceFilterRegistration {
@@ -38,7 +56,7 @@ pub fn discover_filters() -> Vec<&'static MarketplaceFilterRegistration> {
 #[macro_export]
 macro_rules! register_marketplace_filter {
     ($factory:expr, priority = $priority:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::MarketplaceFilterRegistration {
                 factory: $factory,
                 priority: $priority,

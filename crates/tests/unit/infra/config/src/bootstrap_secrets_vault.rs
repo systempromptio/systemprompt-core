@@ -1,4 +1,4 @@
-use systemprompt_config::{ConfigError, ProfileBootstrap, SecretsBootstrap, SecretsBootstrapError};
+use systemprompt_config::{ConfigError, LoadedProfile, SecretsBootstrapError, SecretsService};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -35,13 +35,12 @@ async fn init_loads_the_secrets_document_from_vault() {
 
     fx::set_env("VAULT_TOKEN", "root-token");
     let profile = fixture::write_tree(&vault_secrets_section(&server.uri()), None);
-    ProfileBootstrap::init_from_path(&profile.profile_path).unwrap();
+    let loaded = LoadedProfile::from_path(&profile.profile_path).unwrap();
 
-    let secrets = SecretsBootstrap::init().await.unwrap();
+    let secrets = SecretsService::load(loaded).await.unwrap().get();
 
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
     assert_eq!(secrets.database_url, fixture::DB_URL);
-    assert!(SecretsBootstrap::is_initialized());
 }
 
 #[tokio::test]
@@ -59,13 +58,12 @@ async fn an_unreachable_vault_fails_the_boot_even_with_a_valid_pepper_in_the_env
     fx::set_env("MANIFEST_SIGNING_SECRET_SEED", fixture::SEED);
 
     let profile = fixture::write_tree(&vault_secrets_section(&server.uri()), None);
-    ProfileBootstrap::init_from_path(&profile.profile_path).unwrap();
+    let loaded = LoadedProfile::from_path(&profile.profile_path).unwrap();
 
-    let err = SecretsBootstrap::init().await.unwrap_err();
+    let err = SecretsService::load(loaded).await.unwrap_err();
 
     assert!(matches!(
         err,
         ConfigError::Secrets(SecretsBootstrapError::Vault(_))
     ));
-    assert!(!SecretsBootstrap::is_initialized());
 }

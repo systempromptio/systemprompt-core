@@ -12,6 +12,5 @@ mod provider;
 mod request;
 pub mod search;
 mod streaming;
-mod trait_impl;
 
 pub use provider::AnthropicProvider;

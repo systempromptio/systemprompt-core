@@ -1,8 +1,5 @@
 use std::sync::{Arc, Mutex};
 
-use rsa::RsaPrivateKey;
-use rsa::pkcs1::EncodeRsaPrivateKey;
-use rsa::traits::PublicKeyParts;
 use systemprompt_security::keys::{Jwk, Jwks, JwksClient, RsaSigningKey};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
@@ -10,8 +7,6 @@ use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 pub struct TestKey {
     pub kid: String,
     pub signing: RsaSigningKey,
-    #[allow(dead_code)]
-    pub private: RsaPrivateKey,
 }
 
 impl TestKey {
@@ -19,23 +14,12 @@ impl TestKey {
     // suites need keys that differ from each other, not keys that are fresh.
     pub fn generate() -> Self {
         let signing = systemprompt_test_fixtures::next_test_key();
-        let private = signing.private_key().clone();
         let kid = signing.kid().to_string();
-        Self {
-            kid,
-            signing,
-            private,
-        }
+        Self { kid, signing }
     }
 
     pub fn jwk(&self) -> Jwk {
         Jwk::from_rsa_public_key(self.signing.public_key(), self.kid.clone())
-    }
-
-    #[allow(dead_code)]
-    pub fn encoding_key(&self) -> jsonwebtoken::EncodingKey {
-        let der = self.private.to_pkcs1_der().expect("encode rsa der");
-        jsonwebtoken::EncodingKey::from_rsa_der(der.as_bytes())
     }
 }
 
@@ -100,11 +84,6 @@ impl JwksMock {
     pub fn issuer(&self) -> String {
         self.server.uri()
     }
-
-    #[allow(dead_code)]
-    pub fn jwks_uri(&self) -> String {
-        format!("{}/.well-known/jwks.json", self.server.uri())
-    }
 }
 
 pub fn client_for(host: &str) -> JwksClient {
@@ -120,12 +99,4 @@ pub fn client_for_with_min_refresh(host: &str, interval: std::time::Duration) ->
 fn strip_scheme_port(url: &str) -> String {
     let parsed = url::Url::parse(url).expect("parse url");
     parsed.host_str().unwrap_or("").to_string()
-}
-
-#[allow(dead_code)]
-pub fn rsa_n_e(key: &RsaPrivateKey) -> (Vec<u8>, Vec<u8>) {
-    (
-        key.to_public_key().n().to_bytes_be(),
-        key.to_public_key().e().to_bytes_be(),
-    )
 }

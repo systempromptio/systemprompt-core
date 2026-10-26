@@ -58,8 +58,8 @@ fn slack_app_merged_from_include() {
         ),
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
-    let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
+    let root = format!("{ROOT_HEAD}\n");
+    let config = ConfigLoader::load_from_content(&root, &config_path, None).expect("should load");
 
     let app = config
         .slack_apps
@@ -85,11 +85,8 @@ fn duplicate_slack_app_across_root_and_include_errors() {
         ),
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\n{}",
-        slack_app_block("other")
-    );
-    let err = ConfigLoader::load_from_content(&root, &config_path)
+    let root = format!("{ROOT_HEAD}\n{}", slack_app_block("other"));
+    let err = ConfigLoader::load_from_content(&root, &config_path, None)
         .expect_err("duplicate slack app must error");
 
     assert!(
@@ -111,8 +108,8 @@ fn teams_app_merged_from_include() {
         ),
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
-    let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
+    let root = format!("{ROOT_HEAD}\n");
+    let config = ConfigLoader::load_from_content(&root, &config_path, None).expect("should load");
 
     let app = config
         .teams_apps
@@ -135,11 +132,8 @@ fn duplicate_teams_app_across_root_and_include_errors() {
         ),
     );
 
-    let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\n{}",
-        teams_app_block("other")
-    );
-    let err = ConfigLoader::load_from_content(&root, &config_path)
+    let root = format!("{ROOT_HEAD}\n{}", teams_app_block("other"));
+    let err = ConfigLoader::load_from_content(&root, &config_path, None)
         .expect_err("duplicate teams app must error");
 
     assert!(
@@ -161,8 +155,8 @@ fn web_block_carried_from_include_when_root_has_none() {
         ),
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
-    let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
+    let root = format!("{ROOT_HEAD}\n");
+    let config = ConfigLoader::load_from_content(&root, &config_path, None).expect("should load");
 
     let web = config.web.expect("web block from include must be carried");
     assert_eq!(web.branding.name, "fixture-brand");
@@ -179,8 +173,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     unsafe {
@@ -188,7 +180,7 @@ ai:
         std::env::set_var("SYSTEMPROMPT_SKILLS_PATH", "/env/skills");
         std::env::set_var("SYSTEMPROMPT_CONFIG_PATH", "/env/config");
     }
-    let result = ConfigLoader::load_from_content(root, &config_path);
+    let result = ConfigLoader::load_from_content(root, &config_path, None);
     unsafe {
         std::env::remove_var("SYSTEMPROMPT_SERVICES_PATH");
         std::env::remove_var("SYSTEMPROMPT_SKILLS_PATH");
@@ -247,10 +239,8 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
-    let config = ConfigLoader::load_from_content(root, &config_path).expect("should load");
+    let config = ConfigLoader::load_from_content(root, &config_path, None).expect("should load");
 
     let agent = config.agents.get("prompted_agent").expect("agent merged");
     assert_eq!(
@@ -266,57 +256,15 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
 #[test]
-fn cached_load_survives_the_file_being_removed() {
+fn load_from_path_observes_a_write_made_after_an_earlier_load() {
     let dir = TempDir::new().expect("tempdir");
     let config_path = dir.path().join("services.yaml");
     std::fs::write(&config_path, MINIMAL_CONFIG).expect("write config");
 
-    let first = ConfigLoader::load_cached_from_path(&config_path).expect("first load reads disk");
-    std::fs::remove_file(&config_path).expect("remove config");
-
-    let second = ConfigLoader::load_cached_from_path(&config_path)
-        .expect("second load must be served from the cache, not the deleted file");
-    assert_eq!(
-        first.settings.agent_port_range,
-        second.settings.agent_port_range
-    );
-}
-
-#[test]
-fn cached_load_does_not_share_entries_across_paths() {
-    let dir = TempDir::new().expect("tempdir");
-
-    let first_path = dir.path().join("first.yaml");
-    std::fs::write(&first_path, MINIMAL_CONFIG).expect("write first");
-    ConfigLoader::load_cached_from_path(&first_path).expect("first loads");
-
-    let second_path = dir.path().join("second.yaml");
-    std::fs::write(
-        &second_path,
-        MINIMAL_CONFIG.replace("[4000, 4999]", "[4100, 4199]"),
-    )
-    .expect("write second");
-
-    let second = ConfigLoader::load_cached_from_path(&second_path).expect("second loads");
-    assert_eq!(
-        second.settings.agent_port_range,
-        (4100, 4199),
-        "a different config path must not be served the first path's cache entry"
-    );
-}
-
-#[test]
-fn reload_observes_a_write_made_after_an_earlier_cached_load() {
-    let dir = TempDir::new().expect("tempdir");
-    let config_path = dir.path().join("services.yaml");
-    std::fs::write(&config_path, MINIMAL_CONFIG).expect("write config");
-
-    ConfigLoader::load_cached_from_path(&config_path).expect("first load populates the cache");
+    ConfigLoader::load_from_path(&config_path, None).expect("first load");
 
     std::fs::write(
         &config_path,
@@ -324,34 +272,26 @@ fn reload_observes_a_write_made_after_an_earlier_cached_load() {
     )
     .expect("rewrite config");
 
-    let reloaded = ConfigLoader::reload_from_path(&config_path).expect("reload re-reads disk");
+    let reloaded = ConfigLoader::load_from_path(&config_path, None).expect("reload re-reads disk");
     assert_eq!(
         reloaded.settings.agent_port_range,
         (4200, 4299),
-        "validating your own write must not be served the pre-write cache entry"
-    );
-
-    let subsequent =
-        ConfigLoader::load_cached_from_path(&config_path).expect("cached load after reload");
-    assert_eq!(
-        subsequent.settings.agent_port_range,
-        (4200, 4299),
-        "reload must refresh the cache, not merely bypass it"
+        "validating your own write must observe what was written"
     );
 }
 
 #[test]
-fn reload_surfaces_a_write_that_no_longer_validates() {
+fn load_from_path_surfaces_a_write_that_no_longer_validates() {
     let dir = TempDir::new().expect("tempdir");
     let config_path = dir.path().join("services.yaml");
     std::fs::write(&config_path, MINIMAL_CONFIG).expect("write config");
 
-    ConfigLoader::load_cached_from_path(&config_path).expect("first load populates the cache");
+    ConfigLoader::load_from_path(&config_path, None).expect("first load");
 
     std::fs::write(&config_path, "agents: [not-a-map]\n").expect("write broken config");
 
     assert!(
-        ConfigLoader::reload_from_path(&config_path).is_err(),
+        ConfigLoader::load_from_path(&config_path, None).is_err(),
         "a post-write validation must fail on a config the write broke"
     );
 }
@@ -362,27 +302,11 @@ fn uncached_load_from_path_always_rereads() {
     let config_path = dir.path().join("services.yaml");
     std::fs::write(&config_path, MINIMAL_CONFIG).expect("write config");
 
-    ConfigLoader::load_from_path(&config_path).expect("first load");
+    ConfigLoader::load_from_path(&config_path, None).expect("first load");
     std::fs::remove_file(&config_path).expect("remove config");
 
     assert!(
-        ConfigLoader::load_from_path(&config_path).is_err(),
+        ConfigLoader::load_from_path(&config_path, None).is_err(),
         "load_from_path is an explicit one-shot read and must not be cached"
     );
-}
-
-#[test]
-fn load_errors_when_profile_bootstrap_not_initialized() {
-    let err = ConfigLoader::load().expect_err("no profile bootstrap in a unit-test process");
-    assert!(
-        matches!(err, ConfigLoadError::ProfileBootstrap(_)),
-        "expected ProfileBootstrap error, got: {err}"
-    );
-}
-
-#[test]
-fn for_active_profile_errors_when_bootstrap_not_initialized() {
-    let err = ConfigLoader::for_active_profile()
-        .expect_err("no profile bootstrap in a unit-test process");
-    assert!(err.to_string().contains("profile bootstrap unavailable"));
 }

@@ -12,10 +12,7 @@ use systemprompt_test_fixtures::{
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 
-use crate::middleware::security_trace_served_by::ensure_config;
-
 async fn app() -> axum::Router {
-    ensure_config();
     let url = test_database_url();
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
@@ -25,8 +22,9 @@ async fn app() -> axum::Router {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
-    router(SsoRouteState::build(&ctx, &oauth))
+    router(SsoRouteState::build(&ctx, &oauth)).layer(axum::Extension(ctx.config_arc().clone()))
 }
 
 fn assert_refused_unavailable(resp: &axum::response::Response) {

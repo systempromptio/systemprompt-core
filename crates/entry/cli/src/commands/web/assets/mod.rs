@@ -15,6 +15,7 @@ use clap::Subcommand;
 
 use crate::CliConfig;
 use crate::shared::render_result;
+use systemprompt_loader::BootContext;
 
 #[derive(Debug, Subcommand)]
 pub enum AssetsCommands {
@@ -25,15 +26,15 @@ pub enum AssetsCommands {
     Show(show::ShowArgs),
 }
 
-pub fn execute(command: AssetsCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: AssetsCommands, config: &CliConfig, boot: &BootContext) -> Result<()> {
     match command {
         AssetsCommands::List(args) => {
-            let result = list::execute(args, config).context("Failed to list assets")?;
+            let result = list::execute(args, config, boot).context("Failed to list assets")?;
             render_result(&result, config);
             Ok(())
         },
         AssetsCommands::Show(args) => {
-            let result = show::execute(&args, config).context("Failed to show asset")?;
+            let result = show::execute(&args, config, boot).context("Failed to show asset")?;
             render_result(&result, config);
             Ok(())
         },

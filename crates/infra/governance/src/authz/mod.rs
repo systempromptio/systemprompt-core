@@ -29,7 +29,6 @@
 
 pub mod audit;
 pub mod composite;
-pub mod config;
 pub mod error;
 pub mod extension;
 pub mod gateway_entities;
@@ -38,16 +37,19 @@ pub mod ingestion;
 pub mod keep;
 pub mod marketplace_floor;
 pub mod parent_chain;
+pub mod plane;
 pub mod reconcile;
 pub mod registry;
 pub mod repository;
 pub mod resolver;
 pub mod rule_based;
 mod rule_based_cache;
+pub mod rules_file;
 pub mod runtime;
 pub mod scope_binding;
 pub mod subject;
 pub mod subject_directory;
+pub mod traffic;
 pub mod types;
 
 pub use audit::{
@@ -56,35 +58,37 @@ pub use audit::{
     list_governance_warnings, list_trace_ids_with_decision,
 };
 pub use composite::CompositeAuthzHook;
-pub use config::{AccessControlConfig, RuleEntry, RuleTarget};
 pub use error::{AuthzBootstrapError, AuthzError, AuthzResult};
 pub use extension::AuthzExtension;
 pub use gateway_entities::{GatewayReconcileReport, reconcile_gateway_entities_exact};
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, WebhookHook};
 pub use ingestion::{
-    AccessControlIngestionService, DASHBOARD_SOURCE, IngestOptions, IngestReport, IngestScope,
-    RegisteredEntities, UnknownSubject, YAML_SOURCE,
+    AccessControlIngestionService, CONSOLE_SOURCE_PREFIX, IngestOptions, IngestReport, IngestScope,
+    RegisteredEntities, SERVICES_SOURCE, UnknownSubject,
 };
 pub use keep::{BulkKeepQuery, allowed_ids};
 pub use marketplace_floor::member_attribute_floor;
 pub use parent_chain::{
-    ChainIndexCache, ChainSources, LoadedParent, MarketplaceSource, ParentChainIndex, ResolveBase,
+    ChainIndexCache, ChainSources, DecisionFacts, LoadedParent, MarketplaceSource,
+    ParentChainIndex, ResolveBase,
 };
+pub use plane::{ACCESS_CONTROL_PLANE, AccessControlPlane, render_current_rules};
 pub use reconcile::{ReconcileReport, reconcile_composed_bundles, reconcile_services_authz};
-pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};
+pub use registry::{AuthzHookContext, AuthzHookRegistration, AuthzWiring, discover_authz_hook};
 pub use repository::{AccessControlRepository, ChainFingerprint, UpsertRuleParams};
 pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;
 pub use scope_binding::ScopeBindingError;
 pub use subject::{
     NO_SUBJECT_ATTRIBUTES, ROLE_PRECEDENCE, SharedSubjectAttributeProvider,
-    SubjectAttributeProvider, SubjectAttributes, SubjectDimension, SubjectProviderRegistration,
-    SubjectProviderSet, USER_PRECEDENCE, dimensions_of, discover_subject_providers,
-    gather_subject_attributes,
+    SubjectAttributeProvider, SubjectAttributeSource, SubjectAttributes, SubjectDimension,
+    SubjectProviderRegistration, SubjectProviderSet, SubjectSourceError, USER_PRECEDENCE,
+    dimensions_of, discover_subject_providers, gather_subject_attributes,
 };
 pub use subject_directory::{
     RoleDirectory, RoleDirectoryRegistration, SharedRoleDirectory, discover_role_directory,
 };
+pub use traffic::{TRAFFIC_PRECEDENCE, TrafficProvider};
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
     DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, PendingReason, RuleType, SubjectRef,

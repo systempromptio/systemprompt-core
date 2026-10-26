@@ -14,8 +14,6 @@ use systemprompt_traits::{
     ToolExecutionLookup, WithheldReason,
 };
 
-/// A managed-skill authority that manages nothing: every key resolves to
-/// `NotManaged`, so the disk catalogue is consulted.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct NotManagedSkills;
 
@@ -30,7 +28,6 @@ impl ManagedSkillResolver for NotManagedSkills {
     }
 }
 
-/// A managed-skill authority with one scripted answer for every key.
 #[derive(Debug, Clone)]
 pub enum ScriptedSkills {
     Published(ResolvedManagedSkill),
@@ -55,7 +52,6 @@ impl ManagedSkillResolver for ScriptedSkills {
     }
 }
 
-/// A tool-execution ledger with a fixed answer for every id.
 #[derive(Debug, Clone, Copy)]
 pub enum ToolExecutionLedger {
     Exists,

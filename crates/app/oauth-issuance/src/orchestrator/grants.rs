@@ -59,6 +59,7 @@ impl TokenIssuanceOrchestrator<'_> {
                 origin,
                 resource: validation_result.resource.as_deref(),
                 family_id: None,
+                config: self.config,
             },
             self.state,
         )
@@ -128,6 +129,7 @@ impl TokenIssuanceOrchestrator<'_> {
                 origin,
                 resource: request.resource.as_deref(),
                 family_id: Some(family_id.as_str()),
+                config: self.config,
             },
             self.state,
         )

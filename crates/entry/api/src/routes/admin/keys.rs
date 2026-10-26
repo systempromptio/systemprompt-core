@@ -11,7 +11,6 @@ use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
@@ -93,12 +92,9 @@ async fn issue_key(
         _ => req_ctx.user_id().clone(),
     };
     if !body.scopes.is_empty() {
-        SubjectProviderSet::discover(&AuthzHookContext {
-            pool: ctx.db_pool().pool(),
-            sink: Arc::new(NullAuditSink),
-        })
-        .verify_scope_bindings(&target_user, &body.scopes)
-        .await?;
+        ctx.subject_providers()
+            .verify_scope_bindings(&target_user, &body.scopes)
+            .await?;
     }
     let service = ApiKeyService::new(
         Arc::clone(ctx.user_repository()),

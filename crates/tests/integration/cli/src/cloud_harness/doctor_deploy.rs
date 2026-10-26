@@ -248,7 +248,9 @@ async fn doctor_check_functions_cover_pass_and_fail() {
     assert!(key_via_secret.detail.contains("secrets.json"));
 
     let providers = check_provider_secrets(
-        &systemprompt_manifest::services::ProviderRegistry::default_seed().unwrap(),
+        &systemprompt_manifest::services::catalog::DefaultCatalog::document()
+            .unwrap()
+            .credentials,
         &secrets,
     );
     let _ = format!("{providers:?}");
@@ -276,33 +278,27 @@ fn write_cloud_profile_with_hook(env: &Env, name: &str, hook_url: &str) {
     std::fs::write(&profile_path, with_hook).expect("write hooked profile");
 }
 
-async fn run_doctor(name: &str) {
-    cloud::execute(
+#[tokio::test]
+async fn doctor_refuses_a_profile_that_states_the_derived_hook_url() {
+    let env = enter().await;
+
+    write_cloud_profile_with_hook(&env, "hook-stated", "http://127.0.0.1:9999/hook");
+    let error = cloud::execute(
         CloudCommands::Doctor {
-            profile: Some(name.to_owned()),
+            profile: Some("hook-stated".to_owned()),
             distributed: false,
         },
         &json_ctx(),
     )
     .await
-    .expect("doctor run");
-}
+    .expect_err("a stated hook URL is refused at load");
+    remove_profile(&env, "hook-stated");
 
-#[tokio::test]
-async fn doctor_hook_url_variants_warn_but_pass() {
-    let env = enter().await;
-
-    write_cloud_profile_with_hook(&env, "hook-loop", "http://127.0.0.1:9999/hook");
-    run_doctor("hook-loop").await;
-    remove_profile(&env, "hook-loop");
-
-    write_cloud_profile_with_hook(&env, "hook-other", "https://elsewhere.example.net/hook");
-    run_doctor("hook-other").await;
-    remove_profile(&env, "hook-other");
-
-    write_cloud_profile_with_hook(&env, "hook-match", "http://127.0.0.1/hook");
-    run_doctor("hook-match").await;
-    remove_profile(&env, "hook-match");
+    let message = format!("{error:#}");
+    assert!(
+        message.contains("governance.authz.hook.url"),
+        "the refusal names the derived field: {message}"
+    );
 }
 
 #[tokio::test]

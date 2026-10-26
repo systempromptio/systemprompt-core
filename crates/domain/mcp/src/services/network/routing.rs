@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::McpDomainResult;
 use axum::Router;
 use systemprompt_manifest::Config;
 use tower_http::cors::CorsLayer;
@@ -12,9 +11,7 @@ pub fn create_base_router() -> Router {
     Router::new().route("/health", axum::routing::get(health_check))
 }
 
-pub fn apply_cors_layer(router: Router) -> McpDomainResult<Router> {
-    let config = Config::get()?;
-
+pub fn apply_cors_layer(router: Router, config: &Config) -> Router {
     let mut cors_layer = CorsLayer::new()
         .allow_headers(tower_http::cors::Any)
         .allow_methods(tower_http::cors::Any);
@@ -25,7 +22,7 @@ pub fn apply_cors_layer(router: Router) -> McpDomainResult<Router> {
         }
     }
 
-    Ok(router.layer(cors_layer))
+    router.layer(cors_layer)
 }
 
 async fn health_check() -> impl axum::response::IntoResponse {

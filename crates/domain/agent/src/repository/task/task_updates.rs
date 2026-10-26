@@ -14,10 +14,7 @@ use crate::repository::context::message::{
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
-#[expect(
-    missing_debug_implementations,
-    reason = "params struct holds non-Debug references"
-)]
+#[derive(Debug)]
 pub struct UpdateTaskAndSaveMessagesParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,
@@ -27,10 +24,7 @@ pub struct UpdateTaskAndSaveMessagesParams<'a> {
     pub trace_id: &'a TraceId,
 }
 
-#[expect(
-    missing_debug_implementations,
-    reason = "params struct holds non-Debug references"
-)]
+#[derive(Debug)]
 pub struct PersistMessagesTxParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,

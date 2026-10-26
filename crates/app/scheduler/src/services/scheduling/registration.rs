@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{RegistrationCtx, SchedulerService, dispatch};
+use super::{RegistrationCtx, SchedulerService, deployment_dependencies, dispatch};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobConfig, SkippedJob};
 use std::sync::Arc;
@@ -81,6 +81,10 @@ impl SchedulerService {
                 ),
                 actor,
             );
+            let entry = match self.app_context.logging().instance_id() {
+                Some(instance_id) => entry.with_instance_id(instance_id.clone()),
+                None => entry,
+            };
             if let Err(error) = repository.log(entry).await {
                 warn!(error = %error, job_name = %job.job_name, "failed to persist scheduler registration error to logs");
             }
@@ -103,7 +107,7 @@ impl SchedulerService {
             });
         };
 
-        if !registered_job.configured() {
+        if !registered_job.configured(&deployment_dependencies(self.app_context.boot())) {
             debug!(job = %job_config.name, "Job is not configured in this deployment; not scheduled");
             return Ok(Registered::No);
         }
@@ -157,6 +161,7 @@ impl SchedulerService {
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
+        let inventory_memo = Arc::clone(&self.inventory_memo);
         let claim_policy = dispatch::claim_policy(
             &self.config,
             Some(job_config),
@@ -171,6 +176,7 @@ impl SchedulerService {
             let repository = repository.clone();
             let app_context = Arc::clone(&app_context);
             let running_jobs = Arc::clone(&running_jobs);
+            let inventory_memo = Arc::clone(&inventory_memo);
             let parameters = parameters.clone();
             let claim_policy = claim_policy.clone();
 
@@ -186,6 +192,7 @@ impl SchedulerService {
                     claim_policy,
                     enforce,
                     parameters,
+                    inventory_memo,
                 })
                 .instrument(span.span().clone())
                 .await;

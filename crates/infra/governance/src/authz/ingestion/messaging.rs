@@ -89,8 +89,7 @@ impl AccessControlIngestionService {
 
         let mut mentions = BTreeSet::new();
         for seed in &seeds {
-            let source = format!("{source_prefix}:{}", seed.entity_id);
-            ensure_catalog_entity_row(&mut tx, kind, &seed.entity_id, &source).await?;
+            ensure_catalog_entity_row(&mut tx, kind, &seed.entity_id, &options.source).await?;
             for role in &seed.roles {
                 let target = Target {
                     entity_kind: kind,

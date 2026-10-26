@@ -4,19 +4,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
+use systemprompt_identifiers::{ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
 
 use super::{ConsumedRefreshToken, RefreshTokenHolder, RefreshTokenParams};
 use crate::error::{OauthError, OauthResult};
 use crate::repository::oauth::OAuthRepository;
-use crate::repository::oauth::at_rest::hash_at_rest;
 
 impl OAuthRepository {
     pub async fn store_refresh_token(&self, params: RefreshTokenParams<'_>) -> OauthResult<()> {
         let expires_at_dt = chrono::DateTime::<Utc>::from_timestamp(params.expires_at, 0)
             .ok_or_else(|| OauthError::Validation("Invalid timestamp for expires_at".to_owned()))?;
         let now = Utc::now();
-        let token_id_hash = hash_at_rest(params.token_id.as_str())?;
+        let token_id_hash = self.hash_at_rest(params.token_id.as_str())?;
         let client_id = params.client_id.as_str();
         let user_id = params.user_id.as_str();
         let family_id_owned = token_id_hash.clone();
@@ -46,7 +45,7 @@ impl OAuthRepository {
         client_id: &ClientId,
     ) -> OauthResult<ConsumedRefreshToken> {
         let now = Utc::now();
-        let token_id_hash = hash_at_rest(token_id.as_str())?;
+        let token_id_hash = self.hash_at_rest(token_id.as_str())?;
         let client_id_str = client_id.as_str();
 
         let claimed = sqlx::query!(
@@ -67,7 +66,7 @@ impl OAuthRepository {
             return Ok(ConsumedRefreshToken {
                 user_id: UserId::new(row.user_id),
                 scope: row.scope,
-                family_id: row.family_id,
+                family_id: RefreshTokenFamilyId::new(row.family_id),
             });
         }
 
@@ -115,7 +114,7 @@ impl OAuthRepository {
     }
 
     pub async fn revoke_refresh_token(&self, token_id: &RefreshTokenId) -> OauthResult<bool> {
-        let token_id_hash = hash_at_rest(token_id.as_str())?;
+        let token_id_hash = self.hash_at_rest(token_id.as_str())?;
         let result = sqlx::query!(
             "DELETE FROM oauth_refresh_tokens WHERE token_id = $1",
             token_id_hash
@@ -130,7 +129,7 @@ impl OAuthRepository {
         &self,
         token_id: &RefreshTokenId,
     ) -> OauthResult<Option<ClientId>> {
-        let token_id_hash = hash_at_rest(token_id.as_str())?;
+        let token_id_hash = self.hash_at_rest(token_id.as_str())?;
         let result = sqlx::query_scalar!(
             "SELECT client_id FROM oauth_refresh_tokens WHERE token_id = $1",
             token_id_hash
@@ -145,7 +144,7 @@ impl OAuthRepository {
         &self,
         token_id: &RefreshTokenId,
     ) -> OauthResult<Option<RefreshTokenHolder>> {
-        let token_id_hash = hash_at_rest(token_id.as_str())?;
+        let token_id_hash = self.hash_at_rest(token_id.as_str())?;
         let row = sqlx::query!(
             "SELECT client_id, user_id FROM oauth_refresh_tokens WHERE token_id = $1",
             token_id_hash

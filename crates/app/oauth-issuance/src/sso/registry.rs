@@ -12,6 +12,9 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
+use systemprompt_manifest::services::ServicesView;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_traits::SecretStore;
 use systemprompt_traits::sso::{AuthEventSink, SsoProvider};
 
 /// What a factory may read while building its provider or sink.
@@ -19,6 +22,9 @@ use systemprompt_traits::sso::{AuthEventSink, SsoProvider};
 pub struct SsoHookContext {
     pub db: DbPool,
     pub config: Arc<Config>,
+    pub services: ServicesView,
+    pub services_root: ActiveServicesRoot,
+    pub secrets: Arc<dyn SecretStore>,
 }
 
 impl std::fmt::Debug for SsoHookContext {
@@ -74,7 +80,7 @@ pub(super) fn discover_sinks(ctx: &SsoHookContext) -> Vec<Arc<dyn AuthEventSink>
 #[macro_export]
 macro_rules! register_sso_provider {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::sso::SsoProviderRegistration {
                 factory: $factory,
             }
@@ -85,7 +91,7 @@ macro_rules! register_sso_provider {
 #[macro_export]
 macro_rules! register_auth_event_sink {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::sso::AuthEventSinkRegistration {
                 factory: $factory,
             }

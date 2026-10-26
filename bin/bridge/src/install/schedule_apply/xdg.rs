@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::{InstallError, ScheduleRemoval, home, write};
-use crate::install::SchedulerError;
+use crate::install::{ScheduleRemovalError, SchedulerError};
 use crate::schedule::{self, Os};
 
 pub(super) fn register(
@@ -16,9 +16,8 @@ pub(super) fn register(
     binary: &Path,
 ) -> Result<(PathBuf, Vec<String>), InstallError> {
     let unit = schedule::schedule_label(os);
-    let (service, timer) = schedule::split_systemd_unit(rendered).ok_or_else(|| {
-        InstallError::ScheduleApply("systemd template has no .timer section".into())
-    })?;
+    let (service, timer) = schedule::split_systemd_unit(rendered)
+        .ok_or_else(|| InstallError::ScheduleApply("systemd template has no .timer section"))?;
     let dir = home()?.join(".config").join("systemd").join("user");
     let service_path = dir.join(format!("{unit}.service"));
     let timer_path = dir.join(format!("{unit}.timer"));
@@ -145,7 +144,7 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     let unit = schedule::schedule_label(Os::Linux);
     let proxy_unit = schedule::proxy_unit_name();
     let Ok(home) = home() else {
-        return ScheduleRemoval::Failed("cannot resolve the user's home directory".into());
+        return ScheduleRemoval::Failed(ScheduleRemovalError::NoHome);
     };
     let dir = home.join(".config").join("systemd").join("user");
     let timer_path = dir.join(format!("{unit}.timer"));
@@ -156,16 +155,16 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     if let Err(e) = stop_if_present(&timer_path, &format!("{unit}.timer"))
         .and_then(|()| stop_if_present(&proxy_path, &format!("{proxy_unit}.service")))
     {
-        return ScheduleRemoval::Failed(e.to_string());
+        return ScheduleRemoval::Failed(e.into());
     }
     let removed = remove_if_present(&timer_path)
         .and_then(|()| remove_if_present(&dir.join(format!("{unit}.service"))))
         .and_then(|()| remove_if_present(&proxy_path));
-    if let Err(e) = removed {
-        return ScheduleRemoval::Failed(format!("remove under {}: {e}", dir.display()));
+    if let Err(source) = removed {
+        return ScheduleRemoval::Failed(ScheduleRemovalError::Remove { path: dir, source });
     }
     if let Err(e) = systemctl(&["daemon-reload"]) {
-        return ScheduleRemoval::Failed(format!("reload systemd: {e}"));
+        return ScheduleRemoval::Failed(e.into());
     }
     ScheduleRemoval::Removed(format!("{unit} + {proxy_unit}"))
 }

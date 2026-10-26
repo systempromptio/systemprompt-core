@@ -66,9 +66,9 @@ fn cloud_and_session_commands_bypass_cloud_routing_and_others_do_not() {
 
 #[test]
 fn a_local_profile_routes_locally() {
-    let _profile = fixture_profile();
+    let profile = fixture_profile();
 
-    let target = determine_execution_target().expect("a local profile resolves a target");
+    let target = determine_execution_target(&profile).expect("a local profile resolves a target");
 
     assert!(
         matches!(target, ExecutionTarget::Local),

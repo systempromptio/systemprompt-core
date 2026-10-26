@@ -12,8 +12,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ProfileName;
 
-pub use super::config_section::*;
-pub use super::rate_limit_types::*;
+pub use super::config_section::{
+    ConfigFileInfo, ConfigListOutput, ConfigSection, ConfigValidateOutput, DiffEntry, DiffOutput,
+    ExportOutput, GATEWAY_FILE_RELATIVE, ImportOutput, PROVIDERS_FILE_RELATIVE, ValidateOutput,
+    read_yaml_file, write_yaml_file,
+};
+pub use super::rate_limit_types::{
+    BaseRateRow, CompareOutput, EndpointComparison, EndpointRateLimit, PresetApplyOutput,
+    PresetInfo, PresetListOutput, PresetShowOutput, RateLimitStatusOutput, RateLimitsOutput,
+    ResetChange, ResetOutput, SetRateLimitOutput,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ConfigMutationOutput {
@@ -77,6 +85,7 @@ pub struct RateLimitsSummary {
 pub struct ServerConfigOutput {
     pub host: String,
     pub port: u16,
+    pub external_url: String,
     pub api_server_url: String,
     pub api_internal_url: String,
     pub api_external_url: String,
@@ -179,28 +188,6 @@ pub struct PathValidation {
     pub path: String,
     pub exists: bool,
     pub required: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProviderInfo {
-    pub name: String,
-    pub enabled: bool,
-    pub is_default: bool,
-    pub model: String,
-    pub endpoint: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProviderListOutput {
-    pub providers: Vec<ProviderInfo>,
-    pub default_provider: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProviderSetOutput {
-    pub provider: String,
-    pub action: String,
-    pub message: String,
 }
 
 /// One row of `admin config catalog discovery`.

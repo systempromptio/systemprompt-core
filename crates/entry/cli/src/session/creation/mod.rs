@@ -8,34 +8,36 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod helpers;
+pub mod admin_bootstrap;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CliSession, CloudCredentials, SessionKey};
+use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use super::api::create_local_session_row;
+use super::api::{create_local_session_row, load_signing_keys};
 use super::resolution::ProfileContext;
 use crate::CliConfig;
-use helpers::{
+use admin_bootstrap::{
     SessionComponents, build_cli_session, connect_database, create_cli_context,
     generate_admin_token, load_secrets, resolve_admin_with_fallback,
     resolve_credentialed_user_email, resolve_local_admin, resolve_tenant_admin_with_fallback,
 };
 
 pub(super) async fn create_local_session(
-    profile: &Profile,
     profile_ctx: &ProfileContext<'_>,
     session_key: &SessionKey,
     config: &CliConfig,
     session_email_hint: Option<&str>,
+    boot: &BootContext,
 ) -> Result<CliSession> {
+    let profile = boot.profile();
     profile
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
 
-    let secrets = load_secrets().context("Failed to load secrets")?;
+    let secrets = load_secrets(boot);
 
     if config.is_interactive() {
         CliService::info("Creating local CLI session...");
@@ -56,17 +58,21 @@ pub(super) async fn create_local_session(
         CliService::key_value("User", &admin_user.email);
     }
 
+    let keys = load_signing_keys(boot)?;
     let session_id = create_local_session_row(
         &db_pool,
         &admin_user.id,
         chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
+        keys.clone(),
+        boot,
     )
     .await
     .context("Failed to create local CLI session row in the database")?;
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
-    let session_token = generate_admin_token(&profile.security.issuer, &admin_user, &session_id)?;
+    let session_token =
+        generate_admin_token(&profile.security.issuer, keys, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Local session created");
@@ -94,6 +100,7 @@ pub(super) struct TenantSessionParams<'a> {
     pub session_key: &'a SessionKey,
     pub config: &'a CliConfig,
     pub session_email_hint: Option<&'a str>,
+    pub boot: &'a BootContext,
 }
 
 pub(super) async fn create_session_for_tenant(
@@ -106,13 +113,14 @@ pub(super) async fn create_session_for_tenant(
         session_key,
         config,
         session_email_hint,
+        boot,
     } = params;
     profile
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
 
     let user_email = session_email_hint.unwrap_or(creds.user_email.as_str());
-    let secrets = load_secrets().context("Failed to load secrets")?;
+    let secrets = load_secrets(boot);
 
     if config.is_interactive() {
         CliService::info("Creating CLI session...");
@@ -124,17 +132,21 @@ pub(super) async fn create_session_for_tenant(
     let admin_user =
         resolve_tenant_admin_with_fallback(&db_pool, creds, user_email, session_email_hint).await?;
 
+    let keys = load_signing_keys(boot)?;
     let session_id = create_local_session_row(
         &db_pool,
         &admin_user.id,
         chrono::Duration::hours(crate::session::api::DEFAULT_CLI_SESSION_HOURS),
+        keys.clone(),
+        boot,
     )
     .await
     .context("Failed to create local tenant CLI session row in the database")?;
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
-    let session_token = generate_admin_token(&profile.security.issuer, &admin_user, &session_id)?;
+    let session_token =
+        generate_admin_token(&profile.security.issuer, keys, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Session created");

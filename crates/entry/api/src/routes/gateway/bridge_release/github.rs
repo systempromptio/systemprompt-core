@@ -6,6 +6,7 @@
 
 use axum::http::header;
 use serde::Deserialize;
+use systemprompt_manifest::Secrets;
 use systemprompt_manifest::services::BridgeReleasesSpec;
 
 use super::error::ReleaseError;
@@ -36,6 +37,7 @@ pub(super) struct GhAsset {
 pub(super) async fn resolve_release(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
+    secrets: &Secrets,
 ) -> Result<GhRelease, ReleaseError> {
     if let Some(pinned) = spec.pinned_version.as_deref() {
         let tag = format!("{}{pinned}", spec.tag_prefix);
@@ -44,7 +46,7 @@ pub(super) async fn resolve_release(
             spec.api_base(),
             spec.repo
         );
-        return fetch_json::<GhRelease>(http, spec, &url).await;
+        return fetch_json::<GhRelease>(http, spec, secrets, &url).await;
     }
 
     let url = format!(
@@ -52,7 +54,7 @@ pub(super) async fn resolve_release(
         spec.api_base(),
         spec.repo
     );
-    let releases = fetch_json::<Vec<GhRelease>>(http, spec, &url).await?;
+    let releases = fetch_json::<Vec<GhRelease>>(http, spec, secrets, &url).await?;
     releases
         .into_iter()
         .find(|r| !r.draft && !r.prerelease && r.tag_name.starts_with(&spec.tag_prefix))
@@ -73,10 +75,11 @@ pub(super) fn sums_url(release: &GhRelease) -> Option<&str> {
 pub(super) async fn asset_digest(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
+    secrets: &Secrets,
     sums_url: &str,
     asset_name: &str,
 ) -> Result<String, ReleaseError> {
-    let resp = github(http, spec, sums_url)?
+    let resp = github(http, spec, secrets, sums_url)?
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await
@@ -114,9 +117,10 @@ pub fn parse_sha256sums(body: &str, asset_name: &str) -> Option<String> {
 async fn fetch_json<T: serde::de::DeserializeOwned>(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
+    secrets: &Secrets,
     url: &str,
 ) -> Result<T, ReleaseError> {
-    let resp = github(http, spec, url)?
+    let resp = github(http, spec, secrets, url)?
         .send()
         .await
         .map_err(|source| ReleaseError::Request {
@@ -142,6 +146,7 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
 pub(super) fn github(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
+    secrets: &Secrets,
     url: &str,
 ) -> Result<reqwest::RequestBuilder, ReleaseError> {
     let mut req = http
@@ -150,14 +155,12 @@ pub(super) fn github(
         .header(header::USER_AGENT, "systemprompt-gateway")
         .header("X-GitHub-Api-Version", "2022-11-28");
     if let Some(key) = spec.token_secret.as_deref() {
-        req = req.bearer_auth(release_token(key)?);
+        req = req.bearer_auth(release_token(secrets, key)?);
     }
     Ok(req)
 }
 
-fn release_token(key: &str) -> Result<String, ReleaseError> {
-    let secrets =
-        systemprompt_config::SecretsBootstrap::get().map_err(ReleaseError::SecretsUnavailable)?;
+fn release_token(secrets: &Secrets, key: &str) -> Result<String, ReleaseError> {
     secrets
         .get(key)
         .cloned()

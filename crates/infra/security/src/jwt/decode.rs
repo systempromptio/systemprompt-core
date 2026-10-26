@@ -18,6 +18,7 @@ use systemprompt_models::auth::{Permission, UserType};
 
 use super::validate::{ValidationPolicy, decode_session_claims};
 use crate::error::{AuthError, AuthResult};
+use crate::keys::SigningKeys;
 
 #[derive(Debug, Clone)]
 pub struct JwtUserContext {
@@ -34,27 +35,35 @@ pub struct JwtUserContext {
     pub purpose: Option<String>,
 }
 
-pub fn extract_user_context(token: &str, issuer: &str) -> AuthResult<JwtUserContext> {
-    let claims = decode_session_claims(token, &ValidationPolicy::session_context(issuer))?;
+pub fn extract_user_context(
+    keys: &SigningKeys,
+    token: &str,
+    issuer: &str,
+) -> AuthResult<JwtUserContext> {
+    let claims = decode_session_claims(keys, token, &ValidationPolicy::session_context(issuer))?;
 
-    let session_id = claims.session_id.ok_or(AuthError::MissingSessionId)?;
-    let role = *claims.scope.first().ok_or(AuthError::MissingScope)?;
+    let session_id = claims
+        .custom
+        .session_id
+        .ok_or(AuthError::MissingSessionId)?;
+    let role = *claims.custom.scope.first().ok_or(AuthError::MissingScope)?;
     let act_chain = claims
+        .custom
         .act
         .as_ref()
         .map(systemprompt_models::auth::ActClaim::flatten_to_chain)
         .unwrap_or_default();
 
     Ok(JwtUserContext {
-        user_id: UserId::try_new(claims.sub).map_err(AuthError::InvalidSubject)?,
+        user_id: UserId::try_new(claims.registered.sub).map_err(AuthError::InvalidSubject)?,
         session_id,
         role,
-        user_type: claims.user_type,
-        client_id: claims.client_id,
+        user_type: claims.custom.user_type,
+        client_id: claims.custom.client_id,
         act_chain,
-        attributes: claims.attributes,
-        jti: (!claims.jti.is_empty()).then(|| AccessTokenId::new(claims.jti)),
-        exp: claims.exp,
-        purpose: claims.purpose,
+        attributes: claims.custom.attributes,
+        jti: (!claims.registered.jti.is_empty()).then(|| AccessTokenId::new(claims.registered.jti)),
+        exp: claims.registered.exp,
+        purpose: claims.custom.purpose,
     })
 }

@@ -7,9 +7,11 @@
 //! observes ([`configured_inventory_fingerprint`]: the loaded services
 //! configuration plus path, mtime and size of every catalog file) and skips
 //! the reconcile and publish while the fingerprint matches the last
-//! successful pass in this process. A pass older than [`FORCE_AFTER`] runs
+//! successful pass recorded in the [`InventoryRefreshMemo`] the scheduler owns
+//! and hands to every run. A pass older than [`FORCE_AFTER`] runs
 //! regardless, as a safety net for managed state changed outside the
-//! catalog. The first tick after boot always runs.
+//! catalog. The first tick after boot, and any run without a memo, always
+//! runs.
 //!
 //! Installation coverage depends on receipts, grants, publication selections
 //! and enrolled devices rather than the catalog: the marketplace schema's
@@ -21,7 +23,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use crate::SchedulerError;
@@ -39,11 +41,30 @@ const COVERAGE_PROJECTOR: &str = "refresh_managed_installation_coverage";
 const COVERAGE_BATCH: i32 = 20;
 const COVERAGE_BUDGET: Duration = Duration::from_secs(20);
 
-type LastPass = Option<([u8; 32], Instant)>;
+/// The last successful inventory pass, owned by the scheduler and shared
+/// with every run of [`InventoryRefreshJob`] through its job context.
+#[derive(Debug, Default)]
+pub struct InventoryRefreshMemo {
+    last: Mutex<Option<([u8; 32], Instant)>>,
+}
 
-fn last_pass() -> &'static Mutex<LastPass> {
-    static LAST: OnceLock<Mutex<LastPass>> = OnceLock::new();
-    LAST.get_or_init(|| Mutex::new(None))
+impl InventoryRefreshMemo {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn unchanged(&self, fingerprint: &[u8; 32]) -> bool {
+        let guard = self.last.lock().unwrap_or_else(PoisonError::into_inner);
+        guard
+            .as_ref()
+            .is_some_and(|(seen, at)| seen == fingerprint && at.elapsed() < FORCE_AFTER)
+    }
+
+    fn remember(&self, fingerprint: [u8; 32]) {
+        *self.last.lock().unwrap_or_else(PoisonError::into_inner) =
+            Some((fingerprint, Instant::now()));
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -65,9 +86,10 @@ impl Job for InventoryRefreshJob {
     }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let app = job_app_context(ctx)?;
+        let memo = ctx.get::<Arc<InventoryRefreshMemo>>()?;
         let owner = app.system_admin().id();
         let published = match catalog_fingerprint(app) {
-            Some(fingerprint) if unchanged(&fingerprint) => 0,
+            Some(fingerprint) if memo.unchanged(&fingerprint) => 0,
             fingerprint => {
                 // Why: the owner is the system admin because that is who owns
                 // the configured inventory.
@@ -79,7 +101,7 @@ impl Job for InventoryRefreshJob {
                 .await
                 .map_err(SchedulerError::from)?;
                 if let Some(fingerprint) = fingerprint {
-                    remember(fingerprint);
+                    memo.remember(fingerprint);
                 }
                 let count = outcomes
                     .iter()
@@ -102,32 +124,11 @@ impl Job for InventoryRefreshJob {
     }
 }
 
-// Why: a configuration that does not load has no fingerprint; the refresh
-// then runs and records the failure against the inventory, as before.
 fn catalog_fingerprint(app: &AppContext) -> Option<[u8; 32]> {
-    let services = systemprompt_loader::ConfigLoader::load()
-        .inspect_err(
-            |error| tracing::warn!(%error, "Inventory fingerprint: services config unavailable"),
-        )
-        .ok()?;
+    let services = app.services_config();
     configured_inventory_fingerprint(app.app_paths().system().services(), &services)
         .inspect_err(|error| tracing::debug!(%error, "Inventory fingerprint unavailable"))
         .ok()
-}
-
-fn unchanged(fingerprint: &[u8; 32]) -> bool {
-    let guard = last_pass()
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    guard
-        .as_ref()
-        .is_some_and(|(seen, at)| seen == fingerprint && at.elapsed() < FORCE_AFTER)
-}
-
-fn remember(fingerprint: [u8; 32]) {
-    *last_pass()
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((fingerprint, Instant::now()));
 }
 
 systemprompt_provider_contracts::submit_job!(&InventoryRefreshJob);

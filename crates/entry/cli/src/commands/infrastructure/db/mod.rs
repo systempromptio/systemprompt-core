@@ -21,10 +21,10 @@ mod admin_migrations;
 mod commands;
 mod dispatch;
 mod doctor;
-pub mod helpers;
 mod introspect;
 mod query;
 mod schema;
+pub mod text_format;
 mod types;
 
 use anyhow::{Context, Result, bail};
@@ -38,15 +38,22 @@ use crate::shared::render_result;
 use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
 
 pub use commands::{DbCommands, MigrationsCommands};
-pub use types::*;
+pub use types::{
+    AppliedMigrationInfo, ColumnInfo, DbAssignAdminOutput, DbCountOutput, DbDescribeOutput,
+    DbExecuteOutput, DbIndexesOutput, DbInfoOutput, DbMigrateDownOutput, DbMigrateOutput,
+    DbSizeOutput, DbStatusOutput, DbTablesOutput, ExtensionMigrationStatus, IndexInfo,
+    MigrateMarkAppliedOutput, MigratePlanOutput, MigrateRepairOutput, MigrateStatusOutput,
+    MigrateStatusRow, MigrationCollisionInfo, MigrationDriftInfo, MigrationHistoryOutput,
+    MigrationStatusOutput, PendingMigrationInfo, TableIndexInfo, TableInfo, TableSizeInfo,
+};
 
-pub(crate) use helpers::format_bytes;
+pub(crate) use text_format::format_bytes;
 
 pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     let Some(cmd) = (match ctx.database_context() {
         Some(db_ctx) => dispatch_standalone_migration(cmd, db_ctx, config).await?,
-        None => dispatch_profile_migration(cmd, config).await?,
+        None => dispatch_profile_migration(cmd, ctx).await?,
     }) else {
         return Ok(());
     };

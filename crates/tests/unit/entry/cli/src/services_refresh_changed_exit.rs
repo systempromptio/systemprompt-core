@@ -1,16 +1,13 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::collections::BTreeMap;
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 
 use chrono::Utc;
 use systemprompt_cli::core::services::refresh::{EXIT_CHANGED, RefreshArgs, execute};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
-use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
+use systemprompt_test_fixtures::bounded_output;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -33,10 +30,8 @@ async fn refresh_changed_helper() {
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
     );
     fixture::set_env("SYSTEMPROMPT_TRUSTED_HTTP_HOSTS", "127.0.0.1,localhost");
-    ProfileBootstrap::init_from_path(&tree.profile_path).expect("install refresh profile");
-    ensure_test_secrets_bootstrap();
-    let profile = ProfileBootstrap::get().unwrap();
-    let cache = BundleCache::new(cache_root(profile));
+    let boot = fixture::boot_for(&tree);
+    let cache = BundleCache::new(cache_root(boot.profile()));
     let mut sources = BTreeMap::new();
     sources.insert(
         "base".to_owned(),
@@ -54,12 +49,7 @@ async fn refresh_changed_helper() {
             sources,
         })
         .unwrap();
-    let context = CommandContext::new(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    );
+    let context = fixture::json_ctx(&boot);
     println!("BEGIN_CHANGED_REFRESH");
     execute(&RefreshArgs { check: true }, &context)
         .await
@@ -67,41 +57,11 @@ async fn refresh_changed_helper() {
     panic!("changed refresh returned instead of exiting");
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().unwrap();
-    let stderr = tempfile::NamedTempFile::new().unwrap();
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().unwrap()))
-        .stderr(Stdio::from(stderr.reopen().unwrap()));
-    let mut child = command.spawn().expect("spawn changed-refresh helper");
-    let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        if let Some(status) = child.try_wait().unwrap() {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().unwrap();
-            panic!(
-                "changed-refresh helper timed out ({status})\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&std::fs::read(stdout.path()).unwrap()),
-                String::from_utf8_lossy(&std::fs::read(stderr.path()).unwrap())
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 #[test]
 fn changed_source_reports_both_digests_and_documented_restart_exit() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "services refresh changed exit");
     assert_eq!(output.status.code(), Some(EXIT_CHANGED));
     let stdout = String::from_utf8(output.stdout).expect("UTF-8 refresh output");
     let json = stdout

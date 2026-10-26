@@ -8,26 +8,21 @@
 //! assertion rather than as a silently disabled capability in the field.
 
 use super::support;
-use std::collections::HashMap;
 
 use futures_util::{FutureExt, StreamExt};
 use serde_json::{Value, json};
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, Role,
 };
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamError,
 };
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
-/// Builds the request body then sends it, mirroring what the gateway does.
-///
-/// The adapter splits the two so the gateway can inspect the exact bytes before
-/// they go on the wire; these tests exercise the pair together.
 async fn send_via<A: OutboundAdapter>(
     adapter: &A,
     ctx: OutboundCtx<'_>,
@@ -36,24 +31,14 @@ async fn send_via<A: OutboundAdapter>(
     adapter.send(ctx, &body).await
 }
 
-fn route() -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new("r1")),
-        name: None,
-        description: None,
-        model_pattern: "*".into(),
-        provider: ProviderId::new("anthropic"),
-        upstream_model: Some("upstream-1".into()),
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+fn route() -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        "anthropic",
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    )
 }
 
 fn request(stream: bool) -> CanonicalRequest {
@@ -66,22 +51,28 @@ fn request(stream: bool) -> CanonicalRequest {
             content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 64,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -97,11 +88,6 @@ fn ok_body() -> Value {
     })
 }
 
-/// A body carrying beta-gated fields the canonical model does not describe.
-///
-/// `context_management` and `output_config` each pair with an `anthropic-beta`
-/// value; a gateway that forwards the header but drops the field produces a
-/// hard `400`, which is exactly the failure this guards against.
 fn raw_with_beta_fields() -> bytes::Bytes {
     bytes::Bytes::from(
         serde_json::to_vec(&json!({
@@ -144,8 +130,9 @@ async fn passthrough_forwards_unmodelled_body_fields_verbatim() {
     let outcome = send_via(
         &AnthropicOutbound,
         OutboundCtx {
-            route: &route,
+            target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -187,8 +174,9 @@ async fn passthrough_forwards_anthropic_beta_header_verbatim() {
     send_via(
         &AnthropicOutbound,
         OutboundCtx {
-            route: &route,
+            target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -221,8 +209,9 @@ async fn client_anthropic_version_is_not_overridden() {
     send_via(
         &AnthropicOutbound,
         OutboundCtx {
-            route: &route,
+            target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -254,8 +243,9 @@ async fn absent_client_version_falls_back_to_the_pinned_default() {
     send_via(
         &AnthropicOutbound,
         OutboundCtx {
-            route: &route,
+            target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -295,8 +285,9 @@ async fn upstream_error_body_and_retry_after_are_preserved() {
     let Err(err) = send_via(
         &AnthropicOutbound,
         OutboundCtx {
-            route: &route,
+            target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -359,8 +350,9 @@ async fn passthrough_streaming_relays_frames_unchanged() {
     let outcome = send_via(
         &AnthropicOutbound,
         OutboundCtx {
-            route: &route,
+            target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -398,8 +390,9 @@ async fn passthrough_rewrites_only_the_model_when_the_route_remaps_it() {
     send_via(
         &AnthropicOutbound,
         OutboundCtx {
-            route: &route,
+            target: &route,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "remapped-model",
             model_limits: None,

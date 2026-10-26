@@ -175,10 +175,37 @@ fn stored(h: &Harness) -> PlaneSnapshot {
 async fn list_shows_a_registered_plane_with_its_declared_hash() {
     let h = harness(Some("a=1\n"), &[]).await;
     let out = run(PlanesCommands::List, &h.ctx).await.expect("list");
-    assert_eq!(out.title(), Some("Config planes"));
+    let title = out.title().expect("title");
+    assert!(
+        title.starts_with("Config planes — NOT APPLIED: "),
+        "{title}"
+    );
+    assert!(title.contains(h.plane.name), "{title}");
+    assert!(
+        title.contains("run `systemprompt admin config apply`"),
+        "{title}"
+    );
     let text = rendered(&out);
     assert!(text.contains(h.plane.name), "{text}");
     assert!(text.contains(h.plane.path), "{text}");
+}
+
+#[tokio::test]
+async fn list_titles_plainly_once_every_plane_is_applied() {
+    let h = harness(
+        Some(
+            "a=1
+",
+        ),
+        &[],
+    )
+    .await;
+    systemprompt_test_fixtures::record_plane_applied(h.ctx.db_pool(), h.plane.name)
+        .await
+        .expect("record the apply");
+    let out = run(PlanesCommands::List, &h.ctx).await.expect("list");
+    let title = out.title().expect("title");
+    assert!(!title.contains("NOT APPLIED"), "{title}");
 }
 
 #[tokio::test]

@@ -15,7 +15,7 @@ use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
 use crate::services::registry::AgentRegistry;
 use systemprompt_identifiers::AgentName;
-use systemprompt_manifest::services::{AgentConfig, ServiceStatus};
+use systemprompt_manifest::services::{AgentConfig, ServiceStatus, ServicesView};
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]
@@ -25,13 +25,12 @@ pub struct AgentDatabaseService {
 }
 
 impl AgentDatabaseService {
-    pub fn new(repository: AgentServiceRepository) -> OrchestrationResult<Self> {
-        let registry = AgentRegistry::new().map_err(OrchestrationError::Registry)?;
-
-        Ok(Self {
+    #[must_use]
+    pub fn new(repository: AgentServiceRepository, services: &ServicesView) -> Self {
+        Self {
             repository,
-            registry,
-        })
+            registry: AgentRegistry::new(services),
+        }
     }
 
     #[must_use]
@@ -107,7 +106,7 @@ impl AgentDatabaseService {
     }
 
     pub async fn list_all_agents(&self) -> OrchestrationResult<Vec<(AgentName, AgentStatus)>> {
-        let agent_configs = self.registry.list_agents().await?;
+        let agent_configs = self.registry.list_agents();
 
         let mut agents = Vec::new();
 
@@ -122,19 +121,16 @@ impl AgentDatabaseService {
         Ok(agents)
     }
 
-    pub async fn agent_exists(&self, agent_name: &AgentName) -> OrchestrationResult<bool> {
-        match self.registry.get_agent(agent_name.as_str()).await {
+    pub fn agent_exists(&self, agent_name: &AgentName) -> OrchestrationResult<bool> {
+        match self.registry.get_agent(agent_name.as_str()) {
             Ok(_) => Ok(true),
             Err(AgentError::NotFound(_)) => Ok(false),
             Err(e) => Err(e.into()),
         }
     }
 
-    pub async fn get_agent_config(
-        &self,
-        agent_name: &AgentName,
-    ) -> OrchestrationResult<AgentConfig> {
-        match self.registry.get_agent(agent_name.as_str()).await {
+    pub fn get_agent_config(&self, agent_name: &AgentName) -> OrchestrationResult<AgentConfig> {
+        match self.registry.get_agent(agent_name.as_str()) {
             Ok(agent_config) => Ok(agent_config),
             Err(AgentError::NotFound(_)) => {
                 Err(OrchestrationError::AgentNotFound(agent_name.to_string()))

@@ -2,7 +2,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::infrastructure::db::helpers::{
+use systemprompt_cli::infrastructure::db::text_format::{
     extract_relation_name, format_bytes, suggest_table_name,
 };
 

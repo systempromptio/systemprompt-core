@@ -10,8 +10,9 @@
 
 use axum::http::StatusCode;
 use std::sync::Arc;
-use systemprompt_api::routes::gateway::messages::auth::authenticate;
+use systemprompt_api::routes::gateway::messages::auth::{AuthInputs, authenticate};
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
@@ -34,17 +35,24 @@ async fn harness() -> Harness {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     );
     Harness { ctx, extractor }
 }
 
 async fn reject(credential: &str) -> (StatusCode, String) {
     let harness = harness().await;
+    let session = SessionId::generate();
+    let providers = SubjectProviderSet::default();
     let rejection = authenticate(
         credential,
-        &SessionId::generate(),
-        &harness.extractor,
-        &harness.ctx,
+        AuthInputs {
+            header_session: Some(&session),
+            headers: &axum::http::HeaderMap::new(),
+            jwt_extractor: &harness.extractor,
+            providers: &providers,
+            ctx: &harness.ctx,
+        },
     )
     .await
     .expect_err("an unissued credential must never authenticate");

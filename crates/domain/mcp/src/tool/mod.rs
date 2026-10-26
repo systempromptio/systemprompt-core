@@ -22,12 +22,14 @@ mod handler;
 
 pub use handler::{McpToolHandler, object_input_schema};
 
-use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+use crate::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use crate::repository::ToolUsageRepository;
-use crate::response::{McpResponseBuilder, ToolIdentity};
+use crate::response::{McpResponseBuilder, ResponseServices, ToolIdentity};
 use crate::schema::McpOutputSchema;
 use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::intent_claim::IntentClaimService;
+use crate::services::ui_renderer::UiRendererRegistry;
+use crate::services::ui_renderer::registry::create_default_registry;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CacheScope, CallToolRequestParams, CallToolResult, ListToolsResult, Tool};
@@ -54,6 +56,7 @@ pub struct McpToolExecutor {
     tool_usage_repo: Arc<ToolUsageRepository>,
     intent_claims: IntentClaimService,
     ingest: Arc<ArtifactIngest>,
+    renderers: Arc<UiRendererRegistry>,
     server_name: McpServerId,
 }
 
@@ -68,6 +71,7 @@ impl McpToolExecutor {
             intent_claims: IntentClaimService::new(intents, Arc::clone(&tool_usage_repo)),
             tool_usage_repo,
             ingest,
+            renderers: Arc::new(create_default_registry()),
             server_name,
         }
     }
@@ -139,7 +143,15 @@ impl McpToolExecutor {
                 };
                 let identity = ToolIdentity::new(self.server_name.clone(), tool_name.clone());
                 let response = McpResponseBuilder::new(output, identity, ctx, &exec_id, client)
-                    .build(summary, &self.ingest, &artifact_type, title)
+                    .build(
+                        summary,
+                        ResponseServices {
+                            ingest: &self.ingest,
+                            renderers: &self.renderers,
+                        },
+                        &artifact_type,
+                        title,
+                    )
                     .await;
                 (response, output_value)
             },
@@ -216,9 +228,9 @@ impl McpToolExecutor {
             output: response.as_ref().ok().and(output_value),
             output_schema: None,
             status: if response.is_ok() {
-                ExecutionStatus::Success.as_str().to_owned()
+                McpToolExecutionStatus::Success.as_str().to_owned()
             } else {
-                ExecutionStatus::Failed.as_str().to_owned()
+                McpToolExecutionStatus::Failed.as_str().to_owned()
             },
             error_message: response.as_ref().err().map(|e| e.message.to_string()),
             started_at,

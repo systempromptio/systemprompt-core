@@ -10,6 +10,7 @@ reqwest = { workspace = true }
 anyhow = { workspace = true }
 dotenvy = { workspace = true }
 systemprompt-analytics = { workspace = true }
+systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
@@ -36,7 +37,7 @@ systemprompt-files = { workspace = true }
 systemprompt-storage = { workspace = true }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
-tokio = { workspace = true, features = ["rt"] }
+tokio = { workspace = true, features = ["rt", "time"] }
 uuid = { workspace = true }
 chrono = { workspace = true }
 jsonwebtoken = { workspace = true }
@@ -46,6 +47,10 @@ sqlx = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 wiremock = { workspace = true }
+keyring-core = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+linux-keyutils-keyring-store = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

@@ -50,7 +50,7 @@ The content publishing pipeline runs in four stages:
 
 ```toml
 [dependencies]
-systemprompt-generator = "0.72"
+systemprompt-generator = "0.73"
 ```
 
 ### Public Exports
@@ -99,7 +99,7 @@ This crate follows the application layer pattern:
 - **Read-only domain access** - Uses `ContentRepository` for data fetching
 - **Job interface** - Jobs implement `systemprompt_traits::Job` for scheduling
 - **Template delegation** - Uses `TemplateRegistry` from domain layer
-- **Config via models** - Uses `Config::get()` instead of direct `env::var()`
+- **Config via models** - Takes the resolved `Config` as a parameter instead of reading `env::var()`
 
 ## License
 

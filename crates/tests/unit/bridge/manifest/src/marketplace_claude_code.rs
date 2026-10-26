@@ -13,6 +13,7 @@ fn marketplace(claude_code: Option<ManifestClaudeCode>) -> ManifestMarketplace {
         external_marketplaces: Vec::new(),
         external_plugins: vec![],
         claude_code,
+        opencode: None,
     }
 }
 

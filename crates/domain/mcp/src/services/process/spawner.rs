@@ -15,9 +15,9 @@ use crate::services::spawn_target::SpawnTarget;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use systemprompt_config::SecretsService;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-use systemprompt_loader::subprocess::{self, ChildKind};
+use systemprompt_loader::subprocess::{self, ChildKind, Spawner};
 use systemprompt_manifest::{Config, Secrets};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
@@ -140,7 +140,13 @@ pub fn serialize_server_configs(config: &McpServerConfig) -> McpDomainResult<(St
     Ok((tools_config_json, server_model_config_json))
 }
 
-pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
+pub fn spawn_server(
+    spawner: &Spawner,
+    global: &Config,
+    secrets: &SecretsService,
+    paths: &AppPaths,
+    config: &McpServerConfig,
+) -> McpDomainResult<u32> {
     let binary = config.spawn_binary()?;
     let port = config.spawn_port()?;
     let binary_path = paths.build().resolve_binary(binary).map_err(|e| {
@@ -150,23 +156,15 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         )
     })?;
 
-    let config_global = Config::get()?;
-
     let log_file = open_server_log(paths, config)?;
     let (tools_config_json, server_model_config_json) = serialize_server_configs(config)?;
 
-    let profile_path = ProfileBootstrap::get_path().map_err(|e| {
-        crate::error::McpDomainError::operation(
-            "SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server",
-            e,
+    let profile_path = secrets.profile().path().to_str().ok_or_else(|| {
+        crate::error::McpDomainError::Configuration(
+            "profile path is not valid UTF-8 - cannot spawn MCP server".to_owned(),
         )
     })?;
-    let secrets = SecretsBootstrap::get().map_err(|e| {
-        crate::error::McpDomainError::operation(
-            "Secrets not available - cannot spawn MCP server",
-            e,
-        )
-    })?;
+    let secrets = secrets.get();
 
     let mut child_command = Command::new(&binary_path);
     configure_environment(
@@ -175,12 +173,12 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
             config,
             port,
             system_root: paths.system().root(),
-            database_type: &config_global.database_type,
+            database_type: &global.database_type,
             profile_path,
             tools_config_json: &tools_config_json,
             server_model_config_json: &server_model_config_json,
         },
-        secrets,
+        &secrets,
     );
     subprocess::mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
 
@@ -190,7 +188,7 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         .stdin(std::process::Stdio::null());
     subprocess::place_in_own_process_group(&mut child_command);
 
-    let pid = subprocess::spawn_supervised(child_command).map_err(|e| {
+    let pid = spawner.spawn_supervised(child_command).map_err(|e| {
         crate::error::McpDomainError::operation(
             format!("Failed to start detached {}", config.name),
             e,

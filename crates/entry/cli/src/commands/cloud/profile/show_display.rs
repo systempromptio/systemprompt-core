@@ -183,23 +183,17 @@ pub fn render_skills_section(skills: &SkillsConfig) -> Vec<DisplayLine> {
 
 pub fn render_ai_section(ai: &AiConfig) -> Vec<DisplayLine> {
     let mut lines = vec![DisplayLine::section("AI Configuration")];
-    if !ai.default_provider.is_empty() {
+    if let Some(model) = ai.default_image_model.as_ref() {
         lines.push(DisplayLine::key_value(
-            "  default_provider",
-            &ai.default_provider,
+            "  default_image_model",
+            model.as_str(),
         ));
     }
-    for (name, provider) in &ai.providers {
-        lines.push(DisplayLine::info(format!(
-            "  {} (enabled: {})",
-            name, provider.enabled
-        )));
-        if !provider.default_model.is_empty() {
-            lines.push(DisplayLine::key_value(
-                "    default_model",
-                &provider.default_model,
-            ));
-        }
+    if let Some(tokens) = ai.default_max_output_tokens {
+        lines.push(DisplayLine::key_value(
+            "  default_max_output_tokens",
+            tokens.to_string(),
+        ));
     }
     lines
 }

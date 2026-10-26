@@ -31,7 +31,15 @@ fn authenticate_accepts_authority_signed_token() {
     ensure_test_bootstrap();
     let (user_id, headers) = minted_headers("authn@test.invalid");
 
-    let user = AuthenticationService::authenticate(&headers).expect("authenticate");
+    let user = AuthenticationService::authenticate(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+    )
+    .expect("authenticate");
     assert_eq!(user.id.to_string(), user_id.as_str());
     assert_eq!(user.email, "authn@test.invalid");
 }
@@ -41,7 +49,15 @@ fn authenticate_rejects_garbage_token() {
     ensure_test_bootstrap();
     let headers = bearer_headers("garbage.token.value");
 
-    let err = AuthenticationService::authenticate(&headers).expect_err("garbage");
+    let err = AuthenticationService::authenticate(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+    )
+    .expect_err("garbage");
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
 
@@ -51,8 +67,15 @@ fn authenticate_accepts_non_uuid_subject() {
     let user_id = UserId::new("service-account");
     let token = mint_admin_jwt(&user_id, "svc@test.invalid", "https://issuer.test");
 
-    let user = AuthenticationService::authenticate(&bearer_headers(token.as_str()))
-        .expect("a non-UUID sub is a valid user id");
+    let user = AuthenticationService::authenticate(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &bearer_headers(token.as_str()),
+    )
+    .expect("a non-UUID sub is a valid user id");
     assert_eq!(user.id, user_id);
 }
 
@@ -62,8 +85,15 @@ fn authenticate_rejects_sentinel_subject() {
     let user_id = UserId::new("unset");
     let token = mint_admin_jwt(&user_id, "unset@test.invalid", "https://issuer.test");
 
-    let err = AuthenticationService::authenticate(&bearer_headers(token.as_str()))
-        .expect_err("the retired sentinel is not a subject");
+    let err = AuthenticationService::authenticate(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &bearer_headers(token.as_str()),
+    )
+    .expect_err("the retired sentinel is not a subject");
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
 
@@ -72,8 +102,16 @@ fn authorize_service_access_accepts_valid_token() {
     ensure_test_bootstrap();
     let (user_id, headers) = minted_headers("svcacc@test.invalid");
 
-    let user = AuthorizationService::authorize_service_access(&headers, &ServiceName::new("mcp"))
-        .expect("authorized");
+    let user = AuthorizationService::authorize_service_access(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        &ServiceName::new("mcp"),
+    )
+    .expect("authorized");
     assert_eq!(user.id.to_string(), user_id.as_str());
 }
 
@@ -82,8 +120,16 @@ fn authorize_service_access_rejects_invalid_jwt() {
     ensure_test_bootstrap();
     let headers = bearer_headers("still.not.ajwt");
 
-    let err = AuthorizationService::authorize_service_access(&headers, &ServiceName::new("mcp"))
-        .expect_err("invalid jwt");
+    let err = AuthorizationService::authorize_service_access(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        &ServiceName::new("mcp"),
+    )
+    .expect_err("invalid jwt");
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
 
@@ -92,8 +138,16 @@ fn authorize_required_audience_accepts_api() {
     ensure_test_bootstrap();
     let (user_id, headers) = minted_headers("reqaud@test.invalid");
 
-    let user =
-        AuthorizationService::authorize_required_audience(&headers, "api").expect("authorized");
+    let user = AuthorizationService::authorize_required_audience(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        "api",
+    )
+    .expect("authorized");
     assert_eq!(user.id.to_string(), user_id.as_str());
 }
 
@@ -102,8 +156,16 @@ fn authorize_required_audience_rejects_missing_audience() {
     ensure_test_bootstrap();
     let (_user_id, headers) = minted_headers("noaud@test.invalid");
 
-    let err = AuthorizationService::authorize_required_audience(&headers, "hook")
-        .expect_err("audience absent from claims");
+    let err = AuthorizationService::authorize_required_audience(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        "hook",
+    )
+    .expect_err("audience absent from claims");
     assert_eq!(err, StatusCode::FORBIDDEN);
 }
 
@@ -112,8 +174,16 @@ fn authorize_required_audience_treats_unknown_string_as_resource_and_rejects() {
     ensure_test_bootstrap();
     let (_user_id, headers) = minted_headers("badaud@test.invalid");
 
-    let err = AuthorizationService::authorize_required_audience(&headers, "")
-        .expect_err("empty resource audience is absent from claims");
+    let err = AuthorizationService::authorize_required_audience(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        "",
+    )
+    .expect_err("empty resource audience is absent from claims");
     assert_eq!(err, StatusCode::FORBIDDEN);
 }
 
@@ -122,8 +192,16 @@ fn authorize_any_audience_accepts_when_one_matches() {
     ensure_test_bootstrap();
     let (user_id, headers) = minted_headers("anyaud@test.invalid");
 
-    let user = AuthorizationService::authorize_any_audience(&headers, &["hook", "api"])
-        .expect("authorized");
+    let user = AuthorizationService::authorize_any_audience(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        &["hook", "api"],
+    )
+    .expect("authorized");
     assert_eq!(user.id.to_string(), user_id.as_str());
 }
 
@@ -132,8 +210,16 @@ fn authorize_any_audience_rejects_when_none_match() {
     ensure_test_bootstrap();
     let (_user_id, headers) = minted_headers("noneaud@test.invalid");
 
-    let err =
-        AuthorizationService::authorize_any_audience(&headers, &["hook"]).expect_err("no overlap");
+    let err = AuthorizationService::authorize_any_audience(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        &["hook"],
+    )
+    .expect_err("no overlap");
     assert_eq!(err, StatusCode::FORBIDDEN);
 }
 
@@ -142,8 +228,16 @@ fn authorize_any_audience_skips_invalid_entries_and_still_matches() {
     ensure_test_bootstrap();
     let (user_id, headers) = minted_headers("mixaud@test.invalid");
 
-    let user = AuthorizationService::authorize_any_audience(&headers, &["", "api"])
-        .expect("invalid entries are skipped, api still matches");
+    let user = AuthorizationService::authorize_any_audience(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        &["", "api"],
+    )
+    .expect("invalid entries are skipped, api still matches");
     assert_eq!(user.id.to_string(), user_id.as_str());
 }
 
@@ -157,12 +251,37 @@ fn auth_service_facade_delegates_all_paths() {
     let err = AuthService::extract_bearer_token(&HeaderMap::new()).expect_err("no header");
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 
-    let user = AuthService::authenticate(&headers).expect("authenticate");
+    let user = AuthService::authenticate(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+    )
+    .expect("authenticate");
     assert_eq!(user.id.to_string(), user_id.as_str());
-    let user = AuthService::authorize_service_access(&headers, &ServiceName::new("api"))
-        .expect("service access");
+    let user = AuthService::authorize_service_access(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        &ServiceName::new("api"),
+    )
+    .expect("service access");
     assert_eq!(user.id.to_string(), user_id.as_str());
-    let user = AuthService::authorize_required_audience(&headers, "api").expect("required aud");
+    let user = AuthService::authorize_required_audience(
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        )
+        .as_ref(),
+        &systemprompt_test_fixtures::test_config(),
+        &headers,
+        "api",
+    )
+    .expect("required aud");
     assert_eq!(user.id.to_string(), user_id.as_str());
 }
 

@@ -39,6 +39,7 @@ async fn harness() -> Harness {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     let authed = seed_bridge_credential(&pool, "device@bridge-device.invalid")
         .await

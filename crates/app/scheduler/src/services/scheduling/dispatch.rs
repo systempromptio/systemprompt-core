@@ -28,6 +28,7 @@ use tracing::{debug, error, trace, warn};
 use super::claim::{Claim, acquire_cluster_claim, acquire_node_claim};
 use super::{RunningJobs, make_job_context};
 use crate::error::{SchedulerError, SchedulerResult};
+use crate::jobs::InventoryRefreshMemo;
 use crate::models::{JobRunRecord, JobStatus};
 use crate::repository::SchedulerRepository;
 use crate::services::job_metrics;
@@ -44,6 +45,7 @@ pub(super) struct JobDispatch {
     pub(super) claim_policy: ClaimPolicy,
     pub(super) enforce: bool,
     pub(super) parameters: HashMap<String, String>,
+    pub(super) inventory_memo: Arc<InventoryRefreshMemo>,
 }
 
 pub(super) async fn execute_job(dispatch: JobDispatch) {
@@ -57,6 +59,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         claim_policy,
         enforce,
         parameters,
+        inventory_memo,
     } = dispatch;
     let instance_id = app_context.config().instance_id.clone();
 
@@ -88,7 +91,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     trace!(job_name = %job_name, "Starting job");
 
     let budget = find_job(&job_name).and_then(JobTrait::db_budget);
-    let ctx = make_job_context(actor, db_pool, app_context, budget)
+    let ctx = make_job_context(actor, db_pool, app_context, budget, &inventory_memo)
         .with_enforce(enforce)
         .with_parameters(parameters);
     let started = std::time::Instant::now();

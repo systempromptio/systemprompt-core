@@ -6,13 +6,13 @@
 use axum::Json;
 use axum::http::HeaderMap;
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
-use systemprompt_loader::ServicesBootstrap;
-use systemprompt_manifest::bridge_profile::is_model_servable;
-use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
+use systemprompt_manifest::bridge_profile::{CredentialFacts, is_model_servable};
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
 
@@ -89,25 +89,28 @@ pub struct OpenAiModelsResponse {
 }
 
 pub async fn list(
+    axum::extract::State(ctx): axum::extract::State<AppContext>,
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<axum::response::Response, ApiHttpError> {
-    let services = ServicesBootstrap::get()?;
+    let services_state = ctx.services_state().view();
+    let services = services_state.config();
+    let catalog = &services_state.catalog;
 
-    let gateway = services
+    services
         .gateway_config()
         .filter(|g| g.enabled)
         .ok_or_else(|| ApiHttpError::not_found("Gateway not enabled"))?;
-    let secrets = systemprompt_config::SecretsBootstrap::get()?;
+    let secrets = ctx.secrets().get();
 
     // Why: the `x-inference-protocol` header is advisory, not a filter. The
     // gateway transcodes every inbound wire to every provider wire, so a client
     // that speaks one family is still served every advertised model; narrowing
     // the catalog by the header would hide models the caller can actually use.
-    // The header is still parsed and validated so an unknown tag (or `backend`)
-    // is rejected rather than silently accepted.
-    let _surfaces = surfaces_from_header(&headers)?;
-    let mut entries = model_entries(&services.providers, &[], Some(gateway), |name| {
+    // The header is still parsed and validated so an unknown client family is
+    // rejected rather than silently accepted.
+    let _families = families_from_header(&headers)?;
+    let mut entries = model_entries(catalog, |name| {
         secrets.get(name).is_some_and(|k| !k.is_empty())
     });
     let total = entries.len();
@@ -162,54 +165,61 @@ impl From<UnknownInferenceProtocol> for ApiHttpError {
     }
 }
 
-pub fn surfaces_from_header(
+pub fn families_from_header(
     headers: &HeaderMap,
-) -> Result<Vec<ApiSurface>, UnknownInferenceProtocol> {
+) -> Result<Vec<ClientFamily>, UnknownInferenceProtocol> {
     let Some(raw) = headers
         .get(INFERENCE_PROTOCOL)
         .and_then(|v| v.to_str().ok())
     else {
         return Ok(Vec::new());
     };
-    let mut surfaces = Vec::new();
-    for tag in raw.split(',').map(str::trim).filter(|t| !t.is_empty()) {
-        let surface = ApiSurface::from_tag(tag)
-            .filter(|s| *s != ApiSurface::Backend)
-            .ok_or_else(|| UnknownInferenceProtocol {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .map(|tag| {
+            ClientFamily::from_tag(tag).ok_or_else(|| UnknownInferenceProtocol {
                 tag: tag.to_owned(),
-            })?;
-        surfaces.push(surface);
-    }
-    Ok(surfaces)
+            })
+        })
+        .collect()
 }
 
-// Why: a model whose serving provider has no credential answers every request
+// Why: a model whose every hop lacks a platform secret answers every request
 // with an error, so listing it only puts a dead entry in the client's picker.
+// This listing is not per member, so a personal credential counts as
+// configured: whether the caller stored a key is the bridge profile's answer.
 pub fn model_entries(
-    registry: &ProviderRegistry,
-    surfaces: &[ApiSurface],
-    gateway: Option<&GatewayConfig>,
+    catalog: &ResolvedCatalog,
     secret_present: impl Fn(&str) -> bool,
 ) -> Vec<ModelEntry> {
+    let personal: BTreeSet<String> = catalog
+        .credentials()
+        .filter(|credential| credential.is_personal())
+        .map(|credential| credential.id.as_str().to_owned())
+        .collect();
+    let facts = CredentialFacts {
+        secret_present: &secret_present,
+        personal_keys: &personal,
+    };
     let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
-    for id in registry
-        .advertised_model_ids(surfaces)
-        .into_iter()
-        .filter(|id| is_model_servable(registry, gateway, id, &secret_present))
+    for model in catalog
+        .advertised_models(None)
+        .filter(|model| is_model_servable(catalog, model.id.as_str(), &facts))
     {
-        let limits = registry
-            .providers
-            .iter()
-            .find_map(|p| p.find_model(&id))
-            .map(|m| &m.limits);
+        let id = model.id.as_str().to_owned();
+        let limits = model.limits;
         by_id.insert(
             id.clone(),
             ModelEntry {
                 kind: "model",
-                display_name: humanize_model_id(&id),
+                display_name: model
+                    .display_name
+                    .clone()
+                    .unwrap_or_else(|| humanize_model_id(&id)),
                 created_at: model_created_at(&id),
-                max_input_tokens: limits.map(|l| l.context_window).filter(|n| *n > 0),
-                max_tokens: limits.map(|l| l.max_output_tokens).filter(|n| *n > 0),
+                max_input_tokens: Some(limits.context_window).filter(|n| *n > 0),
+                max_tokens: Some(limits.max_output_tokens).filter(|n| *n > 0),
                 id,
             },
         );

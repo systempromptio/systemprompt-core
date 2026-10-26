@@ -1,6 +1,8 @@
-//! Failure modes emitted while validating the gateway's references into the
-//! provider registry: duplicate route ids, and a route or `default_provider`
-//! naming a provider absent from the services provider registry.
+//! Failure modes of the gateway section on its own: route ids, route shape,
+//! request predicates, `default_model` and system-prompt override rules.
+//! References into the catalog (models, endpoints, pricing, governance) are
+//! checked when the catalog is resolved and fail with
+//! [`CatalogError`](crate::services::catalog::CatalogError).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,62 +15,23 @@ pub enum GatewayProfileError {
     #[error("gateway route id '{id}' is declared more than once")]
     DuplicateRouteId { id: RouteId },
 
-    #[error("gateway route '{route}' provider '{provider}' is not declared in services providers")]
-    RouteProviderNotInRegistry { route: String, provider: String },
+    #[error("a gateway route declares an empty `id`; every route has a declared, stable id")]
+    EmptyRouteId,
 
-    #[error("gateway default_provider '{provider}' is not declared in services providers")]
-    DefaultProviderNotInRegistry { provider: String },
-
-    #[error(
-        "gateway route '{route}' deployment '{provider}' is not declared in services providers"
-    )]
-    RouteDeploymentProviderNotInRegistry { route: String, provider: String },
+    #[error("gateway route '{route}' matches nothing: it declares neither `models` nor `alias`")]
+    RouteMatchesNothing { route: RouteId },
 
     #[error(
-        "gateway route '{route}' scope chain '{scope}' deployment '{provider}' is not declared in \
-         services providers"
+        "gateway route '{route}' gives deployment '{endpoint}' `weight: 0`; a weight is at least \
+         1 (remove the deployment to stop sending to it)"
     )]
-    RouteScopeChainProviderNotInRegistry {
-        route: String,
-        scope: String,
-        provider: String,
-    },
+    RouteDeploymentWeightZero { route: RouteId, endpoint: String },
 
     #[error(
-        "gateway route '{route}' chain '{chain}' lists deployment '{provider}' more than once; \
-         each deployment in a chain must be a different upstream"
+        "gateway `{field}` is '{value}': the `[1m]` context marker is a client presentation \
+         derived from the model's `limits.context_window`, never written in config"
     )]
-    RouteDeploymentDuplicate {
-        route: String,
-        chain: String,
-        provider: String,
-    },
-
-    #[error(
-        "gateway route '{route}' chain '{chain}' gives deployment '{provider}' `weight: 0`; a \
-         weight is at least 1 (remove the deployment to stop sending to it)"
-    )]
-    RouteDeploymentWeightZero {
-        route: String,
-        chain: String,
-        provider: String,
-    },
-
-    #[error(
-        "gateway route '{route}' chain '{chain}' context fallback '{provider}' is not declared in \
-         services providers"
-    )]
-    RouteContextFallbackProviderNotInRegistry {
-        route: String,
-        chain: String,
-        provider: String,
-    },
-
-    #[error("gateway route '{route}' declares `by_scope` with no `chains`")]
-    RouteScopeChainsEmpty { route: String },
-
-    #[error("gateway route '{route}' declares a `by_scope` chain under an empty scope value")]
-    RouteScopeKeyEmpty { route: String },
+    ContextVariantInConfig { field: &'static str, value: String },
 
     #[error("system_prompt override with action 'replace' must set a 'prompt'")]
     OverrideReplaceMissingPrompt,
@@ -76,8 +39,8 @@ pub enum GatewayProfileError {
     #[error("system_prompt override with action 'strip' must not set a 'prompt'")]
     OverrideStripWithPrompt,
 
-    #[error("system_prompt override provider '{provider}' is not declared in services providers")]
-    OverrideProviderNotInRegistry { provider: String },
+    #[error("route `when.scope` maps a dimension to an empty value")]
+    RouteScopeValueEmpty,
 
     #[error("route `when.min_tools` must be at least 1 (0 matches every request)")]
     RouteMatchZeroMinTools,
@@ -87,47 +50,6 @@ pub enum GatewayProfileError {
 
     #[error("route `when.tool_types_any` entry `{0}` is not a server tool type prefix")]
     RouteMatchBadToolType(String),
-
-    #[error(
-        "gateway route '{route}' (model_pattern '{pattern}') reaches no priced model: provider \
-         '{provider}' declares no model matching the pattern and the route sets no `pricing:` \
-         override, so every request it dispatches would be billed at zero"
-    )]
-    RouteReachesNoPricedModel {
-        route: String,
-        pattern: String,
-        provider: String,
-    },
-
-    #[error(
-        "gateway route '{route}' requires [{requirements}] but can dispatch model '{model}', \
-         whose provider/model governance does not declare them — annotate the provider or model \
-         with `governance:` or drop the route requirement"
-    )]
-    RouteGovernanceUnsatisfied {
-        route: String,
-        model: String,
-        requirements: String,
-    },
-
-    #[error(
-        "gateway route '{route}' can dispatch model '{model}', which has no usable `pricing:` \
-         (input_per_million and output_per_million must both be non-zero, or per_image_cents set)"
-    )]
-    RouteModelUnpriced { route: String, model: String },
-
-    #[error(
-        "gateway route '{route}' can dispatch provider '{provider}' model '{model}', \
-         which declares no `cache_read_per_million`; every wire we speak can report cached \
-         prompt tokens, and `input_tokens` excludes them, so an absent rate bills the cached \
-         slice at zero -- set the provider's published rate, or an explicit 0.0 if it bills \
-         none"
-    )]
-    RouteModelCacheRateUndeclared {
-        route: String,
-        provider: String,
-        model: String,
-    },
 }
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;

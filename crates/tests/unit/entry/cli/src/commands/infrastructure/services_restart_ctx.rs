@@ -16,8 +16,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, install_test_signing_key, test_app_context, test_database_url,
-    test_db_pool,
+    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
 
 // The restart entry points build a JWT provider and an MCP orchestrator from
@@ -25,7 +24,6 @@ use systemprompt_test_fixtures::{
 // assembled — a bare `test_app_context` leaves both unresolvable.
 async fn app_ctx() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let url = test_database_url();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &url);

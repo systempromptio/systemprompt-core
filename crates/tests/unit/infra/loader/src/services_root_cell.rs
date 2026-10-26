@@ -1,32 +1,25 @@
-//! The process-wide services-root cell.
+//! The services root a boot context holds.
 //!
-//! The cell is installed once. Before installation every accessor has to fall
-//! back to the caller's path rather than to an empty root, so that a caller
-//! running before boot reaches that point still reads the image tree.
+//! The cell is installed once. Before installation `services_root` is empty and
+//! `require_services_root` serves the baked root, and afterwards both serve the
+//! installed root.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use systemprompt_loader::services_root::{
-    ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap,
-};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 #[test]
-fn the_cell_falls_back_before_installation_then_serves_the_installed_root() {
-    assert!(!ServicesRootBootstrap::is_initialized());
-    assert_eq!(ServicesRootBootstrap::get(), None);
-    assert_eq!(
-        ServicesRootBootstrap::active_root_or("/image/services"),
-        PathBuf::from("/image/services")
-    );
-    assert_eq!(
-        ServicesRootBootstrap::active_path_or("/image/services", "config/config.yaml"),
-        PathBuf::from("/image/services/config/config.yaml")
-    );
+fn the_cell_serves_the_baked_root_before_installation_then_the_installed_root() {
+    let boot = ensure_test_bootstrap().boot.clone();
+    assert_eq!(boot.services_root(), None);
+    let baked = boot.require_services_root();
+    assert_eq!(baked, ActiveServicesRoot::baked(boot.profile()));
 
-    let installed = ServicesRootBootstrap::install(ActiveServicesRoot {
+    let installed = boot.install_services_root(ActiveServicesRoot {
         path: PathBuf::from("/cache/composed/abc"),
         base: PathBuf::from("/services"),
         provenance: ServicesProvenance::Fetched {
@@ -36,18 +29,12 @@ fn the_cell_falls_back_before_installation_then_serves_the_installed_root() {
     });
 
     assert_eq!(installed.path, PathBuf::from("/cache/composed/abc"));
-    assert!(ServicesRootBootstrap::is_initialized());
     assert_eq!(
-        ServicesRootBootstrap::active_root_or("/image/services"),
-        PathBuf::from("/cache/composed/abc"),
-        "once installed the cell wins over the caller's fallback"
-    );
-    assert_eq!(
-        ServicesRootBootstrap::active_path_or("/image/services", "config/config.yaml"),
-        PathBuf::from("/cache/composed/abc/config/config.yaml")
+        boot.require_services_root().path,
+        PathBuf::from("/cache/composed/abc")
     );
 
-    let second = ServicesRootBootstrap::install(ActiveServicesRoot {
+    let second = boot.install_services_root(ActiveServicesRoot {
         path: PathBuf::from("/cache/composed/def"),
         base: PathBuf::from("/services"),
         provenance: ServicesProvenance::Bundled,

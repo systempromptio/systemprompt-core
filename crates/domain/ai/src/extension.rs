@@ -111,6 +111,7 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
         SchemaDefinition::sql_only(include_str!(
             "../schema/ai_gateway_policies_cache_notify.sql"
         )),
+        SchemaDefinition::sql_only(include_str!("../schema/ai_gateway_policies_provenance.sql")),
         SchemaDefinition::new(
             "ai_gateway_thought_signatures",
             include_str!("../schema/ai_gateway_thought_signatures.sql"),
@@ -129,10 +130,20 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
         )
         .with_required_columns(columns(&["bucket", "user_id", "request_count"])),
         SchemaDefinition::new(
+            "ai_context_rollup_hourly",
+            include_str!("../schema/ai_context_rollup_hourly.sql"),
+        )
+        .with_required_columns(columns(&["bucket", "context_id", "request_count"])),
+        SchemaDefinition::new(
             "user_provider_credentials",
             include_str!("../schema/user_provider_credentials.sql"),
         )
-        .with_required_columns(columns(&["user_id", "provider", "ciphertext"])),
+        .with_required_columns(columns(&["user_id", "credential", "ciphertext"])),
+        SchemaDefinition::new(
+            "ai_catalog_legacy_map",
+            include_str!("../schema/ai_catalog_legacy_map.sql"),
+        )
+        .with_required_columns(columns(&["legacy_provider", "credential"])),
     ]
 }
 

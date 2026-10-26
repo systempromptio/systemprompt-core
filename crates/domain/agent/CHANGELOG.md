@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- `ConfigAuthoringError::{NoDefaultModel, NoModelForProvider, ModelNotServable, Catalog, DefaultCatalog}` replace `NoDefaultProvider`, `NoDefaultModel(String)` and `ProviderCatalog`: an agent created with a provider and no model takes the first model core's default catalog deploys on it; with no provider it takes `gateway.default_model` and the provider of its first enabled deployment.
+- `RateWindow`, `DeploymentService`, `McpClient`, `McpDeploymentProviderImpl`, `ProcessService`, `FilterSystemFields` and `JsonEventFormat` no longer implement `Copy`, and `OutboundCtx`, `ServiceAccountTokens`, `StreamEvent`, `ImageProviderParams`, `ProviderClientParams`, `UpstreamTarget`, `McpClient`, `ProcessService`, `JwtTokenValidator`, `JwtValidationProviderImpl` and `HookTokenValidator` are no longer `UnwindSafe` or `RefUnwindSafe`, because they hold the injected config, token authority, token cache or spawner handles. Migrate by cloning where a copy was implied, and by wrapping in `AssertUnwindSafe` where one crosses `catch_unwind`.
+- `a2a_server::Server::new` (`AgentServer::new`) is synchronous and no longer takes the `DbPool`; `AgentOAuthState::new` takes a trailing `SigningKeys`; `agent_orchestration::process::spawn_detached` takes the `&Spawner` and `&SpawnEnvironment` after `paths`. `batch_builders::{build_messages, build_artifacts}` and `registry::security::override_oauth_urls` are generic over the map's `S: BuildHasher`. Migrate by dropping the pool and `.await` from `Server::new`, passing the context's signing keys and spawner, and letting the hasher parameter infer.
+
+
 ## [0.70.0] - 2026-10-18
 
 ### Changed

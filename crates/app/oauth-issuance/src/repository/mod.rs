@@ -16,9 +16,9 @@ pub(crate) struct SsoRepositories {
 }
 
 impl SsoRepositories {
-    pub(crate) fn new(db: &DbPool) -> Self {
+    pub(crate) fn new(db: &DbPool, oauth: OAuthRepository) -> Self {
         Self {
-            oauth: OAuthRepository::new(db),
+            oauth,
             login_events: SsoLoginEventRepository::new(db),
         }
     }

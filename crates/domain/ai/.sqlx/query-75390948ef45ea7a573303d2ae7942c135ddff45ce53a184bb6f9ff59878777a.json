@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO ai_gateway_policies\n                (id, name, spec, enabled, priority, source, created_at, updated_at)\n            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)\n            ON CONFLICT (name) DO UPDATE\n            SET spec = EXCLUDED.spec,\n                enabled = EXCLUDED.enabled,\n                priority = EXCLUDED.priority,\n                source = EXCLUDED.source,\n                updated_at = CURRENT_TIMESTAMP\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar",
+        "Jsonb",
+        "Bool",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "75390948ef45ea7a573303d2ae7942c135ddff45ce53a184bb6f9ff59878777a"
+}

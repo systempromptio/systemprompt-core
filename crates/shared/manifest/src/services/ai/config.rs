@@ -1,33 +1,30 @@
 //! AI service configuration loaded from profile YAML.
 //!
-//! [`AiConfig`] is the top-level AI *policy* block: the default provider, the
-//! per-provider policy map (keyed by registry provider name), sampling, MCP
-//! discovery, and history retention. Upstream connectivity lives in the profile
-//! `providers` registry, not here. The nested [`ResilienceSettings`] is the
-//! per-dependency timeout/retry/circuit-breaker policy applied to outbound
-//! provider and MCP calls.
+//! [`AiConfig`] is the top-level AI *policy* block: sampling, MCP discovery,
+//! and history retention. Upstream connectivity and the default model live in
+//! the catalog (`services/ai/{credentials,providers,models,deployments}.yaml`
+//! and `gateway.default_model`), not here; `default_image_model` names a
+//! catalog model and is validated against it; the retired `default_provider`
+//! and `providers` keys are refused as unknown fields. The nested
+//! [`ResilienceSettings`] is the per-dependency timeout/retry/circuit-breaker
+//! policy applied to outbound provider and MCP calls.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-use super::model::AiProviderConfig;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AiConfig {
-    #[serde(default)]
-    pub default_provider: String,
-
     #[serde(default)]
     pub default_max_output_tokens: Option<u32>,
 
-    #[serde(default)]
-    pub sampling: SamplingConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_image_model: Option<systemprompt_identifiers::ModelId>,
 
     #[serde(default)]
-    pub providers: HashMap<String, AiProviderConfig>,
+    pub sampling: SamplingConfig,
 
     #[serde(default)]
     pub mcp: McpConfig,
@@ -77,7 +74,7 @@ fn default_mcp_resilience() -> ResilienceSettings {
 /// Plain serde data loaded from profile config (all values in milliseconds or
 /// counts). Translated into the runtime form consumed by the resilience
 /// primitives in `systemprompt-database`.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ResilienceSettings {
     #[serde(default = "default_request_timeout")]
     pub request_timeout_ms: u64,

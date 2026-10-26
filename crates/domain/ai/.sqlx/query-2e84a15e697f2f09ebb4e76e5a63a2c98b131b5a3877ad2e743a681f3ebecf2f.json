@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM ai_quota_buckets WHERE subject_kind = $2 AND subject_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2e84a15e697f2f09ebb4e76e5a63a2c98b131b5a3877ad2e743a681f3ebecf2f"
+}

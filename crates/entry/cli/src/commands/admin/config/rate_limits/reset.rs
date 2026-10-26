@@ -4,17 +4,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
+use super::super::profile_io::profile_path;
 use super::ResetArgs;
-use super::helpers::{
+use super::profile_edit::{
     collect_endpoint_changes, get_endpoint_rate, load_profile_for_edit, save_profile,
     set_endpoint_rate,
 };
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::interactive::{Prompter, require_confirmation};
 use crate::shared::{CommandOutput, render_result};
 
@@ -23,9 +23,10 @@ use super::super::types::{ResetChange, ResetOutput};
 pub(super) fn execute_reset(
     args: &ResetArgs,
     prompter: &dyn Prompter,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
-    let profile_path = ProfileBootstrap::get_path()?;
+    let config = &ctx.cli;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile_for_edit(profile_path)?;
     let defaults = RateLimitsConfig::default();
 

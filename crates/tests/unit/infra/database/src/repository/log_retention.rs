@@ -69,7 +69,7 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
     let counted = repo.count_logs_before(cutoff).await.expect("count old");
     assert!(counted >= 1);
 
-    let deleted = repo.cleanup_old_logs(cutoff).await.expect("delete old");
+    let deleted = repo.purge_before(cutoff, 5000).await.expect("delete old");
     assert!(deleted >= 1);
 
     assert!(!log_exists(&pg, &old_id).await);

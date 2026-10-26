@@ -14,6 +14,7 @@ use crate::managed::{
 use std::collections::BTreeMap;
 use std::path::Path;
 use systemprompt_identifiers::{ManagedReconciliationId, ResourceRevisionId, UserId};
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_models::feedback::inventory::InventoryAvailability;
 
 struct AuthoringCapture {
@@ -48,7 +49,12 @@ impl InventoryService {
         }
         let canonical = std::fs::canonicalize(scope.root)?;
         if let Some(SourceSpec::LocalTree { root: bound }) = source_spec
-            && !binding_names_active_root(Path::new(&bound), scope.root, &canonical)
+            && !binding_names_active_root(
+                Path::new(&bound),
+                scope.root,
+                &canonical,
+                scope.sources.active_root,
+            )
         {
             return Err(invalid(
                 "Configured source binding does not match the active services root",
@@ -241,12 +247,17 @@ fn same_files(a: &RevisionFiles, b: &RevisionFiles) -> bool {
         })
 }
 
-fn binding_names_active_root(bound: &Path, configured: &Path, canonical: &Path) -> bool {
+fn binding_names_active_root(
+    bound: &Path,
+    configured: &Path,
+    canonical: &Path,
+    active_root: Option<&ActiveServicesRoot>,
+) -> bool {
     if bound == configured {
         return true;
     }
     if std::fs::canonicalize(bound).is_ok_and(|resolved| resolved == canonical) {
         return true;
     }
-    systemprompt_loader::ServicesRootBootstrap::get().is_some_and(|active| active.base == bound)
+    active_root.is_some_and(|active| active.base == bound)
 }

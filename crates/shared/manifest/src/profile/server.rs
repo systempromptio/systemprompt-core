@@ -18,16 +18,24 @@ pub struct ServerConfig {
 
     pub port: u16,
 
+    pub external_url: String,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extra_cors_origins: Vec<String>,
+
+    #[serde(skip)]
     pub api_server_url: String,
 
+    #[serde(skip)]
     pub api_internal_url: String,
 
+    #[serde(skip)]
     pub api_external_url: String,
 
-    #[serde(default)]
+    #[serde(skip)]
     pub use_https: bool,
 
-    #[serde(default)]
+    #[serde(skip)]
     pub cors_allowed_origins: Vec<String>,
 
     #[serde(default)]
@@ -61,6 +69,32 @@ pub struct ServerConfig {
 
     #[serde(default)]
     pub shutdown: super::ShutdownConfig,
+}
+
+impl ServerConfig {
+    #[must_use]
+    pub fn new(host: impl Into<String>, port: u16, external_url: impl Into<String>) -> Self {
+        Self {
+            host: host.into(),
+            port,
+            external_url: external_url.into(),
+            extra_cors_origins: Vec::new(),
+            api_server_url: String::new(),
+            api_internal_url: String::new(),
+            api_external_url: String::new(),
+            use_https: false,
+            cors_allowed_origins: Vec::new(),
+            content_negotiation: ContentNegotiationConfig::default(),
+            security_headers: SecurityHeadersConfig::default(),
+            instance_id: None,
+            metrics_port: None,
+            max_concurrent_streams: default_max_concurrent_streams(),
+            role: super::NodeRole::default(),
+            max_in_flight: None,
+            trusted_proxies: Vec::new(),
+            shutdown: super::ShutdownConfig::default(),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

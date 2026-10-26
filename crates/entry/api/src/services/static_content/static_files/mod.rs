@@ -27,9 +27,7 @@ use systemprompt_traits::RepositoryError;
 use super::config::StaticContentMatcher;
 use cache::serve_cached_file;
 use responses::{not_found_response, not_prerendered_response};
-use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_models::api::ApiError;
 use systemprompt_models::{RouteClassifier, RouteType};
 use systemprompt_runtime::AppContext;
 
@@ -111,13 +109,7 @@ async fn serve_static_asset(
     dist_dir: &std::path::Path,
     headers: &HeaderMap,
 ) -> axum::response::Response {
-    let files_config = match FilesConfig::get() {
-        Ok(config) => config,
-        Err(e) => {
-            return ApiHttpError::from(ApiError::internal("FilesConfig not initialized", e))
-                .into_response();
-        },
-    };
+    let files_config = ctx.files_config();
 
     let files_prefix = format!("{}/", files_config.url_prefix());
     let Some(relative_path) = path.strip_prefix(&files_prefix) else {

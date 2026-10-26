@@ -10,29 +10,27 @@
 //! warned about, so an operator hears about it from the log before Google's
 //! date arrives. The notice window is `LIFECYCLE_NOTICE_DAYS`;
 //! `lifecycle_notices` yields `(model id, what changes, on which date)` for
-//! every served rate-card model inside it, and `latest_report` exposes the
-//! last report this process produced.
+//! every served rate-card model inside it, and [`VertexDiscoveryJob::probe`]
+//! returns the report one pass produced.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::RwLock;
-
+use crate::services::scheduling::job_app_context;
 use async_trait::async_trait;
 use chrono::{Days, NaiveDate};
-use systemprompt_config::SecretsBootstrap;
-use systemprompt_loader::ServicesBootstrap;
-use systemprompt_manifest::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
+use std::sync::Arc;
+use systemprompt_manifest::secrets::Secrets;
+use systemprompt_manifest::services::catalog::{CatalogDocument, ModelRegistry};
+use systemprompt_manifest::services::{DiscoveryReport, ServicesView, VertexRateCard};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{info, warn};
-
-static LATEST: RwLock<Option<DiscoveryReport>> = RwLock::new(None);
 
 pub const LIFECYCLE_NOTICE_DAYS: u64 = 60;
 
 #[must_use]
 pub fn lifecycle_notices(
-    served: &ProviderRegistry,
+    served: &ModelRegistry,
     card: &VertexRateCard,
     today: NaiveDate,
 ) -> Vec<(String, &'static str, NaiveDate)> {
@@ -42,7 +40,7 @@ pub fn lifecycle_notices(
     let mut notices = Vec::new();
     for entry in &card.entries {
         let id = entry.id.as_str();
-        if !served.contains_model(id) {
+        if served.get(id).is_none() {
             continue;
         }
         if let Some(date) = entry.retires_on.filter(|d| *d <= horizon) {
@@ -53,14 +51,6 @@ pub fn lifecycle_notices(
         }
     }
     notices
-}
-
-#[must_use]
-pub fn latest_report() -> Option<DiscoveryReport> {
-    LATEST
-        .read()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .clone()
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -80,22 +70,34 @@ impl Job for VertexDiscoveryJob {
         "0 30 4 * * *"
     }
 
-    async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
+        let app = job_app_context(ctx)?;
+        let services = app.services_state().view();
+        let scanned = Self::probe(&services, app.secrets().get())
+            .await
+            .map_or(0, |report| {
+                report.discovered_priced.len() + report.discovered_unpriced.len()
+            });
+        Ok(JobResult::success()
+            .with_stats(scanned as u64, 0)
+            .with_duration(start.elapsed().as_millis() as u64))
+    }
+}
 
-        let Ok(booted) = ServicesBootstrap::providers() else {
-            warn!("services config not initialized; skipping Vertex discovery");
-            return Ok(JobResult::success().with_duration(start.elapsed().as_millis() as u64));
-        };
-        let Ok(secrets) = SecretsBootstrap::get() else {
-            warn!("secret store unavailable; skipping Vertex discovery");
-            return Ok(JobResult::success().with_duration(start.elapsed().as_millis() as u64));
-        };
+impl VertexDiscoveryJob {
+    pub async fn probe(services: &ServicesView, secrets: Arc<Secrets>) -> Option<DiscoveryReport> {
+        let booted = services.config();
 
-        // Why: a clone, never the live registry. Every reader holds a
-        // `&'static` into the OnceLock, so mutating it in place would be
-        // unsound as well as a silent mid-flight change of what is served.
-        let mut probe: ProviderRegistry = booted.clone();
+        // Why: a clone, never the live catalog, so probing cannot change what
+        // is served mid-flight.
+        let mut probe = CatalogDocument {
+            credentials: booted.credentials.clone(),
+            providers: booted.providers.clone(),
+            models: booted.models.clone(),
+            deployments: booted.deployments.clone(),
+            gateway: None,
+        };
         let lookup = |name: &str| secrets.get(name).cloned();
         let report = systemprompt_loader::vertex_discovery::discover(
             &mut probe,
@@ -122,7 +124,7 @@ impl Job for VertexDiscoveryJob {
         }
         if let Ok(card) = VertexRateCard::embedded() {
             for (model, what, date) in
-                lifecycle_notices(booted, &card, chrono::Utc::now().date_naive())
+                lifecycle_notices(&booted.models, &card, chrono::Utc::now().date_naive())
             {
                 warn!(
                     model = %model,
@@ -144,14 +146,7 @@ impl Job for VertexDiscoveryJob {
             "Vertex model discovery completed"
         );
 
-        let scanned = report.discovered_priced.len() + report.discovered_unpriced.len();
-        *LATEST
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(report);
-
-        Ok(JobResult::success()
-            .with_stats(scanned as u64, 0)
-            .with_duration(start.elapsed().as_millis() as u64))
+        Some(report)
     }
 }
 

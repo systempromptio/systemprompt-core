@@ -4,12 +4,18 @@ use std::time::Duration;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::gateway::bridge_release::{ReleaseError, ReleaseFeed};
+use systemprompt_manifest::Secrets;
 use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const DIGEST: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 const ASSET: &str = "systemprompt-bridge-linux";
+
+fn secrets() -> std::sync::Arc<Secrets> {
+    ensure_test_secrets_bootstrap().get()
+}
 
 fn spec(server: &MockServer) -> BridgeReleasesSpec {
     spec_with_token(server, None)
@@ -74,7 +80,7 @@ async fn a_resolved_release_strips_the_tag_prefix_and_carries_the_published_dige
     mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
 
     let resolved = ReleaseFeed::default()
-        .resolve(&spec(&server), "linux-x64")
+        .resolve(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect("the feed resolves a published release");
 
@@ -114,8 +120,14 @@ async fn a_second_resolution_within_the_ttl_does_not_call_github_again() {
 
     let feed = ReleaseFeed::default();
     let spec = spec(&server);
-    let first = feed.resolve(&spec, "linux-x64").await.expect("first");
-    let second = feed.resolve(&spec, "linux-x64").await.expect("cached");
+    let first = feed
+        .resolve(&spec, &secrets(), "linux-x64")
+        .await
+        .expect("first");
+    let second = feed
+        .resolve(&spec, &secrets(), "linux-x64")
+        .await
+        .expect("cached");
 
     assert_eq!(first.manifest.version, second.manifest.version);
     assert_eq!(first.manifest.sha256, second.manifest.sha256);
@@ -141,7 +153,9 @@ async fn a_github_outage_after_a_good_answer_serves_the_last_known_release() {
 
     let feed = ReleaseFeed::with_ttl(Duration::from_millis(0));
     let spec = spec(&server);
-    feed.resolve(&spec, "linux-x64").await.expect("first");
+    feed.resolve(&spec, &secrets(), "linux-x64")
+        .await
+        .expect("first");
 
     Mock::given(method("GET"))
         .and(path("/repos/systempromptio/bridge/releases"))
@@ -150,7 +164,7 @@ async fn a_github_outage_after_a_good_answer_serves_the_last_known_release() {
         .await;
 
     let stale = feed
-        .resolve(&spec, "linux-x64")
+        .resolve(&spec, &secrets(), "linux-x64")
         .await
         .expect("a github blip must not fail the update check");
 
@@ -180,7 +194,9 @@ async fn a_sums_fetch_failure_after_a_good_answer_serves_the_last_known_digest()
 
     let feed = ReleaseFeed::with_ttl(Duration::from_millis(0));
     let spec = spec(&server);
-    feed.resolve(&spec, "linux-x64").await.expect("first");
+    feed.resolve(&spec, &secrets(), "linux-x64")
+        .await
+        .expect("first");
 
     Mock::given(method("GET"))
         .and(path("/sums"))
@@ -189,7 +205,7 @@ async fn a_sums_fetch_failure_after_a_good_answer_serves_the_last_known_digest()
         .await;
 
     let stale = feed
-        .resolve(&spec, "linux-x64")
+        .resolve(&spec, &secrets(), "linux-x64")
         .await
         .expect("stale digest");
 
@@ -211,7 +227,7 @@ async fn a_release_without_sha256sums_is_refused_when_nothing_is_cached() {
     .await;
 
     let error = ReleaseFeed::default()
-        .resolve(&spec(&server), "linux-x64")
+        .resolve(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect_err("a release with no checksum file cannot be trusted");
 
@@ -227,7 +243,7 @@ async fn an_unpublished_platform_is_a_not_found_before_github_is_called() {
     let server = MockServer::start().await;
 
     let error = ReleaseFeed::default()
-        .resolve_asset(&spec(&server), "solaris-sparc")
+        .resolve_asset(&spec(&server), &secrets(), "solaris-sparc")
         .await
         .expect_err("an unknown platform has no build");
 
@@ -253,7 +269,7 @@ async fn a_release_missing_the_platform_asset_names_the_asset_it_wanted() {
     .await;
 
     let error = ReleaseFeed::default()
-        .resolve_asset(&spec(&server), "linux-x64")
+        .resolve_asset(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect_err("a release without the platform asset cannot be served");
 
@@ -290,7 +306,7 @@ async fn drafts_and_prereleases_are_skipped_in_favour_of_the_newest_published_re
     mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
 
     let resolved = ReleaseFeed::default()
-        .resolve(&spec(&server), "linux-x64")
+        .resolve(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect("the newest published release resolves");
 
@@ -320,7 +336,7 @@ async fn a_pinned_version_is_fetched_by_tag_rather_than_from_the_release_list() 
     spec.pinned_version = Some("0.49.0".to_owned());
 
     let resolved = ReleaseFeed::default()
-        .resolve(&spec, "linux-x64")
+        .resolve(&spec, &secrets(), "linux-x64")
         .await
         .expect("a pinned release resolves by tag");
 
@@ -338,7 +354,7 @@ async fn a_github_error_with_nothing_cached_is_reported_as_a_bad_gateway() {
         .await;
 
     let error = ReleaseFeed::default()
-        .resolve_asset(&spec(&server), "linux-x64")
+        .resolve_asset(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect_err("no cached answer means the failure surfaces");
 
@@ -385,6 +401,7 @@ async fn a_token_secret_the_store_cannot_resolve_refuses_rather_than_calling_git
     let error = ReleaseFeed::default()
         .resolve(
             &spec_with_token(&server, Some("github_release_token")),
+            &secrets(),
             "linux-x64",
         )
         .await

@@ -1,16 +1,14 @@
 //! Public access-control export and lint against durable database state.
 
-use std::io::{Read, Seek, SeekFrom};
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 
 use systemprompt_cli::admin::access_control::{
     self, AccessControlCommands, ExportYamlArgs, LintArgs,
 };
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,
+    DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row_with_roles,
 };
 
 const HELPER: &str = "commands::admin_access_control_public_lifecycle::access_control_helper";
@@ -26,7 +24,6 @@ async fn access_control_helper() {
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
     ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = database.test_pool().await;
     let raw = pool.pool();
     let admin = UserId::new(uuid::Uuid::new_v4().to_string());
@@ -51,15 +48,15 @@ async fn access_control_helper() {
         .execute(raw.as_ref())
         .await
         .expect("clear catalog");
-    sqlx::query("INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) VALUES ('agent', 'true', false, 'owned')")
+    sqlx::query("INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) VALUES ('agent', 'true', false, 'code:owned')")
         .execute(raw.as_ref()).await.expect("seed governed entity");
-    sqlx::query("INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) VALUES ('agent', 'unreachable-owned', false, 'owned')")
+    sqlx::query("INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) VALUES ('agent', 'unreachable-owned', false, 'code:owned')")
         .execute(raw.as_ref()).await.expect("seed unreachable entity");
-    sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification) VALUES ('agent', 'true', 'role', '123', 'allow', 'owned: role')")
+    sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification, source) VALUES ('agent', 'true', 'role', '123', 'allow', 'owned: role', 'code:owned')")
         .execute(raw.as_ref()).await.expect("seed role rule");
-    sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification) VALUES ('agent', 'true', 'user', 'omitted-user', 'deny', NULL)")
+    sqlx::query("INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, justification, source) VALUES ('agent', 'true', 'user', 'omitted-user', 'deny', NULL, 'console:admin')")
         .execute(raw.as_ref()).await.expect("seed omitted user rule");
-    let context = CommandContext::new(
+    let context = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -82,38 +79,6 @@ async fn access_control_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let mut stdout = tempfile::NamedTempFile::new().expect("stdout capture");
-    let mut stderr = tempfile::NamedTempFile::new().expect("stderr capture");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn access-control helper");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("poll helper") {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            break child.wait().expect("reap timed-out helper");
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let read = |file: &mut tempfile::NamedTempFile| {
-        file.seek(SeekFrom::Start(0)).expect("rewind capture");
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes).expect("read capture");
-        bytes
-    };
-    Output {
-        status,
-        stdout: read(&mut stdout),
-        stderr: read(&mut stderr),
-    }
-}
-
 fn marked<'a>(stdout: &'a str, begin: &str, end: &str) -> &'a str {
     stdout
         .split_once(begin)
@@ -126,7 +91,7 @@ fn marked<'a>(stdout: &'a str, begin: &str, end: &str) -> &'a str {
 fn public_export_round_trips_roles_and_lint_reports_unreachable_entities() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "admin access control public lifecycle");
     let sanitize = |bytes: &[u8]| {
         String::from_utf8_lossy(bytes)
             .split_whitespace()
@@ -154,18 +119,20 @@ fn public_export_round_trips_roles_and_lint_reports_unreachable_entities() {
     assert_eq!(export["x-artifact-type"], "text", "{export}");
     assert_eq!(
         export["title"],
-        "Access-control baseline (paste into services/access-control YAML)"
+        "Access control (paste into services/access-control/rules.yaml)"
     );
     let yaml = export["content"].as_str().expect("export YAML text");
     let snapshot: serde_yaml::Value = serde_yaml::from_str(yaml).expect("parse exported YAML");
-    let rules = snapshot["rules"].as_sequence().expect("exported rules");
-    assert_eq!(rules.len(), 1, "role rules only: {snapshot:?}");
-    let owned = rules
+    let entities = snapshot["entities"]
+        .as_sequence()
+        .expect("exported entities");
+    assert_eq!(entities.len(), 1, "role rules only: {snapshot:?}");
+    let owned = entities
         .iter()
-        .find(|rule| rule["entity_id"] == "true")
-        .expect("owned rule");
-    assert_eq!(owned["roles"][0], "123");
-    assert_eq!(owned["justification"], "owned: role");
+        .find(|entity| entity["entity"] == "agent/true")
+        .expect("owned entity");
+    assert_eq!(owned["allow"]["role"][0], "123");
+    assert_eq!(owned["why"], "owned: role");
     assert!(!yaml.contains("omitted-user"));
     let lint: serde_json::Value =
         serde_json::from_str(marked(&stdout, "BEGIN_LINT", "END_LINT")).expect("lint artifact");

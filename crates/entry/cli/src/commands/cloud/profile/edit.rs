@@ -123,7 +123,7 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
     }
 
     if let Some(url) = &args.set_external_url {
-        url.clone_into(&mut profile.server.api_external_url);
+        url.clone_into(&mut profile.server.external_url);
         profile_changed = true;
         CliService::success(&format!("Updated: external_url = {}", url));
     }
@@ -141,7 +141,7 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
     }
 
     if secrets_changed {
-        let content = serde_json::to_string_pretty(&secrets)?;
+        let content = CliService::json_string(&secrets)?;
         write_private_atomic(&secrets_path, content.as_bytes())
             .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
     }

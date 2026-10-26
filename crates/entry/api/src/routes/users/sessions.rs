@@ -23,9 +23,11 @@ pub async fn revoke_all_mine(
     State(ctx): State<AppContext>,
 ) -> Result<Json<RevokeAllResponse>, ApiHttpError> {
     let user_id = &req_ctx.auth.actor.user_id;
-    let provider = ctx
-        .session_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?;
+    let provider = ctx.session_provider().ok_or_else(|| {
+        ApiHttpError::from(ApiError::service_unavailable(
+            "Session provider unavailable",
+        ))
+    })?;
     match provider.revoke_all_sessions_for_user(user_id).await {
         Ok(count) => Ok(Json(RevokeAllResponse { revoked: count })),
         Err(e) => Err(ApiError::internal("Failed to revoke sessions", e).into()),

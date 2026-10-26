@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM config_plane_applied WHERE plane = $1) AS \"applied!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "applied!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "4eae44c36daff31d8e792d0669ef99635930d6908531d999586008a67fb4fd78"
+}

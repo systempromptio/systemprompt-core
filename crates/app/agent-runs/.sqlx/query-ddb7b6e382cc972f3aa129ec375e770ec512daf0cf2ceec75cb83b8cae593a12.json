@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO agent_runs\n                (id, origin_kind, origin_id, user_id, host, status, request, attempt, not_before,\n                 task_id, context_id, idempotency_key, request_digest)\n            VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8, $9, $10, $11, $12)\n            ON CONFLICT (origin_kind, idempotency_key) WHERE idempotency_key IS NOT NULL\n            DO NOTHING\n            RETURNING id AS \"id: AgentRunId\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: AgentRunId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agent_runs",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Int4",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ddb7b6e382cc972f3aa129ec375e770ec512daf0cf2ceec75cb83b8cae593a12"
+}

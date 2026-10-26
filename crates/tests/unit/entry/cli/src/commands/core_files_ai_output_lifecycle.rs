@@ -1,14 +1,13 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 
 use clap::Parser;
 use systemprompt_cli::core::{self, CoreCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row, test_app_context,
+    DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row, test_app_context,
 };
 
 const HELPER: &str = "commands::core_files_ai_output_lifecycle::files_ai_output_helper";
@@ -31,7 +30,6 @@ async fn files_ai_output_helper() {
     let database = DisposableDb::with_schema("cli_files_ai_output").await;
     let pool = database.test_pool().await;
     ensure_test_bootstrap();
-    install_test_signing_key();
     let user = UserId::new(format!("ai-output-{}", uuid::Uuid::new_v4().simple()));
     seed_user_row(&pool, &user, &format!("{}@files.invalid", user.as_str()))
         .await
@@ -84,7 +82,7 @@ async fn files_ai_output_helper() {
     .await
     .expect("seed filtering controls");
 
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -132,36 +130,6 @@ async fn files_ai_output_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().expect("AI output stdout capture");
-    let stderr = tempfile::NamedTempFile::new().expect("AI output stderr capture");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().unwrap()))
-        .stderr(Stdio::from(stderr.reopen().unwrap()));
-    let mut child = command.spawn().expect("spawn AI output helper");
-    let deadline = Instant::now() + Duration::from_secs(20);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll AI output helper") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap AI output helper");
-            panic!(
-                "AI output helper timed out ({status})\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&std::fs::read(stdout.path()).unwrap()),
-                String::from_utf8_lossy(&std::fs::read(stderr.path()).unwrap())
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 fn marked_json(stdout: &str, start: &str, end: &str) -> serde_json::Value {
     let json = stdout
         .split_once(start)
@@ -184,7 +152,7 @@ fn section<'a>(artifact: &'a serde_json::Value, heading: &str) -> &'a serde_json
 fn public_ai_file_commands_render_the_same_isolated_image() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "core files ai output lifecycle");
     assert!(
         output.status.success(),
         "AI output helper failed\nstdout:\n{}\nstderr:\n{}",

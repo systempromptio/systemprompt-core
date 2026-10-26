@@ -1,0 +1,68 @@
+//! Rendering of registered template components into page data.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::collections::HashSet;
+
+use systemprompt_template_provider::{ComponentContext, RenderedComponent};
+use systemprompt_templates::TemplateRegistry;
+
+use crate::error::{GeneratorResult, PublishError};
+
+// JSON: Handlebars template variables; components are inserted by name.
+pub(super) async fn render_components(
+    template_registry: &TemplateRegistry,
+    target_type: &str,
+    component_ctx: &ComponentContext<'_>,
+    data: &mut serde_json::Value,
+) {
+    let mut rendered_variables: HashSet<String> = HashSet::new();
+
+    for component in template_registry.components_for(target_type) {
+        let variable_name = component.variable_name();
+
+        if rendered_variables.contains(variable_name) {
+            tracing::debug!(
+                component_id = %component.component_id(),
+                variable_name = %variable_name,
+                priority = component.priority(),
+                "Skipping component, variable already rendered by higher-priority component"
+            );
+            continue;
+        }
+
+        let result: GeneratorResult<RenderedComponent> =
+            if let Some(partial) = component.partial_template() {
+                template_registry
+                    .render_partial(&partial.name, data)
+                    .map(|html| RenderedComponent::new(component.variable_name(), html))
+                    .map_err(|e| PublishError::render_failed(&partial.name, None, e))
+            } else {
+                component
+                    .render(component_ctx)
+                    .await
+                    .map_err(|e| PublishError::provider_failed(component.component_id(), e))
+            };
+
+        match result {
+            Ok(rendered) => {
+                if let Some(obj) = data.as_object_mut() {
+                    rendered_variables.insert(rendered.variable_name.clone());
+                    obj.insert(
+                        rendered.variable_name,
+                        serde_json::Value::String(rendered.html),
+                    );
+                }
+            },
+            Err(e) => {
+                tracing::warn!(
+                    component_id = %component.component_id(),
+                    target_type = %target_type,
+                    error = %e,
+                    "Component render failed"
+                );
+            },
+        }
+    }
+}

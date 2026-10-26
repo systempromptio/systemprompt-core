@@ -12,14 +12,14 @@ mod config_validation;
 pub mod sitemap_validation;
 pub mod template_validation;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Args, ValueEnum};
 
 use crate::CliConfig;
-use systemprompt_config::ProfileBootstrap;
 
 use super::paths::WebPaths;
 use super::types::ValidationOutput;
+use systemprompt_loader::BootContext;
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum ValidationCategory {
@@ -37,9 +37,13 @@ pub struct ValidateArgs {
     pub only: Option<ValidationCategory>,
 }
 
-pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<ValidationOutput> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let web_paths = WebPaths::resolve_from_profile(profile)?;
+pub(super) fn execute(
+    args: &ValidateArgs,
+    _config: &CliConfig,
+    boot: &BootContext,
+) -> Result<ValidationOutput> {
+    let web_paths = WebPaths::resolve(boot)?;
+    let profile = boot.profile();
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();

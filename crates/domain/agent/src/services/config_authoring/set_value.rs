@@ -6,7 +6,7 @@
 
 use systemprompt_manifest::services::AgentConfig;
 
-use super::edit::AgentEditRequest;
+use super::request::AgentEditRequest;
 use super::{AgentConfigAuthoringService, ConfigAuthoringError};
 
 impl AgentConfigAuthoringService {

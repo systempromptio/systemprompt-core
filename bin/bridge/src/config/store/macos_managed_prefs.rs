@@ -38,9 +38,8 @@ impl ConfigStore for MacOsManagedPrefsStore {
         target: PolicyTarget,
     ) -> Result<bool, ConfigStoreError> {
         claude_only(target)?;
-        let path = super::macos_plist_store::plist_path(hive).ok_or_else(|| {
-            ConfigStoreError::Backend("per-user policy path unresolvable".to_owned())
-        })?;
+        let path = super::macos_plist_store::plist_path(hive)
+            .ok_or_else(|| ConfigStoreError::NoUserPolicyPath)?;
         path.try_exists().map_err(|source| ConfigStoreError::Io {
             context: path.display().to_string(),
             source,
@@ -105,11 +104,11 @@ impl ConfigStore for MacOsManagedPrefsStore {
 
 // Why: on macOS the bridge's signing trust is a managed profile installed
 // through `install --apply`, not a value in the Claude preferences domain.
-fn claude_only(target: PolicyTarget) -> Result<(), ConfigStoreError> {
+const fn claude_only(target: PolicyTarget) -> Result<(), ConfigStoreError> {
     match target {
         PolicyTarget::Claude => Ok(()),
-        PolicyTarget::Bridge => Err(ConfigStoreError::Backend(
-            "the bridge signing-trust key is a managed profile on macOS".to_owned(),
+        PolicyTarget::Bridge => Err(ConfigStoreError::Unsupported(
+            "the bridge signing-trust key is a managed profile on macOS",
         )),
     }
 }
@@ -119,9 +118,9 @@ fn synchronize_domain() -> Result<(), ConfigStoreError> {
     // SAFETY: `domain` is a live `CFString` whose ref is valid for the call's
     // duration.
     if unsafe { CFPreferencesAppSynchronize(domain.as_concrete_TypeRef()) } == 0 {
-        return Err(ConfigStoreError::Backend(format!(
-            "synchronize managed preferences {POLICY_DOMAIN} failed"
-        )));
+        return Err(ConfigStoreError::PreferencesSync {
+            domain: POLICY_DOMAIN,
+        });
     }
     Ok(())
 }
@@ -143,10 +142,9 @@ fn copy_app_string(key: &str) -> Result<Option<String>, ConfigStoreError> {
     // SAFETY: `raw` is non-null and a valid CoreFoundation type ref obtained
     // under the Copy rule, so ownership transfers to the wrapper.
     let value: CFType = unsafe { TCFType::wrap_under_create_rule(raw.cast()) };
-    let json = cf_to_json(&value).ok_or_else(|| {
-        ConfigStoreError::Backend(format!(
-            "{POLICY_DOMAIN}: unsupported policy value at {key}"
-        ))
+    let json = cf_to_json(&value).ok_or_else(|| ConfigStoreError::InvalidValue {
+        location: format!("{POLICY_DOMAIN}: {key}"),
+        expected: "a supported policy value",
     })?;
     Ok(Some(match json {
         serde_json::Value::String(s) => s,

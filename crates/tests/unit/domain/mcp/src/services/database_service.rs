@@ -15,6 +15,7 @@ use systemprompt_test_fixtures::unique_instance;
 async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRepository) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),
@@ -32,7 +33,11 @@ async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRe
         )
         .expect("app paths"),
     );
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        crate::harness::services_state().view(),
+        crate::harness::config(),
+    );
     let repo = systemprompt_database::ServiceRepository::new(&db, unique_instance());
     let svc = DatabaseService::new(repo.clone(), app_paths, registry);
     (svc, repo)
@@ -52,15 +57,10 @@ async fn get_service_by_name_missing_returns_none() {
 }
 
 #[tokio::test]
-async fn cleanup_stale_services_runs() {
+async fn reap_stale_services_on_a_fresh_instance_reaps_nothing() {
     let (svc, _db) = make_db_service().await;
-    svc.cleanup_stale_services().await.unwrap();
-}
-
-#[tokio::test]
-async fn delete_crashed_services_runs() {
-    let (svc, _db) = make_db_service().await;
-    svc.delete_crashed_services().await.unwrap();
+    let reaped = svc.reap_stale_services().await.unwrap();
+    assert_eq!(reaped.total(), 0);
 }
 
 #[tokio::test]

@@ -2,18 +2,16 @@
 //!
 //! Tool results carry their own rendered HTML so the host has nothing to
 //! type-dispatch on: [`artifact_ui_resource`] wraps a stored artifact payload
-//! in a minimal A2A [`Artifact`] and hands it to the renderer registry, which
-//! already knows how to fall through the CLI envelope tag to the concrete
-//! variant.
+//! in a minimal A2A [`Artifact`] and hands it to the renderer registry its
+//! caller owns, which already knows how to fall through the CLI envelope tag to
+//! the concrete variant.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::registry::create_default_registry;
 use super::{UiRendererRegistry, UiResource};
 use crate::error::{McpDomainError, McpDomainResult};
 use serde_json::Value as JsonValue;
-use std::sync::{Arc, OnceLock};
 use systemprompt_identifiers::{ArtifactId, ContextId, McpServerId, TaskId};
 use systemprompt_models::a2a::{Artifact, ArtifactMetadata, Part};
 
@@ -27,14 +25,12 @@ pub struct RenderTarget<'a> {
     pub title: Option<String>,
 }
 
-fn default_registry() -> Arc<UiRendererRegistry> {
-    static REGISTRY: OnceLock<Arc<UiRendererRegistry>> = OnceLock::new();
-    Arc::clone(REGISTRY.get_or_init(|| Arc::new(create_default_registry())))
-}
-
-pub fn artifact_ui_resource(target: &RenderTarget<'_>) -> McpDomainResult<UiResource> {
+pub fn artifact_ui_resource(
+    renderers: &UiRendererRegistry,
+    target: &RenderTarget<'_>,
+) -> McpDomainResult<UiResource> {
     let artifact = to_a2a_artifact(target)?;
-    default_registry().render(&artifact)
+    renderers.render(&artifact)
 }
 
 pub fn artifact_resource_uri(server_name: &McpServerId, artifact_id: &ArtifactId) -> String {

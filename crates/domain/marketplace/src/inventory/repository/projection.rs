@@ -5,7 +5,7 @@
 
 use crate::inventory::catalog::invalid;
 use crate::inventory::projection::{configured_entries, merge_resource, next_generation};
-use crate::inventory::{ConfiguredInventoryEntry, InventoryStatus};
+use crate::inventory::{ConfiguredInventoryEntry, InventoryStatus, SourcesContext};
 use crate::managed::{ManagedError, ManagedRepository, Result};
 use systemprompt_identifiers::UserId;
 
@@ -14,6 +14,7 @@ impl ManagedRepository {
         &self,
         owner: &UserId,
         configured: &[ConfiguredInventoryEntry],
+        sources: SourcesContext<'_>,
     ) -> Result<InventoryStatus> {
         if configured.len() > 10_000 {
             return Err(invalid("Inventory exceeds 10000 configured entries"));
@@ -51,7 +52,11 @@ impl ManagedRepository {
             context: "inventory count overflow",
             source: Box::new(error),
         })?;
-        let sources = serde_json::to_value(systemprompt_loader::bundle::sources_provenance())?;
+        let sources = serde_json::to_value(systemprompt_loader::bundle::sources_provenance(
+            sources.profile,
+            sources.active_root,
+            self.base_tree_hash_memo(),
+        ))?;
         sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,sources=$5,last_error=NULL WHERE owner_id=$1",owner.as_str(),generation,observed,count,sources).execute(&mut *tx).await?;
         // Why: membership rows join on this generation's mint time as
         // `effective_from`; an unchanged pass must not move it.

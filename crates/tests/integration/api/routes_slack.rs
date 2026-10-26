@@ -17,8 +17,7 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, agent_reply_response_json,
-    ensure_messaging_bootstrap, install_test_signing_key, seed_agent_backend, test_app_context,
-    test_db_pool,
+    ensure_messaging_bootstrap, seed_agent_backend, test_app_context, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
@@ -58,7 +57,10 @@ fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
 }
 
 fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::routes::slack::slack_router().with_state((**ctx).clone())
+    systemprompt_api::routes::slack::slack_router(
+        systemprompt_api::routes::messaging::MessagingState::guarded().expect("guarded client"),
+    )
+    .with_state((**ctx).clone())
 }
 
 #[tokio::test]
@@ -113,7 +115,6 @@ async fn url_verification_challenge_is_echoed() -> anyhow::Result<()> {
 #[tokio::test]
 async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);
 
@@ -178,7 +179,6 @@ async fn coverage_command_reply(
     hook_status: u16,
 ) -> anyhow::Result<serde_json::Value> {
     let b = ensure_messaging_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = if denied {
         systemprompt_test_fixtures::fixture_app_context_with_hook(

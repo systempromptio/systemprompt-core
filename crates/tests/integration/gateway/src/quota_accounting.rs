@@ -11,7 +11,7 @@ use systemprompt_gateway::quota::{AccountingOutcome, QuotaReservation, ReservedW
 use systemprompt_gateway::service::finalize::record_accounting_outcome;
 use systemprompt_gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_governance::policy::types::AccessScope;
-use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
+use systemprompt_identifiers::{AiRequestId, ContextId, QuotaSubjectKind, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
 
 use crate::support::{minimal_request, seed_user, setup_db};
@@ -39,7 +39,9 @@ fn gateway_journal(
 ) -> systemprompt_gateway::audit::journal::GatewayJournal {
     systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir,
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+            .encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("gateway journal opens")
 }
@@ -58,8 +60,18 @@ pub(crate) fn gateway_repos_in(
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher from the fixture secrets"),
+            unapplied_plane: systemprompt_manifest::profile::UnappliedPlaneMode::default(),
+        },
     )
 }
 
@@ -87,6 +99,7 @@ pub(crate) fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> Gatewa
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_owned(),
+        hop: None,
         requested_model: Some("claude-requested".to_owned()),
         model: "claude-test".to_owned(),
         max_tokens: Some(16),
@@ -116,7 +129,7 @@ pub(crate) async fn status_of(db: &DbPool, id: &AiRequestId) -> String {
 pub(crate) fn reservation_for(user_id: &UserId) -> QuotaReservation {
     QuotaReservation {
         windows: vec![ReservedWindow {
-            subject_kind: "user".to_owned(),
+            subject_kind: QuotaSubjectKind::User,
             subject_id: user_id.as_str().to_owned(),
             window_seconds: 60,
             window_start: sqlx::types::chrono::Utc::now(),

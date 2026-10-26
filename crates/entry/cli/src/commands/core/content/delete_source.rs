@@ -4,15 +4,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::types::DeleteSourceOutput;
-use crate::cli_settings::CliConfig;
-use crate::interactive::{Prompter, require_confirmation};
+use crate::context::CommandContext;
+use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::SourceId;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct DeleteSourceArgs {
@@ -23,11 +22,9 @@ pub struct DeleteSourceArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
-    args: DeleteSourceArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
+pub async fn execute(args: DeleteSourceArgs, cmd: &CommandContext) -> Result<CommandOutput> {
+    let prompter = cmd.prompter();
+    let config = &cmd.cli;
     if config.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete ALL content from source: {}",
@@ -42,7 +39,7 @@ pub async fn execute(
         config,
     )?;
 
-    let ctx = AppContext::new().await?;
+    let ctx = cmd.app_context().await?;
     let repo = ContentRepository::new(ctx.db_pool());
 
     let source = SourceId::new(args.source.clone());

@@ -4,14 +4,19 @@
 use std::sync::Arc;
 
 use serde_json::json;
+use systemprompt_identifiers::{CredentialId, UserId};
 use systemprompt_security::credential::cache::clamp_ttl;
 use systemprompt_security::credential::{
     AuthScheme, CredentialKind, CredentialScope, PROJECT_PLACEHOLDER, ProviderCredential,
-    REGION_PLACEHOLDER, fill_endpoint,
+    REGION_PLACEHOLDER, TokenCache, TokenCacheKey, fill_endpoint,
 };
 use systemprompt_test_fixtures::keys::test_key;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+fn key(credential: &str) -> TokenCacheKey {
+    TokenCacheKey::platform(&CredentialId::new(credential))
+}
 
 fn service_account(token_uri: &str) -> String {
     json!({
@@ -58,9 +63,13 @@ fn a_declared_service_account_that_does_not_parse_is_an_error_not_an_api_key() {
 
 #[tokio::test]
 async fn an_api_key_names_nothing_and_is_sent_verbatim() {
+    let tokens = TokenCache::new();
     let credential = ProviderCredential::parse("plain-api-key").unwrap();
     assert_eq!(credential.scope(), CredentialScope::empty());
-    let header = credential.bearer("any-secret").await.unwrap();
+    let header = credential
+        .bearer(&tokens, &key("any-credential"))
+        .await
+        .unwrap();
     assert_eq!(header.scheme, AuthScheme::ApiKey);
     assert!(!header.is_bearer());
     assert_eq!(header.value, "plain-api-key");
@@ -173,11 +182,13 @@ async fn concurrent_first_calls_mint_exactly_one_token() {
         ProviderCredential::parse(&service_account(&format!("{}/token", server.uri()))).unwrap(),
     );
     let name = uuid::Uuid::new_v4().to_string();
+    let tokens = Arc::new(TokenCache::new());
 
     let one = || {
         let credential = Arc::clone(&credential);
+        let tokens = Arc::clone(&tokens);
         let name = name.clone();
-        async move { credential.bearer(&name).await.unwrap().value }
+        async move { credential.bearer(&tokens, &key(&name)).await.unwrap().value }
     };
     let (a, b, c, d) = tokio::join!(one(), one(), one(), one());
     for value in [a, b, c, d] {
@@ -190,6 +201,7 @@ async fn concurrent_first_calls_mint_exactly_one_token() {
 // which one retry fixes; a 4xx is a credential an operator has to change.
 #[tokio::test]
 async fn a_transient_server_error_is_retried_once_and_then_succeeds() {
+    let tokens = TokenCache::new();
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/token"))
@@ -207,7 +219,7 @@ async fn a_transient_server_error_is_retried_once_and_then_succeeds() {
     let credential =
         ProviderCredential::parse(&service_account(&format!("{}/token", server.uri()))).unwrap();
     let header = credential
-        .bearer(&uuid::Uuid::new_v4().to_string())
+        .bearer(&tokens, &key(&uuid::Uuid::new_v4().to_string()))
         .await
         .unwrap();
     assert_eq!(header.value, "recovered");
@@ -217,6 +229,7 @@ async fn a_transient_server_error_is_retried_once_and_then_succeeds() {
 
 #[tokio::test]
 async fn a_refused_credential_is_not_retried() {
+    let tokens = TokenCache::new();
     let server = MockServer::start().await;
     token_endpoint(
         &server,
@@ -227,7 +240,7 @@ async fn a_refused_credential_is_not_retried() {
     let credential =
         ProviderCredential::parse(&service_account(&format!("{}/token", server.uri()))).unwrap();
     let error = credential
-        .bearer(&uuid::Uuid::new_v4().to_string())
+        .bearer(&tokens, &key(&uuid::Uuid::new_v4().to_string()))
         .await
         .unwrap_err()
         .to_string();
@@ -236,4 +249,69 @@ async fn a_refused_credential_is_not_retried() {
         "{error}"
     );
     server.verify().await;
+}
+
+// Why: every endpoint of one catalog credential is served by one minted token;
+// a second endpoint parses the same secret into its own ProviderCredential.
+#[tokio::test]
+async fn two_endpoints_of_one_credential_share_one_minted_token() {
+    let tokens = TokenCache::new();
+    let server = MockServer::start().await;
+    token_endpoint(
+        &server,
+        ResponseTemplate::new(200)
+            .set_body_json(json!({"access_token":"shared","expires_in":3600})),
+        1,
+    )
+    .await;
+    let secret = service_account(&format!("{}/token", server.uri()));
+    let credential = uuid::Uuid::new_v4().to_string();
+    let global = ProviderCredential::parse(&secret).unwrap();
+    let eu = ProviderCredential::parse(&secret).unwrap();
+    let first = global
+        .bearer(&tokens, &key(&credential))
+        .await
+        .unwrap()
+        .value;
+    let second = eu.bearer(&tokens, &key(&credential)).await.unwrap().value;
+    assert_eq!(first, "shared");
+    assert_eq!(second, "shared");
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn two_credentials_never_share_a_token_even_on_one_secret() {
+    let tokens = TokenCache::new();
+    let server = MockServer::start().await;
+    token_endpoint(
+        &server,
+        ResponseTemplate::new(200)
+            .set_body_json(json!({"access_token":"minted","expires_in":3600})),
+        2,
+    )
+    .await;
+    let credential =
+        ProviderCredential::parse(&service_account(&format!("{}/token", server.uri()))).unwrap();
+    credential
+        .bearer(&tokens, &key(&uuid::Uuid::new_v4().to_string()))
+        .await
+        .unwrap();
+    credential
+        .bearer(&tokens, &key(&uuid::Uuid::new_v4().to_string()))
+        .await
+        .unwrap();
+    server.verify().await;
+}
+
+#[test]
+fn a_personal_key_is_keyed_by_credential_and_member() {
+    let credential = CredentialId::new("opencode-go");
+    let alice = TokenCacheKey::personal(&credential, &UserId::new("alice"));
+    let bob = TokenCacheKey::personal(&credential, &UserId::new("bob"));
+    assert_ne!(alice, bob);
+    assert_ne!(alice, TokenCacheKey::platform(&credential));
+    assert_eq!(
+        TokenCacheKey::platform(&credential),
+        TokenCacheKey::platform(&CredentialId::new("opencode-go"))
+    );
 }

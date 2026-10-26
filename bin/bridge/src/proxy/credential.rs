@@ -13,6 +13,7 @@
 use crate::ids::{PluginId, ProxySecret};
 use crate::proxy::scoped_token::{self, TokenScope};
 use crate::proxy::secret;
+use systemprompt_models::ApiPaths;
 use systemprompt_models::bridge::host::HostKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,23 +69,34 @@ impl Rejection {
 
 #[must_use]
 pub fn classify_route(uri: &http::Uri) -> RouteClass {
-    let path = uri.path();
-    if path.starts_with("/api/public/hooks/") {
-        return RouteClass::Hook(hook_plugin_id(uri));
+    match classify_path(uri.path()) {
+        RouteClass::Hook(_) => RouteClass::Hook(hook_plugin_id(uri)),
+        class => class,
     }
-    if path == "/otel" || path.starts_with("/otel/") {
+}
+
+// Why: the bridge's own `/v1/bridge/*` calls to the gateway are not inference
+// a client can present a credential for; everything else under `/v1/` is.
+#[must_use]
+pub fn classify_path(path: &str) -> RouteClass {
+    if ApiPaths::is_public_hook(path) {
+        return RouteClass::Hook(None);
+    }
+    if ApiPaths::is_otel(path) {
         return RouteClass::Otel;
     }
-    if path == "/mcp" || path.starts_with("/mcp/") {
+    if ApiPaths::is_mcp(path) {
         return RouteClass::Mcp;
     }
-    if path.starts_with("/v1/") && !path.starts_with("/v1/bridge/") {
+    let gateway = format!("{}/", ApiPaths::GATEWAY_BASE);
+    let bridge = format!("{}/", ApiPaths::BRIDGE_BASE);
+    if path.starts_with(&gateway) && path != ApiPaths::BRIDGE_BASE && !path.starts_with(&bridge) {
         return RouteClass::Inference;
     }
     RouteClass::Other
 }
 
-fn hook_plugin_id(uri: &http::Uri) -> Option<PluginId> {
+pub fn hook_plugin_id(uri: &http::Uri) -> Option<PluginId> {
     uri.query()?.split('&').find_map(|kv| {
         let (k, v) = kv.split_once('=')?;
         (k == "plugin_id").then(|| PluginId::try_new(v).ok())?

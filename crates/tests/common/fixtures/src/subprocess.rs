@@ -25,8 +25,19 @@
 //! ```
 
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, Output, Stdio};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
+
+use systemprompt_loader::subprocess::Spawner;
+
+static TEST_SPAWNER: OnceLock<Arc<Spawner>> = OnceLock::new();
+
+pub fn test_spawner() -> Arc<Spawner> {
+    Arc::clone(
+        TEST_SPAWNER.get_or_init(|| Arc::new(Spawner::new().expect("start subprocess spawner"))),
+    )
+}
 
 use tempfile::TempDir;
 
@@ -135,5 +146,46 @@ pub fn spawn_marked_child(helper_test: &str, service_name: &str) -> MarkedChild 
     MarkedChild {
         child,
         _helper: helper,
+    }
+}
+
+// Why: a hang guard, not a latency budget. Each child boots a full CLI runtime
+// (config load, DB pool, migrations check); under a parallel nextest run on a
+// loaded host, 30s tripped on that startup cost, not on hangs. It stays below
+// nextest's 180s terminate-after.
+const BOUNDED_OUTPUT_TIMEOUT: Duration = Duration::from_secs(120);
+
+pub fn bounded_output(mut command: Command, label: &str) -> Output {
+    let stdout = tempfile::NamedTempFile::new().expect("create stdout capture");
+    let stderr = tempfile::NamedTempFile::new().expect("create stderr capture");
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(stdout.reopen().expect("open stdout capture")))
+        .stderr(Stdio::from(stderr.reopen().expect("open stderr capture")));
+    let mut child = command
+        .spawn()
+        .unwrap_or_else(|error| panic!("{label}: spawn failed: {error}"));
+    let deadline = Instant::now() + BOUNDED_OUTPUT_TIMEOUT;
+    loop {
+        let finished = child
+            .try_wait()
+            .unwrap_or_else(|error| panic!("{label}: poll failed: {error}"));
+        if let Some(status) = finished {
+            return Output {
+                status,
+                stdout: std::fs::read(stdout.path()).expect("read stdout capture"),
+                stderr: std::fs::read(stderr.path()).expect("read stderr capture"),
+            };
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!(
+                "{label} timed out after {BOUNDED_OUTPUT_TIMEOUT:?}\nstdout:\n{}\nstderr:\n{}",
+                String::from_utf8_lossy(&std::fs::read(stdout.path()).unwrap_or_default()),
+                String::from_utf8_lossy(&std::fs::read(stderr.path()).unwrap_or_default()),
+            );
+        }
+        std::thread::sleep(Duration::from_millis(25));
     }
 }

@@ -38,8 +38,8 @@ pub enum ConfigPlaneError {
     MissingDependency(#[from] MissingDependency),
 
     #[error(
-        "config plane '{plane}' is file-managed: {path} is the source of truth and the \
-         reconciler overwrites database edits; change the file instead"
+        "config plane '{plane}' is file-managed: {path} is the source of truth and `config \
+         apply` writes it to the database; change the file instead"
     )]
     FileManaged { plane: String, path: String },
 

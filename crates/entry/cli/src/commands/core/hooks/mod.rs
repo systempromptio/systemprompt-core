@@ -29,13 +29,13 @@ pub enum HooksCommands {
 pub fn execute(command: HooksCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         HooksCommands::List(args) => {
-            let result = list::execute(args, &ctx.cli).context("Failed to list hooks")?;
+            let result = list::execute(args, ctx).context("Failed to list hooks")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         HooksCommands::Validate(args) => {
             let (result, valid) =
-                validate::execute(args, &ctx.cli).context("Failed to validate hooks")?;
+                validate::execute(args, ctx).context("Failed to validate hooks")?;
             render_result(&result, &ctx.cli);
             if !valid {
                 bail!("Hook validation failed");

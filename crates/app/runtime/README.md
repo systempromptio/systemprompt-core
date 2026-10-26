@@ -32,13 +32,13 @@ This crate:
 | `validation` | Runtime prerequisite checks (`validate_system`, `validate_database_path`) |
 | `error` | `RuntimeError` / `RuntimeResult`, the typed error model for construction and validation |
 
-`AppContext` is assembled either through `AppContextBuilder` (the bootstrap path: `ProfileBootstrap`, database init, extension discovery, optional GeoIP and content config, tracing with database persistence) or directly through `AppContext::from_parts(data, cfg, plugins, subsystems)` for tests and embedders that own plane construction.
+`AppContext` is assembled either through `AppContextBuilder` (the bootstrap path: the `BootContext`, database init, extension discovery, optional GeoIP and content config, tracing with database persistence) or directly through `AppContext::from_parts(data, cfg, plugins, subsystems)` for tests and embedders that own plane construction.
 
 ## Usage
 
 ```toml
 [dependencies]
-systemprompt-runtime = "0.72"
+systemprompt-runtime = "0.73"
 ```
 
 ## Dependencies

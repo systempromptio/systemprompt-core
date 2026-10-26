@@ -55,6 +55,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
+
 pub mod bundle;
 mod candidate;
 pub mod catalog;
@@ -94,7 +97,7 @@ pub use keep::{KeepSetsSubject, keep_sets};
 pub use managed::{ManagedRepository, ManagedResourceResolver, ManagedSkillResolution};
 pub use manifest::{AssembleRequest, ManifestService};
 pub use membership::MarketplaceMembership;
-pub use registry::{MarketplaceFilterRegistration, discover_filters};
+pub use registry::{MarketplaceFactoryContext, MarketplaceFilterRegistration, discover_filters};
 pub use scope::{enabled_marketplaces, scope_to_marketplace, scope_to_union, union_include};
 pub use service::MarketplaceService;
 pub use trace::{ManifestTrace, NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};

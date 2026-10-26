@@ -12,7 +12,9 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_extension::{
     Extension, ExtensionContext, HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService,
 };
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::RouteClassifier;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_traits::{
     AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
     FingerprintProvider, UserProvider,
@@ -58,6 +60,18 @@ impl AppContextTrait for AppContext {
 }
 
 impl ExtensionContext for AppContext {
+    fn services(&self) -> systemprompt_manifest::services::ServicesView {
+        self.services_state().view()
+    }
+
+    fn subject_attributes(&self) -> Arc<dyn systemprompt_models::authz::SubjectAttributeSource> {
+        Arc::new(self.subject_handle().clone())
+    }
+
+    fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {
+        Arc::<systemprompt_security::credential::TokenCache>::clone(self.connector_tokens())
+    }
+
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
         self.system_admin().id().clone()
     }
@@ -66,6 +80,22 @@ impl ExtensionContext for AppContext {
         let concrete = Arc::clone(&self.cfg.config);
         let provider: Arc<dyn ConfigProvider> = concrete;
         provider
+    }
+
+    fn profile(&self) -> Arc<Profile> {
+        Arc::new(self.cfg.boot.profile().clone())
+    }
+
+    fn app_config(&self) -> Arc<Config> {
+        Arc::clone(&self.cfg.config)
+    }
+
+    fn services_root(&self) -> systemprompt_manifest::services::root::ActiveServicesRoot {
+        self.cfg.boot.require_services_root()
+    }
+
+    fn token_authority(&self) -> Arc<dyn TokenAuthority> {
+        Self::token_authority(self)
     }
 
     fn database(&self) -> Arc<dyn DatabaseHandle> {
@@ -80,6 +110,10 @@ impl ExtensionContext for AppContext {
 
     fn instance_id(&self) -> systemprompt_identifiers::InstanceId {
         self.config().instance_id.clone()
+    }
+
+    fn background_tasks(&self) -> systemprompt_traits::BackgroundTasks {
+        Self::background_tasks(self).clone()
     }
 
     fn instances(&self) -> systemprompt_traits::DynInstanceRegistry {
@@ -100,17 +134,19 @@ impl ExtensionContext for AppContext {
         locks
     }
 
-    fn secret(&self, name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
-        let secrets = match systemprompt_config::SecretsBootstrap::get() {
-            Ok(secrets) => secrets,
-            Err(error) => {
-                tracing::warn!(%error, secret = name, "extension secret requested before secrets loaded");
-                return None;
-            },
-        };
-        secrets
-            .custom_secret(name)
-            .map(|value| systemprompt_traits::ExtensionSecret::new(value.clone()))
+    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies {
+        systemprompt_provider_contracts::Dependencies::new()
+            .with(Arc::clone(self.db_pool()))
+            .with(Arc::clone(self.app_paths_arc()))
+            .with(Arc::clone(self.files_config()))
+            .with(Arc::clone(self.oauth_repositories()))
+            .with(Arc::clone(self.ai_repositories()))
+    }
+
+    fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
+        let concrete = Arc::clone(Self::secrets(self));
+        let store: Arc<dyn systemprompt_traits::SecretStore> = concrete;
+        store
     }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {

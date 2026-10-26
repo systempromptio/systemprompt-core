@@ -87,7 +87,7 @@ macro_rules! __user_purge_predicate {
 macro_rules! user_purge_tables {
     ($owner:literal, [ $( ($table:literal, $column:literal $(, $predicate:literal)?) ),* $(,)? ]) => {
         $(
-            ::inventory::submit! {
+            $crate::__inventory::submit! {
                 $crate::purge::UserPurgeTable {
                     table: $table,
                     column: $column,
@@ -103,7 +103,7 @@ macro_rules! user_purge_tables {
 macro_rules! orphan_sweeps {
     ($owner:literal, [ $( { $($field:ident : $value:literal),* $(,)? } ),* $(,)? ]) => {
         $(
-            ::inventory::submit! {
+            $crate::__inventory::submit! {
                 $crate::purge::OrphanSweep {
                     $($field: $value,)*
                     owner: $owner,

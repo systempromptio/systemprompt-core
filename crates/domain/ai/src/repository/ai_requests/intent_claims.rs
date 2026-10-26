@@ -5,16 +5,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
+use systemprompt_database::escape_like;
 use systemprompt_identifiers::{AiToolCallId, McpExecutionId, McpToolName, SessionId};
 use systemprompt_traits::{RepositoryError, ToolCallIntentClaims};
 
 use super::AiRequestRepository;
-
-fn escape_like(raw: &str) -> String {
-    raw.replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}
 
 #[async_trait]
 impl ToolCallIntentClaims for AiRequestRepository {

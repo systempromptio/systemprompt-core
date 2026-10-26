@@ -22,13 +22,11 @@ async fn server_for_registered_agent(port: u16) -> Server {
     let agent_state = make_agent_state(&pool);
 
     Server::new(
-        Arc::clone(&pool),
         agent_state,
         Arc::new(StubAiProvider::new()),
         &AgentName::new(systemprompt_test_fixtures::test_messaging_agent()),
         port,
     )
-    .await
     .expect("construct registered agent server")
 }
 

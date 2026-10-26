@@ -10,8 +10,8 @@
 //! a thin entry-local newtype whose only reason to exist is the orphan rule —
 //! `impl From<DomainError> for ApiError` is forbidden in this crate (both types
 //! are foreign), so a local target type is required to obtain bare `?`.
-//! `into_response` delegates to `ApiError`, which logs exactly once by status
-//! class.
+//! `into_response` logs exactly once by status class, with the internal cause
+//! chain as a structured field, and writes the redacting wire shape.
 //!
 //! A 5xx never carries the underlying error's text: [`ApiError`] serialises the
 //! fixed public message of its code for every 5xx and logs the attached
@@ -22,8 +22,13 @@
 
 mod conversions;
 
+use std::error::Error;
+
+use axum::Json;
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
+use systemprompt_traits::BoxedSource;
 
 #[derive(Debug)]
 pub struct ApiHttpError(ApiError);
@@ -45,8 +50,8 @@ impl ApiHttpError {
         Self(ApiError::forbidden(message))
     }
 
-    pub fn internal_error(context: &'static str) -> Self {
-        Self(ApiError::internal_error(context))
+    pub fn internal(context: &'static str, source: impl Into<BoxedSource>) -> Self {
+        Self(ApiError::internal(context, source))
     }
 
     pub fn conflict(message: impl Into<String>) -> Self {
@@ -64,8 +69,58 @@ impl From<ApiError> for ApiHttpError {
     }
 }
 
+fn cause_chain(source: Option<&(dyn Error + Send + Sync + 'static)>) -> Option<String> {
+    let source = source?;
+    let mut chain = source.to_string();
+    let mut next = source.source();
+    while let Some(cause) = next {
+        chain.push_str(": ");
+        chain.push_str(&cause.to_string());
+        next = cause.source();
+    }
+    Some(chain)
+}
+
 impl IntoResponse for ApiHttpError {
     fn into_response(self) -> Response {
-        self.0.into_response()
+        let error = self.0;
+        let status = error.code.status_code();
+        let cause = cause_chain(error.source());
+
+        if status.is_server_error() {
+            tracing::error!(
+                error_code = ?error.code,
+                context = %error.message,
+                details = ?error.details,
+                error_key = ?error.error_key,
+                cause = ?cause,
+                path = ?error.path,
+                trace_id = ?error.trace_id,
+                "API server error response"
+            );
+        } else if status.is_client_error() {
+            tracing::warn!(
+                error_code = ?error.code,
+                message = %error.message,
+                error_key = ?error.error_key,
+                cause = ?cause,
+                path = ?error.path,
+                trace_id = ?error.trace_id,
+                "API client error response"
+            );
+        }
+
+        let mut response = (status, Json(error)).into_response();
+
+        if status == StatusCode::UNAUTHORIZED
+            && let Ok(header_value) =
+                "Bearer resource_metadata=\"/.well-known/oauth-protected-resource\"".parse()
+        {
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, header_value);
+        }
+
+        response
     }
 }

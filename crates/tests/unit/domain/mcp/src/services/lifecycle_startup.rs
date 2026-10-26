@@ -144,14 +144,22 @@ async fn start_server_rejects_external_servers() {
     let _ = ensure_test_bootstrap();
     let db = test_db_pool().await;
     let bootstrap = ensure_test_bootstrap();
-    let registry = systemprompt_mcp::services::registry::RegistryService::new(fixture_user_id());
+    let registry = systemprompt_mcp::services::registry::RegistryService::new(
+        fixture_user_id(),
+        crate::harness::services_state().view(),
+        crate::harness::config(),
+    );
     let database = systemprompt_mcp::services::database::DatabaseService::new(
         systemprompt_database::ServiceRepository::new(&db, unique_instance()),
         Arc::new(bootstrap.app_paths.clone()),
         registry,
     );
     let lifecycle = LifecycleService::new(
-        systemprompt_mcp::services::process::ProcessService::new(),
+        systemprompt_mcp::services::process::ProcessService::new(
+            systemprompt_test_fixtures::test_spawner(),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        ),
         systemprompt_mcp::services::NetworkService::new(),
         database,
         systemprompt_mcp::services::MonitoringService::new(),

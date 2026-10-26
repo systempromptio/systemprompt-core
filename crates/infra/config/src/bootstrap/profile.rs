@@ -1,113 +1,68 @@
-//! Process-wide profile bootstrap.
+//! The profile an instance runs, loaded once and handed to its readers.
 //!
-//! Loads the active profile YAML from `SYSTEMPROMPT_PROFILE` (or an
-//! explicit path) and stores it in a `OnceLock` so the rest of the
-//! application can access it without passing it down call stacks.
+//! [`LoadedProfile`] is the validated profile YAML together with the path it
+//! was read from. The boot path builds it once; every layer that needs the
+//! profile receives it explicitly rather than reading a process-wide cell.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::Path;
-use std::sync::OnceLock;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use systemprompt_manifest::profile::{Profile, ProfileError};
 
 use crate::error::ConfigResult;
 
-static PROFILE: OnceLock<Profile> = OnceLock::new();
-static PROFILE_PATH: OnceLock<String> = OnceLock::new();
-
-#[derive(Debug, Clone, Copy)]
-pub struct ProfileBootstrap;
+#[derive(Debug)]
+pub struct LoadedProfile {
+    profile: Profile,
+    path: PathBuf,
+}
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ProfileBootstrapError {
-    #[error("Profile not initialized. Call ProfileBootstrap::init() at application startup")]
-    NotInitialized,
-
-    #[error("Profile already initialized")]
-    AlreadyInitialized,
-
     #[error("Profile path not set. Set SYSTEMPROMPT_PROFILE environment variable")]
     PathNotSet,
 }
 
-impl ProfileBootstrap {
-    pub fn init() -> ConfigResult<&'static Profile> {
-        if PROFILE.get().is_some() {
-            return Err(ProfileBootstrapError::AlreadyInitialized.into());
-        }
-
+impl LoadedProfile {
+    pub fn from_env() -> ConfigResult<Arc<Self>> {
         let path_str = std::env::var("SYSTEMPROMPT_PROFILE")
             .map_err(|_e| ProfileBootstrapError::PathNotSet)?;
-        let path = std::path::PathBuf::from(path_str);
-
-        let profile = Self::load_from_path_and_validate(&path)?;
-
-        PROFILE_PATH
-            .set(path.to_string_lossy().to_string())
-            .map_err(|_e| ProfileBootstrapError::AlreadyInitialized)?;
-
-        PROFILE
-            .set(profile)
-            .map_err(|_e| ProfileBootstrapError::AlreadyInitialized)?;
-
-        PROFILE
-            .get()
-            .ok_or_else(|| ProfileBootstrapError::NotInitialized.into())
+        Self::from_path(Path::new(&path_str))
     }
 
-    pub fn get() -> Result<&'static Profile, ProfileBootstrapError> {
-        PROFILE.get().ok_or(ProfileBootstrapError::NotInitialized)
-    }
-
-    pub fn get_path() -> Result<&'static str, ProfileBootstrapError> {
-        PROFILE_PATH
-            .get()
-            .map(String::as_str)
-            .ok_or(ProfileBootstrapError::NotInitialized)
-    }
-
-    #[must_use]
-    pub fn is_initialized() -> bool {
-        PROFILE.get().is_some()
-    }
-
-    pub fn try_init() -> ConfigResult<&'static Profile> {
-        if let Some(profile) = PROFILE.get() {
-            return Ok(profile);
-        }
-        Self::init()
-    }
-
-    pub fn init_from_path(path: &Path) -> ConfigResult<&'static Profile> {
-        if PROFILE.get().is_some() {
-            return Err(ProfileBootstrapError::AlreadyInitialized.into());
-        }
-
-        let profile = Self::load_from_path_and_validate(path)?;
-
-        PROFILE_PATH
-            .set(path.to_string_lossy().to_string())
-            .map_err(|_e| ProfileBootstrapError::AlreadyInitialized)?;
-
-        PROFILE
-            .set(profile)
-            .map_err(|_e| ProfileBootstrapError::AlreadyInitialized)?;
-
-        PROFILE
-            .get()
-            .ok_or_else(|| ProfileBootstrapError::NotInitialized.into())
-    }
-
-    fn load_from_path_and_validate(path: &Path) -> ConfigResult<Profile> {
+    pub fn from_path(path: &Path) -> ConfigResult<Arc<Self>> {
         let content = std::fs::read_to_string(path).map_err(|source| ProfileError::ReadFile {
             path: path.to_path_buf(),
             source,
         })?;
         let profile = Profile::from_yaml(&content, path)?;
         profile.validate()?;
-        Ok(profile)
+        Ok(Arc::new(Self {
+            profile,
+            path: path.to_path_buf(),
+        }))
+    }
+
+    #[must_use]
+    pub const fn profile(&self) -> &Profile {
+        &self.profile
+    }
+
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Deref for LoadedProfile {
+    type Target = Profile;
+
+    fn deref(&self) -> &Profile {
+        &self.profile
     }
 }

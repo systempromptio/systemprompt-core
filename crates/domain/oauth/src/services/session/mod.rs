@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_traits::{
     BoxedSource, CreateSessionInput, FingerprintProvider, SessionAnalytics, SessionProvider,
     UserProvider,
@@ -64,6 +65,8 @@ pub struct SessionCreationService {
     user_provider: Arc<dyn UserProvider>,
     fingerprint_locks: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
+    authority: Arc<dyn TokenAuthority>,
+    config: Arc<Config>,
 }
 
 impl std::fmt::Debug for SessionCreationService {
@@ -78,13 +81,21 @@ impl SessionCreationService {
     pub fn new(
         session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
+        authority: Arc<dyn TokenAuthority>,
+        config: Arc<Config>,
     ) -> Self {
         Self {
             session_provider,
             user_provider,
             fingerprint_locks: Arc::new(RwLock::new(HashMap::new())),
             fingerprint_provider: None,
+            authority,
+            config,
         }
+    }
+
+    pub const fn token_authority(&self) -> &Arc<dyn TokenAuthority> {
+        &self.authority
     }
 
     pub const fn user_provider(&self) -> &Arc<dyn UserProvider> {
@@ -131,12 +142,11 @@ impl SessionCreationService {
         analytics: &SessionAnalytics,
         session_source: SessionSource,
     ) -> Result<SessionId, SessionCreationError> {
-        let global_config = Config::get().map_err(|e| SessionCreationError::Internal(e.into()))?;
         self.create_authenticated_session_with_ttl(
             user_id,
             analytics,
             session_source,
-            chrono::Duration::seconds(global_config.jwt_access_token_expiration),
+            chrono::Duration::seconds(self.config.jwt_access_token_expiration),
         )
         .await
     }

@@ -2,108 +2,45 @@
 //! exercise the routing and error mappings; happy paths require a full
 //! provisioned client + PKCE flow.
 
-use std::sync::Once;
 
 use axum::Router;
 use axum::body::Body;
 use axum::http::StatusCode;
 use systemprompt_api::routes::oauth::{authenticated_router, public_router};
-use systemprompt_manifest::Config;
-use systemprompt_manifest::profile::{
-    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
-};
 use systemprompt_oauth::OAuthState;
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 
 use super::common::{empty_get, json_post, setup_ctx};
 
-static CONFIG_INSTALL: Once = Once::new();
-
-fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let _ = Config::install(test_config());
-    });
-}
-
-fn test_config() -> Config {
-    Config {
-        instance_id: systemprompt_identifiers::InstanceId::new("test"),
-        metrics_port: None,
-        max_concurrent_streams: 16,
-        role: Default::default(),
-        max_in_flight: None,
-        shutdown: Default::default(),
-        sitename: "test".to_string(),
-        database_type: "postgres".to_string(),
-        database_url: "postgres://x".to_string(),
-        database_write_url: None,
-        database_session_url: None,
-        github_link: String::new(),
-        github_token: None,
-        system_path: "/tmp".to_string(),
-        services_path: "/tmp".to_string(),
-        bin_path: "/tmp".to_string(),
-        skills_path: "/tmp".to_string(),
-        settings_path: "/tmp".to_string(),
-        content_config_path: "/tmp".to_string(),
-        geoip_database_path: None,
-        web_path: "/tmp".to_string(),
-        web_config_path: "/tmp".to_string(),
-        web_metadata_path: "/tmp".to_string(),
-        host: "127.0.0.1".to_string(),
-        port: 0,
-        api_server_url: "http://127.0.0.1".to_string(),
-        api_internal_url: "http://127.0.0.1".to_string(),
-        api_external_url: "http://127.0.0.1".to_string(),
-        jwt_issuer: "https://issuer.test".to_string(),
-        jwt_access_token_expiration: 3600,
-        jwt_refresh_token_expiration: 86_400,
-        jwt_audiences: vec![],
-        allowed_resource_audiences: vec![],
-        trusted_issuers: vec![],
-        id_jag_ttl_secs: 300,
-        signing_key_path: std::path::PathBuf::from("signing_key.pem"),
-        use_https: false,
-        rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_manifest::profile::RetentionConfig::default(),
-        planes: Default::default(),
-        cors_allowed_origins: vec![],
-        trusted_proxies: vec![],
-        is_cloud: false,
-        system_admin_username: "admin".to_string(),
-        system_admin_email: None,
-        content_negotiation: ContentNegotiationConfig::default(),
-        security_headers: SecurityHeadersConfig::default(),
-        allow_registration: false,
-        allow_dynamic_client_registration: true,
-        api_key_max_lifetime_days: None,
-        login_page_url: None,
-    }
-}
-
 async fn public_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(public_router().with_state(state))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn authenticated_app() -> anyhow::Result<Router> {
-    ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(authenticated_router().with_state(state))
+    Ok(authenticated_router()
+        .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 #[tokio::test]
@@ -252,8 +189,6 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
     use axum::Extension;
     use systemprompt_identifiers::UserId;
     use uuid::Uuid;
-
-    ensure_config();
     let (pool, ctx) = setup_ctx().await?;
 
     let user_id = UserId::new(format!("dcr-defaults-{}", Uuid::new_v4()));
@@ -276,10 +211,14 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
-    let app = systemprompt_api::routes::oauth::public_router()
-        .with_state(state)
-        .layer(Extension(req_ctx));
+    let app = systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone()))
+    .layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "client_name": "rfc7591-probe",
@@ -318,8 +257,6 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
     use axum::Extension;
     use systemprompt_identifiers::UserId;
     use uuid::Uuid;
-
-    ensure_config();
     let (pool, ctx) = setup_ctx().await?;
 
     let user_id = UserId::new(format!("dcr-apptype-{}", Uuid::new_v4()));
@@ -342,10 +279,14 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
-    let app = systemprompt_api::routes::oauth::public_router()
-        .with_state(state)
-        .layer(Extension(req_ctx));
+    let app = systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone()))
+    .layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "client_name": "native-probe",
@@ -411,8 +352,6 @@ async fn dcr_app() -> anyhow::Result<Router> {
     use axum::Extension;
     use systemprompt_identifiers::UserId;
     use uuid::Uuid;
-
-    ensure_config();
     let (pool, ctx) = setup_ctx().await?;
     let user_id = UserId::new(format!("dcr-scope-{}", Uuid::new_v4()));
     let p = pool.pool();
@@ -429,10 +368,16 @@ async fn dcr_app() -> anyhow::Result<Router> {
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(systemprompt_api::routes::oauth::public_router()
+    Ok(
+        systemprompt_api::routes::oauth::public_router(std::sync::Arc::new(
+            systemprompt_oauth_issuance::JwksCache::new(),
+        ))
         .with_state(state)
-        .layer(Extension(req_ctx)))
+        .layer(axum::Extension(ctx.config_arc().clone()))
+        .layer(Extension(req_ctx)),
+    )
 }
 
 async fn register_with(scope: Option<&str>) -> anyhow::Result<(u16, serde_json::Value)> {

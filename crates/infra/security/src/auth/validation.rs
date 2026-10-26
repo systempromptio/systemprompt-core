@@ -11,18 +11,24 @@ use systemprompt_models::execution::context::RequestContext;
 use crate::error::{AuthError, AuthResult};
 use crate::extraction::{HeaderExtractor, TokenExtractor};
 use crate::jwt::{ValidationPolicy, decode_session_claims};
+use crate::keys::SigningKeys;
 use crate::session::ValidatedSessionClaims;
 
 #[derive(Debug)]
 pub struct AuthValidationService {
     issuer: String,
     audiences: Vec<JwtAudience>,
+    keys: SigningKeys,
 }
 
 impl AuthValidationService {
     #[must_use]
-    pub const fn new(issuer: String, audiences: Vec<JwtAudience>) -> Self {
-        Self { issuer, audiences }
+    pub const fn new(issuer: String, audiences: Vec<JwtAudience>, keys: SigningKeys) -> Self {
+        Self {
+            issuer,
+            audiences,
+            keys,
+        }
     }
 
     pub fn validate_request(&self, headers: &HeaderMap) -> AuthResult<RequestContext> {
@@ -34,17 +40,19 @@ impl AuthValidationService {
 
     fn validate_token(&self, token: &str) -> AuthResult<ValidatedSessionClaims> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, &self.audiences);
-        let claims = decode_session_claims(token, &policy)?;
+        let claims = decode_session_claims(&self.keys, token, &policy)?;
 
         Ok(ValidatedSessionClaims {
-            user_id: UserId::try_new(claims.sub).map_err(AuthError::InvalidSubject)?,
+            user_id: UserId::try_new(claims.registered.sub).map_err(AuthError::InvalidSubject)?,
             session_id: claims
+                .custom
                 .session_id
                 .map(SessionId::new)
                 .ok_or(AuthError::MissingSessionId)?,
-            user_type: claims.user_type,
-            jti: (!claims.jti.is_empty()).then(|| AccessTokenId::new(claims.jti)),
-            exp: claims.exp,
+            user_type: claims.custom.user_type,
+            jti: (!claims.registered.jti.is_empty())
+                .then(|| AccessTokenId::new(claims.registered.jti)),
+            exp: claims.registered.exp,
         })
     }
 

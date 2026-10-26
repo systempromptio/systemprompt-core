@@ -5,19 +5,17 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::auth::{JwtClaims, Permission};
+use systemprompt_models::auth::{JwtClaims, Permission, TokenAuthority};
 
 use crate::services::auth::validate_jwt_token;
 
 pub fn validate_and_extract_claims(
+    authority: &dyn TokenAuthority,
+    config: &systemprompt_manifest::Config,
     server_id: &McpServerId,
     token: &str,
 ) -> Result<JwtClaims, McpError> {
-    let config = systemprompt_manifest::Config::get().map_err(|e| {
-        tracing::error!(server = %server_id, error = %e, "Failed to get config");
-        McpError::internal_error("Failed to get config", None)
-    })?;
-    validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
+    validate_jwt_token(authority, token, &config.jwt_audiences).map_err(|e| {
         tracing::error!(server = %server_id, error = %e, "JWT validation failed");
         McpError::invalid_request(format!("Invalid JWT token: {e}"), None)
     })
@@ -28,20 +26,20 @@ pub fn validate_audience(
     claims: &JwtClaims,
     oauth_config: &crate::OAuthRequirement,
 ) -> Result<(), McpError> {
-    if claims.aud.contains(&oauth_config.audience) {
+    if claims.registered.aud.contains(&oauth_config.audience) {
         return Ok(());
     }
 
     tracing::error!(
         server = %server_id,
         expected = %oauth_config.audience,
-        actual = ?claims.aud,
+        actual = ?claims.registered.aud,
         "Invalid audience"
     );
     Err(McpError::invalid_request(
         format!(
             "Invalid audience. Expected '{}', got: {:?}",
-            oauth_config.audience, claims.aud
+            oauth_config.audience, claims.registered.aud
         ),
         None,
     ))

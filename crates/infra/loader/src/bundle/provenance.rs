@@ -14,16 +14,16 @@
 
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, PoisonError};
 use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_manifest::profile::Profile;
 use systemprompt_manifest::services::bundle::{BUNDLE_ALLOWED_DIRS, ServicesBundleManifest};
 
 use super::bootstrap::cache_root;
 use super::cache::BundleCache;
-use crate::services_root::{ServicesProvenance, ServicesRootBootstrap};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 /// One pinned bundle as the cache last recorded it. `pinned_digest` is what
 /// the profile asks for and `active_digest` is what was fetched; they differ
@@ -47,15 +47,26 @@ pub struct SourcesProvenance {
     pub bundles: Vec<BundleProvenance>,
 }
 
+/// Memo of the base services tree hash, owned by whoever records provenance
+/// repeatedly and handed to [`sources_provenance`].
+#[derive(Debug, Default)]
+pub struct BaseTreeHashMemo {
+    last: Mutex<Option<(Fingerprint, String)>>,
+}
+
+impl BaseTreeHashMemo {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 #[must_use]
-pub fn sources_provenance() -> SourcesProvenance {
-    let profile = match ProfileBootstrap::get() {
-        Ok(profile) => profile,
-        Err(error) => {
-            tracing::warn!(%error, "No bootstrapped profile; recording empty sources provenance");
-            return SourcesProvenance::default();
-        },
-    };
+pub fn sources_provenance(
+    profile: &Profile,
+    root: Option<&ActiveServicesRoot>,
+    memo: &BaseTreeHashMemo,
+) -> SourcesProvenance {
     let cache = BundleCache::new(cache_root(profile));
     let state = cache.read_state();
     let bundles: Vec<BundleProvenance> = profile
@@ -85,11 +96,11 @@ pub fn sources_provenance() -> SourcesProvenance {
             }
         })
         .collect();
-    let base = base_tree_hash(Path::new(&profile.paths.services));
+    let base = base_tree_hash(memo, Path::new(&profile.paths.services));
     SourcesProvenance {
         // Why: with no bundles pinned no boot records a composed hash; the
         // composition is the base tree alone.
-        composed_hash: active_composed_hash()
+        composed_hash: active_composed_hash(root)
             .or_else(|| (!state.composed_hash.is_empty()).then(|| state.composed_hash.clone()))
             .or_else(|| bundles.is_empty().then(|| base.clone()).flatten()),
         base_tree_hash: base,
@@ -101,14 +112,7 @@ pub fn sources_provenance() -> SourcesProvenance {
 // hand and needs the kit that declares it, which only the cached manifest
 // knows.
 #[must_use]
-pub fn owning_bundle_hashes() -> BTreeMap<String, String> {
-    let profile = match ProfileBootstrap::get() {
-        Ok(profile) => profile,
-        Err(error) => {
-            tracing::warn!(%error, "No bootstrapped profile; no bundle owns any skill");
-            return BTreeMap::new();
-        },
-    };
+pub fn owning_bundle_hashes(profile: &Profile) -> BTreeMap<String, String> {
     let cache = BundleCache::new(cache_root(profile));
     let state = cache.read_state();
     let mut owners = BTreeMap::new();
@@ -130,8 +134,8 @@ pub fn owning_bundle_hashes() -> BTreeMap<String, String> {
     owners
 }
 
-fn active_composed_hash() -> Option<String> {
-    match ServicesRootBootstrap::get().map(|root| &root.provenance) {
+fn active_composed_hash(root: Option<&ActiveServicesRoot>) -> Option<String> {
+    match root.map(|root| &root.provenance) {
         Some(
             ServicesProvenance::Fetched { composed_hash, .. }
             | ServicesProvenance::LastGood { composed_hash, .. },
@@ -145,12 +149,13 @@ fn active_composed_hash() -> Option<String> {
 // newest mtime or file count moves — a publish or a deploy, not a pass.
 type Fingerprint = (SystemTime, usize);
 
-fn base_tree_hash(root: &Path) -> Option<String> {
-    static CACHE: OnceLock<Mutex<Option<(Fingerprint, String)>>> = OnceLock::new();
+fn base_tree_hash(memo: &BaseTreeHashMemo, root: &Path) -> Option<String> {
     let fingerprint = tree_fingerprint(root)?;
-    let cache = CACHE.get_or_init(|| Mutex::new(None));
-    if let Ok(guard) = cache.lock()
-        && let Some((seen, hash)) = guard.as_ref()
+    if let Some((seen, hash)) = memo
+        .last
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .as_ref()
         && *seen == fingerprint
     {
         return Some(hash.clone());
@@ -163,12 +168,7 @@ fn base_tree_hash(root: &Path) -> Option<String> {
         },
     };
     let hash = ServicesBundleManifest::compute_content_hash(&files);
-    match cache.lock() {
-        Ok(mut guard) => *guard = Some((fingerprint, hash.clone())),
-        Err(error) => {
-            tracing::warn!(%error, "Base tree hash memo poisoned; recomputing on every pass");
-        },
-    }
+    *memo.last.lock().unwrap_or_else(PoisonError::into_inner) = Some((fingerprint, hash.clone()));
     Some(hash)
 }
 

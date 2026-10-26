@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
 use systemprompt_oauth::repository::{
-    AuthCodeParams, ClientRepository, CreateClientParams, OAuthRepository, RefreshTokenParams,
+    AuthCodeParams, ClientRepository, CreateClientParams, RefreshTokenParams,
 };
 use uuid::Uuid;
 
@@ -81,7 +81,7 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
     )
     .await;
 
-    let repo = Arc::new(OAuthRepository::new(&db));
+    let repo = Arc::new(systemprompt_test_fixtures::oauth_fixture_repository(&db));
     let code = test_code();
     let redirect = "http://localhost:3000/callback";
     let verifier = "concurrency_test_pkce_verifier_value_0123456789abcdef";
@@ -142,7 +142,7 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     )
     .await;
 
-    let repo = OAuthRepository::new(&db);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let code = test_code();
     let redirect = "http://localhost:3000/callback";
     let verifier = "concurrency_test_pkce_verifier_value_0123456789abcdef";
@@ -197,7 +197,7 @@ async fn test_refresh_token_replay_revokes_family() {
     )
     .await;
 
-    let repo = OAuthRepository::new(&db);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
 
     let r1 = test_token_id();
@@ -216,7 +216,7 @@ async fn test_refresh_token_replay_revokes_family() {
     let r2 = test_token_id();
     repo.store_refresh_token(
         RefreshTokenParams::builder(&r2, &client_id, &user_id, "openid", expires_at)
-            .with_family(&family)
+            .with_family(family.as_str())
             .build(),
     )
     .await
@@ -263,7 +263,7 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
     )
     .await;
 
-    let repo = Arc::new(OAuthRepository::new(&db));
+    let repo = Arc::new(systemprompt_test_fixtures::oauth_fixture_repository(&db));
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
 
     let r1 = test_token_id();
@@ -328,7 +328,7 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     )
     .await;
 
-    let repo = Arc::new(OAuthRepository::new(&db));
+    let repo = Arc::new(systemprompt_test_fixtures::oauth_fixture_repository(&db));
     let code = test_code();
     let redirect = "http://localhost:3000/callback";
     let verifier = "this_is_the_correct_pkce_verifier_string_value";

@@ -82,13 +82,11 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
         JobSelection::Names(args.job_names)
     };
 
-    let scheduler_config = systemprompt_loader::ConfigLoader::load().map_or_else(
-        |_| systemprompt_manifest::SchedulerConfig::with_system_admin(),
-        |c| {
-            c.scheduler
-                .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin)
-        },
-    );
+    let scheduler_config = ctx
+        .boot()?
+        .load_services_config()?
+        .scheduler
+        .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin);
     let service = JobExecutionService::new(app, registry, scheduler_config)
         .with_lock_wait(Duration::from_secs(args.lock_wait_secs));
     let batch = service.run_jobs(&selection, &parameters).await?;

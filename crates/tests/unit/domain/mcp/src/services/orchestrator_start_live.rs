@@ -33,6 +33,7 @@ fn unique(prefix: &str) -> String {
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: bootstrap.system_path.display().to_string(),
         services: bootstrap.services_path.display().to_string(),
         bin: bootstrap.bin_path.display().to_string(),
@@ -79,7 +80,13 @@ async fn live_server(prefix: &str) -> LiveServer {
     let orchestrator = McpOrchestrator::new(
         repo.clone(),
         app_paths,
-        RegistryService::new(fixture_user_id()),
+        RegistryService::new(
+            fixture_user_id(),
+            crate::harness::services_state().view(),
+            crate::harness::config(),
+        ),
+        systemprompt_test_fixtures::test_spawner(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
     .expect("orchestrator");
 

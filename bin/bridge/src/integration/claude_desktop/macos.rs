@@ -42,8 +42,9 @@ pub(super) fn candidates(domain: &str) -> Vec<PathBuf> {
     out
 }
 
-pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::SysprocError> {
-    let mut hits: Vec<String> = crate::sysproc::list_processes()?
+pub(super) fn list_claude_processes()
+-> Result<Vec<crate::sysproc::ProcessHit>, crate::sysproc::SysprocError> {
+    let mut hits: Vec<crate::sysproc::ProcessHit> = crate::sysproc::list_processes()?
         .into_iter()
         .filter_map(|p| {
             let name_lower = p.name.to_ascii_lowercase();
@@ -58,17 +59,20 @@ pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::Sys
                 || path_lower.contains("claude helper");
             let is_code = name_lower.contains("claude code") || path_lower.contains("claude code");
             if matches && !is_code {
-                Some(if path_lower.is_empty() {
-                    name_lower
-                } else {
-                    path_lower
+                Some(crate::sysproc::ProcessHit {
+                    path: if path_lower.is_empty() {
+                        name_lower
+                    } else {
+                        path_lower
+                    },
+                    packaging: systemprompt_models::bridge::host::HostAppKind::DesktopApp,
                 })
             } else {
                 None
             }
         })
         .collect();
-    hits.sort();
+    hits.sort_by(|a, b| a.path.cmp(&b.path));
     hits.dedup();
     Ok(hits)
 }

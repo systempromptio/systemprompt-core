@@ -2,31 +2,33 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::Path;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use super::helpers::{load_profile_for_edit, save_profile};
+use super::super::profile_io::profile_path;
+use super::profile_edit::{load_profile_for_edit, save_profile};
 use super::{ExportArgs, ImportArgs};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::{Prompter, require_confirmation};
 use crate::shared::CommandOutput;
 
 use super::super::types::{ExportOutput, ImportOutput};
 
-pub(super) fn execute_export(args: &ExportArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_export(args: &ExportArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let profile = ctx.profile()?;
     let limits = &profile.rate_limits;
 
     let content = match args.format.as_str() {
         "yaml" | "yml" => {
             serde_yaml::to_string(limits).context("Failed to serialize rate limits to YAML")?
         },
-        "json" => serde_json::to_string_pretty(limits)
-            .context("Failed to serialize rate limits to JSON")?,
+        "json" => {
+            CliService::json_string(limits).context("Failed to serialize rate limits to JSON")?
+        },
         _ => bail!("Unknown format: {}. Valid formats: yaml, json", args.format),
     };
 
@@ -45,8 +47,9 @@ pub(super) fn execute_export(args: &ExportArgs, _config: &CliConfig) -> Result<C
 pub(super) fn execute_import(
     args: &ImportArgs,
     prompter: &dyn Prompter,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<CommandOutput> {
+    let config = &ctx.cli;
     let path = Path::new(&args.file);
     if !path.exists() {
         bail!("File not found: {}", args.file);
@@ -69,7 +72,7 @@ pub(super) fn execute_import(
 
     require_confirmation(prompter, "Proceed with import?", args.yes, config)?;
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile_for_edit(profile_path)?;
     profile.rate_limits = new_limits;
     save_profile(&profile, profile_path)?;

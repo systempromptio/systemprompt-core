@@ -25,6 +25,7 @@ async fn make_orchestrator_and_repo() -> (McpOrchestrator, ServiceRepository) {
     let _ = ensure_test_bootstrap();
     let db = test_db_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),
@@ -42,10 +43,20 @@ async fn make_orchestrator_and_repo() -> (McpOrchestrator, ServiceRepository) {
         )
         .expect("app paths"),
     );
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        crate::harness::services_state().view(),
+        crate::harness::config(),
+    );
     let service_repo = ServiceRepository::new(&db, unique_instance());
-    let orchestrator =
-        McpOrchestrator::new(service_repo.clone(), app_paths, registry).expect("orchestrator");
+    let orchestrator = McpOrchestrator::new(
+        service_repo.clone(),
+        app_paths,
+        registry,
+        systemprompt_test_fixtures::test_spawner(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    )
+    .expect("orchestrator");
     (orchestrator, service_repo)
 }
 

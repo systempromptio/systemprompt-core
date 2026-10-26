@@ -117,6 +117,24 @@ pub(crate) fn is_installed(
     }
 }
 
+// Why: the desktop packagings of Codex and OpenCode ship for macOS and Windows
+// only; on Linux the binary on PATH is the CLI packaging, never the app.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(crate) fn desktop_installed(
+    loc: &AppLocator<'_>,
+    start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
+    is_installed(loc, start_menu)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub(crate) const fn desktop_installed(
+    _loc: &AppLocator<'_>,
+    _start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
+    AppInstallState::NotInstalled
+}
+
 // Why: a Start-menu lookup shells out to PowerShell, so a per-render "can this
 // host be opened" question is answered from the filesystem alone.
 #[cfg(target_os = "macos")]
@@ -178,18 +196,28 @@ fn run(cmd: &mut Command, what: &str) -> io::Result<()> {
 // Why: a GUI process launched from the desktop does not inherit the shell's
 // PATH, so the host tool's own install directories are probed as well.
 pub(crate) fn cli_installed(binary: &str, extra_dirs: &[PathBuf]) -> AppInstallState {
-    let Some(paths) = std::env::var_os("PATH") else {
+    if std::env::var_os("PATH").is_none() {
         return AppInstallState::Unknown;
-    };
-    let present = |dir: &std::path::Path| {
-        let candidate = dir.join(binary);
-        candidate.is_file() || (cfg!(windows) && candidate.with_extension("exe").is_file())
-    };
-    if std::env::split_paths(&paths).any(|dir| present(&dir))
-        || extra_dirs.iter().any(|dir| present(dir))
-    {
+    }
+    if cli_binary(binary, extra_dirs).is_some() {
         AppInstallState::Installed
     } else {
         AppInstallState::NotInstalled
     }
+}
+
+pub(crate) fn cli_binary(binary: &str, extra_dirs: &[PathBuf]) -> Option<PathBuf> {
+    let on_path: Vec<PathBuf> = std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).collect())
+        .unwrap_or_default();
+    on_path
+        .into_iter()
+        .chain(extra_dirs.iter().cloned())
+        .flat_map(|dir| {
+            let candidate = dir.join(binary);
+            let exe = candidate.with_extension("exe");
+            [Some(candidate), cfg!(windows).then_some(exe)]
+        })
+        .flatten()
+        .find(|candidate| candidate.is_file())
 }

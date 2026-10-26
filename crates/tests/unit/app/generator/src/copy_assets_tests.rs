@@ -14,6 +14,7 @@ fn make_app_paths(tmp: &TempDir) -> AppPaths {
     let p = tmp.path().to_string_lossy().to_string();
     AppPaths::from_profile(
         &PathsConfig {
+            root: None,
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),

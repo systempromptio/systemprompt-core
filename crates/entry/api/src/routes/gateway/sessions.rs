@@ -1,10 +1,11 @@
 //! Session minting for API-key callers of the gateway.
 //!
 //! A JWT caller gets its session row minted alongside its token, so the
-//! `session_id` claim is attested by construction. An API-key caller has no
-//! such step, and the gateway now refuses a session id it did not issue — so
-//! this endpoint is that step: present the PAT, receive a `user_sessions` row
-//! to send as `x-session-id` on `/v1/messages`.
+//! `session_id` claim is attested by construction. An API-key caller that
+//! sends no gateway-issued `x-session-id` lands on the session bound to its
+//! key (see `messages::session_binding`); this endpoint is for a caller that
+//! wants a distinct session of its own: present the PAT, receive a
+//! `user_sessions` row to send as `x-session-id` on `/v1/messages`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -50,14 +51,17 @@ pub async fn create_session(
     .await?
     .ok_or_else(|| ApiHttpError::unauthorized("Invalid or revoked API key"))?;
 
-    let analytics = ctx
-        .analytics_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("Analytics provider unavailable"))?;
-    let user_provider = ctx
-        .user_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("User provider unavailable"))?;
+    let analytics = ctx.analytics_provider().ok_or_else(|| {
+        ApiHttpError::internal(
+            "Analytics provider unavailable",
+            "provider is not registered",
+        )
+    })?;
+    let user_provider = ctx.user_provider().ok_or_else(|| {
+        ApiHttpError::internal("User provider unavailable", "provider is not registered")
+    })?;
 
-    let caller_ip = client_ip_from_request(&request);
+    let caller_ip = client_ip_from_request(&request, ctx.config());
     let session_analytics = analytics.extract_analytics(
         request.headers(),
         ExtractSignals {
@@ -67,9 +71,12 @@ pub async fn create_session(
     );
 
     let session_id = SessionCreationService::new(
-        ctx.session_provider()
-            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?,
+        ctx.session_provider().ok_or_else(|| {
+            ApiHttpError::internal("Session provider unavailable", "provider is not registered")
+        })?,
         user_provider,
+        ctx.token_authority(),
+        Arc::clone(ctx.config_arc()),
     )
     .create_authenticated_session(&record.user_id, &session_analytics, SessionSource::Api)
     .await?;

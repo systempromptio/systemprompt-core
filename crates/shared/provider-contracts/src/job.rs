@@ -213,7 +213,7 @@ pub trait Job: Send + Sync + 'static {
         true
     }
 
-    fn configured(&self) -> bool {
+    fn configured(&self, _deployment: &Dependencies) -> bool {
         true
     }
 
@@ -239,6 +239,6 @@ inventory::collect!(&'static dyn Job);
 #[macro_export]
 macro_rules! submit_job {
     ($job:expr) => {
-        inventory::submit!($job as &'static dyn $crate::Job);
+        $crate::__inventory::submit!($job as &'static dyn $crate::Job);
     };
 }

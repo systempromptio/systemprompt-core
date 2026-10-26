@@ -19,7 +19,13 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
     else {
         return;
     };
-    let result = match host.remove_profile() {
+    let enabled = app.state.snapshot().enabled_hosts;
+    let removal = crate::integration::enrol::retained_for_sibling(host_id, &[host_id], &enabled)
+        .map_or_else(
+            || host.remove_profile(),
+            |sibling| Ok(ProfileRemoval::RetainedForSibling { sibling }),
+        );
+    let result = match removal {
         Ok(ProfileRemoval::Removed { path }) => {
             app.append_log(format!(
                 "[{host_id}] removed from {}",
@@ -36,6 +42,13 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
                 "[{host_id}] removal needs a manual step: {instruction}"
             ));
             Ok(json!({ "removed": false, "instruction": instruction }))
+        },
+        Ok(ProfileRemoval::RetainedForSibling { sibling }) => {
+            app.append_log(format!(
+                "[{host_id}] shares its configuration with {sibling}, which is still enabled; \
+                 nothing removed"
+            ));
+            Ok(json!({ "removed": false, "retained_for": sibling }))
         },
         Err(e) => {
             app.append_log_error(format!("[{host_id}] removal failed: {e}"));

@@ -1,0 +1,21 @@
+# Default providers: one vendor account each, one endpoint each.
+#
+# Part of core's embedded default catalog (`DefaultCatalog`); the setup
+# wizard and cloud-init seed an install's services/ai from these files.
+
+providers:
+  anthropic:
+    credential: anthropic
+    capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
+    endpoints:
+      api: { wire: anthropic, url: "https://api.anthropic.com/v1" }
+  openai:
+    credential: openai
+    capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
+    endpoints:
+      api: { wire: openai-chat, url: "https://api.openai.com/v1" }
+  gemini:
+    credential: gemini
+    capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
+    endpoints:
+      api: { wire: gemini, url: "https://generativelanguage.googleapis.com/v1beta" }

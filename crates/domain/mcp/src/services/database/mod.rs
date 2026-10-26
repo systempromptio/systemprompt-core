@@ -14,7 +14,7 @@ use crate::error::McpDomainResult;
 use crate::services::registry::RegistryService;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::ServiceRepository;
+use systemprompt_database::{Reaped, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::services::ServiceStatus;
 
@@ -90,12 +90,8 @@ impl DatabaseService {
             .map_err(Into::into)
     }
 
-    pub async fn cleanup_stale_services(&self) -> McpDomainResult<()> {
-        sync::cleanup_stale_services(&self.service_repo).await
-    }
-
-    pub async fn delete_crashed_services(&self) -> McpDomainResult<()> {
-        sync::delete_crashed_services(&self.service_repo).await
+    pub async fn reap_stale_services(&self) -> McpDomainResult<Reaped> {
+        sync::reap_stale_services(&self.service_repo).await
     }
 
     pub async fn sync_state(&self, servers: &[McpServerConfig]) -> McpDomainResult<()> {

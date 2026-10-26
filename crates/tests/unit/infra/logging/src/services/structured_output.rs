@@ -1,22 +1,22 @@
 //! Unit tests for structured-output mode and the CLI notice buffer.
 
-use std::sync::Mutex;
-use systemprompt_logging::{
-    CliService, buffer_notice, drain_notices, mark_structured_emitted, set_structured_output,
-    structured_was_emitted,
-};
+use systemprompt_logging::{CliService, OutputState};
+use tracing_subscriber::layer::SubscriberExt;
 
-static STRUCTURED_LOCK: Mutex<()> = Mutex::new(());
+fn scoped(output: &OutputState) -> tracing::subscriber::DefaultGuard {
+    tracing::subscriber::set_default(tracing_subscriber::registry().with(output.clone()))
+}
 
 #[test]
 fn buffer_and_drain_round_trip() {
-    let _guard = STRUCTURED_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    set_structured_output(false);
-    let _ = drain_notices();
+    let output = OutputState::new();
+    let _scope = scoped(&output);
+    output.set_structured_output(false);
+    let _ = output.drain_notices();
 
-    buffer_notice("warning", "buf-marker-warn");
-    buffer_notice("info", "buf-marker-info");
-    let drained = drain_notices();
+    output.buffer_notice("warning", "buf-marker-warn");
+    output.buffer_notice("info", "buf-marker-info");
+    let drained = output.drain_notices();
 
     assert!(
         drained
@@ -29,19 +29,20 @@ fn buffer_and_drain_round_trip() {
             .any(|n| n.level == "info" && n.text == "buf-marker-info")
     );
 
-    let after = drain_notices();
+    let after = output.drain_notices();
     assert!(!after.iter().any(|n| n.text == "buf-marker-warn"));
 }
 
 #[test]
 fn cli_service_notices_buffer_in_structured_mode() {
-    let _guard = STRUCTURED_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    set_structured_output(true);
-    let _ = drain_notices();
+    let output = OutputState::new();
+    let _scope = scoped(&output);
+    output.set_structured_output(true);
+    let _ = output.drain_notices();
 
     CliService::warning("cli-marker-structured");
-    let drained = drain_notices();
-    set_structured_output(false);
+    let drained = output.drain_notices();
+    output.set_structured_output(false);
 
     assert!(
         drained
@@ -52,19 +53,21 @@ fn cli_service_notices_buffer_in_structured_mode() {
 
 #[test]
 fn cli_service_notices_skip_buffer_when_not_structured() {
-    let _guard = STRUCTURED_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    set_structured_output(false);
-    let _ = drain_notices();
+    let output = OutputState::new();
+    let _scope = scoped(&output);
+    output.set_structured_output(false);
+    let _ = output.drain_notices();
 
     CliService::warning("cli-marker-plain");
-    let drained = drain_notices();
+    let drained = output.drain_notices();
 
     assert!(!drained.iter().any(|n| n.text == "cli-marker-plain"));
 }
 
 #[test]
 fn mark_sets_structured_emitted() {
-    let _guard = STRUCTURED_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    mark_structured_emitted();
-    assert!(structured_was_emitted());
+    let output = OutputState::new();
+    let _scope = scoped(&output);
+    output.mark_structured_emitted();
+    assert!(output.structured_was_emitted());
 }

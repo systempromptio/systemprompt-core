@@ -48,6 +48,11 @@ pub fn render(reports: &[Report]) -> String {
                 "  [pending ] {} — finish by hand: {instruction}",
                 r.display_name
             ),
+            Outcome::RetainedForSibling(sibling) => format!(
+                "  [kept    ] {} — shares its configuration with '{sibling}', which is still \
+                 enabled",
+                r.display_name
+            ),
             Outcome::Failed(e) => format!("  [failed  ] {} — {e}", r.display_name),
         };
         out.push_str(&line);

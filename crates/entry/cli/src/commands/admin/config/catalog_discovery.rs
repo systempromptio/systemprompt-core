@@ -19,14 +19,6 @@ use super::types::DiscoveryRow;
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
-fn latest_discovery() -> Option<DiscoveryReport> {
-    systemprompt_scheduler::jobs::vertex_discovery::latest_report().or_else(|| {
-        systemprompt_loader::ServicesBootstrap::discovery_report()
-            .filter(|r| !r.ran_at.is_empty())
-            .cloned()
-    })
-}
-
 #[must_use]
 pub fn discovery_rows(report: &DiscoveryReport, card: &VertexRateCard) -> Vec<DiscoveryRow> {
     let retires_on = |id: &str| -> String {
@@ -73,9 +65,22 @@ fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
     notes
 }
 
-pub fn show_discovery(config: &CliConfig) -> anyhow::Result<()> {
+pub fn show_discovery(
+    services: Option<&systemprompt_loader::ServicesState>,
+    config: &CliConfig,
+) -> anyhow::Result<()> {
+    let report = services
+        .and_then(systemprompt_loader::ServicesState::discovery_report)
+        .filter(|r| !r.ran_at.is_empty());
+    render_discovery(report, config)
+}
+
+pub fn render_discovery(
+    report: Option<&DiscoveryReport>,
+    config: &CliConfig,
+) -> anyhow::Result<()> {
     let card = VertexRateCard::embedded().context("embedded Vertex rate card is unreadable")?;
-    let Some(report) = latest_discovery() else {
+    let Some(report) = report else {
         render_result(
             &CommandOutput::message(vec![NoticeLine::new(
                 "info",
@@ -91,11 +96,11 @@ pub fn show_discovery(config: &CliConfig) -> anyhow::Result<()> {
     render_result(
         &CommandOutput::table_of(
             vec!["upstream_or_id", "state", "retires_on"],
-            &discovery_rows(&report, &card),
+            &discovery_rows(report, &card),
         )
         .with_title("Vertex Model Discovery"),
         config,
     );
-    render_result(&CommandOutput::message(discovery_notes(&report)), config);
+    render_result(&CommandOutput::message(discovery_notes(report)), config);
     Ok(())
 }

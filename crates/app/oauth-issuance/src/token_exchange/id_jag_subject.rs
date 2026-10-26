@@ -21,18 +21,31 @@ use systemprompt_oauth::services::validation::id_jag::{
     ClaimPolicy, DEFAULT_LEEWAY_SECS, IdJagClaims, validate_claims, validate_typ,
 };
 use systemprompt_security::jwt::reject_critical_header;
-use systemprompt_security::keys::authority;
+use systemprompt_security::keys::SigningKeys;
 
-use super::subject::{REQUIRED_CLAIMS, SubjectIdentity, peek_issuer, shared_jwks_client};
+use super::subject::{JwksCache, REQUIRED_CLAIMS, SubjectIdentity, peek_issuer};
 use crate::{IssuanceError, IssuanceResult};
+
+#[derive(Debug, Clone, Copy)]
+pub struct IdJagContext<'a> {
+    pub repo: &'a OAuthRepository,
+    pub keys: &'a SigningKeys,
+    pub global: &'a Config,
+    pub jwks: &'a JwksCache,
+}
 
 pub async fn validate_id_jag_subject(
     token: &str,
     authenticated_client: &ClientId,
-    repo: &OAuthRepository,
-    global: &Config,
+    context: IdJagContext<'_>,
 ) -> IssuanceResult<SubjectIdentity> {
-    let (claims, allowed_client_ids) = verify_id_jag_signature(token, global).await?;
+    let IdJagContext {
+        repo,
+        keys,
+        global,
+        jwks,
+    } = context;
+    let (claims, allowed_client_ids) = verify_id_jag_signature(keys, token, global, jwks).await?;
 
     let policy = ClaimPolicy {
         expected_audience: global.jwt_issuer.as_str(),
@@ -88,8 +101,10 @@ pub async fn validate_id_jag_subject(
 }
 
 async fn verify_id_jag_signature(
+    keys: &SigningKeys,
     token: &str,
     global: &Config,
+    jwks: &JwksCache,
 ) -> IssuanceResult<(IdJagClaims, Vec<ClientId>)> {
     let header = decode_header(token)
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG header decode failed", e))?;
@@ -113,8 +128,8 @@ async fn verify_id_jag_signature(
     validation.set_required_spec_claims(&REQUIRED_CLAIMS);
 
     if declared_iss == global.jwt_issuer {
-        let key = authority::decoding_key_for_kid(&kid)
-            .map_err(|e| IssuanceError::server("Signing key lookup failed", e))?
+        let key = keys
+            .decoding_key_for_kid(&kid)
             .ok_or_else(|| IssuanceError::InvalidGrant {
                 reason: format!("unknown `kid` `{kid}`"),
             })?;
@@ -130,7 +145,8 @@ async fn verify_id_jag_signature(
         .ok_or_else(|| IssuanceError::InvalidGrant {
             reason: format!("ID-JAG issuer '{declared_iss}' is not trusted"),
         })?;
-    let jwk = shared_jwks_client(&global.trusted_issuers)
+    let jwk = jwks
+        .client_for(trusted)
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG JWKS resolution failed", e))?;

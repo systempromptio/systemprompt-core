@@ -10,9 +10,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use systemprompt_loader::ServicesProvenance;
 use systemprompt_loader::bundle::{BundleCache, ServicesSourceBootstrap};
 use systemprompt_manifest::profile::FetchFailurePolicy;
+use systemprompt_manifest::services::root::ServicesProvenance;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -313,7 +313,11 @@ async fn a_marketplace_only_pin_stages_the_baked_base_and_tracks_a_changed_baked
             .is_none()
     );
 
-    std::fs::write(services.path().join("config/config.yaml"), "version: 2\n").unwrap();
+    std::fs::write(
+        services.path().join("config/config.yaml"),
+        "includes: []\n# v2\n",
+    )
+    .unwrap();
     let second = ServicesSourceBootstrap::resolve(&profile, no_secrets, CORE)
         .await
         .expect("changed baked declarations are restaged and composed");
@@ -324,7 +328,7 @@ async fn a_marketplace_only_pin_stages_the_baked_base_and_tracks_a_changed_baked
     assert_ne!(first_hash, second_hash);
     assert_eq!(
         std::fs::read_to_string(second.path.join("config/config.yaml")).unwrap(),
-        "version: 2\n"
+        "includes: []\n# v2\n"
     );
     let second_state = cache.read_state();
     assert_ne!(
@@ -366,4 +370,103 @@ async fn a_marketplace_only_pin_refuses_to_boot_without_a_baked_base_tree() {
 
     assert!(err.to_string().contains("no baked services tree"), "{err}");
     assert_eq!(kit.hits.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn a_kit_the_binary_cannot_load_is_never_swapped_in() {
+    let work = tempfile::tempdir().expect("tempdir");
+    let services = tempfile::tempdir().expect("tempdir");
+    let cache = tempfile::tempdir().expect("tempdir");
+    let origin = serve(
+        packed_bytes(base_tree, work.path(), "base.tar.gz"),
+        "base-v1",
+        "/base.tar.gz",
+    )
+    .await;
+    let p = profile(
+        services.path(),
+        cache.path(),
+        vec![https_source(
+            "base",
+            &format!("{}/base.tar.gz", origin.server.uri()),
+            vec![pubkey()],
+        )],
+        FetchFailurePolicy::UseLastGood,
+    );
+    let good = ServicesSourceBootstrap::resolve(&p, no_secrets, CORE)
+        .await
+        .expect("first boot");
+    let good_hash = match good.provenance {
+        ServicesProvenance::Fetched { composed_hash, .. } => composed_hash,
+        other => panic!("expected a fetched root, got {other:?}"),
+    };
+
+    let bad = serve(
+        packed_bytes(
+            |root| {
+                base_tree(root);
+                crate::bundle_support::write(
+                    root,
+                    "plugins/kit/config.yaml",
+                    &crate::bundle_support::plugin_yaml("kit")
+                        .replace("  agents:", "  hooks:\n    evaluation: true\n  agents:"),
+                );
+            },
+            work.path(),
+            "bad.tar.gz",
+        ),
+        "bad-v1",
+        "/bad.tar.gz",
+    )
+    .await;
+    let broken = profile(
+        services.path(),
+        cache.path(),
+        vec![https_source(
+            "base",
+            &format!("{}/bad.tar.gz", bad.server.uri()),
+            vec![pubkey()],
+        )],
+        FetchFailurePolicy::UseLastGood,
+    );
+    let after = ServicesSourceBootstrap::resolve(&broken, no_secrets, CORE)
+        .await
+        .expect("an unloadable kit must not stop the boot");
+
+    match after.provenance {
+        ServicesProvenance::LastGood {
+            composed_hash,
+            error,
+        } => {
+            assert_eq!(composed_hash, good_hash, "the previous tree keeps serving");
+            assert!(error.contains("base"), "the error names the kit: {error}");
+            assert!(
+                error.contains("evaluation"),
+                "and the rule it broke: {error}"
+            );
+        },
+        other => panic!("expected last-good, got {other:?}"),
+    }
+    assert_eq!(
+        BundleCache::new(cache.path()).read_state().composed_hash,
+        good_hash,
+        "the state still names the last good composition"
+    );
+    let record = BundleCache::new(cache.path())
+        .read_degraded()
+        .expect("the fallback is recorded on disk for `cloud doctor`");
+    assert_eq!(record.serving, "last_good");
+    assert!(record.error.contains("evaluation"), "{}", record.error);
+
+    let again = ServicesSourceBootstrap::resolve(&p, no_secrets, CORE)
+        .await
+        .expect("the good origin boots again");
+    assert!(matches!(
+        again.provenance,
+        ServicesProvenance::Fetched { .. }
+    ));
+    assert!(
+        BundleCache::new(cache.path()).read_degraded().is_none(),
+        "a composition that loads clears the record"
+    );
 }

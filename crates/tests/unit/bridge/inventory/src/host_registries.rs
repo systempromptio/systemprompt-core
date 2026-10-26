@@ -68,8 +68,24 @@ fn host_sync_registry_contains_builtins() {
     let ids: Vec<HostKind> = host_sync::registry().iter().map(|s| s.host_id()).collect();
     for expected in HostKind::ALL {
         assert!(
-            ids.contains(&expected),
+            host_sync::registry()
+                .iter()
+                .any(|emitter| emitter.serves(expected)),
             "{expected} host sync missing; registry = {ids:?}"
+        );
+    }
+    for (product_a, product_b) in [
+        (HostKind::Codex, HostKind::CodexCli),
+        (HostKind::OpenCode, HostKind::OpenCodeCli),
+    ] {
+        let shared: Vec<&&dyn host_sync::HostSync> = host_sync::registry()
+            .iter()
+            .filter(|emitter| emitter.serves(product_a) && emitter.serves(product_b))
+            .collect();
+        assert_eq!(
+            shared.len(),
+            1,
+            "{product_a} and {product_b} share exactly one config emitter"
         );
     }
 }
@@ -207,7 +223,7 @@ fn a_kind_this_build_has_no_host_for_is_the_only_unknown() {
 #[test]
 fn a_host_id_outside_the_closed_set_cannot_be_named() {
     assert!("no-such-agent".parse::<HostKind>().is_err());
-    assert!("codex".parse::<HostKind>().is_err());
+    assert!("open-code".parse::<HostKind>().is_err());
 }
 
 systemprompt_bridge::suppress_host_app!(SUPPRESSED);

@@ -7,7 +7,7 @@ use super::validation::ValidatedAuthorizeRequest;
 use super::{AuthorizeQuery, AuthorizeRequest};
 use std::collections::HashMap;
 use systemprompt_manifest::Config;
-use systemprompt_oauth::services::templating::TemplateEngine;
+use systemprompt_oauth::services::templating::TemplateService;
 use url::Url;
 
 pub fn convert_form_to_query(form: &AuthorizeRequest) -> AuthorizeQuery {
@@ -33,10 +33,11 @@ pub fn is_user_consent_granted(form: &AuthorizeRequest) -> bool {
 }
 
 pub fn generate_webauthn_form(
+    config: &Config,
     params: &AuthorizeQuery,
     validated: &ValidatedAuthorizeRequest,
 ) -> String {
-    let template = TemplateEngine::load_webauthn_oauth_template();
+    let template = TemplateService::load_webauthn_oauth_template();
     let mut context = HashMap::new();
 
     let redirect_uri = params.redirect_uri.as_deref().unwrap_or("");
@@ -53,7 +54,7 @@ pub fn generate_webauthn_form(
     let code_challenge = params.code_challenge.as_deref().unwrap_or("");
     let code_challenge_method = params.code_challenge_method.as_deref().unwrap_or("");
     let resource = params.resource.as_deref().unwrap_or("");
-    let api_external_url = Config::get().map_or("", |c| c.api_external_url.as_str());
+    let api_external_url = config.api_external_url.as_str();
 
     context.insert("client_id", params.client_id.as_str());
     context.insert("client_name", validated.client.client_name.as_str());
@@ -69,11 +70,11 @@ pub fn generate_webauthn_form(
     context.insert("resource", resource);
     context.insert("api_external_url", api_external_url);
 
-    let allow_registration = Config::get().is_ok_and(|c| c.allow_registration);
+    let allow_registration = config.allow_registration;
     let register_class = if allow_registration { "" } else { "hidden" };
     context.insert("register_class", register_class);
 
-    TemplateEngine::render(template, context)
+    TemplateService::render(template, context)
 }
 
 fn is_http_url(value: &str) -> bool {

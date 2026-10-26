@@ -11,41 +11,51 @@
 mod config_loaders;
 mod display;
 mod extension_validator;
-mod files_validator;
 mod mcp_validator;
 
-use systemprompt_config::{ProfileBootstrap, SkillConfigValidator};
+use systemprompt_config::SkillConfigValidator;
+use systemprompt_config::paths::AppPaths;
+use systemprompt_loader::BootContext;
 use systemprompt_logging::services::cli::{
     BrandColors, render_phase_success, render_phase_warning,
 };
-use systemprompt_logging::{CliService, is_startup_mode};
+use systemprompt_logging::{CliService, OutputState};
 use systemprompt_manifest::Config;
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
 use systemprompt_manifest::validators::{
-    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    RateLimitsConfigValidator, ValidationConfigProvider, WebConfigValidator,
+    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, DomainConfigRegistry,
+    McpConfigValidator, RateLimitsConfigValidator, StartupValidationReport,
+    ValidationConfigProvider, ValidationReport, WebConfigValidator,
 };
-use systemprompt_traits::validation_report::ValidationIssue;
-use systemprompt_traits::{DomainConfigRegistry, StartupValidationReport, ValidationReport};
 
+use crate::error::RuntimeResult;
 use config_loaders::{create_spinner, load_content_config, load_web_config, load_web_metadata};
 use extension_validator::validate_extensions;
 use mcp_validator::validate_mcp_manifests;
 
 pub use display::{display_validation_report, display_validation_warnings};
 pub use extension_validator::{ExtensionConfigOutcome, validate_extension_configs};
-pub use files_validator::FilesConfigValidator;
 pub use mcp_validator::{collect_manifest_errors, merge_mcp_errors};
 
 #[derive(Debug)]
 pub struct StartupValidator {
+    boot: BootContext,
     registry: DomainConfigRegistry,
 }
 
 impl StartupValidator {
-    pub fn new() -> Self {
+    pub fn new(boot: BootContext) -> RuntimeResult<Self> {
         let mut registry = DomainConfigRegistry::new();
 
-        registry.register(Box::new(FilesConfigValidator::new()));
+        let profile = boot.profile();
+        let app_paths = AppPaths::from_profile(
+            &profile.paths,
+            profile.path_resolution(),
+            boot.services_root().map(|root| root.path.as_path()),
+        )?;
+        registry.register(Box::new(systemprompt_files::FilesConfigValidator::new(
+            app_paths,
+        )));
         registry.register(Box::new(RateLimitsConfigValidator::new()));
         registry.register(Box::new(WebConfigValidator::new()));
         registry.register(Box::new(ContentConfigValidator::new()));
@@ -54,22 +64,20 @@ impl StartupValidator {
         registry.register(Box::new(McpConfigValidator::new()));
         registry.register(Box::new(AiConfigValidator::new()));
 
-        Self { registry }
+        Ok(Self { boot, registry })
     }
 
     pub fn validate(&mut self, config: &Config) -> StartupValidationReport {
         let mut report = StartupValidationReport::new();
-        let verbose = is_startup_mode();
+        let verbose = OutputState::current().is_startup_mode();
 
-        if let Ok(path) = ProfileBootstrap::get_path() {
-            report = report.with_profile_path(path);
-        }
+        report = report.with_profile_path(self.boot.profile_path());
 
         if verbose {
             CliService::section("Validating configuration");
         }
 
-        let Some(validation_provider) = Self::load_configs(config, &mut report, verbose) else {
+        let Some(validation_provider) = self.load_configs(config, &mut report, verbose) else {
             return report;
         };
 
@@ -85,7 +93,7 @@ impl StartupValidator {
             return report;
         }
 
-        validate_extensions(config, &mut report, verbose);
+        validate_extensions(&self.boot, config, &mut report, verbose);
 
         if verbose {
             CliService::output("");
@@ -95,6 +103,7 @@ impl StartupValidator {
     }
 
     fn load_configs(
+        &self,
         config: &Config,
         report: &mut StartupValidationReport,
         verbose: bool,
@@ -104,7 +113,7 @@ impl StartupValidator {
         } else {
             None
         };
-        let services_config = match systemprompt_loader::ConfigLoader::load() {
+        let services_config = match self.boot.load_services_config() {
             Ok(cfg) => {
                 if let Some(s) = spinner {
                     s.finish_and_clear();
@@ -248,11 +257,5 @@ impl StartupValidator {
         } else {
             render_phase_success(&format!("[{}]", domain_id), Some("valid"));
         }
-    }
-}
-
-impl Default for StartupValidator {
-    fn default() -> Self {
-        Self::new()
     }
 }

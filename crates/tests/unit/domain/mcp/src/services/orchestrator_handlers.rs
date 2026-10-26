@@ -17,6 +17,7 @@ use systemprompt_test_fixtures::{fixture_user_id, test_db_pool, unique_instance}
 async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryService) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),
@@ -34,14 +35,22 @@ async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryServ
         )
         .expect("app paths"),
     );
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        crate::harness::services_state().view(),
+        crate::harness::config(),
+    );
     let database = DatabaseService::new(
         systemprompt_database::ServiceRepository::new(&db, unique_instance()),
         Arc::clone(&app_paths),
         registry.clone(),
     );
     let lifecycle = LifecycleService::new(
-        ProcessService::new(),
+        ProcessService::new(
+            systemprompt_test_fixtures::test_spawner(),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        ),
         NetworkService::new(),
         database.clone(),
         MonitoringService::new(),

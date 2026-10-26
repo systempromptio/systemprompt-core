@@ -67,10 +67,15 @@ async fn the_extension_view_resolves_loaded_secrets_and_refuses_unknown_ones() {
     let view: &dyn ExtensionContext = ctx.as_ref();
 
     let key = view
+        .secrets()
         .secret("encryption_master_key")
         .expect("the fixture secrets carry an encryption master key");
     assert!(!key.expose().is_empty());
-    assert!(view.secret("sp_no_such_secret_ctx_traits").is_none());
+    assert!(
+        view.secrets()
+            .secret("sp_no_such_secret_ctx_traits")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -116,4 +121,39 @@ async fn the_extension_view_coordinates_through_the_shared_repositories() {
     );
     assert!(view.leases().holder(&key).await.expect("holder").is_none());
     let _locks = view.advisory_locks();
+}
+
+#[tokio::test]
+async fn the_extension_view_hands_out_the_shared_background_tasks() {
+    let (ctx, _url) = context().await;
+    let view: &dyn ExtensionContext = ctx.as_ref();
+    let (release, released) = tokio::sync::oneshot::channel::<()>();
+
+    view.background_tasks()
+        .spawn("context-traits-test", async move {
+            released.await.ok();
+        });
+
+    assert_eq!(
+        ctx.background_tasks().in_flight(),
+        1,
+        "a task spawned through the extension view is tracked by the context's owner"
+    );
+    release.send(()).expect("task still waiting");
+    let outcome = ctx
+        .background_tasks()
+        .drain(std::time::Duration::from_secs(5))
+        .await;
+    assert!(outcome.is_drained());
+}
+
+#[tokio::test]
+async fn the_extension_dependencies_carry_the_oauth_repositories() {
+    let (ctx, _url) = context().await;
+    let view: &dyn ExtensionContext = ctx.as_ref();
+    let deps = view.dependencies();
+    let repos = deps
+        .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
+        .expect("the oauth repositories are a context dependency");
+    assert!(std::sync::Arc::ptr_eq(repos, ctx.oauth_repositories()));
 }

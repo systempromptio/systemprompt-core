@@ -15,6 +15,7 @@ async fn failed_complete_scan_preserves_membership_and_records_health() {
             &f.owner,
             &f.root.path().join("missing"),
             &ServicesConfig::default(),
+            sources(),
         )
         .await;
     assert!(result.is_err());

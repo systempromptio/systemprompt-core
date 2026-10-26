@@ -12,11 +12,19 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use systemprompt_cli::core::services::bundle::{BundleArgs, pack_bundle};
 use systemprompt_cli::core::services::publish::{PublishArgs, execute, pin_reference};
+use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides};
 
 #[derive(Debug, Parser)]
 struct Harness {
     #[command(flatten)]
     args: PublishArgs,
+}
+
+fn bare_ctx() -> CommandContext {
+    CommandContext::new(
+        CliConfig::new().with_interactive(false),
+        EnvOverrides::default(),
+    )
 }
 
 fn parse(args: &[&str]) -> PublishArgs {
@@ -109,7 +117,7 @@ fn the_oci_scheme_and_credentials_parse_off_the_command_line() {
 async fn an_unreadable_archive_is_refused_before_the_registry_is_contacted() {
     let dir = tempfile::tempdir().expect("tempdir");
     let missing = dir.path().join("nope.tar.gz");
-    let error = execute(&args(missing.clone(), None))
+    let error = execute(&args(missing.clone(), None), &bare_ctx())
         .await
         .expect_err("a missing archive cannot be published");
     assert!(format!("{error:#}").contains("nope.tar.gz"), "{error:#}");
@@ -119,7 +127,7 @@ async fn an_unreadable_archive_is_refused_before_the_registry_is_contacted() {
 async fn an_inline_credential_must_name_an_environment_variable() {
     let dir = tempfile::tempdir().expect("tempdir");
     let archive = bundle(dir.path());
-    let error = execute(&args(archive, Some("ghp_secret_value")))
+    let error = execute(&args(archive, Some("ghp_secret_value")), &bare_ctx())
         .await
         .expect_err("a literal credential is refused");
     let rendered = format!("{error:#}");
@@ -134,9 +142,12 @@ async fn an_inline_credential_must_name_an_environment_variable() {
 async fn an_unset_credential_variable_names_the_variable() {
     let dir = tempfile::tempdir().expect("tempdir");
     let archive = bundle(dir.path());
-    let error = execute(&args(archive, Some("env:SP_TEST_PUBLISH_UNSET")))
-        .await
-        .expect_err("an unset variable is an error");
+    let error = execute(
+        &args(archive, Some("env:SP_TEST_PUBLISH_UNSET")),
+        &bare_ctx(),
+    )
+    .await
+    .expect_err("an unset variable is an error");
     assert!(
         format!("{error:#}").contains("SP_TEST_PUBLISH_UNSET"),
         "{error:#}"
@@ -147,12 +158,15 @@ async fn an_unset_credential_variable_names_the_variable() {
 async fn an_auth_secret_without_a_profile_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let archive = bundle(dir.path());
-    let error = execute(&PublishArgs {
-        bundle: archive,
-        to: "oci://ghcr.io/org/services:1.4.0".to_owned(),
-        auth_secret: Some("ghcr_token".to_owned()),
-        auth: None,
-    })
+    let error = execute(
+        &PublishArgs {
+            bundle: archive,
+            to: "oci://ghcr.io/org/services:1.4.0".to_owned(),
+            auth_secret: Some("ghcr_token".to_owned()),
+            auth: None,
+        },
+        &bare_ctx(),
+    )
     .await
     .expect_err("no profile means no secrets");
     assert!(format!("{error:#}").contains("profile"), "{error:#}");
@@ -170,12 +184,15 @@ async fn a_registry_that_rejects_the_upload_names_the_destination() {
     let dir = tempfile::tempdir().expect("tempdir");
     let archive = bundle(dir.path());
     let host = server.uri().replace("http://", "");
-    let error = execute(&PublishArgs {
-        bundle: archive,
-        to: format!("oci://{host}/org/services:1.4.0"),
-        auth_secret: None,
-        auth: None,
-    })
+    let error = execute(
+        &PublishArgs {
+            bundle: archive,
+            to: format!("oci://{host}/org/services:1.4.0"),
+            auth_secret: None,
+            auth: None,
+        },
+        &bare_ctx(),
+    )
     .await
     .expect_err("a failing registry is an error");
     assert!(format!("{error:#}").contains("org/services"), "{error:#}");

@@ -2,7 +2,7 @@
 
 use systemprompt_cli::admin::config::ConfigCommands;
 use systemprompt_cli::admin::config::secret::{SecretCommands, SetArgs};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 fn set(name: &str, value: &str) -> ConfigCommands {
@@ -28,7 +28,7 @@ async fn secret_set_preserves_existing_values_and_refused_writes_are_atomic() {
     .expect("point profile at owned secrets file");
     let secrets_path = boot.profile_path.parent().unwrap().join("secrets.json");
     std::fs::write(&secrets_path, r#"{"existing":"keep-me"}"#).expect("seed owned secrets file");
-    let context = CommandContext::new(
+    let context = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

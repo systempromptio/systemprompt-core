@@ -13,20 +13,21 @@ use systemprompt_runtime::DatabaseContext;
 use super::admin;
 use super::commands::DbCommands;
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 
 pub(super) async fn dispatch_profile_migration(
     cmd: DbCommands,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<Option<DbCommands>> {
     match cmd {
         DbCommands::Migrate {
             allow_checksum_drift,
             repair_drift,
-        } => admin::execute_migrate(config, allow_checksum_drift, repair_drift)
+        } => admin::execute_migrate(ctx, allow_checksum_drift, repair_drift)
             .await
             .map(|()| None),
         DbCommands::MigrateDown { extension, count } => {
-            admin::execute_migrate_down(config, &extension, count)
+            admin::execute_migrate_down(ctx, &extension, count)
                 .await
                 .map(|()| None)
         },
@@ -36,7 +37,7 @@ pub(super) async fn dispatch_profile_migration(
             reconcile_only,
             json,
         } => admin::execute_migrate_repair(
-            config,
+            ctx,
             admin::RepairArgs {
                 extension: extension.as_ref(),
                 apply,
@@ -51,7 +52,7 @@ pub(super) async fn dispatch_profile_migration(
             version,
             json,
         } => admin::execute_migrate_mark_applied(
-            config,
+            ctx,
             admin::MarkAppliedArgs {
                 extension: &extension,
                 version,

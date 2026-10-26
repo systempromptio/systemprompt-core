@@ -14,8 +14,7 @@ use systemprompt_runtime::DatabaseContext;
 use super::{ToolTrendPoint, ToolTrendsOutput};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{
-    export_to_csv, format_date_range, format_period_label, parse_time_range, resolve_export_path,
-    truncate_to_period,
+    export_to_csv, format_date_range, format_period_label, parse_time_range, truncate_to_period,
 };
 use crate::shared::{ChartType, CommandOutput};
 use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
@@ -110,9 +109,8 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_to_csv(&output.points, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_to_csv(&output.points, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(CommandOutput::chart(build_chart(&output)).with_skip_render());
     }
 

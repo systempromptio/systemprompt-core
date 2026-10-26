@@ -1,6 +1,7 @@
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, Role, SystemBlock,
 };
 use systemprompt_identifiers::{ModelId, UserId};
 use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
@@ -16,22 +17,28 @@ pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> Canonical
             content: vec![CanonicalContent::text(first_user_text.to_string())],
         }],
         max_tokens: 16,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

@@ -179,7 +179,7 @@ async fn provider_metadata_is_consistent() {
     let _ = p.get_pricing("o3-mini");
     let _ = p.get_pricing("unknown");
     let _ = p.capabilities();
-    assert_eq!(p.default_model(), "gpt-4.1");
+    assert_eq!(p.default_model(), "gpt-3.5-turbo");
     assert!(!p.supports_google_search());
     let p2 = provider("http://localhost".to_owned()).with_web_search();
     assert!(p2.supports_google_search());

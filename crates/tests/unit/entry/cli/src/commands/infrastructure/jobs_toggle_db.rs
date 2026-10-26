@@ -37,6 +37,11 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
         DatabaseContext::from_pool(pool.clone()),
         test_database_url(),
     )
+    .with_boot(Some(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .clone(),
+    ))
 }
 
 #[test]

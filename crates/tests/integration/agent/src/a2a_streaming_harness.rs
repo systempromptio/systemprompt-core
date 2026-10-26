@@ -97,9 +97,13 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(&db_pool),
         Arc::clone(&global_config),
-        Arc::clone(&jwt_provider),
+        systemprompt_agent::AgentAuth {
+            jwt_provider: Arc::clone(&jwt_provider),
+            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+        },
         Arc::new(repositories),
         systemprompt_test_mocks::recording_webhooks(),
+        systemprompt_test_fixtures::fixture_services_view(),
     ));
 
     let oauth_state = Arc::new(
@@ -108,6 +112,7 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
             AgentOAuthConfig::default(),
             global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
+            systemprompt_test_fixtures::test_signing_keys(),
         )
         .with_jwt_provider(Arc::clone(&jwt_provider)),
     );

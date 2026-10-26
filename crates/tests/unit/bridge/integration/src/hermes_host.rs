@@ -208,11 +208,11 @@ fn structured_owned_values_are_reported_without_panicking_and_repair_becomes_ins
 }
 
 #[test]
-fn the_hermes_host_describes_itself_as_a_yaml_desktop_app() {
+fn the_hermes_host_describes_itself_as_a_yaml_cli_tool() {
     assert_eq!(HERMES_HOST.id(), HostKind::Hermes);
     assert_eq!(HERMES_HOST.display_name(), "Hermes");
     assert_eq!(HERMES_HOST.icon_id(), "hermes");
-    assert_eq!(HERMES_HOST.kind(), HostAppKind::DesktopApp);
+    assert_eq!(HERMES_HOST.kind(), HostAppKind::CliTool);
     assert_eq!(HERMES_HOST.config_format(), ConfigFormat::Yaml);
     assert!(
         HERMES_HOST.download_url().starts_with("https://"),
@@ -224,10 +224,10 @@ fn the_hermes_host_describes_itself_as_a_yaml_desktop_app() {
         "{}",
         HERMES_HOST.description()
     );
-    assert!(
-        HERMES_HOST.accepted_surfaces().is_empty(),
-        "Hermes is offered every advertised provider; the gateway transcodes to \
-         the OpenAI wire it speaks"
+    assert_eq!(
+        systemprompt_bridge::gateway::model_view::host_client(HERMES_HOST.id()),
+        systemprompt_models::providers::ClientFamily::OpenAi,
+        "Hermes lists the models the catalog advertises to openai clients"
     );
     assert!(HERMES_HOST.can_open(), "a desktop app can be opened");
     assert!(

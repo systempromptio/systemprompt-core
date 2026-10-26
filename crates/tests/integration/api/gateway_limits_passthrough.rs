@@ -12,19 +12,19 @@
 //! Each cell drives the real `GatewayService::dispatch` against a wiremock
 //! upstream and asserts on the body the *upstream received*.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use bytes::Bytes;
 use serde_json::{Value, json};
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_gateway::protocol::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::service::GatewayService;
-use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
+use systemprompt_manifest::services::GatewayConfig;
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,
 };
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::{ModelLimits, WireProtocol};
 use wiremock::matchers::method;
@@ -39,59 +39,30 @@ const UPSTREAM_NAME: &str = "vendor-upstream-name";
 const CALLER_MAX_TOKENS: u32 = 32_000;
 const MODEL_CAP: u32 = 16_384;
 
-fn registry(endpoint: &str, limits: ModelLimits) -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![ProviderEntry {
-            name: ProviderId::new(PROVIDER),
-            display_name: None,
-            description: None,
-            wire: WireProtocol::OpenAiChat,
-            surface: ApiSurface::OpenAi,
-            endpoint: endpoint.to_owned(),
-            api_key_secret: Some(SecretName::new(PROVIDER)),
-            credential: Default::default(),
-            credential_from: None,
-            user_agent: None,
-            forward_headers: Vec::new(),
-            governance: Default::default(),
-            extra_headers: HashMap::new(),
-            accepted_betas: None,
-            models: vec![ProviderModel {
-                id: ModelId::new(CATALOG_ID),
-                aliases: Vec::new(),
-                hidden: false,
-                governance: None,
+fn registry(endpoint: &str, limits: ModelLimits) -> ResolvedCatalog {
+    CatalogFixture::new()
+        .credential(PROVIDER, platform(PROVIDER))
+        .provider(PROVIDER, ProviderConfig::new(PROVIDER))
+        .endpoint(
+            PROVIDER,
+            "api",
+            EndpointConfig::new(WireProtocol::OpenAiChat, endpoint),
+        )
+        .model(
+            CATALOG_ID,
+            ModelEntry {
                 upstream_model: Some(UPSTREAM_NAME.to_owned()),
-                pricing: Default::default(),
-                capabilities: Default::default(),
                 limits,
-            }],
-        }],
-    }
+                ..ModelEntry::new(vec![ClientFamily::OpenAi])
+            },
+        )
+        .deploy(CATALOG_ID, [format!("{PROVIDER}/api").as_str()])
+        .build()
 }
 
 fn config() -> GatewayConfig {
-    let mut route = GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: CATALOG_ID.to_owned(),
-        provider: ProviderId::new(PROVIDER),
-        upstream_model: None,
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
     GatewayConfig {
         enabled: true,
-        routes: vec![route],
         ..GatewayConfig::default()
     }
 }

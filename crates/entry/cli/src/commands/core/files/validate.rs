@@ -7,11 +7,11 @@ use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_files::{FileValidator, FilesConfig};
+use systemprompt_files::FileValidator;
 
 use super::types::FileValidationOutput;
 use super::upload::detect_mime_type;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -20,7 +20,7 @@ pub struct ValidateArgs {
     pub file_path: PathBuf,
 }
 
-pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let file_path = args
         .file_path
         .canonicalize()
@@ -31,7 +31,7 @@ pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<Comman
 
     let mime_type = detect_mime_type(&file_path);
 
-    let files_config = FilesConfig::get()?;
+    let files_config = super::load_files_config(ctx)?;
     let upload_config = files_config.upload();
     let validator = FileValidator::new(*upload_config);
 

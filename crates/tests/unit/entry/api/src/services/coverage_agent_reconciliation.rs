@@ -1,7 +1,7 @@
 use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
 use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::{
-    init_services_bootstrap, install_test_signing_key, test_app_context, test_db_pool,
+    fixture_app_context_on_bootstrap, fixture_config, init_services_bootstrap, test_db_pool,
 };
 
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
@@ -55,9 +55,14 @@ async fn coverage_required_agent_failure_is_retried_and_blocks_api_startup() {
     let port = listener.local_addr().unwrap().port();
     let name = format!("reconcile_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Required", true));
-    install_test_signing_key();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = fixture_app_context_on_bootstrap(
+        &boot,
+        &pool,
+        fixture_config(&boot.database_url),
+        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
+    )
+    .unwrap();
     let err = reconcile_agents(&ctx, None).await.unwrap_err();
     let message = err.to_string();
     assert!(message.contains("failed to start after retry"), "{message}");
@@ -74,9 +79,14 @@ async fn coverage_disabled_agent_does_not_block_api_startup_on_an_occupied_port(
     let port = listener.local_addr().unwrap().port();
     let name = format!("disabled_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Disabled", false));
-    install_test_signing_key();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = fixture_app_context_on_bootstrap(
+        &boot,
+        &pool,
+        fixture_config(&boot.database_url),
+        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
+    )
+    .unwrap();
     assert_eq!(reconcile_agents(&ctx, None).await.unwrap(), 0);
     assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
 }
@@ -160,9 +170,14 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
         .port();
     let name = format!("reconcile_running_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Running cleanup", true));
-    install_test_signing_key();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = fixture_app_context_on_bootstrap(
+        &boot,
+        &pool,
+        fixture_config(&boot.database_url),
+        std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
+    )
+    .unwrap();
     let owned = OwnedMarkedAgent::spawn(&name);
 
     ctx.a2a_repositories()
@@ -195,62 +210,19 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     assert_eq!(row.pid, None);
 }
 
-#[tokio::test]
-async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event() {
-    use futures_util::StreamExt;
-    use systemprompt_traits::StartupEvent;
-
-    let _boot = systemprompt_test_fixtures::init_unloadable_services_bootstrap(
+#[test]
+fn malformed_agent_registry_fails_the_services_load() {
+    let boot = systemprompt_test_fixtures::init_unloadable_services_bootstrap(
         "http://127.0.0.1",
         "agents: [not-a-registry]\n",
     );
-    install_test_signing_key();
-    let database =
-        systemprompt_test_fixtures::DisposableDb::with_schema("malformed_agent_registry_startup")
-            .await;
-    let pool = database.test_pool().await;
-    let ctx = test_app_context(&pool, database.url());
-    let (events, mut receiver) = systemprompt_traits::startup_channel();
 
-    let error = reconcile_agents(&ctx, Some(&events))
-        .await
-        .expect_err("malformed configured agents must block API startup");
+    let error = systemprompt_loader::ServicesState::load(&boot.boot)
+        .expect_err("malformed configured agents must block boot");
+
     let diagnosis = error.to_string();
     assert!(
         diagnosis.contains("agents") || diagnosis.contains("sequence"),
         "registry parse diagnosis is retained: {diagnosis}"
     );
-    let (message, fatal) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
-        loop {
-            if let StartupEvent::Error { message, fatal } = receiver
-                .next()
-                .await
-                .expect("startup event channel remains open")
-            {
-                break (message, fatal);
-            }
-        }
-    })
-    .await
-    .expect("fatal registry event arrives");
-    assert!(fatal);
-    assert!(
-        message.contains("Failed to load agent registry"),
-        "{message}"
-    );
-    assert!(
-        message.contains("agents") || message.contains("sequence"),
-        "event preserves the registry parse diagnosis: {message}"
-    );
-    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM services WHERE module_name = 'agent'")
-        .fetch_one(pool.pool().as_ref())
-        .await
-        .expect("agent service count");
-    assert_eq!(
-        rows, 0,
-        "registry failure starts and persists no agent services"
-    );
-    drop(ctx);
-    pool.write_pool().close().await;
-    database.drop_now().await;
 }

@@ -1,19 +1,19 @@
 //! Integration tests (coverage campaign 2026-07).
 //!
 //! Covers the bridge/model surface of the gateway router plus the pure helpers
-//! reached through the `services::gateway` seams: `canonicalize_org_uuid`, the
-//! `x-inference-protocol` surface parser, model-id humanisation, the outbound
-//! and safety-scanner registries, canonical-message flattening, the
-//! `GatewayAudit` mutators, and the bridge credential-exchange handlers.
+//! reached through the `services::gateway` seams:
+//! `TenantId::organization_uuid`, the `x-inference-protocol` surface parser,
+//! model-id humanisation, the outbound and safety-scanner registries,
+//! canonical-message flattening, the `GatewayAudit` mutators, and the bridge
+//! credential-exchange handlers.
 
 use anyhow::Result;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_api::routes::gateway::models::{humanize_model_id, surfaces_from_header};
+use systemprompt_api::routes::gateway::models::{families_from_header, humanize_model_id};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::audit::GatewayAudit;
 use systemprompt_gateway::audit::message_text::flatten_message_content;
@@ -25,8 +25,8 @@ use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
 };
 use systemprompt_models::api::ErrorCode;
-use systemprompt_models::providers::ApiSurface;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_test_fixtures::seed_admin_credential;
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
@@ -41,7 +41,9 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+            .encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("gateway journal opens")
 }
@@ -54,14 +56,23 @@ fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Gateway
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+            unapplied_plane: Default::default(),
+        },
     )
 }
 
 async fn router_and_pool() -> Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     let router = gateway_router(&ctx).expect("gateway router builds");
     Ok((router, pool))
 }
@@ -80,54 +91,46 @@ fn header_map(pairs: &[(&str, &str)]) -> HeaderMap {
 fn canonicalize_org_uuid_strips_local_prefix_of_valid_uuid() {
     let raw = "550e8400-e29b-41d4-a716-446655440000";
     let tenant = TenantId::new(format!("local_{raw}"));
-    assert_eq!(canonicalize_org_uuid(&tenant), raw);
+    assert_eq!(tenant.organization_uuid(), raw);
 }
 
 #[test]
 fn canonicalize_org_uuid_passes_through_bare_uuid() {
     let raw = "550e8400-e29b-41d4-a716-446655440000";
     let tenant = TenantId::new(raw.to_owned());
-    assert_eq!(canonicalize_org_uuid(&tenant), raw);
+    assert_eq!(tenant.organization_uuid(), raw);
 }
 
 #[test]
 fn canonicalize_org_uuid_hashes_non_uuid_deterministically() {
     let tenant = TenantId::new("acme-corp".to_owned());
-    let a = canonicalize_org_uuid(&tenant);
-    let b = canonicalize_org_uuid(&tenant);
+    let a = tenant.organization_uuid();
+    let b = tenant.organization_uuid();
     assert_eq!(a, b, "hash is stable");
     assert!(uuid::Uuid::parse_str(&a).is_ok(), "produces a valid uuid");
 }
 
 #[test]
-fn surfaces_from_header_absent_is_empty() {
-    let surfaces = surfaces_from_header(&HeaderMap::new()).expect("ok");
-    assert!(surfaces.is_empty());
+fn families_from_header_absent_is_empty() {
+    let families = families_from_header(&HeaderMap::new()).expect("ok");
+    assert!(families.is_empty());
 }
 
 #[test]
-fn surfaces_from_header_parses_known_tags() {
-    let h = header_map(&[(INFERENCE_PROTOCOL, "anthropic")]);
-    let surfaces = surfaces_from_header(&h).expect("ok");
-    assert_eq!(surfaces, vec![ApiSurface::Anthropic]);
+fn families_from_header_parses_known_tags() {
+    let h = header_map(&[(INFERENCE_PROTOCOL, "claude")]);
+    let families = families_from_header(&h).expect("ok");
+    assert_eq!(families, vec![ClientFamily::Claude]);
 }
 
 #[test]
-fn surfaces_from_header_rejects_unknown_tag() {
+fn families_from_header_rejects_unknown_tag() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "quantum")]);
-    let err = surfaces_from_header(&h).expect_err("unknown must fail");
+    let err = families_from_header(&h).expect_err("unknown must fail");
     assert_eq!(err.tag, "quantum");
     let err = ApiHttpError::from(err).into_inner();
     assert_eq!(err.code, ErrorCode::BadRequest);
     assert!(err.message.contains("unknown"), "{}", err.message);
-}
-
-#[test]
-fn surfaces_from_header_rejects_backend_surface() {
-    let h = header_map(&[(INFERENCE_PROTOCOL, "backend")]);
-    let err = surfaces_from_header(&h).expect_err("backend is not a client surface");
-    let err = ApiHttpError::from(err).into_inner();
-    assert_eq!(err.code, ErrorCode::BadRequest);
 }
 
 #[test]
@@ -186,16 +189,19 @@ fn flatten_message_content_empty_is_empty_string() {
 
 #[test]
 fn upstream_registry_serves_builtin_wire_adapters() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
     assert!(registry.get("anthropic").is_some());
     assert!(registry.get("openai-chat").is_some());
     assert!(registry.get("nonexistent-wire").is_none());
     assert!(registry.tags().contains(&"anthropic"));
 }
 
-#[test]
-fn safety_scanner_registry_carries_the_builtins() {
-    let registry = SafetyScannerRegistry::global();
+#[tokio::test]
+async fn safety_scanner_registry_carries_the_builtins() {
+    let registry =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ));
     let safety = SafetyConfig::default();
     assert!(registry.create("null", &safety).is_some());
     assert!(registry.create("heuristic", &safety).is_some());
@@ -216,6 +222,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_owned(),
+        hop: None,
         requested_model: Some("claude-test".to_owned()),
         model: upstream_model.to_owned(),
         max_tokens: Some(64),

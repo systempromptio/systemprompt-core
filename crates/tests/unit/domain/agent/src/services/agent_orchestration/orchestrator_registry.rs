@@ -16,18 +16,13 @@ use systemprompt_agent::services::agent_orchestration::orchestrator::AgentOrches
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::ServicesConfig;
-use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state_for};
-use systemprompt_test_fixtures::{test_db_pool, unique_instance};
+use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
-
-fn unique_name(prefix: &str) -> AgentName {
-    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
-}
 
 fn app_paths() -> Arc<AppPaths> {
     let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -36,7 +31,7 @@ fn app_paths() -> Arc<AppPaths> {
 
 fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(pool, instance.clone());
-    AgentDatabaseService::new(repo).expect("db service")
+    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view())
 }
 
 fn registry_with(names_and_ports: &[(&AgentName, u16)]) -> AgentRegistry {
@@ -58,9 +53,15 @@ async fn make_orchestrator(
     names_and_ports: &[(&AgentName, u16)],
 ) -> AgentOrchestrator {
     let agent_state = make_agent_state_for(pool, instance);
-    let mut orchestrator = AgentOrchestrator::new(agent_state, app_paths(), None)
-        .await
-        .expect("orchestrator");
+    let mut orchestrator = AgentOrchestrator::new(
+        agent_state,
+        app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
+        crate::spawn_environment(),
+        None,
+    )
+    .await
+    .expect("orchestrator");
     orchestrator.set_registry(registry_with(names_and_ports));
     orchestrator
 }
@@ -70,7 +71,7 @@ async fn detailed_status_reports_configured_agents() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("orchreg_status");
+    let name = unique_agent_name("orchreg_status");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9450)]).await;
 
     db_service(&pool, &instance)
@@ -100,7 +101,7 @@ async fn validate_agent_reports_missing_and_failed() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("orchreg_validate");
+    let name = unique_agent_name("orchreg_validate");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9451)]).await;
 
     let missing = orchestrator
@@ -139,7 +140,7 @@ async fn validate_agent_running_agent_reaches_health_check() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("orchreg_health");
+    let name = unique_agent_name("orchreg_health");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9452)]).await;
 
     db_service(&pool, &instance)
@@ -168,7 +169,7 @@ async fn delete_agent_with_live_pid_removes_service_row() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("orchreg_delete");
+    let name = unique_agent_name("orchreg_delete");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9453)]).await;
 
     db_service(&pool, &instance)
@@ -190,8 +191,8 @@ async fn delete_all_agents_deletes_configured_agents() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let a = unique_name("orchreg_bulk_a");
-    let b = unique_name("orchreg_bulk_b");
+    let a = unique_agent_name("orchreg_bulk_a");
+    let b = unique_agent_name("orchreg_bulk_b");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&a, 9454), (&b, 9455)]).await;
 
     let db = db_service(&pool, &instance);
@@ -217,7 +218,7 @@ async fn start_agent_already_running_is_rejected() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("orchreg_running");
+    let name = unique_agent_name("orchreg_running");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9457)]).await;
 
     db_service(&pool, &instance)
@@ -242,7 +243,7 @@ async fn start_agent_missing_binary_fails_after_prerequisites() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("orchreg_spawnfail");
+    let name = unique_agent_name("orchreg_spawnfail");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 39457)]).await;
 
     let result = orchestrator.start_agent(&name, None).await;
@@ -259,7 +260,7 @@ async fn restart_agent_dead_pid_row_reaches_start_path() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("orchreg_restart");
+    let name = unique_agent_name("orchreg_restart");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 39458)]).await;
 
     db_service(&pool, &instance)

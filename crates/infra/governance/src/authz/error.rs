@@ -43,7 +43,7 @@ domain_error! {
             source: std::io::Error,
         },
 
-        #[error("failed to parse {path} as AccessControlConfig: {source}")]
+        #[error("failed to parse {path} as access-control rules: {source}")]
         ConfigParse {
             path: String,
             #[source]
@@ -58,8 +58,14 @@ domain_error! {
             marketplace: String,
             rule_type: String,
             #[source]
-            source: Box<AuthzError>,
+            source: Box<systemprompt_models::authz::RuleTypeError>,
         },
+
+        #[error("access-control rules: {0}")]
+        Rules(crate::authz::rules_file::RulesProblems),
+
+        #[error("canonical access-control value: {0}")]
+        Canonical(#[source] serde_json::Error),
 
         #[error("invalid entity id: {0}")]
         InvalidEntityId(#[source] systemprompt_identifiers::error::IdValidationError),

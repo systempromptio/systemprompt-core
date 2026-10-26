@@ -166,7 +166,7 @@ fn render_part(index: usize, part: &ArtifactPartOutput, full: bool) {
     }
 
     if let Some(ref data) = part.data {
-        let formatted = serde_json::to_string_pretty(data).unwrap_or_else(|_| data.to_string());
+        let formatted = CliService::json_string(data).unwrap_or_else(|_| data.to_string());
 
         let display_data = if full || formatted.len() <= 1000 {
             formatted

@@ -26,17 +26,14 @@ runtime:
 
 ## 2. Set the server section
 
-The `server` section binds the listener and declares the URLs the binary advertises in discovery and OAuth metadata.
+The `server` section binds the listener and states the one public URL. The API URLs, HTTPS flag, JWT issuer and first CORS origin are derived from `external_url`; the internal URL and the governance webhook are derived from `host` and `port`. Stating a derived field is a load error.
 
 ```yaml
 server:
   host: 0.0.0.0
   port: 8080
-  api_server_url: https://api.example.com
-  api_internal_url: http://systemprompt:8080
-  api_external_url: https://api.example.com
-  use_https: false                    # TLS is terminated at the reverse proxy
-  cors_allowed_origins:
+  external_url: https://api.example.com
+  extra_cors_origins:                  # beyond the external_url origin
     - https://app.example.com
   trusted_proxies:
     - 10.0.0.0/8                       # CIDRs whose X-Forwarded-For is trusted
@@ -153,7 +150,7 @@ Any string value in `profile.yaml` may reference an environment variable as `${V
 
 ```yaml
 server:
-  api_external_url: ${API_EXTERNAL_URL}
+  external_url: ${API_EXTERNAL_URL}
 secrets:
   secrets_path: ${SECRETS_PATH}
 ```
@@ -163,8 +160,7 @@ secrets:
 `security` configures the JWT plane and OAuth issuer. The signing key is RSA (the JWT plane is RS256-only).
 
 ```yaml
-security:
-  jwt_issuer: https://api.example.com
+security:                                # jwt_issuer is server.external_url
   jwt_access_token_expiration: 900       # seconds
   jwt_refresh_token_expiration: 2592000  # seconds
   jwt_audiences:
@@ -183,18 +179,17 @@ Generate the signing key with `systemprompt admin keys generate` (RSA-2048). `tr
 
 Authorization is fail-closed. If the `governance` block is absent, the `authz` block is absent, or the config is unparseable, the platform installs a deny-all hook — misconfiguration never silently grants access (`crates/shared/manifest/src/profile/governance.rs`).
 
-For production, point the authz hook at your policy webhook:
+For production, turn the webhook on:
 
 ```yaml
 governance:
   authz:
     hook:
       mode: webhook
-      url: https://policy.example.com/govern/authz
       timeout_ms: 500
 ```
 
-In `webhook` mode the platform POSTs every governed request to `url`; any transport error, non-2xx, or decode failure denies the request. The three modes are:
+In `webhook` mode the platform POSTs every governed request to its own `/api/public/govern/authz` (derived from `server.host`/`server.port`); a policy outside the binary is registered as an `extension` hook; any transport error, non-2xx, or decode failure denies the request. The three modes are:
 
 | Mode | Behaviour |
 |------|-----------|

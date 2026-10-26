@@ -112,13 +112,12 @@ impl SchemaTransformer {
     }
 
     pub fn transform(&self, tool: &McpTool) -> Result<Vec<TransformedTool>> {
-        let schema =
-            tool.input_schema
-                .as_ref()
-                .ok_or_else(|| crate::error::AiError::MissingToolField {
-                    tool_name: McpToolName::new(tool.name.clone()),
-                    field: "input_schema".to_owned(),
-                })?;
+        let schema = tool.input_schema.as_ref().ok_or_else(|| {
+            crate::error::AiError::Tool(crate::error::ToolError::MissingField {
+                tool_name: McpToolName::new(tool.name.clone()),
+                field: "input_schema",
+            })
+        })?;
 
         if !self.capabilities.requires_transformation(schema) {
             return Ok(vec![self.pass_through(tool)?]);
@@ -135,9 +134,11 @@ impl SchemaTransformer {
         let schema = tool
             .input_schema
             .as_ref()
-            .ok_or_else(|| crate::error::AiError::MissingToolField {
-                tool_name: McpToolName::new(tool.name.clone()),
-                field: "input_schema".to_owned(),
+            .ok_or_else(|| {
+                crate::error::AiError::Tool(crate::error::ToolError::MissingField {
+                    tool_name: McpToolName::new(tool.name.clone()),
+                    field: "input_schema",
+                })
             })?
             .clone();
 
@@ -145,8 +146,10 @@ impl SchemaTransformer {
             .description
             .as_ref()
             .filter(|d| !d.is_empty())
-            .ok_or_else(|| crate::error::AiError::EmptyToolDescription {
-                tool_name: McpToolName::new(tool.name.clone()),
+            .ok_or_else(|| {
+                crate::error::AiError::Tool(crate::error::ToolError::EmptyDescription {
+                    tool_name: McpToolName::new(tool.name.clone()),
+                })
             })?
             .clone();
 
@@ -170,8 +173,10 @@ impl SchemaTransformer {
             .description
             .as_ref()
             .filter(|d| !d.is_empty())
-            .ok_or_else(|| crate::error::AiError::EmptyToolDescription {
-                tool_name: McpToolName::new(tool.name.clone()),
+            .ok_or_else(|| {
+                crate::error::AiError::Tool(crate::error::ToolError::EmptyDescription {
+                    tool_name: McpToolName::new(tool.name.clone()),
+                })
             })?;
 
         let transformed_tools = union

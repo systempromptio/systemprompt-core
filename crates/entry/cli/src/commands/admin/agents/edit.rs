@@ -13,12 +13,11 @@ use super::edit_apply::{
 };
 use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
-use crate::CliConfig;
-use crate::interactive::{Prompter, resolve_required};
+use crate::context::CommandContext;
+use crate::interactive::resolve_required;
 use crate::shared::CommandOutput;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::{ConfigLoader, ConfigWriter};
+use systemprompt_loader::ConfigWriter;
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
@@ -52,12 +51,13 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) fn execute(
-    args: &EditArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
+    let prompter = ctx.prompter();
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {
         super::shared::prompt_agent_selection(prompter, "Select agent to edit", &services_config)
@@ -89,13 +89,13 @@ pub(super) fn execute(
 
     CliService::info(&format!("Updating agent '{}'...", name));
 
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let profile = ctx.profile()?;
     let services_dir = Path::new(&profile.paths.services);
 
     ConfigWriter::update_agent(&name, &agent, services_dir)
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
-    ConfigLoader::reload().with_context(|| {
+    ctx.boot()?.load_services_config().with_context(|| {
         format!(
             "Agent '{}' updated but validation failed. Please check the configuration.",
             name

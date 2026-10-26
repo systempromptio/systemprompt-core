@@ -1,11 +1,13 @@
-//! `/v1/me/provider-credentials` — the caller's personal provider keys.
+//! `/v1/me/provider-credentials` — the caller's personal credential keys.
 //!
-//! A provider declared `credential: user` is served only from a key the
-//! calling user stored for themselves. These routes list which such providers
-//! the caller has a key for, store one (after one cheap upstream call proves it
-//! works), and remove it. The key is sealed at rest and never returned, logged
-//! or echoed in an error; every store and removal is recorded with the user and
-//! provider only.
+//! A personal catalog credential (`services/ai/credentials.yaml`,
+//! `kind: personal`) is served only from a key the calling user stored for
+//! themselves, one per credential, covering every endpoint that credential
+//! authenticates. These routes list the personal credentials the catalog
+//! serves with whether the caller has a key for each, store one (after one
+//! cheap upstream call to every endpoint proves it works), and remove it. The
+//! key is sealed at rest and never returned, logged or echoed in an error;
+//! every store and removal is recorded with the user and credential only.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,10 +21,10 @@ use axum::routing::{get, put};
 use axum::{Json, Router};
 use systemprompt_ai::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
 use systemprompt_ai::{
-    PersonalKeyError, PersonalKeyRequest, personal_provider, personal_providers, store_personal_key,
+    PersonalKeyError, PersonalKeyRequest, personal_credential, personal_credentials,
+    store_personal_key,
 };
-use systemprompt_loader::ServicesBootstrap;
-use systemprompt_manifest::services::ProviderEntry;
+use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedCredential};
 use systemprompt_models::bridge::profile::{
     ProviderCredentialStatus, SetProviderCredentialRequest,
 };
@@ -42,11 +44,14 @@ pub async fn list(
         .list_metadata(&claims.user_id)
         .await
         .map_err(|e| BridgeError::internal("personal key listing failed", e))?;
-    let rows = personal_providers_now()?
-        .iter()
-        .map(|entry| {
-            let meta = stored.iter().find(|m| m.provider == entry.name.as_str());
-            status_row(entry, meta)
+    let catalog = ctx.services_state().catalog();
+    let rows = personal_credentials(catalog)
+        .into_iter()
+        .map(|credential| {
+            let meta = stored
+                .iter()
+                .find(|m| m.credential == credential.id.as_str());
+            status_row(catalog, credential, meta)
         })
         .collect();
     Ok(Json(rows))
@@ -56,48 +61,48 @@ pub async fn set(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     headers: HeaderMap,
-    Path(provider): Path<String>,
+    Path(credential): Path<String>,
     body: Result<Json<SetProviderCredentialRequest>, JsonRejection>,
 ) -> Result<Json<ProviderCredentialStatus>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
-    let services = ServicesBootstrap::get()
-        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
-    let entry = personal_provider(&services.providers, &provider).map_err(key_error)?;
+    let catalog = ctx.services_state().catalog();
+    let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
+    let tokens = systemprompt_extension::ExtensionContext::provider_tokens(&ctx);
     let meta = store_personal_key(
+        &tokens,
         repository(&ctx),
-        &services.providers,
+        catalog,
         PersonalKeyRequest {
             user_id: &claims.user_id,
-            provider: &provider,
+            credential: &credential,
             key: &body.api_key,
             label: body.label.as_deref(),
         },
     )
     .await
     .map_err(key_error)?;
-    Ok(Json(status_row(&entry, Some(&meta))))
+    Ok(Json(status_row(catalog, resolved, Some(&meta))))
 }
 
 pub async fn delete(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     headers: HeaderMap,
-    Path(provider): Path<String>,
+    Path(credential): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let services = ServicesBootstrap::get()
-        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
-    let entry = personal_provider(&services.providers, &provider).map_err(key_error)?;
+    let resolved =
+        personal_credential(ctx.services_state().catalog(), &credential).map_err(key_error)?;
     let removed = repository(&ctx)
-        .delete_key(&claims.user_id, entry.name.as_str())
+        .delete_key(&claims.user_id, &resolved.id)
         .await
         .map_err(|e| BridgeError::internal("personal key could not be removed", e))?;
     if removed {
         tracing::info!(
             user_id = %claims.user_id,
-            provider = %entry.name.as_str(),
-            "Personal provider key removed"
+            credential = %resolved.id.as_str(),
+            "Personal credential key removed"
         );
     }
     Ok(StatusCode::NO_CONTENT)
@@ -107,18 +112,12 @@ fn repository(ctx: &AppContext) -> &UserProviderCredentialRepository {
     &ctx.ai_repositories().user_provider_credentials
 }
 
-fn personal_providers_now() -> Result<Vec<ProviderEntry>, BridgeError> {
-    let services = ServicesBootstrap::get()
-        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
-    Ok(personal_providers(&services.providers))
-}
-
 fn key_error(error: PersonalKeyError) -> BridgeError {
     match error {
-        PersonalKeyError::NotPersonalProvider(name) => BridgeError::NotPersonalProvider(name),
-        PersonalKeyError::Rejected(provider) => BridgeError::PersonalKeyRejected(provider),
-        PersonalKeyError::Unverified { provider, status } => {
-            BridgeError::PersonalKeyUnverified { provider, status }
+        PersonalKeyError::NotPersonalCredential(id) => BridgeError::NotPersonalCredential(id),
+        PersonalKeyError::Rejected(credential) => BridgeError::PersonalKeyRejected(credential),
+        PersonalKeyError::Unverified { credential, status } => {
+            BridgeError::PersonalKeyUnverified { credential, status }
         },
         PersonalKeyError::Internal(source) => {
             BridgeError::internal("personal key could not be stored", source)
@@ -127,12 +126,18 @@ fn key_error(error: PersonalKeyError) -> BridgeError {
 }
 
 fn status_row(
-    entry: &ProviderEntry,
+    catalog: &ResolvedCatalog,
+    credential: &ResolvedCredential,
     meta: Option<&UserProviderCredentialMeta>,
 ) -> ProviderCredentialStatus {
+    let display_name = catalog
+        .providers()
+        .find(|provider| provider.credential == credential.id)
+        .and_then(|provider| provider.display_name.clone())
+        .or_else(|| credential.label.clone());
     ProviderCredentialStatus {
-        provider: entry.name.as_str().to_owned(),
-        display_name: entry.display_name.clone(),
+        credential: credential.id.as_str().to_owned(),
+        display_name,
         configured: meta.is_some(),
         label: meta.and_then(|m| m.label.clone()),
         created_at: meta.map(|m| m.created_at),
@@ -158,7 +163,7 @@ pub(super) fn routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>)
             }),
         )
         .route(
-            "/me/provider-credentials/{provider}",
+            "/me/provider-credentials/{credential}",
             put(move |headers, path, body| {
                 let extractor = Arc::clone(&jwt_set);
                 let context = ctx_set.clone();

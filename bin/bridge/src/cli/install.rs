@@ -16,67 +16,107 @@ use crate::schedule::Os;
 use crate::stdio::diag;
 use crate::{install, stdio};
 
-pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
-    let print_mdm = match os_flag(args, "--print-mdm") {
-        Ok(os) => os,
-        Err(code) => return code,
-    };
-    let emit_sched = match os_flag(args, "--emit-schedule-template") {
-        Ok(os) => os,
-        Err(code) => return code,
-    };
+struct InstallArgs {
+    print_mdm: Option<Os>,
+    emit_sched: Option<Os>,
+    gateway: Option<ValidatedUrl>,
+    pubkey: Option<PinnedPubKey>,
+    apply: bool,
+    apply_mobileconfig: bool,
+    apply_schedule: bool,
+    egress_allowed_hosts: Option<Vec<String>>,
+    host_selection: Option<Selection>,
+}
+
+fn parse_install_args(args: &[String]) -> Result<InstallArgs, ExitCode> {
+    let print_mdm = os_flag(args, "--print-mdm")?;
+    let emit_sched = os_flag(args, "--emit-schedule-template")?;
     let gateway = match parse_opt_flag(args, "--gateway") {
         Some(raw) => match ValidatedUrl::try_new(raw.trim()) {
             Ok(url) => Some(url),
             Err(e) => {
                 diag(&format!("--gateway: invalid URL: {e}"));
-                return ExitCode::from(64);
+                return Err(ExitCode::from(64));
             },
         },
         None => None,
     };
-    let pubkey = parse_opt_flag(args, "--pubkey").map(PinnedPubKey::new);
-    let apply = has_flag(args, "--apply");
-    let apply_mobileconfig = has_flag(args, "--apply-mobileconfig");
-    let apply_schedule = has_flag(args, "--apply-schedule");
     let egress_allowed_hosts = match parse_opt_flag(args, "--egress-allowed-hosts") {
         None => None,
         Some(raw) => match install::parse_egress_allowed_hosts(&raw) {
             Ok(hosts) => Some(hosts),
             Err(e) => {
                 diag(&format!("--egress-allowed-hosts: {e}"));
-                return ExitCode::from(64);
+                return Err(ExitCode::from(64));
             },
         },
     };
     let host_selection = match parse_host_selection(args) {
-        Ok(sel) => sel,
+        Ok(selection) => selection,
         Err(e) => {
             diag(&e.to_string());
-            return ExitCode::from(64);
+            return Err(ExitCode::from(64));
         },
     };
-    if apply || apply_mobileconfig {
-        let cfg = match crate::config::load() {
-            Ok(cfg) => cfg,
-            Err(e) => {
-                diag(&e.to_string());
-                return ExitCode::from(1);
-            },
-        };
-        let gateway_url = gateway
-            .clone()
-            .unwrap_or_else(|| crate::config::gateway_url_or_default(&cfg));
-        let bearer = crate::auth::cache::cached_bearer(&gateway_url);
-        if let Err(e) = ctx.block_on(
-            ctx.gateway_client(gateway_url)
-                .fetch_bridge_profile(bearer.as_ref()),
-        ) {
+    Ok(InstallArgs {
+        print_mdm,
+        emit_sched,
+        gateway,
+        pubkey: parse_opt_flag(args, "--pubkey").map(PinnedPubKey::new),
+        apply: has_flag(args, "--apply"),
+        apply_mobileconfig: has_flag(args, "--apply-mobileconfig"),
+        apply_schedule: has_flag(args, "--apply-schedule"),
+        egress_allowed_hosts,
+        host_selection,
+    })
+}
+
+fn refresh_model_catalog(
+    ctx: &BridgeContext,
+    gateway: Option<&ValidatedUrl>,
+) -> Result<(), ExitCode> {
+    let cfg = match crate::config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            diag(&e.to_string());
+            return Err(ExitCode::from(1));
+        },
+    };
+    let gateway_url = gateway
+        .cloned()
+        .unwrap_or_else(|| crate::config::gateway_url_or_default(&cfg));
+    let client = ctx.gateway_client(gateway_url);
+    match ctx.block_on(crate::auth::profile::fetch_signed_in(&client)) {
+        Ok(_) => Ok(()),
+        Err(e) => {
             diag(&format!(
                 "Cannot refresh the Desktop model catalog: {e}. Install was not applied."
             ));
-            return ExitCode::from(1);
-        }
+            Err(ExitCode::from(1))
+        },
+    }
+}
+
+pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
+    let parsed = match parse_install_args(args) {
+        Ok(parsed) => parsed,
+        Err(code) => return code,
+    };
+    let InstallArgs {
+        print_mdm,
+        emit_sched,
+        gateway,
+        pubkey,
+        apply,
+        apply_mobileconfig,
+        apply_schedule,
+        egress_allowed_hosts,
+        host_selection,
+    } = parsed;
+    if (apply || apply_mobileconfig)
+        && let Err(code) = refresh_model_catalog(ctx, gateway.as_ref())
+    {
+        return code;
     }
     match install::install(
         &install::InstallOptions {

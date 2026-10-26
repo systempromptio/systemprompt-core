@@ -1,23 +1,21 @@
-//! Row-level upsert primitives shared by the config and marketplace
-//! ingestion passes.
+//! Row-level upsert primitives shared by the ingestion passes.
 //!
 //! A [`Target`] is one resolved `(entity, rule_type, rule_value, access)`
-//! tuple. [`upsert_entity_row`] / [`upsert_marketplace_entity_row`] satisfy the
-//! `access_control_rules` FK and carry the authoritative `default_included`
-//! flag; [`upsert_target`] performs the idempotent insert-or-update and reports
+//! tuple. [`ensure_catalog_entity_row`] satisfies the `access_control_rules`
+//! FK; [`upsert_target`] performs the idempotent insert-or-update and reports
 //! the [`UpsertOutcome`].
 //!
-//! Every rule row carries the provenance of the pass that wrote it. A row
-//! stamped [`DASHBOARD_SOURCE`] was authored by an operator through the admin
-//! surface and outranks the file that ingestion is projecting: ingestion
-//! reports it as [`UpsertOutcome::Protected`] and leaves it alone, whatever
-//! `override_existing` says.
+//! Every rule row carries the provenance of the pass that wrote it, in the
+//! closed `source` vocabulary (`code:<file>`, `bundle:<name>`,
+//! `console:<user>`, `migration`). A `console:` row was authored by an
+//! operator through the admin surface and outranks the file that ingestion is
+//! projecting: ingestion reports it as [`UpsertOutcome::Protected`] and leaves
+//! it alone, whatever `override_existing` says.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgConnection;
-use systemprompt_manifest::services::MarketplaceAccess;
 
 use crate::authz::error::AuthzResult;
 use crate::authz::repository::ingestion::IngestionRepository;
@@ -25,11 +23,9 @@ use crate::authz::types::EntityKind;
 
 pub(super) use crate::authz::repository::ingestion::IngestRule as Target;
 
-pub(super) const SOURCE_LABEL: &str = "ingestion:access_control_config";
+pub const SERVICES_SOURCE: &str = "code:services";
 
-pub const DASHBOARD_SOURCE: &str = "dashboard";
-
-pub const YAML_SOURCE: &str = "yaml";
+pub const CONSOLE_SOURCE_PREFIX: &str = "console:";
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum UpsertOutcome {
@@ -37,30 +33,6 @@ pub(super) enum UpsertOutcome {
     Updated,
     Skipped,
     Protected,
-}
-
-pub(super) async fn upsert_entity_row(
-    conn: &mut PgConnection,
-    entity_kind: EntityKind,
-    entity_id: &str,
-    default_included: bool,
-    source: &str,
-) -> AuthzResult<()> {
-    IngestionRepository::upsert_entity(conn, entity_kind, entity_id, default_included, source).await
-}
-
-// Why: marketplace manifests usually carry no `access:` block (the access
-// plane declares it), and serde defaults an absent block to
-// `default_included: false`. Only a block that declares something may write
-// the access columns; otherwise an existing row keeps what the plane set.
-pub(super) async fn upsert_marketplace_entity_row(
-    conn: &mut PgConnection,
-    entity_id: &str,
-    access: &MarketplaceAccess,
-) -> AuthzResult<()> {
-    let source = format!("marketplace:{entity_id}");
-    let declared = access.is_declared().then_some(access.default_included);
-    IngestionRepository::upsert_marketplace_entity(conn, entity_id, declared, &source).await
 }
 
 pub(super) async fn ensure_catalog_entity_row(
@@ -81,7 +53,7 @@ pub(super) async fn upsert_target(
         IngestionRepository::insert_rule(conn, target).await?;
         return Ok(UpsertOutcome::Inserted);
     };
-    if row.source == DASHBOARD_SOURCE {
+    if row.source.starts_with(CONSOLE_SOURCE_PREFIX) {
         return Ok(UpsertOutcome::Protected);
     }
     if !override_existing {

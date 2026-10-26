@@ -7,7 +7,10 @@
 //! authority, declaration hash, remaining drift and outcome of the last
 //! reconcile pass, and the plane's `effect` (`live`, or `on_restart` when a
 //! change reaches the runtime only after a restart; absent for a plane this
-//! binary does not register). Drift never makes a replica unready.
+//! binary does not register). Drift never makes a replica unready. A replica
+//! whose governance plane was never applied says so under `config.unapplied`
+//! with the profile's `unapplied_planes` mode, its effect and the command that
+//! applies it; it stays ready either way.
 //! It also carries `fingerprint`, this replica's configuration fingerprint,
 //! so replicas running different configuration are visible.
 //! A node whose database a newer release has migrated stays ready and says so
@@ -26,11 +29,13 @@ use std::sync::Arc;
 
 use axum::Json;
 use serde_json::json;
+use systemprompt_database::PLANE_NOT_APPLIED_HINT;
 use systemprompt_extension::{ReadinessCheck, ReadinessFailure};
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
+use super::readiness::ReadinessState;
 use crate::services::middleware::LoadShed;
 
 pub(crate) async fn handle_livez(
@@ -48,12 +53,13 @@ pub(crate) async fn handle_readyz(
     shed: Option<axum::Extension<Arc<LoadShed>>>,
     planes: Option<axum::Extension<Arc<ConfigReconcileRepository>>>,
     readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
+    axum::Extension(api_ready): axum::Extension<Arc<ReadinessState>>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
 
     let instance = ctx.config().instance_id.clone();
-    let fingerprint = super::config_fingerprint::current();
+    let fingerprint = super::config_fingerprint::current(ctx.boot());
     let respond = |status: StatusCode, mut body: serde_json::Value, config: serde_json::Value| {
         if let Some(fields) = body.as_object_mut() {
             fields.insert("instance".to_owned(), json!(instance));
@@ -64,7 +70,7 @@ pub(crate) async fn handle_readyz(
     };
     let bare = json!({ "fingerprint": fingerprint });
 
-    if !super::readiness::is_ready() {
+    if !api_ready.is_ready() {
         return respond(
             StatusCode::SERVICE_UNAVAILABLE,
             json!({ "status": "draining" }),
@@ -94,12 +100,14 @@ pub(crate) async fn handle_readyz(
     }
 
     let registered = registered_planes(&ctx);
-    let config = config_block(
+    let mut config = config_block(
         fingerprint,
         planes.as_deref().map(AsRef::as_ref),
         registered.as_ref(),
     )
     .await;
+    flag_unapplied_governance(&ctx, &mut config);
+    flag_degraded_services_source(&ctx, &mut config);
     let (extensions_ready, extensions) = match readiness.as_deref() {
         Some(readiness) => readiness.run().await,
         None => (true, json!([])),
@@ -157,6 +165,52 @@ async fn config_block(
         },
         Err(_) => json!({ "fingerprint": fingerprint, "planes": [], "error": "timeout" }),
     }
+}
+
+// JSON: the `/readyz` config block is an open JSON object.
+fn flag_unapplied_governance(ctx: &AppContext, config: &mut serde_json::Value) {
+    if let (Some(block), Some(fields)) = (unapplied_governance(ctx), config.as_object_mut()) {
+        fields.insert("unapplied".to_owned(), block);
+    }
+}
+
+// JSON: the `/readyz` config block is an open JSON object.
+fn flag_degraded_services_source(ctx: &AppContext, config: &mut serde_json::Value) {
+    if let (Some(block), Some(fields)) = (degraded_services_source(ctx), config.as_object_mut()) {
+        fields.insert("services_source".to_owned(), block);
+    }
+}
+
+// JSON: `/readyz` and `/health` carry this block as an open JSON object.
+pub(super) fn degraded_services_source(ctx: &AppContext) -> Option<serde_json::Value> {
+    use systemprompt_manifest::services::root::ServicesProvenance;
+    match &ctx.boot().services_root()?.provenance {
+        ServicesProvenance::LastGood { error, .. } => Some(json!({
+            "serving": "last_good",
+            "error": error,
+        })),
+        ServicesProvenance::BundledFallback { error } => Some(json!({
+            "serving": "bundled",
+            "error": error,
+        })),
+        ServicesProvenance::Bundled | ServicesProvenance::Fetched { .. } => None,
+    }
+}
+
+// JSON: `/readyz` and `/health` carry this block as an open JSON object.
+pub(super) fn unapplied_governance(ctx: &AppContext) -> Option<serde_json::Value> {
+    let mode = ctx.governance().unapplied_mode()?;
+    let effect = if mode.denies() {
+        "every governed request is denied"
+    } else {
+        "governed requests pass ungoverned, with a warning on each"
+    };
+    Some(json!({
+        "planes": ["governance"],
+        "unapplied_planes": mode.as_str(),
+        "effect": effect,
+        "fix": PLANE_NOT_APPLIED_HINT,
+    }))
 }
 
 pub(crate) struct ExtensionReadiness {

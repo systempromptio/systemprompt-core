@@ -39,7 +39,7 @@ pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
 pub use error::{GeneratorResult, PublishError};
 pub use prerender::{
-    PagePrerenderResult, TocResult, generate_toc, merge_json_data, prerender_content,
+    PagePrerenderResult, PrerenderEnv, TocResult, generate_toc, merge_json_data, prerender_content,
     prerender_pages,
 };
 pub use rss::{

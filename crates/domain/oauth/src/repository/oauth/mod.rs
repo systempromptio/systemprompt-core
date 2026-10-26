@@ -37,10 +37,11 @@ pub struct OAuthRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
     client_repo: ClientRepository,
+    pepper: Arc<str>,
 }
 
 impl OAuthRepository {
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, pepper: Arc<str>) -> Self {
         let pool = db.pool();
         let write_pool = db.write_pool();
         let client_repo = ClientRepository::new(db);
@@ -48,6 +49,7 @@ impl OAuthRepository {
             pool,
             write_pool,
             client_repo,
+            pepper,
         }
     }
 

@@ -9,14 +9,9 @@ use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseSe
 use systemprompt_agent::services::agent_orchestration::monitor::AgentMonitor;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_manifest::ServicesConfig;
-use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::agent_config;
-use systemprompt_test_fixtures::{test_db_pool, unique_instance};
-
-fn unique_name(prefix: &str) -> AgentName {
-    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
-}
+use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
 
 fn db_service_with(
     pool: &systemprompt_database::DbPool,
@@ -50,7 +45,7 @@ async fn free_port_listener() -> (tokio::net::TcpListener, u16) {
 async fn health_check_reports_not_running_for_unknown_agent() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
-    let name = unique_name("mon_missing");
+    let name = unique_agent_name("mon_missing");
     let monitor =
         AgentMonitor::with_db_service(db_service_with(&pool, &instance, &[(&name, 9420)]));
 
@@ -74,7 +69,7 @@ async fn health_check_passes_for_live_process_with_open_port() {
         }
     });
 
-    let name = unique_name("mon_live");
+    let name = unique_agent_name("mon_live");
     let svc = db_service_with(&pool, &instance, &[(&name, port)]);
     svc.register_agent(&name, std::os::unix::process::parent_id(), port)
         .await
@@ -100,7 +95,7 @@ async fn health_check_fails_for_live_process_with_closed_port() {
     let (listener, port) = free_port_listener().await;
     drop(listener);
 
-    let name = unique_name("mon_closed");
+    let name = unique_agent_name("mon_closed");
     let svc = db_service_with(&pool, &instance, &[(&name, port)]);
     svc.register_agent(&name, std::os::unix::process::parent_id(), port)
         .await

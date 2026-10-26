@@ -5,7 +5,7 @@
 
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
-use systemprompt_cli::admin::setup::common::PostgresConfig;
+use systemprompt_cli::admin::setup::postgres_access::PostgresConfig;
 use systemprompt_cli::admin::setup::wizard::{build_cancelled, database_info, should_write};
 
 fn args() -> SetupArgs {

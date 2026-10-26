@@ -1,7 +1,8 @@
 #![allow(clippy::all)]
 
 use systemprompt_config::SkillConfigValidator;
-use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
+use systemprompt_traits::ConfigProvider;
 
 struct StubConfig {
     skills_path: Option<String>,
@@ -291,7 +292,7 @@ fn validate_skill_with_unknown_host_is_an_error() {
     std::fs::create_dir(&skill_dir).unwrap();
     std::fs::write(
         skill_dir.join("config.yaml"),
-        "id: my-skill\nname: My Skill\ndescription: A test skill\nhosts: [claude-code, codex]\n",
+        "id: my-skill\nname: My Skill\ndescription: A test skill\nhosts: [claude-code, codex-desktop-x]\n",
     )
     .unwrap();
     std::fs::write(skill_dir.join("index.md"), "# body").unwrap();
@@ -305,7 +306,7 @@ fn validate_skill_with_unknown_host_is_an_error() {
     let host_errors: Vec<_> = report
         .errors
         .iter()
-        .filter(|e| e.message.contains("unknown host id `codex`"))
+        .filter(|e| e.message.contains("unknown host id `codex-desktop-x`"))
         .collect();
     assert_eq!(host_errors.len(), 1, "got: {:?}", report.errors);
 }

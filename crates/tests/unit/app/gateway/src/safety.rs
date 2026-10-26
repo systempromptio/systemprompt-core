@@ -7,7 +7,8 @@ use std::sync::Arc;
 use systemprompt_identifiers::ModelId;
 
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalResponse, CanonicalUsage, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
+    CanonicalSampling, CanonicalTooling, CanonicalUsage, Role,
 };
 use systemprompt_gateway::registry::SafetyScannerRegistry;
 use systemprompt_gateway::{
@@ -26,22 +27,28 @@ fn req_with(text: &str) -> CanonicalRequest {
             content: vec![CanonicalContent::text(text)],
         }],
         max_tokens: 1,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -87,7 +94,7 @@ impl SafetyScanner for StubSecretsScanner {
 }
 
 register_safety_scanner!(
-    |_: &ScannerSettings| StubSecretsScanner,
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| StubSecretsScanner,
     name = "stub_secrets"
 );
 
@@ -117,13 +124,16 @@ impl SafetyScanner for StubBrokenScanner {
 }
 
 register_safety_scanner!(
-    |_: &ScannerSettings| StubBrokenScanner,
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| StubBrokenScanner,
     name = "stub_broken"
 );
 
 #[tokio::test]
 async fn a_failing_extension_scanner_reports_failure_instead_of_an_empty_clean_list() {
-    let scanner = SafetyScannerRegistry::global()
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create("stub_broken", &SafetyConfig::default())
         .expect("extension scanner is collected via inventory");
     let request_outcome = scanner.scan_request(&req_with("anything")).await;
@@ -168,26 +178,34 @@ fn severity_as_str() {
     assert_eq!(Severity::High.as_str(), "high");
 }
 
-#[test]
-fn registry_creates_the_builtin_heuristic_per_policy() {
-    let scanner = SafetyScannerRegistry::global()
+#[tokio::test]
+async fn registry_creates_the_builtin_heuristic_per_policy() {
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create("heuristic", &SafetyConfig::default())
         .expect("heuristic is built in");
     assert_eq!(scanner.name(), "heuristic");
 }
 
-#[test]
-fn registry_returns_none_for_unknown_scanner() {
+#[tokio::test]
+async fn registry_returns_none_for_unknown_scanner() {
     assert!(
-        SafetyScannerRegistry::global()
-            .create("does_not_exist", &SafetyConfig::default())
-            .is_none()
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await
+        ))
+        .create("does_not_exist", &SafetyConfig::default())
+        .is_none()
     );
 }
 
 #[tokio::test]
 async fn registry_resolves_registered_extension_scanner() {
-    let registry = SafetyScannerRegistry::global();
+    let registry =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ));
     let scanner = registry
         .create("stub_secrets", &SafetyConfig::default())
         .expect("extension scanner is collected via inventory");
@@ -199,14 +217,17 @@ async fn registry_resolves_registered_extension_scanner() {
     assert_eq!(findings[0].category, "secret");
 }
 
-#[test]
-fn registration_factory_builds_scanner() {
+#[tokio::test]
+async fn registration_factory_builds_scanner() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let reg = SafetyScannerRegistration {
         name: "stub_secrets",
-        factory: |_| Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>,
+        factory: |_, _| Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>,
     };
     assert_eq!(
-        (reg.factory)(&ScannerSettings::default()).name(),
+        (reg.factory)(ctx.as_ref(), &ScannerSettings::default()).name(),
         "stub_secrets"
     );
 }
@@ -393,9 +414,12 @@ mod dedup {
     }
 }
 
-#[test]
-fn registry_resolves_the_null_scanner_by_name() {
-    let scanner = SafetyScannerRegistry::global()
+#[tokio::test]
+async fn registry_resolves_the_null_scanner_by_name() {
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create("null", &SafetyConfig::default())
         .expect("null is built in");
     assert_eq!(scanner.name(), "null");

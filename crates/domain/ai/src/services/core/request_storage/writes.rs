@@ -53,6 +53,7 @@ pub(super) async fn store_tool_calls(
                 tool_name: &tool_call.tool_name,
                 tool_input: &tool_call.tool_input,
                 sequence_number: tool_call.sequence,
+                args: Some(&tool_call.args),
             })
             .await
         {
@@ -124,14 +125,9 @@ pub(super) async fn touch_session(
     session_provider: &dyn AiSessionProvider,
     session_id: &SessionId,
     user_id: &UserId,
+    session_ttl_seconds: i64,
 ) {
-    let jwt_expiration = systemprompt_manifest::Config::get()
-        .map(|c| c.jwt_access_token_expiration)
-        .inspect_err(|e| {
-            error!(error = %e, "Failed to get config for JWT expiration, using default 3600s");
-        })
-        .unwrap_or(3600);
-    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration);
+    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(session_ttl_seconds);
 
     let params = CreateAiSessionParams {
         session_id,

@@ -216,7 +216,7 @@ impl Outbox {
     pub fn has_acknowledged_receipt(
         &self,
         host: systemprompt_models::feedback::EvaluatorClient,
-        publication: &systemprompt_models::bridge::manifest::SkillPublication,
+        publication: &systemprompt_models::bridge::manifest::ManagedPublicationRef,
     ) -> Result<bool> {
         self.read_locked(|state| {
             Ok(state.entries.values().any(|entry| {

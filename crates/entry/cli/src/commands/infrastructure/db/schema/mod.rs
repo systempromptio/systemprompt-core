@@ -16,7 +16,7 @@ use crate::cli_settings::CliConfig;
 use crate::presentation::tables::db_tables_table;
 use crate::shared::{CommandOutput, render_result};
 
-use super::helpers::format_bytes;
+use super::text_format::format_bytes;
 use super::types::{
     ColumnInfo, DbCountOutput, DbDescribeOutput, DbInfoOutput, DbTablesOutput, IndexInfo, TableInfo,
 };

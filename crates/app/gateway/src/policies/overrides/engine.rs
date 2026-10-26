@@ -1,6 +1,6 @@
 //! Resolution of the effective system-prompt override.
 //!
-//! [`OverrideEngine`] evaluates the profile's declarative
+//! [`OverridePolicy`] evaluates the profile's declarative
 //! [`SystemPromptRule`]s first (file order, first match wins), then the
 //! `inventory`-registered extension overrides in registration order. The first
 //! non-[`OverrideAction::Passthrough`] result wins; an extension that errors is
@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_manifest::services::{OverrideRuleAction, SystemPromptRule};
 
@@ -19,27 +19,32 @@ use super::{
     SystemPromptOverrideRegistration,
 };
 
-pub struct OverrideEngine {
+pub struct OverridePolicy {
     extensions: Vec<Arc<dyn SystemPromptOverride>>,
 }
 
-impl std::fmt::Debug for OverrideEngine {
+impl Default for OverridePolicy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl std::fmt::Debug for OverridePolicy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("OverrideEngine")
+        f.debug_struct("OverridePolicy")
             .field("extensions", &self.extensions.len())
             .finish()
     }
 }
 
-impl OverrideEngine {
+impl OverridePolicy {
     #[must_use]
-    pub fn global() -> &'static Self {
-        static ENGINE: OnceLock<OverrideEngine> = OnceLock::new();
-        ENGINE.get_or_init(|| Self {
+    pub fn new() -> Self {
+        Self {
             extensions: inventory::iter::<SystemPromptOverrideRegistration>()
                 .map(|reg| (reg.factory)())
                 .collect(),
-        })
+        }
     }
 
     #[must_use]

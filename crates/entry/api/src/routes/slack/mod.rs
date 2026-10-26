@@ -28,49 +28,62 @@ mod verify;
 
 use std::collections::HashMap;
 
-use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
+use axum::{Extension, Router};
 use systemprompt_governance::authz::EntityRef;
 use systemprompt_runtime::AppContext;
 use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
 use systemprompt_traits::SenderIdentity;
 
-use crate::routes::messaging::{MessagingConversation, MessagingInbound, ReplyTarget};
+use crate::routes::messaging::{
+    MessagingConversation, MessagingInbound, MessagingState, ReplyTarget,
+};
 
 use reply::spawn_reply;
 use verify::{resolve_app, verify_any_app, verify_app};
 
 const ISSUER: &str = "https://slack.com";
 
-pub fn slack_router() -> Router<AppContext> {
+pub fn slack_router(state: MessagingState) -> Router<AppContext> {
     Router::new()
         .route("/events", post(handle_events))
         .route("/commands", post(handle_commands))
         .route("/interactivity", post(handle_interactivity))
+        .layer(Extension(state))
 }
 
-async fn handle_events(State(ctx): State<AppContext>, headers: HeaderMap, body: Bytes) -> Response {
+async fn handle_events(
+    State(ctx): State<AppContext>,
+    Extension(messaging): Extension<MessagingState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
     let Ok(envelope) = serde_json::from_slice::<EventsApiEnvelope>(&body) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
 
     match envelope {
         EventsApiEnvelope::UrlVerification { challenge } => {
-            if verify_any_app(&headers, &body) {
+            if verify_any_app(
+                &ctx.secrets().get(),
+                &ctx.services_config(),
+                &headers,
+                &body,
+            ) {
                 challenge.into_response()
             } else {
                 StatusCode::UNAUTHORIZED.into_response()
             }
         },
         EventsApiEnvelope::EventCallback { team_id, event } => {
-            let Some(app) = resolve_app(&team_id) else {
+            let Some(app) = resolve_app(&ctx.services_config(), &team_id) else {
                 return StatusCode::OK.into_response();
             };
-            if !verify_app(&app, &headers, &body) {
+            if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
                 return StatusCode::UNAUTHORIZED.into_response();
             }
             if event.bot_id.is_some() || !matches!(event.kind.as_str(), "message" | "app_mention") {
@@ -98,7 +111,7 @@ async fn handle_events(State(ctx): State<AppContext>, headers: HeaderMap, body: 
                 reply,
                 sender: SenderIdentity::Unlinked,
             };
-            spawn_reply(ctx, inbound, &app);
+            spawn_reply(ctx, messaging.reply_client, inbound, &app);
             StatusCode::OK.into_response()
         },
     }
@@ -106,6 +119,7 @@ async fn handle_events(State(ctx): State<AppContext>, headers: HeaderMap, body: 
 
 async fn handle_commands(
     State(ctx): State<AppContext>,
+    Extension(messaging): Extension<MessagingState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -113,10 +127,10 @@ async fn handle_commands(
     let Some(cmd) = slash_command_from_form(&form) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
-    let Some(app) = resolve_app(&cmd.team_id) else {
+    let Some(app) = resolve_app(&ctx.services_config(), &cmd.team_id) else {
         return StatusCode::OK.into_response();
     };
-    if !verify_app(&app, &headers, &body) {
+    if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let normalized = cmd.normalize();
@@ -142,12 +156,13 @@ async fn handle_commands(
         reply,
         sender: SenderIdentity::Unlinked,
     };
-    spawn_reply(ctx, inbound, &app);
+    spawn_reply(ctx, messaging.reply_client, inbound, &app);
     StatusCode::OK.into_response()
 }
 
 async fn handle_interactivity(
     State(ctx): State<AppContext>,
+    Extension(messaging): Extension<MessagingState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -159,10 +174,10 @@ async fn handle_interactivity(
         Ok(p) => p,
         Err(_) => return StatusCode::BAD_REQUEST.into_response(),
     };
-    let Some(app) = resolve_app(&payload.team.id) else {
+    let Some(app) = resolve_app(&ctx.services_config(), &payload.team.id) else {
         return StatusCode::OK.into_response();
     };
-    if !verify_app(&app, &headers, &body) {
+    if !verify_app(&ctx.secrets().get(), &app, &headers, &body) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
     let channel_id = payload
@@ -202,7 +217,7 @@ async fn handle_interactivity(
         reply,
         sender: SenderIdentity::Unlinked,
     };
-    spawn_reply(ctx, inbound, &app);
+    spawn_reply(ctx, messaging.reply_client, inbound, &app);
     StatusCode::OK.into_response()
 }
 

@@ -17,7 +17,10 @@ pub use catalog::{configured_inventory_fingerprint, scan_configured_inventory};
 pub use publish_latest::{LatestPublication, LatestPublicationStatus, PublishGuard};
 pub(crate) use repository::IncomingRevision;
 pub use service::InventoryService;
-pub use types::*;
+pub use types::{
+    BaselineScope, ConfiguredInventoryEntry, InventoryEntry, InventoryReconciliation,
+    InventoryStatus, SourcesContext, configured_identity,
+};
 
 mod installation_coverage;
 pub use installation_coverage::InstallationCoverage;

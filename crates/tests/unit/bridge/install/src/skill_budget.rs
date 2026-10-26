@@ -26,6 +26,7 @@ fn marketplace(id: &str, budget: Option<u32>) -> ManifestMarketplace {
         claude_code: budget.map(|chars| ManifestClaudeCode {
             skill_listing_budget_chars: Some(chars),
         }),
+        opencode: None,
     }
 }
 

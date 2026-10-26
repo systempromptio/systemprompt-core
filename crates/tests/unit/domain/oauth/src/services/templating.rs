@@ -1,7 +1,7 @@
-//! Tests for TemplateEngine
+//! Tests for TemplateService
 
 use std::collections::HashMap;
-use systemprompt_oauth::TemplateEngine;
+use systemprompt_oauth::TemplateService;
 
 #[test]
 fn test_render_simple_template() {
@@ -9,7 +9,7 @@ fn test_render_simple_template() {
     let mut context = HashMap::new();
     context.insert("name", "World");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Hello, World!");
 }
 
@@ -21,7 +21,7 @@ fn test_render_multiple_placeholders() {
     context.insert("name", "Alice");
     context.insert("place", "OAuth Land");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Hello, Alice! Welcome to OAuth Land.");
 }
 
@@ -30,7 +30,7 @@ fn test_render_no_placeholders() {
     let template = "This is a static template.";
     let context = HashMap::new();
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "This is a static template.");
 }
 
@@ -39,7 +39,7 @@ fn test_render_empty_template() {
     let template = "";
     let context = HashMap::new();
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "");
 }
 
@@ -48,7 +48,7 @@ fn test_render_missing_placeholder() {
     let template = "Hello, {name}!";
     let context = HashMap::new();
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Hello, {name}!");
 }
 
@@ -58,7 +58,7 @@ fn test_render_html_escaping_ampersand() {
     let mut context = HashMap::new();
     context.insert("value", "A & B");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Value: A &amp; B");
 }
 
@@ -68,7 +68,7 @@ fn test_render_html_escaping_less_than() {
     let mut context = HashMap::new();
     context.insert("value", "A < B");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Value: A &lt; B");
 }
 
@@ -78,7 +78,7 @@ fn test_render_html_escaping_greater_than() {
     let mut context = HashMap::new();
     context.insert("value", "A > B");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Value: A &gt; B");
 }
 
@@ -88,7 +88,7 @@ fn test_render_html_escaping_double_quote() {
     let mut context = HashMap::new();
     context.insert("value", "Say \"hello\"");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Value: Say &quot;hello&quot;");
 }
 
@@ -98,7 +98,7 @@ fn test_render_html_escaping_single_quote() {
     let mut context = HashMap::new();
     context.insert("value", "It's good");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Value: It&#x27;s good");
 }
 
@@ -108,7 +108,7 @@ fn test_render_xss_prevention() {
     let mut context = HashMap::new();
     context.insert("name", "<script>alert('xss')</script>");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert!(result.contains("&lt;script&gt;"));
     assert!(!result.contains("<script>"));
 }
@@ -119,7 +119,7 @@ fn test_render_repeated_placeholder() {
     let mut context = HashMap::new();
     context.insert("name", "Alice");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Alice said hello to Alice!");
 }
 
@@ -129,7 +129,7 @@ fn test_render_complex_html() {
     let mut context = HashMap::new();
     context.insert("message", "Hello & goodbye");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "<div class=\"greeting\">Hello &amp; goodbye</div>");
 }
 
@@ -139,27 +139,27 @@ fn test_render_empty_value() {
     let mut context = HashMap::new();
     context.insert("value", "");
 
-    let result = TemplateEngine::render(template, context);
+    let result = TemplateService::render(template, context);
     assert_eq!(result, "Value: []");
 }
 
 #[test]
 fn test_load_authorize_template() {
-    let template = TemplateEngine::load_authorize_template();
+    let template = TemplateService::load_authorize_template();
     assert!(!template.is_empty());
     assert!(template.contains("<!DOCTYPE html>") || template.contains("<html"));
 }
 
 #[test]
 fn test_load_webauthn_oauth_template() {
-    let template = TemplateEngine::load_webauthn_oauth_template();
+    let template = TemplateService::load_webauthn_oauth_template();
     assert!(!template.is_empty());
     assert!(template.contains("<!DOCTYPE html>") || template.contains("<html"));
 }
 
 #[test]
 fn test_load_link_passkey_template() {
-    let template = TemplateEngine::load_link_passkey_template();
+    let template = TemplateService::load_link_passkey_template();
     assert!(!template.is_empty());
     assert!(template.contains("<!DOCTYPE html>") || template.contains("<html"));
 }

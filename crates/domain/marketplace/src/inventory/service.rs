@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{InventoryStatus, scan_configured_inventory};
+use super::{InventoryStatus, SourcesContext, scan_configured_inventory};
 use crate::managed::{ManagedError, ManagedRepository, Result};
 use std::path::Path;
 use systemprompt_identifiers::UserId;
@@ -24,6 +24,7 @@ impl InventoryService {
         owner: &UserId,
         root: &Path,
         services: &ServicesConfig,
+        sources: SourcesContext<'_>,
     ) -> Result<InventoryStatus> {
         let root = root.to_path_buf();
         let services = services.clone();
@@ -38,7 +39,7 @@ impl InventoryService {
         let result = match configured {
             Ok(configured) => {
                 self.repository
-                    .reconcile_inventory(owner, &configured)
+                    .reconcile_inventory(owner, &configured, sources)
                     .await
             },
             Err(error) => Err(error),

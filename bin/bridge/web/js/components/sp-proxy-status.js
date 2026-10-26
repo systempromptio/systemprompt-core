@@ -6,6 +6,7 @@ import { t } from "/assets/js/i18n.js";
 import { toneDot, toneSection, worstTone } from "/assets/js/utils/verdict.js";
 import { runAction } from "/assets/js/utils/action.js";
 import { catalogView, desktopLine, endpointsBody, staleBadge } from "/assets/js/utils/catalog-view.js";
+import { HOST_ID } from "/assets/js/utils/host-ids.js";
 
 function proxyView(proxy) {
   const verdict = proxy.verdict || { tone: "unknown", code: "unknown" };
@@ -36,7 +37,7 @@ export class SpProxyStatus extends SpElement {
     });
     this.registerAction("open-desktop", (trigger) => {
       const drawer = document.querySelector("sp-agent-drawer");
-      if (drawer) { drawer.open("detail", "claude-desktop", trigger); }
+      if (drawer) { drawer.open("detail", HOST_ID.claudeDesktop, trigger); }
     });
   }
 

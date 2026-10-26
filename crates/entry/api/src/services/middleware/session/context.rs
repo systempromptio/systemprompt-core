@@ -172,7 +172,9 @@ impl SessionMiddleware {
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let Ok(jwt_context) = extract_user_context(&token, &self.jwt_issuer) else {
+        let Ok(jwt_context) =
+            extract_user_context(&self.signing_keys, &token, &self.config.jwt_issuer)
+        else {
             let (sid, uid, token, is_new, fp) =
                 lifecycle::create_new_session(&self.session_creation_service, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };
@@ -209,6 +211,7 @@ impl SessionMiddleware {
 
         match lifecycle::refresh_session_for_user(
             &self.session_creation_service,
+            &self.config,
             &jwt_context.user_id,
             meta,
         )

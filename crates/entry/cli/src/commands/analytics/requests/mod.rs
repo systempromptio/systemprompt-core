@@ -18,6 +18,7 @@ use clap::{Args, Subcommand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::commands::analytics::shared::with_resolved_export;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
@@ -107,22 +108,30 @@ pub async fn execute(args: RequestsArgs, ctx: &CommandContext) -> Result<()> {
     let db_ctx = ctx.database().await?;
     match args.cmd.unwrap_or(RequestsCommands::Stats(args.stats)) {
         RequestsCommands::Stats(args) => {
-            let result = stats::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                stats::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         RequestsCommands::List(args) => {
-            let result = list::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                list::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         RequestsCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                trends::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         RequestsCommands::Models(args) => {
-            let result = models::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                models::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

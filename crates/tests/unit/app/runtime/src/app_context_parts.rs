@@ -5,19 +5,11 @@
 //! types re-exported from this crate.
 
 use systemprompt_runtime::{AppContextBuilder, MigrationConfig};
-
-#[test]
-fn builder_new_and_default_equivalent() {
-    let a = AppContextBuilder::new();
-    let b = AppContextBuilder::default();
-    let da = format!("{a:?}");
-    let db = format!("{b:?}");
-    assert_eq!(da, db);
-}
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 #[test]
 fn builder_default_flags_are_false() {
-    let builder = AppContextBuilder::new();
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone());
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("show_startup_warnings: false"), "got: {dbg}");
     assert!(dbg.contains("install_schemas: false"), "got: {dbg}");
@@ -28,28 +20,32 @@ fn builder_default_flags_are_false() {
 
 #[test]
 fn builder_with_startup_warnings_true_reflects_in_debug() {
-    let builder = AppContextBuilder::new().with_startup_warnings(true);
+    let builder =
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_startup_warnings(true);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("show_startup_warnings: true"), "got: {dbg}");
 }
 
 #[test]
 fn builder_with_startup_warnings_false_reflects_in_debug() {
-    let builder = AppContextBuilder::new().with_startup_warnings(false);
+    let builder =
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_startup_warnings(false);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("show_startup_warnings: false"), "got: {dbg}");
 }
 
 #[test]
 fn builder_with_migrations_true_reflects_in_debug() {
-    let builder = AppContextBuilder::new().with_migrations(true);
+    let builder =
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_migrations(true);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("install_schemas: true"), "got: {dbg}");
 }
 
 #[test]
 fn builder_with_migrations_false_reflects_in_debug() {
-    let builder = AppContextBuilder::new().with_migrations(false);
+    let builder =
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_migrations(false);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("install_schemas: false"), "got: {dbg}");
 }
@@ -57,7 +53,8 @@ fn builder_with_migrations_false_reflects_in_debug() {
 #[test]
 fn builder_with_extension_registry_reflects_in_debug() {
     use systemprompt_extension::ExtensionRegistry;
-    let builder = AppContextBuilder::new().with_extensions(ExtensionRegistry::new());
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone())
+        .with_extensions(ExtensionRegistry::new());
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("extension_registry: true"), "got: {dbg}");
 }
@@ -67,7 +64,8 @@ fn builder_with_authz_hook_reflects_in_debug() {
     use std::sync::Arc;
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
     let hook = AllowAllHook::new(Arc::new(NullAuditSink));
-    let builder = AppContextBuilder::new().with_authz_hook(hook);
+    let builder =
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_authz_hook(hook);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("authz_hook: true"), "got: {dbg}");
 }
@@ -77,7 +75,8 @@ fn builder_with_shared_authz_hook_reflects_in_debug() {
     use std::sync::Arc;
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
     let hook: SharedAuthzHook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    let builder = AppContextBuilder::new().with_shared_authz_hook(hook);
+    let builder =
+        AppContextBuilder::new(ensure_test_bootstrap().boot.clone()).with_shared_authz_hook(hook);
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("authz_hook: true"), "got: {dbg}");
 }
@@ -86,7 +85,8 @@ fn builder_with_shared_authz_hook_reflects_in_debug() {
 fn builder_with_marketplace_filter_reflects_in_debug() {
     use std::sync::Arc;
     use systemprompt_marketplace::AllowAllFilter;
-    let builder = AppContextBuilder::new().with_marketplace_filter(Arc::new(AllowAllFilter));
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone())
+        .with_marketplace_filter(Arc::new(AllowAllFilter));
     let dbg = format!("{builder:?}");
     assert!(dbg.contains("marketplace_filter: true"), "got: {dbg}");
 }
@@ -99,7 +99,7 @@ fn builder_full_chain_all_flags_set() {
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
     use systemprompt_marketplace::AllowAllFilter;
 
-    let builder = AppContextBuilder::new()
+    let builder = AppContextBuilder::new(ensure_test_bootstrap().boot.clone())
         .with_extensions(ExtensionRegistry::new())
         .with_startup_warnings(true)
         .with_migrations(true)

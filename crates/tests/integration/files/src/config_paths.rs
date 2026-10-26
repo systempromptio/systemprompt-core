@@ -1,24 +1,15 @@
 //! Integration tests for FilesConfig getters and URL formatters.
 //!
-//! Bootstraps `ProfileBootstrap` + `FilesConfig` via the shared `bootstrap`
-//! helper so the URL helpers can be exercised against a real storage root.
+//! Bootstraps the fixture `BootContext` + `FilesConfig` via the shared
+//! `bootstrap` helper so the URL helpers can be exercised against a real
+//! storage root.
 
-use systemprompt_files::FilesConfig;
 
 use crate::bootstrap::test_env;
 
 #[test]
-fn files_config_get_returns_initialised_singleton() {
-    let _env = test_env();
-    let cfg = FilesConfig::get().expect("initialised");
-    assert!(!cfg.url_prefix().is_empty());
-    assert!(FilesConfig::get_optional().is_some());
-}
-
-#[test]
 fn files_config_storage_tree_paths_resolve() {
-    let _env = test_env();
-    let cfg = FilesConfig::get().expect("initialised");
+    let cfg = &test_env().files_config;
 
     let storage = cfg.storage();
     assert!(storage.is_absolute(), "storage root is absolute");
@@ -44,8 +35,7 @@ fn files_config_storage_tree_paths_resolve() {
 
 #[test]
 fn files_config_url_formatters_strip_leading_slash() {
-    let _env = test_env();
-    let cfg = FilesConfig::get().expect("initialised");
+    let cfg = &test_env().files_config;
 
     let prefix = cfg.url_prefix().to_owned();
 
@@ -90,49 +80,36 @@ fn files_config_url_formatters_strip_leading_slash() {
 
 #[test]
 fn files_config_validate_succeeds_for_initialised_config() {
-    let _env = test_env();
-    let cfg = FilesConfig::get().expect("initialised");
+    let cfg = &test_env().files_config;
     cfg.validate().expect("absolute storage root validates");
 }
 
 #[test]
 fn files_config_ensure_storage_structure_creates_subdirs() {
-    let _env = test_env();
-    let cfg = FilesConfig::get().expect("initialised");
+    let cfg = &test_env().files_config;
 
-    let errors = cfg.ensure_storage_structure();
-    assert!(
-        errors.is_empty(),
-        "ensure_storage_structure errors: {errors:?}"
-    );
+    cfg.ensure_storage_structure()
+        .expect("ensure_storage_structure creates the tree");
     assert!(cfg.files().exists(), "files dir created");
     assert!(cfg.images().exists(), "images dir created");
 }
 
 #[test]
 fn files_config_upload_returns_config() {
-    let _env = test_env();
-    let cfg = FilesConfig::get().expect("initialised");
+    let cfg = &test_env().files_config;
     let upload = cfg.upload();
     assert!(upload.enabled);
     assert!(upload.max_file_size_bytes > 0);
 }
 
 #[test]
-fn files_config_init_is_idempotent() {
-    let env = test_env();
-    let _ = systemprompt_files::FilesConfig::init(&env.app_paths);
-    assert!(systemprompt_files::FilesConfig::get_optional().is_some());
-}
-
-#[test]
 fn files_config_validator_load_and_validate() {
     use systemprompt_files::FilesConfigValidator;
-    use systemprompt_traits::DomainConfig;
+    use systemprompt_manifest::validators::DomainConfig;
 
-    let _env = test_env();
+    let env = test_env();
 
-    let v = FilesConfigValidator::new();
+    let v = FilesConfigValidator::new(env.app_paths.clone());
     let err = v
         .validate()
         .expect_err("validator with no config should error");

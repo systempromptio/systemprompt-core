@@ -6,7 +6,7 @@
 //! failing boot on a shared screen.
 //!
 //! The required keys are the ones the boot itself demands
-//! ([`SecretsBootstrap::required_secret_keys`]), so a document that passes this
+//! ([`SecretsService::required_secret_keys`]), so a document that passes this
 //! check is not then refused at startup.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -18,13 +18,13 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use systemprompt_config::{
-    ProfileBootstrap, ResolvedSource, SecretsBootstrap, SecretsProvider, VaultKvProvider,
-    build_external_provider, process_env_lookup,
+    ResolvedSource, SecretsProvider, SecretsService, VaultKvProvider, build_external_provider,
+    process_env_lookup,
 };
 use systemprompt_manifest::profile::resolve_with_home;
 use systemprompt_manifest::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 pub const DATABASE_URL_ALIASES: &[&str] = &["database_url", "internal_database_url"];
@@ -43,19 +43,20 @@ pub struct SecretCheckReport {
     pub last_error: Option<String>,
 }
 
-pub async fn execute(config: &CliConfig) -> Result<()> {
-    let report = run().await?;
+pub async fn execute(ctx: &CommandContext) -> Result<()> {
+    let report = run(ctx).await?;
     render_result(
         &CommandOutput::card_value("Secrets Source", &report),
-        config,
+        &ctx.cli,
     );
     Ok(())
 }
 
-pub async fn run() -> Result<SecretCheckReport> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let profile_path = ProfileBootstrap::get_path().context("Failed to locate the profile")?;
-    let profile_dir = Path::new(profile_path)
+pub async fn run(ctx: &CommandContext) -> Result<SecretCheckReport> {
+    let profile = ctx.profile()?;
+    let profile_dir = ctx
+        .loaded_profile()?
+        .path()
         .parent()
         .context("Profile path has no parent directory")?;
 
@@ -74,9 +75,9 @@ pub async fn run() -> Result<SecretCheckReport> {
     .context("The profile's secrets configuration is not usable")?;
 
     let required =
-        SecretsBootstrap::required_secret_keys(SecretsBootstrap::signing_key_pem_required());
+        SecretsService::required_secret_keys(SecretsService::signing_key_pem_required(profile));
     let (source, detail, keys) = describe(&resolved, profile_dir, &required).await?;
-    let status = SecretsBootstrap::status();
+    let status = ctx.boot().ok().map(|boot| boot.secrets().status());
     Ok(SecretCheckReport {
         missing_required: missing_required(&keys, &required),
         source,

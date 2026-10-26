@@ -1,13 +1,20 @@
-//! [`UpstreamTarget`]: a catalog provider bound to its credential.
+//! [`UpstreamTarget`]: one catalog endpoint bound to its credential.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
-use systemprompt_identifiers::{ProviderId, SecretName, UserId};
-use systemprompt_manifest::services::ProviderEntry;
-use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
+use systemprompt_identifiers::{CredentialId, ProviderId, UserId};
+use systemprompt_manifest::secrets::Secrets;
+use systemprompt_manifest::services::catalog::{
+    EndpointRef, ResolvedCatalog, ResolvedCredential, ResolvedEndpoint, ResolvedHop,
+    ResolvedProvider,
+};
+use systemprompt_security::credential::{
+    CredentialKind, ProviderCredential, TokenCache, TokenCacheKey, fill_endpoint,
+};
 use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::upstream::UpstreamDialect;
 use systemprompt_wire::{Hosting, WireProtocol};
@@ -15,86 +22,141 @@ use systemprompt_wire::{Hosting, WireProtocol};
 use super::call::UpstreamCall;
 use super::error::UpstreamTargetError;
 
-/// A provider resolved once and reused for every request to it.
+/// An endpoint resolved once and reused for every request to it.
 ///
-/// Holds the parsed credential rather than an auth header: an OAuth token
-/// expires within the hour, so the header is minted per call from the shared
-/// token cache, never frozen at construction.
+/// The wire, URL, hosting and accepted betas are the endpoint's; the headers,
+/// user agent and forwarded-header allowlist are its provider's; the secret is
+/// its provider's credential. It holds the parsed credential rather than an
+/// auth header: an OAuth token expires within the hour, so the header is
+/// minted per call from the credential-keyed token cache.
 #[derive(Debug, Clone)]
 pub struct UpstreamTarget {
-    provider: ProviderId,
+    endpoint_ref: EndpointRef,
+    credential_id: CredentialId,
     wire: WireProtocol,
     hosting: Hosting,
     endpoint: String,
     credential: ProviderCredential,
-    cache_key: String,
+    cache_key: TokenCacheKey,
+    tokens: Arc<TokenCache>,
     extra_headers: Vec<(String, String)>,
     accepted_betas: Option<BTreeSet<AnthropicBeta>>,
     user_agent: Option<String>,
     forward_headers: Vec<String>,
 }
 
+/// The three catalog objects one upstream is built from.
+#[derive(Debug, Clone, Copy)]
+pub struct EndpointBinding<'a> {
+    pub provider: &'a ResolvedProvider,
+    pub endpoint: &'a ResolvedEndpoint,
+    pub credential: &'a ResolvedCredential,
+}
+
+impl<'a> EndpointBinding<'a> {
+    pub fn of_hop(
+        catalog: &'a ResolvedCatalog,
+        hop: &'a ResolvedHop,
+    ) -> Result<Self, UpstreamTargetError> {
+        Self::of_endpoint(catalog, &hop.endpoint_ref())
+    }
+
+    pub fn of_endpoint(
+        catalog: &'a ResolvedCatalog,
+        endpoint: &EndpointRef,
+    ) -> Result<Self, UpstreamTargetError> {
+        let unknown = || UpstreamTargetError::UnknownEndpoint {
+            endpoint: endpoint.to_string(),
+        };
+        let resolved = catalog.endpoint(endpoint).ok_or_else(unknown)?;
+        let provider = catalog
+            .provider(endpoint.provider.as_str())
+            .ok_or_else(unknown)?;
+        let credential = catalog
+            .credential(provider.credential.as_str())
+            .ok_or_else(unknown)?;
+        Ok(Self {
+            provider,
+            endpoint: resolved,
+            credential,
+        })
+    }
+}
+
 impl UpstreamTarget {
-    pub fn resolve(entry: &ProviderEntry, secret: &str) -> Result<Self, UpstreamTargetError> {
-        let secret_name = entry
-            .api_key_secret
-            .as_ref()
-            .map_or_else(|| entry.name.as_str(), |name| name.as_str());
-        Self::resolve_keyed(entry, secret, secret_name)
+    pub fn resolve(
+        tokens: &Arc<TokenCache>,
+        catalog: &ResolvedCatalog,
+        hop: &ResolvedHop,
+        secret: &str,
+    ) -> Result<Self, UpstreamTargetError> {
+        let binding = EndpointBinding::of_hop(catalog, hop)?;
+        let key = TokenCacheKey::platform(&binding.credential.id);
+        Self::bind(tokens, binding, secret, key)
     }
 
     pub fn resolve_personal(
-        entry: &ProviderEntry,
+        tokens: &Arc<TokenCache>,
+        binding: EndpointBinding<'_>,
         key: &str,
         user_id: &UserId,
     ) -> Result<Self, UpstreamTargetError> {
-        let cache_key = format!("user:{}:{}", user_id.as_str(), entry.name.as_str());
-        Self::resolve_keyed(entry, key, &cache_key)
+        let cache_key = TokenCacheKey::personal(&binding.credential.id, user_id);
+        Self::bind(tokens, binding, key, cache_key)
     }
 
-    fn resolve_keyed(
-        entry: &ProviderEntry,
+    pub fn bind(
+        tokens: &Arc<TokenCache>,
+        binding: EndpointBinding<'_>,
         secret: &str,
-        credential_label: &str,
+        cache_key: TokenCacheKey,
     ) -> Result<Self, UpstreamTargetError> {
+        let EndpointBinding {
+            provider,
+            endpoint,
+            credential: catalog_credential,
+        } = binding;
+        let endpoint_ref = endpoint.endpoint_ref();
         let credential = ProviderCredential::parse(secret).map_err(|source| {
             UpstreamTargetError::MalformedCredential {
-                secret: credential_label.to_owned(),
+                credential: catalog_credential.id.as_str().to_owned(),
                 source,
             }
         })?;
-        if entry.hosting() == Hosting::Vertex
-            && entry.wire != WireProtocol::Gemini
+        if endpoint.hosting == Hosting::Vertex
+            && endpoint.wire != WireProtocol::Gemini
             && credential.kind() == CredentialKind::ApiKey
         {
             return Err(UpstreamTargetError::ApiKeyOnVertex {
-                provider: entry.name.as_str().to_owned(),
-                secret: credential_label.to_owned(),
+                endpoint: endpoint_ref.to_string(),
+                credential: catalog_credential.id.as_str().to_owned(),
             });
         }
-        let endpoint = fill_endpoint(&entry.endpoint, &credential.scope()).map_err(|source| {
+        let url = fill_endpoint(&endpoint.url, &credential.scope()).map_err(|source| {
             UpstreamTargetError::Endpoint {
-                provider: entry.name.as_str().to_owned(),
+                endpoint: endpoint_ref.to_string(),
                 source,
             }
         })?;
-        let mut extra_headers: Vec<(String, String)> = entry
+        let mut extra_headers: Vec<(String, String)> = provider
             .extra_headers
             .iter()
             .map(|(name, value)| (name.clone(), value.clone()))
             .collect();
         extra_headers.sort();
         Ok(Self {
-            provider: entry.name.clone(),
-            wire: entry.wire,
-            hosting: entry.hosting(),
-            endpoint,
+            endpoint_ref,
+            credential_id: catalog_credential.id.clone(),
+            wire: endpoint.wire,
+            hosting: endpoint.hosting,
+            endpoint: url,
             credential,
-            cache_key: credential_label.to_owned(),
+            cache_key,
+            tokens: Arc::clone(tokens),
             extra_headers,
-            accepted_betas: entry.accepted_betas.clone(),
-            user_agent: entry.user_agent.clone(),
-            forward_headers: entry
+            accepted_betas: endpoint.betas.clone(),
+            user_agent: provider.user_agent.clone(),
+            forward_headers: provider
                 .forward_headers
                 .iter()
                 .map(|name| name.to_ascii_lowercase())
@@ -102,31 +164,34 @@ impl UpstreamTarget {
         })
     }
 
-    pub fn from_secrets(entry: &ProviderEntry) -> Result<Self, UpstreamTargetError> {
-        let secrets = systemprompt_config::SecretsBootstrap::get()
-            .map_err(|e| UpstreamTargetError::SecretsUnavailable(Box::new(e)))?;
-        let Some(secret_name) = entry.platform_secret().map(SecretName::as_str) else {
-            return Err(UpstreamTargetError::UserCredentialProvider {
-                provider: entry.name.as_str().to_owned(),
+    pub fn from_secrets(
+        tokens: &Arc<TokenCache>,
+        secrets: &Secrets,
+        binding: EndpointBinding<'_>,
+    ) -> Result<Self, UpstreamTargetError> {
+        let credential = binding.credential;
+        let Some(secret_name) = credential.platform_secret() else {
+            return Err(UpstreamTargetError::PersonalCredential {
+                credential: credential.id.as_str().to_owned(),
             });
         };
-        let secret =
-            secrets
-                .get(secret_name)
-                .ok_or_else(|| UpstreamTargetError::MissingSecret {
-                    provider: entry.name.as_str().to_owned(),
-                    secret: secret_name.to_owned(),
-                })?;
-        Self::resolve(entry, secret)
+        let secret = secrets.get(secret_name.as_str()).ok_or_else(|| {
+            UpstreamTargetError::MissingSecret {
+                credential: credential.id.as_str().to_owned(),
+                secret: secret_name.as_str().to_owned(),
+            }
+        })?;
+        let key = TokenCacheKey::platform(&credential.id);
+        Self::bind(tokens, binding, secret, key)
     }
 
     pub async fn call(&self) -> Result<UpstreamCall, UpstreamTargetError> {
         let auth = self
             .credential
-            .bearer(&self.cache_key)
+            .bearer(&self.tokens, &self.cache_key)
             .await
             .map_err(|source| UpstreamTargetError::Mint {
-                secret: self.cache_key.clone(),
+                credential: self.credential_id.as_str().to_owned(),
                 source,
             })?;
         Ok(UpstreamCall::new(
@@ -142,7 +207,17 @@ impl UpstreamTarget {
 
     #[must_use]
     pub const fn provider(&self) -> &ProviderId {
-        &self.provider
+        &self.endpoint_ref.provider
+    }
+
+    #[must_use]
+    pub const fn endpoint_ref(&self) -> &EndpointRef {
+        &self.endpoint_ref
+    }
+
+    #[must_use]
+    pub const fn credential_id(&self) -> &CredentialId {
+        &self.credential_id
     }
 
     #[must_use]
@@ -163,6 +238,16 @@ impl UpstreamTarget {
     #[must_use]
     pub fn endpoint(&self) -> &str {
         &self.endpoint
+    }
+
+    #[must_use]
+    pub const fn accepted_betas(&self) -> Option<&BTreeSet<AnthropicBeta>> {
+        self.accepted_betas.as_ref()
+    }
+
+    #[must_use]
+    pub const fn cache_key(&self) -> &TokenCacheKey {
+        &self.cache_key
     }
 
     #[must_use]

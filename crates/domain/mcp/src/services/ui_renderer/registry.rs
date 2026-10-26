@@ -104,7 +104,7 @@ inventory::collect!(UiRendererRegistration);
 #[macro_export]
 macro_rules! register_ui_renderer {
     ($factory:expr, name = $name:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::services::ui_renderer::registry::UiRendererRegistration {
                 name: $name,
                 factory: || ::std::sync::Arc::new($factory()),

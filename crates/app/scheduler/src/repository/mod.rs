@@ -7,21 +7,23 @@
 //! path.
 //!
 //! [`SecurityRepository`] / [`IpSessionRecord`] are exposed for direct use by
-//! the `crate::jobs::malicious_ip_blacklist` job; the retention statements
-//! back `database_cleanup` and [`otlp`] backs the OTLP exporter.
+//! the `crate::jobs::malicious_ip_blacklist` job and [`otlp`] backs the OTLP
+//! exporter. Retention deletes are not here: `database_cleanup` dispatches to
+//! the owning crates' repositories.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod analytics;
+mod config_apply;
 mod config_reconcile;
 mod job_lock;
 mod jobs;
 pub mod otlp;
-mod retention;
 mod security;
 
 pub use analytics::AnalyticsRepository;
+pub use config_apply::{BaseRecord, ConflictRecord, ConflictRow, LastApply};
 pub use config_reconcile::{
     ConfigChangeRecord, ConfigChangeRow, ConfigReconcileRepository, PlaneStateRow,
     PlaneStateUpdate, PlaneTransaction,
@@ -29,7 +31,6 @@ pub use config_reconcile::{
 pub(crate) use job_lock::JobLockGuard;
 use job_lock::JobLockRepository;
 pub use jobs::JobRepository;
-pub(crate) use retention::{BATCH_ROWS as RETENTION_BATCH_ROWS, RetentionRepository};
 pub use security::{IpSessionRecord, SecurityRepository};
 
 use systemprompt_database::DbPool;

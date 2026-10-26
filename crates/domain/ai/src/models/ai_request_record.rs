@@ -8,13 +8,13 @@ use systemprompt_models::origin::RequestOrigin;
 use systemprompt_wire::canonical::CanonicalUsage;
 
 use super::request_kind::{RequestKind, RequestStatus};
-
 use systemprompt_identifiers::{
     Actor, AiRequestId, ClientSessionId, ContextId, GatewayConversationId, InstanceId,
     McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
 pub use super::ai_request_usage::{CacheInfo, TokenInfo};
+use super::served_hop::CatalogHop;
 
 #[derive(Debug, Clone)]
 pub struct AiRequestRecord {
@@ -32,6 +32,7 @@ pub struct AiRequestRecord {
     pub trace_id: Option<TraceId>,
     pub mcp_execution_id: Option<McpExecutionId>,
     pub provider: Option<String>,
+    pub hop: Option<CatalogHop>,
     pub model: Option<String>,
     pub requested_model: Option<String>,
     pub max_tokens: Option<i32>,
@@ -73,6 +74,7 @@ pub struct AiRequestRecordBuilder {
     trace_id: Option<TraceId>,
     mcp_execution_id: Option<McpExecutionId>,
     provider: Option<String>,
+    hop: Option<CatalogHop>,
     model: Option<String>,
     requested_model: Option<String>,
     max_tokens: Option<i32>,
@@ -109,6 +111,7 @@ impl AiRequestRecordBuilder {
             trace_id: None,
             mcp_execution_id: None,
             provider: None,
+            hop: None,
             model: None,
             requested_model: None,
             max_tokens: None,
@@ -186,6 +189,11 @@ impl AiRequestRecordBuilder {
 
     pub fn provider(mut self, provider: impl Into<String>) -> Self {
         self.provider = Some(provider.into());
+        self
+    }
+
+    pub fn hop(mut self, hop: CatalogHop) -> Self {
+        self.hop = Some(hop);
         self
     }
 
@@ -274,6 +282,7 @@ impl AiRequestRecordBuilder {
             trace_id: self.trace_id,
             mcp_execution_id: self.mcp_execution_id,
             provider: self.provider,
+            hop: self.hop,
             model: self.model,
             requested_model: self.requested_model,
             max_tokens: self.max_tokens,

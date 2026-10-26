@@ -17,3 +17,9 @@ crate::define_id!(CloudUserId, checked, |value| {
 crate::define_id!(CloudAppId, checked, |value| {
     crate::macros::validate_non_empty("CloudAppId", value)
 });
+crate::define_id!(CloudPlanId, checked, |value| {
+    crate::macros::validate_non_empty("CloudPlanId", value)
+});
+crate::define_id!(EnterpriseLicenseId, checked, |value| {
+    crate::macros::validate_non_empty("EnterpriseLicenseId", value)
+});

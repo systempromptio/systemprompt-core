@@ -14,6 +14,7 @@ mod evidence;
 mod fetch;
 mod fragments;
 mod hooks;
+mod hosts;
 pub(super) mod loopback;
 pub mod node_deps;
 mod plugin;
@@ -41,7 +42,6 @@ use crate::ids::BearerToken;
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
-use systemprompt_models::bridge::host::HostKind;
 use tokio_util::sync::CancellationToken;
 
 pub(crate) use plugin::PluginApplyOutcome as ApplyReport;
@@ -93,7 +93,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
     };
     let phase = plugin::apply_plugins(&plugin_ctx, manifest).await;
     crate::fsutil::remove_leftover_dir(&staging_root);
-    let mut report = match phase? {
+    let report = match phase? {
         plugin::PluginPhase::Complete(report) => report,
         plugin::PluginPhase::Cancelled { applied } => {
             return Ok(ApplyOutcome::Cancelled { applied });
@@ -102,15 +102,33 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
 
     check_not_superseded(client.base_url())?;
 
+    emit_to_hosts(req, &meta_dir, report).await
+}
+
+async fn emit_to_hosts(
+    req: &ApplyRequest<'_>,
+    meta_dir: &Path,
+    mut report: plugin::PluginApplyOutcome,
+) -> Result<ApplyOutcome, ApplyError> {
+    let ApplyRequest {
+        client,
+        bearer,
+        bridge,
+        manifest,
+        location,
+        ..
+    } = *req;
+    let loopback = bridge.proxy.loopback();
+    let root = &location.path;
     let mcp_servers =
         loopback::rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
     let mut manifest_for_write = loopback::manifest_with_servers(manifest, mcp_servers.clone());
     skill_bodies::resolve(&mut manifest_for_write, root);
     report
         .receipts
-        .push(write_user(&meta_dir, manifest.user.as_ref())?);
+        .push(write_user(meta_dir, manifest.user.as_ref())?);
     report.receipts.push(write_mcp_servers(
-        &meta_dir,
+        meta_dir,
         client.base_url(),
         &mcp_servers,
     )?);
@@ -130,75 +148,21 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         mcp_registry: &registry,
         start_menu: &bridge.start_menu,
     };
-    for (skill, host) in crate::gateway::manifest::unknown_skill_hosts(&manifest_for_write) {
-        tracing::warn!(
-            target: "bridge::sync::host",
-            skill,
-            host,
-            "skill targets a host id this bridge does not know; no host receives it under that id"
-        );
-    }
     let emitters = host_sync::registry();
-    let mut skipped_absent = std::collections::BTreeSet::new();
-    for (index, emitter) in emitters.iter().enumerate() {
-        let host_id = emitter.host_id();
-        bridge
-            .sync_progress
-            .report(&crate::progress::SyncProgress::new(
-                "hosts",
-                host_id.as_str().to_owned(),
-                index + 1,
-                emitters.len(),
-            ));
-        let enabled = crate::gateway::manifest::enables_host(&manifest_for_write, host_id);
-        if enabled && app_absent(host_id, &bridge.start_menu) {
-            tracing::info!(
-                host = host_id.as_str(),
-                "host app not installed; settings not written"
-            );
-            skipped_absent.insert(host_id);
-            continue;
-        }
-        let outcome = if enabled {
-            emitter.apply(&ctx).await
-        } else {
-            emitter
-                .clear(&ctx)
-                .map(|()| host_sync::HostSyncReport::ok())
-        };
-        match outcome {
-            Ok(emitted) => {
-                report.host_warnings.extend(emitted.warnings);
-                host_sync::log_outcome(*emitter, enabled, Ok(()));
-            },
-            Err(e) => {
-                host_sync::log_outcome(*emitter, enabled, Err(&e));
-                report.host_failures.push(HostFailure {
-                    host_id,
-                    emitter: emitter.emitter_id().to_owned(),
-                    error: format!("{e:#}"),
-                    needs_elevation: matches!(e, ApplyError::ElevationRequired { .. }),
-                });
-            },
-        }
-    }
+    let hosts = hosts::emit_hosts(emitters, &ctx, bridge).await;
+    report.host_warnings.extend(hosts.warnings);
+    report.host_failures.extend(hosts.failures);
     let evidence_warnings = evidence::capture(
         emitters,
         &manifest_for_write,
         &ctx,
-        &skipped_absent,
+        &hosts.skipped_absent,
         &mut report,
     )
     .await;
     report.host_warnings.extend(evidence_warnings);
 
     Ok(ApplyOutcome::Applied(report))
-}
-
-fn app_absent(host_id: HostKind, start_menu: &crate::probe_cache::StartMenuCache) -> bool {
-    crate::integration::find_host_by_id(host_id).is_some_and(|host| {
-        host.app_installed(start_menu) == crate::integration::AppInstallState::NotInstalled
-    })
 }
 
 pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), ApplyError> {

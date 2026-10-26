@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+use systemprompt_test_fixtures::install_headless_keystore;
 
 use arc_swap::ArcSwap;
 use hyper::server::conn::http1;
@@ -397,11 +398,8 @@ fn hop_by_hop_headers_are_stripped_and_bridge_headers_injected() {
             "unrelated client headers are passed through"
         );
         assert!(
-            req.headers
-                .get("x-session-id")
-                .and_then(|v| v.to_str().ok())
-                .is_some_and(|s| !s.is_empty()),
-            "the proxy stamps its session id"
+            req.headers.get("x-session-id").is_none(),
+            "the proxy never synthesizes a session id the client did not send"
         );
         assert!(
             req.headers
@@ -409,6 +407,43 @@ fn hop_by_hop_headers_are_stripped_and_bridge_headers_injected() {
                 .and_then(|v| v.to_str().ok())
                 .is_some_and(|s| !s.is_empty()),
             "a messages body derives a gateway conversation id"
+        );
+    });
+}
+
+#[test]
+fn headers_a_client_session_id_reaches_the_gateway_unchanged() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_raw(b"{}".to_vec(), "application/json"),
+            )
+            .mount(&h.gateway)
+            .await;
+
+        Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .header("x-session-id", "ses_ClientOwned123")
+            .header("content-type", "application/json")
+            .body(r#"{"messages":[{"role":"user","content":"hi"}]}"#)
+            .send()
+            .await
+            .expect("request to proxy");
+
+        let requests = h.upstream_requests().await;
+        let values: Vec<&str> = requests[0]
+            .headers
+            .get_all("x-session-id")
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .collect();
+        assert_eq!(
+            values,
+            vec!["ses_ClientOwned123"],
+            "the client's session id is forwarded once, byte-for-byte"
         );
     });
 }
@@ -541,7 +576,7 @@ fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
         assert_eq!(
             wrong
                 .headers()
-                .get("x-systemprompt-bridge-reason")
+                .get(systemprompt_bridge::headers::REJECTION_REASON)
                 .and_then(|v| v.to_str().ok()),
             Some("secret-mismatch"),
             "a host UI must be able to classify this without parsing prose"
@@ -565,7 +600,7 @@ fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
         assert_eq!(none.status().as_u16(), 403);
         assert_eq!(
             none.headers()
-                .get("x-systemprompt-bridge-reason")
+                .get(systemprompt_bridge::headers::REJECTION_REASON)
                 .and_then(|v| v.to_str().ok()),
             Some("no-credential")
         );
@@ -806,29 +841,6 @@ fn state_sandbox<R>(state: &tempfile::TempDir, f: impl FnOnce() -> R) -> R {
     )
 }
 
-// The bridge's own lazy platform-store bootstrap must stand down before the
-// first entry is created, so a headless store is installed here instead. Linux
-// CI gets the kernel keyring, which needs no Secret Service daemon; elsewhere
-// the in-memory mock plays the same role without reaching for the platform
-// keychain, which would prompt or fail on a developer's machine.
-#[cfg(target_os = "linux")]
-fn use_headless_keystore() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(
-            linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
-        );
-    });
-}
-
-#[cfg(not(target_os = "linux"))]
-fn use_headless_keystore() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
-    });
-}
-
 #[test]
 fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
     let state = tempfile::tempdir().expect("state dir");
@@ -892,7 +904,7 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
 
 #[test]
 fn a_hook_route_mints_a_plugin_scoped_token_and_a_401_spares_the_shared_jwt() {
-    use_headless_keystore();
+    install_headless_keystore();
     let state = tempfile::tempdir().expect("state dir");
     state_sandbox(&state, || {
         block_on(async {
@@ -975,7 +987,7 @@ fn a_hook_route_mints_a_plugin_scoped_token_and_a_401_spares_the_shared_jwt() {
 
 #[test]
 fn a_tracked_native_hook_replaces_caller_evidence_and_persists_its_session() {
-    use_headless_keystore();
+    install_headless_keystore();
     let state = tempfile::tempdir().expect("state dir");
     state_sandbox(&state, || {
         block_on(async {
@@ -1140,7 +1152,7 @@ fn a_malformed_persisted_mcp_registry_fails_closed_without_forwarding_a_jwt() {
 
 #[test]
 fn a_hook_oauth_client_failure_is_local_and_does_not_forward_the_hook() {
-    use_headless_keystore();
+    install_headless_keystore();
     let state = tempfile::tempdir().expect("state dir");
     state_sandbox(&state, || {
         block_on(async {
@@ -1230,7 +1242,9 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         activity: systemprompt_bridge::activity::ActivityLog::new(),
         http: reqwest::Client::new(),
         plugin_tokens: Arc::new(
-            systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
+            systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::new(
+                systemprompt_bridge::auth::plugin_oauth::SecretStore::resolve(),
+            ),
         ),
         update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
     }

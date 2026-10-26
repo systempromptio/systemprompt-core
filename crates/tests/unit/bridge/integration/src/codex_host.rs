@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use systemprompt_bridge::ids::HostToken;
-use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
+use systemprompt_bridge::integration::codex::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
     HostApp, ProfileGenInputs, ProfileState, StaleReason,
 };
@@ -262,10 +262,10 @@ fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
         "{}",
         CODEX_CLI_HOST.description()
     );
-    assert!(
-        CODEX_CLI_HOST.accepted_surfaces().is_empty(),
-        "Codex is offered every advertised provider; the gateway transcodes to \
-         the OpenAI wire it speaks"
+    assert_eq!(
+        systemprompt_bridge::gateway::model_view::host_client(CODEX_CLI_HOST.id()),
+        systemprompt_models::providers::ClientFamily::OpenAi,
+        "Codex lists the models the catalog advertises to openai clients"
     );
     assert!(
         !CODEX_CLI_HOST.install_action_label().is_empty(),

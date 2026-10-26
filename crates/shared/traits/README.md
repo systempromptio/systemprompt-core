@@ -13,14 +13,14 @@ Defines shared interfaces for runtime capabilities, provider integration, events
 
 ```toml
 [dependencies]
-systemprompt-traits = "0.72"
+systemprompt-traits = "0.73"
 ```
 
 Enable the `web` feature to pull in the `axum`-backed `ApiModule` trait:
 
 ```toml
 [dependencies]
-systemprompt-traits = { version = "0.72", features = ["web"] }
+systemprompt-traits = { version = "0.73", features = ["web"] }
 ```
 
 ## Example
@@ -50,7 +50,6 @@ impl Service for HealthPinger {
 | `content` | `ContentProvider`, `ContentSummary`, `ContentItem`, and `ContentFilter`. |
 | `context` | `AppContext`, `ConfigProvider`, `DatabaseHandle`, `ModuleRegistry`, `Module`, `ContextPropagation`, and the optional `ApiModule` (`web` feature). |
 | `context_provider` | `ContextProvider` for conversation contexts and `ContextWithStats`. |
-| `domain_config` | `DomainConfig` and `DomainConfigRegistry` for per-domain config loading. |
 | `events` | Log, user, and analytics event publisher traits. |
 | `extension_error` | `ExtensionError` trait, `ApiError`, and `McpErrorData` wire types. |
 | `jwt` | `JwtValidationProvider`, `AgentJwtClaims`, and `GenerateTokenParams`. |
@@ -63,13 +62,12 @@ impl Service for HealthPinger {
 | `startup_events` | Startup phase, service, and module event types plus publisher extensions. |
 | `storage` | `FileStorage`, `StoredFileId`, and `StoredFileMetadata`. |
 | `validation` | `Validate`, `MetadataValidation`, and the field-level `ValidationError`. |
-| `validation_report` | `ValidationReport`, `StartupValidationReport`, and warning types. |
 
 Provider traits re-exported from [`systemprompt-provider-contracts`](https://crates.io/crates/systemprompt-provider-contracts) (chat, LLM, tools, jobs) are surfaced at the crate root so downstream callers do not need to depend on both crates.
 
 ## Error model
 
-Each provider trait pairs with a `thiserror`-derived error enum (for example `AnalyticsProviderError`, `AuthProviderError`, `JwtProviderError`, `FileStorageError`, `ContextPropagationError`, `DomainConfigError`). The cross-cutting `ExtensionError` trait is implemented by downstream errors so the API and MCP transports render them uniformly into `ApiError` (HTTP) or `McpErrorData` (MCP).
+Each provider trait pairs with a `thiserror`-derived error enum (for example `AnalyticsProviderError`, `AuthProviderError`, `JwtProviderError`, `FileStorageError`, `ContextPropagationError`). The cross-cutting `ExtensionError` trait is implemented by downstream errors so the API and MCP transports render them uniformly into `ApiError` (HTTP) or `McpErrorData` (MCP).
 
 `RepositoryError` is the standard error type for repository implementations across domain crates and is `#[non_exhaustive]`.
 

@@ -39,7 +39,9 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
     use chrono::Utc;
     use serde_json::json;
     use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
-    use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+    use systemprompt_mcp::models::{
+        McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult,
+    };
     use systemprompt_models::RequestContext;
 
     let db = test_db_pool().await;
@@ -70,7 +72,7 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
     let result = ToolExecutionResult {
         output: Some(json!({"ok": true})),
         output_schema: None,
-        status: ExecutionStatus::Success.as_str().to_owned(),
+        status: McpToolExecutionStatus::Success.as_str().to_owned(),
         error_message: None,
         started_at,
         completed_at: Some(Utc::now()),
@@ -91,7 +93,9 @@ async fn start_and_complete_execution_roundtrip() {
     use chrono::Utc;
     use serde_json::json;
     use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
-    use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+    use systemprompt_mcp::models::{
+        McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult,
+    };
     use systemprompt_models::RequestContext;
 
     let db = test_db_pool().await;
@@ -138,7 +142,7 @@ async fn start_and_complete_execution_roundtrip() {
     let result = ToolExecutionResult {
         output: Some(json!({"ok":true})),
         output_schema: None,
-        status: ExecutionStatus::Success.as_str().to_owned(),
+        status: McpToolExecutionStatus::Success.as_str().to_owned(),
         error_message: None,
         started_at,
         completed_at: Some(completed_at),
@@ -172,7 +176,9 @@ async fn log_execution_sync_writes_row() {
     use chrono::Utc;
     use serde_json::json;
     use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
-    use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+    use systemprompt_mcp::models::{
+        McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult,
+    };
     use systemprompt_models::RequestContext;
 
     let db = test_db_pool().await;
@@ -200,7 +206,7 @@ async fn log_execution_sync_writes_row() {
     let result = ToolExecutionResult {
         output: None,
         output_schema: None,
-        status: ExecutionStatus::Failed.as_str().to_owned(),
+        status: McpToolExecutionStatus::Failed.as_str().to_owned(),
         error_message: Some("boom".to_owned()),
         started_at,
         completed_at: Some(Utc::now()),

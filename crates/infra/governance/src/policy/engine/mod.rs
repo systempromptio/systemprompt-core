@@ -12,10 +12,17 @@
 //! [`super::PolicyRequest`] to [`GovernanceEngine::charge_and_evaluate`] (or
 //! [`GovernanceEngine::charge`] when it evaluates the charged call itself),
 //! so every replica charges the same counter and no caller can evaluate an
-//! uncharged call by forgetting a step. The engine is built once at the
-//! composition root ([`GovernanceEngine::from_services_root`]) and injected
-//! into every enforcement point. A chain that arms a rate window without a
-//! [`super::RateWindowRepository`] is a construction error.
+//! uncharged call by forgetting a step. The engine is built from the
+//! `governance` config plane's rows ([`GovernanceEngine::load`]) at the
+//! composition root and rebuilt whenever another node changes them. An empty
+//! table on a database where `config apply` never recorded the plane runs no
+//! chain: under the profile's `unapplied_planes: deny` every call is denied
+//! with
+//! [`DenyReason::PlaneNotApplied`](crate::authz::types::DenyReason::PlaneNotApplied),
+//! under `warn` (the default) every call passes as a `Warn` carrying that
+//! reason and logs it. A chain
+//! that arms a rate window without a [`super::RateWindowRepository`] is a
+//! construction error.
 //!
 //! [`GovernanceEngine::evaluate_with_prompt_recovery`] is the opt-in variant
 //! for prompt targets: when a policy denies with a located secret leak, the
@@ -28,24 +35,30 @@
 
 mod chain;
 mod charge;
+mod unapplied;
 
 pub use charge::ChargedCall;
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+
+use sqlx::PgPool;
 
 use systemprompt_identifiers::PolicyId;
 use thiserror::Error;
 
 use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
-use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
+use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
 use super::governed::GovernedInput;
+use super::plane::{config_from_entities, list_governance_config};
 use super::rate_window::RateWindowRepository;
 use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 use super::secrets::{SecretFinding, SecretScanner};
 use super::types::{GovernancePolicy, PolicyContext};
 use crate::authz::types::Decision;
+use systemprompt_manifest::EnforcementMode;
+use systemprompt_manifest::profile::UnappliedPlaneMode;
+use unapplied::plane_applied;
 
 /// The outcome of one traced chain run: the first-deny-wins [`Decision`] and
 /// the ordered per-entry trace destined for the audit row.
@@ -67,12 +80,10 @@ pub enum GovernanceEngineError {
         #[source]
         source: PolicyConfigurationError,
     },
-    #[error("governance config at {path} was rejected: {source}")]
-    ConfigRejected {
-        path: String,
-        #[source]
-        source: GovernanceConfigError,
-    },
+    #[error("the governance config in governance_config was rejected: {0}")]
+    ConfigRejected(#[source] GovernanceConfigError),
+    #[error("governance_config could not be read: {0}")]
+    ConfigUnreadable(#[source] systemprompt_traits::RepositoryError),
     #[error(
         "governance policy `{id}` counts a rate window, but the engine was built without a \
          rate-window repository"
@@ -87,6 +98,7 @@ struct ChainEntry {
 
 pub struct GovernanceEngine {
     enabled: bool,
+    unapplied: Option<UnappliedPlaneMode>,
     entries: Vec<ChainEntry>,
     rate_windows: Option<RateWindowRepository>,
 }
@@ -95,6 +107,7 @@ impl std::fmt::Debug for GovernanceEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GovernanceEngine")
             .field("enabled", &self.enabled)
+            .field("unapplied", &self.unapplied)
             .field(
                 "policies",
                 &self
@@ -109,18 +122,37 @@ impl std::fmt::Debug for GovernanceEngine {
 }
 
 impl GovernanceEngine {
-    pub fn from_services_root(
-        services_root: &Path,
+    pub async fn load(
+        pool: &PgPool,
         rate_windows: Option<RateWindowRepository>,
+        unapplied: UnappliedPlaneMode,
     ) -> Result<Self, GovernanceEngineError> {
-        let path = services_root.join("governance/config.yaml");
-        let config = GovernanceConfig::load(&path).map_err(|source| {
-            GovernanceEngineError::ConfigRejected {
-                path: path.display().to_string(),
-                source,
-            }
-        })?;
-        Self::from_config(&config, rate_windows)
+        let rows = list_governance_config(pool)
+            .await
+            .map_err(GovernanceEngineError::ConfigUnreadable)?;
+        if let Some(config) =
+            config_from_entities(&rows).map_err(GovernanceEngineError::ConfigRejected)?
+        {
+            return Self::from_config(&config, rate_windows);
+        }
+        if plane_applied(pool).await {
+            tracing::warn!(
+                "the applied governance plane declares no chain; running the vendor-neutral \
+                 warn-only chain"
+            );
+            return Self::from_config(&GovernanceConfig::defaults(), rate_windows);
+        }
+        Self::unapplied(unapplied, rate_windows)
+    }
+
+    #[must_use]
+    pub const fn is_applied(&self) -> bool {
+        self.unapplied.is_none()
+    }
+
+    #[must_use]
+    pub const fn unapplied_mode(&self) -> Option<UnappliedPlaneMode> {
+        self.unapplied
     }
 
     pub fn from_config(
@@ -164,7 +196,7 @@ impl GovernanceEngine {
             let config = PolicyConfig {
                 id: PolicyId::new(r.id),
                 enabled: false,
-                mode: PolicyMode::Enforce,
+                mode: EnforcementMode::Enforce,
                 params: serde_yaml::Value::Null,
             };
             let instance = (r.factory)(&config.params).map_err(|source| {
@@ -178,6 +210,7 @@ impl GovernanceEngine {
 
         Ok(Self {
             enabled: config.enabled,
+            unapplied: None,
             entries,
             rate_windows,
         })
@@ -186,6 +219,7 @@ impl GovernanceEngine {
     #[must_use]
     pub fn enforces_prompt_secrets(&self) -> bool {
         self.enabled
+            && self.unapplied.is_none()
             && self.entries.iter().any(|entry| {
                 entry.config.enabled
                     && !entry.config.mode.is_warn()

@@ -55,7 +55,7 @@ impl Extension for RouterExt {
     }
 }
 
-struct StubCtx;
+pub(crate) struct StubCtx;
 
 #[derive(Debug)]
 struct StubConfig;
@@ -137,7 +137,62 @@ impl systemprompt_traits::FileStorage for StubFiles {
     }
 }
 
+#[derive(Debug)]
+struct StubTokens;
+
+impl systemprompt_traits::ProviderTokenCache for StubTokens {
+    fn into_any(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync> {
+        self
+    }
+}
+
+struct StubSubjects;
+
+#[async_trait::async_trait]
+impl systemprompt_models::authz::SubjectAttributeSource for StubSubjects {
+    fn dimensions(&self) -> &[systemprompt_models::authz::SubjectDimension] {
+        &[]
+    }
+
+    async fn values_for(
+        &self,
+        _user: &systemprompt_identifiers::UserId,
+        dimension: &systemprompt_models::authz::SubjectDimension,
+    ) -> Result<Vec<String>, systemprompt_models::authz::SubjectSourceError> {
+        Err(
+            systemprompt_models::authz::SubjectSourceError::UnknownDimension(
+                dimension.rule_type.as_str().to_owned(),
+            ),
+        )
+    }
+
+    async fn resolve_all(
+        &self,
+        _user: &systemprompt_identifiers::UserId,
+    ) -> Result<
+        systemprompt_models::authz::SubjectAttributes,
+        systemprompt_models::authz::SubjectSourceError,
+    > {
+        Ok(systemprompt_models::authz::SubjectAttributes::new())
+    }
+}
+
 impl ExtensionContext for StubCtx {
+    fn subject_attributes(&self) -> Arc<dyn systemprompt_models::authz::SubjectAttributeSource> {
+        Arc::new(StubSubjects)
+    }
+    fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {
+        Arc::new(StubTokens)
+    }
+    fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
+        systemprompt_test_fixtures::fixture_secret_store()
+    }
+    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies {
+        systemprompt_provider_contracts::Dependencies::new()
+    }
+    fn services(&self) -> systemprompt_manifest::services::ServicesView {
+        systemprompt_test_fixtures::fixture_services_view()
+    }
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
         systemprompt_identifiers::UserId::new("extension-test-owner")
     }
@@ -152,6 +207,21 @@ impl ExtensionContext for StubCtx {
     }
     fn instance_id(&self) -> systemprompt_identifiers::InstanceId {
         systemprompt_identifiers::InstanceId::new("extension-test-instance")
+    }
+    fn background_tasks(&self) -> systemprompt_traits::BackgroundTasks {
+        systemprompt_traits::BackgroundTasks::new()
+    }
+    fn profile(&self) -> Arc<systemprompt_manifest::Profile> {
+        systemprompt_test_fixtures::test_boot_profile()
+    }
+    fn app_config(&self) -> Arc<systemprompt_manifest::Config> {
+        Arc::clone(systemprompt_test_fixtures::ensure_test_bootstrap().boot_config())
+    }
+    fn services_root(&self) -> systemprompt_manifest::services::root::ActiveServicesRoot {
+        systemprompt_test_fixtures::test_boot_active_services_root()
+    }
+    fn token_authority(&self) -> Arc<dyn systemprompt_models::auth::TokenAuthority> {
+        systemprompt_test_fixtures::test_token_authority(&self.app_config().jwt_issuer)
     }
     fn get_extension(&self, _id: &str) -> Option<Arc<dyn Extension>> {
         None

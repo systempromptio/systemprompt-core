@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use chrono::Duration;
 use systemprompt_cli::cloud::auth::{self, AuthCommands, LogoutArgs};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat, ScriptedPrompter};
 use systemprompt_cloud::{
     CliSession, CloudPath, SessionBinding, SessionIdentity, SessionKey, SessionStore,
     get_cloud_paths,
@@ -77,7 +77,7 @@ async fn cancellation_preserves_cloud_state_and_confirmed_logout_removes_only_te
     let tenants_before = std::fs::read(&tenants).expect("tenants before");
     let sessions_before = std::fs::read(sessions_dir.join("index.json")).expect("sessions before");
 
-    let cancelled = CommandContext::new(
+    let cancelled = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(true)
             .with_assume_terminal(true)
@@ -101,7 +101,7 @@ async fn cancellation_preserves_cloud_state_and_confirmed_logout_removes_only_te
         sessions_before
     );
 
-    let confirmed = CommandContext::new(
+    let confirmed = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

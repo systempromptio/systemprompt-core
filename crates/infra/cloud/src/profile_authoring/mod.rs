@@ -17,7 +17,7 @@ pub use local_builder::LocalProfileBuilder;
 
 use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
-    TrustedIssuer, default_resource_audiences,
+    TrustedIssuer, UnappliedPlaneMode, default_resource_audiences,
 };
 use systemprompt_manifest::{Environment, LogLevel, OutputFormat, RuntimeConfig, SecurityConfig};
 use systemprompt_models::auth::JwtAudience;
@@ -44,28 +44,25 @@ fn capitalize_first(name: &str) -> String {
     })
 }
 
-fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
+fn webhook_governance() -> GovernanceConfig {
     GovernanceConfig {
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Webhook,
-                url: Some(format!("{api_internal_url}/api/public/govern/authz")),
+                url: None,
                 timeout_ms: 500,
                 acknowledgement: None,
             },
         }),
         audit: AuditConfig::default(),
         quota: QuotaConfig::default(),
+        unapplied_planes: UnappliedPlaneMode::default(),
     }
 }
 
-fn security_config(
-    issuer: &str,
-    trusted_issuers: Vec<TrustedIssuer>,
-    open_enrolment: bool,
-) -> SecurityConfig {
+fn security_config(trusted_issuers: Vec<TrustedIssuer>, open_enrolment: bool) -> SecurityConfig {
     SecurityConfig {
-        issuer: issuer.to_owned(),
+        issuer: String::new(),
         access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
         refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
         audiences: JwtAudience::standard(),

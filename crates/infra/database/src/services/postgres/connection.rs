@@ -12,7 +12,7 @@
 
 use std::future::Future;
 use std::str::FromStr;
-use std::sync::OnceLock;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
@@ -27,29 +27,55 @@ const RETRY_DELAYS_MS: &[u64] = &[100, 200, 400, 800, 1600];
 const MAX_ATTEMPTS: u32 = 5;
 pub const DEFAULT_STATEMENT_CACHE_CAPACITY: usize = 100;
 
-static POOL_CLOCK: OnceLock<Instant> = OnceLock::new();
-static SCHEMA_CHANGED_AT_NANOS: AtomicU64 = AtomicU64::new(0);
+/// Schema-change stamp shared by every pool a [`crate::Database`] opens.
+///
+/// A connection opened before the last recorded schema change is closed on
+/// its next acquire, so no prepared statement outlives the DDL under it.
+#[derive(Debug, Clone)]
+pub struct SchemaEpoch {
+    inner: Arc<EpochState>,
+}
 
-fn pool_clock() -> Instant {
-    *POOL_CLOCK.get_or_init(Instant::now)
+#[derive(Debug)]
+struct EpochState {
+    clock: Instant,
+    changed_at_nanos: AtomicU64,
+}
+
+impl Default for SchemaEpoch {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SchemaEpoch {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(EpochState {
+                clock: Instant::now(),
+                changed_at_nanos: AtomicU64::new(0),
+            }),
+        }
+    }
+
+    pub fn mark_changed(&self) {
+        let now = nanos_since_clock(self.inner.clock.elapsed());
+        self.inner.changed_at_nanos.store(now, Ordering::Release);
+    }
+
+    fn opened_after_change(&self, age: Duration) -> bool {
+        let changed = self.inner.changed_at_nanos.load(Ordering::Acquire);
+        if changed == 0 {
+            return true;
+        }
+        let opened = self.inner.clock.elapsed().saturating_sub(age);
+        nanos_since_clock(opened) >= changed
+    }
 }
 
 fn nanos_since_clock(at: Duration) -> u64 {
     u64::try_from(at.as_nanos()).unwrap_or(u64::MAX).max(1)
-}
-
-pub fn mark_schema_changed() {
-    let now = nanos_since_clock(pool_clock().elapsed());
-    SCHEMA_CHANGED_AT_NANOS.store(now, Ordering::Release);
-}
-
-fn opened_after_schema_change(age: Duration) -> bool {
-    let changed = SCHEMA_CHANGED_AT_NANOS.load(Ordering::Acquire);
-    if changed == 0 {
-        return true;
-    }
-    let opened = pool_clock().elapsed().saturating_sub(age);
-    nanos_since_clock(opened) >= changed
 }
 
 /// Operator-tunable connection-pool sizing for a `PostgresProvider`.
@@ -96,8 +122,8 @@ impl PoolConfig {
 }
 
 #[must_use]
-pub fn build_pool_options(cfg: &PoolConfig) -> PgPoolOptions {
-    pool_clock();
+pub fn build_pool_options(cfg: &PoolConfig, epoch: &SchemaEpoch) -> PgPoolOptions {
+    let epoch = epoch.clone();
     PgPoolOptions::new()
         .max_connections(cfg.max_connections)
         .min_connections(cfg.min_connections)
@@ -106,11 +132,12 @@ pub fn build_pool_options(cfg: &PoolConfig) -> PgPoolOptions {
         .idle_timeout(cfg.idle_timeout)
         // Why: a cached prepared statement fails with SQLSTATE 0A000 ("cached
         // plan must not change result type") once DDL changes the table under
-        // it. In-process migrations call `mark_schema_changed`, and every
+        // it. In-process migrations call `SchemaEpoch::mark_changed`, and every
         // connection opened before that is closed on its next acquire instead
         // of being handed out with stale plans.
-        .before_acquire(|_conn, meta| {
-            Box::pin(async move { Ok(opened_after_schema_change(meta.age)) })
+        .before_acquire(move |_conn, meta| {
+            let fresh = epoch.opened_after_change(meta.age);
+            Box::pin(async move { Ok(fresh) })
         })
 }
 

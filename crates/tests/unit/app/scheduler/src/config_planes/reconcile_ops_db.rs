@@ -146,7 +146,7 @@ async fn an_overwrite_apply_converges_and_audits_each_change() {
 }
 
 #[tokio::test]
-async fn a_moved_declaration_is_corrected_again_and_the_state_follows_its_hash() {
+async fn a_moved_declaration_moves_the_recorded_hash() {
     let root = tempfile::tempdir().expect("tempdir");
     let plane = Arc::new(FakePlane::new(unique_plane_name("ops_rehash"), &[]));
     plane.write_declaration(root.path(), &[("a", "1")]);
@@ -159,7 +159,7 @@ async fn a_moved_declaration_is_corrected_again_and_the_state_follows_its_hash()
         .find(|p| p.plane == plane.name)
         .expect("plane")
         .clone();
-    assert_eq!(first.outcome, PlaneOutcome::Corrected);
+    assert_eq!(first.outcome, PlaneOutcome::DriftReported);
 
     plane.write_declaration(root.path(), &[("a", "2")]);
     let second = svc.reconcile_all(ReconcileTrigger::Scheduled).await;
@@ -169,7 +169,7 @@ async fn a_moved_declaration_is_corrected_again_and_the_state_follows_its_hash()
         .find(|p| p.plane == plane.name)
         .expect("plane")
         .clone();
-    assert_eq!(second.outcome, PlaneOutcome::Corrected);
+    assert_eq!(second.outcome, PlaneOutcome::DriftReported);
     assert_ne!(first.declared_hash, second.declared_hash);
 
     let states = svc.repository().list_states().await.expect("states");
@@ -197,7 +197,7 @@ async fn a_plane_moved_from_file_to_db_authority_is_recorded_under_db() {
         .find(|p| p.plane == plane.name)
         .expect("plane");
     assert_eq!(row.authority, EffectiveAuthority::Db);
-    assert_eq!(row.outcome, PlaneOutcome::InSync);
+    assert_eq!(row.outcome, PlaneOutcome::DriftReported);
 
     let states = db_svc.repository().list_states().await.expect("states");
     let state = states
@@ -227,7 +227,7 @@ async fn an_authority_key_for_an_unregistered_plane_does_not_stop_the_pass() {
         .iter()
         .find(|p| p.plane == plane.name)
         .expect("plane");
-    assert_eq!(row.outcome, PlaneOutcome::Corrected);
+    assert_eq!(row.outcome, PlaneOutcome::DriftReported);
 }
 
 #[tokio::test]

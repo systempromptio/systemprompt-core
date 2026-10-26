@@ -13,7 +13,7 @@ use super::TokenIssuanceOrchestrator;
 use crate::client_credentials::{
     ClientCredentialsError, ClientTokenOptions, generate_client_tokens,
 };
-use crate::token_exchange::{TokenExchangeRequest, handle_token_exchange};
+use crate::token_exchange::{ExchangeContext, TokenExchangeRequest, handle_token_exchange};
 use crate::validation::extract_required_field;
 use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenRequest, TokenResponse};
 
@@ -48,8 +48,17 @@ impl TokenIssuanceOrchestrator<'_> {
             resource: request.resource.as_deref(),
         };
 
-        let response =
-            handle_token_exchange(self.repo(), &client_id, exchange, origin, self.state).await?;
+        let response = handle_token_exchange(
+            &client_id,
+            exchange,
+            origin,
+            self.state,
+            ExchangeContext {
+                jwks: self.jwks,
+                config: self.config,
+            },
+        )
+        .await?;
 
         tracing::info!(
             grant_type = "urn:ietf:params:oauth:grant-type:token-exchange",
@@ -78,8 +87,17 @@ impl TokenIssuanceOrchestrator<'_> {
             ..Default::default()
         };
 
-        let response =
-            handle_token_exchange(self.repo(), &client_id, exchange, origin, self.state).await?;
+        let response = handle_token_exchange(
+            &client_id,
+            exchange,
+            origin,
+            self.state,
+            ExchangeContext {
+                jwks: self.jwks,
+                config: self.config,
+            },
+        )
+        .await?;
 
         tracing::info!(
             grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer",
@@ -104,7 +122,7 @@ impl TokenIssuanceOrchestrator<'_> {
             audience: request.audience.as_deref(),
         };
         let token_response =
-            generate_client_tokens(self.repo(), &client_id, origin, self.state, options)
+            generate_client_tokens(&client_id, origin, self.state, self.config, options)
                 .await
                 .map_err(|e| map_client_credentials_error(&client_id, e))?;
 
@@ -149,8 +167,7 @@ fn map_client_credentials_error(
         },
         err @ (ClientCredentialsError::UserProviderUnavailable(_)
         | ClientCredentialsError::SessionCreate(_)
-        | ClientCredentialsError::JwtSign(_)
-        | ClientCredentialsError::ConfigUnavailable(_)) => {
+        | ClientCredentialsError::JwtSign(_)) => {
             IssuanceError::server("Client credentials token generation failed", err)
         },
     }

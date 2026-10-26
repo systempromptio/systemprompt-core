@@ -14,7 +14,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId, UserId};
 
-use crate::models::{CreateEngagementEventInput, EngagementEvent, EngagementEventRow};
+use crate::models::{CreateEngagementEventInput, EngagementEvent};
 
 #[derive(Clone, Debug)]
 pub struct EngagementRepository {
@@ -88,10 +88,10 @@ impl EngagementRepository {
 
     pub async fn find_by_id(&self, id: &EngagementEventId) -> Result<Option<EngagementEvent>> {
         let event = sqlx::query_as!(
-            EngagementEventRow,
+            EngagementEvent,
             r#"
             SELECT
-                id as "id: EngagementEventId", session_id, user_id, page_url,
+                id as "id: EngagementEventId", session_id, user_id as "user_id: UserId", page_url,
                 content_id as "content_id: ContentId",
                 event_type,
                 time_on_page_ms, time_to_first_interaction_ms, time_to_first_scroll_ms,
@@ -110,18 +110,17 @@ impl EngagementRepository {
             id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(EngagementEvent::from))?;
+        .await?;
 
         Ok(event)
     }
 
     pub async fn list_by_user(&self, user_id: &UserId, limit: i64) -> Result<Vec<EngagementEvent>> {
         let events = sqlx::query_as!(
-            EngagementEventRow,
+            EngagementEvent,
             r#"
             SELECT
-                id as "id: EngagementEventId", session_id, user_id, page_url,
+                id as "id: EngagementEventId", session_id, user_id as "user_id: UserId", page_url,
                 content_id as "content_id: ContentId",
                 event_type,
                 time_on_page_ms as "time_on_page_ms!", time_to_first_interaction_ms, time_to_first_scroll_ms,
@@ -143,7 +142,7 @@ impl EngagementRepository {
             limit
         )
         .fetch_all(&*self.pool)
-        .await.map(|rows| rows.into_iter().map(EngagementEvent::from).collect::<Vec<_>>())?;
+        .await?;
 
         Ok(events)
     }

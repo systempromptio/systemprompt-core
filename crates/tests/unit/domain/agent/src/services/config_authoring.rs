@@ -5,7 +5,9 @@ use std::fs;
 use std::path::Path;
 
 use systemprompt_agent::services::config_authoring::{
-    AgentConfigAuthoringService, AgentCreateRequest, AgentEditRequest, ConfigAuthoringError,
+    AgentCapabilityFlags, AgentCardEdit, AgentConfigAuthoringService, AgentCreateRequest,
+    AgentEditRequest, AgentModelChoice, AgentPlacement, ConfigAuthoringError, MembershipEdit,
+    SystemPromptSource,
 };
 use systemprompt_identifiers::AgentName;
 use systemprompt_manifest::AgentConfig;
@@ -20,8 +22,10 @@ fn create_request(name: &str, port: u16) -> AgentCreateRequest {
         description: "A test agent".to_owned(),
         system_prompt: "You are Test Agent.".to_owned(),
         enabled: true,
-        provider: Some("anthropic".to_owned()),
-        model: Some("claude-sonnet-4-6".to_owned()),
+        model: AgentModelChoice {
+            provider: Some("anthropic".to_owned()),
+            model: Some("claude-sonnet-4-6".to_owned()),
+        },
         ..Default::default()
     }
 }
@@ -203,10 +207,10 @@ fn create_respects_explicit_overrides() {
     let service = AgentConfigAuthoringService::new(dir.path());
 
     let mut request = create_request("custom_agent", 8102);
-    request.endpoint = Some("/custom/endpoint".to_owned());
-    request.provider = Some("openai".to_owned());
-    request.model = Some("gpt-test".to_owned());
-    request.streaming = Some(false);
+    request.placement.endpoint = Some("/custom/endpoint".to_owned());
+    request.model.provider = Some("openai".to_owned());
+    request.model.model = Some("gpt-test".to_owned());
+    request.capabilities.streaming = Some(false);
     request.mcp_servers = vec!["tools".to_owned()];
 
     let path = service.create(request).expect("create agent");
@@ -227,8 +231,8 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let service = AgentConfigAuthoringService::new(dir.path());
     let mut request = create_request("no_provider_agent", 8107);
-    request.provider = None;
-    request.model = None;
+    request.model.provider = None;
+    request.model.model = None;
 
     let err = service
         .create(request)
@@ -236,7 +240,9 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
     assert!(
         matches!(
             err,
-            ConfigAuthoringError::ServicesConfig(_) | ConfigAuthoringError::ProviderCatalog(_)
+            ConfigAuthoringError::ServicesConfig(_)
+                | ConfigAuthoringError::Catalog(_)
+                | ConfigAuthoringError::NoDefaultModel
         ),
         "{err}"
     );
@@ -254,7 +260,7 @@ fn a_model_default_comes_from_the_provider_catalogue() {
     let dir = tempfile::tempdir().expect("tempdir");
     let service = AgentConfigAuthoringService::new(dir.path());
     let mut request = create_request("catalogue_model_agent", 8108);
-    request.model = None;
+    request.model.model = None;
 
     let path = service.create(request).expect("create agent");
     let agent = load_agent(&path, "catalogue_model_agent");
@@ -269,13 +275,13 @@ fn a_model_default_comes_from_the_provider_catalogue() {
     );
 
     let mut unknown = create_request("unknown_provider_agent", 8109);
-    unknown.provider = Some("no-such-provider".to_owned());
-    unknown.model = None;
+    unknown.model.provider = Some("no-such-provider".to_owned());
+    unknown.model.model = None;
     let err = service
         .create(unknown)
         .expect_err("a provider the catalogue does not list has no default model");
     assert!(
-        matches!(err, ConfigAuthoringError::NoDefaultModel(_)),
+        matches!(err, ConfigAuthoringError::NoModelForProvider(_)),
         "{err}"
     );
 }
@@ -375,7 +381,10 @@ fn apply_runtime_fields_validates_port() {
     let mut changes = Vec::new();
     let request = AgentEditRequest {
         port: Some(9000),
-        endpoint: Some("/new/endpoint".to_owned()),
+        placement: AgentPlacement {
+            endpoint: Some("/new/endpoint".to_owned()),
+            ..Default::default()
+        },
         ..Default::default()
     };
     AgentConfigAuthoringService::apply_runtime_fields(&mut agent, &request, &mut changes)
@@ -407,8 +416,14 @@ fn apply_card_and_capability_fields_record_changes() {
 
     let mut changes = Vec::new();
     let request = AgentEditRequest {
-        display_name: Some("Renamed".to_owned()),
-        streaming: Some(false),
+        card: AgentCardEdit {
+            display_name: Some("Renamed".to_owned()),
+            ..Default::default()
+        },
+        capabilities: AgentCapabilityFlags {
+            streaming: Some(false),
+            ..Default::default()
+        },
         ..Default::default()
     };
     AgentConfigAuthoringService::apply_card_fields(&mut agent, &request, &mut changes);
@@ -432,8 +447,14 @@ fn apply_metadata_fields_sets_prompt_from_inline_and_file() {
 
     let mut changes = Vec::new();
     let inline = AgentEditRequest {
-        provider: Some("gemini".to_owned()),
-        system_prompt: Some("New prompt".to_owned()),
+        model: AgentModelChoice {
+            provider: Some("gemini".to_owned()),
+            ..Default::default()
+        },
+        system_prompt: SystemPromptSource {
+            inline: Some("New prompt".to_owned()),
+            ..Default::default()
+        },
         ..Default::default()
     };
     AgentConfigAuthoringService::apply_metadata_fields(&mut agent, &inline, &mut changes)
@@ -450,7 +471,10 @@ fn apply_metadata_fields_sets_prompt_from_inline_and_file() {
     let prompt_path = dir.path().join("prompt.txt");
     fs::write(&prompt_path, "From file").expect("write prompt");
     let from_file = AgentEditRequest {
-        system_prompt_file: Some(prompt_path.to_str().expect("utf8 path").to_owned()),
+        system_prompt: SystemPromptSource {
+            file: Some(prompt_path.to_str().expect("utf8 path").to_owned()),
+            ..Default::default()
+        },
         ..Default::default()
     };
     AgentConfigAuthoringService::apply_metadata_fields(&mut agent, &from_file, &mut Vec::new())
@@ -466,7 +490,10 @@ fn apply_mcp_server_changes_validates_and_skips() {
 
     let mut changes = Vec::new();
     let add = AgentEditRequest {
-        mcp_servers: vec!["tools".to_owned()],
+        mcp_servers: MembershipEdit {
+            add: vec!["tools".to_owned()],
+            ..Default::default()
+        },
         ..Default::default()
     };
     let skipped = AgentConfigAuthoringService::apply_mcp_server_changes(
@@ -481,7 +508,10 @@ fn apply_mcp_server_changes_validates_and_skips() {
     assert_eq!(changes, vec!["added mcp_server: tools".to_owned()]);
 
     let unknown = AgentEditRequest {
-        mcp_servers: vec!["missing".to_owned()],
+        mcp_servers: MembershipEdit {
+            add: vec!["missing".to_owned()],
+            ..Default::default()
+        },
         ..Default::default()
     };
     let err = AgentConfigAuthoringService::apply_mcp_server_changes(
@@ -497,7 +527,10 @@ fn apply_mcp_server_changes_validates_and_skips() {
     );
 
     let remove = AgentEditRequest {
-        remove_mcp_servers: vec!["tools".to_owned(), "absent".to_owned()],
+        mcp_servers: MembershipEdit {
+            remove: vec!["tools".to_owned(), "absent".to_owned()],
+            ..Default::default()
+        },
         ..Default::default()
     };
     let mut removal_changes = Vec::new();
@@ -523,7 +556,10 @@ fn apply_skill_changes_adds_removes_and_skips() {
 
     let mut changes = Vec::new();
     let add = AgentEditRequest {
-        skills: vec!["search".to_owned(), "search".to_owned()],
+        skills: MembershipEdit {
+            add: vec!["search".to_owned(), "search".to_owned()],
+            ..Default::default()
+        },
         ..Default::default()
     };
     let skipped = AgentConfigAuthoringService::apply_skill_changes(&mut agent, &add, &mut changes);
@@ -532,7 +568,10 @@ fn apply_skill_changes_adds_removes_and_skips() {
     assert_eq!(changes, vec!["added skill: search".to_owned()]);
 
     let remove = AgentEditRequest {
-        remove_skills: vec!["search".to_owned(), "absent".to_owned()],
+        skills: MembershipEdit {
+            remove: vec!["search".to_owned(), "absent".to_owned()],
+            ..Default::default()
+        },
         ..Default::default()
     };
     let mut removal_changes = Vec::new();

@@ -1,4 +1,4 @@
-use systemprompt_loader::bundle::{owning_bundle_hashes, sources_provenance};
+use systemprompt_loader::bundle::{BaseTreeHashMemo, owning_bundle_hashes, sources_provenance};
 
 struct FixtureDir(std::path::PathBuf);
 
@@ -28,23 +28,24 @@ fn base_tree_provenance_changes_with_declarations_and_recovers_after_removal() {
     )
     .expect("local declaration");
 
-    let first = sources_provenance();
+    let memo = BaseTreeHashMemo::new();
+    let first = sources_provenance(bootstrap.boot.profile(), None, &memo);
     let first_hash = first
         .base_tree_hash
         .expect("base tree hash after declaration");
     assert!(
-        !owning_bundle_hashes().contains_key(&unique),
+        !owning_bundle_hashes(bootstrap.boot.profile()).contains_key(&unique),
         "an unbundled local declaration must not acquire bundle provenance"
     );
 
     std::fs::write(fixture.0.join("index.md"), "# Trusted local instructions\n")
         .expect("declared content");
-    let second = sources_provenance();
+    let second = sources_provenance(bootstrap.boot.profile(), None, &memo);
     let second_hash = second.base_tree_hash.expect("updated base tree hash");
     assert_ne!(first_hash, second_hash, "content surface changed");
 
     std::fs::remove_file(fixture.0.join("index.md")).expect("remove declared content");
-    let restored = sources_provenance();
+    let restored = sources_provenance(bootstrap.boot.profile(), None, &memo);
     assert_eq!(
         restored.base_tree_hash.as_deref(),
         Some(first_hash.as_str())

@@ -13,7 +13,7 @@ use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 use crate::cli_settings::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
-use super::helpers::format_bytes;
+use super::text_format::format_bytes;
 use super::types::{DbAssignAdminOutput, DbStatusOutput};
 
 pub(super) use super::admin_migrate::{execute_migrate, execute_migrate_standalone};

@@ -1,171 +1,122 @@
-//! Shared load/save for the services files the `admin config catalog` and
-//! `admin config gateway` setters edit.
+//! Shared load/save for the catalog files the `admin config` catalog and
+//! gateway setters edit.
 //!
-//! The provider catalog and gateway routes are services-tree files
-//! (`ai/providers.yaml`, `ai/gateway.yaml`), not profile sections. Each setter
-//! loads its one file typed, mutates it, validates the result against the
-//! *merged* services config the process booted with — so a route naming a
-//! provider declared in another include still validates — and writes the file
-//! back. A file created by an edit is appended to the root `includes:` so the
-//! next boot actually loads it.
+//! The model catalog and the gateway are services-tree files the loader reads
+//! by convention from `services/ai/` (`credentials.yaml`, `providers.yaml`,
+//! `models.yaml`, `deployments.yaml`, `gateway.yaml`), never profile sections
+//! and never `includes:` entries. A setter reads the catalog document, applies
+//! its edit through `ProviderCatalogService` (which refuses an edit whose
+//! result does not resolve), writes the files back and re-loads the whole
+//! services tree through the real loader; if that load fails the previous
+//! files are restored byte for byte and the edit is refused, so a setter never
+//! leaves a tree the server would refuse to boot from.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use systemprompt_loader::ServicesBootstrap;
-use systemprompt_manifest::services::{GatewayState, ProviderRegistry, ServicesConfig};
+use systemprompt_config::{LoadedProfile, read_catalog, write_catalog, write_private_atomic};
+use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::config_loader::catalog::catalog_dir;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::catalog::{CATALOG_FILES, CatalogDocument};
+use systemprompt_manifest::services::{GatewayConfigSpec, ServicesConfig};
 
-use super::config_section::{ConfigSection, GATEWAY_INCLUDE_RELATIVE, PROVIDERS_INCLUDE_RELATIVE};
+use super::config_section::ConfigSection;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProvidersFile {
-    #[serde(default)]
-    pub providers: ProviderRegistry,
+/// The catalog directory and the root services file it belongs to.
+#[derive(Debug, Clone)]
+pub struct CatalogLocation {
+    pub root: PathBuf,
+    pub dir: PathBuf,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct GatewayFile {
-    #[serde(default)]
-    pub gateway: Option<GatewayState>,
-}
-
-#[derive(Debug)]
-pub struct ServicesFile<T> {
-    pub path: PathBuf,
-    pub existed: bool,
-    pub content: T,
-}
-
-pub(super) fn load_providers_file() -> Result<ServicesFile<ProvidersFile>> {
-    load_file(ConfigSection::Providers.file_path()?)
-}
-
-pub(super) fn load_gateway_file() -> Result<ServicesFile<GatewayFile>> {
-    load_file(ConfigSection::Gateway.file_path()?)
-}
-
-fn load_file<T: Default + for<'de> Deserialize<'de>>(path: PathBuf) -> Result<ServicesFile<T>> {
-    if !path.exists() {
-        return Ok(ServicesFile {
-            path,
-            existed: false,
-            content: T::default(),
-        });
+impl CatalogLocation {
+    #[must_use]
+    pub fn active(loaded: &LoadedProfile) -> Self {
+        Self::for_root(ConfigSection::Services.file_path(loaded))
     }
-    let raw = std::fs::read_to_string(&path)
-        .with_context(|| format!("Failed to read {}", path.display()))?;
-    let content: T = serde_yaml::from_str(&raw)
-        .with_context(|| format!("Failed to parse {}", path.display()))?;
-    Ok(ServicesFile {
-        path,
-        existed: true,
-        content,
-    })
+
+    #[must_use]
+    pub fn for_root(root: PathBuf) -> Self {
+        let config_dir = root.parent().map(Path::to_path_buf).unwrap_or_default();
+        Self {
+            dir: catalog_dir(&config_dir),
+            root,
+        }
+    }
+
+    pub fn read(&self) -> Result<CatalogDocument> {
+        read_catalog(&self.dir).with_context(|| format!("Failed to read {}", self.dir.display()))
+    }
 }
 
-pub(super) fn save_file<T: Serialize>(file: &ServicesFile<T>, relative: &str) -> Result<()> {
-    if let Some(parent) = file.path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create {}", parent.display()))?;
-    }
-    let body = serde_yaml::to_string(&file.content).context("Failed to serialize services file")?;
-    std::fs::write(&file.path, body)
-        .with_context(|| format!("Failed to write {}", file.path.display()))?;
-    if !file.existed {
-        ensure_included(relative)?;
+pub fn write_gateway(dir: &Path, gateway: Option<&GatewayConfigSpec>) -> Result<()> {
+    let path = dir.join("gateway.yaml");
+    let Some(gateway) = gateway else {
+        return Ok(());
+    };
+    let section: BTreeMap<&str, &GatewayConfigSpec> =
+        std::iter::once(("gateway", gateway)).collect();
+    let yaml = serde_yaml::to_string(&section).context("Failed to serialize gateway.yaml")?;
+    write_private_atomic(&path, yaml.as_bytes())
+        .with_context(|| format!("Failed to write {}", path.display()))
+}
+
+fn write_document(location: &CatalogLocation, document: &CatalogDocument) -> Result<()> {
+    std::fs::create_dir_all(&location.dir)
+        .with_context(|| format!("Failed to create {}", location.dir.display()))?;
+    write_catalog(&location.dir, document)
+        .with_context(|| format!("Failed to write {}", location.dir.display()))?;
+    write_gateway(&location.dir, document.gateway.as_ref())
+}
+
+fn snapshot(location: &CatalogLocation) -> Result<Vec<(PathBuf, Option<Vec<u8>>)>> {
+    CATALOG_FILES
+        .iter()
+        .map(|name| {
+            let path = location.dir.join(name);
+            match std::fs::read(&path) {
+                Ok(bytes) => Ok((path, Some(bytes))),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok((path, None)),
+                Err(error) => {
+                    Err(error).with_context(|| format!("Failed to read {}", path.display()))
+                },
+            }
+        })
+        .collect()
+}
+
+fn restore(files: &[(PathBuf, Option<Vec<u8>>)]) -> Result<()> {
+    for (path, bytes) in files {
+        match bytes {
+            Some(bytes) => write_private_atomic(path, bytes)
+                .with_context(|| format!("Failed to restore {}", path.display()))?,
+            None if path.exists() => std::fs::remove_file(path)
+                .with_context(|| format!("Failed to remove {}", path.display()))?,
+            None => {},
+        }
     }
     Ok(())
 }
 
-pub(super) fn booted_services() -> Result<&'static ServicesConfig> {
-    ServicesBootstrap::get().context("services config is not loaded")
-}
-
-pub(super) fn merged_registry_after_edit(
-    before: &ProviderRegistry,
-    after: &ProviderRegistry,
-) -> Result<ProviderRegistry> {
-    let booted = booted_services()?;
-    let mut merged = ProviderRegistry {
-        providers: booted
-            .providers
-            .providers
-            .iter()
-            .filter(|p| before.find_provider(p.name.as_str()).is_none())
-            .cloned()
-            .collect(),
-    };
-    for provider in &after.providers {
-        if merged.find_provider(provider.name.as_str()).is_some() {
-            anyhow::bail!(
-                "provider '{}' is already declared by another services include",
-                provider.name.as_str()
-            );
-        }
-        merged.providers.push(provider.clone());
+pub fn commit_catalog(
+    location: &CatalogLocation,
+    after: &CatalogDocument,
+    profile: &Profile,
+) -> Result<ServicesConfig> {
+    let previous = snapshot(location)?;
+    write_document(location, after)?;
+    match ConfigLoader::load_from_path(&location.root, Some(profile)) {
+        Ok(services) => Ok(services),
+        Err(error) => {
+            restore(&previous)?;
+            Err(anyhow::anyhow!(
+                "the services tree no longer loads after this edit, so it was not saved: {error}"
+            ))
+        },
     }
-    merged
-        .validate()
-        .context("provider registry is invalid after edit; refusing to write")?;
-    Ok(merged)
-}
-
-fn ensure_included(relative: &str) -> Result<()> {
-    let root = ConfigSection::Services.file_path()?;
-    append_include(&root, relative)
-}
-
-// Why: serde_yaml::Value does not preserve YAML comments when serialized.
-pub fn append_include(root: &Path, relative: &str) -> Result<()> {
-    let existing = match std::fs::read_to_string(root) {
-        Ok(existing) => existing,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-        Err(e) => {
-            return Err(e).with_context(|| format!("Failed to read {}", root.display()));
-        },
-    };
-    let already = existing.lines().any(|line| {
-        let item = line.trim_start().strip_prefix("- ").map(str::trim);
-        item.is_some_and(|value| value.trim_matches(['"', '\'']) == relative)
-    });
-    if already {
-        return Ok(());
-    }
-    let entry = format!("  - {relative}\n");
-    let splice = |line_end: Option<usize>| {
-        line_end.map_or_else(
-            || format!("{existing}\n{entry}"),
-            |end| format!("{}{entry}{}", &existing[..end], &existing[end..]),
-        )
-    };
-    let updated = match existing.find("\nincludes:") {
-        Some(idx) => {
-            let insert_at = idx + "\nincludes:".len();
-            splice(existing[insert_at..].find('\n').map(|n| insert_at + n + 1))
-        },
-        None if existing.starts_with("includes:") => splice(existing.find('\n').map(|n| n + 1)),
-        None => {
-            let sep = if existing.is_empty() || existing.ends_with('\n') {
-                ""
-            } else {
-                "\n"
-            };
-            format!("{existing}{sep}includes:\n{entry}")
-        },
-    };
-    std::fs::write(root, updated).with_context(|| format!("Failed to write {}", root.display()))
-}
-
-pub(super) const fn providers_relative() -> &'static str {
-    PROVIDERS_INCLUDE_RELATIVE
-}
-
-pub(super) const fn gateway_relative() -> &'static str {
-    GATEWAY_INCLUDE_RELATIVE
 }

@@ -1,26 +1,27 @@
 //! Protocol-driven provider-client factory.
 //!
-//! A provider client is selected by the registry entry's [`WireProtocol`], not
+//! A provider client is selected by the endpoint's [`WireProtocol`], not
 //! by its name: any vendor speaking `anthropic` reuses [`AnthropicProvider`],
 //! any speaking `openai-chat`/`openai-responses` reuses [`OpenAiProvider`], and
 //! `gemini` uses [`GeminiProvider`]. Connectivity is the provider's
-//! [`UpstreamTarget`] — endpoint, credential and hosting resolved from the
-//! registry entry — so every client reaches whatever platform the catalog
-//! names; the per-provider AI policy supplies resilience and the web-search
-//! toggle.
+//! [`UpstreamTarget`] — URL, credential and hosting resolved from the
+//! catalog endpoint — so every client reaches whatever platform the catalog
+//! names; the endpoint's effective resilience and the provider's
+//! `google_search_enabled` come from the resolved catalog too.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_manifest::services::{ProviderModel, ResilienceSettings};
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_wire::WireProtocol;
 
 use crate::services::upstream::UpstreamTarget;
 
 use crate::error::Result;
 
+use super::served_model::ServedModel;
 use super::{AnthropicProvider, GeminiProvider, OpenAiProvider, ProviderClient, ResilientProvider};
 
 #[derive(Debug)]
@@ -29,7 +30,7 @@ pub struct ProviderClientParams<'a> {
     pub target: UpstreamTarget,
     pub google_search_enabled: bool,
     pub resilience: &'a ResilienceSettings,
-    pub models: &'a [ProviderModel],
+    pub models: &'a [ServedModel],
     pub default_model: Option<&'a str>,
 }
 

@@ -9,7 +9,7 @@ use systemprompt_database::{DatabaseAdminService, QueryExecutor};
 use crate::CliConfig;
 use crate::shared::CommandOutput;
 
-use super::helpers::{extract_relation_name, suggest_table_name};
+use super::text_format::{extract_relation_name, suggest_table_name};
 use super::types::DbExecuteOutput;
 
 pub(super) struct QueryParams<'a> {

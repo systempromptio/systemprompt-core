@@ -10,7 +10,6 @@ use systemprompt_oauth::services::{
     JwtConfig, generate_client_secret, generate_secure_token, hash_client_secret,
     verify_client_secret,
 };
-use systemprompt_test_fixtures::install_test_signing_key;
 
 #[test]
 fn test_generate_secure_token_with_prefix() {
@@ -277,9 +276,9 @@ fn id_jag_claims(token: &str) -> IdJagClaims {
 
 #[test]
 fn mints_id_jag_with_correct_typ_and_claims() {
-    install_test_signing_key();
     let client_id = ClientId::new("client-a");
     let token = mint_id_jag(&IdJagGrant {
+        keys: &systemprompt_test_fixtures::test_signing_keys(),
         sub: "user-42",
         email: Some("user@example.com"),
         email_verified: true,
@@ -314,9 +313,9 @@ fn mints_id_jag_with_correct_typ_and_claims() {
 
 #[test]
 fn defaults_optional_claims_to_none() {
-    install_test_signing_key();
     let client_id = ClientId::new("client-b");
     let token = mint_id_jag(&IdJagGrant {
+        keys: &systemprompt_test_fixtures::test_signing_keys(),
         sub: "user-1",
         email: None,
         email_verified: false,
@@ -341,11 +340,11 @@ mod jwt_minting {
         ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
     };
     use systemprompt_oauth::services::{
-        DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_anonymous_jwt,
-        generate_anonymous_jwt_with_expiry, generate_jwt, generate_jwt_with_act,
+        DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_anonymous_jwt_with_expiry,
+        generate_jwt, generate_jwt_with_act,
     };
     use systemprompt_oauth::{OauthError, validate_jwt_token};
-    use systemprompt_test_fixtures::{ensure_test_bootstrap, install_test_signing_key};
+    use systemprompt_test_fixtures::ensure_test_bootstrap;
     use uuid::Uuid;
 
     fn test_user() -> AuthenticatedUser {
@@ -358,14 +357,16 @@ mod jwt_minting {
         )
     }
 
-    fn signing() -> JwtSigningParams<'static> {
-        JwtSigningParams { issuer: "test" }
+    fn signing(keys: &systemprompt_security::keys::SigningKeys) -> JwtSigningParams<'_> {
+        JwtSigningParams {
+            issuer: "test",
+            keys,
+        }
     }
 
     #[test]
     fn generate_jwt_encodes_expected_claims() {
         ensure_test_bootstrap();
-        install_test_signing_key();
         let user = test_user();
         let session = SessionId::generate();
 
@@ -374,28 +375,32 @@ mod jwt_minting {
             JwtConfig::default(),
             AccessTokenId::new("jti-gen-1"),
             &session,
-            &signing(),
+            &signing(&systemprompt_test_fixtures::test_signing_keys()),
         )
         .expect("mint");
 
-        let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        assert_eq!(claims.sub, user.id.to_string());
-        assert_eq!(claims.jti, "jti-gen-1");
-        assert_eq!(claims.username, "gen-user");
-        assert_eq!(claims.email, "gen@test.invalid");
+        let claims = validate_jwt_token(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
+            &token,
+            &[JwtAudience::Api],
+        )
+        .expect("decode");
+        assert_eq!(claims.registered.sub, user.id.to_string());
+        assert_eq!(claims.registered.jti, "jti-gen-1");
+        assert_eq!(claims.custom.username, "gen-user");
+        assert_eq!(claims.custom.email, "gen@test.invalid");
         assert_eq!(
-            claims.session_id.as_ref().map(|s| s.as_str()),
+            claims.custom.session_id.as_ref().map(|s| s.as_str()),
             Some(session.as_str())
         );
-        assert_eq!(claims.token_type, TokenType::Bearer);
-        assert!(claims.act.is_none());
-        assert!(claims.exp > claims.iat);
+        assert_eq!(claims.custom.token_type, TokenType::Bearer);
+        assert!(claims.custom.act.is_none());
+        assert!(claims.registered.exp > claims.registered.iat);
     }
 
     #[test]
     fn generate_jwt_appends_resource_audience() {
         ensure_test_bootstrap();
-        install_test_signing_key();
         let config = JwtConfig {
             resource: Some("https://rs.example".to_owned()),
             ..JwtConfig::default()
@@ -406,13 +411,19 @@ mod jwt_minting {
             config,
             AccessTokenId::new("jti-gen-res"),
             &SessionId::generate(),
-            &signing(),
+            &signing(&systemprompt_test_fixtures::test_signing_keys()),
         )
         .expect("mint");
 
-        let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
+        let claims = validate_jwt_token(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
+            &token,
+            &[JwtAudience::Api],
+        )
+        .expect("decode");
         assert!(
             claims
+                .registered
                 .aud
                 .iter()
                 .any(|a| matches!(a, JwtAudience::Resource(r) if r == "https://rs.example"))
@@ -424,7 +435,6 @@ mod jwt_minting {
         use systemprompt_identifiers::ClientId;
 
         ensure_test_bootstrap();
-        install_test_signing_key();
         let config = JwtConfig {
             client_id: Some(ClientId::bridge()),
             ..JwtConfig::default()
@@ -435,18 +445,22 @@ mod jwt_minting {
             config,
             AccessTokenId::new("jti-gen-client"),
             &SessionId::generate(),
-            &signing(),
+            &signing(&systemprompt_test_fixtures::test_signing_keys()),
         )
         .expect("mint");
 
-        let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        assert_eq!(claims.client_id, Some(ClientId::bridge()));
+        let claims = validate_jwt_token(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
+            &token,
+            &[JwtAudience::Api],
+        )
+        .expect("decode");
+        assert_eq!(claims.custom.client_id, Some(ClientId::bridge()));
     }
 
     #[test]
     fn generate_jwt_rejects_out_of_range_expiry() {
         ensure_test_bootstrap();
-        install_test_signing_key();
         for expires_in in [
             chrono::Duration::zero(),
             chrono::Duration::hours(-5),
@@ -461,7 +475,7 @@ mod jwt_minting {
                 config,
                 AccessTokenId::new("jti-bad"),
                 &SessionId::generate(),
-                &signing(),
+                &signing(&systemprompt_test_fixtures::test_signing_keys()),
             )
             .expect_err("invalid expiry must be rejected");
             assert!(matches!(err, OauthError::InvalidTokenLifetime { .. }));
@@ -471,7 +485,6 @@ mod jwt_minting {
     #[test]
     fn generate_jwt_with_act_carries_actor_chain() {
         ensure_test_bootstrap();
-        install_test_signing_key();
         let act = ActClaim {
             iss: "test".to_owned(),
             sub: "client-actor".to_owned(),
@@ -483,13 +496,18 @@ mod jwt_minting {
             config: JwtConfig::default(),
             jti: AccessTokenId::new("jti-act"),
             session_id: &SessionId::generate(),
-            signing: &signing(),
+            signing: &signing(&systemprompt_test_fixtures::test_signing_keys()),
             act,
         })
         .expect("mint");
 
-        let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        let act = claims.act.expect("act claim present");
+        let claims = validate_jwt_token(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
+            &token,
+            &[JwtAudience::Api],
+        )
+        .expect("decode");
+        let act = claims.custom.act.expect("act claim present");
         assert_eq!(act.sub, "client-actor");
         assert_eq!(act.iss, "test");
         assert!(act.act.is_none());
@@ -498,32 +516,42 @@ mod jwt_minting {
     #[test]
     fn generate_anonymous_jwt_uses_configured_expiry_and_anon_shape() {
         ensure_test_bootstrap();
-        install_test_signing_key();
         let user_id = UserId::new(Uuid::new_v4().to_string());
         let session = SessionId::generate();
         let client = ClientId::new("client_anon_gen");
 
-        let token = generate_anonymous_jwt(&user_id, &session, &client, &signing()).expect("mint");
+        let token = generate_anonymous_jwt_with_expiry(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
+            &user_id,
+            &session,
+            &client,
+            3600,
+        )
+        .expect("mint");
 
-        let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        assert_eq!(claims.sub, user_id.as_str());
-        assert_eq!(claims.user_type, UserType::Anon);
-        assert_eq!(claims.scope, vec![Permission::Anonymous]);
-        assert_eq!(claims.roles, vec!["anonymous".to_owned()]);
-        assert_eq!(claims.client_id.as_ref(), Some(&client));
-        assert_eq!(claims.rate_limit_tier, Some(RateLimitTier::Anon));
-        assert!(claims.exp - claims.iat <= 3600);
+        let claims = validate_jwt_token(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
+            &token,
+            &[JwtAudience::Api],
+        )
+        .expect("decode");
+        assert_eq!(claims.registered.sub, user_id.as_str());
+        assert_eq!(claims.custom.user_type, UserType::Anon);
+        assert_eq!(claims.custom.scope, vec![Permission::Anonymous]);
+        assert_eq!(claims.custom.roles, vec!["anonymous".to_owned()]);
+        assert_eq!(claims.custom.client_id.as_ref(), Some(&client));
+        assert_eq!(claims.custom.rate_limit_tier, Some(RateLimitTier::Anon));
+        assert!(claims.registered.exp - claims.registered.iat <= 3600);
     }
 
     #[test]
     fn generate_anonymous_jwt_with_expiry_rejects_more_than_a_year() {
         ensure_test_bootstrap();
-        install_test_signing_key();
         let err = generate_anonymous_jwt_with_expiry(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &UserId::new(Uuid::new_v4().to_string()),
             &SessionId::generate(),
             &ClientId::new("client_anon_overflow"),
-            &signing(),
             366 * 24 * 3600,
         )
         .expect_err("expiry beyond one year must fail");
@@ -533,19 +561,23 @@ mod jwt_minting {
     #[test]
     fn generate_anonymous_jwt_with_expiry_keeps_sub_hour_lifetimes() {
         ensure_test_bootstrap();
-        install_test_signing_key();
         let user_id = UserId::new(Uuid::new_v4().to_string());
         let token = generate_anonymous_jwt_with_expiry(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
             &user_id,
             &SessionId::generate(),
             &ClientId::new("client_anon_exp"),
-            &signing(),
             900,
         )
         .expect("mint");
 
-        let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
-        let lifetime = claims.exp - claims.iat;
+        let claims = validate_jwt_token(
+            systemprompt_test_fixtures::test_token_authority("test").as_ref(),
+            &token,
+            &[JwtAudience::Api],
+        )
+        .expect("decode");
+        let lifetime = claims.registered.exp - claims.registered.iat;
         assert!(
             (895..=905).contains(&lifetime),
             "a 900 s expiry used to mint an already-expired token; got {lifetime}"

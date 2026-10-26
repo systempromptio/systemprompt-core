@@ -13,6 +13,8 @@ mod codex_install;
 #[cfg(test)]
 mod codex_merge;
 #[cfg(test)]
+mod codex_packaging;
+#[cfg(test)]
 mod cowork_artifacts;
 #[cfg(test)]
 mod doctor_hook_token;
@@ -47,7 +49,11 @@ mod opencode_host;
 #[cfg(test)]
 mod opencode_merge;
 #[cfg(test)]
+mod opencode_packaging;
+#[cfg(test)]
 mod opencode_user_tier;
+#[cfg(test)]
+mod opencode_version;
 #[cfg(test)]
 mod plist_drift;
 #[cfg(test)]

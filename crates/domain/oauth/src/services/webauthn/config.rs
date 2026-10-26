@@ -18,8 +18,7 @@ pub struct WebAuthnConfig {
 }
 
 impl WebAuthnConfig {
-    pub fn new() -> crate::error::OauthResult<Self> {
-        let config = Config::get()?;
+    pub fn new(config: &Config) -> crate::error::OauthResult<Self> {
         let api_url = &config.api_external_url;
         let parsed_url = Url::parse(api_url).map_err(crate::error::OauthError::ExternalUrl)?;
 

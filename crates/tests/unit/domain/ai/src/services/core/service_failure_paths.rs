@@ -1,19 +1,18 @@
 // Failure and skip arms of `AiService`: the audit write that records a failed
-// request, the unknown-provider lookup, and the two provider-construction
-// branches that drop a configured provider instead of building it.
+// request, the unknown-provider lookup, and the catalog branches that leave an
+// endpoint without a client (disabled provider, missing secret) instead of
+// building it.
 
 use std::sync::Arc;
 
 use systemprompt_ai::models::ai::{AiMessage, AiRequest};
-use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::services::{AiConfig, AiProviderConfig, ProviderRegistry};
+use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig};
+use systemprompt_test_fixtures::catalog::{CatalogFixture, claude_model, platform};
+use systemprompt_wire::WireProtocol;
 
-use super::{
-    ai_config, bootstrapped_pool, noop_session_provider, registry_with_endpoint, seeded_context,
-    service,
-};
+use super::{bootstrapped_pool, fixture_with_endpoint, seeded_context, service, service_from};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
@@ -121,138 +120,96 @@ async fn a_request_naming_an_unconfigured_provider_is_rejected_by_name() {
     );
 }
 
-#[tokio::test]
-async fn a_disabled_provider_entry_is_not_built() {
-    let pool = bootstrapped_pool().await;
-    let server =
-        mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
-    let registry = registry_with_endpoint(ANTHROPIC, server.uri());
-
-    let mut config = ai_config(ANTHROPIC);
-    config.providers.insert(
-        "openai".to_owned(),
-        AiProviderConfig {
-            enabled: false,
-            ..AiProviderConfig::default()
-        },
-    );
-
-    let svc = AiService::new(
-        &registry,
-        &config,
-        systemprompt_ai::AiServiceProviders {
-            tools: Arc::new(NoopToolProvider::new()),
-            sessions: noop_session_provider(),
-        },
-        &systemprompt_ai::repository::AiRepositories::new(&pool),
-    )
-    .expect("a disabled entry must not stop the service building");
-
-    let health = svc.health_check().await.expect("health check");
-    assert!(
-        !health.contains_key("provider_openai"),
-        "an `enabled: false` policy entry must not produce a provider, got {health:?}"
-    );
-    assert!(health.contains_key("provider_anthropic"));
+// A provider whose platform credential names a secret the bootstrap never set.
+fn with_unconfigured_provider(fixture: CatalogFixture) -> CatalogFixture {
+    fixture
+        .credential("phantom", platform("phantom-secret-never-set"))
+        .provider("phantom", ProviderConfig::new("phantom"))
+        .endpoint(
+            "phantom",
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, "http://127.0.0.1:1"),
+        )
+        .model("phantom-model", claude_model(200_000))
+        .deploy("phantom-model", ["phantom/api"])
 }
 
 #[tokio::test]
-async fn an_enabled_provider_with_no_registry_entry_is_skipped_rather_than_fatal() {
+async fn a_disabled_provider_is_not_built() {
     let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
-
-    // A registry that knows only anthropic, against a policy that also enables
-    // a provider the registry has never heard of.
-    let mut registry = registry_with_endpoint(ANTHROPIC, server.uri());
-    registry.providers.retain(|p| p.name.as_str() == ANTHROPIC);
-
-    let mut config = ai_config(ANTHROPIC);
-    config.providers.insert(
-        "phantom-provider".to_owned(),
-        AiProviderConfig {
-            enabled: true,
-            ..AiProviderConfig::default()
-        },
-    );
-
-    let svc = AiService::new(
-        &registry,
-        &config,
-        systemprompt_ai::AiServiceProviders {
-            tools: Arc::new(NoopToolProvider::new()),
-            sessions: noop_session_provider(),
-        },
-        &systemprompt_ai::repository::AiRepositories::new(&pool),
-    )
-    .expect("an unknown provider name must be skipped, not abort construction");
+    let svc = service(&pool, ANTHROPIC, server.uri());
 
     let health = svc.health_check().await.expect("health check");
     assert!(
-        !health.contains_key("provider_phantom-provider"),
-        "a policy entry with no connectivity entry must yield no provider, got {health:?}"
+        !health.contains_key("provider_openai/api"),
+        "an `enabled: false` provider must not produce a client, got {health:?}"
+    );
+    assert!(health.contains_key("provider_anthropic/api"));
+}
+
+#[tokio::test]
+async fn an_endpoint_whose_secret_is_missing_is_withheld_rather_than_fatal() {
+    let pool = bootstrapped_pool().await;
+    let server =
+        mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
+    let catalog =
+        with_unconfigured_provider(fixture_with_endpoint(ANTHROPIC, server.uri())).build();
+
+    let svc = service_from(&pool, Arc::new(catalog))
+        .expect("an endpoint with no secret must be withheld, not abort construction");
+
+    let health = svc.health_check().await.expect("health check");
+    assert!(
+        !health.contains_key("provider_phantom/api"),
+        "an endpoint without its secret must yield no client, got {health:?}"
     );
 }
 
 #[tokio::test]
-async fn a_default_provider_that_was_never_built_fails_construction() {
+async fn a_catalog_with_no_usable_endpoint_fails_construction() {
     let pool = bootstrapped_pool().await;
-    let server =
-        mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
-    let registry = registry_with_endpoint(ANTHROPIC, server.uri());
-
-    // No policy entries at all: validation stops construction before the
-    // default-provider lookup is even reached.
-    let empty = AiConfig {
-        default_provider: "phantom-provider".to_owned(),
-        default_max_output_tokens: Some(512),
-        providers: std::collections::HashMap::new(),
-        ..AiConfig::default()
-    };
-    let err = AiService::new(
-        &registry,
-        &empty,
-        systemprompt_ai::AiServiceProviders {
-            tools: Arc::new(NoopToolProvider::new()),
-            sessions: noop_session_provider(),
-        },
-        &systemprompt_ai::repository::AiRepositories::new(&pool),
-    )
-    .expect_err("a service with no enabled provider cannot serve anything");
+    let catalog = fixture_with_endpoint(ANTHROPIC, "http://127.0.0.1:1".to_owned())
+        .with_provider(ANTHROPIC, |p| p.enabled = false)
+        .without_default_model()
+        .build();
+    let err = service_from(&pool, Arc::new(catalog))
+        .expect_err("a service with no usable endpoint cannot serve anything");
     assert!(
-        err.to_string().contains("No AI providers are enabled"),
+        err.to_string()
+            .contains("No AI provider endpoint is usable"),
         "got {err}"
     );
-
-    // One provider enabled, but the default names a different one — this is the
-    // arm that reports an unresolvable default by name.
-    let mut mismatched = ai_config(ANTHROPIC);
-    mismatched.default_provider = "phantom-provider".to_owned();
-    let err = AiService::new(
-        &registry,
-        &mismatched,
-        systemprompt_ai::AiServiceProviders {
-            tools: Arc::new(NoopToolProvider::new()),
-            sessions: noop_session_provider(),
-        },
-        &systemprompt_ai::repository::AiRepositories::new(&pool),
-    )
-    .expect_err("a default naming an unbuilt provider must fail construction");
-    assert!(
-        err.to_string().contains("phantom-provider"),
-        "the failure must name the unresolvable default, got {err}"
-    );
 }
 
 #[tokio::test]
-async fn the_default_registry_seed_is_usable_without_endpoint_overrides() {
-    let seed = ProviderRegistry::default_seed().expect("the embedded catalog must parse");
+async fn a_default_model_that_no_client_serves_fails_construction() {
+    let pool = bootstrapped_pool().await;
+    let server =
+        mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
+    let catalog = with_unconfigured_provider(fixture_with_endpoint(ANTHROPIC, server.uri()))
+        .default_model("phantom-model")
+        .build();
+    let err = service_from(&pool, Arc::new(catalog))
+        .expect_err("a default whose only deployment has no client must fail construction");
+    let message = err.to_string();
+    assert!(message.contains("phantom-model"), "{message}");
     assert!(
-        seed.find_provider(ANTHROPIC).is_some(),
-        "the shipped catalog must know the provider the default policy names"
+        message.contains("phantom-secret-never-set"),
+        "the failure must say why the deployment was withheld, got {message}"
+    );
+}
+
+#[test]
+fn the_embedded_default_catalog_resolves_without_overrides() {
+    let catalog = mock_http::default_catalog();
+    assert!(
+        catalog.provider(ANTHROPIC).is_some(),
+        "the shipped catalog must know the anthropic provider"
     );
     assert!(
-        seed.find_provider("phantom-provider").is_none(),
+        catalog.provider("phantom-provider").is_none(),
         "lookup must be exact, not fuzzy"
     );
 }

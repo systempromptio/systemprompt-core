@@ -81,12 +81,12 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
             Ok(())
         },
         ServicesCommands::Publish(args) => {
-            render_result(&publish::execute(&args).await?, &ctx.cli);
+            render_result(&publish::execute(&args, ctx).await?, &ctx.cli);
             Ok(())
         },
         ServicesCommands::Refresh(args) => Box::pin(refresh::execute(&args, ctx)).await,
         ServicesCommands::Inspect(args) => {
-            render_result(&inspect::execute(&args)?, &ctx.cli);
+            render_result(&inspect::execute(&args, ctx)?, &ctx.cli);
             Ok(())
         },
     }

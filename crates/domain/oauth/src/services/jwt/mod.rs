@@ -9,7 +9,7 @@ pub mod authorization;
 use std::future::Future;
 
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser};
+use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser, TokenAuthority};
 
 pub use authentication::AuthenticationService;
 pub use authorization::AuthorizationService;
@@ -61,21 +61,34 @@ impl AuthService {
             .map_err(|_e| http::StatusCode::UNAUTHORIZED)
     }
 
-    pub fn authenticate(headers: &http::HeaderMap) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthenticationService::authenticate(headers)
+    pub fn authenticate(
+        authority: &dyn TokenAuthority,
+        config: &systemprompt_manifest::Config,
+        headers: &http::HeaderMap,
+    ) -> Result<AuthenticatedUser, http::StatusCode> {
+        AuthenticationService::authenticate(authority, config, headers)
     }
 
     pub fn authorize_service_access(
+        authority: &dyn TokenAuthority,
+        config: &systemprompt_manifest::Config,
         headers: &http::HeaderMap,
         service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthorizationService::authorize_service_access(headers, service_name)
+        AuthorizationService::authorize_service_access(authority, config, headers, service_name)
     }
 
     pub fn authorize_required_audience(
+        authority: &dyn TokenAuthority,
+        config: &systemprompt_manifest::Config,
         headers: &http::HeaderMap,
         required_audience: &str,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
-        AuthorizationService::authorize_required_audience(headers, required_audience)
+        AuthorizationService::authorize_required_audience(
+            authority,
+            config,
+            headers,
+            required_audience,
+        )
     }
 }

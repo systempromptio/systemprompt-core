@@ -1,5 +1,6 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use systemprompt_test_fixtures::block_on;
 
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::validate::{self, CheckLevel, ValidationReport};
@@ -71,14 +72,6 @@ impl Sandbox {
         ];
         temp_env::with_vars(vars, f)
     }
-}
-
-fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime")
-        .block_on(fut)
 }
 
 fn report(sandbox: &Sandbox) -> ValidationReport {

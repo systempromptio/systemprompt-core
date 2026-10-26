@@ -3,10 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use anyhow::Result;
 use clap::Args;
 
 use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection, read_yaml_file};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -15,13 +16,14 @@ pub struct ListArgs {
     pub errors_only: bool,
 }
 
-pub fn execute(args: ListArgs, _config: &CliConfig) -> CommandOutput {
+pub fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let loaded = ctx.loaded_profile()?;
     let mut files = Vec::new();
     let mut valid_count = 0;
     let mut invalid_count = 0;
 
     for section in ConfigSection::all() {
-        let section_files = match section.all_files() {
+        let section_files = match section.all_files(loaded) {
             Ok(f) => f,
             Err(e) => {
                 tracing::debug!(section = %section, error = %e, "Failed to list config files for section");
@@ -67,9 +69,9 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> CommandOutput {
         files,
     };
 
-    CommandOutput::table_of(
+    Ok(CommandOutput::table_of(
         vec!["path", "section", "exists", "valid", "error"],
         &output.files,
     )
-    .with_title("Configuration Files")
+    .with_title("Configuration Files"))
 }

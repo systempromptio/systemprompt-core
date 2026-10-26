@@ -12,6 +12,7 @@ fn plugin(sha: char) -> PluginEntry {
         sha256: Sha256Digest::try_new(sha.to_string().repeat(64)).unwrap(),
         files: vec![],
         hooks: systemprompt_models::plugin::PluginHooksRef::default(),
+        publication: None,
     }
 }
 

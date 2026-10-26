@@ -12,12 +12,11 @@
 //! resolver that returned the wrong entry, or an arithmetic that folded two
 //! classes together, cannot produce the expected figure by coincidence.
 
+use systemprompt_catalog_fixtures::{CatalogFixture, model, platform};
 use systemprompt_gateway::pricing::resolve;
-use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_manifest::services::{
-    ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
-};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_manifest::services::ModelPricing;
+use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::usage;
 use systemprompt_wire::WireProtocol;
 
@@ -30,7 +29,6 @@ struct Row {
     provider: &'static str,
     model: &'static str,
     wire: WireProtocol,
-    surface: ApiSurface,
     pricing: ModelPricing,
 }
 
@@ -44,7 +42,6 @@ fn table() -> Vec<Row> {
             provider: "anthropic",
             model: "claude-sonnet-4-cached",
             wire: WireProtocol::Anthropic,
-            surface: ApiSurface::Anthropic,
             pricing: ModelPricing {
                 input_per_million: 3.0,
                 output_per_million: 15.0,
@@ -57,7 +54,6 @@ fn table() -> Vec<Row> {
             provider: "openai",
             model: "gpt-4.1-mini-cached",
             wire: WireProtocol::OpenAiChat,
-            surface: ApiSurface::OpenAi,
             pricing: ModelPricing {
                 input_per_million: 0.4,
                 output_per_million: 1.6,
@@ -70,7 +66,6 @@ fn table() -> Vec<Row> {
             provider: "openai-responses",
             model: "o4-mini-cached",
             wire: WireProtocol::OpenAiResponses,
-            surface: ApiSurface::OpenAi,
             pricing: ModelPricing {
                 input_per_million: 1.1,
                 output_per_million: 4.4,
@@ -83,7 +78,6 @@ fn table() -> Vec<Row> {
             provider: "gemini",
             model: "gemini-2.5-pro-cached",
             wire: WireProtocol::Gemini,
-            surface: ApiSurface::Gemini,
             pricing: ModelPricing {
                 input_per_million: 1.25,
                 output_per_million: 10.0,
@@ -96,7 +90,6 @@ fn table() -> Vec<Row> {
             provider: "cerebras",
             model: "gpt-oss-120b-cached",
             wire: WireProtocol::OpenAiChat,
-            surface: ApiSurface::OpenAi,
             pricing: ModelPricing {
                 input_per_million: 0.35,
                 output_per_million: 0.75,
@@ -108,43 +101,26 @@ fn table() -> Vec<Row> {
     ]
 }
 
-fn registry() -> ProviderRegistry {
-    ProviderRegistry {
-        providers: table()
-            .into_iter()
-            .map(|row| ProviderEntry {
-                name: ProviderId::new(row.provider),
-                display_name: None,
-                description: None,
-                wire: row.wire,
-                surface: row.surface,
-                endpoint: format!("https://{}.example.invalid/v1", row.provider),
-                api_key_secret: Some(SecretName::new(row.provider)),
-                credential: Default::default(),
-                credential_from: None,
-                user_agent: None,
-                forward_headers: Vec::new(),
-                governance: Default::default(),
-                extra_headers: Default::default(),
-                accepted_betas: None,
-                models: vec![ProviderModel {
-                    id: ModelId::new(row.model),
-                    aliases: Vec::new(),
-                    hidden: false,
-                    governance: None,
-                    upstream_model: None,
-                    pricing: row.pricing,
-                    capabilities: Default::default(),
-                    limits: Default::default(),
-                }],
-            })
-            .collect(),
+fn registry() -> ResolvedCatalog {
+    let mut fixture = CatalogFixture::new();
+    for row in table() {
+        fixture = fixture
+            .credential(row.provider, platform(row.provider))
+            .provider(row.provider, ProviderConfig::new(row.provider))
+            .endpoint(
+                row.provider,
+                "api",
+                EndpointConfig::new(
+                    row.wire,
+                    format!("https://{}.example.invalid/v1", row.provider),
+                ),
+            )
+            .model(row.model, model(&[ClientFamily::Claude], 0, row.pricing))
+            .deploy(row.model, [format!("{}/api", row.provider).as_str()]);
     }
+    fixture.build()
 }
 
-// Why: microdollars, computed the long way from the four declared rates, so a
-// change to the arithmetic under test cannot be mirrored by a change to the
-// expectation.
 fn expected_microdollars(p: &ModelPricing) -> i64 {
     let per = |tokens: u32, rate: f64| (f64::from(tokens) / 1_000_000.0) * rate;
     let total = per(INPUT, p.input_per_million)
@@ -169,7 +145,7 @@ fn every_provider_entry_prices_its_own_cache_rates() {
         .cache_creation(CACHE_WRITE)
         .build();
     for row in table() {
-        let resolved = resolve(row.provider, &[row.model], None, &registry).unwrap();
+        let resolved = resolve(row.provider, &[row.model], &registry).unwrap();
         assert!(
             resolved.declares_cache_rate(),
             "{}: the resolver dropped the entry's declared cache rate",
@@ -213,7 +189,7 @@ fn no_provider_bills_the_cached_slice_twice() {
         .cache_read(CACHE_READ)
         .build();
     for row in table() {
-        let p = resolve(row.provider, &[row.model], None, &registry).unwrap();
+        let p = resolve(row.provider, &[row.model], &registry).unwrap();
         let correct = p.cost_microdollars(&exclusive);
         let doubled = p.cost_microdollars(&overlapping);
         assert_eq!(
@@ -245,7 +221,7 @@ fn expected_slice_at_input_rate(p: &ModelPricing) -> i64 {
 #[test]
 fn a_declared_zero_cache_rate_bills_the_cached_slice_free_not_at_the_input_rate() {
     let registry = registry();
-    let p = resolve("cerebras", &["gpt-oss-120b-cached"], None, &registry).unwrap();
+    let p = resolve("cerebras", &["gpt-oss-120b-cached"], &registry).unwrap();
     let with_cache = usage()
         .input(INPUT)
         .output(OUTPUT)

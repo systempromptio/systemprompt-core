@@ -5,6 +5,7 @@ use systemprompt_ai::repository::{
     AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta, QuotaUsageRepository,
     QuotaWindowKey,
 };
+use systemprompt_identifiers::QuotaSubjectId;
 
 use super::bootstrapped_pool;
 
@@ -66,7 +67,10 @@ async fn usage_sums_every_shard_of_one_window() {
         .await
         .expect("next window");
 
-    let total = usage.usage(window, &subject).await.expect("usage");
+    let total = usage
+        .usage(window, &QuotaSubjectId::new(subject.clone()))
+        .await
+        .expect("usage");
     assert_eq!(total.requests, 9);
     assert_eq!(total.input_tokens, 90);
     assert_eq!(total.output_tokens, 45);
@@ -88,7 +92,7 @@ async fn usage_of_an_untouched_window_is_zero() {
                     .single()
                     .expect("ts"),
             },
-            &subject(),
+            &QuotaSubjectId::new(subject()),
         )
         .await
         .expect("usage");
@@ -129,12 +133,12 @@ async fn window_usage_lists_subjects_by_cost_and_honours_the_limit() {
 
     let listed = usage.window_usage(window, 10).await.expect("window usage");
     assert_eq!(listed.len(), 2);
-    assert_eq!(listed[0].subject_id, dear);
+    assert_eq!(listed[0].subject_id.as_str(), dear);
     assert_eq!(listed[0].usage.cost_microdollars, 1_000);
     assert_eq!(listed[0].usage.requests, 2);
-    assert_eq!(listed[1].subject_id, cheap);
+    assert_eq!(listed[1].subject_id.as_str(), cheap);
 
     let top = usage.window_usage(window, 1).await.expect("window usage");
     assert_eq!(top.len(), 1);
-    assert_eq!(top[0].subject_id, dear);
+    assert_eq!(top[0].subject_id.as_str(), dear);
 }

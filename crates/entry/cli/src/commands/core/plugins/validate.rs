@@ -7,16 +7,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 use systemprompt_identifiers::PluginId;
-use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
@@ -27,10 +26,10 @@ pub struct ValidateArgs {
     pub id: Option<PluginId>,
 }
 
-pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let plugins_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "plugins");
-    let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
+pub(super) fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
+    let services_root = &ctx.boot()?.require_services_root().path;
+    let plugins_path = services_root.join("plugins");
+    let skills_path = services_root.join("skills");
 
     let plugin_ids = match args.id {
         Some(id) => {

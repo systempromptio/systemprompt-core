@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO config_plane_applied (plane) VALUES ($1)\n         ON CONFLICT (plane) DO UPDATE SET applied_at = NOW()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b53432c7df6e5dfc6d49a6d9a6229355c0db9707a54928ee6c36918488ada1c2"
+}

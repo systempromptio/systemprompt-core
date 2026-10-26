@@ -8,36 +8,60 @@
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
+use systemprompt_manifest::services::ServicesView;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{DynAgentRunLauncher, DynJwtValidationProvider};
 
 use crate::repository::A2ARepositories;
 use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
 
 #[derive(Clone)]
+pub struct AgentAuth {
+    pub jwt_provider: DynJwtValidationProvider,
+    pub signing_keys: SigningKeys,
+}
+
+impl std::fmt::Debug for AgentAuth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AgentAuth")
+            .field("jwt_provider", &"<DynJwtValidationProvider>")
+            .field("signing_keys", &self.signing_keys)
+            .finish()
+    }
+}
+
+#[derive(Clone)]
 pub struct AgentState {
     db_pool: DbPool,
     config: Arc<Config>,
-    jwt_provider: DynJwtValidationProvider,
+    auth: AgentAuth,
     repositories: Arc<A2ARepositories>,
     webhooks: DynWebhookBroadcaster,
+    services: ServicesView,
     agent_run_launcher: Option<DynAgentRunLauncher>,
 }
 
 impl AgentState {
     #[must_use]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each argument is an independently injected collaborator; the constructor is the one composition point"
+    )]
     pub fn new(
         db_pool: DbPool,
         config: Arc<Config>,
-        jwt_provider: DynJwtValidationProvider,
+        auth: AgentAuth,
         repositories: Arc<A2ARepositories>,
         webhooks: DynWebhookBroadcaster,
+        services: ServicesView,
     ) -> Self {
         Self {
             db_pool,
             config,
-            jwt_provider,
+            auth,
             repositories,
             webhooks,
+            services,
             agent_run_launcher: None,
         }
     }
@@ -65,7 +89,17 @@ impl AgentState {
 
     #[must_use]
     pub fn jwt_provider(&self) -> &DynJwtValidationProvider {
-        &self.jwt_provider
+        &self.auth.jwt_provider
+    }
+
+    #[must_use]
+    pub const fn signing_keys(&self) -> &SigningKeys {
+        &self.auth.signing_keys
+    }
+
+    #[must_use]
+    pub const fn services(&self) -> &ServicesView {
+        &self.services
     }
 
     #[must_use]
@@ -84,9 +118,10 @@ impl std::fmt::Debug for AgentState {
         f.debug_struct("AgentState")
             .field("db_pool", &"<DbPool>")
             .field("config", &"<Arc<Config>>")
-            .field("jwt_provider", &"<DynJwtValidationProvider>")
+            .field("auth", &"<AgentAuth>")
             .field("repositories", &"<A2ARepositories>")
             .field("webhooks", &self.webhooks)
+            .field("services", &self.services)
             .field("agent_run_launcher", &self.agent_run_launcher.is_some())
             .finish()
     }

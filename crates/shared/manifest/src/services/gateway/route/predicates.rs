@@ -1,10 +1,14 @@
-//! Request-shape predicates (`when:`), target governance demands
-//! (`requires:`) and the profile mirror of the wire response format.
+//! Request predicates (`when:`), target governance demands (`requires:`) and
+//! the profile mirror of the wire response format.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ScopeDimension;
+use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_wire::canonical::{
     CanonicalRequest, CanonicalTool, ReasoningEffort, ResponseFormat,
 };
@@ -12,13 +16,15 @@ use systemprompt_wire::canonical::{
 use super::token_estimate::estimate_input_tokens;
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 
-/// Request-shape predicates a route can require beyond the model glob.
+/// Request predicates a route can require beyond the model glob.
 ///
 /// Every field is optional; an absent predicate is a wildcard, so an empty
-/// block matches all requests. The trustworthy discriminators in real agent
-/// loops are `thinking` / `min_reasoning_effort` / `stream` and the model name
-/// itself — the full tool catalogue is typically resent on every step, so
-/// `requires_tools` / `min_tools` are weak signals retained for completeness.
+/// block matches all requests. `scope` maps scope dimensions to the value a
+/// request must be attributed in each (`scope: {project: commerce}`). The
+/// trustworthy discriminators in real agent loops are `thinking` /
+/// `min_reasoning_effort` / `stream` and the model name itself — the full tool
+/// catalogue is typically resent on every step, so `requires_tools` /
+/// `min_tools` are weak signals retained for completeness.
 ///
 /// Two tool predicates exist because a tool's *name* and its *kind* are
 /// different facts. `tool_names_any` matches the names a client gives its own
@@ -33,6 +39,8 @@ use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RouteMatch {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub scope: BTreeMap<ScopeDimension, String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_names_any: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -55,14 +63,40 @@ pub struct RouteMatch {
 
 impl RouteMatch {
     #[must_use]
+    pub fn matches(
+        &self,
+        attribution: Option<&RequestAttribution>,
+        request: Option<&CanonicalRequest>,
+    ) -> bool {
+        self.matches_scope(attribution)
+            && request.map_or_else(
+                || !self.has_request_predicates(),
+                |request| self.matches_request(request),
+            )
+    }
+
+    #[must_use]
+    pub fn matches_scope(&self, attribution: Option<&RequestAttribution>) -> bool {
+        self.scope.iter().all(|(dimension, want)| {
+            attribution.and_then(|a| a.value_for(dimension.as_str())) == Some(want.as_str())
+        })
+    }
+
+    #[must_use]
+    pub fn has_request_predicates(&self) -> bool {
+        !self.matched_predicates().is_empty()
+    }
+
+    #[must_use]
     pub fn matches_request(&self, request: &CanonicalRequest) -> bool {
         (self.tool_names_any.is_empty()
             || request
+                .tooling
                 .tools
                 .iter()
                 .any(|tool| self.tool_names_any.contains(&tool.name)))
             && (self.tool_types_any.is_empty()
-                || request.tools.iter().any(|tool| {
+                || request.tooling.tools.iter().any(|tool| {
                     server_tool_type(tool).is_some_and(|kind| {
                         self.tool_types_any
                             .iter()
@@ -71,14 +105,19 @@ impl RouteMatch {
                 }))
             && self
                 .requires_tools
-                .is_none_or(|want| request.tools.is_empty() != want)
-            && self.min_tools.is_none_or(|n| request.tools.len() >= n)
+                .is_none_or(|want| request.tooling.tools.is_empty() != want)
+            && self
+                .min_tools
+                .is_none_or(|n| request.tooling.tools.len() >= n)
             && self
                 .thinking
-                .is_none_or(|want| request.thinking.is_some_and(|t| t.enabled) == want)
-            && self
-                .min_reasoning_effort
-                .is_none_or(|floor| request.reasoning_effort.is_some_and(|e| e >= floor))
+                .is_none_or(|want| request.reasoning.thinking.is_some_and(|t| t.enabled) == want)
+            && self.min_reasoning_effort.is_none_or(|floor| {
+                request
+                    .reasoning
+                    .reasoning_effort
+                    .is_some_and(|e| e >= floor)
+            })
             && self.stream.is_none_or(|want| request.stream == want)
             && self
                 .min_input_tokens
@@ -122,6 +161,9 @@ impl RouteMatch {
     }
 
     pub fn validate(&self) -> GatewayResult<()> {
+        if self.scope.values().any(|value| value.trim().is_empty()) {
+            return Err(GatewayProfileError::RouteScopeValueEmpty);
+        }
         if matches!(self.min_tools, Some(0)) {
             return Err(GatewayProfileError::RouteMatchZeroMinTools);
         }
@@ -154,11 +196,11 @@ fn server_tool_type(tool: &CanonicalTool) -> Option<&str> {
 
 /// Governance demands a route places on its *target*, not on the request.
 ///
-/// `european: true` restricts the route to providers/models whose effective
+/// `european: true` restricts the route to deployments whose effective
 /// [`ModelGovernance`](crate::services::ai::ModelGovernance) declares
-/// `european`, and `no_retain: true` likewise. Checked at boot for every model
-/// the route can reach, and re-checked at dispatch so a selector-refined route
-/// or unlisted model cannot bypass it.
+/// `european`, and `no_retain: true` likewise. Checked when the catalog is
+/// resolved for every hop the route can reach, and re-checked at dispatch so
+/// a selector-refined route cannot bypass it.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RouteRequirements {

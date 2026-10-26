@@ -4,14 +4,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
-use super::helpers::{collect_endpoint_changes, load_profile_for_edit, save_profile};
+use super::super::profile_io::profile_path;
+use super::profile_edit::{collect_endpoint_changes, load_profile_for_edit, save_profile};
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::interactive::{Prompter, require_confirmation};
 use crate::shared::{CommandOutput, render_result};
 
@@ -23,15 +24,16 @@ use super::super::types::{
 pub(super) fn execute_preset(
     command: PresetCommands,
     prompter: &dyn Prompter,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
+    let config = &ctx.cli;
     match command {
         PresetCommands::List => {
             execute_preset_list(config);
             Ok(())
         },
         PresetCommands::Show(args) => execute_preset_show(args, config),
-        PresetCommands::Apply(args) => execute_preset_apply(&args, prompter, config),
+        PresetCommands::Apply(args) => execute_preset_apply(&args, prompter, ctx),
     }
 }
 
@@ -110,8 +112,9 @@ pub fn get_preset_description(name: &str) -> Result<String> {
 fn execute_preset_apply(
     args: &PresetApplyArgs,
     prompter: &dyn Prompter,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
+    let config = &ctx.cli;
     let preset_config = get_preset_config(&args.name)?;
 
     if config.is_interactive() && !args.yes {
@@ -127,7 +130,7 @@ fn execute_preset_apply(
         config,
     )?;
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
     let mut changes: Vec<ResetChange> = Vec::new();

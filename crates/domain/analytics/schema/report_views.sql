@@ -122,7 +122,7 @@ SELECT
     src.cache_read_tokens, src.cache_creation_tokens, src.reasoning_tokens,
     src.is_streaming, src.status, src.error_message,
     src.accounting_failed_at, src.accounting_error, src.actor_kind,
-    src.actor_id, src.synthetic, src.request_kind, src.client_kind,
+    src.actor_id, src.traffic, src.request_kind, src.client_kind,
     src.wire_protocol, src.client_attestation, src.message_count,
     src.instance_id, src.created_at, src.updated_at, src.completed_at
 FROM ai_requests src
@@ -202,12 +202,22 @@ WHERE NOT EXISTS (
 CREATE OR REPLACE VIEW report_ai_usage_hourly AS
 SELECT
     src.bucket, src.user_id, src.provider, src.model, src.agent_name,
-    src.synthetic, src.request_count, src.tokens, src.input_tokens,
+    src.traffic, src.request_count, src.tokens, src.input_tokens,
     src.output_tokens, src.reasoning_tokens, src.cache_read_tokens,
     src.cache_creation_tokens, src.cost_microdollars, src.latency_sum_ms,
     src.latency_n, src.cache_hits, src.user_key_request_count,
     src.user_key_tokens, src.user_key_cost_microdollars
 FROM ai_usage_rollup_hourly src
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
+);
+
+CREATE OR REPLACE VIEW report_ai_context_hourly AS
+SELECT
+    src.bucket, src.user_id, src.context_id, src.model, src.agent_name,
+    src.traffic, src.status, src.request_count, src.tokens,
+    src.cost_microdollars, src.last_activity
+FROM ai_context_rollup_hourly src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );

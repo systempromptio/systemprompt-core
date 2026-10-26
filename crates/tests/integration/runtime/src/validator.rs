@@ -1,21 +1,31 @@
 //! Exercises `StartupValidator::validate` end-to-end against a
-//! synthesised `Config`. Without an initialised `ProfileBootstrap` the
-//! services-config loader returns an error, so the validator takes its
-//! early-bail branch and emits a services-config domain error. This is
-//! the only deterministic shape of the function we can drive without
-//! installing process-wide globals shared with other test crates.
+//! synthesised `Config`. Against a boot context whose services tree does not
+//! parse, the services-config loader returns an error, so the validator takes
+//! its early-bail branch and emits a services-config domain error.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use systemprompt_logging::set_startup_mode;
+use systemprompt_files::FilesConfigValidator;
+use systemprompt_logging::OutputState;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_runtime::{FilesConfigValidator, StartupValidator};
+use systemprompt_runtime::StartupValidator;
+use tracing_subscriber::layer::SubscriberExt;
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
+
+fn unloadable_boot() -> &'static systemprompt_test_fixtures::TestBootstrap {
+    let env = systemprompt_test_fixtures::ensure_test_bootstrap();
+    std::fs::write(
+        env.services_path.join("config/config.yaml"),
+        "agents: [not, a, mapping",
+    )
+    .expect("corrupt the services config");
+    env
+}
 
 fn minimal_config() -> Config {
     Config {
@@ -74,33 +84,35 @@ fn minimal_config() -> Config {
 }
 
 #[test]
-fn validate_returns_services_config_error_when_profile_uninitialised_quiet() {
+fn validate_returns_services_config_error_when_the_services_tree_is_unloadable_quiet() {
     let _guard = STARTUP_MODE_LOCK
         .lock()
         .expect("startup-mode lock poisoned");
-    set_startup_mode(false);
+    let output = OutputState::new();
+    output.set_startup_mode(false);
+    let _scope = tracing::subscriber::set_default(tracing_subscriber::registry().with(output));
 
     let cfg = minimal_config();
-    let mut validator = StartupValidator::new();
+    let mut validator =
+        StartupValidator::new(unloadable_boot().boot.clone()).expect("startup validator");
     let report = validator.validate(&cfg);
     assert!(
         report.has_errors(),
-        "validator must surface services-config failure when ProfileBootstrap is uninitialised; \
+        "validator must surface services-config failure when the services tree is unloadable; \
          report = {report:?}",
     );
 }
 
 #[test]
-fn validate_returns_services_config_error_when_profile_uninitialised_verbose() {
+fn validate_returns_services_config_error_when_the_services_tree_is_unloadable_verbose() {
     let _guard = STARTUP_MODE_LOCK
         .lock()
         .expect("startup-mode lock poisoned");
-    set_startup_mode(true);
 
     let cfg = minimal_config();
-    let mut validator = StartupValidator::default();
+    let mut validator =
+        StartupValidator::new(unloadable_boot().boot.clone()).expect("startup validator");
     let report = validator.validate(&cfg);
-    set_startup_mode(false);
 
     assert!(
         report.has_errors(),
@@ -114,9 +126,13 @@ fn validate_returns_services_config_error_when_profile_uninitialised_verbose() {
 
 #[test]
 fn files_config_validator_round_trip() {
-    use systemprompt_traits::DomainConfig;
+    use systemprompt_manifest::validators::DomainConfig;
 
-    let validator = FilesConfigValidator::new();
+    let validator = FilesConfigValidator::new(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .clone(),
+    );
     assert_eq!(validator.domain_id(), "files");
     let dbg = format!("{:?}", validator);
     assert!(dbg.contains("FilesConfigValidator"));

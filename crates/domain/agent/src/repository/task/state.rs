@@ -167,25 +167,12 @@ pub async fn apply_notification_status(
     state: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let parsed = notification_state(state).ok_or_else(|| {
+    // Why: the parse error repeats the rejected value and nothing else, so the
+    // argument error names it directly.
+    let parsed = state.parse::<TaskState>().map_err(|_unknown| {
         RepositoryError::invalid_argument("state", format!("unknown task state {state:?}"))
     })?;
     update_task_state(pool, task_id, parsed, timestamp).await
-}
-
-fn notification_state(state: &str) -> Option<TaskState> {
-    let canonical = match state {
-        "submitted" => "TASK_STATE_SUBMITTED",
-        "working" => "TASK_STATE_WORKING",
-        "input-required" => "TASK_STATE_INPUT_REQUIRED",
-        "auth-required" => "TASK_STATE_AUTH_REQUIRED",
-        "completed" => "TASK_STATE_COMPLETED",
-        "canceled" => "TASK_STATE_CANCELED",
-        "failed" => "TASK_STATE_FAILED",
-        "rejected" => "TASK_STATE_REJECTED",
-        other => other,
-    };
-    canonical.parse::<TaskState>().ok()
 }
 
 pub async fn update_task_failed_with_error(

@@ -19,19 +19,16 @@
 //! one). A self-issued admin JWT — minted with the live `Config` issuer and the
 //! process-wide test signing key — satisfies the bearer check.
 
-use std::sync::Once;
-
 use axum::body::Body;
 use axum::http::{Request, header};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use systemprompt_api::routes::proxy::{agents, mcp};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_config, init_services_bootstrap,
-    install_test_signing_key, mint_admin_jwt, test_app_context, test_db_pool,
+    TestBootstrap, init_services_bootstrap, mint_admin_jwt, test_app_context_on, test_config,
+    test_db_pool, unique_name,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -39,15 +36,6 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::{body_to_string, setup_ctx};
-
-static CONFIG_INSTALL: Once = Once::new();
-
-fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let b = ensure_test_bootstrap();
-        let _ = Config::install(fixture_config(&b.database_url));
-    });
-}
 
 struct DeclaredBackend {
     name: String,
@@ -88,7 +76,7 @@ async fn declared_backend(prefix: &str, port: u16) -> anyhow::Result<DeclaredBac
     let services = format!(
         r#"mcp_servers:
   {name}:
-    type: internal
+    server_type: internal
     binary: fixture
     package: fixture
     port: {port}
@@ -113,7 +101,7 @@ settings:
         "extension:\n  type: mcp\n  name: fixture\n  binary: fixture\n",
     )?;
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &boot.database_url);
+    let ctx = test_app_context_on(&boot, &pool);
     register_running_service(&ctx, &name, "mcp", port).await?;
     Ok(DeclaredBackend {
         name,
@@ -130,7 +118,7 @@ async fn proxy_reports_a_dead_registered_backend_and_recovers_when_that_backend_
     let declared = declared_backend("dead", address.port()).await?;
     let name = &declared.name;
     let token = ctx_token();
-    let app = agents::router(&declared.ctx)
+    let app = super::common::with_config(agents::router(&declared.ctx), &declared.ctx)
         .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
 
     let unavailable = app
@@ -166,11 +154,7 @@ async fn proxy_reports_a_dead_registered_backend_and_recovers_when_that_backend_
 }
 
 fn ctx_token() -> String {
-    if !Config::is_initialized() {
-        ensure_config();
-    }
-    install_test_signing_key();
-    let issuer = Config::get().expect("config installed").jwt_issuer.clone();
+    let issuer = test_config().jwt_issuer.clone();
     let uid = UserId::new(Uuid::new_v4().to_string());
     mint_admin_jwt(&uid, "proxy-fwd@test.invalid", &issuer)
         .as_str()
@@ -201,10 +185,6 @@ async fn register_running_service(
     port: u16,
 ) -> anyhow::Result<()> {
     systemprompt_test_fixtures::seed_running_service(ctx, name, module, port).await
-}
-
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}-{}", Uuid::new_v4().simple())
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {
@@ -244,7 +224,7 @@ async fn agent_proxy_forwards_get_to_backend() -> anyhow::Result<()> {
         .await;
 
     let token = ctx_token();
-    let app = agents::router(&declared.ctx)
+    let app = super::common::with_config(agents::router(&declared.ctx), &declared.ctx)
         .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app
         .oneshot(authed_get(&format!("/{}", declared.name), &token))
@@ -265,7 +245,7 @@ async fn agent_proxy_forwards_subpath_with_query() -> anyhow::Result<()> {
         .await;
 
     let token = ctx_token();
-    let app = agents::router(&declared.ctx)
+    let app = super::common::with_config(agents::router(&declared.ctx), &declared.ctx)
         .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app
         .oneshot(authed_get(
@@ -289,7 +269,7 @@ async fn agent_proxy_forwards_post_body() -> anyhow::Result<()> {
         .await;
 
     let token = ctx_token();
-    let app = agents::router(&declared.ctx)
+    let app = super::common::with_config(agents::router(&declared.ctx), &declared.ctx)
         .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app
         .oneshot(authed_post(
@@ -314,7 +294,7 @@ async fn agent_proxy_propagates_backend_error_status() -> anyhow::Result<()> {
         .await;
 
     let token = ctx_token();
-    let app = agents::router(&declared.ctx)
+    let app = super::common::with_config(agents::router(&declared.ctx), &declared.ctx)
         .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app
         .oneshot(authed_get(&format!("/{}/boom", declared.name), &token))
@@ -338,7 +318,8 @@ async fn an_undeclared_module_is_forbidden_even_with_a_valid_credential() -> any
     register_running_service(&ctx, &name, "custom", backend.address().port()).await?;
 
     let token = ctx_token();
-    let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
+    let app = super::common::with_config(agents::router(&ctx), &ctx)
+        .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app.oneshot(authed_get(&format!("/{name}"), &token)).await?;
     let (status, body) = body_to_string(resp).await?;
     assert!(
@@ -364,7 +345,7 @@ async fn agent_proxy_running_service_without_context_is_error() -> anyhow::Resul
 
     let token = ctx_token();
     // No inject_ctx middleware — the proxy must refuse without a RequestContext.
-    let app = agents::router(&ctx);
+    let app = super::common::with_config(agents::router(&ctx), &ctx);
     let resp = app.oneshot(authed_get(&format!("/{name}"), &token)).await?;
     assert!(resp.status().as_u16() >= 400, "{}", resp.status());
     Ok(())
@@ -374,7 +355,8 @@ async fn agent_proxy_running_service_without_context_is_error() -> anyhow::Resul
 async fn mcp_proxy_unknown_service_emits_challenge() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let token = ctx_token();
-    let app = mcp::router(&ctx).layer(middleware::from_fn_with_state(token, inject_ctx));
+    let app = super::common::with_config(mcp::router(&ctx), &ctx)
+        .layer(middleware::from_fn_with_state(token, inject_ctx));
     let resp = app
         .oneshot(
             Request::builder()
@@ -407,7 +389,8 @@ async fn a_services_row_naming_an_unknown_agent_is_not_proxied() -> anyhow::Resu
     register_running_service(&ctx, &name, "agent", backend.address().port()).await?;
 
     let token = ctx_token();
-    let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
+    let app = super::common::with_config(agents::router(&ctx), &ctx)
+        .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app.oneshot(authed_get(&format!("/{name}"), &token)).await?;
     let (status, body) = body_to_string(resp).await?;
 
@@ -436,7 +419,8 @@ async fn a_services_row_naming_an_unknown_mcp_server_is_not_proxied() -> anyhow:
     register_running_service(&ctx, &name, "mcp", backend.address().port()).await?;
 
     let token = ctx_token();
-    let app = mcp::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
+    let app = super::common::with_config(mcp::router(&ctx), &ctx)
+        .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app
         .oneshot(authed_post(&format!("/{name}/mcp"), &token, "{}"))
         .await?;
@@ -469,7 +453,8 @@ async fn an_unknown_module_name_still_demands_a_credential() -> anyhow::Result<(
     // No Authorization header: a row whose module is outside the closed
     // vocabulary is a corrupt registry row and must fail closed.
     let token = ctx_token();
-    let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
+    let app = super::common::with_config(agents::router(&ctx), &ctx)
+        .layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
     let resp = app
         .oneshot(
             Request::builder()

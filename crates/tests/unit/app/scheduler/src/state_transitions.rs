@@ -1,8 +1,9 @@
 use systemprompt_identifiers::{JobName, ServiceName};
+use systemprompt_manifest::ServiceStatus;
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{
-    DesiredStatus, ReconciliationResult, RuntimeStatus, SchedulerError, ServiceAction, ServiceType,
-    VerifiedServiceState,
+    DesiredStatus, ReconciliationResult, SchedulerError, ServiceAction, ServiceType,
+    VerifiedService, VerifiedServiceState,
 };
 
 mod enabled_state_transitions {
@@ -14,7 +15,7 @@ mod enabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
-            RuntimeStatus::Running,
+            VerifiedService::observed(ServiceStatus::Running),
             8080,
         )
         .build();
@@ -24,7 +25,7 @@ mod enabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
-            RuntimeStatus::Starting,
+            VerifiedService::observed(ServiceStatus::Starting),
             8080,
         )
         .build();
@@ -34,7 +35,7 @@ mod enabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
-            RuntimeStatus::Stopped,
+            VerifiedService::observed(ServiceStatus::Stopped),
             8080,
         )
         .build();
@@ -44,7 +45,7 @@ mod enabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
-            RuntimeStatus::Crashed,
+            VerifiedService::observed(ServiceStatus::Error),
             8080,
         )
         .build();
@@ -54,7 +55,7 @@ mod enabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
-            RuntimeStatus::Orphaned,
+            VerifiedService::orphaned(),
             8080,
         )
         .build();
@@ -71,7 +72,7 @@ mod disabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
-            RuntimeStatus::Running,
+            VerifiedService::observed(ServiceStatus::Running),
             8080,
         )
         .build();
@@ -81,7 +82,7 @@ mod disabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
-            RuntimeStatus::Starting,
+            VerifiedService::observed(ServiceStatus::Starting),
             8080,
         )
         .build();
@@ -91,7 +92,7 @@ mod disabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
-            RuntimeStatus::Stopped,
+            VerifiedService::observed(ServiceStatus::Stopped),
             8080,
         )
         .build();
@@ -101,7 +102,7 @@ mod disabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
-            RuntimeStatus::Crashed,
+            VerifiedService::observed(ServiceStatus::Error),
             8080,
         )
         .build();
@@ -111,7 +112,7 @@ mod disabled_state_transitions {
             ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
-            RuntimeStatus::Orphaned,
+            VerifiedService::orphaned(),
             8080,
         )
         .build();
@@ -128,7 +129,7 @@ mod verified_state_serialization_tests {
             ServiceName::new("test-service"),
             ServiceType::Api,
             DesiredStatus::Enabled,
-            RuntimeStatus::Running,
+            VerifiedService::observed(ServiceStatus::Running),
             8080,
         )
         .with_pid(1234)
@@ -146,7 +147,7 @@ mod verified_state_serialization_tests {
             "name": "api-server",
             "service_type": "Api",
             "desired_status": "Enabled",
-            "runtime_status": "Running",
+            "runtime": {"status": "running", "orphaned": false},
             "pid": 5678,
             "port": 9000,
             "needs_action": "None",
@@ -165,7 +166,7 @@ mod verified_state_serialization_tests {
             ServiceName::new("error-service"),
             ServiceType::Api,
             DesiredStatus::Enabled,
-            RuntimeStatus::Crashed,
+            VerifiedService::observed(ServiceStatus::Error),
             8080,
         )
         .with_error("Connection refused".to_string())
@@ -181,7 +182,7 @@ mod verified_state_serialization_tests {
             ServiceName::new("no-pid-service"),
             ServiceType::Mcp,
             DesiredStatus::Disabled,
-            RuntimeStatus::Stopped,
+            VerifiedService::observed(ServiceStatus::Stopped),
             3000,
         )
         .build();
@@ -203,7 +204,7 @@ mod verified_state_serialization_tests {
                 ServiceName::new("type-test"),
                 service_type,
                 DesiredStatus::Enabled,
-                RuntimeStatus::Running,
+                VerifiedService::observed(ServiceStatus::Running),
                 8080,
             )
             .build();
@@ -250,12 +251,6 @@ mod scheduler_error_additional_tests {
                     ProviderError::InvalidInput("error".to_owned()),
                 ),
                 "Job execution failed: job - Invalid input: error",
-            ),
-            (
-                SchedulerError::UnknownRetentionTable {
-                    table: "nope".to_owned(),
-                },
-                "No retention path for table nope",
             ),
             (SchedulerError::AlreadyRunning, "Scheduler already running"),
             (SchedulerError::NotInitialized, "Scheduler not initialized"),

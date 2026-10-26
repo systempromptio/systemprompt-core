@@ -8,6 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::boot_ctx::bootstrap_ctx;
 use serde::Serialize;
 use systemprompt_cli::analytics::shared::export::{
     ensure_export_dir, export_to_csv, resolve_export_path,
@@ -22,9 +23,7 @@ struct Row {
 
 #[test]
 fn the_database_scope_error_names_the_active_profile_once_one_is_installed() {
-    systemprompt_test_fixtures::ensure_test_bootstrap();
-
-    let rendered = database_scoped_command_error().to_string();
+    let rendered = database_scoped_command_error(&bootstrap_ctx()).to_string();
 
     assert!(
         rendered.contains("routes to an external/cloud database"),
@@ -34,24 +33,43 @@ fn the_database_scope_error_names_the_active_profile_once_one_is_installed() {
 }
 
 #[test]
+fn the_database_scope_error_without_a_profile_asks_for_one() {
+    let bare = systemprompt_cli::CommandContext::new(
+        systemprompt_cli::CliConfig::new().with_interactive(false),
+        systemprompt_cli::EnvOverrides::default(),
+    );
+
+    let rendered = database_scoped_command_error(&bare).to_string();
+
+    assert!(
+        rendered.contains("requires full profile context"),
+        "{rendered}"
+    );
+}
+
+#[test]
 fn an_absolute_export_path_is_returned_unchanged() {
     let absolute = PathBuf::from("/tmp/cov-export/report.csv");
 
-    assert_eq!(resolve_export_path(&absolute).unwrap(), absolute);
+    assert_eq!(
+        resolve_export_path(&absolute, &bootstrap_ctx()).unwrap(),
+        absolute
+    );
 }
 
 #[test]
 fn a_parented_relative_export_path_is_returned_unchanged() {
     let parented = PathBuf::from("reports/cov/report.csv");
 
-    assert_eq!(resolve_export_path(&parented).unwrap(), parented);
+    assert_eq!(
+        resolve_export_path(&parented, &bootstrap_ctx()).unwrap(),
+        parented
+    );
 }
 
 #[test]
 fn a_bare_filename_is_resolved_under_the_profile_exports_directory() {
-    systemprompt_test_fixtures::ensure_test_bootstrap();
-
-    let resolved = resolve_export_path(Path::new("report.csv")).unwrap();
+    let resolved = resolve_export_path(Path::new("report.csv"), &bootstrap_ctx()).unwrap();
 
     assert!(resolved.is_absolute(), "{}", resolved.display());
     assert!(resolved.ends_with("report.csv"), "{}", resolved.display());

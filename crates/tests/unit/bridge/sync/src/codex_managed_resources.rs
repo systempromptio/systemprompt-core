@@ -9,9 +9,10 @@ use systemprompt_bridge::gateway::manifest::{
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
-use systemprompt_bridge::integration::codex_cli::CodexCliSync;
+use systemprompt_bridge::integration::codex::CodexSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_test_fixtures::{block_on, fixture_user_id};
 
 fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -28,7 +29,7 @@ fn version() -> ManifestVersion {
 fn manifest_with(
     skills: Vec<SkillEntry>,
     mcp: Vec<ManagedMcpServer>,
-    enabled_hosts: Vec<String>,
+    enabled_hosts: Vec<HostKind>,
 ) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
@@ -133,7 +134,7 @@ fn clear(home: &Path) -> Result<(), systemprompt_bridge::host_sync::ApplyError> 
     let client = stub_client();
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let m = manifest_with(Vec::new(), Vec::new(), Vec::new());
-    CodexCliSync.clear(&ctx(&m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers))
+    CodexSync.clear(&ctx(&m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers))
 }
 
 fn stub_client() -> GatewayClient {
@@ -141,14 +142,6 @@ fn stub_client() -> GatewayClient {
         ValidatedUrl::try_new("http://127.0.0.1:0").unwrap(),
         reqwest::Client::new(),
     )
-}
-
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(f)
 }
 
 fn marketplace_root(home: &Path) -> PathBuf {
@@ -197,8 +190,7 @@ fn read_cfg(home: &Path) -> String {
 fn apply(m: &SignedManifest, home: &Path) {
     let client = stub_client();
     let plugin_mcp_servers = std::collections::BTreeMap::new();
-    block_on(CodexCliSync.apply(&ctx(m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers)))
-        .unwrap();
+    block_on(CodexSync.apply(&ctx(m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers))).unwrap();
 }
 
 #[test]
@@ -208,7 +200,7 @@ fn skill_lands_in_marketplace_source_and_cache_install() {
             &manifest_with(
                 vec![skill("research", "# Research\n")],
                 vec![],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -242,7 +234,7 @@ fn marketplace_json_declares_installed_by_default_local_plugin() {
             &manifest_with(
                 vec![skill("research", "# x\n")],
                 vec![],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -268,7 +260,7 @@ fn plugin_json_points_at_skills_and_has_content_version() {
             &manifest_with(
                 vec![skill("research", "# x\n")],
                 vec![],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -295,7 +287,7 @@ fn mcp_lands_in_top_level_config_not_plugin() {
             &manifest_with(
                 vec![],
                 vec![mcp("primary", "https://mcp.example.invalid/api")],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -333,7 +325,7 @@ fn registers_marketplace_and_enables_plugin_preserving_foreign_keys() {
             &manifest_with(
                 vec![skill("research", "# x\n")],
                 vec![mcp("primary", "https://mcp.example.invalid/api")],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -369,7 +361,7 @@ fn second_apply_is_idempotent_byte_stable() {
         let m = manifest_with(
             vec![skill("research", "# x\n")],
             vec![mcp("primary", "https://mcp.example.invalid/api")],
-            vec!["codex-cli".into()],
+            vec![HostKind::CodexCli],
         );
         apply(&m, home);
         let pj = plugin_src(home).join(".codex-plugin").join("plugin.json");
@@ -397,7 +389,7 @@ fn content_change_bumps_version() {
             &manifest_with(
                 vec![skill("research", "# v1\n")],
                 vec![],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -408,7 +400,7 @@ fn content_change_bumps_version() {
             &manifest_with(
                 vec![skill("research", "# v2 changed\n")],
                 vec![],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -429,7 +421,7 @@ fn clear_removes_marketplace_tree_and_config_blocks() {
             &manifest_with(
                 vec![skill("research", "# x\n")],
                 vec![mcp("primary", "https://mcp.example.invalid/api")],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -476,7 +468,7 @@ fn install_replaces_legacy_current_version_dir() {
             &manifest_with(
                 vec![skill("research", "# x\n")],
                 vec![],
-                vec!["codex-cli".into()],
+                vec![HostKind::CodexCli],
             ),
             home,
         );
@@ -501,7 +493,7 @@ fn install_replaces_legacy_current_version_dir() {
 fn empty_manifest_registers_nothing() {
     with_codex_home(|home| {
         apply(
-            &manifest_with(vec![], vec![], vec!["codex-cli".into()]),
+            &manifest_with(vec![], vec![], vec![HostKind::CodexCli]),
             home,
         );
 
@@ -596,7 +588,7 @@ fn an_unsafe_skill_id_is_refused_before_anything_is_written() {
         let client = stub_client();
         let plugin_servers = std::collections::BTreeMap::new();
         let context = ctx(&m, home, &client, &EMPTY_BEARER, &plugin_servers);
-        let err = block_on(CodexCliSync.apply(&context))
+        let err = block_on(CodexSync.apply(&context))
             .expect_err("a traversing skill id must abort the emitter");
         assert!(
             err.to_string().contains("escape"),

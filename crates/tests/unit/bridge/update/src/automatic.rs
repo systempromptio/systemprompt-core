@@ -5,20 +5,13 @@ use systemprompt_bridge::update::automatic::{
     self, AutomaticError, Outcome, Skipped, Trigger, UpdateGate,
 };
 use systemprompt_bridge::update::{AutoUpdateDecision, auto_update_policy, automatic_enabled};
+use systemprompt_test_fixtures::block_on;
 
 use sha2::{Digest as _, Sha256};
 use systemprompt_identifiers::ValidatedUrl;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime")
-        .block_on(fut)
-}
 
 fn seed_last_sync(state: &TempDir, gateway: &ValidatedUrl, auto_update: &str) {
     let meta = state.path().join("systemprompt-bridge").join("metadata");

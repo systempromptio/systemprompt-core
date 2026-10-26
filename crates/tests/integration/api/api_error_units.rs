@@ -45,7 +45,7 @@ fn api_http_error_constructors_map_to_expected_status() {
         StatusCode::FORBIDDEN
     );
     assert_eq!(
-        status_of(ApiHttpError::internal_error("x")),
+        status_of(ApiHttpError::internal("x", "cause")),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }
@@ -54,7 +54,10 @@ fn api_http_error_constructors_map_to_expected_status() {
 fn api_http_error_into_inner_round_trips() {
     let err = ApiHttpError::not_found("gone");
     let api = err.into_inner();
-    assert_eq!(api.into_response().status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        ApiHttpError::from(api).into_response().status(),
+        StatusCode::NOT_FOUND
+    );
 }
 
 #[test]
@@ -175,7 +178,7 @@ fn extraction_error_to_api_error_covers_all_variants() {
         },
     ];
     for variant in variants {
-        let status = extraction_error_to_api_error(&variant)
+        let status = ApiHttpError::from(extraction_error_to_api_error(&variant))
             .into_response()
             .status();
         assert!(status.is_client_error() || status.is_server_error());

@@ -12,6 +12,7 @@ use systemprompt_identifiers::{AgentRunId, ContextId, TaskId};
 use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher};
 
 use crate::repository::{Fixture, expire_lease, fixture, request};
+use systemprompt_identifiers::AgentRunOriginId;
 
 async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
     let (task_id, context_id) = (TaskId::generate(), ContextId::generate());
@@ -141,7 +142,7 @@ async fn launcher_queues_finds_and_cancels_a_task_run() {
         context_id: context_id.clone(),
         request: serde_json::to_value(request()).expect("request json"),
         origin_kind: f.origin_kind.clone(),
-        origin_id: task_id.to_string(),
+        origin_id: AgentRunOriginId::new(task_id.to_string()),
     };
     let run_id = launcher.enqueue(launch.clone()).await.expect("enqueue");
     assert_eq!(

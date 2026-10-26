@@ -5,6 +5,7 @@
 
 pub mod native;
 mod native_protocol;
+mod native_webview;
 
 pub use crate::window_state as geometry;
 

@@ -62,13 +62,17 @@ fn the_dialect_resolves_the_default_policy_from_the_hosting() {
 }
 
 #[test]
-fn a_provider_declares_its_betas_as_a_yaml_list() {
-    let yaml = "name: vertex-anthropic\nwire: anthropic\nsurface: anthropic\n\
-                endpoint: https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic\n\
-                api_key_secret: vertex\naccepted_betas: [a-2025, b-2025]\n";
-    let entry: systemprompt_manifest::services::ProviderEntry =
-        serde_yaml::from_str(yaml).expect("provider parses");
-    let declared = entry.accepted_betas.expect("declared");
+fn an_endpoint_declares_its_betas_as_a_yaml_list() {
+    let yaml = "wire: anthropic\n\
+                url: https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic\n\
+                accepted_betas: [a-2025, b-2025]\n";
+    let endpoint: systemprompt_manifest::services::catalog::EndpointConfig =
+        serde_yaml::from_str(yaml).expect("endpoint parses");
+    let Some(systemprompt_manifest::services::catalog::BetaSpec::List(declared)) =
+        endpoint.accepted_betas
+    else {
+        panic!("a declared list");
+    };
     assert!(declared.contains(&AnthropicBeta::new("a-2025")));
     assert_eq!(declared.len(), 2);
 }

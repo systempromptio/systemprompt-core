@@ -21,7 +21,7 @@
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
 //! | `security` | `systemprompt-security`, `systemprompt-governance` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
-//! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding with custom extensions. |
+//! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding the CLI in a custom binary. |
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
 //! | `slack` | the `systemprompt::slack` module | Slack Events API, slash commands, interactivity. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
 //! | `teams` | the `systemprompt::teams` module | Microsoft Teams Bot Framework activities. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
@@ -29,7 +29,7 @@
 //! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.72.1", features = ["full"] }
+//! systemprompt = { version = "0.73.0", features = ["full"] }
 //! ```
 //!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
@@ -100,8 +100,7 @@ pub mod logging {
 }
 
 /// Profile / secrets / credentials configuration loaders. Drives the
-/// `ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config`
-/// sequence.
+/// `LoadedProfile → SecretsService → BootContext → Config` sequence.
 #[cfg(feature = "config")]
 #[cfg_attr(docsrs, doc(cfg(feature = "config")))]
 pub mod config {
@@ -176,10 +175,6 @@ pub mod runtime;
 #[cfg(feature = "runtime")]
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub use runtime::RuntimeBuilder;
-
-#[cfg(feature = "runtime")]
-#[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
-pub use runtime::WebAssets;
 
 #[cfg(feature = "runtime")]
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]

@@ -1,19 +1,17 @@
 //! Process-wide bootstrap fixture.
 //!
-//! Initialises [`ProfileBootstrap`], [`ServicesBootstrap`],
-//! [`SecretsBootstrap`], the runtime [`Config`] singleton, and [`FilesConfig`]
-//! from a tempdir-backed profile bundle.
+//! Builds the owned [`BootContext`] (profile, secrets, runtime `Config`) and
+//! [`FilesConfig`] from a tempdir-backed profile bundle.
 
 use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{try_init_config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::LoadedProfile;
 use systemprompt_files::FilesConfig;
-use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
+use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
-use systemprompt_manifest::Config;
 use tempfile::TempDir;
 
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
@@ -56,6 +54,10 @@ pub const TEST_SLACK_BOT_TOKEN: &str = "xoxb-test-bot-token";
 // The Teams app password resolved from the named ref `teams_app_password`.
 pub const TEST_TEAMS_APP_PASSWORD: &str = "test-teams-app-password";
 
+// The fixture profile's `server.external_url`, from which its JWT issuer is
+// derived; tokens minted against the default bootstrap carry it as `iss`.
+pub const FIXTURE_EXTERNAL_URL: &str = "http://127.0.0.1";
+
 pub struct TestBootstrap {
     pub _tmp: TempDir,
     pub profile_path: PathBuf,
@@ -65,6 +67,25 @@ pub struct TestBootstrap {
     pub storage_path: PathBuf,
     pub app_paths: AppPaths,
     pub database_url: String,
+    pub services: ServicesState,
+    pub boot: BootContext,
+}
+
+impl TestBootstrap {
+    pub fn boot_config(&self) -> &std::sync::Arc<systemprompt_manifest::Config> {
+        self.boot
+            .config()
+            .expect("the bootstrap installs its config")
+    }
+
+    pub fn files_config(&self) -> FilesConfig {
+        FilesConfig::from_profile(self.boot.profile(), &self.app_paths)
+            .expect("files config from the fixture profile")
+    }
+}
+
+pub fn test_skills_root() -> PathBuf {
+    PathBuf::from(ensure_test_bootstrap().boot.profile().paths.skills())
 }
 
 static BOOTSTRAP: OnceLock<TestBootstrap> = OnceLock::new();
@@ -95,11 +116,13 @@ pub fn init_isolated_bootstrap(api_base_url: &str, services_config_yaml: &str) -
     init_bootstrap_inner(Some(api_base_url), Some(services_config_yaml))
 }
 
-// Bootstrap whose services `config.yaml` is caller-supplied — the one place a
-// test declares a provider registry (`providers:`), an enabled `gateway:`, and
-// the `ai.providers` policy that says which providers are enabled. The shared
-// fixture config has none of them, so every gateway route answers 404 "Gateway
-// not enabled" and `AiService::new` yields "No AI providers are enabled".
+// Bootstrap whose services tree is caller-supplied — the one place a test
+// declares a model catalog (`credentials:`, `providers:`, `models:`,
+// `deployments:`) and an enabled `gateway:`. The caller writes them in one
+// YAML document for brevity; `write_services_tree` puts each catalog section
+// in its `services/ai/` file, where the loader reads it by convention, and the
+// rest in `config/config.yaml`. The shared fixture config has none of them, so
+// every gateway route answers 404 "Gateway not enabled".
 // Anything constructing an `AiService` or exercising the dispatch/extract path
 // needs this. Callers own the process-global one-shot inits, so this must be
 // the first bootstrap call in the process (true under nextest) and must not be
@@ -113,11 +136,11 @@ pub fn init_services_bootstrap(services_config_yaml: &str) -> TestBootstrap {
 }
 
 // Bootstrap whose services `config.yaml` is deliberately unloadable. A services
-// tree that does not parse is a boot failure, so `ServicesBootstrap` is left
-// uninitialised here on purpose and the failure is asserted rather than
-// swallowed: a config that turned out to load would silently stop exercising
-// the caller's failure path. `ConfigLoader::load()` is left unprimed, so the
-// first request-time load reads the malformed file from disk and fails there.
+// tree that does not parse is a boot failure, so the load failure is asserted
+// rather than swallowed: a config that turned out to load would silently stop
+// exercising the caller's failure path. The returned `services` is the empty
+// config; a fresh `BootContext::load_services_config()` still reads the
+// malformed file.
 pub fn init_unloadable_services_bootstrap(
     api_base_url: &str,
     services_config_yaml: &str,
@@ -125,15 +148,38 @@ pub fn init_unloadable_services_bootstrap(
     init_bootstrap_inner_expecting(Some(api_base_url), Some(services_config_yaml), true)
 }
 
-// Re-read the services tree from disk and re-prime the memoised
-// `ConfigLoader::load()` result. `ServicesBootstrap::init` primes that cache at
-// bootstrap, so files a test writes into the services tree afterwards
-// (marketplaces, plugins, skills) are invisible to every route that reads
-// through `ConfigLoader::load()` until the cache is refreshed.
-pub fn refresh_services_config() {
-    if let Err(e) = ConfigLoader::reload() {
-        panic!("ConfigLoader::reload failed: {e}");
+const CATALOG_SECTIONS: [(&str, &str); 5] = [
+    ("credentials", "credentials.yaml"),
+    ("providers", "providers.yaml"),
+    ("models", "models.yaml"),
+    ("deployments", "deployments.yaml"),
+    ("gateway", "gateway.yaml"),
+];
+
+// Splits one caller-supplied services document into `config/config.yaml` and
+// the catalog files of `services/ai/`. A document that does not parse is
+// written verbatim, so unloadable-config fixtures still fail in the loader.
+fn write_services_tree(services_path: &std::path::Path, yaml: &str) {
+    let config = services_path.join("config/config.yaml");
+    let Ok(serde_yaml::Value::Mapping(mut root)) = serde_yaml::from_str::<serde_yaml::Value>(yaml)
+    else {
+        std::fs::write(&config, yaml).expect("write services config.yaml");
+        return;
+    };
+    let ai = services_path.join("ai");
+    std::fs::create_dir_all(&ai).expect("create services/ai");
+    for (section, file) in CATALOG_SECTIONS {
+        let key = serde_yaml::Value::String(section.to_owned());
+        let Some(value) = root.remove(&key) else {
+            continue;
+        };
+        let mut doc = serde_yaml::Mapping::new();
+        doc.insert(key, value);
+        let body = serde_yaml::to_string(&doc).expect("catalog section serializes");
+        std::fs::write(ai.join(file), body).expect("write catalog file");
     }
+    let body = serde_yaml::to_string(&serde_yaml::Value::Mapping(root)).expect("config serializes");
+    std::fs::write(&config, body).expect("write services config.yaml");
 }
 
 fn init_bootstrap() -> TestBootstrap {
@@ -196,10 +242,8 @@ fn init_bootstrap_inner_expecting(
         std::fs::create_dir_all(dir).expect("mkdir bootstrap path");
     }
 
-    // Why: AppContext bootstrap loads the configured signing key and refuses
-    // one that differs from a key already installed in the process-wide
-    // authority, so the profile's key file must hold the fixture authority key
-    // that `install_test_signing_key` installs.
+    // Why: AppContext bootstrap loads the configured signing key, so the
+    // profile's key file must hold the fixture key `test_signing_keys` builds.
     std::fs::write(
         system_path.join("signing_key.pem"),
         crate::keys::authority_key_pem(),
@@ -212,8 +256,11 @@ fn init_bootstrap_inner_expecting(
     // empty config (each nextest test is its own process, so the env gate is
     // local to messaging-test processes).
     if let Some(yaml) = services_config_yaml {
-        std::fs::write(services_path.join("config/config.yaml"), yaml)
-            .expect("write services config.yaml");
+        if expect_services_load_failure {
+            write_yaml_stub(&services_path.join("config/config.yaml"));
+        } else {
+            write_services_tree(&services_path, yaml);
+        }
     } else if env::var("SYSTEMPROMPT_TEST_MESSAGING").is_ok() {
         std::fs::write(
             services_path.join("config/config.yaml"),
@@ -235,35 +282,31 @@ fn init_bootstrap_inner_expecting(
             storage: &storage_path,
             web: &web_path,
         },
-        api_base_url.unwrap_or("http://127.0.0.1"),
+        api_base_url.unwrap_or(FIXTURE_EXTERNAL_URL),
     );
     let profile_path = tmp_path.join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml).expect("write profile.yaml");
 
-    if !ProfileBootstrap::is_initialized() {
-        if let Err(e) = ProfileBootstrap::init_from_path(&profile_path) {
-            panic!("ProfileBootstrap::init_from_path failed: {e}");
-        }
-    }
-    let profile = ProfileBootstrap::get().expect("profile initialised");
+    let loaded = LoadedProfile::from_path(&profile_path)
+        .unwrap_or_else(|e| panic!("LoadedProfile::from_path failed: {e}"));
+    let secrets = crate::secrets::block_on_secrets_load(&loaded)
+        .unwrap_or_else(|e| panic!("SecretsService::load failed: {e}"));
+    let boot = BootContext::new(loaded, secrets);
+    let profile = boot.profile();
 
-    if !ServicesBootstrap::is_initialized() {
-        match (ServicesBootstrap::init(), expect_services_load_failure) {
-            (Err(e), false) => panic!("ServicesBootstrap::init failed: {e}"),
-            (Ok(_), true) => {
-                panic!("services config was expected not to load, but it did")
-            },
-            _ => {},
-        }
+    boot.try_init_config(None)
+        .unwrap_or_else(|e| panic!("config from the fixture profile: {e}"));
+    if let (Some(yaml), true) = (services_config_yaml, expect_services_load_failure) {
+        write_services_tree(&services_path, yaml);
     }
 
-    if !SecretsBootstrap::is_initialized() {
-        let _ = crate::secrets::block_on_secrets_init();
-    }
-
-    if !Config::is_initialized() {
-        let _ = try_init_config(None);
-    }
+    let services = match (ServicesState::load(&boot), expect_services_load_failure) {
+        (Err(e), false) => panic!("ServicesState::load failed: {e}"),
+        (Ok(_), true) => panic!("services config was expected not to load, but it did"),
+        (Ok(state), false) => state,
+        (Err(_), true) => ServicesState::from_config(profile, Default::default())
+            .expect("the default services config resolves"),
+    };
 
     let app_paths = AppPaths::from_profile(
         &profile.paths,
@@ -271,10 +314,6 @@ fn init_bootstrap_inner_expecting(
         None,
     )
     .expect("app paths");
-    if FilesConfig::get_optional().is_none() {
-        let _ = FilesConfig::init(&app_paths);
-    }
-
     TestBootstrap {
         _tmp: tmp,
         profile_path,
@@ -284,6 +323,8 @@ fn init_bootstrap_inner_expecting(
         storage_path,
         app_paths,
         database_url,
+        services,
+        boot,
     }
 }
 
@@ -334,9 +375,9 @@ fn write_yaml_stub(path: &std::path::Path) {
 
 // The seeded services config: one dispatchable agent (`oauth.required =
 // false`) plus one Slack app and one Teams app routing to it.
-// `ConfigLoader::load()` reads exactly this file, so the messaging routes
-// resolve their app, agent, and named secrets from a single deterministic
-// source.
+// `BootContext::load_services_config()` reads exactly this file, so the
+// messaging routes resolve their app, agent, and named secrets from a single
+// deterministic source.
 fn messaging_config_yaml() -> String {
     messaging_config_yaml_with_teams_endpoints(None)
 }
@@ -433,11 +474,8 @@ database:
 server:
   host: 127.0.0.1
   port: 8080
-  api_server_url: {api_base_url}
-  api_internal_url: {api_base_url}
-  api_external_url: {api_base_url}
-  use_https: false
-  cors_allowed_origins:
+  external_url: {api_base_url}
+  extra_cors_origins:
     - http://127.0.0.1
   content_negotiation:
     enabled: false
@@ -461,7 +499,6 @@ paths:
   storage: {storage}
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences:
@@ -510,4 +547,17 @@ governance:
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
         api_base_url = api_base_url,
     )
+}
+
+pub fn test_boot_profile() -> std::sync::Arc<systemprompt_manifest::Profile> {
+    std::sync::Arc::new(ensure_test_bootstrap().boot.profile().clone())
+}
+
+pub fn test_boot_services_root() -> PathBuf {
+    test_boot_active_services_root().path
+}
+
+pub fn test_boot_active_services_root() -> systemprompt_manifest::services::root::ActiveServicesRoot
+{
+    ensure_test_bootstrap().boot.require_services_root()
 }

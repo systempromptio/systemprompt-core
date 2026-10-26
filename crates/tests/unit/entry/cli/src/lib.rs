@@ -17,6 +17,8 @@
 #[cfg(test)]
 mod agents_shared_prompt;
 #[cfg(test)]
+mod boot_ctx;
+#[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
 mod cloud_deploy_progress;
@@ -33,6 +35,8 @@ mod cloud_tenant_local_guards;
 #[cfg(test)]
 #[cfg(test)]
 mod commands;
+#[cfg(test)]
+mod config_migrate_descriptor;
 #[cfg(test)]
 mod deploy_vault_secrets;
 #[cfg(test)]
@@ -113,6 +117,14 @@ mod session_resolution_helpers;
 mod session_store_reads;
 #[cfg(test)]
 mod shared;
+#[cfg(test)]
+mod time_format_tests;
 
+#[cfg(test)]
+mod config_apply_database_url;
+#[cfg(test)]
+mod config_migrate_database_url;
 #[cfg(all(test, unix))]
 mod coverage_process_flows;
+#[cfg(test)]
+mod services_reconcile_retry;

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `CredentialsBootstrap::{init, get, try_init, is_initialized, init_empty, expires_within}` are replaced by `load() -> CloudResult<Option<CloudCredentials>>`, an async `require()` and `read_unvalidated()`; `CredentialsBootstrapError::{NotInitialized, AlreadyInitialized}` and `CloudError::{CredentialsNotInitialized, CredentialsAlreadyInitialized}` are removed. Migrate by keeping the value `load` returns and passing it to its consumers.
+- **Breaking:** `CloudPlan.id` and `CloudPlanInfo.id` are `CloudPlanId`, and `CloudEnterpriseLicenseInfo.id` is `EnterpriseLicenseId`.
+
+### Breaking
+
+- `LocalProfileBuilder::build` and `CloudProfileBuilder::build` return `ProfileResult<Profile>` with the derived URL fields filled from `server.external_url`.
+
+### Changed
+
+- Authored profiles carry `governance.unapplied_planes` at its default (`warn`).
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

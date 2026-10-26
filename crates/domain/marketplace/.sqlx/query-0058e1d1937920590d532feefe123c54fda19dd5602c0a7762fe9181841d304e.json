@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM managed_publication_cohort_selections WHERE owner_id=$1 AND resource_id=$2 AND cohort_dimension=$3 AND cohort_value=$4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0058e1d1937920590d532feefe123c54fda19dd5602c0a7762fe9181841d304e"
+}

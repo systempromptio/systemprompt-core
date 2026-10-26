@@ -1,27 +1,26 @@
-//! `OpenCode` profile installer: renders the bridge-owned provider block and
-//! merges it into the user's `opencode.json`, preserving every key the bridge
-//! does not own.
+//! `OpenCode` profile installer: renders the bridge's V2 provider block with
+//! the shared builder, writes the host token to the 0600 file the block names
+//! with `{file:}`, and merges the block into the user's `opencode.json`,
+//! preserving every key the bridge does not own.
 //!
-//! `OpenCode` 2.x loads only the user tier, so that is where the provider, its
-//! `apiKey` and the `enabled_providers` allowlist go — the same file the MCP
-//! connectors are written to, rewritable by unattended sync without a prompt.
-//! The admin tier 1.x read, and the `auth.json` it took the key from, are now
-//! only cleaned: install drops a stale `auth.json` entry, uninstall strips the
-//! admin tier (elevating if it must).
+//! When an admin-managed tier already carries the `systemprompt` provider
+//! (MDM), only the token file is written: provider and policy config belong to
+//! the admin. Every install strips the keys the V1 writer owned.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod merge;
-mod render;
+mod profile;
 
-pub(super) use render::provider_json_text;
+pub(super) use profile::{generated_text, render};
 
 use std::path::Path;
 
 use serde_json::{Map, Value};
 
 use super::config;
+use super::tier::{ProviderTier, provider_tier};
 use crate::integration::generated_profile;
 use crate::integration::host_app::{
     GeneratedProfile, HostAppError, ProfileGenInputs, ProfileInstalled, ProfileRemoval,
@@ -29,54 +28,64 @@ use crate::integration::host_app::{
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
     let uuids = generated_profile::profile_uuids();
-    let json_text = provider_json_text(inputs)?;
-    let path = generated_profile::write("opencode-bridge-opencode", ".json", json_text.as_bytes())?;
+    let text = generated_text(inputs)?;
+    let path = generated_profile::write("opencode-bridge-opencode", ".json", text.as_bytes())?;
     Ok(GeneratedProfile {
         path: path.display().to_string(),
-        bytes: json_text.len(),
+        bytes: text.len(),
         payload_uuid: uuids.payload,
         profile_uuid: uuids.profile,
     })
 }
 
 pub(super) fn install_profile(generated_path: &str) -> Result<ProfileInstalled, HostAppError> {
-    let source_text = std::fs::read_to_string(generated_path)?;
-    let source = parse_object(&source_text, generated_path)?;
+    let text = std::fs::read_to_string(generated_path)?;
+    let generated: profile::GeneratedOpenCode = serde_json::from_str(&text)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     generated_profile::consume(generated_path)?;
-    merge::install(&source, &config::user_config_path())?;
+    write_token(&generated.token)?;
     remove_auth_key(&config::auth_json_path())?;
+    if provider_tier() == ProviderTier::User {
+        let Value::Object(source) = generated.config else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "generated OpenCode profile is not a JSON object",
+            )
+            .into());
+        };
+        merge::install(&source, &config::user_config_path())?;
+    } else {
+        merge::uninstall(&config::user_config_path())?;
+    }
     Ok(ProfileInstalled::ok())
 }
 
-#[must_use]
-pub(super) fn stale_admin_tier() -> Option<std::path::PathBuf> {
-    let managed = config::managed_config_path().ok()?;
-    merge::carries_owned(&managed).then_some(managed)
+fn write_token(token: &str) -> std::io::Result<()> {
+    let path = config::token_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    crate::fsutil::atomic_write_0600(&path, token.as_bytes())?;
+    crate::fsutil::verify_contents(&path, token.as_bytes())
 }
 
 pub(super) fn remove_profile() -> Result<ProfileRemoval, HostAppError> {
     let user = config::user_config_path();
-    let removed_user = merge::uninstall_user(&user)?;
-    let removed_managed = match config::managed_config_path() {
-        Ok(managed) => merge::uninstall_managed(&managed)?,
-        Err(_) => false,
-    };
+    let removed_user = merge::uninstall(&user)?;
+    let token = config::token_path();
+    let removed_token = token.exists();
+    if removed_token {
+        crate::fsutil::remove_verified(&token)?;
+    }
     let removed_auth = remove_auth_key(&config::auth_json_path())?;
-    super::managed_resources::remove_hook_plugin().map_err(std::io::Error::other)?;
-    Ok(if removed_user || removed_managed || removed_auth {
+    super::managed_resources::remove_owned_content().map_err(std::io::Error::other)?;
+    Ok(if removed_user || removed_token || removed_auth {
         ProfileRemoval::Removed {
             path: Some(user.display().to_string()),
         }
     } else {
         ProfileRemoval::NothingToRemove
     })
-}
-
-pub(super) fn elevation_prompt() -> String {
-    format!(
-        "{} needs administrator privileges to remove the retired OpenCode managed configuration.",
-        crate::brand::brand().app_name
-    )
 }
 
 // JSON: OpenCode `opencode.json` — foreign config, unknown keys must be

@@ -19,7 +19,10 @@ use tower::ServiceExt;
 use super::common::{empty_get, json_post, request_context, setup_ctx};
 
 fn slack_router(ctx: &systemprompt_runtime::AppContext) -> axum::Router {
-    systemprompt_api::routes::slack::slack_router().with_state(ctx.clone())
+    systemprompt_api::routes::slack::slack_router(
+        systemprompt_api::routes::messaging::MessagingState::guarded().expect("guarded client"),
+    )
+    .with_state(ctx.clone())
 }
 
 fn signed_slack_post(path: &str, body: &str, secret: &str) -> Request<Body> {

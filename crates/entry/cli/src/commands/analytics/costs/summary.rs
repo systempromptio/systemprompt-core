@@ -15,9 +15,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use super::CostSummaryOutput;
 use crate::CliConfig;
-use crate::commands::analytics::shared::{
-    export_single_to_csv, parse_time_range, resolve_export_path,
-};
+use crate::commands::analytics::shared::{export_single_to_csv, parse_time_range};
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -152,9 +150,8 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_single_to_csv(&output, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_single_to_csv(&output, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(CommandOutput::card_value("Cost Summary", &output).with_skip_render());
     }
 

@@ -10,10 +10,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod kind;
-
-pub use kind::OauthErrorKind;
-
 use systemprompt_traits::{AnalyticsProviderError, AuthProviderError, RepositoryError};
 use thiserror::Error;
 
@@ -23,7 +19,7 @@ pub enum OauthError {
     TokenInvalid(String),
 
     #[error("token rejected: {0}")]
-    TokenRejected(#[source] systemprompt_security::AuthError),
+    TokenRejected(#[source] systemprompt_models::auth::TokenError),
 
     #[error("token signed with `{got}`, expected `{expected}`")]
     TokenAlgMismatch { got: String, expected: String },
@@ -121,9 +117,6 @@ pub enum OauthError {
     #[error("at-rest hashing failed: {0}")]
     AtRestHash(#[from] systemprompt_security::AtRestHashError),
 
-    #[error("signing key unavailable: {0}")]
-    SigningKey(#[from] systemprompt_security::keys::TokenAuthorityError),
-
     #[error("token signing failed: {0}")]
     Signing(#[from] jsonwebtoken::errors::Error),
 
@@ -180,22 +173,26 @@ impl From<sqlx::Error> for OauthError {
     }
 }
 
-impl From<systemprompt_security::AuthError> for OauthError {
-    fn from(err: systemprompt_security::AuthError) -> Self {
-        use jsonwebtoken::errors::ErrorKind;
-        use systemprompt_security::AuthError;
+impl From<systemprompt_models::auth::TokenError> for OauthError {
+    fn from(err: systemprompt_models::auth::TokenError) -> Self {
+        use systemprompt_models::auth::TokenError;
         match err {
-            AuthError::UnsupportedAlgorithm { got } => Self::TokenAlgMismatch {
+            TokenError::UnsupportedAlgorithm { got } => Self::TokenAlgMismatch {
                 got,
                 expected: "RS256".to_owned(),
             },
-            AuthError::MissingKid => Self::TokenMissingKid,
-            AuthError::UnknownKid(kid) => Self::TokenUnknownKid { kid },
-            AuthError::InvalidToken(e) if matches!(e.kind(), ErrorKind::ExpiredSignature) => {
-                Self::Expired("Token has expired".to_owned())
-            },
+            TokenError::KidMismatch => Self::TokenMissingKid,
+            TokenError::UnknownKid(kid) => Self::TokenUnknownKid { kid },
+            TokenError::Expired => Self::Expired("Token has expired".to_owned()),
+            TokenError::InvalidLifetime { seconds } => Self::InvalidTokenLifetime { seconds },
             other => Self::TokenRejected(other),
         }
+    }
+}
+
+impl From<systemprompt_security::AuthError> for OauthError {
+    fn from(err: systemprompt_security::AuthError) -> Self {
+        Self::from(systemprompt_models::auth::TokenError::from(err))
     }
 }
 
@@ -208,5 +205,94 @@ impl OauthError {
                 ..
             })
         )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OauthErrorKind {
+    InvalidRequest,
+    InvalidClient,
+    InvalidGrant,
+    InvalidToken,
+    AccessDenied,
+    InvalidClientMetadata,
+    UsernameUnavailable,
+    EmailExists,
+    ExpiredChallenge,
+    InvalidCredential,
+    AuthenticationFailed,
+    NotFound,
+    ServerError,
+}
+
+impl OauthErrorKind {
+    #[must_use]
+    pub const fn rfc_code(self) -> &'static str {
+        match self {
+            Self::InvalidRequest => "invalid_request",
+            Self::InvalidClient => "invalid_client",
+            Self::InvalidGrant => "invalid_grant",
+            Self::InvalidToken => "invalid_token",
+            Self::AccessDenied => "access_denied",
+            Self::InvalidClientMetadata => "invalid_client_metadata",
+            Self::UsernameUnavailable => "username_unavailable",
+            Self::EmailExists => "email_exists",
+            Self::ExpiredChallenge => "expired_challenge",
+            Self::InvalidCredential => "invalid_credential",
+            Self::AuthenticationFailed => "authentication_failed",
+            Self::NotFound => "not_found",
+            Self::ServerError => "server_error",
+        }
+    }
+}
+
+impl OauthError {
+    #[must_use]
+    pub const fn kind(&self) -> OauthErrorKind {
+        match self {
+            Self::InvalidClient(_) | Self::ClientNotFound(_) => OauthErrorKind::InvalidClient,
+            Self::InvalidClientMetadata(_) => OauthErrorKind::InvalidClientMetadata,
+            Self::InvalidGrant(_)
+            | Self::CodeNotFound(_)
+            | Self::TokenNotFound(_)
+            | Self::TokenInvalid(_)
+            | Self::PkceMismatch(_)
+            | Self::Expired(_)
+            | Self::SetupTokenRejected(_) => OauthErrorKind::InvalidGrant,
+            Self::TokenRejected(_)
+            | Self::TokenAlgMismatch { .. }
+            | Self::TokenMissingKid
+            | Self::TokenUnknownKid { .. } => OauthErrorKind::InvalidToken,
+            Self::Validation(_) | Self::InvalidUrl { .. } => OauthErrorKind::InvalidRequest,
+            Self::Unauthorized(_) | Self::ServiceAccountInteractive => OauthErrorKind::AccessDenied,
+            Self::UsernameTaken(_) => OauthErrorKind::UsernameUnavailable,
+            Self::EmailRegistered(_) => OauthErrorKind::EmailExists,
+            Self::UserNotFound(_) => OauthErrorKind::NotFound,
+            Self::AuthenticationUnavailable => OauthErrorKind::AuthenticationFailed,
+            Self::RegistrationStateExpired | Self::ChallengeExpired => {
+                OauthErrorKind::ExpiredChallenge
+            },
+            Self::WebAuthnVerificationFailed(_) | Self::WebAuthnCeremony(_) => {
+                OauthErrorKind::InvalidCredential
+            },
+            Self::UserProvider { .. }
+            | Self::SessionStore(_)
+            | Self::Repository(_)
+            | Self::Config(_)
+            | Self::Secrets(_)
+            | Self::AtRestHash(_)
+            | Self::Signing(_)
+            | Self::InvalidTokenLifetime { .. }
+            | Self::Bcrypt(_)
+            | Self::Json(_)
+            | Self::CimdHttpClient(_)
+            | Self::CimdFetch { .. }
+            | Self::CimdStatus { .. }
+            | Self::CimdDecode { .. }
+            | Self::WebAuthnConfig(_)
+            | Self::ExternalUrl(_)
+            | Self::ChallengeTtl(_)
+            | Self::Internal(_) => OauthErrorKind::ServerError,
+        }
     }
 }

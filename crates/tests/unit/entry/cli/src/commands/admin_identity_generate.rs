@@ -14,10 +14,9 @@ use systemprompt_cli::admin::identity::{IdentityCommands, execute};
 use systemprompt_cli::shared::generate_identity;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_config::{decode_master_key, decode_seed};
-use systemprompt_logging::{
-    reset_structured_emitted, set_structured_output, structured_was_emitted,
-};
+use systemprompt_logging::OutputState;
 use systemprompt_security::keys::RsaSigningKey;
+use tracing_subscriber::layer::SubscriberExt;
 
 static STRUCTURED_LOCK: Mutex<()> = Mutex::new(());
 
@@ -34,7 +33,7 @@ fn parse(args: &[&str]) -> IdentityCommands {
 }
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -84,13 +83,14 @@ fn generate_command_runs_without_writing_files() {
 #[test]
 fn global_json_mode_emits_exactly_one_artifact() {
     let _guard = STRUCTURED_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    set_structured_output(true);
-    reset_structured_emitted();
+    let output = OutputState::new();
+    output.set_structured_output(true);
+    let _scope =
+        tracing::subscriber::set_default(tracing_subscriber::registry().with(output.clone()));
 
     execute(parse(&["generate"]), &ctx()).unwrap();
 
-    let emitted = structured_was_emitted();
-    set_structured_output(false);
+    let emitted = output.structured_was_emitted();
     assert!(
         emitted,
         "generate must mark the structured artifact as emitted so finalize does not append a second JSON document"

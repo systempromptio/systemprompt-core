@@ -29,6 +29,7 @@ pub fn marketplace(id: &str) -> MarketplaceConfig {
         external_marketplaces: vec![],
         external_plugins: vec![],
         claude_code: None,
+        opencode: None,
     }
 }
 

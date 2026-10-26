@@ -6,7 +6,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
+use crate::boot_ctx::bootstrap_ctx;
 use systemprompt_cli::admin::bootstrap::{BootstrapArgs, execute};
 
 fn args(name: Option<&str>) -> BootstrapArgs {
@@ -23,8 +23,7 @@ fn card(output: &systemprompt_cli::shared::CommandOutput) -> serde_json::Value {
 
 #[tokio::test]
 async fn bootstrap_is_idempotent_and_grants_the_admin_role() {
-    systemprompt_test_fixtures::ensure_test_bootstrap();
-    let config = CliConfig::new().with_interactive(false);
+    let config = bootstrap_ctx();
 
     let first = execute(args(None), &config).await.unwrap();
     let first_json = card(&first).to_string();
@@ -39,18 +38,14 @@ async fn bootstrap_is_idempotent_and_grants_the_admin_role() {
 
     // Passing the configured name explicitly takes the match branch rather
     // than the refusal branch.
-    let configured = systemprompt_manifest::Config::get()
-        .unwrap()
-        .system_admin_username
-        .clone();
+    let configured = config.config().unwrap().system_admin_username.clone();
     let third = execute(args(Some(&configured)), &config).await.unwrap();
     assert!(card(&third).to_string().contains(&configured));
 }
 
 #[tokio::test]
 async fn bootstrap_refuses_a_name_that_is_not_the_configured_admin() {
-    systemprompt_test_fixtures::ensure_test_bootstrap();
-    let config = CliConfig::new().with_interactive(false);
+    let config = bootstrap_ctx();
 
     let err = execute(args(Some("someone_else")), &config)
         .await
@@ -71,9 +66,9 @@ async fn inactive_existing_admin_is_refused_without_granting_a_role() {
         std::env::set_var("DATABASE_URL", database.url());
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
-    systemprompt_test_fixtures::ensure_test_bootstrap();
-    let config = CliConfig::new().with_interactive(false);
-    let configured = systemprompt_manifest::Config::get()
+    let config = bootstrap_ctx();
+    let configured = config
+        .config()
         .expect("fixture config")
         .system_admin_username
         .clone();

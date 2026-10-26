@@ -187,7 +187,7 @@ fn current_installation(
     manifest
         .enabled_hosts
         .iter()
-        .any(|host| super::client_kind(host) == Some(pending.host))
+        .any(|host| systemprompt_models::feedback::EvaluatorClient::from(*host) == pending.host)
         && manifest.skills.iter().any(|skill| {
             (skill.hosts.is_empty()
                 || skill

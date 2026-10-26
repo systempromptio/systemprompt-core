@@ -103,7 +103,7 @@ async fn load_task_messages(
             id as "id!",
             task_id as "task_id!: TaskId",
             message_id as "message_id!: MessageId",
-            client_message_id,
+            client_message_id as "client_message_id?: MessageId",
             role as "role!",
             context_id as "context_id!: ContextId",
             user_id as "user_id?: UserId",

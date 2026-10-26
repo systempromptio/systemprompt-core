@@ -10,10 +10,11 @@
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
@@ -33,19 +34,34 @@ impl OrchestratorHandles {
 }
 
 pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
-    let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
-    );
+    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
+        ctx.config(),
+        ctx.token_authority(),
+    ));
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
-        jwt_provider,
+        AgentAuth {
+            jwt_provider,
+            signing_keys: ctx.signing_keys().clone(),
+        },
         Arc::clone(ctx.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
+        ctx.services_state().view(),
     ));
-    AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
-        .await
-        .context("Failed to initialize agent orchestrator")
+    AgentOrchestrator::new(
+        agent_state,
+        Arc::clone(ctx.app_paths_arc()),
+        Arc::clone(ctx.spawner()),
+        Arc::new(SpawnEnvironment {
+            config: Arc::clone(ctx.config_arc()),
+            secrets: Arc::clone(ctx.secrets()),
+            profile_path: ctx.boot().profile_path().to_path_buf(),
+        }),
+        None,
+    )
+    .await
+    .context("Failed to initialize agent orchestrator")
 }
 
 pub(crate) fn mcp_orchestrator(ctx: &Arc<AppContext>) -> Result<McpOrchestrator> {
@@ -53,14 +69,17 @@ pub(crate) fn mcp_orchestrator(ctx: &Arc<AppContext>) -> Result<McpOrchestrator>
         (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
+        Arc::clone(ctx.spawner()),
+        Arc::clone(ctx.secrets()),
     )
     .context("Failed to initialize MCP manager")
 }
 
-pub(crate) async fn resolve_agent_name(
+pub(crate) fn resolve_agent_name(
+    services: &systemprompt_loader::ServicesState,
     agent_identifier: &str,
 ) -> Result<systemprompt_identifiers::AgentName> {
-    let registry = AgentRegistry::new()?;
-    let agent = registry.get_agent(agent_identifier).await?;
+    let registry = AgentRegistry::new(&services.view());
+    let agent = registry.get_agent(agent_identifier)?;
     Ok(systemprompt_identifiers::AgentName::new(agent.name))
 }

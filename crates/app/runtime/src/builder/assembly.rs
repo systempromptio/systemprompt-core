@@ -9,10 +9,12 @@ use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::Database;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{SystemAdmin, SystemAdminConfig};
-use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
+use systemprompt_marketplace::{
+    AllowAllFilter, MarketplaceFactoryContext, MarketplaceFilter, discover_filters,
+};
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
@@ -44,13 +46,13 @@ pub(super) fn assemble_content_analytics(
     ));
     let sessions: systemprompt_traits::DynSessionStore =
         Arc::new(systemprompt_users::SessionRepository::new(database));
-    let event_store = Arc::new(systemprompt_logging::AnalyticsRepository::new(database));
+    let event_log = Arc::new(systemprompt_logging::AnalyticsRepository::new(database));
     let content_stats = Arc::new(systemprompt_content::ContentRepository::new(database));
     let analytics_repositories = Arc::new(
         systemprompt_analytics::repository::AnalyticsRepositories::new(
             database,
             Arc::clone(&sessions),
-            event_store,
+            event_log,
             content_stats,
         ),
     );
@@ -72,7 +74,7 @@ pub(super) fn assemble_content_analytics(
     })
 }
 
-pub(super) async fn resolve_and_install_system_admin(
+pub(super) async fn load_system_admin(
     config: &Config,
     users: &Arc<UserService>,
 ) -> RuntimeResult<Arc<SystemAdmin>> {
@@ -81,7 +83,6 @@ pub(super) async fn resolve_and_install_system_admin(
         email: config.system_admin_email.clone(),
     };
     let resolved = resolve_system_admin(&cfg, users.as_ref()).await?;
-    systemprompt_logging::install_log_attribution(resolved.clone());
     Ok(Arc::new(resolved))
 }
 
@@ -108,9 +109,11 @@ async fn resolve_system_admin(
     Ok(SystemAdmin::new(user.id, user.name))
 }
 
-pub(super) fn build_marketplace_filter(database: &DbPool) -> Arc<dyn MarketplaceFilter> {
+pub(super) fn build_marketplace_filter(
+    ctx: &MarketplaceFactoryContext,
+) -> Arc<dyn MarketplaceFilter> {
     for reg in discover_filters() {
-        match (reg.factory)(database) {
+        match (reg.factory)(ctx) {
             Ok(filter) => {
                 tracing::debug!(
                     priority = reg.priority,

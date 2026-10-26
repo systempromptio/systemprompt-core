@@ -6,7 +6,7 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args as ClapArgs;
-use systemprompt_oauth::repository::{CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose};
+use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
 use systemprompt_oauth::services::webauthn::generate_setup_token;
 use systemprompt_traits::AppContext as _;
 
@@ -25,7 +25,7 @@ pub struct Args {
 
 pub(super) async fn execute(args: Args, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    let oauth_repo = OAuthRepository::new(app.db_pool());
+    let oauth_repo = &app.oauth_repositories().oauth;
 
     let users = app
         .user_provider()

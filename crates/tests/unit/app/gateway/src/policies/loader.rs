@@ -1,310 +1,188 @@
-// Gateway-policy bootstrap: YAML file loading and DB ingestion semantics.
-// Why: `load_gateway_policies_from_yaml` reconciles the whole global
-// `ai_gateway_policies` table to its file, so a test that lets it reach the
-// sweep runs on its own disposable database — on the shared shard database it
-// deletes the rows every concurrently running gateway-policy test just wrote.
+//! The `gateway_policies` config plane against the database: a declaration
+//! written through the plane reads back with no drift, carries its origin,
+//! renders back to the same entries, and an invalid file is refused.
 
-use serde_json::json;
-use systemprompt_database::DbPool;
-use systemprompt_gateway::{
-    GatewayPolicyConfig, GatewayPolicyIngestOptions, GatewayPolicyIngestionService,
-    load_gateway_policies_from_yaml,
+use std::collections::BTreeMap;
+
+use systemprompt_database::{DbPool, PlaneTransaction};
+use systemprompt_extension::prelude::{
+    ChangeSource, ConfigPlane, ConfigPlaneError, PlaneContext, PlaneSnapshot, PlaneTx,
+    ResolvedEntities, ResolvedEntity,
 };
-use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap, test_db_pool};
-use uuid::Uuid;
+use systemprompt_gateway::{GATEWAY_POLICIES_FILE, GatewayPoliciesPlane};
+use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_traits::Dependencies;
 
-async fn bootstrapped_pool() -> DbPool {
-    ensure_test_bootstrap();
-    test_db_pool().await
+struct Fixture {
+    pool: DbPool,
+    root: tempfile::TempDir,
+    tag: String,
 }
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}-{}", Uuid::new_v4())
-}
-
-fn config_yaml(names: &[&str]) -> String {
-    let mut out = String::from("policies:\n");
-    for name in names {
-        out.push_str(&format!(
-            "  - name: {name}\n    enabled: true\n    spec:\n      quota_windows:\n        - \
-             window_seconds: 60\n          max_requests: 5\n"
-        ));
+impl Fixture {
+    async fn new() -> Self {
+        Self {
+            pool: test_db_pool().await,
+            root: tempfile::tempdir().expect("tempdir"),
+            tag: uuid::Uuid::new_v4().simple().to_string()[..10].to_owned(),
+        }
     }
-    out
+
+    fn name(&self, base: &str) -> String {
+        format!("{base}-{}", self.tag)
+    }
+
+    fn declare(&self, body: &str) {
+        let path = self.root.path().join(GATEWAY_POLICIES_FILE);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+        std::fs::write(path, body.replace("TAG", &self.tag)).expect("write");
+    }
+
+    fn declared(&self) -> PlaneSnapshot {
+        GatewayPoliciesPlane
+            .load_declared(self.root.path())
+            .expect("load")
+            .expect("declared")
+            .entries
+    }
+
+    async fn write(&self, resolved: &ResolvedEntities) {
+        let deps = Dependencies::new();
+        let ctx = PlaneContext::new(self.root.path(), &deps);
+        let mut tx: PlaneTransaction = self.pool.write_pool().begin().await.expect("begin");
+        GatewayPoliciesPlane
+            .write(&ctx, &mut PlaneTx::new(&mut tx), resolved)
+            .await
+            .expect("write");
+        tx.commit().await.expect("commit");
+    }
+
+    async fn read(&self) -> PlaneSnapshot {
+        let deps = Dependencies::new();
+        let ctx = PlaneContext::new(self.root.path(), &deps);
+        let mut tx: PlaneTransaction = self.pool.write_pool().begin().await.expect("begin");
+        GatewayPoliciesPlane
+            .read_current(&ctx, &mut PlaneTx::new(&mut tx))
+            .await
+            .expect("read")
+            .into_iter()
+            .filter(|(k, _)| k.contains(&self.tag))
+            .collect()
+    }
+}
+
+const POLICIES: &str = r#"
+policies:
+  - name: quota-TAG
+    priority: 5
+    spec:
+      safety:
+        scanners: [custom_scanner]
+        scanner_settings:
+          custom_scanner:
+            timeout_ms: 250
+            config:
+              zeta: 1
+              alpha: { nested_b: true, nested_a: [3, 1] }
+  - name: off-TAG
+    enabled: false
+"#;
+
+fn resolved(entries: &PlaneSnapshot, source: &ChangeSource) -> ResolvedEntities {
+    entries
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                ResolvedEntity {
+                    value: Some(v.clone()),
+                    source: source.clone(),
+                },
+            )
+        })
+        .collect()
 }
 
 #[tokio::test]
-async fn missing_policies_file_is_a_noop() {
-    let pool = bootstrapped_pool().await;
-    let dir = tempfile::tempdir().expect("tempdir");
-    let report = load_gateway_policies_from_yaml(
-        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-        dir.path(),
-    )
-    .await
-    .expect("missing file is ok");
-    assert_eq!(report.inserted, 0);
-    assert_eq!(report.updated, 0);
-    assert_eq!(report.deleted, 0);
-    assert_eq!(report.skipped, 0);
+async fn a_written_declaration_reads_back_without_drift_despite_jsonb_key_order() {
+    let f = Fixture::new().await;
+    f.declare(POLICIES);
+    let declared = f.declared();
+
+    f.write(&resolved(
+        &declared,
+        &ChangeSource::Code(GATEWAY_POLICIES_FILE.to_owned()),
+    ))
+    .await;
+
+    assert_eq!(f.read().await, declared);
+    let source: String =
+        sqlx::query_scalar("SELECT source FROM ai_gateway_policies WHERE name = $1")
+            .bind(f.name("quota"))
+            .fetch_one(&*f.pool.pool())
+            .await
+            .expect("source");
+    assert_eq!(source, "code:gateway/policies.yaml");
 }
 
 #[tokio::test]
-async fn malformed_yaml_is_rejected_with_invalid_data() {
-    let pool = bootstrapped_pool().await;
-    let dir = tempfile::tempdir().expect("tempdir");
-    let gateway_dir = dir.path().join("gateway");
-    std::fs::create_dir_all(&gateway_dir).expect("mkdir");
-    std::fs::write(gateway_dir.join("policies.yaml"), "policies: [").expect("write");
-    let err = load_gateway_policies_from_yaml(
-        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-        dir.path(),
-    )
-    .await
-    .expect_err("must fail");
-    assert!(err.to_string().contains("policies.yaml"));
+async fn rendering_reparses_to_the_same_entries() {
+    let f = Fixture::new().await;
+    f.declare(POLICIES);
+    let declared = f.declared();
+
+    let text = GatewayPoliciesPlane
+        .render_declarations(&declared)
+        .expect("render");
+    f.declare(&text);
+
+    assert_eq!(f.declared(), declared);
 }
 
 #[tokio::test]
-async fn unknown_yaml_fields_are_rejected() {
-    let pool = bootstrapped_pool().await;
-    let dir = tempfile::tempdir().expect("tempdir");
-    let gateway_dir = dir.path().join("gateway");
-    std::fs::create_dir_all(&gateway_dir).expect("mkdir");
-    std::fs::write(
-        gateway_dir.join("policies.yaml"),
-        "policies: []\nextra_field: true\n",
-    )
-    .expect("write");
-    let err = load_gateway_policies_from_yaml(
-        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-        dir.path(),
-    )
-    .await
-    .expect_err("deny_unknown_fields must reject");
-    assert!(err.to_string().contains("extra_field"));
+async fn removing_a_policy_deletes_its_row() {
+    let f = Fixture::new().await;
+    f.declare(POLICIES);
+    let declared = f.declared();
+    f.write(&resolved(&declared, &ChangeSource::Migration))
+        .await;
+
+    let gone: ResolvedEntities = BTreeMap::from([(
+        f.name("off"),
+        ResolvedEntity {
+            value: None,
+            source: ChangeSource::Migration,
+        },
+    )]);
+    f.write(&gone).await;
+
+    let left = f.read().await;
+    assert_eq!(left.keys().collect::<Vec<_>>(), [&f.name("quota")]);
 }
 
 #[tokio::test]
-async fn ingest_inserts_then_skips_without_override() {
-    let pool = bootstrapped_pool().await;
-    let name = unique_name("ingest-skip");
-    let yaml = config_yaml(&[&name]);
-    let cfg: GatewayPolicyConfig = serde_yaml::from_str(&yaml).expect("parse");
-    let service = GatewayPolicyIngestionService::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-    );
+async fn an_invalid_declaration_is_refused() {
+    let f = Fixture::new().await;
+    f.declare("policies:\n  - name: dup-TAG\n  - name: dup-TAG\n");
+    let err = GatewayPoliciesPlane
+        .load_declared(f.root.path())
+        .expect_err("duplicate");
+    assert!(matches!(err, ConfigPlaneError::Invalid { .. }), "{err}");
 
-    let first = service
-        .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
-        .await
-        .expect("first ingest");
-    assert_eq!(first.inserted, 1);
-    assert_eq!(first.skipped, 0);
-
-    let second = service
-        .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
-        .await
-        .expect("second ingest");
-    assert_eq!(second.inserted, 0);
-    assert_eq!(second.skipped, 1);
-    assert_eq!(second.updated, 0);
+    f.declare("policies:\n  - name: x\n    bogus: 1\n");
+    assert!(matches!(
+        GatewayPoliciesPlane.load_declared(f.root.path()),
+        Err(ConfigPlaneError::Invalid { .. })
+    ));
 }
 
 #[tokio::test]
-async fn ingest_with_override_updates_existing_spec() {
-    let pool = bootstrapped_pool().await;
-    let name = unique_name("ingest-override");
-    let service = GatewayPolicyIngestionService::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-    );
-    let cfg: GatewayPolicyConfig = serde_yaml::from_str(&config_yaml(&[&name])).expect("parse");
-    service
-        .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
-        .await
-        .expect("seed");
-
-    let updated_yaml = format!(
-        "policies:\n  - name: {name}\n    enabled: true\n    spec:\n      quota_windows:\n        \
-         - window_seconds: 60\n          max_requests: 999\n"
-    );
-    let cfg2: GatewayPolicyConfig = serde_yaml::from_str(&updated_yaml).expect("parse");
-    let report = service
-        .ingest_config(
-            &cfg2,
-            GatewayPolicyIngestOptions {
-                override_existing: true,
-                delete_orphans: false,
-            },
-        )
-        .await
-        .expect("override ingest");
-    assert_eq!(report.updated, 1);
-    assert_eq!(report.inserted, 0);
-
-    let repo = systemprompt_ai::AiGatewayPolicyRepository::new(&pool);
-    let row = repo
-        .list_for_global()
-        .await
-        .expect("list")
-        .into_iter()
-        .find(|r| r.name == name)
-        .expect("row present");
-    assert_eq!(
-        row.spec.pointer("/quota_windows/0/max_requests").cloned(),
-        Some(json!(999))
-    );
-}
-
-#[tokio::test]
-async fn disabled_policy_is_upserted_but_not_served() {
-    let pool = bootstrapped_pool().await;
-    let name = unique_name("ingest-disabled");
-    let yaml = format!("policies:\n  - name: {name}\n    enabled: false\n");
-    let cfg: GatewayPolicyConfig = serde_yaml::from_str(&yaml).expect("parse");
-    let service = GatewayPolicyIngestionService::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-    );
-    let report = service
-        .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
-        .await
-        .expect("ingest");
-    assert_eq!(report.inserted, 1);
-
-    let repo = systemprompt_ai::AiGatewayPolicyRepository::new(&pool);
-    let served = repo.list_for_global().await.expect("list");
-    assert!(!served.iter().any(|r| r.name == name));
-}
-
-#[tokio::test]
-async fn empty_policy_name_fails_validation() {
-    let pool = bootstrapped_pool().await;
-    let cfg: GatewayPolicyConfig =
-        serde_yaml::from_str("policies:\n  - name: '  '\n").expect("parse");
-    let service = GatewayPolicyIngestionService::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-    );
-    let err = service
-        .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
-        .await
-        .expect_err("empty name rejected");
-    assert!(err.to_string().contains("policies[0].name"));
-}
-
-#[tokio::test]
-async fn duplicate_policy_names_fail_validation() {
-    let pool = bootstrapped_pool().await;
-    let name = unique_name("dup");
-    let cfg: GatewayPolicyConfig =
-        serde_yaml::from_str(&config_yaml(&[&name, &name])).expect("parse");
-    let service = GatewayPolicyIngestionService::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-    );
-    let err = service
-        .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
-        .await
-        .expect_err("duplicate rejected");
-    assert!(err.to_string().contains("duplicate policy name"));
-}
-
-#[tokio::test]
-async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
-    let database = DisposableDb::with_schema("gateway_policy_reconcile").await;
-    let pool = database.test_pool().await;
-    let name = unique_name("loader-happy");
-    let orphan = unique_name("loader-orphan");
-    let service = GatewayPolicyIngestionService::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-    );
-    service
-        .ingest_config(
-            &serde_yaml::from_str(&config_yaml(&[&orphan])).expect("parse"),
-            GatewayPolicyIngestOptions::default(),
-        )
-        .await
-        .expect("seed an orphan the loader's file will not mention");
-
-    let dir = tempfile::tempdir().expect("tempdir");
-    let gateway_dir = dir.path().join("gateway");
-    std::fs::create_dir_all(&gateway_dir).expect("mkdir");
-    std::fs::write(gateway_dir.join("policies.yaml"), config_yaml(&[&name])).expect("write");
-
-    let report = load_gateway_policies_from_yaml(
-        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-        dir.path(),
-    )
-    .await
-    .expect("valid file ingests");
-    assert_eq!(report.inserted, 1, "the file's one policy must be inserted");
-    assert_eq!(report.deleted, 1, "exactly the seeded orphan must be swept");
-
-    let repo = systemprompt_ai::AiGatewayPolicyRepository::new(&pool);
-    assert_eq!(
-        repo.list_all_names().await.expect("list names"),
-        vec![name.clone()],
-        "the loader reconciles the table to its file, it does not merge"
-    );
-    let served = repo.list_for_global().await.expect("list");
-    assert_eq!(
-        served.iter().filter(|r| r.name == name).count(),
-        1,
-        "the loaded policy must be served"
-    );
-
-    let again = load_gateway_policies_from_yaml(
-        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-        dir.path(),
-    )
-    .await
-    .expect("second boot");
-    assert_eq!(again.inserted, 0, "a second boot must not re-insert");
-    assert_eq!(again.updated + again.skipped, 1);
-    assert_eq!(again.deleted, 0);
-
-    database.drop_now().await;
-}
-
-#[tokio::test]
-async fn an_unreadable_policies_path_is_an_error_rather_than_a_silent_noop() {
-    let pool = bootstrapped_pool().await;
-    let dir = tempfile::tempdir().expect("tempdir");
-    // A directory where the file is expected: readable metadata, but
-    // `read_to_string` fails with something other than NotFound, so the loader
-    // must not mistake it for "no config".
-    std::fs::create_dir_all(dir.path().join("gateway").join("policies.yaml")).expect("mkdir");
-
-    let err = load_gateway_policies_from_yaml(
-        &systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
-        dir.path(),
-    )
-    .await
-    .expect_err("an unreadable path must not be treated as an absent config");
+async fn an_absent_file_is_undeclared() {
+    let f = Fixture::new().await;
     assert!(
-        err.to_string().contains("gateway/policies.yaml"),
-        "the error must name the file it failed to read, got {err}"
-    );
-}
-
-#[tokio::test]
-async fn a_service_built_from_a_repository_ingests_the_same_as_one_built_from_a_pool() {
-    let pool = bootstrapped_pool().await;
-    let name = unique_name("from-repo");
-    let repo = systemprompt_ai::AiGatewayPolicyRepository::new(&pool);
-    let service = GatewayPolicyIngestionService::from_repository(repo);
-
-    let cfg: GatewayPolicyConfig = serde_yaml::from_str(&config_yaml(&[&name])).expect("parse");
-    let report = service
-        .ingest_config(&cfg, GatewayPolicyIngestOptions::default())
-        .await
-        .expect("ingest through the repository-built service");
-    assert_eq!(report.inserted, 1);
-
-    let served = systemprompt_ai::AiGatewayPolicyRepository::new(&pool)
-        .list_for_global()
-        .await
-        .expect("list");
-    assert!(
-        served.iter().any(|r| r.name == name),
-        "the repository-built service must write through the same table"
+        GatewayPoliciesPlane
+            .load_declared(f.root.path())
+            .expect("load")
+            .is_none()
     );
 }

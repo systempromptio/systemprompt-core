@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use axum::extract::{MatchedPath, Request};
@@ -16,9 +16,9 @@ use axum::http::header::CONTENT_TYPE;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
-use systemprompt_events::{
-    A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
-};
+use systemprompt_events::EventBroadcasters;
+
+use super::readiness::ReadinessState;
 use systemprompt_extension::{MetricDescriptor, MetricKind};
 use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::OwnedTask;
@@ -33,8 +33,9 @@ pub const HTTP_BUCKETS: [f64; 11] = [
 const HTTP_REQUESTS_IN_FLIGHT: &str = "http_requests_in_flight";
 const SSE_CONNECTIONS: &str = "sse_active_connections";
 
-// Why: metrics::set_global_recorder rejects a second installation in the same
-// process.
+// Why: the metrics crate's global recorder is process-wide and set-once, and
+// `metrics::set_global_recorder` rejects a second installation; `RECORDER`
+// holds the installed handle and `RECORDER_INIT` serialises the one install.
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
 static RECORDER_INIT: Mutex<()> = Mutex::new(());
 
@@ -135,18 +136,34 @@ fn describe_metrics() {
     );
 }
 
-pub fn metrics_router(handle: PrometheusHandle) -> axum::Router {
+#[derive(Clone)]
+pub struct MetricsState {
+    pub handle: PrometheusHandle,
+    pub broadcasters: Arc<EventBroadcasters>,
+}
+
+impl std::fmt::Debug for MetricsState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MetricsState")
+            .field("handle", &"PrometheusHandle")
+            .field("broadcasters", &self.broadcasters)
+            .finish()
+    }
+}
+
+pub fn metrics_router(state: MetricsState) -> axum::Router {
     axum::Router::new()
         .route("/metrics", axum::routing::get(handle_metrics))
-        .with_state(handle)
+        .with_state(state)
 }
 
 pub async fn serve_metrics_listener(
     addr: std::net::SocketAddr,
-    handle: PrometheusHandle,
+    state: MetricsState,
+    readiness: &ReadinessState,
 ) -> anyhow::Result<OwnedTask<()>> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    let mut readiness = super::readiness::get_readiness_receiver();
+    let mut readiness = readiness.subscribe();
     let shutdown = async move {
         loop {
             match readiness.recv().await {
@@ -157,7 +174,7 @@ pub async fn serve_metrics_listener(
     };
     tracing::info!(%addr, "metrics listener bound");
     Ok(OwnedTask::spawn("metrics_listener", async move {
-        if let Err(error) = axum::serve(listener, metrics_router(handle))
+        if let Err(error) = axum::serve(listener, metrics_router(state))
             .with_graceful_shutdown(shutdown)
             .await
         {
@@ -167,23 +184,20 @@ pub async fn serve_metrics_listener(
 }
 
 pub async fn handle_metrics(
-    axum::extract::State(handle): axum::extract::State<PrometheusHandle>,
+    axum::extract::State(state): axum::extract::State<MetricsState>,
 ) -> Response {
-    refresh_connection_gauges().await;
-    let body = handle.render();
+    refresh_connection_gauges(&state.broadcasters).await;
+    let body = state.handle.render();
     ([(CONTENT_TYPE, METRICS_CONTENT_TYPE)], body).into_response()
 }
 
-async fn refresh_connection_gauges() {
-    let context = CONTEXT_BROADCASTER.total_connections().await;
-    let agui = AGUI_BROADCASTER.total_connections().await;
-    let a2a = A2A_BROADCASTER.total_connections().await;
-    let analytics = ANALYTICS_BROADCASTER.total_connections().await;
+async fn refresh_connection_gauges(broadcasters: &EventBroadcasters) {
+    let connections = broadcasters.total_connections().await;
 
-    metrics::gauge!(SSE_CONNECTIONS, "channel" => "context").set(context as f64);
-    metrics::gauge!(SSE_CONNECTIONS, "channel" => "agui").set(agui as f64);
-    metrics::gauge!(SSE_CONNECTIONS, "channel" => "a2a").set(a2a as f64);
-    metrics::gauge!(SSE_CONNECTIONS, "channel" => "analytics").set(analytics as f64);
+    metrics::gauge!(SSE_CONNECTIONS, "channel" => "context").set(connections.context as f64);
+    metrics::gauge!(SSE_CONNECTIONS, "channel" => "agui").set(connections.agui as f64);
+    metrics::gauge!(SSE_CONNECTIONS, "channel" => "a2a").set(connections.a2a as f64);
+    metrics::gauge!(SSE_CONNECTIONS, "channel" => "analytics").set(connections.analytics as f64);
 }
 
 pub async fn track_metrics(req: Request, next: Next) -> Response {

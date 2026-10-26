@@ -100,7 +100,11 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
 
 #[tokio::test]
 async fn app_context_builder_accessor() {
-    let _b = systemprompt_runtime::AppContext::builder();
+    let _b = systemprompt_runtime::AppContext::builder(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .boot
+            .clone(),
+    );
 }
 
 #[tokio::test]
@@ -119,12 +123,18 @@ async fn validate_system_passes_against_live_db() -> Result<()> {
 }
 
 #[tokio::test]
-async fn files_config_validator_validate_returns_clean_when_uninitialised() {
-    use systemprompt_runtime::FilesConfigValidator;
-    use systemprompt_traits::DomainConfig;
-    let v = FilesConfigValidator::new();
-    let report = v.validate().expect("validate");
-    let _ = report.has_errors();
+async fn files_config_validator_refuses_to_validate_before_load() {
+    use systemprompt_files::FilesConfigValidator;
+    use systemprompt_manifest::validators::DomainConfig;
+    let v = FilesConfigValidator::new(
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .clone(),
+    );
+    assert!(
+        v.validate().is_err(),
+        "the files validator reports nothing it has not loaded"
+    );
 }
 
 #[tokio::test]
@@ -132,14 +142,12 @@ async fn files_config_validator_validate_when_initialised() {
     use std::sync::Arc;
     use systemprompt_config::paths::AppPaths;
     use systemprompt_manifest::profile::PathsConfig;
-    use systemprompt_runtime::FilesConfigValidator;
-    use systemprompt_traits::DomainConfig;
-
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let p = tmp.path().to_string_lossy().to_string();
     let paths = Arc::new(
         AppPaths::from_profile(
             &PathsConfig {
+                root: None,
                 system: p.clone(),
                 services: p.clone(),
                 bin: p.clone(),
@@ -154,8 +162,14 @@ async fn files_config_validator_validate_when_initialised() {
         )
         .expect("paths"),
     );
-    let _ = systemprompt_files::FilesConfig::init(&paths);
-    let v = FilesConfigValidator::new();
-    let report = v.validate().expect("validate");
-    let _ = report.has_errors();
+    let files_config = systemprompt_files::FilesConfig::new(
+        paths.storage().root().to_path_buf(),
+        systemprompt_files::FilesConfigYaml::default(),
+    );
+    files_config.validate().expect("absolute storage root");
+    files_config
+        .ensure_storage_structure()
+        .expect("storage tree is created under the temp root");
+    assert!(files_config.files().is_dir());
+    assert!(files_config.images().is_dir());
 }

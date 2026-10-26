@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::{Connection, PgConnection, PgPool};
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{eventually, test_database_url};
 use uuid::Uuid;
 
 fn unique_job_name(prefix: &str) -> String {
@@ -94,22 +94,15 @@ async fn stale_lock_holder_releases_on_connection_drop() {
         .await
         .expect("forcibly close the holder connection");
 
-    // Poll: Postgres releases the session-scoped lock when the backend
-    // detects the closed client. Allow a brief settling window.
-    let mut waiter = pool.acquire().await.expect("acquire waiter conn");
-    let mut recovered = false;
-    for _ in 0..50 {
-        if try_acquire(&mut waiter, key).await {
-            recovered = true;
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    assert!(
-        recovered,
-        "the lock must be released when its holder connection dies, so a crashed replica does not \
-         leak the lock permanently"
-    );
+    let waiter = tokio::sync::Mutex::new(pool.acquire().await.expect("acquire waiter conn"));
+    eventually(
+        "the lock must be released when its holder connection dies, so a crashed replica does \
+         not leak the lock permanently",
+        Duration::from_secs(5),
+        || async { try_acquire(&mut *waiter.lock().await, key).await },
+    )
+    .await;
+    let mut waiter = waiter.into_inner();
     let released = release(&mut waiter, key).await;
     assert!(released);
 }

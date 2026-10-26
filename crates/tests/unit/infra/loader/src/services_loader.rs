@@ -12,8 +12,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#
     .to_string()
 }
@@ -25,7 +23,7 @@ fn test_load_from_path_minimal_config() {
 
     std::fs::write(&config_path, create_minimal_config()).expect("Failed to write config");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("Should load config");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("Should load config");
     assert!(config.agents.is_empty());
     assert!(config.mcp_servers.is_empty());
 }
@@ -33,7 +31,7 @@ fn test_load_from_path_minimal_config() {
 #[test]
 fn test_load_from_path_nonexistent() {
     let path = PathBuf::from("/nonexistent/services.yaml");
-    let result = ConfigLoader::load_from_path(&path);
+    let result = ConfigLoader::load_from_path(&path, None);
     let err = result.unwrap_err().to_string();
     assert!(err.contains("io error"));
 }
@@ -45,7 +43,7 @@ fn test_load_from_path_invalid_yaml() {
 
     std::fs::write(&config_path, "invalid: yaml: : :").expect("Failed to write config");
 
-    ConfigLoader::load_from_path(&config_path).unwrap_err();
+    ConfigLoader::load_from_path(&config_path, None).unwrap_err();
 }
 
 #[test]
@@ -53,7 +51,7 @@ fn test_load_from_content_minimal() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let config_path = temp_dir.path().join("services.yaml");
 
-    ConfigLoader::load_from_content(&create_minimal_config(), &config_path)
+    ConfigLoader::load_from_content(&create_minimal_config(), &config_path, None)
         .expect("result should succeed");
 }
 
@@ -77,11 +75,10 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
-    ConfigLoader::load_from_content(main_content, &config_path).expect("result should succeed");
+    ConfigLoader::load_from_content(main_content, &config_path, None)
+        .expect("result should succeed");
 }
 
 #[test]
@@ -91,7 +88,7 @@ fn test_validate_file_valid() {
 
     std::fs::write(&config_path, create_minimal_config()).expect("Failed to write config");
 
-    ConfigLoader::validate_file(&config_path).expect("result should succeed");
+    ConfigLoader::validate_file(&config_path, None).expect("result should succeed");
 }
 
 #[test]
@@ -131,8 +128,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     std::fs::write(&config_path, content).expect("Failed to write config");
@@ -164,8 +159,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     std::fs::write(&config_path, content).expect("Failed to write config");
@@ -207,13 +200,12 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("Should load merged config");
+    let config =
+        ConfigLoader::load_from_path(&config_path, None).expect("Should load merged config");
     assert!(config.agents.is_empty());
     assert!(config.mcp_servers.is_empty());
 }
@@ -246,12 +238,10 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
-    ConfigLoader::load_from_path(&config_path)
+    ConfigLoader::load_from_path(&config_path, None)
         .expect("Three-level nested includes should load successfully");
 }
 
@@ -283,12 +273,10 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
-    let err = ConfigLoader::load_from_path(&config_path).expect_err("cycle should error");
+    let err = ConfigLoader::load_from_path(&config_path, None).expect_err("cycle should error");
     let msg = format!("{err:#}");
     assert!(
         msg.contains("cycle detected"),
@@ -520,7 +508,7 @@ agents:
       audience: a2a
 mcp_servers:
   fixture_mcp:
-    type: internal
+    server_type: internal
     binary: fixture-mcp-binary
     package: fixture
     port: 5100
@@ -549,15 +537,9 @@ scheduler:
   bootstrap_jobs:
     - database_cleanup
 ai:
-  default_provider: anthropic
   sampling:
     enable_smart_routing: false
     fallback_enabled: true
-  providers:
-    anthropic:
-      enabled: true
-      api_key: test-key
-      default_model: claude-sonnet-4-20250514
   mcp:
     auto_discover: true
     resilience:
@@ -621,7 +603,8 @@ fn test_load_full_fixture_round_trip() {
     let yaml = full_services_fixture();
     std::fs::write(&config_path, &yaml).expect("Failed to write config");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("full fixture should load");
+    let config =
+        ConfigLoader::load_from_path(&config_path, None).expect("full fixture should load");
 
     assert_eq!(config.agents.len(), 1);
     assert!(config.agents.contains_key("alpha_agent"));
@@ -633,8 +616,7 @@ fn test_load_full_fixture_round_trip() {
     assert!(config.skills.skills.contains_key("general_assistance"));
     assert!(config.web.is_some());
     assert!(config.scheduler.is_some());
-    assert_eq!(config.ai.default_provider, "anthropic");
-    assert!(!config.ai.providers.is_empty());
+    assert!(config.ai.sampling.fallback_enabled);
     assert_eq!(config.settings.agent_port_range, (9000, 9999));
 }
 
@@ -648,8 +630,6 @@ skills_typo:
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err =
@@ -674,11 +654,9 @@ skills_typo:
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
-    let err = ConfigLoader::load_from_content(content, &config_path)
+    let err = ConfigLoader::load_from_content(content, &config_path, None)
         .expect_err("unknown top-level field should fail through loader path");
     let msg = format!("{err:#}");
     assert!(
@@ -708,11 +686,9 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
-    let err = ConfigLoader::load_from_content(main_content, &config_path)
+    let err = ConfigLoader::load_from_content(main_content, &config_path, None)
         .expect_err("unknown field in include should fail through loader path");
     let msg = format!("{err:#}");
     assert!(
@@ -732,8 +708,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [9000, 9999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 skills:
   enabled: true
   auto_discover: false
@@ -774,7 +748,7 @@ plugins:
 "#;
     std::fs::write(&config_path, content).expect("Failed to write config");
 
-    let err = ConfigLoader::load_from_path(&config_path)
+    let err = ConfigLoader::load_from_path(&config_path, None)
         .expect_err("unknown agent reference should fail validation");
     let msg = format!("{err:#}");
     assert!(
@@ -792,7 +766,7 @@ fn rejects_absolute_internal_mcp_endpoint() {
     let content = r#"
 mcp_servers:
   fixture:
-    type: internal
+    server_type: internal
     binary: fixture-bin
     port: 5100
     endpoint: http://localhost:8080/api/v1/mcp/fixture/mcp
@@ -809,7 +783,7 @@ settings:
   mcp_port_range: [5000, 5999]
 "#;
     std::fs::write(&config_path, content).expect("Failed to write config");
-    let err = ConfigLoader::load_from_path(&config_path)
+    let err = ConfigLoader::load_from_path(&config_path, None)
         .expect_err("absolute internal endpoint should be rejected");
     let msg = format!("{err:#}");
     assert!(

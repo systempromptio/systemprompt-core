@@ -17,11 +17,11 @@ use systemprompt_governance::authz::{
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_mcp::middleware::{AuthResult, enforce_rbac_from_registry};
 use systemprompt_models::RequestContext as SysRequestContext;
-use systemprompt_test_fixtures::{mint_admin_jwt, mint_bridge_jwt};
+use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_admin_jwt, mint_bridge_jwt};
 
 use crate::harness::bootstrap_with_services;
 
-const ISSUER: &str = "https://issuer.test";
+const ISSUER: &str = FIXTURE_EXTERNAL_URL;
 
 fn sys_ctx() -> SysRequestContext {
     SysRequestContext::new(
@@ -74,10 +74,19 @@ impl ServerHandler for RbacProbe {
             parts.extensions.insert(sys_ctx());
             context.extensions.insert(parts);
 
+            let services = crate::harness::services_state().config();
             let outcome = match enforce_rbac_from_registry(
                 &context,
                 &McpServerId::new(probe.server.as_str()),
                 &probe.hook,
+                &services,
+                &systemprompt_mcp::middleware::JwtVerifier {
+                    authority: systemprompt_test_fixtures::test_token_authority(
+                        &crate::harness::config().jwt_issuer,
+                    )
+                    .as_ref(),
+                    config: &crate::harness::config(),
+                },
             )
             .await
             {
@@ -327,6 +336,10 @@ impl AuthzDecisionHook for RequireRoleHook {
             },
             policy,
         }
+    }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.evaluate(req).await
     }
 }
 

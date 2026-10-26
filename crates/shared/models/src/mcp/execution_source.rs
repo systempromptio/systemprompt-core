@@ -60,11 +60,12 @@ impl ExecutionSource {
     }
 
     #[must_use]
-    pub const fn from_hook_host(host: &str) -> Self {
-        if host.eq_ignore_ascii_case("opencode") {
-            Self::HookOpenCode
-        } else {
-            Self::HookClaudeCode
+    pub const fn from_hook_host(host: crate::bridge::host::HostKind) -> Self {
+        match host.product() {
+            crate::bridge::host::HostProduct::OpenCode => Self::HookOpenCode,
+            crate::bridge::host::HostProduct::Claude
+            | crate::bridge::host::HostProduct::Codex
+            | crate::bridge::host::HostProduct::Hermes => Self::HookClaudeCode,
         }
     }
 }

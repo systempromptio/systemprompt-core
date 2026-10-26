@@ -5,27 +5,28 @@
 
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
-use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{
     Database, MigrationConfig, MigrationService, install_extension_schemas_full,
 };
 use systemprompt_extension::{ExtensionRegistry, LoaderError};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::{Config, Profile};
+use systemprompt_manifest::Profile;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateOutput;
 
 pub(super) async fn execute_migrate(
-    config: &CliConfig,
+    ctx: &CommandContext,
     allow_checksum_drift: bool,
     repair_drift: bool,
 ) -> Result<()> {
-    let sys_config = Config::get()?;
+    let config = &ctx.cli;
+    let sys_config = ctx.config()?;
 
     if config.should_show_verbose() {
         CliService::info(&format!("System path: {}", sys_config.system_path));
@@ -54,7 +55,7 @@ pub(super) async fn execute_migrate(
 
     run_install(
         &ExtensionRegistry::discover()?,
-        database.session(),
+        &database,
         config,
         allow_checksum_drift,
         repair_drift,
@@ -71,7 +72,7 @@ pub(super) async fn execute_migrate_standalone(
     let database = db_ctx.db_pool();
     run_install(
         &ExtensionRegistry::discover()?,
-        database.session(),
+        database,
         config,
         allow_checksum_drift,
         repair_drift,
@@ -81,11 +82,12 @@ pub(super) async fn execute_migrate_standalone(
 
 async fn run_install(
     registry: &ExtensionRegistry,
-    write_provider: &dyn DatabaseProvider,
+    database: &Database,
     config: &CliConfig,
     allow_checksum_drift: bool,
     repair_drift: bool,
 ) -> Result<()> {
+    let write_provider = database.session();
     let extension_count = registry.schema_extensions().len();
 
     if config.should_show_verbose() {
@@ -120,7 +122,7 @@ async fn run_install(
             },
             Err(e) => return Err(failure(&e)),
         };
-    systemprompt_database::mark_schema_changed();
+    database.mark_schema_changed();
     if !report.is_clean() {
         let drift: Vec<String> = report
             .foreign_key_drift

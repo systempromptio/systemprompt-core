@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod adapter;
+pub mod args_validator;
 pub mod discovery;
 pub mod noop_provider;
 
@@ -16,5 +17,6 @@ pub use adapter::{
     request_to_tool_call, rmcp_result_to_trait_result, tool_call_to_request,
     trait_result_to_rmcp_result,
 };
+pub use args_validator::ToolArgsValidator;
 pub use discovery::ToolDiscovery;
 pub use noop_provider::NoopToolProvider;

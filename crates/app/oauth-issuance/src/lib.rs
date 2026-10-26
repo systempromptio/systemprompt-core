@@ -22,6 +22,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
+
 pub mod client_credentials;
 pub mod error;
 pub mod orchestrator;
@@ -38,7 +41,8 @@ pub use error::{IssuanceError, IssuanceResult};
 pub use orchestrator::TokenIssuanceOrchestrator;
 pub use request::{RequestOrigin, TokenRequest, TokenResponse};
 pub use token_exchange::{
-    TokenExchangeRequest, build_act_chain, handle_token_exchange, intersect_scopes, peek_issuer,
+    ExchangeContext, JwksCache, TokenExchangeRequest, build_act_chain, handle_token_exchange,
+    intersect_scopes, peek_issuer,
 };
 pub use user_tokens::{
     GeneratedTokens, UserTokenError, UserTokenParams, generate_tokens_by_user_id,

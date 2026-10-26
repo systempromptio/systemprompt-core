@@ -12,10 +12,11 @@ use anyhow::Result;
 use futures_util::future::join_all;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::{AgentAuth, AgentState};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_manifest::AgentConfig;
 use systemprompt_oauth::JwtValidationProviderImpl;
@@ -30,21 +31,9 @@ pub async fn reconcile_agents(
 ) -> Result<usize> {
     let orchestrator = build_orchestrator(ctx, events).await?;
 
-    let agent_registry = match AgentRegistry::new() {
-        Ok(registry) => registry,
-        Err(e) => {
-            events.error(format!("Failed to load agent registry: {e}"), true);
-            return Err(e.into());
-        },
-    };
+    let agent_registry = AgentRegistry::new(&ctx.services_state().view());
 
-    let enabled_agents = match agent_registry.list_enabled_agents().await {
-        Ok(agents) => agents,
-        Err(e) => {
-            events.error(format!("Failed to list enabled agents: {e}"), true);
-            return Err(e.into());
-        },
-    };
+    let enabled_agents = agent_registry.list_enabled_agents(ctx.config().is_cloud);
 
     let required_count = enabled_agents.len();
     let (started, failed_agents) =
@@ -79,16 +68,35 @@ async fn build_orchestrator(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<AgentOrchestrator> {
-    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config()?);
+    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
+        ctx.config(),
+        ctx.token_authority(),
+    ));
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
-        jwt_provider,
+        AgentAuth {
+            jwt_provider,
+            signing_keys: ctx.signing_keys().clone(),
+        },
         Arc::clone(ctx.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
+        ctx.services_state().view(),
     ));
 
-    match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {
+    match AgentOrchestrator::new(
+        agent_state,
+        Arc::clone(ctx.app_paths_arc()),
+        Arc::clone(ctx.spawner()),
+        Arc::new(SpawnEnvironment {
+            config: Arc::clone(ctx.config_arc()),
+            secrets: Arc::clone(ctx.secrets()),
+            profile_path: ctx.boot().profile_path().to_path_buf(),
+        }),
+        events,
+    )
+    .await
+    {
         Ok(orch) => Ok(orch),
         Err(e) => {
             events.error(
@@ -147,7 +155,7 @@ async fn handle_failed_agents(
 
     for (agent_name, first_error) in failed_agents {
         tracing::warn!(agent = %agent_name, error = ?first_error, "Agent failed on first start attempt");
-        let agent_config = match agent_registry.get_agent(agent_name).await {
+        let agent_config = match agent_registry.get_agent(agent_name) {
             Ok(config) => config,
             Err(e) => {
                 events.agent_failed(agent_name.clone(), format!("Agent config not found: {e}"));

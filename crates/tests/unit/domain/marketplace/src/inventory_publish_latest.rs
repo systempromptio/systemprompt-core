@@ -23,6 +23,7 @@ impl Fixture {
                     actor: &self.owner,
                     root: self.root.path(),
                     services: &ServicesConfig::default(),
+                    sources: sources(),
                 },
                 guard,
             )
@@ -210,6 +211,7 @@ async fn withdrawn_resource_stays_withheld() {
                 comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
                 ),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await

@@ -9,7 +9,7 @@ use uuid::Uuid;
 async fn repo() -> OAuthRepository {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    OAuthRepository::new(&pool)
+    systemprompt_test_fixtures::oauth_fixture_repository(&pool)
 }
 
 #[tokio::test]

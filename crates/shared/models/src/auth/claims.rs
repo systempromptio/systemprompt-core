@@ -70,14 +70,19 @@ impl ActClaim {
     }
 }
 
-/// Self-issued JWT claim shape.
-///
-/// Fields are grouped by who consumes them downstream. The platform runs
-/// authorization in three layers (see `internal/guides/authz.md`); each
-/// attribute field below is the transport for one of those layers. Do not
-/// delete a field without first removing its readers.
+/// Self-issued JWT claim shape: the RFC 7519 registered claims and the
+/// platform's custom claims, flattened into one JSON object on the wire.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtClaims {
+    #[serde(flatten)]
+    pub registered: RegisteredClaims,
+    #[serde(flatten)]
+    pub custom: CustomClaims,
+}
+
+/// RFC 7519 §4.1 registered claims.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisteredClaims {
     pub sub: String,
     pub iat: i64,
     pub exp: i64,
@@ -90,7 +95,16 @@ pub struct JwtClaims {
     )]
     pub aud: Vec<JwtAudience>,
     pub jti: String,
+}
 
+/// Platform claims grouped by who consumes them downstream.
+///
+/// The platform runs authorization in three layers (see
+/// `internal/guides/authz.md`); the scope, roles and attributes fields are the
+/// transport for one of those layers each. Do not delete a field without first
+/// removing its readers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomClaims {
     #[serde(
         serialize_with = "serialize_scope",
         deserialize_with = "deserialize_scope"
@@ -167,19 +181,19 @@ where
 
 impl JwtClaims {
     pub fn has_permission(&self, permission: Permission) -> bool {
-        self.scope.contains(&permission)
+        self.custom.scope.contains(&permission)
     }
 
     pub fn permissions(&self) -> &[Permission] {
-        &self.scope
+        &self.custom.scope
     }
 
     pub fn get_permissions(&self) -> Vec<Permission> {
-        self.scope.clone()
+        self.custom.scope.clone()
     }
 
     pub fn get_scopes(&self) -> Vec<String> {
-        self.scope.iter().map(ToString::to_string).collect()
+        self.custom.scope.iter().map(ToString::to_string).collect()
     }
 
     pub fn is_admin(&self) -> bool {
@@ -195,14 +209,14 @@ impl JwtClaims {
     }
 
     pub fn has_audience(&self, aud: &JwtAudience) -> bool {
-        self.aud.contains(aud)
+        self.registered.aud.contains(aud)
     }
 
     pub fn has_role(&self, role: &str) -> bool {
-        self.roles.iter().any(|r| r == role)
+        self.custom.roles.iter().any(|r| r == role)
     }
 
     pub fn roles(&self) -> &[String] {
-        &self.roles
+        &self.custom.roles
     }
 }

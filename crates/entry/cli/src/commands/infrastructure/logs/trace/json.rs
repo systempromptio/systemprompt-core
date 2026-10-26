@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use crate::shared::CommandOutput;
 use serde_json::Value;
@@ -80,6 +81,6 @@ pub(super) fn build_json(
         }
     });
 
-    let content = serde_json::to_string_pretty(&output).unwrap_or_else(|_| output.to_string());
+    let content = CliService::json_string(&output).unwrap_or_else(|_| output.to_string());
     CommandOutput::copy_paste_titled("Trace JSON", content)
 }

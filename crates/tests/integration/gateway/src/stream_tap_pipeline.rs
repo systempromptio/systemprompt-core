@@ -31,7 +31,9 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+            .encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("gateway journal opens")
 }
@@ -58,8 +60,18 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Ga
         db,
         gateway_journal(),
         materializer(db),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher from the fixture secrets"),
+            unapplied_plane: systemprompt_manifest::profile::UnappliedPlaneMode::default(),
+        },
     )
 }
 
@@ -95,6 +107,7 @@ pub(super) async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudi
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_string(),
+        hop: None,
         requested_model: Some("claude-requested".to_string()),
         model: "claude-test".to_string(),
         max_tokens: Some(16),
@@ -155,6 +168,9 @@ pub(super) fn tap_ctx(
         policy,
         quota_fault_mode: systemprompt_manifest::services::QuotaFaultMode::Open,
         ai_request_id: ai_request_id.clone(),
+        scanners: std::sync::Arc::new(systemprompt_gateway::SafetyScannerRegistry::discover(
+            &systemprompt_test_fixtures::fixture_extension_context(db),
+        )),
     }
 }
 

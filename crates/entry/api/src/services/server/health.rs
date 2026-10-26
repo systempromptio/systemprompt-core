@@ -1,6 +1,8 @@
 //! Health probe and system-statistics endpoints.
 //!
 //! [`handle_health`] is the lightweight liveness probe (a single `SELECT 1`).
+//! It answers `degraded` with a `governance` block while the governance plane
+//! was never applied, naming the `unapplied_planes` mode and the fix.
 //! `get_system_stats` gathers database, disk, and audit-log statistics for
 //! the detailed health surface, with platform-specific process-memory and
 //! disk-usage helpers.
@@ -8,12 +10,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Json;
 use serde_json::json;
 use systemprompt_database::{DatabaseQuery, JsonRow};
 use systemprompt_runtime::AppContext;
+
+use super::scheduler_health::SchedulerHealth;
 
 pub(super) const HEALTH_CHECK_QUERY: DatabaseQuery = DatabaseQuery::new("SELECT 1");
 
@@ -212,11 +217,10 @@ pub(super) const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub async fn handle_health(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
+    axum::Extension(scheduler_health): axum::Extension<Arc<SchedulerHealth>>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
-
-    use super::scheduler_health;
 
     let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
     let db_healthy = matches!(
@@ -224,18 +228,19 @@ pub async fn handle_health(
         Ok(Ok(_))
     );
 
-    let degraded_jobs = scheduler_health::degraded();
-    let relay_status = ctx
-        .event_bridge()
-        .get()
-        .map_or(systemprompt_events::RelayStatus::NotStarted, |handle| {
-            handle.status()
-        });
+    let degraded_jobs = scheduler_health.degraded();
+    let relay_status = ctx.event_bridge().status();
     let relay_listening = relay_status.is_listening();
 
+    let unapplied = super::probes::unapplied_governance(&ctx);
+    let services_source = super::probes::degraded_services_source(&ctx);
     let (status, http_status) = if !db_healthy {
         ("unhealthy", StatusCode::SERVICE_UNAVAILABLE)
-    } else if degraded_jobs.is_empty() && relay_listening {
+    } else if degraded_jobs.is_empty()
+        && relay_listening
+        && unapplied.is_none()
+        && services_source.is_none()
+    {
         ("healthy", StatusCode::OK)
     } else {
         ("degraded", StatusCode::OK)
@@ -247,6 +252,12 @@ pub async fn handle_health(
     }
     if !relay_listening {
         body["events"] = json!({ "relay": relay_label(relay_status) });
+    }
+    if let Some(block) = unapplied {
+        body["governance"] = block;
+    }
+    if let Some(block) = services_source {
+        body["services_source"] = block;
     }
 
     (http_status, Json(body))

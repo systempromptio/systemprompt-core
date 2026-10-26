@@ -21,7 +21,17 @@ fn services_root() -> PathBuf {
 }
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+    )
+}
+
+fn ctx_on(boot: &systemprompt_test_fixtures::TestBootstrap) -> CommandContext {
+    crate::boot_ctx::new_on(
+        boot,
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -67,13 +77,13 @@ fn agents(args: &[&str]) -> AgentsCommands {
 
 #[tokio::test]
 async fn an_agent_config_that_fails_validation_is_reported_by_every_reader() {
-    let _boot = systemprompt_test_fixtures::init_unloadable_services_bootstrap(
+    let boot = systemprompt_test_fixtures::init_unloadable_services_bootstrap(
         "http://127.0.0.1",
         "agents:\n  covbroken:\n    name: covbroken\n    port: 42\nmcp_servers: {}\n",
     );
 
     for argv in [vec!["list"], vec!["validate"], vec!["show", "covbroken"]] {
-        let err = systemprompt_cli::admin::agents::execute(agents(&argv), &ctx())
+        let err = systemprompt_cli::admin::agents::execute(agents(&argv), &ctx_on(&boot))
             .await
             .unwrap_err();
         assert!(!format!("{err:#}").is_empty(), "{argv:?}");

@@ -6,8 +6,7 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use systemprompt_config::ProfileBootstrap;
-use systemprompt_loader::ServicesRootBootstrap;
+use systemprompt_loader::BootContext;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::validators::WebConfigRaw;
 
@@ -21,13 +20,15 @@ pub struct WebPaths {
 }
 
 impl WebPaths {
-    pub fn resolve() -> Result<Self> {
-        let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-        Self::resolve_from_profile(profile)
+    pub fn resolve(boot: &BootContext) -> Result<Self> {
+        Self::resolve_from_services_root(&boot.require_services_root().path)
     }
 
     pub fn resolve_from_profile(profile: &Profile) -> Result<Self> {
-        let services_root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
+        Self::resolve_from_services_root(Path::new(&profile.paths.services))
+    }
+
+    fn resolve_from_services_root(services_root: &Path) -> Result<Self> {
         let web_config_path = services_root.join("web/config.yaml");
 
         let (templates_path, assets_path) = match fs::read_to_string(&web_config_path) {
@@ -66,7 +67,7 @@ impl WebPaths {
             },
         };
 
-        let base = services_root.as_path();
+        let base = services_root;
         let templates = normalize_under_services(&templates_path, base);
         let assets = normalize_under_services(&assets_path, base);
 

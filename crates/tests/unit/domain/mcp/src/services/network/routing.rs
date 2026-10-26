@@ -33,7 +33,7 @@ async fn base_router_serves_health_check() {
 #[tokio::test]
 async fn cors_layer_allows_configured_origin() {
     ensure_test_bootstrap();
-    let router = apply_cors_layer(create_base_router()).expect("cors layer built");
+    let router = apply_cors_layer(create_base_router(), &crate::harness::config());
 
     let response = router
         .oneshot(

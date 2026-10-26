@@ -21,6 +21,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod attrs;
+mod child_spans;
 mod ids;
 mod logs;
 mod report;
@@ -33,10 +34,11 @@ use async_trait::async_trait;
 use chrono::Utc;
 use sqlx::PgPool;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{AiRequestId, InstanceId};
 use systemprompt_manifest::profile::{OtlpExportConfig, OtlpSignal};
+use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
@@ -76,29 +78,24 @@ impl Job for OtlpExportJob {
     // Why: without an `observability.otlp` block every tick would be a no-op,
     // so the job is not scheduled at all; the profile is fixed for the life
     // of the process.
-    fn configured(&self) -> bool {
-        ProfileBootstrap::get()
-            .ok()
-            .and_then(|profile| profile.observability.otlp())
-            .is_some()
+    fn configured(&self, deployment: &Dependencies) -> bool {
+        deployment
+            .get::<Arc<LoadedProfile>>()
+            .is_ok_and(|profile| profile.observability.otlp().is_some())
     }
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
-        let Some(config) = ProfileBootstrap::get()
-            .ok()
-            .and_then(|profile| profile.observability.otlp())
-        else {
+        let app = job_app_context(ctx)?;
+        let Some(config) = app.profile().observability.otlp() else {
             debug!("observability.otlp is not configured; nothing to export");
             return Ok(JobResult::success().with_duration(start.elapsed().as_millis() as u64));
         };
         let db_pool = ctx.get::<DbPool>()?;
         let pool = db_pool.write_pool();
-        let instance_id = job_app_context(ctx)
-            .ok()
-            .map(|app| app.config().instance_id.clone());
+        let instance_id = app.config().instance_id.clone();
 
-        let report = run(&pool, config, instance_id.as_ref(), true).await?;
+        let report = run(&pool, config, Some(&instance_id), true).await?;
         Ok(JobResult::success()
             .with_stats(report.rows(), report.failed())
             .with_duration(start.elapsed().as_millis() as u64))
@@ -125,6 +122,7 @@ async fn run(
     let tails = OtlpAuditTailRepository::new(pool.as_ref().clone());
     let requests =
         AiRequestRepository::new(&Arc::new(Database::from_pools(Arc::clone(pool), None)));
+    let client = transport::build_client();
     let mut report = ExportReport::default();
     for signal in OtlpSignal::ALL {
         if !config.exports(signal) {
@@ -143,6 +141,7 @@ async fn run(
         }
         repository.mark_attempt(signal).await?;
         let stores = SignalStores {
+            client: &client,
             state: &repository,
             tails: &tails,
             requests: &requests,
@@ -175,6 +174,7 @@ async fn run(
 
 #[derive(Debug, Clone, Copy)]
 struct SignalStores<'a> {
+    client: &'a reqwest::Client,
     state: &'a OtlpExportStateRepository,
     tails: &'a OtlpAuditTailRepository,
     requests: &'a AiRequestRepository,
@@ -201,7 +201,7 @@ async fn export_signal(
             let rows = batch.requests.len() as u64;
             if next.is_some() {
                 let envelope = spans::to_export_request(&batch, instance_id);
-                post(config, signal, &envelope).await?;
+                post(stores.client, config, signal, &envelope).await?;
             }
             (rows, 0, next)
         },
@@ -209,7 +209,7 @@ async fn export_signal(
             let tail = stores.tails.list_logs_after(&after, BATCH_ROWS).await?;
             if !tail.rows.is_empty() {
                 let envelope = logs::to_export_request(&tail.rows, instance_id);
-                post(config, signal, &envelope).await?;
+                post(stores.client, config, signal, &envelope).await?;
             }
             (tail.rows.len() as u64, tail.skipped, tail.last)
         },
@@ -257,11 +257,12 @@ async fn load_trace_batch(
 }
 
 async fn post<M: prost::Message>(
+    client: &reqwest::Client,
     config: &OtlpExportConfig,
     signal: OtlpSignal,
     envelope: &M,
 ) -> SchedulerResult<()> {
-    transport::post_signal(config, signal, envelope)
+    transport::post_signal(client, config, signal, envelope)
         .await
         .map_err(|source| SchedulerError::OtlpExport {
             signal,

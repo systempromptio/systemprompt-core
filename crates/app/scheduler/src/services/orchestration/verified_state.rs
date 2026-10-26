@@ -4,16 +4,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::state_types::{DesiredStatus, RuntimeStatus, ServiceAction, ServiceType};
+use super::state_types::{DesiredStatus, ServiceAction, ServiceType, VerifiedService};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::ServiceStatus;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerifiedServiceState {
     pub name: ServiceName,
     pub service_type: ServiceType,
     pub desired_status: DesiredStatus,
-    pub runtime_status: RuntimeStatus,
+    pub runtime: VerifiedService,
     pub pid: Option<u32>,
     pub port: u16,
     pub needs_action: ServiceAction,
@@ -25,7 +26,7 @@ pub struct VerifiedServiceStateBuilder {
     name: ServiceName,
     service_type: ServiceType,
     desired: DesiredStatus,
-    runtime: RuntimeStatus,
+    runtime: VerifiedService,
     port: u16,
     pid: Option<u32>,
     error: Option<String>,
@@ -36,7 +37,7 @@ impl VerifiedServiceStateBuilder {
         name: ServiceName,
         service_type: ServiceType,
         desired: DesiredStatus,
-        runtime: RuntimeStatus,
+        runtime: VerifiedService,
         port: u16,
     ) -> Self {
         Self {
@@ -66,7 +67,7 @@ impl VerifiedServiceStateBuilder {
             name: self.name,
             service_type: self.service_type,
             desired_status: self.desired,
-            runtime_status: self.runtime,
+            runtime: self.runtime,
             pid: self.pid,
             port: self.port,
             needs_action: action,
@@ -80,39 +81,38 @@ impl VerifiedServiceState {
         name: ServiceName,
         service_type: ServiceType,
         desired: DesiredStatus,
-        runtime: RuntimeStatus,
+        runtime: VerifiedService,
         port: u16,
     ) -> VerifiedServiceStateBuilder {
         VerifiedServiceStateBuilder::new(name, service_type, desired, runtime, port)
     }
 
-    const fn determine_action(desired: &DesiredStatus, runtime: &RuntimeStatus) -> ServiceAction {
-        match (desired, runtime) {
-            (DesiredStatus::Enabled, RuntimeStatus::Running | RuntimeStatus::Starting) => {
-                ServiceAction::None
-            },
-            (DesiredStatus::Enabled, RuntimeStatus::Stopped) => ServiceAction::Start,
-            (DesiredStatus::Enabled, RuntimeStatus::Crashed | RuntimeStatus::Orphaned) => {
-                ServiceAction::Restart
-            },
-            (DesiredStatus::Disabled, RuntimeStatus::Running | RuntimeStatus::Starting) => {
-                ServiceAction::Stop
-            },
-            (DesiredStatus::Disabled, RuntimeStatus::Stopped | RuntimeStatus::Crashed) => {
+    const fn determine_action(desired: &DesiredStatus, runtime: &VerifiedService) -> ServiceAction {
+        if runtime.orphaned {
+            return match desired {
+                DesiredStatus::Enabled => ServiceAction::Restart,
+                DesiredStatus::Disabled => ServiceAction::CleanupProcess,
+            };
+        }
+        match (desired, runtime.status) {
+            (
+                DesiredStatus::Enabled,
+                ServiceStatus::Running | ServiceStatus::Starting | ServiceStatus::Stopping,
+            ) => ServiceAction::None,
+            (DesiredStatus::Enabled, ServiceStatus::Stopped) => ServiceAction::Start,
+            (DesiredStatus::Enabled, ServiceStatus::Error) => ServiceAction::Restart,
+            (
+                DesiredStatus::Disabled,
+                ServiceStatus::Running | ServiceStatus::Starting | ServiceStatus::Stopping,
+            ) => ServiceAction::Stop,
+            (DesiredStatus::Disabled, ServiceStatus::Stopped | ServiceStatus::Error) => {
                 ServiceAction::CleanupDb
             },
-            (DesiredStatus::Disabled, RuntimeStatus::Orphaned) => ServiceAction::CleanupProcess,
         }
     }
 
     pub const fn is_healthy(&self) -> bool {
-        matches!(
-            (&self.desired_status, &self.runtime_status),
-            (
-                DesiredStatus::Enabled,
-                RuntimeStatus::Running | RuntimeStatus::Starting
-            )
-        )
+        matches!(self.desired_status, DesiredStatus::Enabled) && self.runtime.is_healthy()
     }
 
     pub const fn needs_attention(&self) -> bool {
@@ -120,12 +120,10 @@ impl VerifiedServiceState {
     }
 
     pub const fn status_display(&self) -> &'static str {
-        match self.runtime_status {
-            RuntimeStatus::Running => "running",
-            RuntimeStatus::Starting => "starting",
-            RuntimeStatus::Stopped => "stopped",
-            RuntimeStatus::Crashed => "crashed",
-            RuntimeStatus::Orphaned => "orphaned",
+        if self.runtime.orphaned {
+            "orphaned"
+        } else {
+            self.runtime.status.as_str()
         }
     }
 

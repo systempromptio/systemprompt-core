@@ -29,6 +29,7 @@ mod wire;
 
 use crate::schema::McpOutputSchema;
 use crate::services::artifact_ingest::{ArtifactIngest, IngestOutcome, IngestRequest};
+use crate::services::ui_renderer::UiRendererRegistry;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock};
 use schemars::JsonSchema;
@@ -56,6 +57,12 @@ impl ToolIdentity {
             tool_name,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ResponseServices<'a> {
+    pub ingest: &'a ArtifactIngest,
+    pub renderers: &'a UiRendererRegistry,
 }
 
 pub struct McpResponseBuilder<T: Serialize + JsonSchema> {
@@ -96,10 +103,11 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
     pub async fn build(
         self,
         summary: impl Into<String>,
-        ingest: &ArtifactIngest,
+        services: ResponseServices<'_>,
         artifact_type: impl Into<String>,
         title: Option<String>,
     ) -> Result<CallToolResult, McpError> {
+        let ResponseServices { ingest, renderers } = services;
         let summary_str = summary.into();
         let artifact_type_str = artifact_type.into();
         let ToolIdentity {
@@ -114,26 +122,17 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         })?;
         let text_body = self.output.text_body();
 
-        let mut wire = CallToolResult::success(Vec::new());
-        wire.structured_content = Some(typed_structured(&structured_output, &artifact_type_str));
-        let outcome = ingest
-            .ingest(IngestRequest {
-                result: wire,
-                tool_name: tool_name.clone(),
-                server_name: Some(server_name.clone()),
-                ai_tool_call_id: self.ctx.ai_tool_call_id().cloned(),
-                mcp_execution_id: Some(exec_id.clone()),
-                ctx: self.ctx.clone(),
-                skill: None,
-                source: ExecutionSource::InProcess,
-                started_at: None,
-                input: None,
-            })
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, tool = %tool_name, "Failed to persist artifact");
-                McpError::internal_error("Failed to persist artifact", None)
-            })?;
+        let outcome = persist_artifact(
+            ingest,
+            IngestTarget {
+                ctx: &self.ctx,
+                tool_name: &tool_name,
+                server_name: &server_name,
+                exec_id: &exec_id,
+            },
+            typed_structured(&structured_output, &artifact_type_str),
+        )
+        .await?;
         let IngestOutcome {
             artifact_id,
             secret_redactions,
@@ -180,8 +179,43 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             structured_output: wire_output,
             metadata: &metadata,
         };
-        Ok(shape.into_result(&rendered, &self.ctx))
+        Ok(shape.into_result(&rendered, &self.ctx, renderers))
     }
+}
+
+struct IngestTarget<'a> {
+    ctx: &'a RequestContext,
+    tool_name: &'a McpToolName,
+    server_name: &'a McpServerId,
+    exec_id: &'a McpExecutionId,
+}
+
+async fn persist_artifact(
+    ingest: &ArtifactIngest,
+    target: IngestTarget<'_>,
+    // JSON: the tool's structured content, shaped by each tool's output schema.
+    structured: JsonValue,
+) -> Result<IngestOutcome, McpError> {
+    let mut wire = CallToolResult::success(Vec::new());
+    wire.structured_content = Some(structured);
+    ingest
+        .ingest(IngestRequest {
+            result: wire,
+            tool_name: target.tool_name.clone(),
+            server_name: Some(target.server_name.clone()),
+            ai_tool_call_id: target.ctx.ai_tool_call_id().cloned(),
+            mcp_execution_id: Some(target.exec_id.clone()),
+            ctx: target.ctx.clone(),
+            skill: None,
+            source: ExecutionSource::InProcess,
+            started_at: None,
+            input: None,
+        })
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, tool = %target.tool_name, "Failed to persist artifact");
+            McpError::internal_error("Failed to persist artifact", None)
+        })
 }
 
 /// A body that names its own artifact type, so the ingest stores it as that

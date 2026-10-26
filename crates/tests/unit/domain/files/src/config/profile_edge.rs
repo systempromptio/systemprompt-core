@@ -1,9 +1,7 @@
 //! `ensure_storage_structure` root-creation failure, driven by a custom
-//! profile whose storage root sits below a regular file. Initialises
-//! `ProfileBootstrap` itself, so it must not share a process with the
-//! bootstrap fixture (nextest runs one process per test).
+//! profile whose storage root sits below a regular file.
 
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
@@ -25,11 +23,8 @@ database:
 server:
   host: 127.0.0.1
   port: 8080
-  api_server_url: http://127.0.0.1
-  api_internal_url: http://127.0.0.1
-  api_external_url: http://127.0.0.1
-  use_https: false
-  cors_allowed_origins:
+  external_url: http://127.0.0.1
+  extra_cors_origins:
     - http://127.0.0.1
   instance_id: null
   max_concurrent_streams: 256
@@ -42,7 +37,6 @@ paths:
   storage: {storage}
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences:
@@ -104,18 +98,21 @@ fn ensure_storage_structure_reports_uncreatable_root() {
     let profile_path = tmp.path().join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml(&system, &storage)).expect("write profile");
 
-    let profile = ProfileBootstrap::init_from_path(&profile_path).expect("init profile");
+    let profile = LoadedProfile::from_path(&profile_path).expect("load profile");
     let paths = AppPaths::from_profile(
-        &profile.paths,
+        &profile.profile().paths,
         systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths");
-    let cfg = FilesConfig::from_profile(&paths).expect("from_profile");
+    let cfg = FilesConfig::from_profile(profile.profile(), &paths).expect("from_profile");
 
-    let errors = cfg.ensure_storage_structure();
+    let err = cfg
+        .ensure_storage_structure()
+        .expect_err("a storage root below a regular file cannot be created");
 
-    assert_eq!(errors.len(), 1, "unexpected errors: {errors:?}");
-    assert!(errors[0].contains("Failed to create storage root"));
-    assert!(errors[0].contains(&storage.display().to_string()));
+    match err {
+        systemprompt_files::FilesError::StorageDir { path, .. } => assert_eq!(path, storage),
+        other => panic!("expected StorageDir, got {other:?}"),
+    }
 }

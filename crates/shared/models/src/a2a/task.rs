@@ -138,14 +138,14 @@ impl std::str::FromStr for TaskState {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "TASK_STATE_SUBMITTED" => Ok(Self::Submitted),
-            "TASK_STATE_WORKING" => Ok(Self::Working),
-            "TASK_STATE_COMPLETED" => Ok(Self::Completed),
-            "TASK_STATE_FAILED" => Ok(Self::Failed),
-            "TASK_STATE_CANCELED" => Ok(Self::Canceled),
-            "TASK_STATE_REJECTED" => Ok(Self::Rejected),
-            "TASK_STATE_INPUT_REQUIRED" => Ok(Self::InputRequired),
-            "TASK_STATE_AUTH_REQUIRED" => Ok(Self::AuthRequired),
+            "TASK_STATE_SUBMITTED" | "submitted" => Ok(Self::Submitted),
+            "TASK_STATE_WORKING" | "working" => Ok(Self::Working),
+            "TASK_STATE_COMPLETED" | "completed" => Ok(Self::Completed),
+            "TASK_STATE_FAILED" | "failed" => Ok(Self::Failed),
+            "TASK_STATE_CANCELED" | "canceled" => Ok(Self::Canceled),
+            "TASK_STATE_REJECTED" | "rejected" => Ok(Self::Rejected),
+            "TASK_STATE_INPUT_REQUIRED" | "input-required" => Ok(Self::InputRequired),
+            "TASK_STATE_AUTH_REQUIRED" | "auth-required" => Ok(Self::AuthRequired),
             _ => Err(ParseEnumError::new("task state", s)),
         }
     }

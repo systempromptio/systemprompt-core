@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, plane, entity, base_hash, file_hash, file_value, db_hash, db_value,\n                     detected_at\n                FROM config_conflicts\n               WHERE resolved_at IS NULL AND ($1::TEXT IS NULL OR plane = $1)\n               ORDER BY plane, entity",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "plane",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "plane"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "entity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "entity"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "base_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "base_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "file_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "file_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "file_value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "file_value"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "db_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "db_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "db_value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "db_value"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "detected_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "config_conflicts",
+            "name": "detected_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "a7b96ab6ef983767c229b6370aa364cd0eefb2d4b0dd00565da285c160bb27de"
+}

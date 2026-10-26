@@ -4,17 +4,20 @@
 //! valid profile (incl. `governance.authz`), a reachable secrets source with
 //! the required keys and provider credentials, a
 //! `trusted_proxies` set that covers the Fly peer range — and probes
-//! database/hook reachability. The preflight runs automatically before
-//! `cloud deploy` builds an image, and is exposed standalone (`cloud doctor`)
-//! so an operator can check a profile without deploying. The profile-only
-//! checks (`profile_checks`) never fail a profile that `Profile::validate`
-//! accepts, so the two cannot disagree about what is deployable.
+//! database/hook reachability, and reports the profile's `unapplied_planes`
+//! mode with whether each runtime config plane has been applied. The preflight
+//! runs automatically before `cloud deploy` builds an image, and is exposed
+//! standalone (`cloud doctor`) so an operator can check a profile without
+//! deploying. The profile-only checks (`profile_checks`) never fail a profile
+//! that `Profile::validate` accepts, so the two cannot disagree about what is
+//! deployable.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod checks;
 pub mod distributed;
+mod plane_checks;
 pub mod vault_checks;
 
 pub(in crate::commands::cloud) use checks::resolve_signing_key_path;
@@ -149,8 +152,8 @@ pub(in crate::commands::cloud) async fn run(
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));
     let services_root = resolve_services_config(profile);
-    match ConfigLoader::load_from_path(&services_root) {
-        Ok(services) => checks.push(check_provider_secrets(&services.providers, &secrets)),
+    match ConfigLoader::load_from_path(&services_root, Some(profile)) {
+        Ok(services) => checks.push(check_provider_secrets(&services.credentials, &secrets)),
         Err(err) => checks.push(CheckResult::warn(
             "providers",
             format!(
@@ -162,6 +165,8 @@ pub(in crate::commands::cloud) async fn run(
     }
     checks.push(check_extension_configs(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
+    checks.push(plane_checks::check_config_planes(profile, &secrets).await);
+    checks.push(plane_checks::check_services_source(profile));
     if distributed {
         checks.extend(distributed::run(profile, &secrets).await);
     }

@@ -61,6 +61,8 @@ mod extension_loader;
 #[cfg(test)]
 mod extension_loader_extra;
 #[cfg(test)]
+mod lint_serde_aliases_script;
+#[cfg(test)]
 mod module_loader;
 #[cfg(test)]
 mod profile_loader;
@@ -70,6 +72,8 @@ mod services_catalog;
 mod services_loader;
 #[cfg(test)]
 mod services_root_cell;
+#[cfg(test)]
+mod services_watch;
 #[cfg(test)]
 mod subprocess;
 #[cfg(all(test, unix))]
@@ -82,3 +86,6 @@ mod vertex_discovery_client;
 mod vertex_discovery_merge;
 #[cfg(test)]
 mod vertex_discovery_source;
+
+#[cfg(test)]
+mod boot_context_config;

@@ -5,7 +5,7 @@
 
 use super::{AnonymousSessionInfo, SessionCreationParams, SessionCreationService};
 use crate::error::{OauthError, OauthResult};
-use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
+use crate::services::generation::generate_anonymous_jwt_with_expiry;
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_traits::CreateSessionInput;
 use uuid::Uuid;
@@ -27,8 +27,7 @@ impl SessionCreationService {
             })?;
         let user_id = UserId::new(anonymous_user.id);
 
-        let jwt_expiration_seconds =
-            systemprompt_manifest::Config::get()?.jwt_access_token_expiration;
+        let jwt_expiration_seconds = self.config.jwt_access_token_expiration;
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration_seconds);
 
         self.session_provider
@@ -43,11 +42,13 @@ impl SessionCreationService {
             })
             .await?;
 
-        let config = systemprompt_manifest::Config::get()?;
-        let signing = JwtSigningParams {
-            issuer: &config.jwt_issuer,
-        };
-        let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)?;
+        let token = generate_anonymous_jwt_with_expiry(
+            self.authority.as_ref(),
+            &user_id,
+            &session_id,
+            params.client_id,
+            jwt_expiration_seconds,
+        )?;
 
         Ok(AnonymousSessionInfo {
             session_id,

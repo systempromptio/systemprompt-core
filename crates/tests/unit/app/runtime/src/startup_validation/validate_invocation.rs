@@ -1,7 +1,7 @@
 //! Drives `StartupValidator::validate(&Config)` end-to-end against a
-//! minimal config. In a unit-test process the profile bootstrap is not
-//! initialised, so `ConfigLoader::load()` fails and the validator
-//! takes the early-return / error-report branch in `load_configs`.
+//! minimal config against a boot context whose services tree does not parse,
+//! so the services load fails and the validator takes the early-return /
+//! error-report branch in `load_configs`.
 //!
 //! Cheap but covers lines in `startup_validation/mod.rs` and
 //! `startup_validation/config_loaders.rs` that the constructor-only
@@ -14,6 +14,7 @@ use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_runtime::StartupValidator;
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 fn minimal_config() -> Config {
     Config {
@@ -72,17 +73,20 @@ fn minimal_config() -> Config {
 }
 
 #[test]
-fn validate_without_profile_short_circuits_with_services_config_error() {
-    let mut validator = StartupValidator::new();
+fn validate_with_an_unloadable_services_tree_short_circuits_with_services_config_error() {
+    let unloadable = ensure_test_bootstrap();
+    std::fs::write(
+        unloadable.services_path.join("config/config.yaml"),
+        "agents: [not, a, mapping",
+    )
+    .expect("corrupt the services config");
+    let mut validator = StartupValidator::new(unloadable.boot.clone()).expect("startup validator");
     let cfg = minimal_config();
     let report = validator.validate(&cfg);
 
-    // Profile is not bootstrapped in this process, so `ConfigLoader::load()`
-    // fails inside `load_configs` and the validator records an error on the
-    // `services` domain before returning early.
     assert!(
         report.has_errors(),
-        "validation without profile must report errors"
+        "validation with an unloadable services tree must report errors"
     );
     assert!(
         report.domains.iter().any(|d| d.domain == "services"),

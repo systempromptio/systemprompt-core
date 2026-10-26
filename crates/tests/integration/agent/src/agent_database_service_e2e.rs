@@ -2,14 +2,9 @@ use anyhow::Result;
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_identifiers::AgentName;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, unique_instance};
-use uuid::Uuid;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, unique_agent_name, unique_instance};
 
 use crate::common::Fixture;
-
-fn unique_name(suffix: &str) -> AgentName {
-    AgentName::new(format!("dbsvc_{}_{}", suffix, Uuid::new_v4().simple()))
-}
 
 async fn cleanup_agent(pool: &sqlx::PgPool, name: &AgentName) {
     let _ = sqlx::query("DELETE FROM services WHERE name = $1")
@@ -23,8 +18,8 @@ async fn agent_database_service_register_and_get_status() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, unique_instance());
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("reg");
+    let svc = AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view());
+    let name = unique_agent_name("dbsvc_reg");
 
     svc.register_agent(&name, 12345, 9100).await?;
     let status = svc.get_status(&name).await?;
@@ -42,8 +37,8 @@ async fn agent_database_service_mark_failed_persists() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, unique_instance());
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("failed");
+    let svc = AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view());
+    let name = unique_agent_name("dbsvc_failed");
     svc.register_agent(&name, 333, 9101).await?;
     svc.mark_failed(&name).await?;
     cleanup_agent(&fx.pool, &name).await;
@@ -56,8 +51,8 @@ async fn agent_database_service_list_running_agents() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, unique_instance());
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("lrunning");
+    let svc = AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view());
+    let name = unique_agent_name("dbsvc_lrunning");
     svc.register_agent(&name, 2, 9105).await?;
     let _list = svc.list_running_agents().await?;
     cleanup_agent(&fx.pool, &name).await;
@@ -70,7 +65,7 @@ async fn agent_database_service_list_all_agents_returns_list() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, unique_instance());
-    let svc = AgentDatabaseService::new(repo).expect("svc");
+    let svc = AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view());
     let _list = svc.list_all_agents().await?;
     fx.cleanup().await?;
     Ok(())
@@ -81,13 +76,13 @@ async fn agent_database_service_remove_and_update_state() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, unique_instance());
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("rm-up");
+    let svc = AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view());
+    let name = unique_agent_name("dbsvc_rm-up");
     svc.register_agent(&name, 4, 9107).await?;
     svc.update_agent_running(&name, 5, 9110).await?;
     svc.update_agent_stopped(&name).await?;
     svc.remove_agent_service(&name).await?;
-    let after = svc.agent_exists(&name).await?;
+    let after = svc.agent_exists(&name)?;
     assert!(!after);
     fx.cleanup().await?;
     Ok(())
@@ -98,8 +93,8 @@ async fn agent_database_service_register_agent_starting() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, unique_instance());
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("starting");
+    let svc = AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view());
+    let name = unique_agent_name("dbsvc_starting");
     svc.register_agent_starting(&name, 9, 9108).await?;
     cleanup_agent(&fx.pool, &name).await;
     fx.cleanup().await?;
@@ -111,8 +106,8 @@ async fn agent_database_service_get_agent_config_unknown_errors() -> Result<()> 
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let repo = AgentServiceRepository::new(&fx.db, unique_instance());
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let result = svc.get_agent_config(&AgentName::new("__unknown_xyz")).await;
+    let svc = AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view());
+    let result = svc.get_agent_config(&AgentName::new("__unknown_xyz"));
     assert!(result.is_err());
     fx.cleanup().await?;
     Ok(())

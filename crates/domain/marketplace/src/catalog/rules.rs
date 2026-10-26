@@ -103,11 +103,33 @@ fn build_rule_entry(
         .map_err(|e| MarketplaceError::catalog(format!("read {}", config_path.display()), e))?;
     let config: DiskRuleConfig = serde_yaml::from_str(&config_text)
         .map_err(|e| MarketplaceError::catalog(format!("parse {}", config_path.display()), e))?;
-
     if !config.enabled {
         return Ok(None);
     }
+    let content_path = rule_dir.join(config.content_file());
+    if !content_path.exists() {
+        return Err(MarketplaceError::Catalog(format!(
+            "rule '{dir_name}' names content file '{}' which does not exist",
+            config.content_file()
+        )));
+    }
+    let raw = std::fs::read_to_string(&content_path)
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", content_path.display()), e))?;
+    rule_entry(
+        dir_name,
+        config,
+        &raw,
+        content_path.to_string_lossy().into_owned(),
+    )
+    .map(Some)
+}
 
+pub(crate) fn rule_entry(
+    dir_name: &str,
+    config: DiskRuleConfig,
+    raw_content: &str,
+    file_path: String,
+) -> Result<RuleEntry, MarketplaceError> {
     if config.id.as_str() != dir_name {
         return Err(MarketplaceError::Catalog(format!(
             "rule id '{}' does not match its directory name '{dir_name}'",
@@ -121,32 +143,21 @@ fn build_rule_entry(
     };
     let name =
         RuleName::try_new(display_name).map_err(|e| MarketplaceError::catalog("rule name", e))?;
-
-    let content_path = rule_dir.join(config.content_file());
-    if !content_path.exists() {
-        return Err(MarketplaceError::Catalog(format!(
-            "rule '{dir_name}' names content file '{}' which does not exist",
-            config.content_file()
-        )));
-    }
-    let raw = std::fs::read_to_string(&content_path)
-        .map_err(|e| MarketplaceError::catalog(format!("read {}", content_path.display()), e))?;
-    let instructions = strip_frontmatter(&raw).trim().to_owned();
-
+    let instructions = strip_frontmatter(raw_content).trim().to_owned();
     let mut hasher = Sha256::new();
     hasher.update(instructions.as_bytes());
     let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))
         .map_err(|e| MarketplaceError::catalog("rule digest", e))?;
-
-    Ok(Some(RuleEntry {
+    Ok(RuleEntry {
         id: config.id,
         name,
         description: config.description,
-        file_path: content_path.to_string_lossy().into_owned(),
+        file_path,
         tags: config.tags,
         sha256,
         instructions,
         hosts: config.hosts,
         plugins: Vec::new(),
-    }))
+        publication: None,
+    })
 }

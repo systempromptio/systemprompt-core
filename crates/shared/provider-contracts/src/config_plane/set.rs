@@ -11,7 +11,7 @@
 //! [`PlaneWriter`] for it, and [`ConfigPlaneSet::writer`] mints one only when
 //! the plane is not file-managed: a plane whose declaration exists under
 //! `file` authority answers [`ConfigPlaneError::FileManaged`], because the
-//! reconciler would overwrite the edit on its next pass. A plane whose file is
+//! next `config apply` would take the file over the edit. A plane whose file is
 //! absent is never file-managed, whatever the profile says.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

@@ -137,7 +137,7 @@ async fn fixture() -> ManagedSkillFixture {
         .await
         .unwrap();
     ManagedSkillFixture {
-        ctx: CommandContext::with_app_context(
+        ctx: crate::boot_ctx::with_app_boot(
             CliConfig::new()
                 .with_interactive(false)
                 .with_output_format(OutputFormat::Json),
@@ -165,6 +165,7 @@ async fn publish(fixture: &ManagedSkillFixture) {
                 operation_key: format!("publish-{}", fixture.key),
                 comparison_evidence: ComparisonEvidence::default(),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await
@@ -186,6 +187,7 @@ async fn withdraw(fixture: &ManagedSkillFixture) {
                 operation_key: format!("withdraw-{}", fixture.key),
                 comparison_evidence: ComparisonEvidence::default(),
                 limitations: String::new(),
+                cohort: None,
             },
         )
         .await

@@ -165,6 +165,7 @@ fn rotate_log_if_needed_keeps_small_file() {
 fn open_server_log_creates_log_directory_and_file() {
     let dir = tempfile::tempdir().expect("tempdir");
     let paths_config = PathsConfig {
+        root: None,
         system: dir.path().display().to_string(),
         services: dir.path().display().to_string(),
         bin: dir.path().display().to_string(),

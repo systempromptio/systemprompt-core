@@ -1,7 +1,7 @@
 use systemprompt_config::SecretsBootstrapError;
 use systemprompt_models::auth::UserType;
-use systemprompt_security::error::{AuthError, JwtError, ManifestSigningError};
-use systemprompt_security::keys::TokenAuthorityError;
+use systemprompt_security::error::{AuthError, ManifestSigningError};
+use systemprompt_security::keys::SigningKeysError;
 
 #[test]
 fn auth_error_missing_authorization_display() {
@@ -104,15 +104,15 @@ fn auth_error_user_type_mismatch_display() {
 }
 
 #[test]
-fn jwt_error_signing_display() {
-    let e = JwtError::Signing(TokenAuthorityError::PathMissing);
+fn signing_keys_error_path_missing_display() {
+    let e = SigningKeysError::PathMissing;
     let s = e.to_string();
     assert!(s.contains("signing_key_path is not configured"), "got: {s}");
 }
 
 #[test]
-fn manifest_signing_error_seed_unavailable_display() {
-    let e = ManifestSigningError::SeedUnavailable(SecretsBootstrapError::ManifestSeedRequired);
+fn signing_keys_error_manifest_seed_display() {
+    let e = SigningKeysError::ManifestSeed(SecretsBootstrapError::ManifestSeedRequired);
     let s = e.to_string();
     assert!(
         s.contains("manifest_signing_secret_seed is required"),

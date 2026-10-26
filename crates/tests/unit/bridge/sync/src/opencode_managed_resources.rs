@@ -14,15 +14,16 @@ use systemprompt_bridge::host_sync::{ApplyError, HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_test_fixtures::fixture_user_id;
 
-struct Sandbox {
-    config: PathBuf,
-    skills: PathBuf,
+pub(crate) struct Sandbox {
+    pub(crate) config: PathBuf,
+    pub(crate) skills: PathBuf,
     hook_plugin: PathBuf,
 }
 
-fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
+pub(crate) fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
     let temp = tempfile::tempdir().expect("tempdir");
     let config_home = temp.path().join("config");
     let sb = Sandbox {
@@ -30,7 +31,7 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
         skills: config_home.join("opencode").join("skills"),
         hook_plugin: config_home
             .join("opencode")
-            .join("plugin")
+            .join("plugins")
             .join("systemprompt-hooks.js"),
     };
     let bridge_dir = config_home.join("systemprompt");
@@ -63,7 +64,7 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
     temp_env::with_vars(vars, || body(&sb))
 }
 
-fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedManifest {
+pub(crate) fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
@@ -84,7 +85,7 @@ fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedM
         hooks: vec![],
         managed_mcp_servers: mcp,
         revocations: vec![],
-        enabled_hosts: vec!["opencode".into()],
+        enabled_hosts: vec![HostKind::OpenCode],
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
@@ -112,7 +113,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
     }
 }
 
-fn mcp(name: &str) -> ManagedMcpServer {
+pub(crate) fn mcp(name: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: McpServerId::try_new(name).unwrap(),
@@ -169,7 +170,7 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
     OpenCodeSync.clear(&ctx)
 }
 
-fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
+pub(crate) fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
     let client = GatewayClient::new(
         ValidatedUrl::try_new("http://127.0.0.1:0").unwrap(),
         reqwest::Client::new(),
@@ -203,7 +204,7 @@ fn an_mcp_server_lands_as_a_remote_entry_pointing_at_the_loopback_proxy() {
     with_sandbox(|sb| {
         apply(&manifest_with(vec![], vec![mcp("primary")]), &sb.skills).unwrap();
         let doc = read_json(&sb.config);
-        let entry = &doc["mcp"]["primary"];
+        let entry = &doc["mcp"]["servers"]["primary"];
         assert_eq!(entry["type"], "remote", "{doc}");
         assert!(
             entry["url"]
@@ -217,7 +218,6 @@ fn an_mcp_server_lands_as_a_remote_entry_pointing_at_the_loopback_proxy() {
                 .is_some_and(|a| !a.is_empty()),
             "{doc}"
         );
-        assert_eq!(entry["enabled"], true);
     });
 }
 
@@ -227,25 +227,25 @@ fn user_authored_config_survives_apply_and_clear() {
         fs::create_dir_all(sb.config.parent().unwrap()).unwrap();
         fs::write(
             &sb.config,
-            r#"{ "theme": "dark", "mcp": { "mine": { "type": "remote", "url": "https://example.com/mcp" } } }"#,
+            r#"{ "theme": "dark", "mcp": { "servers": { "mine": { "type": "remote", "url": "https://example.com/mcp" } } } }"#,
         )
         .unwrap();
         apply(&manifest_with(vec![], vec![mcp("primary")]), &sb.skills).unwrap();
         let doc = read_json(&sb.config);
         assert_eq!(doc["theme"], "dark", "{doc}");
         assert_eq!(
-            doc["mcp"]["mine"]["url"], "https://example.com/mcp",
+            doc["mcp"]["servers"]["mine"]["url"], "https://example.com/mcp",
             "{doc}"
         );
-        assert!(doc["mcp"]["primary"].is_object());
+        assert!(doc["mcp"]["servers"]["primary"].is_object());
 
         clear(&sb.skills).unwrap();
         let doc = read_json(&sb.config);
         assert_eq!(
-            doc["mcp"]["mine"]["url"], "https://example.com/mcp",
+            doc["mcp"]["servers"]["mine"]["url"], "https://example.com/mcp",
             "{doc}"
         );
-        assert!(doc["mcp"].get("primary").is_none(), "{doc}");
+        assert!(doc["mcp"]["servers"].get("primary").is_none(), "{doc}");
         assert_eq!(doc["theme"], "dark");
     });
 }
@@ -389,6 +389,7 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
                 external_marketplaces: vec![],
                 external_plugins: vec![],
                 claude_code: None,
+                opencode: None,
             },
             ManifestMarketplace {
                 id: systemprompt_identifiers::MarketplaceId::new("commerce"),
@@ -398,6 +399,7 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
                 external_marketplaces: vec![],
                 external_plugins: vec![],
                 claude_code: None,
+                opencode: None,
             },
         ];
         apply(&m, &sb.skills).unwrap();
@@ -424,6 +426,7 @@ fn governance_plugin(id: &str) -> PluginEntry {
             judge: false,
             include: vec![],
         },
+        publication: None,
     }
 }
 
@@ -517,7 +520,7 @@ fn every_bridge_mcp_entry_disables_oauth_and_user_entries_are_untouched() {
         });
         fs::write(
             &sb.config,
-            serde_json::json!({ "mcp": { "mine": mine } }).to_string(),
+            serde_json::json!({ "mcp": { "servers": { "mine": mine } } }).to_string(),
         )
         .unwrap();
         apply(
@@ -527,7 +530,7 @@ fn every_bridge_mcp_entry_disables_oauth_and_user_entries_are_untouched() {
         .unwrap();
         let doc = read_json(&sb.config);
         for slug in ["primary", "secondary"] {
-            let entry = &doc["mcp"][slug];
+            let entry = &doc["mcp"]["servers"][slug];
             assert_eq!(entry["oauth"], false, "{slug}: {doc}");
             assert_eq!(entry["type"], "remote", "{slug}: {doc}");
             assert!(
@@ -543,6 +546,6 @@ fn every_bridge_mcp_entry_disables_oauth_and_user_entries_are_untouched() {
                 "{slug}: {doc}"
             );
         }
-        assert_eq!(doc["mcp"]["mine"], mine, "{doc}");
+        assert_eq!(doc["mcp"]["servers"]["mine"], mine, "{doc}");
     });
 }

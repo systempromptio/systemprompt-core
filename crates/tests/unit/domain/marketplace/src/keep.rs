@@ -82,7 +82,7 @@ async fn cleanup(f: &Fixture) {
 async fn grant_role(f: &Fixture, kind: &str, id: &str, role: &str) {
     sqlx::query(
         "INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) \
-         VALUES ($1, $2, false, 'test')",
+         VALUES ($1, $2, false, 'code:test')",
     )
     .bind(kind)
     .bind(id)
@@ -91,7 +91,7 @@ async fn grant_role(f: &Fixture, kind: &str, id: &str, role: &str) {
     .expect("insert entity");
     sqlx::query(
         "INSERT INTO access_control_rules (id, entity_type, entity_id, rule_type, rule_value, \
-         access) VALUES ($1, $2, $3, 'role', $4, 'allow')",
+         access, source) VALUES ($1, $2, $3, 'role', $4, 'allow', 'code:test')",
     )
     .bind(format!("rule-{}", Uuid::new_v4()))
     .bind(kind)
@@ -131,6 +131,7 @@ fn plugin(id: &str) -> PluginEntry {
         sha256: Sha256Digest::try_new(ZERO_DIGEST).expect("valid digest"),
         files: vec![],
         hooks: Default::default(),
+        publication: None,
     }
 }
 

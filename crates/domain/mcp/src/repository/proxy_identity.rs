@@ -23,6 +23,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{JwtToken, McpServerId, SessionId, UserId};
 use systemprompt_models::auth::{Permission, UserType};
+use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug, Clone)]
@@ -47,12 +48,14 @@ impl McpProxyIdentityRepository {
 
     pub async fn upsert(
         &self,
+        cipher: &AtRestCipher,
         session_id: &SessionId,
         identity: &ProxyIdentityRow,
     ) -> McpDomainResult<()> {
         let permissions = serde_json::to_value(&identity.permissions)?;
         let roles = serde_json::to_value(&identity.roles)?;
-        let auth_token = systemprompt_security::at_rest::seal(identity.auth_token.as_str())
+        let auth_token = cipher
+            .seal(identity.auth_token.as_str())
             .map_err(|e| McpDomainError::operation("sealing proxy identity token", e))?;
         sqlx::query!(
             r#"
@@ -79,7 +82,11 @@ impl McpProxyIdentityRepository {
         Ok(())
     }
 
-    pub async fn find(&self, session_id: &SessionId) -> McpDomainResult<Option<ProxyIdentityRow>> {
+    pub async fn find(
+        &self,
+        cipher: &AtRestCipher,
+        session_id: &SessionId,
+    ) -> McpDomainResult<Option<ProxyIdentityRow>> {
         let row = sqlx::query!(
             r#"
             SELECT
@@ -100,7 +107,7 @@ impl McpProxyIdentityRepository {
         let Some(r) = row else {
             return Ok(None);
         };
-        let Ok(auth_token) = systemprompt_security::at_rest::open(&r.auth_token) else {
+        let Ok(auth_token) = cipher.open(&r.auth_token) else {
             tracing::warn!(
                 session = %session_id,
                 "Proxy identity token did not open; dropping the row so the next initialize \

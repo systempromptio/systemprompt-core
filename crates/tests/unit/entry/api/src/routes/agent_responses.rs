@@ -74,7 +74,7 @@ async fn an_error_response_takes_its_status_from_the_error_code() {
         (ApiError::not_found("gone"), StatusCode::NOT_FOUND),
         (ApiError::bad_request("nope"), StatusCode::BAD_REQUEST),
         (
-            ApiError::internal_error("boom"),
+            ApiError::internal("boom", "cause"),
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
     ] {

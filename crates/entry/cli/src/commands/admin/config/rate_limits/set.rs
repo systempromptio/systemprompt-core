@@ -4,18 +4,21 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 
+use super::super::profile_io::profile_path;
 use super::SetArgs;
-use super::helpers::{get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate};
-use crate::CliConfig;
+use super::profile_edit::{
+    get_endpoint_rate, load_profile_for_edit, save_profile, set_endpoint_rate,
+};
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{RateLimitStatusOutput, SetRateLimitOutput};
 
-pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
+pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     if args.endpoint.is_some() && args.rate.is_none() {
         bail!("--rate is required when --endpoint is specified");
     }
@@ -26,7 +29,7 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         bail!("Must specify one of: --endpoint with --rate, or --burst");
     }
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile_for_edit(profile_path)?;
     let limits = &mut profile.rate_limits;
 
@@ -65,8 +68,9 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn execute_enable(config: &CliConfig) -> Result<()> {
-    let profile_path = ProfileBootstrap::get_path()?;
+pub(super) fn execute_enable(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
     if !profile.rate_limits.disabled {
@@ -100,8 +104,9 @@ pub(super) fn execute_enable(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn execute_disable(config: &CliConfig) -> Result<()> {
-    let profile_path = ProfileBootstrap::get_path()?;
+pub(super) fn execute_disable(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
     if profile.rate_limits.disabled {

@@ -143,8 +143,14 @@ async fn call_echo(
         .await;
 
     let config = external_mcp_config(tag, &format!("{}/mcp", server.uri()));
-    let outcome =
-        McpClient::call_tool(&config, "echo".to_owned(), None, &request_context(tag)).await;
+    let outcome = McpClient::new(
+        std::sync::Arc::default(),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
+        crate::harness::config(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    )
+    .call_tool(&config, "echo".to_owned(), None, &request_context(tag))
+    .await;
     drop(server);
     outcome
 }
@@ -350,7 +356,15 @@ async fn a_direct_input_required_tool_response_is_reissued_once_with_the_origina
     let config = external_mcp_config("direct_input_required", &format!("{}/mcp", server.uri()));
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(5),
-        McpClient::call_tool(
+        McpClient::new(
+            std::sync::Arc::default(),
+            systemprompt_mcp::services::DeploymentService::new(
+                crate::harness::services_state().view(),
+            ),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        )
+        .call_tool(
             &config,
             "echo".to_owned(),
             Some(json!({"message": "preserve this"})),

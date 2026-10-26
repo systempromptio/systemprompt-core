@@ -108,7 +108,7 @@ fn anthropic_tools_carry_cache_control() {
     let mut req = base_request();
     let mut tool = plain_tool();
     tool.cache_control = Some(CacheControl::EPHEMERAL);
-    req.tools = vec![tool];
+    req.tooling.tools = vec![tool];
     let body = anthropic::build_request_body(&req, "upstream", None);
     assert_eq!(
         body["tools"][0]["cache_control"],
@@ -142,7 +142,7 @@ fn anthropic_cache_control_round_trips_through_the_codec() {
 #[test]
 fn anthropic_serializes_regular_tools() {
     let mut req = base_request();
-    req.tools = vec![plain_tool()];
+    req.tooling.tools = vec![plain_tool()];
     let body = anthropic::build_request_body(&req, "upstream", None);
     let tool = &body["tools"][0];
     assert_eq!(tool["name"], "lookup");
@@ -164,8 +164,8 @@ fn anthropic_tool_choice_variants() {
     ];
     for (choice, expected) in cases {
         let mut req = base_request();
-        req.tools = vec![plain_tool()];
-        req.tool_choice = Some(choice);
+        req.tooling.tools = vec![plain_tool()];
+        req.tooling.tool_choice = Some(choice);
         let body = anthropic::build_request_body(&req, "upstream", None);
         assert_eq!(body["tool_choice"], expected);
     }
@@ -317,8 +317,8 @@ fn anthropic_non_strict_schema_is_passed_through_unchanged() {
 fn anthropic_search_turn_omits_tool_choice_and_stream() {
     let mut req = base_request();
     req.stream = true;
-    req.tool_choice = Some(CanonicalToolChoice::Auto);
-    req.search = Some(SearchConfig {
+    req.tooling.tool_choice = Some(CanonicalToolChoice::Auto);
+    req.tooling.search = Some(SearchConfig {
         max_uses: Some(3),
         context_size: None,
         urls: Vec::new(),
@@ -333,7 +333,7 @@ fn anthropic_search_turn_omits_tool_choice_and_stream() {
 #[test]
 fn anthropic_tools_keep_supported_keywords_but_drop_schema_metadata() {
     let mut req = base_request();
-    req.tools = vec![tool_with_unsupported_keywords()];
+    req.tooling.tools = vec![tool_with_unsupported_keywords()];
     let body = anthropic::build_request_body(&req, "upstream", None);
     let schema = &body["tools"][0]["input_schema"];
     assert!(schema.get("$schema").is_none(), "$schema metadata stripped");
@@ -487,11 +487,6 @@ fn anthropic_upstream_body_omits_unsigned_thinking_and_empty_messages() {
     assert_eq!(messages[0]["content"][1]["text"], "answer");
 }
 
-/// Anthropic's gateway contract splits inbound headers into two classes: those
-/// a gateway must relay to the upstream byte-for-byte, and those it may consume
-/// for routing and attribution without forwarding. These tests pin that split
-/// so a new capability header is relayed by default and an identity header is
-/// not.
 #[test]
 fn anthropic_prefixed_headers_are_forwardable() {
     for name in [
@@ -869,7 +864,7 @@ fn anthropic_stream_tool_use_does_not_leak_into_a_later_message() {
 #[test]
 fn anthropic_renders_thinking_without_a_budget_as_adaptive() {
     let mut req = base_request();
-    req.thinking = Some(ThinkingConfig {
+    req.reasoning.thinking = Some(ThinkingConfig {
         enabled: true,
         budget_tokens: None,
     });
@@ -877,7 +872,7 @@ fn anthropic_renders_thinking_without_a_budget_as_adaptive() {
     assert_eq!(body["thinking"]["type"], "adaptive");
     assert!(body["thinking"].get("budget_tokens").is_none());
 
-    req.thinking = Some(ThinkingConfig {
+    req.reasoning.thinking = Some(ThinkingConfig {
         enabled: true,
         budget_tokens: Some(2048),
     });

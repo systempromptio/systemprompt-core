@@ -25,7 +25,7 @@ use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::{StreamResponse, TaskArtifactUpdateEvent};
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus};
 use crate::services::a2a_server::processing::message::{
-    MessageProcessor, PersistCompletedTaskOnProcessorParams,
+    MessageHandler, PersistCompletedTaskOnProcessorParams,
 };
 use crate::services::a2a_server::streaming::frames::send_stream_response;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
@@ -42,7 +42,7 @@ pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
     pub original_message: &'a Message,
     pub agent_name: &'a AgentName,
     pub context: &'a RequestContext,
-    pub processor: &'a Arc<MessageProcessor>,
+    pub processor: &'a Arc<MessageHandler>,
 }
 
 #[derive(Debug)]

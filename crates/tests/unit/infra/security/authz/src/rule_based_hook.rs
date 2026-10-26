@@ -38,8 +38,14 @@ async fn rule_based_hook_denies_when_the_pool_is_unavailable() {
     let hook = RuleBasedHook::new(
         pool,
         Arc::new(NullAuditSink),
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     );
 
     let decision = hook.evaluate(fixture()).await;
@@ -70,14 +76,20 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
     let repo = AccessControlRepository::from_pool(std::sync::Arc::clone(&pool));
     let route = format!("rb-cache-{}", uuid::Uuid::new_v4().simple());
     let user = systemprompt_test_fixtures::unique_user_id("rb-cache");
-    repo.upsert_entity(EntityKind::GatewayRoute, &route, false, "test")
+    repo.upsert_entity(EntityKind::GatewayRoute, &route, false, "code:test")
         .await
         .expect("entity");
     let hook = RuleBasedHook::new(
         pool,
         Arc::new(NullAuditSink),
-        ChainSources::default(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_governance::authz::AuthzWiring {
+            sources: ChainSources::default(),
+            epochs: systemprompt_traits::CacheEpochs::new(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subjects: Default::default(),
+            providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
     );
 
     for _ in 0..3 {
@@ -94,14 +106,15 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
         rule_value: user.as_str(),
         access: Access::Allow,
         justification: None,
-        source: "test",
+        source: "code:test",
     })
     .await
     .expect("rule");
-    tokio::time::sleep(std::time::Duration::from_millis(5_500)).await;
-
-    assert!(matches!(
-        hook.evaluate(request_for(&route, &user)).await,
-        AuthzDecision::Allow
-    ));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let mut decision = hook.evaluate(request_for(&route, &user)).await;
+    while !matches!(decision, AuthzDecision::Allow) && std::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        decision = hook.evaluate(request_for(&route, &user)).await;
+    }
+    assert!(matches!(decision, AuthzDecision::Allow));
 }

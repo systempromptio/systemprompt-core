@@ -14,8 +14,6 @@
 
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use systemprompt_config::SecretsBootstrapError;
-use systemprompt_loader::ConfigLoadError;
 use systemprompt_models::api::ApiError;
 
 use super::super::bridge_error::BridgeError;
@@ -25,8 +23,6 @@ use crate::error::ApiHttpError;
 pub enum ReleaseError {
     #[error(transparent)]
     Auth(Box<BridgeError>),
-    #[error("services config not ready")]
-    ServicesNotReady(#[source] ConfigLoadError),
     #[error("bridge releases are not configured on this gateway")]
     NotConfigured,
     #[error("no published build for platform {platform}")]
@@ -59,8 +55,6 @@ pub enum ReleaseError {
         status: StatusCode,
         key: String,
     },
-    #[error("bridge release token secret unavailable")]
-    SecretsUnavailable(#[source] SecretsBootstrapError),
     #[error("bridge release token secret {key} is not configured")]
     TokenNotConfigured { key: String },
 }
@@ -101,10 +95,9 @@ impl ReleaseError {
             | Self::ChecksumMissing { .. }
             | Self::Request { .. }
             | Self::UpstreamStatus { .. } => StatusCode::BAD_GATEWAY,
-            Self::ServicesNotReady(_)
-            | Self::SecretsUnavailable(_)
-            | Self::TokenNotConfigured { .. }
-            | Self::TokenRejected { .. } => StatusCode::SERVICE_UNAVAILABLE,
+            Self::TokenNotConfigured { .. } | Self::TokenRejected { .. } => {
+                StatusCode::SERVICE_UNAVAILABLE
+            },
         }
     }
 
@@ -142,9 +135,7 @@ impl ReleaseError {
             },
             Self::Request { .. } | Self::UpstreamStatus { .. } => "release_upstream_failed",
             Self::TokenRejected { .. } => "release_token_rejected",
-            Self::ServicesNotReady(_)
-            | Self::SecretsUnavailable(_)
-            | Self::TokenNotConfigured { .. } => "release_feed_not_ready",
+            Self::TokenNotConfigured { .. } => "release_feed_not_ready",
         }
     }
 }
@@ -178,7 +169,7 @@ impl IntoResponse for ReleaseError {
                     .with_source(err)
             },
         };
-        let mut response = api.into_response();
+        let mut response = ApiHttpError::from(api).into_response();
         // Why: `ErrorCode` has no 502, yet an upstream GitHub failure must still
         // read as a bad gateway to clients, proxies and the access log, so the
         // typed status is restored after the envelope renders.

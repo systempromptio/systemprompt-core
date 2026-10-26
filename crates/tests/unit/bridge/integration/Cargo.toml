@@ -11,6 +11,8 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-test-fixtures = { workspace = true }
+semver = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }

@@ -6,7 +6,7 @@ import type { Verdict } from "./Verdict";
 
 /**
  * The one model catalog every view renders. `total` counts the distinct
- * models of configured providers; `desktop_models` is the subset Claude
- * Desktop is given.
+ * models of configured providers; `desktop_models` is the subset advertised
+ * to Claude clients, which Claude Desktop is given.
  */
 export type InferenceCatalogPayload = { providers: Array<CatalogProviderPayload>, total: number, desktop_models: Array<string>, freshness: CatalogFreshnessPayload, verdict: Verdict<CatalogCode>, fetched_at_unix: bigint | null, };

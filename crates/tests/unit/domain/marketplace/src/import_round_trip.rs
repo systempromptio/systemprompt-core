@@ -90,6 +90,7 @@ fn original_marketplace() -> MarketplaceConfig {
         external_marketplaces: vec![],
         external_plugins: vec![],
         claude_code: None,
+        opencode: None,
     }
 }
 
@@ -127,6 +128,7 @@ fn rule_entry(id: &str, body: &str) -> RuleEntry {
         instructions: body.to_owned(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        publication: None,
     }
 }
 
@@ -149,6 +151,7 @@ fn write_anthropic_tree(root: &Path, plugin: &PluginConfig, marketplace: &Market
         rules: &rules,
         plugins_root: root,
         managed_files: &BTreeMap::new(),
+        managed_plugin_files: &std::collections::BTreeMap::new(),
     };
     let bundle = build_plugin_bundle(plugin, &content).expect("bundle builds");
 
@@ -248,7 +251,7 @@ fn a_generated_tree_imports_back_to_the_configuration_it_came_from() {
     )
     .expect("import succeeds");
 
-    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
+    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"), None)
         .expect("imported tree loads");
 
     let imported_marketplace = services

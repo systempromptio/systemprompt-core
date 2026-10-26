@@ -4,17 +4,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::RateLimitsOutput;
 
-pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
     let limits = &profile.rate_limits;
 
     let output = RateLimitsOutput {

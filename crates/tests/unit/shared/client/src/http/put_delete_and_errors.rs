@@ -258,7 +258,14 @@ async fn error_response_with_unreadable_body_still_reports_the_status() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
         let (mut sock, _) = listener.accept().await.unwrap();
+        let mut request = [0u8; 1024];
+        let received = sock.read(&mut request).await.unwrap();
+        assert!(
+            received > 0,
+            "the client sent a request before the response"
+        );
         sock.write_all(b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 4096\r\n\r\ntrunc")
             .await
             .unwrap();

@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `HostKind` is the shared `systemprompt_models::bridge::host::HostKind`; `AgentRunsError::UnknownHost` is removed, a desktop packaging (`claude-desktop`, `codex`, `opencode`) is `Execution::Unsupported`, and migration `001_agent_runs_host_cli_ids` constrains `agent_runs.host` to the CLI ids, moving `opencode` rows to `opencode-cli`.
+- **Breaking:** `RunRequest` gains `harness: Option<HarnessRef>` and `traffic: TrafficClass` (serde-defaulted), `ExecuteParams` gains `harness`, and `RunReport` and `RunLayout` gain `outputs`. Migrate struct literals by adding `harness: None` (and `traffic: TrafficClass::Production` for `RunRequest`).
+- **Breaking:** `HeadlessHost` gains `version_requirement()` (default `None`) and `harness_targets()` (default `Workspace`); the executor probes the host program and refuses an older client.
+- **Breaking:** `HostKind::OpenCodeCli` runs headless on `OpenCode` V2 (>= 2.0.30) through `host::opencode::OpenCodeCli`; `host::opencode::execution` returning `Unsupported` is removed, and an older client fails the run as `connector_unavailable` before spawn.
+- **Breaking:** `ErrorClass::HarnessUnavailable` fails a run before spawn when its harness cannot be loaded, its digest differs from `HarnessRef::bundle_digest`, or it collides with or escapes its target; migrations `002_agent_runs_harness` and `003_agent_runs_idempotency` add `harness_digest`, `idempotency_key` and `request_digest`.
+- `AgentRunRepositories::new` and `RunCredentialRepositories::new` take `(db, OAuthRepository)`, and `AgentRunRepositories` gains `managed: ManagedRepository`. Migrate by passing the context's `OAuthRepository` and adding `managed` to struct literals.
+
+### Added
+
+- `register_run_origin!(name)`, `execute::harness::{HarnessSource, materialise}` and `A2aRunHandler::with_harness_source`.
+- `execute::outputs` keeps up to 64 added or modified workspace files (32 MiB) under `<run>/outputs/`.
+- `TrafficClass::Evaluation` binds the run credential to `traffic=evaluation`.
+- The `agent_run_dirs_cleanup` job removes finished run directories after `profile.retention.agent_run_dirs_days` (default 7).
+
+### Changed
+
+- Identifier fields are typed (`AgentRunLaunch.origin_id` is `AgentRunOriginId`).
+- Header and gateway path constants come from `systemprompt_identifiers::headers`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

@@ -14,7 +14,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_manifest::Config;
 use systemprompt_users::{User, UserRepository, UserRole, UserService, UserStatus};
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -39,12 +39,13 @@ pub struct BootstrapOutput {
     pub message: String,
 }
 
-pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let name = resolve_admin_name(args.name.as_deref())?;
+pub async fn execute(args: BootstrapArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = ctx.config()?;
+    let name = resolve_admin_name(config, args.name.as_deref())?;
 
-    let email = resolve_admin_email(args.email.as_deref())?;
+    let email = resolve_admin_email(config, args.email.as_deref())?;
 
-    let user_service = connect_user_service().await?;
+    let user_service = connect_user_service(config).await?;
 
     let (user, created) = if let Some(existing) = user_service.find_by_name(&name).await? {
         (existing, false)
@@ -76,17 +77,25 @@ pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<Command
     Ok(build_output(user, created))
 }
 
-fn resolve_admin_email(requested: Option<&str>) -> Result<Option<systemprompt_identifiers::Email>> {
-    match requested.map(str::trim).filter(|e| !e.is_empty()) {
-        Some(e) => systemprompt_identifiers::Email::try_new(e)
-            .map(Some)
-            .map_err(|err| anyhow!("invalid --email '{e}': {err}")),
-        None => Ok(Config::get()?.system_admin_email.clone()),
-    }
+fn resolve_admin_email(
+    config: &Config,
+    requested: Option<&str>,
+) -> Result<Option<systemprompt_identifiers::Email>> {
+    requested
+        .map(str::trim)
+        .filter(|e| !e.is_empty())
+        .map_or_else(
+            || Ok(config.system_admin_email.clone()),
+            |e| {
+                systemprompt_identifiers::Email::try_new(e)
+                    .map(Some)
+                    .map_err(|err| anyhow!("invalid --email '{e}': {err}"))
+            },
+        )
 }
 
-fn resolve_admin_name(requested: Option<&str>) -> Result<String> {
-    let configured = Config::get()?.system_admin_username.clone();
+fn resolve_admin_name(config: &Config, requested: Option<&str>) -> Result<String> {
+    let configured = config.system_admin_username.clone();
     if configured.trim().is_empty() {
         return Err(anyhow!(
             "Profile is missing `system_admin.username`; cannot run bootstrap"
@@ -109,11 +118,11 @@ fn resolve_admin_name(requested: Option<&str>) -> Result<String> {
     }
 }
 
-async fn connect_user_service() -> Result<UserService> {
+async fn connect_user_service(config: &Config) -> Result<UserService> {
     let database: DbPool = Arc::new(
         Database::connect(
-            &Config::get()?.database_url,
-            Config::get()?.database_write_url.as_deref(),
+            &config.database_url,
+            config.database_write_url.as_deref(),
             &systemprompt_database::PoolConfig::default(),
         )
         .await

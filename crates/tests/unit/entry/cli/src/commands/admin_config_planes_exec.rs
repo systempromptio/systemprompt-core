@@ -1,13 +1,14 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
+use crate::boot_ctx::bootstrap_ctx;
+use systemprompt_cli::CommandContext;
 use systemprompt_cli::admin::config::planes::{
     ApplyArgs, DiffArgs, ExportArgs, ModeArg, PlanesCommands, execute,
 };
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-fn config() -> CliConfig {
-    CliConfig::new().with_interactive(false)
+fn config() -> CommandContext {
+    bootstrap_ctx()
 }
 
 fn apply(plane: &str, reason: &str, entities: Vec<String>) -> PlanesCommands {

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use systemprompt_test_fixtures::block_on;
 
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
@@ -12,6 +13,7 @@ use systemprompt_bridge::ids::{Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
+use systemprompt_models::bridge::host::HostKind;
 
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
@@ -109,7 +111,7 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
-        enabled_hosts: vec!["hermes".into(), "opencode".into()],
+        enabled_hosts: vec![HostKind::Hermes, HostKind::OpenCode],
         host_model_protocols: BTreeMap::new(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
@@ -125,14 +127,6 @@ fn stub_client() -> GatewayClient {
         ValidatedUrl::try_new("http://127.0.0.1:0").expect("stub url"),
         reqwest::Client::new(),
     )
-}
-
-fn block_on<F: std::future::Future>(f: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("runtime")
-        .block_on(f)
 }
 
 fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), ApplyError> {

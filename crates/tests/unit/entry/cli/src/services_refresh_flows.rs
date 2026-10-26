@@ -13,10 +13,9 @@ use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
 use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::core::services::refresh::{RefreshArgs, execute};
 use systemprompt_cli::env_overrides::EnvOverrides;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
+use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
-use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -24,17 +23,7 @@ use crate::services_profile_fixture as fx;
 
 const ETAG: &str = "sha256:cafebabe";
 
-fn ctx() -> CommandContext {
-    CommandContext::new(
-        CliConfig::new()
-            .with_interactive(false)
-            .with_output_format(OutputFormat::Json),
-        EnvOverrides::default(),
-    )
-}
-
-fn prime_state(digest: &str) {
-    let profile = ProfileBootstrap::get().expect("profile installed");
+fn prime_state(profile: &Profile, digest: &str) {
     let cache = BundleCache::new(cache_root(profile));
     let mut sources = BTreeMap::new();
     sources.insert(
@@ -68,24 +57,23 @@ async fn origin(status: u16, etag: Option<&str>) -> MockServer {
     server
 }
 
-fn install_profile(url: &str) -> fx::ProfileTree {
+fn install_profile(url: &str) -> (fx::ProfileTree, CommandContext) {
     let tree = fx::write_tree(
         &fx::https_sources_block(&[("base", url)]),
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
     );
     fx::set_env("SYSTEMPROMPT_TRUSTED_HTTP_HOSTS", "127.0.0.1,localhost");
-    ProfileBootstrap::init_from_path(&tree.profile_path).expect("profile installs");
-    ensure_test_secrets_bootstrap();
-    tree
+    let ctx = fx::json_ctx(&fx::boot_for(&tree));
+    (tree, ctx)
 }
 
 #[tokio::test]
 async fn a_matching_digest_leaves_the_composition_alone() {
     let server = origin(200, Some(ETAG)).await;
-    let _tree = install_profile(&format!("{}/bundle.tar.gz", server.uri()));
-    prime_state(ETAG);
+    let (_tree, ctx) = install_profile(&format!("{}/bundle.tar.gz", server.uri()));
+    prime_state(ctx.profile().unwrap(), ETAG);
 
-    execute(&RefreshArgs { check: true }, &ctx())
+    execute(&RefreshArgs { check: true }, &ctx)
         .await
         .expect("check reports no change and returns");
 }
@@ -93,10 +81,10 @@ async fn a_matching_digest_leaves_the_composition_alone() {
 #[tokio::test]
 async fn an_origin_that_refuses_the_credential_fails_the_check() {
     let server = origin(403, None).await;
-    let _tree = install_profile(&format!("{}/bundle.tar.gz", server.uri()));
-    prime_state(ETAG);
+    let (_tree, ctx) = install_profile(&format!("{}/bundle.tar.gz", server.uri()));
+    prime_state(ctx.profile().unwrap(), ETAG);
 
-    let error = execute(&RefreshArgs { check: true }, &ctx())
+    let error = execute(&RefreshArgs { check: true }, &ctx)
         .await
         .expect_err("a source that cannot be read is an error");
     let rendered = format!("{error:#}");
@@ -116,10 +104,9 @@ async fn a_profile_with_no_sources_reports_nothing_to_do() {
         &fx::https_sources_block(&[]),
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
     );
-    ProfileBootstrap::init_from_path(&tree.profile_path).expect("profile installs");
-    ensure_test_secrets_bootstrap();
+    let ctx = fx::json_ctx(&fx::boot_for(&tree));
 
-    execute(&RefreshArgs { check: true }, &ctx())
+    execute(&RefreshArgs { check: true }, &ctx)
         .await
         .expect("an empty source list is not a failure");
 }
@@ -169,10 +156,9 @@ async fn a_swapped_composition_refuses_to_finish_without_a_database() {
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
     );
     fx::set_env("SYSTEMPROMPT_TRUSTED_HTTP_HOSTS", "127.0.0.1,localhost");
-    ProfileBootstrap::init_from_path(&profile_tree.profile_path).expect("profile installs");
-    ensure_test_secrets_bootstrap();
+    let ctx = fx::json_ctx(&fx::boot_for(&profile_tree));
 
-    let error = execute(&RefreshArgs { check: false }, &ctx())
+    let error = execute(&RefreshArgs { check: false }, &ctx)
         .await
         .expect_err("projecting access rules needs a database");
     let rendered = format!("{error:#}");
@@ -190,10 +176,18 @@ async fn a_refresh_without_a_secrets_store_fails_instead_of_resolving_no_credent
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
     );
     fx::set_env("SYSTEMPROMPT_TRUSTED_HTTP_HOSTS", "127.0.0.1,localhost");
-    ProfileBootstrap::init_from_path(&tree.profile_path).expect("profile installs");
-    prime_state(ETAG);
+    let loaded =
+        systemprompt_config::LoadedProfile::from_path(&tree.profile_path).expect("profile loads");
+    prime_state(loaded.profile(), ETAG);
+    let ctx = CommandContext::new(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+    )
+    .with_profile(Some(loaded));
 
-    let error = execute(&RefreshArgs { check: true }, &ctx())
+    let error = execute(&RefreshArgs { check: true }, &ctx)
         .await
         .expect_err("a missing secrets store is an error, not an anonymous origin check");
     let rendered = format!("{error:#}");

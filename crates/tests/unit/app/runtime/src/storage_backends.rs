@@ -22,13 +22,13 @@ fn unique_admin(tag: &str) -> String {
 }
 
 async fn build_with(storage_yaml: &str, extra_secrets: Vec<(String, String)>) -> RuntimeError {
-    let _fixture = boot(&BootOptions {
+    let fixture = boot(&BootOptions {
         admin_username: unique_admin("stg"),
         storage_yaml: storage_yaml.to_owned(),
         extra_secrets,
         ..BootOptions::default()
     });
-    AppContext::builder()
+    AppContext::builder(fixture.boot.clone())
         .with_extensions(systemprompt_extension::ExtensionRegistry::new())
         .build()
         .await

@@ -12,7 +12,7 @@ use systemprompt_identifiers::{PluginId, ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_models::auth::Permission;
 use systemprompt_security::HookTokenValidator;
-use systemprompt_test_fixtures::{DisposableDb, install_test_signing_key};
+use systemprompt_test_fixtures::DisposableDb;
 use systemprompt_users::{ApiKeyService, SessionRepository, UserRepository};
 
 const ISSUER: &str = "https://issuer.headless.test";
@@ -61,14 +61,17 @@ async fn session_expiry_secs(pool: &systemprompt_database::DbPool, id: &str) -> 
 
 #[tokio::test]
 async fn issue_then_revoke_round_trips_every_credential() {
-    install_test_signing_key();
     let database = DisposableDb::with_schema("agent_run_credentials").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
-        ISSUER,
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
+        systemprompt_test_fixtures::test_config(),
     );
 
     let creds = service
@@ -112,9 +115,14 @@ async fn issue_then_revoke_round_trips_every_credential() {
     );
 
     let token = creds.hook_token.as_deref().expect("hook token");
-    let claims = HookTokenValidator::new(ISSUER.to_owned())
-        .validate_govern(token, Some(&PluginId::new("farm-governance")))
-        .expect("hook token validates for govern");
+    let claims = HookTokenValidator::new(std::sync::Arc::new(
+        systemprompt_security::DeploymentTokenAuthority::new(
+            systemprompt_test_fixtures::test_signing_keys(),
+            ISSUER.to_owned(),
+        ),
+    ))
+    .validate_govern(token, Some(&PluginId::new("farm-governance")))
+    .expect("hook token validates for govern");
     assert_eq!(claims.subject, user);
     assert_eq!(claims.plugin_id.as_str(), "farm-governance");
     assert!(claims.scopes.contains(&Permission::HookTrack));
@@ -134,7 +142,7 @@ async fn issue_then_revoke_round_trips_every_credential() {
             .expect("lookup")
             .is_none()
     );
-    let revoked = systemprompt_oauth::OAuthRepository::new(&pool)
+    let revoked = systemprompt_test_fixtures::oauth_fixture_repository(&pool)
         .is_jti_revoked(creds.hook_token_jti.as_ref().expect("jti"))
         .await
         .expect("jti lookup");
@@ -146,14 +154,17 @@ async fn issue_then_revoke_round_trips_every_credential() {
 
 #[tokio::test]
 async fn issue_without_plugin_mints_no_hook_token() {
-    install_test_signing_key();
     let database = DisposableDb::with_schema("agent_run_credentials_noplugin").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
-        ISSUER,
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
+        systemprompt_test_fixtures::test_config(),
     );
     let creds = service.issue(request(&user, None)).await.expect("issue");
     assert!(creds.hook_token.is_none());
@@ -165,14 +176,17 @@ async fn issue_without_plugin_mints_no_hook_token() {
 
 #[tokio::test]
 async fn issue_for_unknown_user_leaves_no_live_key() {
-    install_test_signing_key();
     let database = DisposableDb::with_schema("agent_run_credentials_nouser").await;
     let pool = database.test_pool().await;
     let ghost = UserId::new(uuid::Uuid::new_v4().to_string());
     let service = RunCredentialService::new(
-        RunCredentialRepositories::new(&pool),
-        ISSUER,
+        RunCredentialRepositories::new(
+            &pool,
+            systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+        ),
         systemprompt_users::ApiKeyLifetime::unbounded(),
+        systemprompt_test_fixtures::test_token_authority(ISSUER),
+        systemprompt_test_fixtures::test_config(),
     );
     assert!(service.issue(request(&ghost, None)).await.is_err());
     let live: i64 = sqlx::query_scalar(

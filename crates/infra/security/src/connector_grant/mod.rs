@@ -35,12 +35,14 @@ use std::time::Duration;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde::Deserialize;
+use systemprompt_identifiers::{ConnectorAppId, ConnectorInstallationId};
+use systemprompt_manifest::secrets::Secrets;
 use systemprompt_models::mcp::deployment::{ConnectorConfig, ConnectorGrant};
 
 pub use app_jwt::{AppJwtClaims, app_jwt_claims, sign_app_jwt};
 pub use error::ConnectorGrantError;
 
-use crate::credential::cache::{clamp_ttl, token_for};
+use crate::credential::cache::{TokenCache, clamp_ttl};
 use crate::credential::{CredentialError, http};
 
 const INSTALLATION_PLACEHOLDER: &str = "{installation_id}";
@@ -93,10 +95,10 @@ impl MachineGrant {
     where
         F: Fn(&str) -> Option<String>,
     {
-        let field = |value: Option<&String>, label: &'static str| {
+        let field = |value: Option<&str>, label: &'static str| {
             value
                 .filter(|v| !v.trim().is_empty())
-                .cloned()
+                .map(str::to_owned)
                 .ok_or_else(|| ConnectorGrantError::MissingField {
                     server: server.to_owned(),
                     field: label,
@@ -110,7 +112,7 @@ impl MachineGrant {
                 }
             })
         };
-        let token_url = field(connector.token_url.as_ref(), "token_url")?;
+        let token_url = field(connector.token_url.as_deref(), "token_url")?;
         match connector.grant {
             ConnectorGrant::AuthorizationCode => Err(ConnectorGrantError::NotMachine {
                 server: server.to_owned(),
@@ -118,19 +120,28 @@ impl MachineGrant {
             ConnectorGrant::ClientCredentials => Ok(Self::ClientCredentials {
                 token_url,
                 client_id: lookup(field(
-                    connector.client_id_secret.as_ref(),
+                    connector.client_id_secret.as_deref(),
                     "client_id_secret",
                 )?)?,
-                client_secret: lookup(field(connector.client_secret.as_ref(), "client_secret")?)?,
+                client_secret: lookup(field(connector.client_secret.as_deref(), "client_secret")?)?,
                 scopes: connector.scopes.clone(),
             }),
             ConnectorGrant::AppInstallation => {
-                let installation_id = field(connector.installation_id.as_ref(), "installation_id")?;
+                let installation_id = field(
+                    connector
+                        .installation_id
+                        .as_ref()
+                        .map(ConnectorInstallationId::as_str),
+                    "installation_id",
+                )?;
                 Ok(Self::AppInstallation {
                     token_url: token_url.replace(INSTALLATION_PLACEHOLDER, &installation_id),
-                    app_id: field(connector.app_id.as_ref(), "app_id")?,
+                    app_id: field(
+                        connector.app_id.as_ref().map(ConnectorAppId::as_str),
+                        "app_id",
+                    )?,
                     private_key_pem: lookup(field(
-                        connector.private_key_secret.as_ref(),
+                        connector.private_key_secret.as_deref(),
                         "private_key_secret",
                     )?)?,
                 })
@@ -138,21 +149,32 @@ impl MachineGrant {
         }
     }
 
-    pub async fn token(&self, cache_key: &str) -> Result<String, ConnectorGrantError> {
-        token_for(cache_key, || async { self.mint().await })
+    pub async fn token(
+        &self,
+        tokens: &TokenCache,
+        cache_key: &str,
+    ) -> Result<String, ConnectorGrantError> {
+        tokens
+            .token_for(cache_key, || async {
+                self.mint(tokens.http_client()?).await
+            })
             .await
             .map_err(ConnectorGrantError::Credential)
     }
 
-    pub async fn authorization(&self, cache_key: &str) -> Result<String, ConnectorGrantError> {
+    pub async fn authorization(
+        &self,
+        tokens: &TokenCache,
+        cache_key: &str,
+    ) -> Result<String, ConnectorGrantError> {
         let scheme = match self {
             Self::ApiToken { .. } => "Basic",
             Self::ClientCredentials { .. } | Self::AppInstallation { .. } => "Bearer",
         };
-        Ok(format!("{scheme} {}", self.token(cache_key).await?))
+        Ok(format!("{scheme} {}", self.token(tokens, cache_key).await?))
     }
 
-    async fn mint(&self) -> Result<(String, Duration), CredentialError> {
+    async fn mint(&self, client: &reqwest::Client) -> Result<(String, Duration), CredentialError> {
         match self {
             Self::ClientCredentials {
                 token_url,
@@ -168,7 +190,7 @@ impl MachineGrant {
                 if !scopes.is_empty() {
                     form.push(("scope", scopes.join(" ")));
                 }
-                let body = http::post_form(token_url, &form).await?;
+                let body = http::post_form(client, token_url, &form).await?;
                 let response: ClientCredentialsResponse =
                     serde_json::from_str(&body).map_err(CredentialError::UnreadableBody)?;
                 Ok((response.access_token, clamp_ttl(response.expires_in)))
@@ -179,7 +201,7 @@ impl MachineGrant {
                 private_key_pem,
             } => {
                 let jwt = sign_app_jwt(app_id, private_key_pem)?;
-                let body = http::post_bearer(token_url, &jwt, GITHUB_HEADERS).await?;
+                let body = http::post_bearer(client, token_url, &jwt, GITHUB_HEADERS).await?;
                 let response: InstallationTokenResponse =
                     serde_json::from_str(&body).map_err(CredentialError::UnreadableBody)?;
                 let remaining = response
@@ -200,14 +222,17 @@ impl MachineGrant {
 }
 
 pub async fn machine_token(
+    tokens: &TokenCache,
+    secrets: &Secrets,
     server: &str,
     connector: &ConnectorConfig,
 ) -> Result<String, ConnectorGrantError> {
-    let secrets = systemprompt_config::SecretsBootstrap::get()
-        .map_err(|e| ConnectorGrantError::Secrets(Box::new(e)))?;
     let grant = MachineGrant::resolve(server, connector, |name| secrets.get(name).cloned())?;
     grant
-        .token(&format!("connector:{server}:{}", connector.grant.as_str()))
+        .token(
+            tokens,
+            &format!("connector:{server}:{}", connector.grant.as_str()),
+        )
         .await
 }
 

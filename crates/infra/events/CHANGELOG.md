@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `CONTEXT_BROADCASTER`, `AGUI_BROADCASTER`, `A2A_BROADCASTER` and `ANALYTICS_BROADCASTER` are removed in favour of `EventBroadcasters`; `EventRouter::local_only`, `EventRouter::with_outbox` and `PostgresEventBridge::new` take the `Arc<EventBroadcasters>`, and the `route_*_local` functions are methods. Migrate by reading `AppContext::event_broadcasters()`.
+- **Breaking:** `PostgresEventBridge::into_idle_handle` builds an idle `EventBridgeHandle` that `start()` starts once. Migrate by calling `ctx.event_bridge().start()`.
+- `LoggingRepository::cleanup_old_logs(older_than)` is `purge_before(cutoff, batch)` and `DurableOutbox::prune_processed_before(cutoff)` is `purge_processed_before(cutoff, batch)` with `count_processed_before`; both delete in bounded batches. Migrate by passing a batch size and looping until a call returns 0.
+
+### Changed
+
+- The cache listener accepts `config:<plane>` payloads and advances the matching config `CacheDomain`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Changed

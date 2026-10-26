@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 
 use systemprompt_agent::repository::A2ARepositories;
@@ -21,9 +21,11 @@ use systemprompt_database::{
 };
 use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_files::FileRepository;
+use systemprompt_files::{FileRepository, FilesConfig};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
+use systemprompt_loader::BootContext;
+use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_marketplace::inventory::PublishGuard;
@@ -33,9 +35,12 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
-use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
+use systemprompt_security::credential::TokenCache;
+use systemprompt_security::keys::SigningKeys;
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
+mod accessors;
 mod context_loaders;
 mod debug_impls;
 mod repositories;
@@ -72,8 +77,10 @@ pub struct DataPlane {
 
 #[derive(Clone)]
 pub struct ConfigPlane {
+    pub boot: BootContext,
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
+    pub files_config: Arc<FilesConfig>,
     pub content_config: Option<Arc<ContentConfigRaw>>,
     pub route_classifier: Arc<RouteClassifier>,
 }
@@ -84,24 +91,31 @@ pub struct Plugins {
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub marketplace_cache: Arc<MarketplaceCache>,
+    pub subject_providers: systemprompt_governance::authz::SubjectProviderSet,
+    pub subjects: systemprompt_models::authz::SubjectSourceHandle,
 }
 
 #[derive(Clone)]
 pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
+    pub logging: LoggingRuntime,
     pub authz_hook: SharedAuthzHook,
-    pub governance: Arc<GovernanceEngine>,
+    pub signing_keys: SigningKeys,
+    pub governance: ConfigWatch<GovernanceEngine>,
+    pub services: systemprompt_loader::ServicesState,
     pub cache_epochs: CacheEpochs,
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<crate::SchemaState>,
-    pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
+    pub event_bridge: Arc<EventBridgeHandle>,
     pub event_router: EventRouter,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,
+    pub spawner: Arc<systemprompt_loader::subprocess::Spawner>,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
+    pub connector_tokens: Arc<TokenCache>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the
@@ -124,13 +138,13 @@ pub struct AppContext {
 }
 
 impl AppContext {
-    pub async fn new() -> RuntimeResult<Self> {
-        Self::builder().build().await
+    pub async fn new(boot: BootContext) -> RuntimeResult<Self> {
+        Self::builder(boot).build().await
     }
 
     #[must_use]
-    pub fn builder() -> AppContextBuilder {
-        AppContextBuilder::new()
+    pub fn builder(boot: BootContext) -> AppContextBuilder {
+        AppContextBuilder::new(boot)
     }
 
     #[must_use]
@@ -236,7 +250,7 @@ impl AppContext {
         &self.plugins.marketplace_cache
     }
 
-    pub const fn event_bridge(&self) -> &Arc<OnceLock<EventBridgeHandle>> {
+    pub const fn event_bridge(&self) -> &Arc<EventBridgeHandle> {
         &self.subsystems.event_bridge
     }
 
@@ -251,16 +265,25 @@ impl AppContext {
         &self.subsystems.publish_guard
     }
 
-    pub fn system_admin(&self) -> &SystemAdmin {
-        &self.subsystems.system_admin
-    }
-
     pub const fn mcp_registry(&self) -> &RegistryService {
         &self.plugins.mcp_registry
     }
 
+    pub const fn subject_handle(&self) -> &systemprompt_models::authz::SubjectSourceHandle {
+        &self.plugins.subjects
+    }
+
+    pub const fn subject_providers(&self) -> &systemprompt_governance::authz::SubjectProviderSet {
+        &self.plugins.subject_providers
+    }
+
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.subsystems.authz_hook
+    }
+
+    #[must_use]
+    pub const fn signing_keys(&self) -> &SigningKeys {
+        &self.subsystems.signing_keys
     }
 
     #[must_use]
@@ -271,17 +294,5 @@ impl AppContext {
     #[must_use]
     pub fn schema_state(&self) -> &crate::SchemaState {
         &self.subsystems.schema_install
-    }
-
-    pub const fn shutdown_request(&self) -> &ShutdownRequest {
-        &self.subsystems.shutdown
-    }
-
-    pub const fn background_tasks(&self) -> &BackgroundTasks {
-        &self.subsystems.background_tasks
-    }
-
-    pub fn request_restart(&self, reason: &str) {
-        self.subsystems.shutdown.request(reason);
     }
 }

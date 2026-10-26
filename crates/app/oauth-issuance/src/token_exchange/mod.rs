@@ -22,11 +22,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{
     DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_jwt_with_act,
 };
@@ -42,18 +42,24 @@ pub mod subject;
 
 pub use claims::{build_act_chain, intersect_scopes};
 pub use delegation::validate_resource;
-pub use subject::peek_issuer;
+pub use subject::{JwksCache, peek_issuer};
 
 use claims::resolve_audience;
 use delegation::{ensure_session, resolve_delegate, resolve_resource};
-use id_jag_subject::validate_id_jag_subject;
+use id_jag_subject::{IdJagContext, validate_id_jag_subject};
 use issue::issue_id_jag;
-use subject::validate_subject_token;
+use subject::{SubjectIdentity, validate_subject_token};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 
 pub const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
 pub const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
 pub const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExchangeContext<'a> {
+    pub jwks: &'a JwksCache,
+    pub config: &'a Arc<Config>,
+}
 
 #[derive(Debug, Default)]
 pub struct TokenExchangeRequest<'a> {
@@ -67,24 +73,55 @@ pub struct TokenExchangeRequest<'a> {
     pub resource: Option<&'a str>,
 }
 
+async fn resolve_subject(
+    client_id: &ClientId,
+    request: &TokenExchangeRequest<'_>,
+    state: &OAuthState,
+    global: &Config,
+    jwks: &JwksCache,
+) -> IssuanceResult<SubjectIdentity> {
+    if request.subject_token_type == ID_JAG_TOKEN_TYPE {
+        validate_id_jag_subject(
+            request.subject_token,
+            client_id,
+            IdJagContext {
+                repo: state.oauth_repository(),
+                keys: state.signing_keys(),
+                global,
+                jwks,
+            },
+        )
+        .await
+    } else {
+        validate_subject_token(
+            state.signing_keys(),
+            request.subject_token,
+            request.subject_token_type,
+            global,
+            jwks,
+        )
+        .await
+    }
+}
+
 pub async fn handle_token_exchange(
-    repo: &OAuthRepository,
     client_id: &ClientId,
     request: TokenExchangeRequest<'_>,
     origin: RequestOrigin<'_>,
     state: &OAuthState,
+    env: ExchangeContext<'_>,
 ) -> IssuanceResult<TokenResponse> {
-    let global = Config::get()?;
+    let ExchangeContext {
+        jwks,
+        config: global,
+    } = env;
+    let repo = state.oauth_repository();
 
     if request.requested_token_type == Some(ID_JAG_TOKEN_TYPE) {
-        return issue_id_jag(client_id, &request, global).await;
+        return issue_id_jag(state.signing_keys(), client_id, &request, global, jwks).await;
     }
 
-    let subject = if request.subject_token_type == ID_JAG_TOKEN_TYPE {
-        validate_id_jag_subject(request.subject_token, client_id, repo, global).await?
-    } else {
-        validate_subject_token(request.subject_token, request.subject_token_type, global).await?
-    };
+    let subject = resolve_subject(client_id, &request, state, global, jwks).await?;
 
     let resource = resolve_resource(&subject, request.resource, global)?;
     let (delegate, final_perms) =
@@ -115,6 +152,7 @@ pub async fn handle_token_exchange(
     };
     let signing = JwtSigningParams {
         issuer: &global.jwt_issuer,
+        keys: state.signing_keys(),
     };
 
     let access_token = generate_jwt_with_act(DelegatedJwtParams {

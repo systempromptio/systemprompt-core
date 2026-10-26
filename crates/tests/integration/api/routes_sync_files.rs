@@ -25,6 +25,7 @@ async fn ctx_with_services(tree: &std::path::Path) -> anyhow::Result<Arc<AppCont
     let pool = test_db_pool().await;
     let services = tree.to_string_lossy().into_owned();
     let paths = PathsConfig {
+        root: None,
         system: services.clone(),
         services,
         bin: "/tmp".to_string(),

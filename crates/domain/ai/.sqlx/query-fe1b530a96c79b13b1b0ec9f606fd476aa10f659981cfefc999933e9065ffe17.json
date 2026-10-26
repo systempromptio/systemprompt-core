@@ -1,0 +1,74 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id as \"id!: AiGatewayPolicyId\", name, spec, enabled, priority\n            FROM ai_gateway_policies\n            ORDER BY name\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: AiGatewayPolicyId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_gateway_policies",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "ai_gateway_policies",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "spec",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "ai_gateway_policies",
+            "name": "spec"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "ai_gateway_policies",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "priority",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "ai_gateway_policies",
+            "name": "priority"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fe1b530a96c79b13b1b0ec9f606fd476aa10f659981cfefc999933e9065ffe17"
+}

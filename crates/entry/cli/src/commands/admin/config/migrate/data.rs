@@ -1,0 +1,92 @@
+//! `config migrate --data`: moving stored data through the legacy map.
+//!
+//! Reads `services/ai/legacy_map.yaml` (written by the config half), records
+//! it in `ai_catalog_legacy_map`, moves personal keys stored under a legacy
+//! entry name onto its credential id, backfills `ai_requests.credential` and
+//! `endpoint` in batches of `BATCH` rows until none is left, rewrites
+//! the 0.72 `anthropic` host-filter tag to the `claude` client family, and
+//! moves access rules addressed to a generated legacy route id (and to the
+//! 0.72.1 catalog route id) onto the `model/<glob>` entity the map names. Every
+//! step is idempotent; `ai_requests.provider` keeps its historical values.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::path::Path;
+
+use anyhow::{Context, Result};
+use systemprompt_ai::repository::{CatalogMigrationRepository, LegacyMapRow};
+use systemprompt_database::DbPool;
+use systemprompt_governance::authz::AccessControlRepository;
+use systemprompt_oauth::repository::BridgeHostPrefsRepository;
+
+use super::legacy_map::{LEGACY_MAP_FILE, LegacyMap};
+
+const BATCH: i64 = 5_000;
+
+#[derive(Debug, Clone, Copy, Default, serde::Serialize)]
+pub struct DataReport {
+    pub legacy_entries: usize,
+    pub personal_keys_moved: u64,
+    pub audit_rows_backfilled: u64,
+    pub host_filters_rewritten: u64,
+    pub route_rules_moved_to_models: u64,
+}
+
+pub fn read_map(services: &Path) -> Result<LegacyMap> {
+    let path = services.join("ai").join(LEGACY_MAP_FILE);
+    let text = std::fs::read_to_string(&path).with_context(|| {
+        format!(
+            "{} not found; run `systemprompt admin config migrate` first",
+            path.display()
+        )
+    })?;
+    serde_yaml::from_str(&text).with_context(|| format!("Failed to parse {}", path.display()))
+}
+
+pub async fn apply_with(db: &DbPool, map: &LegacyMap) -> Result<DataReport> {
+    let repo = CatalogMigrationRepository::new(db);
+    let mut report = DataReport {
+        legacy_entries: map.providers.len(),
+        ..DataReport::default()
+    };
+    let routed: Vec<String> = map.providers.keys().cloned().collect();
+    for (legacy, target) in &map.providers {
+        let row = LegacyMapRow {
+            legacy_provider: legacy,
+            provider: &target.provider,
+            endpoint: &target.endpoint,
+            credential: &target.credential,
+        };
+        repo.upsert_legacy_map(row).await?;
+        report.personal_keys_moved += repo
+            .update_personal_keys(legacy, &target.credential)
+            .await?;
+        loop {
+            let done = repo.update_audit_batch(row, BATCH).await?;
+            report.audit_rows_backfilled += done;
+            if done == 0 {
+                break;
+            }
+        }
+        loop {
+            let done = repo.update_served_audit_batch(row, &routed, BATCH).await?;
+            report.audit_rows_backfilled += done;
+            if done == 0 {
+                break;
+            }
+        }
+    }
+    report.host_filters_rewritten = BridgeHostPrefsRepository::new(db)
+        .update_model_protocol_tag("anthropic", "claude")
+        .await?;
+    let moves: Vec<(&str, &str)> = map
+        .route_models
+        .iter()
+        .map(|(legacy, model)| (legacy.as_str(), model.as_str()))
+        .collect();
+    report.route_rules_moved_to_models = AccessControlRepository::new(db)
+        .move_route_rules_to_models(&moves)
+        .await?;
+    Ok(report)
+}

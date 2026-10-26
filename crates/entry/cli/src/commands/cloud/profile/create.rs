@@ -145,7 +145,7 @@ fn build_tenant_profile(
         TenantType::Local => {
             LocalProfileBuilder::new(name.as_str(), relative_secrets_path, &services_path)
                 .with_tenant_id(tenant.id.clone())
-                .build()
+                .build()?
         },
         TenantType::Cloud => {
             let mut builder = CloudProfileBuilder::new(name.as_str())
@@ -156,7 +156,7 @@ fn build_tenant_profile(
             if let Some(hostname) = &tenant.hostname {
                 builder = builder.with_external_url(format!("https://{}", hostname));
             }
-            builder.build()
+            builder.build()?
         },
     })
 }

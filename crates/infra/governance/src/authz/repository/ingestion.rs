@@ -2,7 +2,7 @@
 //!
 //! Every function runs on the caller's connection so a whole ingestion pass
 //! commits or rolls back as one transaction; the insert-or-update decision and
-//! the `dashboard` protection rule stay in the ingestion service.
+//! the `console:` protection rule stay in the ingestion service.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -36,58 +36,6 @@ pub(crate) struct StoredRule {
 pub(crate) struct IngestionRepository;
 
 impl IngestionRepository {
-    pub(crate) async fn upsert_entity(
-        conn: &mut PgConnection,
-        entity_kind: EntityKind,
-        entity_id: &str,
-        default_included: bool,
-        source: &str,
-    ) -> AuthzResult<()> {
-        sqlx::query!(
-            r#"
-        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (entity_type, entity_id)
-        DO UPDATE SET default_included = EXCLUDED.default_included,
-                      source = EXCLUDED.source,
-                      updated_at = NOW()
-        "#,
-            entity_kind.as_str(),
-            entity_id,
-            default_included,
-            source,
-        )
-        .execute(&mut *conn)
-        .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn upsert_marketplace_entity(
-        conn: &mut PgConnection,
-        entity_id: &str,
-        access: Option<bool>,
-        source: &str,
-    ) -> AuthzResult<()> {
-        sqlx::query!(
-            r#"
-        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-        VALUES ('marketplace', $1, COALESCE($2, false), $3)
-        ON CONFLICT (entity_type, entity_id)
-        DO UPDATE SET default_included = COALESCE($2, access_control_entities.default_included),
-                      source = CASE WHEN $2::boolean IS NULL
-                                    THEN access_control_entities.source
-                                    ELSE EXCLUDED.source END,
-                      updated_at = NOW()
-        "#,
-            entity_id,
-            access,
-            source,
-        )
-        .execute(&mut *conn)
-        .await?;
-        Ok(())
-    }
-
     pub(crate) async fn ensure_catalog_entity(
         conn: &mut PgConnection,
         entity_kind: EntityKind,
@@ -183,71 +131,6 @@ impl IngestionRepository {
         .execute(&mut *conn)
         .await?;
         Ok(())
-    }
-
-    pub(crate) async fn list_entity_ids(
-        conn: &mut PgConnection,
-        kind: EntityKind,
-    ) -> AuthzResult<Vec<String>> {
-        let rows = sqlx::query!(
-            r#"
-        SELECT entity_id
-        FROM access_control_entities
-        WHERE entity_type = $1
-        "#,
-            kind.as_str(),
-        )
-        .fetch_all(&mut *conn)
-        .await?;
-        Ok(rows.into_iter().map(|row| row.entity_id).collect())
-    }
-
-    pub(crate) async fn delete_role_rules_for(
-        conn: &mut PgConnection,
-        entity_types: &[String],
-        entity_ids: &[String],
-        source: &str,
-    ) -> AuthzResult<u64> {
-        let res = sqlx::query!(
-            r#"
-        DELETE FROM access_control_rules
-        WHERE rule_type = 'role'
-          AND source = $3
-          AND (entity_type, entity_id) IN (
-              SELECT * FROM UNNEST($1::text[], $2::text[])
-          )
-        "#,
-            entity_types,
-            entity_ids,
-            source,
-        )
-        .execute(&mut *conn)
-        .await?;
-        Ok(res.rows_affected())
-    }
-
-    pub(crate) async fn delete_marketplace_bands(
-        conn: &mut PgConnection,
-        entity_ids: &[String],
-        rule_types: &[String],
-        source: &str,
-    ) -> AuthzResult<u64> {
-        let res = sqlx::query!(
-            r#"
-        DELETE FROM access_control_rules
-        WHERE entity_type = 'marketplace'
-          AND source = $3
-          AND (entity_id, rule_type) IN (
-              SELECT * FROM UNNEST($1::text[], $2::text[])
-          )
-        "#,
-            entity_ids,
-            rule_types,
-            source,
-        )
-        .execute(&mut *conn)
-        .await?;
-        Ok(res.rows_affected())
     }
 
     pub(crate) async fn delete_app_role_rules(

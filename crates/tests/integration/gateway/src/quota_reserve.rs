@@ -12,7 +12,7 @@ use systemprompt_gateway::quota::{
     AccountingOutcome, QuotaEstimate, QuotaReservation, QuotaSubjects, QuotaUsage, ReserveOutcome,
     ReserveParams, precheck_and_reserve, release, settle,
 };
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{QuotaSubjectKind, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
 
@@ -26,14 +26,26 @@ fn repos(db: &DbPool) -> GatewayRepositories {
                 .app_paths
                 .storage()
                 .data(),
-            systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+                .encryption_master_key()
+                .expect("encryption master key"),
         )
         .expect("gateway journal opens"),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher from the fixture secrets"),
+            unapplied_plane: systemprompt_manifest::profile::UnappliedPlaneMode::default(),
+        },
     )
 }
 
@@ -184,7 +196,7 @@ async fn an_unresolvable_subject_is_skipped_when_open() {
     let windows = [window("api_key", 1800, Some(1)), window("user", 1800, None)];
     let reservation = admitted(reserve(&repos(&db), &user, &windows, QuotaFaultMode::Open).await);
     assert_eq!(reservation.windows.len(), 1);
-    assert_eq!(reservation.windows[0].subject_kind, "user");
+    assert_eq!(reservation.windows[0].subject_kind, QuotaSubjectKind::User);
 }
 
 #[tokio::test]

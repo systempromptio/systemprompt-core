@@ -70,11 +70,13 @@ mod extension_schema_tests {
             vec![
                 "users",
                 "user_sessions",
+                "session_traffic_rollup_hourly",
                 "banned_ips",
                 "user_api_keys",
                 "user_api_key_scopes",
                 "user_device_certs",
                 "user_rate_limit_buckets",
+                "api_key_sessions",
                 "federated_identities",
                 "sso_login_events",
             ]

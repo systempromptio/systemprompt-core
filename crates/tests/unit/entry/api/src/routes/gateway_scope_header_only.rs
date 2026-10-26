@@ -65,7 +65,7 @@ async fn resolve(
     resolve_scope_attribution(
         ScopeResolution {
             providers: &providers,
-            user_id: &user,
+            subject: &providers.gather(&user).await.expect("subject attributes"),
             headers: &headers,
             key_bindings: &[],
             api_key_id: None,
@@ -73,7 +73,6 @@ async fn resolve(
         },
         &mut partial,
     )
-    .await
 }
 
 #[tokio::test]

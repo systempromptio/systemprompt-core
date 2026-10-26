@@ -6,15 +6,18 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use crate::boot_ctx::bootstrap_ctx_with;
 use systemprompt_cli::admin::config::rate_limits::{
     PresetApplyArgs, PresetCommands, PresetShowArgs, RateLimitsCommands, execute,
 };
-use systemprompt_cli::{CliConfig, OutputFormat, ScriptedPrompter};
+use systemprompt_cli::{CliConfig, CommandContext, OutputFormat, ScriptedPrompter};
 
-fn config() -> CliConfig {
-    CliConfig::new()
-        .with_interactive(false)
-        .with_output_format(OutputFormat::Json)
+fn config() -> CommandContext {
+    bootstrap_ctx_with(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+    )
 }
 
 #[test]
@@ -84,7 +87,7 @@ fn preset_apply_declined_at_the_confirmation_prompt_does_not_proceed() {
             yes: false,
         })),
         &prompter,
-        &CliConfig::new().with_interactive(true),
+        &bootstrap_ctx_with(CliConfig::new().with_interactive(true)),
     )
     .unwrap_err();
 

@@ -1,4 +1,4 @@
-//! Reconciling access rules after a `services refresh` swap.
+//! Reconciling gateway routes after a `services refresh` swap.
 //!
 //! The database is only touched when the composition actually moved. Every
 //! provenance that cannot name a new composed hash must return before a pool
@@ -13,13 +13,13 @@ use systemprompt_cli::context::CommandContext;
 use systemprompt_cli::core::services::reconcile::reconcile_after_swap;
 use systemprompt_cli::env_overrides::EnvOverrides;
 use systemprompt_loader::bundle::BundleCache;
-use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_manifest::services::bundle::ServicesBundleState;
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 use crate::services_profile_fixture as fx;
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -185,9 +185,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     )
     .unwrap();
 
-    let mut profile = systemprompt_config::ProfileBootstrap::get()
-        .expect("bootstrap profile")
-        .clone();
+    let mut profile = boot.boot.profile().clone();
     profile.services.sources = vec![ServicesSource {
         name: SOURCE.to_owned(),
         https: None,
@@ -215,11 +213,8 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
         .expect("project fetched composition");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].bundle, SOURCE);
-    assert_eq!(rows[0].inserted, 0);
-    assert_eq!(rows[0].updated, 0);
+    assert_eq!(rows[0].registered, 0);
     assert_eq!(rows[0].deleted, 0);
-    assert_eq!(rows[0].protected, 0);
-    assert!(rows[0].inert_role_rules.is_empty());
     assert_eq!(
         cache.read_state().last_reconciled_hash.as_deref(),
         Some(COMPOSED_HASH),

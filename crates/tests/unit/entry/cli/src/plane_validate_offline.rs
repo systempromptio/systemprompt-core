@@ -1,6 +1,5 @@
-//! `admin config validate`'s config-plane pass when no configuration is
-//! installed: it reports one failed `config_planes` entry rather than
-//! panicking, and a targeted validation skips the pass entirely.
+//! `admin config validate`'s config-plane pass: every plane is reported under
+//! its own section, and a targeted validation skips the pass entirely.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -9,29 +8,34 @@ use systemprompt_cli::admin::config::plane_validate::{
 };
 
 #[test]
-fn without_config_the_plane_pass_reports_a_single_failure() {
-    let results = plane_declaration_results();
-    assert_eq!(results.len(), 1);
-    let only = &results[0];
-    assert_eq!(only.section, "config_planes");
-    assert_eq!(only.path, "config_planes");
-    assert!(!only.valid);
-    assert!(only.exists);
-    assert!(only.error.as_deref().is_some_and(|e| !e.is_empty()));
+fn every_plane_result_is_attributed_to_a_plane_section() {
+    let config = systemprompt_test_fixtures::test_config();
+    let results = plane_declaration_results(&config);
+    assert!(
+        results
+            .iter()
+            .all(|r| r.section.starts_with("plane:") || r.section == "config_planes"),
+        "{:?}",
+        results.iter().map(|r| &r.section).collect::<Vec<_>>()
+    );
+    assert!(results.iter().all(|r| r.valid || r.error.is_some()));
 }
 
 #[test]
 fn a_targeted_validation_skips_the_plane_pass() {
+    let config = systemprompt_test_fixtures::test_config();
     let mut results = Vec::new();
     let target = "web".to_owned();
-    assert!(append_full_validation(Some(&target), &mut results));
+    assert!(append_full_validation(&config, Some(&target), &mut results));
     assert!(results.is_empty());
 }
 
 #[test]
-fn a_full_validation_without_config_fails_and_appends_the_failure() {
+fn a_full_validation_appends_exactly_the_plane_results_and_reports_their_validity() {
+    let config = systemprompt_test_fixtures::test_config();
+    let expected = plane_declaration_results(&config);
     let mut results = Vec::new();
-    assert!(!append_full_validation(None, &mut results));
-    assert_eq!(results.len(), 1);
-    assert!(!results[0].valid);
+    let valid = append_full_validation(&config, None, &mut results);
+    assert_eq!(results.len(), expected.len());
+    assert_eq!(valid, expected.iter().all(|r| r.valid));
 }

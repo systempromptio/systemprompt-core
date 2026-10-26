@@ -1,16 +1,9 @@
 use crate::services::providers::mock_http;
 use systemprompt_ai::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
-use systemprompt_manifest::services::{ProviderModel, ProviderRegistry, ResilienceSettings};
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_wire::WireProtocol;
 
-fn seed_models(provider: &str) -> Vec<ProviderModel> {
-    ProviderRegistry::default_seed()
-        .expect("embedded default catalog parses")
-        .find_provider(provider)
-        .expect("provider present in default catalog")
-        .models
-        .clone()
-}
+use mock_http::seed_models;
 
 fn create(
     name: &str,
@@ -44,7 +37,10 @@ mod create_tests {
         );
         assert_eq!(provider.name(), "anthropic");
         assert!(provider.supports_model("claude-sonnet-5"));
-        assert_eq!(provider.default_model(), "claude-sonnet-5");
+        assert_eq!(
+            provider.default_model(),
+            seed_models("anthropic")[0].id.as_str()
+        );
         assert!(!provider.supports_model("gpt-4.1"));
     }
 
@@ -58,7 +54,10 @@ mod create_tests {
         );
         assert_eq!(provider.name(), "openai");
         assert!(provider.supports_model("gpt-4.1"));
-        assert_eq!(provider.default_model(), "gpt-4.1");
+        assert_eq!(
+            provider.default_model(),
+            seed_models("openai")[0].id.as_str()
+        );
     }
 
     #[test]
@@ -71,7 +70,10 @@ mod create_tests {
         );
         assert_eq!(provider.name(), "gemini");
         assert!(provider.supports_model("gemini-2.5-flash"));
-        assert_eq!(provider.default_model(), "gemini-3.1-flash-lite-preview");
+        assert_eq!(
+            provider.default_model(),
+            seed_models("gemini")[0].id.as_str()
+        );
     }
 
     #[test]

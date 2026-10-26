@@ -35,7 +35,7 @@ pub(super) struct Planned<'a> {
 }
 
 impl ConfigReconcileService {
-    pub(super) fn plane_context(&self) -> PlaneContext<'_> {
+    pub(crate) fn plane_context(&self) -> PlaneContext<'_> {
         PlaneContext::new(self.planes.services_root(), &self.dependencies)
     }
 

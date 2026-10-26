@@ -6,16 +6,22 @@
 # that backfills.
 # agent 016 rewrites the two retired A2A 0.3 task states (PENDING → SUBMITTED, UNKNOWN → FAILED) before tightening the CHECK constraint.
 agent=016
-ai=038
+# ai 052 rewrites the retired `synthetic` flag to the 'evaluation' traffic class before dropping the column.
+ai=052
 analytics=017
 content=005
 database=001
 events=009
 files=002
-governance=021
+# governance 027 rewrites access_control_* source labels to the closed provenance vocabulary before constraining them.
+governance=027
 logging=009
 marketplace=016
 mcp=017
-oauth=019
+oauth=021
 scheduler=003
-users=022
+users=028
+# users 028 recounts session_traffic_rollup_hourly from user_sessions once, after 027 creates the counter and its triggers.
+# agent-runs 001 rewrites headless `opencode` rows to `opencode-cli` before constraining `host` to the CLI ids.
+agent-runs=001
+# oauth 021 drops bridge host-preference rows naming an id outside the HostKind vocabulary before constraining host_id to it.

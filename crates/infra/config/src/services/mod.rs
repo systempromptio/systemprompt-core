@@ -2,8 +2,9 @@
 //!
 //! - [`schema_validation`] — `JsonSchema`-driven helpers for runtime config
 //!   parsing.
-//! - [`ProviderCatalogService`] — typed mutations of the services provider
-//!   registry (`services/ai/providers.yaml`).
+//! - [`ProviderCatalogService`] — typed mutations of the four catalog
+//!   registries
+//!   (`services/ai/{credentials,providers,models,deployments}.yaml`).
 //! - [`SecurityConfigService`] — typed mutations of the profile's security
 //!   section.
 //!
@@ -14,7 +15,10 @@ mod provider_catalog;
 mod schema_validation;
 mod security_config;
 
-pub use provider_catalog::{ModelSpec, ProviderCatalogService, ProviderSpec};
+pub use provider_catalog::{
+    CredentialSpec, EndpointSpec, ModelSpec, ProviderCatalogService, ProviderSpec, read_catalog,
+    write_catalog,
+};
 pub use schema_validation::{
     ConfigValidationError, generate_schema, validate_config, validate_yaml_file, validate_yaml_str,
 };

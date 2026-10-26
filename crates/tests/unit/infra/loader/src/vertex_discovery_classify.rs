@@ -2,6 +2,7 @@ use systemprompt_loader::vertex_discovery::classify::{
     Classification, PublisherModel, classify, is_serverless,
 };
 use systemprompt_manifest::services::VertexRateCard;
+use systemprompt_wire::WireProtocol;
 
 fn model(json: serde_json::Value) -> PublisherModel {
     serde_json::from_value(json).expect("a listing entry deserializes")
@@ -96,11 +97,11 @@ fn a_google_model_is_serverless_but_only_published_if_it_is_priced() {
     assert!(is_serverless(&gemini_flash()));
     assert!(is_serverless(&gemini_embedding()));
     assert_eq!(
-        classify(&gemini_flash(), &card, "vertex").0,
+        classify(&gemini_flash(), &card, WireProtocol::Gemini).0,
         Classification::Publish
     );
     assert_eq!(
-        classify(&gemini_embedding(), &card, "vertex").0,
+        classify(&gemini_embedding(), &card, WireProtocol::Gemini).0,
         Classification::Unpriced
     );
 }
@@ -108,7 +109,8 @@ fn a_google_model_is_serverless_but_only_published_if_it_is_priced() {
 #[test]
 fn a_checkpoint_is_rejected_before_the_card_is_consulted() {
     let card = card();
-    let (classification, entry) = classify(&deployable_checkpoint(), &card, "vertex-maas");
+    let (classification, entry) =
+        classify(&deployable_checkpoint(), &card, WireProtocol::OpenAiChat);
     assert_eq!(classification, Classification::NotServerless);
     assert!(entry.is_none());
 }
@@ -118,7 +120,7 @@ fn a_checkpoint_is_rejected_before_the_card_is_consulted() {
 #[test]
 fn a_preview_model_is_published_only_when_its_card_entry_allows_it() {
     let card = card();
-    let (classification, entry) = classify(&glm_5(), &card, "vertex-maas");
+    let (classification, entry) = classify(&glm_5(), &card, WireProtocol::OpenAiChat);
     assert_eq!(classification, Classification::Publish);
     assert!(entry.expect("glm-5 is priced").allow_preview);
 
@@ -127,22 +129,22 @@ fn a_preview_model_is_published_only_when_its_card_entry_allows_it() {
         entry.allow_preview = false;
     }
     assert_eq!(
-        classify(&glm_5(), &withheld, "vertex-maas").0,
+        classify(&glm_5(), &withheld, WireProtocol::OpenAiChat).0,
         Classification::PreviewWithheld
     );
 }
 
-// Why: the two Vertex providers speak different wires, so a model priced for
+// Why: Vertex endpoints speak different wires, so a model priced for
 // the MaaS surface must never be appended to the gemini one.
 #[test]
-fn an_entry_priced_for_one_provider_is_not_offered_to_the_other() {
+fn an_entry_priced_for_one_wire_is_not_offered_to_the_other() {
     let card = card();
     assert_eq!(
-        classify(&qwen_next_instruct(), &card, "vertex-maas").0,
+        classify(&qwen_next_instruct(), &card, WireProtocol::OpenAiChat).0,
         Classification::Publish
     );
     assert_eq!(
-        classify(&qwen_next_instruct(), &card, "vertex").0,
+        classify(&qwen_next_instruct(), &card, WireProtocol::Gemini).0,
         Classification::Unpriced
     );
 }

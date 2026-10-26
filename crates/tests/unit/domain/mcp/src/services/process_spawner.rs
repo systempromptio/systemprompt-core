@@ -15,6 +15,7 @@ use systemprompt_test_fixtures::fixture_user_id;
 
 fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
     let paths = PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: bin_dir.to_string(),
@@ -36,6 +37,7 @@ fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
 
 fn make_paths_with_system(system_dir: &str) -> Arc<AppPaths> {
     let paths = PathsConfig {
+        root: None,
         system: system_dir.to_string(),
         services: system_dir.to_string(),
         bin: system_dir.to_string(),
@@ -237,7 +239,14 @@ fn coverage_spawn_invalid_executable_returns_a_detached_start_error() {
     let binary = boot.bin_path.join(config.binary.as_deref().unwrap());
     std::fs::write(&binary, b"#!/no-such-interpreter-for-coverage\n").unwrap();
     std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let err = spawn_server(&boot.app_paths, &config).unwrap_err();
+    let err = spawn_server(
+        &systemprompt_test_fixtures::test_spawner(),
+        &crate::harness::config(),
+        &systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        &boot.app_paths,
+        &config,
+    )
+    .unwrap_err();
     assert!(
         err.to_string().contains("Failed to start detached"),
         "{err}"
@@ -291,7 +300,13 @@ async fn spawned_server_receives_service_environment_and_owned_stop_ends_it() {
     config.port = Some(65431);
     let service_name = config.service_name();
 
-    let pid = ProcessService::spawn_server(&boot.app_paths, &config).expect("spawn fixture");
+    let pid = ProcessService::new(
+        systemprompt_test_fixtures::test_spawner(),
+        crate::harness::config(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    )
+    .spawn_server(&boot.app_paths, &config)
+    .expect("spawn fixture");
     let mut cleanup = OwnedPid {
         pid: Some(pid),
         service_name: service_name.clone(),

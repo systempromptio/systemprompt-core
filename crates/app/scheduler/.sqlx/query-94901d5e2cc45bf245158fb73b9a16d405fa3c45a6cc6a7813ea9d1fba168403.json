@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO config_conflicts\n                  (plane, entity, base_hash, file_hash, file_value, db_hash, db_value)\n              VALUES ($1, $2, $3, $4, $5, $6, $7)\n              ON CONFLICT (plane, entity) WHERE resolved_at IS NULL DO UPDATE\n                 SET base_hash = EXCLUDED.base_hash,\n                     file_hash = EXCLUDED.file_hash,\n                     file_value = EXCLUDED.file_value,\n                     db_hash = EXCLUDED.db_hash,\n                     db_value = EXCLUDED.db_value,\n                     detected_at = NOW()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "94901d5e2cc45bf245158fb73b9a16d405fa3c45a6cc6a7813ea9d1fba168403"
+}

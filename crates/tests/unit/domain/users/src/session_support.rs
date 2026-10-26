@@ -6,7 +6,9 @@
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource};
-use systemprompt_traits::session_store::CreateSessionParams;
+use systemprompt_traits::session_store::{
+    CreateSessionParams, SessionAttribution, SessionIdentity, SessionNetwork,
+};
 use systemprompt_users::SessionRepository;
 use uuid::Uuid;
 
@@ -21,28 +23,14 @@ pub fn base_params<'a>(
     expires_at: DateTime<Utc>,
 ) -> CreateSessionParams<'a> {
     CreateSessionParams {
-        session_id,
-        user_id: None,
-        session_source: SessionSource::Web,
-        fingerprint_hash,
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: None,
-        referrer_url: None,
-        landing_page: None,
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        utm_content: None,
-        utm_term: None,
+        identity: SessionIdentity {
+            session_id,
+            user_id: None,
+            session_source: SessionSource::Web,
+            fingerprint_hash,
+        },
+        network: SessionNetwork::default(),
+        attribution: SessionAttribution::default(),
         is_bot: false,
         is_ai_crawler: false,
         expires_at,

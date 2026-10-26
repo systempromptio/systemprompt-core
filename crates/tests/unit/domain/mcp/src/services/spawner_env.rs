@@ -390,6 +390,7 @@ fn lexical_paths(root: &Path) -> systemprompt_config::paths::AppPaths {
     let root = root.to_string_lossy().into_owned();
     systemprompt_config::paths::AppPaths::from_profile(
         &systemprompt_manifest::profile::PathsConfig {
+            root: None,
             system: root.clone(),
             services: root.clone(),
             bin: root.clone(),

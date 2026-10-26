@@ -25,6 +25,7 @@ pub struct DefaultRssFeedProvider {
     content_repo: ContentRepository,
     content_config: ContentConfigRaw,
     web_config: WebConfig,
+    base_url: String,
 }
 
 impl std::fmt::Debug for DefaultRssFeedProvider {
@@ -39,14 +40,19 @@ impl std::fmt::Debug for DefaultRssFeedProvider {
 }
 
 impl DefaultRssFeedProvider {
-    pub async fn new(content_repo: ContentRepository, paths: &AppPaths) -> GeneratorResult<Self> {
+    pub async fn new(
+        content_repo: ContentRepository,
+        config: &Config,
+        paths: &AppPaths,
+    ) -> GeneratorResult<Self> {
         let content_config = load_content_config(paths).await?;
-        let web_config = load_web_config(paths).await?;
+        let web_config = load_web_config(config, paths).await?;
 
         Ok(Self {
             content_repo,
             content_config,
             web_config,
+            base_url: config.api_external_url.clone(),
         })
     }
 
@@ -114,14 +120,9 @@ impl RssFeedProvider for DefaultRssFeedProvider {
 
     async fn feed_metadata(&self, ctx: &RssFeedContext<'_>) -> ProviderResult<RssFeedMetadata> {
         let (title, description) = self.get_source_branding(ctx.source_name);
-        let global_config = Config::get().map_err(|e| ProviderError::ConfigurationLoad {
-            context: "Failed to load global config".to_owned(),
-            source: Box::new(e),
-        })?;
-
         Ok(RssFeedMetadata {
             title,
-            link: global_config.api_external_url.clone(),
+            link: self.base_url.clone(),
             description,
             language: Some("en".to_owned()),
         })

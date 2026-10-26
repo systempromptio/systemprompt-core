@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                user_id as \"user_id!: UserId\",\n                NULL::text as \"name?\",\n                COALESCE(SUM(cost_microdollars), 0)::bigint as \"cost!\",\n                SUM(request_count)::bigint as \"requests!\",\n                COALESCE(SUM(tokens), 0)::bigint as \"tokens!\",\n                COUNT(DISTINCT context_id)::bigint as \"conversations!\"\n            FROM report_ai_context_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2\n              AND traffic = 'production'\n            GROUP BY user_id\n            ORDER BY SUM(cost_microdollars) DESC NULLS LAST\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id!: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "report_ai_context_hourly",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "cost!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "conversations!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "91e5f58e9ba10e509ac2de3ade50d093cd83ef2317ec968e99a58318783fe15f"
+}

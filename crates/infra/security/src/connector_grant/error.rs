@@ -18,9 +18,6 @@ pub enum ConnectorGrantError {
     #[error("MCP server '{server}': connector secret `{secret}` is not configured")]
     MissingSecret { server: String, secret: String },
 
-    #[error("secrets are unavailable: {0}")]
-    Secrets(#[source] Box<dyn std::error::Error + Send + Sync>),
-
     #[error(transparent)]
     Credential(CredentialError),
 }

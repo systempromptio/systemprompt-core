@@ -7,27 +7,27 @@
 //! endpoint; the provider api-key secret resolves from `ANTHROPIC_API_KEY`, set
 //! before the process bootstrap.
 
-use std::collections::HashMap;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use axum::body::to_bytes;
 use bytes::Bytes;
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, InboundAdapter, Role, SystemBlock,
 };
 use systemprompt_gateway::service::{DispatchError, GatewayService};
 use systemprompt_gateway::{DispatchInputs, GatewayRepositories, GatewayRequestContext};
-use systemprompt_identifiers::{
-    AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName, TraceId,
+use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId, ModelId, TraceId};
+use systemprompt_manifest::services::GatewayConfig;
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,
 };
-use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
-};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
 use systemprompt_wire::WireProtocol;
 use tracing_subscriber::prelude::*;
@@ -47,7 +47,9 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+            .encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("gateway journal opens")
 }
@@ -62,8 +64,18 @@ pub(super) fn gw_repos(
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+            unapplied_plane: Default::default(),
+        },
     )
 }
 
@@ -117,7 +129,7 @@ impl JsonLogWriter {
 }
 
 pub(super) fn install_provider_api_key() {
-    // SAFETY: set before the process's first `SecretsBootstrap::try_init` (driven
+    // SAFETY: set before the process's first test bootstrap (driven
     // by `setup_ctx`); process-local under nextest's per-test process model.
     unsafe {
         std::env::set_var(API_KEY_ENV, "sk-test-anthropic-key");
@@ -128,60 +140,28 @@ pub(super) fn provider_registry(
     endpoint: &str,
     provider: &str,
     wire: WireProtocol,
-    surface: ApiSurface,
-) -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![ProviderEntry {
-            name: ProviderId::new(provider),
-            display_name: None,
-            description: None,
-            wire,
-            surface,
-            endpoint: endpoint.to_owned(),
-            api_key_secret: Some(SecretName::new(API_KEY_SECRET)),
-            credential: Default::default(),
-            credential_from: None,
-            user_agent: None,
-            forward_headers: Vec::new(),
-            governance: Default::default(),
-            extra_headers: HashMap::new(),
-            accepted_betas: None,
-            models: vec![ProviderModel {
-                id: ModelId::new(MODEL),
-                aliases: Vec::new(),
-                hidden: false,
-                governance: None,
-                upstream_model: None,
-                pricing: Default::default(),
-                capabilities: Default::default(),
-                limits: Default::default(),
-            }],
-        }],
-    }
+    family: ClientFamily,
+) -> ResolvedCatalog {
+    catalog_fixture(endpoint, provider, wire, family).build()
 }
 
-pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
-    let mut route = GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: "claude-*".to_owned(),
-        provider: ProviderId::new(route_provider),
-        upstream_model: None,
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
+pub(super) fn catalog_fixture(
+    endpoint: &str,
+    provider: &str,
+    wire: WireProtocol,
+    family: ClientFamily,
+) -> CatalogFixture {
+    CatalogFixture::new()
+        .credential(provider, platform(API_KEY_SECRET))
+        .provider(provider, ProviderConfig::new(provider))
+        .endpoint(provider, "api", EndpointConfig::new(wire, endpoint))
+        .model(MODEL, ModelEntry::new(vec![family]))
+        .deploy(MODEL, [format!("{provider}/api").as_str()])
+}
+
+pub(super) fn gateway_config(_route_provider: &str) -> GatewayConfig {
     GatewayConfig {
         enabled: true,
-        routes: vec![route],
         ..GatewayConfig::default()
     }
 }
@@ -196,22 +176,28 @@ pub(super) fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
             content: vec![CanonicalContent::text("hello gateway".to_owned())],
         }],
         max_tokens: 256,
-        temperature: Some(0.5),
-        top_p: None,
-        top_k: None,
-        stop_sequences: Vec::new(),
-        tools: Vec::new(),
-        tool_choice: None,
         stream,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: Some(0.5),
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: Vec::new(),
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -264,6 +250,7 @@ pub(super) fn dispatch_ctx(
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: PROVIDER.to_owned(),
+        hop: None,
         requested_model: Some(model.to_owned()),
         model: model.to_owned(),
         max_tokens: Some(256),
@@ -279,6 +266,23 @@ pub(super) fn dispatch_ctx(
 
 fn inbound() -> Arc<dyn InboundAdapter> {
     Arc::new(AnthropicMessagesInbound)
+}
+
+// One engine set per test process, as one server holds one: breaker and
+// in-flight state must survive across the dispatches of one test.
+pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
+    static ENGINES: std::sync::OnceLock<Arc<systemprompt_gateway::GatewayEngines>> =
+        std::sync::OnceLock::new();
+    Arc::clone(ENGINES.get_or_init(|| {
+        Arc::new(
+            systemprompt_gateway::GatewayEngines::new(
+                Default::default(),
+                &systemprompt_test_fixtures::offline_extension_context(),
+                systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            )
+            .expect("gateway engines build"),
+        )
+    }))
 }
 
 pub(super) fn inputs_with(
@@ -298,6 +302,7 @@ pub(super) fn inputs_with(
         identity_headers: Vec::new(),
         trace_sampled: None,
         governance: systemprompt_test_fixtures::default_governance_engine(),
+        engines: shared_engines(),
     }
 }
 
@@ -397,7 +402,7 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
@@ -471,6 +476,7 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
     let database =
         systemprompt_test_fixtures::DisposableDb::with_schema("gateway_audit_admission").await;
     let pool = database.test_pool().await;
+    systemprompt_test_fixtures::record_plane_applied(&pool, "gateway_policies").await?;
     let credential = seed_admin_credential(&pool, "audit-admission@example.invalid").await?;
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
@@ -498,7 +504,7 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let repositories = gw_repos(&pool);
     let rejected_id = AiRequestId::generate();
@@ -583,7 +589,7 @@ async fn streaming_dispatch_taps_events_and_completes_audit() -> anyhow::Result<
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, true);
     let di = inputs(&cred, request, true);
@@ -636,7 +642,7 @@ async fn enforcing_secret_scan_denies_before_upstream_and_persists_the_decision(
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let secret = format!("{}{}", "XGATE-", 12345678);
     let mut request = canonical_request(MODEL, false);
@@ -701,7 +707,7 @@ async fn warn_secret_scan_allows_upstream_and_persists_a_correlated_warning() ->
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(format!("{}{}", "XGATE-", 87654321))];
@@ -745,7 +751,7 @@ async fn missing_session_binding_is_pre_audit_error() -> anyhow::Result<()> {
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let mut di = inputs(&cred, request, false);
@@ -769,7 +775,7 @@ async fn unexposed_model_is_policy_denied() -> anyhow::Result<()> {
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request("ghost-model-not-exposed", false);
     let di = inputs(&cred, request, false);
@@ -791,25 +797,33 @@ async fn unexposed_model_is_policy_denied() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn route_provider_absent_from_registry_is_pre_audit_error() -> anyhow::Result<()> {
+async fn a_model_only_on_a_disabled_provider_is_pre_audit_error() -> anyhow::Result<()> {
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-noprovider@example.invalid").await?;
 
-    let config = gateway_config("ghost-provider");
-    let registry = provider_registry(
+    let config = gateway_config(PROVIDER);
+    let registry = catalog_fixture(
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
+        ClientFamily::Claude,
+    )
+    .with_provider(PROVIDER, |p| p.enabled = false)
+    .build();
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
     let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
         .await
-        .expect_err("route pointing at an unknown provider must fail");
-    assert!(matches!(err, DispatchError::PreAudit(_)), "got {err:?}");
+        .expect_err("a model with no enabled deployment must fail");
+    assert!(
+        matches!(
+            &err,
+            DispatchError::PreAudit(systemprompt_gateway::service::GatewayError::NoRoute { .. })
+        ),
+        "got {err:?}"
+    );
     Ok(())
 }
 
@@ -823,13 +837,14 @@ async fn missing_api_key_secret_is_pre_audit_error() -> anyhow::Result<()> {
     let cred = seed_admin_credential(&pool, "gw-nokey@example.invalid").await?;
 
     let config = gateway_config(PROVIDER);
-    let mut registry = provider_registry(
+    let registry = catalog_fixture(
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    registry.providers[0].api_key_secret = Some(SecretName::new("definitely_absent_secret_key"));
+        ClientFamily::Claude,
+    )
+    .credential(PROVIDER, platform("definitely_absent_secret_key"))
+    .build();
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
@@ -861,7 +876,7 @@ async fn upstream_4xx_is_recorded_upstream_error() -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
@@ -900,7 +915,7 @@ async fn upstream_5xx_is_recorded_upstream_error() -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
@@ -981,7 +996,7 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(
@@ -1056,7 +1071,7 @@ async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(
@@ -1117,7 +1132,7 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(
@@ -1210,7 +1225,7 @@ async fn dispatch_against_jailbreak_upstream(
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let di = inputs(cred, canonical_request(MODEL, false), false);
     let request_id = di.ctx.ai_request_id.clone();
@@ -1306,7 +1321,7 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let di = inputs(&cred, canonical_request(MODEL, true), true);
     let request_id = di.ctx.ai_request_id.clone();
@@ -1360,7 +1375,7 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let repositories = gw_repos(&pool);
     let first = GatewayService::dispatch(
@@ -1460,7 +1475,7 @@ systemprompt_extension::register_gateway_guard!(CoverageGatewayGuard);
 
 async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(
         &pool,
         &format!("guard-{}@example.invalid", uuid::Uuid::new_v4()),
@@ -1472,14 +1487,19 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
         .expect(0)
         .mount(&upstream)
         .await;
-    let mut registry = provider_registry(
-        &upstream.uri(),
-        PROVIDER,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    registry.providers[0].models[0].id = ModelId::new(model);
-    let di = inputs(&cred, canonical_request(model, false), false);
+    let registry = CatalogFixture::new()
+        .credential(PROVIDER, platform(API_KEY_SECRET))
+        .provider(PROVIDER, ProviderConfig::new(PROVIDER))
+        .endpoint(
+            PROVIDER,
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, upstream.uri()),
+        )
+        .model(model, ModelEntry::new(vec![ClientFamily::Claude]))
+        .deploy(model, [format!("{PROVIDER}/api").as_str()])
+        .build();
+    let mut di = inputs(&cred, canonical_request(model, false), false);
+    di.engines = Arc::new(systemprompt_api::routes::gateway::gateway_engines(&ctx)?);
     let id = di.ctx.ai_request_id.clone();
     let error = GatewayService::dispatch(
         &gateway_config(PROVIDER),
@@ -1532,7 +1552,9 @@ fn owned_gateway_repos(
 ) -> systemprompt_gateway::GatewayRepositories {
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir.path(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
+            .encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("owned gateway journal");
     systemprompt_gateway::GatewayRepositories::new(
@@ -1541,8 +1563,18 @@ fn owned_gateway_repos(
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(pool),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(pool),
+            at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
+                &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
+            )
+            .expect("at-rest cipher"),
+            unapplied_plane: Default::default(),
+        },
     )
 }
 
@@ -1568,6 +1600,7 @@ pub(super) async fn admitted_receipt_fixture(
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     let pool = database.test_pool().await;
+    systemprompt_test_fixtures::record_plane_applied(&pool, "gateway_policies").await?;
     let credential = seed_admin_credential(&pool, &format!("{label}@journal.invalid")).await?;
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
@@ -1586,7 +1619,7 @@ pub(super) async fn admitted_receipt_fixture(
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let dispatch = inputs(&credential, request, false);
@@ -1688,6 +1721,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         systemprompt_test_fixtures::DisposableDb::with_schema("gateway_journal_settlement_retry")
             .await;
     let pool = database.test_pool().await;
+    systemprompt_test_fixtures::record_plane_applied(&pool, "gateway_policies").await?;
     let credential = seed_admin_credential(&pool, "journal-retry@example.invalid").await?;
     let write = pool.write_pool();
     // The fault is scoped to the status transition settlement performs:
@@ -1717,7 +1751,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
@@ -1849,13 +1883,11 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
     Ok(())
 }
 #[tokio::test]
-async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_dispatch()
--> anyhow::Result<()> {
+async fn a_model_absent_from_the_catalog_fails_before_audit_or_dispatch() -> anyhow::Result<()> {
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-no-route@example.invalid").await?;
-    let mut config = gateway_config(PROVIDER);
-    config.routes.clear();
+    let config = gateway_config(PROVIDER);
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(500))
@@ -1866,18 +1898,25 @@ async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_d
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
-    let dispatch = inputs(&cred, canonical_request(MODEL, false), false);
+    let dispatch = inputs(
+        &cred,
+        canonical_request("claude-not-in-catalog", false),
+        false,
+    );
     let request_id = dispatch.ctx.ai_request_id.clone();
 
     let error = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch)
         .await
-        .expect_err("a registry-exposed model still requires a matching gateway route");
+        .expect_err("a model the catalog does not declare is refused");
     match error {
         DispatchError::PreAudit(inner) => assert!(
-            matches!(&inner, systemprompt_gateway::service::GatewayError::NoRoute { model } if model == MODEL),
-            "expected NoRoute, got {inner:?}"
+            matches!(
+                &inner,
+                systemprompt_gateway::service::GatewayError::PolicyDenied(_)
+            ),
+            "expected PolicyDenied, got {inner:?}"
         ),
         other => panic!("expected pre-audit route failure, got {other:?}"),
     }

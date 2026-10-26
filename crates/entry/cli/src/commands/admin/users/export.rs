@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use anyhow::Result;
 use chrono::Utc;
@@ -79,7 +80,7 @@ pub(super) async fn execute_with_pool(
         exported_at: Utc::now(),
     };
 
-    let json = serde_json::to_string_pretty(&output)?;
+    let json = CliService::json_string(&output)?;
 
     if let Some(path) = args.output {
         let mut file = File::create(&path)?;

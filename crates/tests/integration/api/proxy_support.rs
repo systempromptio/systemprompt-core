@@ -2,19 +2,29 @@
 //! reading rows directly so the suites can assert on cache state.
 
 use axum::http::HeaderMap;
-use systemprompt_api::services::proxy::engine::mcp_session::{self, McpResponseCtx};
+use systemprompt_api::services::proxy::service::mcp_session::{self, McpResponseCtx};
 use systemprompt_identifiers::{JwtToken, ServiceName, SessionId, UserId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, UserType};
+use systemprompt_security::at_rest::AtRestCipher;
+use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 use uuid::Uuid;
 
-#[derive(Clone, Debug)]
-pub struct TestSessionCache(McpProxyIdentityRepository);
+#[derive(Clone)]
+pub struct TestSessionCache(McpProxyIdentityRepository, AtRestCipher);
+
+impl std::fmt::Debug for TestSessionCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TestSessionCache").finish_non_exhaustive()
+    }
+}
 
 impl TestSessionCache {
-    pub const fn new(identities: McpProxyIdentityRepository) -> Self {
-        Self(identities)
+    pub fn new(identities: McpProxyIdentityRepository) -> Self {
+        let secrets = ensure_test_secrets_bootstrap().get();
+        let cipher = AtRestCipher::from_secrets(&secrets).expect("at-rest cipher from secrets");
+        Self(identities, cipher)
     }
 
     pub async fn seed(
@@ -26,6 +36,7 @@ impl TestSessionCache {
     ) {
         self.0
             .upsert(
+                &self.1,
                 session_id,
                 &ProxyIdentityRow {
                     user_id: UserId::new(user.to_string()),
@@ -41,7 +52,7 @@ impl TestSessionCache {
 
     pub async fn cached_user(&self, session_id: &SessionId) -> Option<Uuid> {
         self.0
-            .find(session_id)
+            .find(&self.1, session_id)
             .await
             .expect("find proxy identity")
             .and_then(|row| Uuid::parse_str(row.user_id.as_str()).ok())
@@ -56,6 +67,7 @@ pub async fn enrich_with_cached_identity(
 ) -> RequestContext {
     mcp_session::enrich_with_cached_identity(
         &cache.0,
+        &cache.1,
         request_headers,
         req_context,
         &ServiceName::new(service_name),
@@ -78,6 +90,7 @@ pub async fn handle_mcp_response(args: ResponseArgs<'_>) {
     let service_name = ServiceName::new(args.service_name);
     mcp_session::handle_mcp_response(McpResponseCtx {
         identities: &args.cache.0,
+        at_rest: &args.cache.1,
         response: args.response,
         request_headers: args.request_headers,
         req_context: args.req_context,

@@ -64,11 +64,6 @@ async fn audio_render_full_payload_includes_artist_artwork_and_flags() {
     assert!(!resource.html.contains(" muted"));
 }
 
-/// The `<audio>`/`<video>` start tag on its own.
-///
-/// The whole document also contains the renderer's stylesheet and script, so
-/// asserting on it would let a comment mentioning "controls" or "autoplay"
-/// fail a test about the element's attributes.
 fn media_tag<'a>(html: &'a str, tag: &str) -> &'a str {
     let open = format!("<{tag} ");
     let start = html.find(&open).expect("media element present");

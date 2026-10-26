@@ -11,16 +11,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_config::ConfigFingerprint;
-use systemprompt_loader::{ServicesProvenance, ServicesRootBootstrap};
+use systemprompt_loader::BootContext;
+use systemprompt_manifest::services::root::ServicesProvenance;
 
 pub(super) const CONFIG_INFO: &str = "systemprompt_config_info";
 
-pub(crate) fn current() -> Option<ConfigFingerprint> {
-    ConfigFingerprint::current(services_sha())
+pub(crate) fn current(boot: &BootContext) -> Option<ConfigFingerprint> {
+    ConfigFingerprint::current(boot.profile(), boot.secrets(), services_sha(boot))
 }
 
-fn services_sha() -> Option<String> {
-    match ServicesRootBootstrap::get().map(|root| &root.provenance) {
+fn services_sha(boot: &BootContext) -> Option<String> {
+    match boot.services_root().map(|root| &root.provenance) {
         Some(
             ServicesProvenance::Fetched { composed_hash, .. }
             | ServicesProvenance::LastGood { composed_hash, .. },
@@ -36,8 +37,8 @@ pub(super) fn describe() {
     );
 }
 
-pub(super) fn publish(last: &mut Option<ConfigFingerprint>) {
-    let Some(fingerprint) = current() else {
+pub(super) fn publish(boot: &BootContext, last: &mut Option<ConfigFingerprint>) {
+    let Some(fingerprint) = current(boot) else {
         return;
     };
     if last.as_ref() == Some(&fingerprint) {

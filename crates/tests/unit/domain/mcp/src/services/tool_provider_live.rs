@@ -59,7 +59,17 @@ async fn setup(agent: &str) -> (McpToolProvider, McpServerId, MockServer) {
     );
     let _bootstrap = bootstrap_with_services(&yaml);
 
-    let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
+    let provider = McpToolProvider::new(
+        db,
+        RegistryService::new(
+            fixture_user_id(),
+            crate::harness::services_state().view(),
+            crate::harness::config(),
+        ),
+        &resilience(),
+        std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    );
     (
         provider,
         McpServerId::try_new(&server_name).expect("valid McpServerId"),
@@ -206,7 +216,17 @@ async fn list_tools_tolerates_unreachable_server() {
     );
     let _bootstrap = bootstrap_with_services(&yaml);
 
-    let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
+    let provider = McpToolProvider::new(
+        db,
+        RegistryService::new(
+            fixture_user_id(),
+            crate::harness::services_state().view(),
+            crate::harness::config(),
+        ),
+        &resilience(),
+        std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    );
     let tools = provider
         .list_tools(
             &AgentName::try_new("tp_agent_down").expect("valid AgentName"),
@@ -248,7 +268,17 @@ async fn list_tools_keeps_healthy_server_inventory_when_another_assigned_server_
         ])
     );
     let _bootstrap = bootstrap_with_services(&yaml);
-    let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
+    let provider = McpToolProvider::new(
+        db,
+        RegistryService::new(
+            fixture_user_id(),
+            crate::harness::services_state().view(),
+            crate::harness::config(),
+        ),
+        &resilience(),
+        std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    );
 
     let inventory = provider
         .list_tools(

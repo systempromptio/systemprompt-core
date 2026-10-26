@@ -7,12 +7,13 @@ use std::path::Path;
 
 use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_loader::ExtensionLoader;
-use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
+use systemprompt_manifest::profile::{
+    ProfileResult, SecretsConfig, SecretsSource, SecretsValidationMode,
+};
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
-    CloudConfig, CloudValidationMode, ContentNegotiationConfig, ExtensionsConfig, PathsConfig,
-    Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig, SecurityHeadersConfig,
-    ServerConfig, SiteConfig,
+    CloudConfig, CloudValidationMode, ExtensionsConfig, PathsConfig, Profile,
+    ProfileDatabaseConfig, ProfileType, RateLimitsConfig, ServerConfig, SiteConfig,
 };
 
 use super::{generate_display_name, local_runtime_config, security_config, webhook_governance};
@@ -47,16 +48,14 @@ impl LocalProfileBuilder {
         self
     }
 
-    #[must_use]
-    pub fn build(self) -> Profile {
+    pub fn build(self) -> ProfileResult<Profile> {
         let ctx = ProjectContext::discover();
         let root = ctx.root();
         let system_path = root.to_string_lossy().to_string();
         let display_name = generate_display_name(&self.name);
         let local_url = format!("http://localhost:{}", consts::DEFAULT_PORT);
-        let internal_url = local_url.clone();
 
-        Profile {
+        let mut profile = Profile {
             storage: systemprompt_manifest::profile::StorageConfig::default(),
             observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
             config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
@@ -73,9 +72,10 @@ impl LocalProfileBuilder {
                 migrate_on_boot: true,
                 pool: None,
             },
-            security: security_config(&local_url, Vec::new(), true),
+            security: security_config(Vec::new(), true),
             server: local_server_config(local_url),
             paths: PathsConfig {
+                root: None,
                 system: system_path,
                 services: self.services_path,
                 bin: ExtensionLoader::resolve_bin_directory(root, None)
@@ -105,7 +105,7 @@ impl LocalProfileBuilder {
                 refresh_secs: None,
             }),
             extensions: ExtensionsConfig::default(),
-            governance: Some(webhook_governance(&internal_url)),
+            governance: Some(webhook_governance()),
             services: systemprompt_manifest::profile::ServicesProfileConfig::default(),
             judge: systemprompt_manifest::profile::JudgeProfile::default(),
             retention: systemprompt_manifest::profile::RetentionConfig::default(),
@@ -113,27 +113,16 @@ impl LocalProfileBuilder {
                 username: "admin".to_owned(),
                 email: Some(Email::local_admin()),
             },
-        }
+        };
+        profile.derive_fields()?;
+        Ok(profile)
     }
 }
 
 fn local_server_config(local_url: String) -> ServerConfig {
-    ServerConfig {
-        host: consts::LOCAL_HOST.to_owned(),
-        port: consts::DEFAULT_PORT,
-        api_server_url: local_url.clone(),
-        api_internal_url: local_url.clone(),
-        api_external_url: local_url.clone(),
-        use_https: false,
-        cors_allowed_origins: vec![local_url, "http://localhost:5173".to_owned()],
-        content_negotiation: ContentNegotiationConfig::default(),
-        security_headers: SecurityHeadersConfig::default(),
-        instance_id: None,
-        metrics_port: None,
-        max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
-        role: systemprompt_manifest::profile::NodeRole::All,
-        max_in_flight: None,
-        shutdown: systemprompt_manifest::profile::ShutdownConfig::default(),
-        trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
-    }
+    let mut server = ServerConfig::new(consts::LOCAL_HOST, consts::DEFAULT_PORT, local_url);
+    server.extra_cors_origins = vec!["http://localhost:5173".to_owned()];
+    server.role = systemprompt_manifest::profile::NodeRole::All;
+    server.trusted_proxies = crate::trusted_proxies::default_local_trusted_proxies();
+    server
 }

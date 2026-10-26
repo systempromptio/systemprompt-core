@@ -3,7 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::proxy::ProxyEngine;
+use std::sync::Arc;
+
+use crate::services::proxy::ProxyService;
 use axum::Router;
 use axum::extract::Path;
 use axum::routing::any;
@@ -11,7 +13,13 @@ use systemprompt_runtime::AppContext;
 
 pub fn router(ctx: &AppContext) -> Router {
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let engine = ProxyEngine::new(identities);
+    let engine = ProxyService::new(
+        identities,
+        Arc::clone(ctx.connector_tokens()),
+        &ctx.services_state().view(),
+        Arc::clone(ctx.config_arc()),
+        Arc::clone(ctx.secrets()),
+    );
     let engine_with_path = engine.clone();
 
     Router::new()
@@ -20,8 +28,7 @@ pub fn router(ctx: &AppContext) -> Router {
             any(move |Path(service_name): Path<String>, state, request| {
                 let engine = engine.clone();
                 async move {
-                    engine
-                        .handle_agent_request(Path((service_name,)), state, request)
+                    Box::pin(engine.handle_agent_request(Path((service_name,)), state, request))
                         .await
                 }
             }),
@@ -32,13 +39,12 @@ pub fn router(ctx: &AppContext) -> Router {
                 move |Path((service_name, path)): Path<(String, String)>, state, request| {
                     let engine = engine_with_path.clone();
                     async move {
-                        engine
-                            .handle_agent_request_with_path(
-                                Path((service_name, path)),
-                                state,
-                                request,
-                            )
-                            .await
+                        Box::pin(engine.handle_agent_request_with_path(
+                            Path((service_name, path)),
+                            state,
+                            request,
+                        ))
+                        .await
                     }
                 },
             ),

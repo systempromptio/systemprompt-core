@@ -1,11 +1,11 @@
 //! `FileIngestionJob::execute` branches: full scan/insert/skip cycle against
-//! the bootstrap storage tree, missing pool, missing global config, missing
+//! the bootstrap storage tree, missing pool, missing injected config, missing
 //! images directory, and repository failures via closed pools.
 
 use std::sync::Arc;
 
 use systemprompt_database::{Database, DbPool};
-use systemprompt_files::{FileIngestionJob, FileRepository, FilesConfig};
+use systemprompt_files::{FileIngestionJob, FileRepository};
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, test_database_url, test_db_pool, test_pg_pool,
@@ -18,14 +18,19 @@ fn job_ctx(dependencies: Dependencies) -> JobContext {
 }
 
 fn pool_ctx(pool: &DbPool) -> JobContext {
-    job_ctx(Dependencies::new().with(Arc::clone(pool)))
+    let files_config = Arc::new(ensure_test_bootstrap().files_config());
+    job_ctx(
+        Dependencies::new()
+            .with(Arc::clone(pool))
+            .with(files_config),
+    )
 }
 
 #[tokio::test]
 async fn execute_ingests_images_then_skips_on_rerun() {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let cfg = FilesConfig::get().expect("bootstrap initialised FilesConfig");
+    let cfg = b.files_config();
     let generated = cfg.generated_images();
     std::fs::create_dir_all(&generated).expect("mkdir generated");
 
@@ -111,19 +116,18 @@ async fn execute_without_db_pool_is_configuration_error() {
 }
 
 #[tokio::test]
-async fn execute_without_files_config_is_configuration_error() {
-    // No bootstrap: FilesConfig::get() must fail in this process.
+async fn execute_without_files_config_is_a_missing_dependency() {
     let read = sqlx::PgPool::connect(&test_database_url())
         .await
         .expect("read pool");
     let pool: DbPool = Arc::new(Database::from_pools(Arc::new(read), None));
 
     let job = FileIngestionJob::new();
-    let ctx = pool_ctx(&pool);
+    let ctx = job_ctx(Dependencies::new().with(Arc::clone(&pool)));
     let err = job.execute(&ctx).await.expect_err("config missing");
     let message = err.to_string();
     assert!(
-        message.contains("FilesConfig::init() not called"),
+        message.contains("FilesConfig") && message.contains("dependency"),
         "unexpected error: {message}"
     );
 }

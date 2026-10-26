@@ -1,5 +1,7 @@
 use super::sandbox::{Sandbox, argv};
+use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::cli::run_with_args;
+use systemprompt_test_fixtures::install_headless_keystore;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -51,29 +53,6 @@ fn gateway() -> Gateway {
         uri,
         runtime,
     }
-}
-
-// The bridge's own lazy platform-store bootstrap must stand down before the
-// first entry is created, so a headless store is installed here instead. Linux
-// CI gets the kernel keyring, which needs no Secret Service daemon; elsewhere
-// the in-memory mock plays the same role without reaching for the platform
-// keychain, which would prompt or fail on a developer's machine.
-#[cfg(target_os = "linux")]
-fn use_headless_keystore() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(
-            linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
-        );
-    });
-}
-
-#[cfg(not(target_os = "linux"))]
-fn use_headless_keystore() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
-    });
 }
 
 fn authenticated<R>(gw: &Gateway, sb: &Sandbox, f: impl FnOnce() -> R) -> R {
@@ -139,11 +118,11 @@ fn run_emits_the_credential_envelope_for_a_configured_pat() {
 #[test]
 fn oauth_client_rotate_provisions_and_persists_the_client() {
     let gw = gateway();
-    use_headless_keystore();
+    install_headless_keystore();
     let sb = Sandbox::new();
     authenticated(&gw, &sb, || {
         let _ = run_with_args(&argv(&["oauth-client", "rotate"]));
-        let creds = systemprompt_bridge::auth::plugin_oauth::load_creds()
+        let creds = systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
             .expect("creds load")
             .expect("rotate persists the provisioned client");
         assert_eq!(creds.client_id.as_str(), "client-abc");
@@ -169,7 +148,7 @@ fn a_gateway_that_rejects_the_pat_leaves_no_oauth_client_behind() {
     });
     let uri = server.uri();
 
-    use_headless_keystore();
+    install_headless_keystore();
     let sb = Sandbox::new();
     sb.write_gateway(&uri);
     let mut vars = sb.vars();
@@ -181,7 +160,8 @@ fn a_gateway_that_rejects_the_pat_leaves_no_oauth_client_behind() {
         let _ = run_with_args(&argv(&["oauth-client", "rotate"]));
         let _ = run_with_args(&argv(&["whoami"]));
         let _ = run_with_args(&argv(&["run"]));
-        systemprompt_bridge::auth::plugin_oauth::load_creds().expect("creds load")
+        systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
+            .expect("creds load")
     });
     assert!(
         creds.is_none(),
@@ -315,7 +295,7 @@ fn a_sync_whose_manifest_is_refused_leaves_no_sentinel() {
 
 #[test]
 fn failed_oauth_client_rotation_preserves_the_last_working_client() {
-    use_headless_keystore();
+    install_headless_keystore();
     let healthy = gateway();
     let sb = Sandbox::new();
     authenticated(&healthy, &sb, || {
@@ -323,7 +303,7 @@ fn failed_oauth_client_rotation_preserves_the_last_working_client() {
         assert_eq!(status, std::process::ExitCode::SUCCESS);
     });
     let before = sb.run(|| {
-        systemprompt_bridge::auth::plugin_oauth::load_creds()
+        systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
             .expect("credential read")
             .expect("healthy rotation stores credentials")
     });
@@ -351,7 +331,7 @@ fn failed_oauth_client_rotation_preserves_the_last_working_client() {
     assert_eq!(status, std::process::ExitCode::from(1));
 
     let after = sb.run(|| {
-        systemprompt_bridge::auth::plugin_oauth::load_creds()
+        systemprompt_bridge::auth::plugin_oauth::load_creds(&SecretStore::resolve())
             .expect("credential read after refusal")
             .expect("last working credential remains")
     });

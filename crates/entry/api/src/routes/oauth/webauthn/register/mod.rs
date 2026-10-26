@@ -17,8 +17,8 @@ use systemprompt_manifest::Config;
 
 use crate::routes::oauth::OAuthHttpError;
 
-fn ensure_registration_enabled() -> Result<(), OAuthHttpError> {
-    if Config::get()?.allow_registration {
+fn ensure_registration_enabled(config: &Config) -> Result<(), OAuthHttpError> {
+    if config.allow_registration {
         Ok(())
     } else {
         Err(OAuthHttpError::access_denied("registration_disabled")

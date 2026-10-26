@@ -7,23 +7,18 @@ use anyhow::Result;
 use base64::Engine;
 use clap::Args;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use systemprompt_config::SecretsBootstrap;
+use systemprompt_config::SecretsService;
 use systemprompt_logging::CliService;
 
 use super::types::SigningKeyRotatedOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct RotateSigningKeyArgs;
 
-pub(super) async fn execute(
-    _args: RotateSigningKeyArgs,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    SecretsBootstrap::try_init().await?;
-
-    let seed = SecretsBootstrap::rotate_manifest_signing_seed()?;
+pub(super) fn execute(_args: RotateSigningKeyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let seed = SecretsService::rotate_manifest_signing_seed(ctx.loaded_profile()?)?;
     let key = SigningKey::from_bytes(&seed);
     let verifying: VerifyingKey = key.verifying_key();
     let pubkey_b64 = base64::engine::general_purpose::STANDARD.encode(verifying.to_bytes());

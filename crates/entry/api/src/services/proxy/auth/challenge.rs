@@ -18,8 +18,9 @@ use serde_json::json;
 use crate::services::proxy::backend::ProxyError;
 use crate::services::request_base_url::resolve as resolve_request_base_url;
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
@@ -29,11 +30,14 @@ pub(super) struct AuthValidator;
 
 impl AuthValidator {
     pub(super) fn validate_service_access(
+        authority: &dyn TokenAuthority,
+        config: &Config,
         headers: &HeaderMap,
         service_name: &ServiceName,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let result = AuthService::authorize_service_access(headers, service_name);
+        let result =
+            AuthService::authorize_service_access(authority, config, headers, service_name);
 
         if let Err(status) = &result {
             let trace_id =
@@ -144,8 +148,14 @@ pub(crate) fn build_mcp_unknown_service_challenge(
     ctx: &AppContext,
     req_context: Option<&RequestContext>,
 ) -> Option<ProxyError> {
-    let status_code =
-        AuthValidator::validate_service_access(headers, service_name, req_context).err()?;
+    let status_code = AuthValidator::validate_service_access(
+        ctx.token_authority().as_ref(),
+        ctx.config(),
+        headers,
+        service_name,
+        req_context,
+    )
+    .err()?;
     let resource_path = ApiPaths::mcp_server_endpoint(service_name.as_str());
     let has_authorization = headers.get(AUTHORIZATION).is_some();
     Some(challenge_or_error(&ChallengeRequest {

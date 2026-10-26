@@ -10,7 +10,7 @@ use tokio::runtime::{Handle, Runtime};
 
 
 use crate::activity::ActivityLog;
-use crate::auth::plugin_oauth::PluginTokenCache;
+use crate::auth::plugin_oauth::{PluginTokenCache, SecretStore};
 use crate::gateway::GatewayClient;
 use crate::mcp_registry::{self, McpRegistrySlot};
 pub use crate::obs::StartupFault;
@@ -93,7 +93,7 @@ impl BridgeContext {
             Err(e) => faults.push(StartupFault::new("mcp registry cache", e)),
         }
         let http = crate::gateway::build_http_client();
-        let plugin_tokens = Arc::new(PluginTokenCache::default());
+        let plugin_tokens = Arc::new(PluginTokenCache::new(SecretStore::resolve()));
         let (install_id, install_id_durable) = match InstallId::establish() {
             Ok(id) => (id, true),
             Err(e) => {
@@ -147,6 +147,11 @@ impl BridgeContext {
     #[must_use]
     pub fn durable_install_id(&self) -> Option<&InstallId> {
         self.install_id_durable.then(|| self.install_id())
+    }
+
+    #[must_use]
+    pub fn secrets(&self) -> &SecretStore {
+        self.plugin_tokens.secrets()
     }
 
     #[must_use]

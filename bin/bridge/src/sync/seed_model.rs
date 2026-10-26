@@ -9,18 +9,20 @@ use super::SyncError;
 pub(super) async fn seed_default_model_from_profile(
     client: &crate::gateway::GatewayClient,
 ) -> Result<(), SyncError> {
-    let profile = match client
-        .fetch_bridge_profile(crate::auth::cache::cached_bearer(client.base_url()).as_ref())
-        .await
-    {
+    let profile = match crate::auth::profile::fetch_signed_in(client).await {
         Ok(profile) => profile,
         // Why: a gateway older than the profile endpoint has no default model
         // to seed; the sync itself completed and its checkpoint is written.
-        Err(crate::gateway::GatewayError::Rejected {
-            status: reqwest::StatusCode::NOT_FOUND,
-            ..
-        }) => return Ok(()),
-        Err(e) => return Err(SyncError::Gateway(e)),
+        Err(crate::auth::profile::ProfileFetchError::Gateway(
+            crate::gateway::GatewayError::Rejected {
+                status: reqwest::StatusCode::NOT_FOUND,
+                ..
+            },
+        )) => return Ok(()),
+        Err(crate::auth::profile::ProfileFetchError::Gateway(e)) => {
+            return Err(SyncError::Gateway(e));
+        },
+        Err(e) => return Err(SyncError::Profile(e)),
     };
     let rows =
         crate::install::mdm::claude_code_settings::model_picker::picker_rows(&profile.providers);

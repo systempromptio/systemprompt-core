@@ -19,11 +19,12 @@ use systemprompt_api::routes::gateway::messages::extract::attribution::{
     AttributionHeaders, classify_client, entry_origin,
 };
 use systemprompt_api::routes::gateway::messages::extract::headers::{
-    optional_gateway_conversation_id, read_gateway_body, require_session_id,
+    optional_gateway_conversation_id, optional_session_id, read_gateway_body,
 };
 use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalTooling, Role,
 };
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
@@ -74,22 +75,28 @@ fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
         system: Vec::new(),
         messages,
         max_tokens: 16,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -101,31 +108,19 @@ fn user_message(text: &str) -> CanonicalMessage {
 }
 
 #[test]
-fn a_missing_session_header_is_a_400_naming_the_header() {
-    let RejectionError {
-        status, message, ..
-    } = require_session_id(&HeaderMap::new()).expect_err("the session header is mandatory");
-
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(message.contains(SESSION_ID), "{message}");
-    assert!(message.contains("missing required"), "{message}");
+fn a_missing_session_header_leaves_the_choice_to_the_credential() {
+    assert!(optional_session_id(&HeaderMap::new()).is_none());
 }
 
 #[test]
-fn a_blank_session_header_is_rejected_rather_than_treated_as_present() {
-    let RejectionError {
-        status, message, ..
-    } = require_session_id(&headers_with(SESSION_ID, "   "))
-        .expect_err("whitespace is not a session id");
-
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(message.contains("empty"), "{message}");
+fn a_blank_session_header_is_treated_as_absent() {
+    assert!(optional_session_id(&headers_with(SESSION_ID, "   ")).is_none());
 }
 
 #[test]
 fn a_session_header_is_trimmed_before_it_becomes_an_id() {
-    let session = require_session_id(&headers_with(SESSION_ID, "  sess_abc  "))
-        .expect("a padded but non-empty header is valid");
+    let session = optional_session_id(&headers_with(SESSION_ID, "  sess_abc  "))
+        .expect("a padded but non-empty header names a session");
 
     assert_eq!(session.as_str(), "sess_abc");
 }
@@ -411,16 +406,10 @@ fn raw_header(name: &'static str, bytes: &[u8]) -> HeaderMap {
 }
 
 #[test]
-fn a_session_header_that_is_not_utf8_is_a_400_rather_than_a_panic() {
+fn a_session_header_that_is_not_utf8_is_treated_as_absent_rather_than_a_panic() {
     let headers = raw_header(SESSION_ID, &[0xC3, 0x28]);
 
-    let RejectionError {
-        status, message, ..
-    } = require_session_id(&headers).expect_err("a non-UTF-8 header value cannot name a session");
-
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(message.contains(SESSION_ID), "{message}");
-    assert!(message.contains("invalid"), "{message}");
+    assert!(optional_session_id(&headers).is_none());
 }
 
 #[test]

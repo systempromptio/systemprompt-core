@@ -10,24 +10,34 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
+use super::readiness::ReadinessState;
 use super::routes::configure_routes;
 use crate::services::middleware::{
     AnalyticsMiddleware, CorsMiddleware, LoadShed, PublicContextMiddleware, SessionMiddleware,
     inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
 };
 
-pub use super::discovery::*;
+pub use super::discovery::{
+    authenticated_discovery_router, discovery_router, handle_agents_discovery,
+    handle_core_discovery, handle_mcp_discovery, handle_root_discovery, probes_router,
+};
 pub use super::health::handle_health;
 
-pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<Router> {
-    let profile = systemprompt_config::ProfileBootstrap::get()?;
-    let services_cache = systemprompt_loader::bundle::cache_root(profile);
+pub fn setup_api_server(
+    ctx: &AppContext,
+    events: Option<&StartupEventSender>,
+    readiness: &Arc<ReadinessState>,
+) -> Result<Router> {
+    let services_cache = systemprompt_loader::bundle::cache_root(ctx.profile());
     systemprompt_config::ensure_state_dirs_writable(
         &ctx.app_paths()
             .writable_roots(ctx.config().role, &services_cache),
@@ -41,21 +51,27 @@ pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -
         tx.warning("Rate limiting disabled - development mode only");
     }
 
-    register_artifact_scanner(ctx);
-    let router = configure_routes(ctx, events)?;
+    let engines = Arc::new(crate::routes::gateway::gateway_engines(ctx)?);
+    register_artifact_scanner(ctx, &engines);
+    let router =
+        configure_routes(ctx, events, &engines)?.layer(axum::Extension(Arc::clone(readiness)));
     apply_global_middleware(router, ctx)
 }
 
 // Why: the ingest is built by the runtime, which cannot see the gateway's
 // scanner registry; the composition root closes the loop here so every tool
 // result — from any vantage point — is scanned by the installation's policy.
-fn register_artifact_scanner(ctx: &AppContext) {
+fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
     let resolver = systemprompt_gateway::PolicyResolver::from_repository(
         ctx.ai_repositories().gateway_policies.clone(),
         ctx.cache_epochs().clone(),
+        ctx.profile().unapplied_plane_mode(),
     );
-    ctx.artifact_ingest().register_scanner(std::sync::Arc::new(
-        systemprompt_gateway::GatewayArtifactScanner::new(resolver),
+    ctx.artifact_ingest().register_scanner(Arc::new(
+        systemprompt_gateway::GatewayArtifactScanner::new(
+            resolver,
+            Arc::clone(&engines.scanner_registry),
+        ),
     ));
 }
 
@@ -63,7 +79,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     let mut router = router;
 
     if let Some(max) = ctx.config().max_in_flight {
-        let shed = std::sync::Arc::new(LoadShed::new(max));
+        let shed = Arc::new(LoadShed::new(max));
         router = router.layer(axum::middleware::from_fn_with_state(
             shed,
             crate::services::middleware::load_shed::shed,
@@ -103,7 +119,10 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
 
     router = router.layer(axum::middleware::from_fn(inject_trace_header));
 
-    router = router.layer(axum::middleware::from_fn(inject_served_by));
+    router = router.layer(axum::middleware::from_fn_with_state(
+        ctx.config().instance_id.clone(),
+        inject_served_by,
+    ));
 
     router = router.layer(axum::middleware::from_fn(
         crate::services::middleware::strip_caller_purpose,
@@ -123,5 +142,5 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         }));
     }
 
-    Ok(router)
+    Ok(router.layer(axum::Extension(Arc::clone(ctx.config_arc()))))
 }

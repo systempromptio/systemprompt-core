@@ -9,12 +9,11 @@ use std::path::PathBuf;
 use systemprompt_analytics::TrafficAnalyticsRepository;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
+use systemprompt_users::SessionTrafficRollupRepository;
 
 use super::{GeoOutput, GeoRow};
 use crate::CliConfig;
-use crate::commands::analytics::shared::{
-    export_to_csv, format_date_range, parse_time_range, resolve_export_path,
-};
+use crate::commands::analytics::shared::{export_to_csv, format_date_range, parse_time_range};
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -43,7 +42,10 @@ pub(super) async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = TrafficAnalyticsRepository::new(
+        db_ctx.db_pool(),
+        std::sync::Arc::new(SessionTrafficRollupRepository::new(db_ctx.db_pool())),
+    );
     execute_internal(args, &repo).await
 }
 
@@ -83,9 +85,8 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_to_csv(&output.countries, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_to_csv(&output.countries, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(CommandOutput::table_of(
             vec!["country", "session_count", "percentage"],
             &output.countries,

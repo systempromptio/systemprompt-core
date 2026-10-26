@@ -28,7 +28,7 @@ fn absent_floor_reads_back_none() {
 #[test]
 fn preserves_typed_payload_alongside_floor() {
     let model = ModelId::new("claude");
-    let ctx = AuthzContext::gateway_invocation(&model).with_marketplace_floor(&floor());
+    let ctx = AuthzContext::gateway_invocation(&model, None).with_marketplace_floor(&floor());
 
     assert_eq!(ctx.marketplace_floor(), Some(floor()));
     assert_eq!(
@@ -71,6 +71,7 @@ mod resolution {
             external_marketplaces: vec![],
             external_plugins: vec![],
             claude_code: None,
+            opencode: None,
         }
     }
 

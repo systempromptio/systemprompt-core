@@ -65,7 +65,7 @@ impl AnalyticsMiddleware {
         let repositories = app_context.analytics_repositories();
         let sessions = Arc::clone(&repositories.session_store);
         let signals = Arc::new(repositories.session_signals.clone());
-        let analytics_repo = Arc::new(AnalyticsRepository::new(app_context.db_pool()));
+        let analytics_repo = Arc::clone(&repositories.event_log);
         let route_classifier = Arc::clone(app_context.route_classifier());
 
         Self {

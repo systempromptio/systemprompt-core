@@ -3,7 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{Arc, DataPlane, RuntimeResult, UserService};
+use super::authz::PluginInputs;
+use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
+use crate::context::Plugins;
+use systemprompt_database::DbPool;
+use systemprompt_extension::ExtensionRegistry;
+use systemprompt_loader::{BootContext, ServicesState};
+use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_security::at_rest::AtRestCipher;
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
@@ -78,23 +86,30 @@ impl RepositoryBundles {
 }
 
 pub(super) fn build_repositories(
-    database: &systemprompt_database::DbPool,
+    database: &DbPool,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     instance_id: systemprompt_identifiers::InstanceId,
-) -> RepositoryBundles {
+    publication: systemprompt_marketplace::managed::PublicationPolicy,
+    secrets: &systemprompt_manifest::secrets::Secrets,
+) -> RuntimeResult<RepositoryBundles> {
+    let cipher = AtRestCipher::from_secrets(secrets)?;
+    let pepper: Arc<str> = Arc::from(secrets.oauth_at_rest_pepper.as_str());
     let session_store = Arc::clone(&analytics.session_store);
     let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
-    let managed = Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
-        database,
+    let managed = Arc::new(
+        systemprompt_marketplace::managed::ManagedRepository::new(database)
+            .with_publication_policy(publication),
+    );
+    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(
+        database, cipher,
     ));
-    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database));
     let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
         systemprompt_mcp::repository::ToolUsageRepository::new(database),
     );
     let managed_resolver: systemprompt_traits::DynManagedSkillResolver = Arc::new(
         systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.as_ref().clone()),
     );
-    RepositoryBundles {
+    Ok(RepositoryBundles {
         a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
             database,
             systemprompt_agent::repository::A2aDependencies {
@@ -108,7 +123,7 @@ pub(super) fn build_repositories(
             database,
         )),
         oauth: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
-            database,
+            database, pepper,
         )),
         users: Arc::new(systemprompt_users::UserRepository::new(database)),
         services: Arc::new(systemprompt_database::ServiceRepository::new(
@@ -126,12 +141,10 @@ pub(super) fn build_repositories(
             database,
         )),
         managed,
-    }
+    })
 }
 
-pub fn owner_reassignments(
-    database: &systemprompt_database::DbPool,
-) -> Vec<systemprompt_traits::DynOwnerReassignment> {
+pub fn owner_reassignments(database: &DbPool) -> Vec<systemprompt_traits::DynOwnerReassignment> {
     let logging = systemprompt_logging::LoggingOwnerReassignment::new(database);
     let events =
         systemprompt_events::EventsOwnerReassignment::new(database.write_pool().as_ref().clone());
@@ -151,4 +164,71 @@ pub fn owner_reassignments(
         Arc::new(logging),
         Arc::new(events),
     ]
+}
+
+pub(super) fn new_plugins(
+    extension_registry: Arc<ExtensionRegistry>,
+    mcp_registry: RegistryService,
+    marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
+    inputs: &PluginInputs,
+) -> Plugins {
+    let factory_ctx = &inputs.factory;
+    Plugins {
+        extension_registry,
+        mcp_registry,
+        marketplace_filter: marketplace_filter
+            .unwrap_or_else(|| assembly::build_marketplace_filter(factory_ctx)),
+        marketplace_cache: Arc::default(),
+        subject_providers: inputs.subject_providers.clone(),
+        subjects: factory_ctx.subjects.clone(),
+    }
+}
+
+pub(super) fn build_artifact_ingest(
+    database: &DbPool,
+    governance: &systemprompt_governance::policy::GovernanceEngine,
+) -> Arc<systemprompt_mcp::ArtifactIngest> {
+    let scanner = governance.secret_scanner().map(|s| Arc::new(s.clone()));
+    Arc::new(systemprompt_mcp::ArtifactIngest::from_db(database, scanner))
+}
+
+pub(super) async fn build_domain_layer(
+    boot: &BootContext,
+    database: &DbPool,
+    analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+    policy: systemprompt_marketplace::managed::PublicationPolicy,
+    services: &ServicesState,
+) -> RuntimeResult<(
+    RepositoryBundles,
+    Arc<UserService>,
+    Arc<systemprompt_manifest::SystemAdmin>,
+    RegistryService,
+)> {
+    let config = boot.config()?;
+    let mut repositories = build_repositories(
+        database,
+        analytics_repositories,
+        config.instance_id.clone(),
+        policy,
+        &boot.secrets().get(),
+    )?;
+    let user_service = Arc::new(
+        UserService::new(Arc::clone(&repositories.users))
+            .with_owner_reassignments(owner_reassignments(database)),
+    );
+    let system_admin = assembly::load_system_admin(config, &user_service).await?;
+    repositories.install_organization_resolver(system_admin.id());
+    let mcp_registry = RegistryService::new(
+        system_admin.id().clone(),
+        services.view(),
+        Arc::clone(config),
+    );
+    ensure_legacy_context(&repositories, &system_admin).await?;
+    Ok((repositories, user_service, system_admin, mcp_registry))
+}
+
+pub(super) fn new_spawner() -> RuntimeResult<Arc<systemprompt_loader::subprocess::Spawner>> {
+    systemprompt_loader::subprocess::Spawner::new()
+        .map(Arc::new)
+        .map_err(crate::error::RuntimeError::Spawner)
 }

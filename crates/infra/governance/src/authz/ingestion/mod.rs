@@ -1,73 +1,56 @@
-//! Bootstrap-time projection of [`AccessControlConfig`] into the two-table
-//! authz schema (`access_control_entities` + `access_control_rules`).
+//! Projection of the services tree's own access declarations into the
+//! two-table authz schema: messaging app seeds.
 //!
-//! This is the sanctioned YAML → DB ingestion path for authorization rules.
-//! Direction is fixed (YAML → DB). Per-user overrides (`rule_type='user'`) are
-//! runtime state and are *never* touched here, regardless of `delete_orphans`.
-//!
-//! Each rule's target is resolved before any write: a literal `entity_id` maps
-//! to itself; an `entity_match` glob is expanded against the entities already
-//! in the catalog for that kind (see [`super::config::RuleTarget`]). Every
-//! resolved id is upserted into `access_control_entities` carrying the rule's
-//! `default_included` flag — so the FK on `access_control_rules` is satisfied
-//! and the resolver never sees the entity as `UnknownEntity`. For a kind the
-//! caller enforces through [`RegisteredEntities`], a literal id outside the
-//! registered set is rejected before any write instead of materialised.
-//! Nothing is written when that check fails: resolution runs inside the
-//! transaction but before every write, so the error rolls back an empty one.
+//! `services/access-control/rules.yaml` and marketplace `access` blocks are not
+//! ingested here; they are the `access_control` config plane, applied
+//! explicitly by `config apply`.
 //!
 //! # Ownership
 //!
 //! Every rule row records the pass that wrote it in `access_control_rules
-//! .source` — `yaml` for the baked services tree, `bundle:<name>` for a
-//! fetched services bundle, `dashboard` for an operator edit. Three rules
-//! follow from that column:
+//! .source`, in the closed vocabulary (`code:<file>` for the baked tree,
+//! `bundle:<name>` for a fetched services bundle, `console:<user>` for an
+//! operator edit, `migration`). Three rules follow from that column:
 //!
-//! * a `dashboard` row is never updated and never pruned by ingestion; it is
+//! * a `console:` row is never updated and never pruned by ingestion; it is
 //!   reported as [`IngestReport::protected`] and left exactly as the operator
 //!   left it;
 //! * `delete_orphans` prunes only rows whose `source` is this pass's own and
 //!   whose entity falls inside the caller's [`IngestScope`], so one bundle
 //!   cannot revoke another's grants;
-//! * `rule_type = 'user'` rows are runtime state and stay untouched everywhere,
-//!   as before.
+//! * `rule_type = 'user'` rows are runtime state and stay untouched everywhere.
 //!
 //! After the writes, every `role` value the pass mentioned is checked against
 //! the users table and the ones nobody holds are warned about and returned in
-//! [`IngestReport::unknown_subjects`]. Only the role dimension is checkable in
-//! core: roles live in the users table, while group and project dimensions are
-//! extension-owned and have no core table to check against.
+//! [`IngestReport::unknown_subjects`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod catalog;
 pub mod glob;
-mod marketplace;
 mod messaging;
-mod resolve;
 mod scope;
 mod subjects;
 mod upsert;
 
-use std::collections::BTreeSet;
 use std::sync::Arc;
+use systemprompt_traits::SecretStore;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
+use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::authz::SubjectSourceHandle;
 
-use super::config::AccessControlConfig;
-use super::error::{AuthzError, AuthzResult};
+use super::audit::NullAuditSink;
+use super::registry::AuthzHookContext;
 use super::subject_directory::{RoleDirectory, SharedRoleDirectory, discover_role_directory};
-use super::types::RuleType;
 
 pub use catalog::RegisteredEntities;
-use resolve::{prune_role_rules, resolve_rules};
 pub use scope::IngestScope;
 pub use subjects::UnknownSubject;
-use subjects::{SubjectMention, find_unknown_subjects};
-pub use upsert::{DASHBOARD_SOURCE, YAML_SOURCE};
-use upsert::{SOURCE_LABEL, Target, UpsertOutcome, upsert_entity_row, upsert_target};
+use upsert::UpsertOutcome;
+pub use upsert::{CONSOLE_SOURCE_PREFIX, SERVICES_SOURCE};
 
 #[derive(Debug, Clone)]
 pub struct IngestOptions {
@@ -82,7 +65,7 @@ impl Default for IngestOptions {
         Self {
             override_existing: false,
             delete_orphans: false,
-            source: YAML_SOURCE.to_owned(),
+            source: SERVICES_SOURCE.to_owned(),
             scope: IngestScope::default(),
         }
     }
@@ -114,13 +97,29 @@ pub struct AccessControlIngestionService {
 }
 
 impl AccessControlIngestionService {
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(
+        db: &DbPool,
+        services: ServicesView,
+        subjects: SubjectSourceHandle,
+        secrets: Arc<dyn SecretStore>,
+    ) -> Self {
         let write_pool = db.write_pool();
-        Self::from_pool(write_pool)
+        Self::from_pool(write_pool, services, subjects, secrets)
     }
 
-    pub fn from_pool(pool: Arc<PgPool>) -> Self {
-        let role_directory = discover_role_directory(&pool);
+    pub fn from_pool(
+        pool: Arc<PgPool>,
+        services: ServicesView,
+        subjects: SubjectSourceHandle,
+        secrets: Arc<dyn SecretStore>,
+    ) -> Self {
+        let role_directory = discover_role_directory(&AuthzHookContext {
+            pool: Arc::clone(&pool),
+            sink: Arc::new(NullAuditSink),
+            services,
+            subjects,
+            secrets,
+        });
         Self {
             write_pool: pool,
             role_directory,
@@ -129,97 +128,5 @@ impl AccessControlIngestionService {
 
     fn role_directory(&self) -> Option<&dyn RoleDirectory> {
         self.role_directory.as_deref()
-    }
-
-    pub async fn ingest_config_from_yaml_path(
-        &self,
-        yaml_path: &std::path::Path,
-        options: IngestOptions,
-        registered: &RegisteredEntities,
-    ) -> AuthzResult<IngestReport> {
-        let raw = tokio::fs::read_to_string(yaml_path)
-            .await
-            .map_err(|source| AuthzError::File {
-                action: "read",
-                path: yaml_path.display().to_string(),
-                source,
-            })?;
-        let cfg: AccessControlConfig =
-            serde_yaml::from_str(&raw).map_err(|source| AuthzError::ConfigParse {
-                path: yaml_path.display().to_string(),
-                source,
-            })?;
-        self.ingest_config(&cfg, options, registered).await
-    }
-
-    pub async fn ingest_config(
-        &self,
-        cfg: &AccessControlConfig,
-        options: IngestOptions,
-        registered: &RegisteredEntities,
-    ) -> AuthzResult<IngestReport> {
-        cfg.validate()?;
-
-        let mut tx = self.write_pool.begin().await?;
-        let validated = resolve_rules(&mut tx, &cfg.rules, registered).await?;
-        let resolved = validated.rules();
-        let mut report = IngestReport::default();
-
-        if options.delete_orphans {
-            report.deleted = prune_role_rules(&mut tx, resolved, &options).await?;
-        }
-
-        let mut mentions = BTreeSet::new();
-        for rule in resolved {
-            for id in &rule.ids {
-                upsert_entity_row(
-                    &mut tx,
-                    rule.entity_kind,
-                    id,
-                    rule.default_included,
-                    SOURCE_LABEL,
-                )
-                .await?;
-                for role in rule.roles {
-                    let target = Target {
-                        entity_kind: rule.entity_kind,
-                        entity_id: id,
-                        rule_type: RuleType::ROLE,
-                        rule_value: role,
-                        access: rule.access,
-                        justification: rule.justification,
-                        source: &options.source,
-                    };
-                    let outcome =
-                        upsert_target(&mut tx, &target, options.override_existing).await?;
-                    tally(&mut report, outcome);
-                    mentions.insert(SubjectMention {
-                        rule_type: RuleType::ROLE.to_string(),
-                        value: role.clone(),
-                        entity: format!("{}:{id}", rule.entity_kind.as_str()),
-                    });
-                }
-            }
-        }
-
-        report.unknown_subjects = find_unknown_subjects(self.role_directory(), &mentions).await?;
-
-        tx.commit().await?;
-
-        tracing::info!(
-            target = "bootstrap_access_control_loaded",
-            inserted = report.inserted,
-            updated = report.updated,
-            skipped = report.skipped,
-            deleted = report.deleted,
-            protected = report.protected,
-            unknown_subjects = report.unknown_subjects.len(),
-            source = %options.source,
-            override_existing = options.override_existing,
-            delete_orphans = options.delete_orphans,
-            "access-control YAML ingested",
-        );
-
-        Ok(report)
     }
 }

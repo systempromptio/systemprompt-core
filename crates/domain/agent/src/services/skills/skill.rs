@@ -18,7 +18,7 @@ use systemprompt_models::AgUiEventBuilder;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_traits::{DynManagedSkillResolver, SkillResolution};
 
-use super::disk::{LoadedDiskSkill, load_disk_skill, resolve_skills_root};
+use super::disk::{LoadedDiskSkill, load_disk_skill};
 use crate::services::a2a_server::streaming::webhook_client::{
     DynWebhookBroadcaster, WebhookContext,
 };
@@ -48,17 +48,17 @@ impl std::fmt::Debug for SkillService {
 
 impl SkillService {
     pub fn new(
+        skills_root: PathBuf,
         managed: DynManagedSkillResolver,
         execution_step_repo: Arc<ExecutionStepRepository>,
         webhooks: DynWebhookBroadcaster,
-    ) -> Result<Self> {
-        let skills_root = resolve_skills_root()?;
-        Ok(Self {
+    ) -> Self {
+        Self {
             skills_root: Arc::new(skills_root),
             execution_step_repo,
             managed,
             webhooks,
-        })
+        }
     }
 
     pub async fn load_skill(&self, skill_id: &SkillId, ctx: &RequestContext) -> Result<String> {

@@ -4,15 +4,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, Header, encode};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
+    UserType,
 };
 
 use crate::error::{JwtError, JwtResult};
-use crate::keys::authority;
+use crate::jwt::encode_rs256;
+use crate::keys::SigningKeys;
 
 #[derive(Debug)]
 pub struct SessionParams<'a> {
@@ -31,12 +32,14 @@ pub struct SessionParams<'a> {
 #[derive(Debug)]
 pub struct SessionGenerator {
     issuer: String,
+    keys: SigningKeys,
 }
 
 impl SessionGenerator {
-    pub fn new(issuer: impl Into<String>) -> Self {
+    pub fn new(issuer: impl Into<String>, keys: SigningKeys) -> Self {
         Self {
             issuer: issuer.into(),
+            keys,
         }
     }
 
@@ -45,34 +48,34 @@ impl SessionGenerator {
         let expiry = now + params.duration;
 
         let claims = JwtClaims {
-            sub: params.user_id.to_string(),
-            iat: now.timestamp(),
-            exp: expiry.timestamp(),
-            nbf: Some(now.timestamp()),
-            iss: self.issuer.clone(),
-            aud: JwtAudience::standard(),
-            jti: uuid::Uuid::new_v4().to_string(),
-            scope: params.permissions.clone(),
-            username: params.email.to_owned(),
-            email: params.email.to_owned(),
-            user_type: params.user_type,
-            roles: params.roles.clone(),
-            attributes: params.attributes.clone(),
-            client_id: None,
-            token_type: TokenType::Bearer,
-            auth_time: now.timestamp(),
-            session_id: Some(params.session_id.clone()),
-            rate_limit_tier: Some(params.rate_limit_tier),
-            plugin_id: None,
-            act: None,
-            purpose: None,
+            registered: RegisteredClaims {
+                sub: params.user_id.to_string(),
+                iat: now.timestamp(),
+                exp: expiry.timestamp(),
+                nbf: Some(now.timestamp()),
+                iss: self.issuer.clone(),
+                aud: JwtAudience::standard(),
+                jti: uuid::Uuid::new_v4().to_string(),
+            },
+            custom: CustomClaims {
+                scope: params.permissions.clone(),
+                username: params.email.to_owned(),
+                email: params.email.to_owned(),
+                user_type: params.user_type,
+                roles: params.roles.clone(),
+                attributes: params.attributes.clone(),
+                client_id: None,
+                token_type: TokenType::Bearer,
+                auth_time: now.timestamp(),
+                session_id: Some(params.session_id.clone()),
+                rate_limit_tier: Some(params.rate_limit_tier),
+                plugin_id: None,
+                act: None,
+                purpose: None,
+            },
         };
 
-        let kid = authority::active_kid().map_err(JwtError::Signing)?;
-        let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some(kid.to_owned());
-        let key = authority::encoding_key().map_err(JwtError::Signing)?;
-        let token = encode(&header, &claims, key).map_err(JwtError::from)?;
+        let token = encode_rs256(&self.keys, &claims).map_err(JwtError::from)?;
 
         Ok(SessionToken::new(token))
     }

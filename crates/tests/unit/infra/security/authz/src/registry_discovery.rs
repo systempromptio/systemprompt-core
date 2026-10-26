@@ -21,6 +21,10 @@ impl AuthzDecisionHook for AllowHook {
     async fn evaluate(&self, _req: AuthzRequest) -> AuthzDecision {
         AuthzDecision::Allow
     }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.evaluate(req).await
+    }
 }
 
 #[derive(Debug)]
@@ -37,6 +41,10 @@ impl AuthzDecisionHook for DenyHook {
             policy: "registry_test_deny".into(),
         }
     }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.evaluate(req).await
+    }
 }
 
 systemprompt_governance::register_authz_hook!(|_ctx| Arc::new(AllowHook) as SharedAuthzHook);
@@ -48,6 +56,9 @@ fn context() -> AuthzHookContext {
     AuthzHookContext {
         pool: Arc::new(pool),
         sink: Arc::new(NullAuditSink),
+        services: systemprompt_test_fixtures::fixture_services_view(),
+        subjects: Default::default(),
+        secrets: systemprompt_test_fixtures::fixture_secret_store(),
     }
 }
 

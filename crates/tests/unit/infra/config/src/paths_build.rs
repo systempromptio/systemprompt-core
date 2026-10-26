@@ -17,6 +17,7 @@ fn exe(name: &str) -> String {
 
 fn build_paths(bin: &Path) -> BuildPaths {
     BuildPaths::from_profile(&PathsConfig {
+        root: None,
         system: "/tmp".to_owned(),
         services: "/tmp".to_owned(),
         bin: bin.to_string_lossy().into_owned(),

@@ -39,7 +39,12 @@ fn test_database_extension_dependencies() {
 fn test_database_extension_schemas() {
     let ext = DatabaseExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 8);
+    assert_eq!(schemas.len(), 11);
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("config_plane_applied"))
+    );
     assert!(
         schemas
             .iter()
@@ -74,6 +79,21 @@ fn test_database_extension_schemas() {
         schemas
             .iter()
             .any(|s| s.table.as_deref() == Some("release_stamps"))
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("config_version"))
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.is_none() && s.sql.contains("update_timestamp_trigger"))
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.is_none() && s.sql.contains("sp_bump_config_version"))
     );
 }
 

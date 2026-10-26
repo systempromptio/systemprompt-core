@@ -1,10 +1,10 @@
 //! Direct exercises of the public helpers in `routes::gateway::bridge_data`
 //! — these don't go through HTTP and therefore aren't reached by the
 //! gateway_router integration tests. Hits `load_user`, `load_revocations`,
-//! `load_enabled_hosts`, `set_host_enabled`, and `load_services_config`.
+//! `load_enabled_hosts`, and `set_host_enabled`.
 
 use systemprompt_api::routes::gateway::bridge_data::{
-    load_enabled_hosts, load_revocations, load_services_config, load_user, set_host_enabled,
+    load_enabled_hosts, load_revocations, load_user, set_host_enabled,
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::host::HostKind;
@@ -64,12 +64,4 @@ async fn set_host_enabled_round_trip() -> anyhow::Result<()> {
     assert!(!prefs2.hosts.contains(&HostKind::ClaudeCode));
     assert!(prefs2.hosts.contains(&HostKind::OpenCode));
     Ok(())
-}
-
-#[tokio::test]
-async fn load_services_config_returns_some_value_or_error() {
-    // Either a config is present in the bootstrapped services dir (empty stub)
-    // or this errors out — both code paths are exercised.
-    let _ = ensure_test_bootstrap();
-    let _ = load_services_config();
 }

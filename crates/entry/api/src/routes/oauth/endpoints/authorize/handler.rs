@@ -20,6 +20,7 @@ use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::request_base_url::RequestBaseUrl;
 use axum::extract::{Extension, Form, Query, State};
 use axum::response::{Html, IntoResponse, Response};
+use std::sync::Arc;
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::OAuthState;
@@ -37,14 +38,13 @@ fn require_csrf_token(params: &AuthorizeQuery) -> Result<CsrfToken, OAuthHttpErr
     }
 }
 
-fn resolve_self_origins(base: &RequestBaseUrl) -> Result<SelfOrigins, OAuthHttpError> {
-    let primary_origin = Config::get()
-        .map_err(|e| internal::server_error("Configuration unavailable", e))
-        .and_then(|c| {
-            reqwest::Url::parse(&c.api_external_url)
-                .map(|u| u.origin())
-                .map_err(|e| internal::server_error("Configuration invalid", e))
-        })?;
+fn resolve_self_origins(
+    config: &Config,
+    base: &RequestBaseUrl,
+) -> Result<SelfOrigins, OAuthHttpError> {
+    let primary_origin = reqwest::Url::parse(&config.api_external_url)
+        .map(|u| u.origin())
+        .map_err(|e| internal::server_error("Configuration invalid", e))?;
     Ok(SelfOrigins::new(primary_origin, base.origin().clone()))
 }
 
@@ -55,8 +55,8 @@ fn wants_passkey_form(params: &AuthorizeQuery) -> bool {
         .is_some_and(|p| p.split_whitespace().any(|v| v == "passkey"))
 }
 
-fn login_page_redirect(params: &AuthorizeQuery) -> Option<Response> {
-    let login_page_url = Config::get().ok()?.login_page_url.clone()?;
+fn login_page_redirect(config: &Config, params: &AuthorizeQuery) -> Option<Response> {
+    let login_page_url = config.login_page_url.clone()?;
     let target = login_page_redirect_target(&login_page_url, params)?;
     Some(axum::response::Redirect::to(&target).into_response())
 }
@@ -108,10 +108,15 @@ fn authorize_query_string(params: &AuthorizeQuery) -> String {
         .join("&")
 }
 
-#[instrument(skip(repo, _req_ctx, params), fields(client_id = %params.client_id))]
+#[instrument(skip(repo, _req_ctx, config, params), fields(client_id = %params.client_id))]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "axum extractors: each argument is one request-scoped extractor"
+)]
 pub async fn handle_authorize_get(
     State(state): State<OAuthState>,
     Extension(_req_ctx): Extension<RequestContext>,
+    Extension(config): Extension<Arc<Config>>,
     base: RequestBaseUrl,
     Query(params): Query<AuthorizeQuery>,
     OAuthRepo(repo): OAuthRepo,
@@ -137,7 +142,7 @@ pub async fn handle_authorize_get(
         )));
     }
 
-    let self_origins = resolve_self_origins(&base)?;
+    let self_origins = resolve_self_origins(&config, &base)?;
 
     if let Err(validation_error) = validate_oauth_parameters(&params, &self_origins) {
         return Err(attach(OAuthHttpError::invalid_request(
@@ -155,11 +160,11 @@ pub async fn handle_authorize_get(
                 "Authorization request validated"
             );
 
-            if let Some(redirect) = login_page_redirect(&params) {
+            if let Some(redirect) = login_page_redirect(&config, &params) {
                 return Ok(redirect);
             }
 
-            Ok(Html(generate_webauthn_form(&params, &validated)).into_response())
+            Ok(Html(generate_webauthn_form(&config, &params, &validated)).into_response())
         },
         Err(error) => {
             tracing::info!(

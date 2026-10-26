@@ -87,6 +87,7 @@ fn plugin(id: &str) -> PluginEntry {
         .expect("zero digest is valid hex"),
         files: vec![],
         hooks: Default::default(),
+        publication: None,
     }
 }
 
@@ -204,6 +205,10 @@ mod installation_coverage;
 #[cfg(test)]
 mod organization_resolution;
 
+#[cfg(test)]
+mod managed_harness;
+#[cfg(test)]
+mod publication_gate;
 #[cfg(test)]
 mod publication_transaction_fault;
 #[cfg(test)]

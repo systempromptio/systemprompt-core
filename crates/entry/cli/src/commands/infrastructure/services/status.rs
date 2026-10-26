@@ -12,13 +12,12 @@ use std::collections::HashMap;
 use std::hash::BuildHasher;
 use std::sync::Arc;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::ServiceStatus;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_mcp::{HealthStatus, McpServiceStatus};
 use systemprompt_models::mcp::McpServerType;
 use systemprompt_runtime::{AppContext, StartupValidator, display_validation_report};
-use systemprompt_scheduler::{
-    RuntimeStatus, ServiceStateVerifier, ServiceType, VerifiedServiceState,
-};
+use systemprompt_scheduler::{ServiceStateVerifier, ServiceType, VerifiedServiceState};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ServiceStatusOutput {
@@ -108,7 +107,7 @@ pub fn build_status_output<S: BuildHasher>(
 
     let managed_running = states
         .iter()
-        .filter(|s| s.runtime_status == RuntimeStatus::Running)
+        .filter(|s| !s.runtime.orphaned && s.runtime.status == ServiceStatus::Running)
         .count();
     let external_running = external
         .iter()
@@ -152,8 +151,8 @@ pub(super) async fn execute(
     let config = &cmd_ctx.cli;
     let ctx = Arc::clone(cmd_ctx.app_context().await?);
 
-    let Ok(configs) = super::load_service_configs() else {
-        let mut validator = StartupValidator::new();
+    let Ok(configs) = super::load_service_configs(ctx.boot()) else {
+        let mut validator = StartupValidator::new(ctx.boot().clone())?;
         let report = validator.validate(ctx.config());
         if report.has_errors() {
             display_validation_report(&report);
@@ -211,6 +210,8 @@ async fn mcp_service_statuses(ctx: &Arc<AppContext>) -> Result<Vec<McpServiceSta
         (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
+        Arc::clone(ctx.spawner()),
+        Arc::clone(ctx.secrets()),
     )?;
     Ok(manager.service_statuses().await?)
 }

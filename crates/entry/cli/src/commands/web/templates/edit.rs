@@ -17,6 +17,7 @@ use systemprompt_logging::CliService;
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateEditOutput, TemplateEntry, TemplatesConfig};
 use super::selection::prompt_template_selection;
+use systemprompt_loader::BootContext;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
@@ -40,8 +41,9 @@ pub(super) fn execute(
     args: EditArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    boot: &BootContext,
 ) -> Result<CommandOutput> {
-    execute_in_dir(args, prompter, config, &WebPaths::resolve()?.templates)
+    execute_in_dir(args, prompter, config, &WebPaths::resolve(boot)?.templates)
 }
 
 pub fn execute_in_dir(

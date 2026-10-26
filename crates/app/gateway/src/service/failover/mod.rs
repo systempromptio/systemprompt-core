@@ -2,11 +2,11 @@
 //! `fallbacks`.
 //!
 //! A route's chain is its primary deployment followed by its ordered
-//! fallbacks (or the per-scope chain `by_scope` selected). Each deployment is
-//! a provider entry and sits behind that provider's circuit breaker, so a
-//! breaker is per deployment. The attempt order is decided before anything is
-//! sent: healthy deployments in chain order, or every deployment in chain
-//! order when none is healthy, so a request is never left unsent.
+//! fallbacks (or the chain of the route whose `when.scope` matched). Each
+//! deployment is a provider entry and sits behind that provider's circuit
+//! breaker, so a breaker is per deployment. The attempt order is decided before
+//! anything is sent: healthy deployments in chain order, or every deployment in
+//! chain order when none is healthy, so a request is never left unsent.
 //!
 //! Each deployment keeps the bounded retry budget for transient 429/503
 //! answers. Once that budget is spent, or the deployment answers any other
@@ -34,14 +34,12 @@ mod decision;
 mod load;
 mod selection;
 
-pub use self::breakers::ProviderBreakers;
-pub(crate) use self::breakers::breaker_settings;
+pub use self::breakers::{ProviderBreakers, breaker_key};
 pub use self::decision::{FailoverReason, failover_reason, is_failover_status, plan_attempts};
 pub use self::load::{DeploymentLoad, InFlight};
 pub use self::selection::{DeploymentState, plan_selection};
 
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_manifest::services::ProviderRegistry;
 
 use super::DispatchError;
 use super::resolve::ResolvedUpstream;
@@ -49,9 +47,10 @@ use super::stages::ScannedDispatch;
 use crate::audit::GatewayAudit;
 use crate::protocol::outbound::OutboundOutcome;
 use crate::protocol::outbound::retry::{current_policy, with_policy};
+use crate::registry::GatewayEngines;
 
 pub(super) struct FailoverSend<'a, 'r> {
-    pub registry: &'r ProviderRegistry,
+    pub engines: &'a GatewayEngines,
     pub primary: &'a ResolvedUpstream<'r>,
     pub forward_headers: &'a [(String, String)],
     pub ai_request_id: &'a AiRequestId,
@@ -63,7 +62,7 @@ pub(super) async fn send_with_failover(
     send: FailoverSend<'_, '_>,
 ) -> Result<OutboundOutcome, DispatchError> {
     if send.primary.deployments.len() <= 1 {
-        let _in_flight = enter_deployment(send.primary, scanned.request_model());
+        let _in_flight = enter_deployment(&send.engines.load, send.primary);
         return with_policy(
             current_policy(),
             scanned.send(send.primary, send.forward_headers, send.audit),
@@ -73,9 +72,6 @@ pub(super) async fn send_with_failover(
     chain::run(scanned, send).await
 }
 
-pub(super) fn enter_deployment(upstream: &ResolvedUpstream<'_>, request_model: &str) -> InFlight {
-    DeploymentLoad::global().enter(&DeploymentLoad::key(
-        upstream.provider.name.as_str(),
-        upstream.route.effective_upstream_model(request_model),
-    ))
+pub(super) fn enter_deployment(load: &DeploymentLoad, upstream: &ResolvedUpstream<'_>) -> InFlight {
+    load.enter(&breaker_key(&upstream.hop))
 }

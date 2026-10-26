@@ -13,6 +13,8 @@ mod forward_frames;
 #[cfg(test)]
 mod forward_replay;
 #[cfg(test)]
+mod headers;
+#[cfg(test)]
 mod identity;
 #[cfg(test)]
 mod keepalive;
@@ -24,6 +26,8 @@ mod opencode_body;
 mod peer_probe_body_complete;
 #[cfg(test)]
 mod portfile;
+#[cfg(test)]
+mod route_class_parity;
 #[cfg(test)]
 mod secret;
 #[cfg(test)]

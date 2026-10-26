@@ -12,7 +12,6 @@ use axum::http::{HeaderValue, Method};
 use axum::routing::{get, post};
 use axum::{Router, middleware};
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::AgentName;
 use systemprompt_manifest::AgentConfig;
 use systemprompt_models::ai::DynAiProvider;
@@ -88,8 +87,7 @@ impl std::fmt::Debug for Server {
 }
 
 impl Server {
-    pub async fn new(
-        db_pool: DbPool,
+    pub fn new(
         agent_state: Arc<AgentState>,
         ai_service: DynAiProvider,
         agent_name: &AgentName,
@@ -97,18 +95,19 @@ impl Server {
     ) -> Result<Self, crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
-        let registry = AgentRegistry::new()?;
-        let mut config = registry.get_agent(agent_name.as_str()).await?;
+        let registry = AgentRegistry::new(agent_state.services());
+        let mut config = registry.get_agent(agent_name.as_str())?;
 
         config.extract_oauth_scopes_from_card();
 
         let oauth_config = AgentOAuthConfig::default();
         let global_config = agent_state.config();
         let mut oauth_state = AgentOAuthState::new(
-            Arc::clone(&db_pool),
+            Arc::clone(agent_state.db_pool()),
             oauth_config,
             global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
+            agent_state.signing_keys().clone(),
         );
 
         oauth_state = oauth_state.with_jwt_provider(Arc::clone(agent_state.jwt_provider()));

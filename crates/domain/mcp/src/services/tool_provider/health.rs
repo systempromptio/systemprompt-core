@@ -16,6 +16,7 @@ pub(super) async fn check_server_connection(
     registry: &RegistryService,
     server_name: &McpServerId,
     api_server_url: &str,
+    config: &systemprompt_manifest::Config,
 ) {
     let Ok(Some(server_config)) = registry.find_server(server_name.as_str()) else {
         return;
@@ -25,7 +26,7 @@ pub(super) async fn check_server_connection(
         validate_connection(&service_name, &server_config.host, port).await
     } else {
         let url = server_config.endpoint(api_server_url);
-        let url = rewrite_url_for_internal_use(&url);
+        let url = rewrite_url_for_internal_use(&url, config);
         validate_connection_by_url(&service_name, &url).await
     };
 

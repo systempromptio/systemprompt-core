@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_id FROM api_key_sessions WHERE api_key_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "api_key_sessions",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "269339e49361f7dfeb5335cd3ef1c3992b721a1bc6465038be8fe1471e971551"
+}

@@ -8,12 +8,12 @@ use super::{FeedbackError, MAX_ENTRIES, Outbox, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use systemprompt_models::bridge::manifest::SkillPublication;
+use systemprompt_models::bridge::manifest::ManagedPublicationRef;
 use systemprompt_models::feedback::EvaluatorClient;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingInstallation {
-    pub publication: SkillPublication,
+    pub publication: ManagedPublicationRef,
     pub host: EvaluatorClient,
     pub roots: Vec<PathBuf>,
     pub superseded: bool,
@@ -22,7 +22,11 @@ pub struct PendingInstallation {
 }
 
 impl PendingInstallation {
-    pub fn new(publication: SkillPublication, host: EvaluatorClient, roots: Vec<PathBuf>) -> Self {
+    pub fn new(
+        publication: ManagedPublicationRef,
+        host: EvaluatorClient,
+        roots: Vec<PathBuf>,
+    ) -> Self {
         Self {
             publication,
             host,

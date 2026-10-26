@@ -15,7 +15,7 @@ use systemprompt_api::routes::marketplace;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with, refresh_services_config, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_on_bootstrap_with_paths, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -40,9 +40,9 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
     let dir = b.services_path.join("marketplaces").join("default");
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("config.yaml"), MARKETPLACE_YAML)?;
-    refresh_services_config();
 
     let paths = PathsConfig {
+        root: None,
         system: b.system_path.display().to_string(),
         services: b.services_path.display().to_string(),
         bin: b.bin_path.display().to_string(),
@@ -53,7 +53,8 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
         data: None,
     };
     let pool = test_db_pool().await;
-    let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
+    let ctx =
+        fixture_app_context_on_bootstrap_with_paths(b, &pool, paths, Arc::new(AllowAllFilter))?;
     Ok(marketplace::router().with_state((*ctx).clone()))
 }
 

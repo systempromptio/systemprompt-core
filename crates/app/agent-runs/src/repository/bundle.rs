@@ -23,11 +23,11 @@ pub struct RunCredentialRepositories {
 
 impl RunCredentialRepositories {
     #[must_use]
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, oauth: OAuthRepository) -> Self {
         Self {
             users: Arc::new(UserRepository::new(db)),
             sessions: SessionRepository::new(db),
-            oauth: OAuthRepository::new(db),
+            oauth,
         }
     }
 }
@@ -37,14 +37,16 @@ impl RunCredentialRepositories {
 pub struct AgentRunRepositories {
     pub runs: AgentRunRepository,
     pub credentials: RunCredentialRepositories,
+    pub managed: systemprompt_marketplace::managed::ManagedRepository,
 }
 
 impl AgentRunRepositories {
     #[must_use]
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, oauth: OAuthRepository) -> Self {
         Self {
             runs: AgentRunRepository::new(db),
-            credentials: RunCredentialRepositories::new(db),
+            credentials: RunCredentialRepositories::new(db, oauth),
+            managed: systemprompt_marketplace::managed::ManagedRepository::new(db),
         }
     }
 }

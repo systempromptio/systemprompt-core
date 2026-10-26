@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `integration::opencode::{OpenCodeHost, OPENCODE_HOST}` and `install::mdm::policy::DESKTOP_SURFACES` are removed; hosts are addressed through `HostKind` (`OPENCODE_APP_HOST`, `OPENCODE_CLI_HOST`).
+- **Breaking:** the bridge needs a 0.73 gateway. It reads the catalog's client families (`ProviderHealth.clients`, `ProviderCredentialStatus.credential`) and sends `x-inference-protocol` and host model filters as `ClientFamily` tags (`claude`, `openai`, `gemini`).
+- **Breaking:** the loopback proxy's rejection response no longer carries `x-systemprompt-bridge-install` or `x-systemprompt-bridge-config-dir`; `x-systemprompt-bridge-reason` stays.
+- **Breaking:** `OpenCode` is written in the V2 config shape only (`@opencode/cli` >= 2.0.30), and every install and sync strips the V1 keys. Migrate by upgrading `OpenCode` to 2.0.30 or later.
+- **Breaking:** the public API is renamed and retyped: `proxy::forward::route`, `HostAppKind` (from `systemprompt_models`), `integration::codex`, typed `ConfigStoreError`, `ScheduleRemoval::Failed(ScheduleRemovalError)`, `ManagedProfileOutcome::RemoveFailed(ManagedProfileRemoveError)` and `SecretStore::{resolve, backend}` replacing `auth::plugin_oauth::credential_backend()`; see the root changelog for each signature.
+
+### Changed
+
+- Version follows core 0.73.0.
+- **Models:** a host lists the models whose catalog `clients` include its family (Claude Code and Claude Desktop: `claude`; Codex, OpenCode and Hermes: `openai`), narrowed by the user's server-stored filter. A model with `clients: []` is shown to no host. The `claude-*` / not-`claude-fable-*` Desktop predicate (`model_view::is_desktop_model`, `desktop_models`) and `effective_surfaces` / `has_surface_override` are removed; `model_view::{host_client, HostClients}` replace them. `HostApp::accepted_surfaces` is removed.
+- **Host model filters:** the server is the one store. The copy in `last-sync.json` (`LastSyncState::host_model_protocols`) is removed; the bridge reads the filters from the manifest envelope the gateway signed.
+- **Profile:** the bridge profile is always fetched as a user. `GatewayClient::fetch_bridge_profile` takes a non-optional `&BearerToken`; `fetch_bridge_profile_signed_in` uses the cached credential or mints one, and a 401 on a token older than two minutes re-mints once (`auth::rejection::rejection_is_stale`, shared with the proxy's token cache). A second 401 is an error; there is no anonymous fallback. `bridge-profile.json` is keyed by `(gateway, user)`, and `profile_cache::load_for` reads one entry. `auth::cache::cached_bearer` is removed.
+- **Cowork:** the explicit pin (`cowork.session_org_dir`) wins, then the session naming the gateway profile's `organization_uuid`, then the personal or only session; anything else is ambiguous and names the fix. The Claude Desktop row shows the chosen session and which rule chose it (`cowork_plugins::{resolve_target_with_source, choose_target, TargetSource}`). `deployment_organization_uuid` is removed from the config and is ignored if present; the organization id comes from the gateway. `pick_target_for_org` is removed.
+- **Personal keys:** keyed by credential id (`set_personal_key` / `delete_personal_key` take a `CredentialId`; the GUI commands take `credential`). Settings lists one row per personal credential with the provider endpoints it serves (`gateway::personal_keys::personal_key_rows`).
+- **Headers:** the proxy never injects or rewrites `x-session-id`. A client-supplied value reaches the gateway unchanged and none is added when absent; the gateway binds the session to the credential. `UpstreamHeaderInputs::session_id` is removed.
+
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- Host ids are `claude-code`, `claude-desktop`, `codex`, `codex-cli`, `opencode`, `opencode-cli` and `hermes`: `codex` and `opencode` name the desktop apps, `codex-cli` and `opencode-cli` the command-line tools. `install --host opencode` now enrols the desktop app; use `opencode-cli` for the terminal agent. A manifest naming an unknown host id is refused, and an empty enabled-host list enables no host.
+- The loopback proxy's rejection response carries `x-systemprompt-bridge-reason` only; `x-systemprompt-bridge-install` and `x-systemprompt-bridge-config-dir` are no longer sent.
+- A loopback request to `/mcp` with no server slug is answered as an unknown MCP server rather than forwarded to the gateway.
+
+### Added
+
+- Codex and OpenCode each appear as two agents, the desktop app and the CLI, over one shared configuration written once. The app is detected by its bundle or installer folder and can be launched; the CLI by its binary on `PATH`. Removing one keeps the shared configuration while the other is enabled.
+
+### Changed
+
+- The Agents list and the setup page show only the hosts the last synced manifest enabled.
+- Hermes is listed as a command-line tool.
+
 ## [0.72.1] - 2026-10-22
 
 ### Fixed

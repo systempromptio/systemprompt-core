@@ -10,6 +10,7 @@ use systemprompt_manifest::profile::{NodeRole, PathsConfig};
 
 fn app_paths(root: &Path) -> AppPaths {
     let cfg = PathsConfig {
+        root: None,
         system: root.join("system").display().to_string(),
         services: root.join("services").display().to_string(),
         bin: root.join("bin").display().to_string(),

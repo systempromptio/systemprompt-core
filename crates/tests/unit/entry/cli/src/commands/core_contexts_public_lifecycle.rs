@@ -1,10 +1,8 @@
 //! Public context command lifecycle with durable session switching.
 
-use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
-use std::process::{Command, Output, Stdio};
+use std::process::Command;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use clap::Parser;
 use systemprompt_agent::models::context::ContextKind;
@@ -18,8 +16,8 @@ use systemprompt_loader::ProfileLoader;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context_with, install_test_signing_key,
-    seed_user_row, seed_user_session,
+    DisposableDb, bounded_output, ensure_test_bootstrap,
+    fixture_app_context_on_bootstrap_with_paths, seed_user_row, seed_user_session,
 };
 
 const HELPER: &str = "commands::core_contexts_public_lifecycle::public_context_lifecycle_helper";
@@ -63,7 +61,6 @@ async fn public_context_lifecycle_helper() {
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
     let boot = ensure_test_bootstrap();
-    install_test_signing_key();
     let project = systemprompt_test_fixtures::canonical_tempdir();
     let profile_path = project
         .path()
@@ -120,6 +117,7 @@ async fn public_context_lifecycle_helper() {
         .expect("persist active CLI session");
 
     let paths = PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -129,14 +127,14 @@ async fn public_context_lifecycle_helper() {
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(
+    let app = fixture_app_context_on_bootstrap_with_paths(
+        boot,
         &pool,
-        database.url(),
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
     .expect("full context app");
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json)
@@ -218,38 +216,6 @@ async fn public_context_lifecycle_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let mut stdout = tempfile::NamedTempFile::new().expect("contexts stdout");
-    let mut stderr = tempfile::NamedTempFile::new().expect("contexts stderr");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn contexts helper");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("poll contexts helper") {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            break child.wait().expect("reap contexts helper");
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let read = |file: &mut tempfile::NamedTempFile| {
-        file.seek(SeekFrom::Start(0)).expect("rewind capture");
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes).expect("read capture");
-        bytes
-    };
-    Output {
-        status,
-        stdout: read(&mut stdout),
-        stderr: read(&mut stderr),
-    }
-}
-
 fn marked_json(stdout: &str, label: &str) -> serde_json::Value {
     let begin = format!("BEGIN_{label}\n");
     let end = format!("\nEND_{label}");
@@ -265,7 +231,7 @@ fn marked_json(stdout: &str, label: &str) -> serde_json::Value {
 fn public_context_commands_switch_persist_and_protect_the_active_context() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "core contexts public lifecycle");
     assert!(output.status.success(), "public contexts helper failed");
     let stdout = String::from_utf8(output.stdout).expect("UTF-8 contexts output");
     for (label, title) in [

@@ -1,39 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
-
 # Match sqlx::query( and sqlx::query_{as,scalar,file,file_as,file_scalar,with,...}(
 pattern='sqlx::query[a-z_]*(::<[^>]*>)?\('
 
-# Each entry is a path: a directory (trailing `/`) exempts the tree under it, a
-# file exempts that file. A stale carve-out is removed, not kept: an entry
-# whose path is gone, or that no longer holds a runtime query, fails the gate.
-allowlist=(
-    'crates/infra/database/src/admin/'
-    'crates/infra/database/src/services/postgres/'
-    # The projection drainer calls the `refresh_*(keys TEXT[])` function the
-    # caller names (validated as a bare identifier) and binds the keys; the
-    # queue helpers beside it stay runtime so the crate carries no offline
-    # cache for them.
-    'crates/infra/database/src/projection/'
-    # Test crates keep no `.sqlx` offline cache (they run live against a
-    # freshly-migrated DB), so the compile-time macros are unavailable in test
-    # seed/cleanup helpers. The gate's job is verifying production SQL; both test
-    # trees are exempt.
-    'crates/tests/integration/'
-    'crates/tests/unit/'
-    # Shared test fixtures create and drop the per-run databases themselves;
-    # CREATE/DROP DATABASE cannot take a bind parameter, so the name is
-    # interpolated under AssertSqlSafe. Same exemption as the two test trees.
-    'crates/tests/common/'
-    # The user purge walks the `user_purge_tables!` inventory: table and
-    # column names come from each owning crate's registration at runtime,
-    # pass SafeIdentifier and are interpolated under AssertSqlSafe. The user
-    # id is always a bind.
-    'crates/domain/users/src/repository/user/purge.rs'
-    'crates/entry/cli/src/commands/admin/setup/'
-)
+# Allowlist entries live in scripts/sqlx-allowlist.txt (or the file named by
+# `--allowlist`); each is a path: a directory (trailing `/`) exempts the tree
+# under it, a file exempts that file. A stale carve-out is removed, not kept.
+#
+#   scripts/check-sqlx.sh                        # core roots + allowlist
+#   scripts/check-sqlx.sh [--allowlist FILE] ROOT...
+#
+# Without roots the script runs from the repository root over `crates/`; with
+# roots, paths (and allowlist entries) resolve against the caller's working
+# directory.
+ALLOWLIST=""
+ROOTS=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --allowlist) ALLOWLIST="$2"; shift 2 ;;
+        --allowlist=*) ALLOWLIST="${1#--allowlist=}"; shift ;;
+        -*) echo "usage: $0 [--allowlist FILE] [ROOT...]" >&2; exit 2 ;;
+        *) ROOTS+=("$1"); shift ;;
+    esac
+done
+if [ "${#ROOTS[@]}" -eq 0 ]; then
+    cd "$(git rev-parse --show-toplevel)"
+    ROOTS=(crates/)
+    ALLOWLIST="${ALLOWLIST:-scripts/sqlx-allowlist.txt}"
+fi
+
+allowlist=()
+if [ -n "$ALLOWLIST" ]; then
+    while IFS= read -r line; do
+        line="${line%%#*}"
+        line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
+        [ -n "$line" ] && allowlist+=("$line")
+    done < "$ALLOWLIST"
+fi
 
 runtime_hits() {
     rg -n --glob '*.rs' -e "$pattern" -- "$@" 2>/dev/null \
@@ -62,7 +66,11 @@ if [[ -n "${stale}" ]]; then
     exit 1
 fi
 
-hits=$(runtime_hits crates/ | grep -Ev "(${allowlist_re})" || true)
+if [ "${#allowlist[@]}" -gt 0 ]; then
+    hits=$(runtime_hits "${ROOTS[@]}" | grep -Ev "(${allowlist_re})" || true)
+else
+    hits=$(runtime_hits "${ROOTS[@]}")
+fi
 
 if [[ -n "${hits}" ]]; then
     echo "❌ Unverified sqlx::query calls found outside the allowlist:" >&2

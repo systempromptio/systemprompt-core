@@ -73,10 +73,12 @@ pub(super) fn build_static_router(
 
     if let Some(auth_config) = site_auth_config {
         let issuer: Arc<str> = Arc::from(ctx.config().jwt_issuer.as_str());
+        let keys = ctx.signing_keys().clone();
         static_router.layer(axum::middleware::from_fn(move |req, next| {
             let config = auth_config;
             let issuer = Arc::clone(&issuer);
-            async move { site_auth_gate(req, next, config, &issuer).await }
+            let keys = keys.clone();
+            async move { site_auth_gate(req, next, config, &issuer, &keys).await }
         }))
     } else {
         static_router

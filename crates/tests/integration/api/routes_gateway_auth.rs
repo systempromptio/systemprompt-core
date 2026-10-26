@@ -66,7 +66,6 @@ async fn pat_with_invalid_token_is_unauthorized() -> Result<()> {
 #[tokio::test]
 async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    systemprompt_test_fixtures::install_test_signing_key();
     let uniq = uuid::Uuid::new_v4();
     let user = systemprompt_identifiers::UserId::new(uniq.to_string());
     systemprompt_test_fixtures::seed_user_row(&pool, &user, &format!("pat-{uniq}@example.invalid"))
@@ -172,6 +171,7 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
         .await
@@ -191,6 +191,7 @@ fn jwt_extractor(
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     )))
 }
 
@@ -203,7 +204,7 @@ async fn seed_exchange_code(
     systemprompt_test_fixtures::seed_user_row(pool, &user, &format!("ex-{uniq}@example.invalid"))
         .await?;
     let code = format!("code-{uniq}");
-    let repo = systemprompt_oauth::OAuthRepository::new(ctx.db_pool());
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(ctx.db_pool());
     repo.create_bridge_exchange_code(systemprompt_oauth::repository::CreateExchangeCodeParams {
         code_hash: &systemprompt_oauth::services::hash_exchange_code(&code),
         user_id: &user,
@@ -233,7 +234,6 @@ async fn session_pat_with_valid_code_mints_pat() -> Result<()> {
 #[tokio::test]
 async fn session_with_valid_code_issues_bridge_access() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
-    systemprompt_test_fixtures::install_test_signing_key();
     let (code, _user) = seed_exchange_code(&ctx, &pool).await?;
     let resp = auth::session(
         (*ctx).clone(),
@@ -276,7 +276,7 @@ mod bridge_stream_auth {
     use anyhow::Result;
     use axum::http::{HeaderMap, HeaderValue, StatusCode};
     use systemprompt_api::routes::gateway::bridge_stream;
-    use systemprompt_events::{AGUI_BROADCASTER, Broadcaster};
+    use systemprompt_events::Broadcaster;
     use systemprompt_test_fixtures::seed_bridge_credential;
 
     // Note: this asserts the outcome, not the guard. Removing the
@@ -288,7 +288,12 @@ mod bridge_stream_auth {
     async fn a_request_with_no_credential_is_unauthorized() -> Result<()> {
         let (_db, ctx) = setup_ctx().await?;
 
-        let response = bridge_stream::handle(jwt_extractor(&ctx)?, HeaderMap::new()).await;
+        let response = bridge_stream::handle(
+            jwt_extractor(&ctx)?,
+            std::sync::Arc::clone(ctx.event_broadcasters()),
+            HeaderMap::new(),
+        )
+        .await;
 
         assert_eq!(
             response.status(),
@@ -307,7 +312,12 @@ mod bridge_stream_auth {
             HeaderValue::from_static("Bearer not-a-real-token"),
         );
 
-        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+        let response = bridge_stream::handle(
+            jwt_extractor(&ctx)?,
+            std::sync::Arc::clone(ctx.event_broadcasters()),
+            headers,
+        )
+        .await;
 
         assert_eq!(
             response.status(),
@@ -327,7 +337,12 @@ mod bridge_stream_auth {
         let mut headers = HeaderMap::new();
         headers.insert("x-api-key", HeaderValue::from_static("sk-not-a-real-key"));
 
-        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+        let response = bridge_stream::handle(
+            jwt_extractor(&ctx)?,
+            std::sync::Arc::clone(ctx.event_broadcasters()),
+            headers,
+        )
+        .await;
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         Ok(())
@@ -344,7 +359,12 @@ mod bridge_stream_auth {
             HeaderValue::from_str(&format!("Bearer {}", credential.jwt.as_str()))?,
         );
 
-        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+        let response = bridge_stream::handle(
+            jwt_extractor(&ctx)?,
+            std::sync::Arc::clone(ctx.event_broadcasters()),
+            headers,
+        )
+        .await;
         assert_eq!(response.status(), StatusCode::OK);
         assert!(
             response
@@ -355,7 +375,13 @@ mod bridge_stream_auth {
         );
         tokio::time::timeout(Duration::from_secs(1), async {
             loop {
-                if AGUI_BROADCASTER.connection_count(&credential.user_id).await == 1 {
+                if ctx
+                    .event_broadcasters()
+                    .agui
+                    .connection_count(&credential.user_id)
+                    .await
+                    == 1
+                {
                     break;
                 }
                 tokio::task::yield_now().await;
@@ -367,7 +393,13 @@ mod bridge_stream_auth {
         drop(response);
         tokio::time::timeout(Duration::from_secs(1), async {
             loop {
-                if AGUI_BROADCASTER.connection_count(&credential.user_id).await == 0 {
+                if ctx
+                    .event_broadcasters()
+                    .agui
+                    .connection_count(&credential.user_id)
+                    .await
+                    == 0
+                {
                     break;
                 }
                 tokio::task::yield_now().await;
@@ -382,7 +414,6 @@ mod bridge_stream_auth {
 #[tokio::test]
 async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
     let (pool, auth_ctx) = setup_ctx().await?;
-    systemprompt_test_fixtures::install_test_signing_key();
     let cred = systemprompt_test_fixtures::seed_admin_credential(
         &pool,
         &format!("manifest-fallback-{}@example.invalid", uuid::Uuid::new_v4()),

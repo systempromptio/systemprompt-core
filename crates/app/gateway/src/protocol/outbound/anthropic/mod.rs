@@ -66,7 +66,7 @@ impl OutboundAdapter for AnthropicOutbound {
         );
 
         let upstream_response =
-            send_learning_refusals(ctx.route.provider.as_str(), &url, &ctx, body).await?;
+            send_learning_refusals(&learning_key(&ctx), &url, &ctx, body).await?;
 
         let content_type = upstream_response
             .headers()
@@ -101,7 +101,7 @@ impl OutboundAdapter for AnthropicOutbound {
             })?;
         if let Some(defect) = anthropic::buffered_defect(&value) {
             return Err(super::reject_defective_body(
-                ctx.route.provider.as_str(),
+                ctx.target.provider.as_str(),
                 "anthropic",
                 &defect,
                 &bytes,
@@ -109,7 +109,7 @@ impl OutboundAdapter for AnthropicOutbound {
         }
         let canonical = Box::new(
             response::parse_response(&value, ctx.request.model.as_str()).map_err(|e| {
-                super::reject_unparsable_body(ctx.route.provider.as_str(), "anthropic", &e, &bytes)
+                super::reject_unparsable_body(ctx.target.provider.as_str(), "anthropic", &e, &bytes)
             })?,
         );
         if passthrough {
@@ -130,7 +130,7 @@ async fn send_learning_refusals(
     body: &PreparedBody,
 ) -> Result<reqwest::Response, super::UpstreamError> {
     let headers = rejected_betas::without(request_headers(ctx), &rejected_betas::learned(provider));
-    let error = match send_once(provider, url, &headers, &body.bytes).await {
+    let error = match send_once(ctx.http, provider, url, &headers, &body.bytes).await {
         Ok(response) => return Ok(response),
         Err(e) => e,
     };
@@ -170,6 +170,7 @@ async fn send_learning_refusals(
         anthropic::BetaHeader::parse(&refused.iter().cloned().collect::<Vec<_>>().join(","));
     let bytes = request::without_refused(&body.bytes, provider, &dropped, &refused_fields);
     send_once(
+        ctx.http,
         provider,
         url,
         &rejected_betas::without(headers, &refused),
@@ -179,12 +180,13 @@ async fn send_learning_refusals(
 }
 
 async fn send_once(
+    http: &reqwest::Client,
     provider: &str,
     url: &str,
     headers: &[(String, String)],
     body: &bytes::Bytes,
 ) -> Result<reqwest::Response, super::UpstreamError> {
-    let mut req = super::http_client().post(url).body(body.clone());
+    let mut req = http.post(url).body(body.clone());
     for (name, value) in headers {
         req = req.header(name, value);
     }
@@ -211,14 +213,13 @@ fn refused_fields(error: &super::UpstreamError) -> std::collections::BTreeSet<St
 }
 
 fn request_headers(ctx: &OutboundCtx<'_>) -> Vec<(String, String)> {
-    let mut headers = ctx
-        .upstream
-        .headers_forwarding(WireProtocol::Anthropic, ctx.forward_headers);
-    headers.extend(
-        ctx.route
-            .extra_headers
-            .iter()
-            .map(|(name, value)| (name.clone(), value.clone())),
-    );
-    headers
+    ctx.upstream
+        .headers_forwarding(WireProtocol::Anthropic, ctx.forward_headers)
+}
+
+// Why: Anthropic-compatible upstreams refuse beta flags and body fields per
+// endpoint (one Vertex region accepts what another refuses), so what is
+// learned from a refusal is kept per `provider/endpoint`.
+fn learning_key(ctx: &OutboundCtx<'_>) -> String {
+    ctx.target.endpoint_ref().to_string()
 }

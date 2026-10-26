@@ -80,17 +80,25 @@ pub enum ConfigLoadError {
     #[error("duplicate Teams app definition: {0}")]
     DuplicateTeamsApp(String),
 
-    #[error("duplicate provider definition across services includes: {0}")]
-    DuplicateProvider(String),
+    #[error("{path}: {what} is the pre-0.73 catalog shape; {hint}", hint = systemprompt_manifest::services::catalog::MIGRATE_HINT)]
+    LegacyCatalog { path: PathBuf, what: &'static str },
+
+    #[error("catalog file unreadable: {0}")]
+    CatalogDocument(Box<systemprompt_manifest::services::catalog::CatalogDocumentError>),
 
     #[error(
-        "Services config not initialized. Call ServicesBootstrap::init() after \
-         ProfileBootstrap::init()"
+        "{path} declares `{section}:`; the model catalog is read only from services/ai/{{{files}}}, \
+         so remove the section (and any `includes:` entry naming a catalog file); {hint}",
+        files = systemprompt_manifest::services::catalog::CATALOG_FILES.join(","),
+        hint = systemprompt_manifest::services::catalog::MIGRATE_HINT
     )]
-    NotInitialized,
+    CatalogOutsideConvention {
+        path: PathBuf,
+        section: &'static str,
+    },
 
-    #[error("Services config already initialized")]
-    AlreadyInitialized,
+    #[error("the services catalog does not resolve: {0}")]
+    Catalog(Box<systemprompt_manifest::services::catalog::CatalogError>),
 
     #[error("services config validation failed: {0}")]
     Validation(#[from] systemprompt_models::errors::ServicesValidationError),
@@ -100,6 +108,18 @@ pub enum ConfigLoadError {
          the values to the root or remove them from the include."
     )]
     IncludeMustNotSetGlobalSettings { path: PathBuf },
+}
+
+impl From<systemprompt_manifest::services::catalog::CatalogDocumentError> for ConfigLoadError {
+    fn from(error: systemprompt_manifest::services::catalog::CatalogDocumentError) -> Self {
+        Self::CatalogDocument(Box::new(error))
+    }
+}
+
+impl From<systemprompt_manifest::services::catalog::CatalogError> for ConfigLoadError {
+    fn from(error: systemprompt_manifest::services::catalog::CatalogError) -> Self {
+        Self::Catalog(Box::new(error))
+    }
 }
 
 #[derive(Debug, Error)]

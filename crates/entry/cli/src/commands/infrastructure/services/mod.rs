@@ -11,6 +11,7 @@
 pub mod cleanup;
 mod dispatch;
 mod lifecycle;
+mod port_conflict;
 pub mod restart;
 pub mod serve;
 pub mod start;
@@ -19,20 +20,17 @@ mod stop;
 mod types;
 
 use clap::Subcommand;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_manifest::Profile;
 
 pub use dispatch::{execute, load_service_configs};
 
-const DEFAULT_API_PORT: u16 = 8080;
-
-pub(super) fn get_api_port() -> u16 {
-    ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
+pub(super) const fn get_api_port(profile: &Profile) -> u16 {
+    profile.server.port
 }
 
-pub(super) fn get_api_addr() -> anyhow::Result<String> {
-    let profile = ProfileBootstrap::get()?;
-    Ok(format!("{}:{}", profile.server.host, profile.server.port))
+pub(super) fn get_api_addr(profile: &Profile) -> String {
+    format!("{}:{}", profile.server.host, profile.server.port)
 }
 
 #[derive(Debug, Clone, Subcommand)]

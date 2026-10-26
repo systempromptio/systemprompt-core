@@ -19,7 +19,8 @@
 //! Vertex gives every serverless partner model, the third-party OSS category,
 //! and no actions of its own. Anything with a `deploy` action is a checkpoint.
 //!
-//! Pricing (`classify_discovered`) knows nothing about who listed the model;
+//! Pricing (`classify_discovered`) keys the card by the listing endpoint's
+//! wire and knows nothing about who listed the model;
 //! every [`CatalogSource`](super::source::CatalogSource) is judged by exactly
 //! this rule, on the provider-agnostic [`DiscoveredModel`] shape.
 //!
@@ -28,6 +29,7 @@
 
 use serde::Deserialize;
 use systemprompt_manifest::services::{VertexRateCard, VertexRateCardEntry};
+use systemprompt_wire::WireProtocol;
 
 use super::source::{DiscoveredModel, LaunchStage};
 
@@ -150,24 +152,21 @@ pub enum Classification {
 pub fn classify<'a>(
     model: &PublisherModel,
     card: &'a VertexRateCard,
-    provider: &str,
+    wire: WireProtocol,
 ) -> (Classification, Option<&'a VertexRateCardEntry>) {
-    classify_discovered(&model.discovered(), card, provider)
+    classify_discovered(&model.discovered(), card, wire)
 }
 
 #[must_use]
 pub fn classify_discovered<'a>(
     model: &DiscoveredModel,
     card: &'a VertexRateCard,
-    provider: &str,
+    wire: WireProtocol,
 ) -> (Classification, Option<&'a VertexRateCardEntry>) {
     if !model.serverless {
         return (Classification::NotServerless, None);
     }
-    let Some(entry) = card
-        .lookup(&model.upstream)
-        .filter(|e| e.provider.as_str() == provider)
-    else {
+    let Some(entry) = card.lookup(&model.upstream).filter(|e| e.wire == wire) else {
         return (Classification::Unpriced, None);
     };
     if !model.launch_stage.is_generally_available() && !entry.allow_preview {

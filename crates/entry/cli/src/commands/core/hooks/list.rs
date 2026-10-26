@@ -3,14 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Args;
 use std::path::Path;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::HookId;
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_manifest::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
 use super::types::{HookEntry, HookListOutput};
@@ -18,9 +17,8 @@ use super::types::{HookEntry, HookListOutput};
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let hooks_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "hooks");
+pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let hooks_path = ctx.boot()?.require_services_root().path.join("hooks");
     execute_with_path(args, &hooks_path)
 }
 

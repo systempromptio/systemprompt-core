@@ -19,7 +19,6 @@ use crate::interactive::Prompter;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::{McpServerId, SessionToken};
-use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::McpOrchestrator;
 
@@ -51,7 +50,10 @@ struct CollectedTools {
 
 pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let config = &ctx.cli;
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
 
     let name = resolve_agent_name(args.name, ctx.prompter(), config, &services_config)?;
 
@@ -77,6 +79,8 @@ pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<Com
         (**app.service_repository()).clone(),
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),
+        Arc::clone(app.spawner()),
+        Arc::clone(app.secrets()),
     )
     .context("Failed to initialize MCP manager")?;
     let running_servers = manager

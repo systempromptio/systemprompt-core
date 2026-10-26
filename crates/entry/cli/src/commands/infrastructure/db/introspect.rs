@@ -10,7 +10,7 @@ use systemprompt_logging::CliService;
 use crate::cli_settings::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
-use super::helpers::format_bytes;
+use super::text_format::format_bytes;
 use super::types::{DbIndexesOutput, DbSizeOutput, TableIndexInfo, TableSizeInfo};
 
 pub(super) async fn execute_indexes(

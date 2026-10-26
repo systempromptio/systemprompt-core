@@ -54,7 +54,6 @@ fn seed_catalogue() -> PathBuf {
     std::fs::create_dir_all(&plugin).unwrap();
     std::fs::write(plugin.join("config.yaml"), PLUGIN_YAML).unwrap();
 
-    systemprompt_test_fixtures::refresh_services_config();
     root
 }
 
@@ -67,7 +66,9 @@ fn args(skill: Option<&str>, plugin: Option<&str>) -> ExplainArgs {
 }
 
 async fn rows(args: &ExplainArgs) -> Vec<Value> {
-    let output = explain(args).await.expect("explain");
+    let output = explain(args, &crate::boot_ctx::bootstrap_ctx())
+        .await
+        .expect("explain");
     let artifact = serde_json::to_value(output.artifact()).expect("serialise artifact");
     artifact["items"]
         .as_array()

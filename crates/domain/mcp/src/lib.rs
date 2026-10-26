@@ -48,6 +48,9 @@ pub(crate) mod schema;
 pub mod services;
 pub(crate) mod tool;
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
+
 pub use extension::McpExtension;
 
 pub use error::{McpDomainError, McpDomainResult, ServiceStartFailure, ServiceStartFailures};
@@ -72,7 +75,7 @@ pub use resources::{
     ArtifactViewerConfig, build_artifact_viewer_resource, build_resource_template_list_result,
     default_server_icons, read_artifact_resource, read_artifact_viewer_resource,
 };
-pub use response::{McpResponseBuilder, ToolIdentity, UI_RESOURCE_URI_META_KEY};
+pub use response::{McpResponseBuilder, ResponseServices, ToolIdentity, UI_RESOURCE_URI_META_KEY};
 pub use schema::McpOutputSchema;
 pub use services::artifact_ingest::{
     ArtifactIngest, ArtifactScanner, FINGERPRINT_WINDOW_SECONDS, IngestOutcome, IngestRequest,
@@ -94,8 +97,7 @@ pub use systemprompt_models::mcp::{
 
 pub use services::monitoring::health::HealthStatus;
 pub use services::monitoring::status::McpServiceStatus;
-pub use services::registry::RegistryService;
-pub use services::registry::trait_impl::McpDeploymentProviderImpl;
+pub use services::registry::{McpDeploymentProviderImpl, RegistryService};
 pub use services::tool_provider::McpToolProvider;
 pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, McpRestartOutcome};
 
@@ -103,16 +105,15 @@ pub use systemprompt_manifest::services::McpDeploymentProvider;
 pub use systemprompt_models::mcp::{McpRegistry, McpServerState};
 
 pub fn mcp_protocol_version() -> String {
-    ProtocolVersion::V_2026_07_28.to_string()
+    mcp_protocol_version_str().to_owned()
 }
 
 pub const fn mcp_supported_protocol_versions() -> &'static [ProtocolVersion] {
     ProtocolVersion::KNOWN_VERSIONS
 }
 
-pub fn mcp_protocol_version_str() -> &'static str {
-    static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    VERSION.get_or_init(mcp_protocol_version).as_str()
+pub const fn mcp_protocol_version_str() -> &'static str {
+    "2026-07-28"
 }
 
 pub mod registry {
@@ -132,7 +133,6 @@ use axum::middleware::Next;
 use axum::response::Response;
 use rmcp::ServerHandler;
 pub use rmcp::model::ProtocolVersion;
-pub use rmcp::task_manager::{TaskContext, TaskManager, TaskOptions};
 use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 
@@ -196,7 +196,7 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
     let has_auth = req.headers().get("authorization").is_some();
     let proxy_verified = req
         .headers()
-        .get("x-proxy-verified")
+        .get(systemprompt_identifiers::headers::PROXY_VERIFIED)
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| v == "true");
     let accept = req

@@ -15,17 +15,10 @@ use systemprompt_database::{
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome, Termination};
 use systemprompt_scheduler::{ApiListenerStop, OrphanDisposition, ServiceManagementService};
-use systemprompt_test_fixtures::{test_db_pool, unique_instance};
+use systemprompt_test_fixtures::{test_db_pool, unique_instance, unique_service_name};
 
 // A PID that is never a live process: kill(2) on i32::MAX fails with ESRCH.
 const DEAD_PID: i32 = i32::MAX;
-
-fn unique_name(prefix: &str) -> ServiceName {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-    let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    ServiceName::new(format!("{prefix}-{}-{}", std::process::id(), n))
-}
 
 fn config_with_pid(
     instance: &InstanceId,
@@ -84,7 +77,7 @@ mod service_management_behaviour_db {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("stop-no-pid");
+        let name = unique_service_name("stop-no-pid");
         seed_running_row(&repo, &name, ServiceModule::Mcp, 0, None).await;
 
         let config = config_with_pid(&test_instance, &name, ServiceModule::Mcp, 0, None);
@@ -118,7 +111,7 @@ mod service_management_behaviour_db {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("stop-dead-pid");
+        let name = unique_service_name("stop-dead-pid");
         seed_running_row(&repo, &name, ServiceModule::Mcp, 0, Some(DEAD_PID)).await;
 
         let config = config_with_pid(&test_instance, &name, ServiceModule::Mcp, 0, Some(DEAD_PID));
@@ -178,7 +171,7 @@ mod service_management_behaviour_db {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("orphan-dead-pid");
+        let name = unique_service_name("orphan-dead-pid");
         seed_running_row(&repo, &name, ServiceModule::Agent, 0, Some(DEAD_PID)).await;
 
         let config = config_with_pid(
@@ -221,7 +214,7 @@ mod service_management_behaviour_db {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("orphans-stale");
+        let name = unique_service_name("orphans-stale");
         seed_running_row(&repo, &name, ServiceModule::Mcp, 0, Some(DEAD_PID)).await;
 
         // Sweep on a port nothing in this test holds; the seeded row has a dead
@@ -340,7 +333,7 @@ mod live_child_stop_paths {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("smb-live-graceful");
+        let name = unique_service_name("smb-live-graceful");
         let child = spawn_marked_sleep(&name);
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27201, Some(pid)).await;
@@ -381,7 +374,7 @@ mod live_child_stop_paths {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("smb-live-force");
+        let name = unique_service_name("smb-live-force");
         let child = spawn_marked_sleep(&name);
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27202, Some(pid)).await;
@@ -422,7 +415,7 @@ mod live_child_stop_paths {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("smb-live-unmarked");
+        let name = unique_service_name("smb-live-unmarked");
         let mut child = spawn_unmarked_sleep();
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27203, Some(pid)).await;
@@ -470,7 +463,7 @@ mod live_child_stop_paths {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("smb-live-orphan");
+        let name = unique_service_name("smb-live-orphan");
         let child = spawn_marked_sleep(&name);
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27204, Some(pid)).await;
@@ -515,7 +508,7 @@ mod live_child_stop_paths {
         ));
         let repo = ServiceRepository::new(&pool, test_instance.clone());
 
-        let name = unique_name("smb-live-sweep");
+        let name = unique_service_name("smb-live-sweep");
         let child = spawn_marked_sleep(&name);
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27205, Some(pid)).await;

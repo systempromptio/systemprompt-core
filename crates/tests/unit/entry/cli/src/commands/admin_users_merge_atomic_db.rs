@@ -4,11 +4,10 @@ use std::sync::Arc;
 
 use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_session,
-    test_app_context,
+    DisposableDb, ensure_test_bootstrap, seed_user_session, test_app_context,
 };
 use systemprompt_users::{UserRepository, UserService};
 
@@ -29,7 +28,6 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
     let database = DisposableDb::with_schema("cli_user_merge_atomic").await;
     let pool = database.test_pool().await;
     ensure_test_bootstrap();
-    install_test_signing_key();
     let repository = Arc::new(UserRepository::new(&pool));
     let service = UserService::new(Arc::clone(&repository));
     let nonce = uuid::Uuid::new_v4().simple().to_string();
@@ -72,7 +70,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
     .await
     .expect("create late failure trigger");
 
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

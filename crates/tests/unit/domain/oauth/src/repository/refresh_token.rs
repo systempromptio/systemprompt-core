@@ -19,7 +19,7 @@ struct Ctx {
 async fn setup() -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     let user_id = unique_user_id("rt");
     seed_user_row(&pool, &user_id, &format!("{}@rt.invalid", user_id.as_str()))
         .await
@@ -76,7 +76,7 @@ async fn store_then_consume() {
         .await
         .expect("consume");
     assert_eq!(consumed.user_id, ctx.user_id);
-    assert!(!consumed.family_id.is_empty());
+    assert!(!consumed.family_id.as_str().is_empty());
 }
 
 #[tokio::test]
@@ -114,7 +114,7 @@ async fn consume_then_replay_revokes_family() {
         .await
         .expect("consume");
     assert_eq!(consumed.user_id, ctx.user_id);
-    assert_eq!(consumed.family_id, family);
+    assert_eq!(consumed.family_id.as_str(), family);
 
     assert!(
         ctx.repo

@@ -1,9 +1,8 @@
 //! Gateway-route entity catalog reconciliation.
 //!
-//! Gateway route ids are content-addressed (`synthesize_route_id` in
-//! `systemprompt_models`), so they are stable across installs but change the
-//! moment a route's pattern or provider changes. The resolver is exact-match
-//! and fail-closed: a route id with no `access_control_entities` row resolves
+//! Gateway route ids are the `id` of a declared policy route. The resolver is
+//! exact-match and fail-closed: a route id with no `access_control_entities`
+//! row resolves
 //! to [`DenyReason::UnknownEntity`](crate::authz::DenyReason::UnknownEntity)
 //! before any rule runs.
 //!

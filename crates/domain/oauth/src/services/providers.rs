@@ -3,59 +3,77 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, UserId};
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
+use systemprompt_models::auth::{
+    AuthenticatedUser, JwtAudience, Permission, TokenAuthority, UserJwtRequest,
+};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
 
 use crate::error::OauthError;
 
-use super::generation::{JwtConfig, JwtSigningParams, generate_jwt, generate_secure_token};
+use super::generation::{JwtConfig, generate_secure_token};
 use super::validation::jwt::validate_jwt_token;
 
 #[derive(Debug)]
 pub struct JwtValidationProviderImpl {
-    issuer: String,
+    authority: Arc<dyn TokenAuthority>,
     audiences: Vec<JwtAudience>,
 }
 
 impl JwtValidationProviderImpl {
     #[must_use]
-    pub const fn new(issuer: String, audiences: Vec<JwtAudience>) -> Self {
-        Self { issuer, audiences }
+    pub const fn new(authority: Arc<dyn TokenAuthority>, audiences: Vec<JwtAudience>) -> Self {
+        Self {
+            authority,
+            audiences,
+        }
     }
 
-    pub fn from_config() -> JwtResult<Self> {
-        let config = systemprompt_manifest::Config::get()
-            .map_err(|e| JwtProviderError::Internal(Box::new(e)))?;
-
-        Ok(Self {
-            issuer: config.jwt_issuer.clone(),
+    pub fn from_config(
+        config: &systemprompt_manifest::Config,
+        authority: Arc<dyn TokenAuthority>,
+    ) -> Self {
+        Self {
+            authority,
             audiences: config.jwt_audiences.clone(),
-        })
+        }
     }
 }
 
 impl JwtValidationProvider for JwtValidationProviderImpl {
     fn validate_token(&self, token: &str) -> JwtResult<AgentJwtClaims> {
-        let claims =
-            validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| match e {
+        let claims = validate_jwt_token(self.authority.as_ref(), token, &self.audiences).map_err(
+            |e| match e {
                 OauthError::Expired(_) => JwtProviderError::TokenExpired,
                 _ => JwtProviderError::InvalidToken,
-            })?;
+            },
+        )?;
 
         let is_admin = claims.is_admin();
-        let subject = UserId::try_new(claims.sub).map_err(|_e| JwtProviderError::InvalidToken)?;
+        let subject =
+            UserId::try_new(claims.registered.sub).map_err(|_e| JwtProviderError::InvalidToken)?;
         Ok(AgentJwtClaims {
             subject,
-            username: claims.username,
-            user_type: claims.user_type.to_string(),
-            audiences: claims.aud.iter().map(ToString::to_string).collect(),
-            permissions: claims.scope.iter().map(ToString::to_string).collect(),
+            username: claims.custom.username,
+            user_type: claims.custom.user_type.to_string(),
+            audiences: claims
+                .registered
+                .aud
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+            permissions: claims
+                .custom
+                .scope
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
             is_admin,
-            expires_at: claims.exp,
-            issued_at: claims.iat,
+            expires_at: claims.registered.exp,
+            issued_at: claims.registered.iat,
         })
     }
 
@@ -111,12 +129,19 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             purpose: None,
         };
 
-        let jti = AccessTokenId::new(generate_secure_token("jwt"));
-        let signing = JwtSigningParams {
-            issuer: &self.issuer,
+        let request = UserJwtRequest {
+            user,
+            session_id: params.session_id,
+            jti: AccessTokenId::new(generate_secure_token("jwt")),
+            permissions: config.permissions,
+            audience: config.audience,
+            ttl: config.expires_in,
+            client_id: None,
+            purpose: None,
+            plugin_id: None,
         };
-
-        generate_jwt(&user, config, jti, &params.session_id, &signing)
+        self.authority
+            .mint_user_jwt(&request)
             .map_err(|e| JwtProviderError::Internal(e.into()))
     }
 

@@ -1,4 +1,5 @@
-//! HTTP forwarding to local MCP server ports.
+//! HTTP forwarding to local MCP server ports through the HTTP client the
+//! caller supplies.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,18 +12,14 @@ use axum::response::Response;
 use axum::routing::any;
 use futures::TryStreamExt;
 
-pub fn create_proxy_router(target_host: &str, target_port: u16) -> Router {
+pub fn create_proxy_router(client: reqwest::Client, target_host: &str, target_port: u16) -> Router {
     let target_url = format!("http://{target_host}:{target_port}");
 
     Router::new().fallback(any(move |req: Request| {
         let url = target_url.clone();
-        async move { forward_request(req, url).await }
+        let client = client.clone();
+        async move { forward_request(&client, req, url).await }
     }))
-}
-
-fn shared_client() -> &'static reqwest::Client {
-    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
-    CLIENT.get_or_init(reqwest::Client::new)
 }
 
 // Why: Hop-by-hop headers are connection-scoped (RFC 9110 §7.6.1) and cannot
@@ -38,7 +35,11 @@ const HOP_BY_HOP: &[&str] = &[
     "upgrade",
 ];
 
-async fn forward_request(req: Request, target_url: String) -> Result<Response, StatusCode> {
+async fn forward_request(
+    client: &reqwest::Client,
+    req: Request,
+    target_url: String,
+) -> Result<Response, StatusCode> {
     let path = req.uri().path();
     let query = req
         .uri()
@@ -49,7 +50,7 @@ async fn forward_request(req: Request, target_url: String) -> Result<Response, S
     let method = reqwest::Method::from_bytes(req.method().as_str().as_bytes())
         .map_err(|_e| StatusCode::BAD_REQUEST)?;
 
-    let mut proxied = shared_client().request(method, &full_url);
+    let mut proxied = client.request(method, &full_url);
 
     for (key, value) in req.headers() {
         if key != "host" {

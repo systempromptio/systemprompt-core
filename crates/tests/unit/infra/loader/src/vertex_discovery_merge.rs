@@ -1,27 +1,54 @@
 use std::collections::HashSet;
 
 use chrono::NaiveDate;
+use systemprompt_catalog_fixtures::{CatalogFixture, model, platform};
 use systemprompt_loader::vertex_discovery::merge;
-use systemprompt_manifest::services::{
-    DiscoveryReport, ProviderEntry, VertexRateCard, VertexRateCardEntry,
+use systemprompt_loader::vertex_discovery::source::DiscoveryEndpoint;
+use systemprompt_manifest::services::catalog::{
+    CatalogDocument, EndpointConfig, EndpointRef, ModelEntry, ProviderConfig,
 };
+use systemprompt_manifest::services::{
+    DiscoveryReport, ModelPricing, VertexRateCard, VertexRateCardEntry,
+};
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_wire::WireProtocol;
 
-const MAAS_PROVIDER: &str = r#"
-name: vertex-maas
-wire: openai-chat
-surface: openai
-endpoint: https://aiplatform.googleapis.com/v1beta1/projects/{project}/locations/global/endpoints/openapi
-api_key_secret: vertex_maas
-models:
-- id: openai.gpt-oss-20b
-  upstream_model: openai/gpt-oss-20b-maas
-  pricing:
-    input_per_million: 0.07
-    output_per_million: 0.3
-"#;
+const MAAS_URL: &str = "https://aiplatform.googleapis.com/v1beta1/projects/{project}/locations/global/endpoints/openapi";
 
-fn provider() -> ProviderEntry {
-    serde_yaml::from_str(MAAS_PROVIDER).expect("the fixture provider parses")
+fn provider() -> CatalogDocument {
+    let declared = ModelEntry {
+        upstream_model: Some("openai/gpt-oss-20b-maas".to_owned()),
+        ..model(
+            &[ClientFamily::OpenAi],
+            0,
+            ModelPricing {
+                input_per_million: 0.07,
+                output_per_million: 0.3,
+                cache_read_per_million: Some(0.0),
+                ..ModelPricing::default()
+            },
+        )
+    };
+    CatalogFixture::new()
+        .credential("vertex", platform("vertex_maas"))
+        .provider("vertex", ProviderConfig::new("vertex"))
+        .endpoint(
+            "vertex",
+            "maas",
+            EndpointConfig::new(WireProtocol::OpenAiChat, MAAS_URL),
+        )
+        .model("openai.gpt-oss-20b", declared)
+        .deploy("openai.gpt-oss-20b", ["vertex/maas"])
+        .document()
+        .clone()
+}
+
+fn endpoint() -> DiscoveryEndpoint {
+    DiscoveryEndpoint {
+        endpoint: EndpointRef::new("vertex", "maas"),
+        wire: WireProtocol::OpenAiChat,
+        url: MAAS_URL.to_owned(),
+    }
 }
 
 fn card() -> VertexRateCard {
@@ -51,6 +78,7 @@ fn an_explicitly_declared_id_wins_and_the_registry_is_untouched() {
 
     merge::publish(
         &mut provider,
+        &endpoint(),
         &entry(&card, "openai/gpt-oss-20b-maas"),
         today(),
         &mut report,
@@ -58,8 +86,8 @@ fn an_explicitly_declared_id_wins_and_the_registry_is_untouched() {
 
     assert_eq!(report.explicit_wins, vec!["openai.gpt-oss-20b".to_string()]);
     assert!(report.discovered_priced.is_empty());
-    assert_eq!(provider.models.len(), 1);
-    let declared = &provider.models[0];
+    assert_eq!(provider.models.models.len(), 1);
+    let declared = provider.models.get("openai.gpt-oss-20b").expect("declared");
     assert!(
         (declared.pricing.input_per_million - 0.07).abs() < f64::EPSILON,
         "the declared price survived"
@@ -74,6 +102,7 @@ fn a_priced_model_the_catalog_does_not_declare_is_appended() {
 
     merge::publish(
         &mut provider,
+        &endpoint(),
         &entry(&card, "qwen/qwen3-235b-a22b-instruct-2507-maas"),
         today(),
         &mut report,
@@ -85,8 +114,22 @@ fn a_priced_model_the_catalog_does_not_declare_is_appended() {
     );
     assert!(report.explicit_wins.is_empty());
     let added = provider
-        .find_model("qwen.qwen3-235b")
+        .models
+        .get("qwen.qwen3-235b")
         .expect("the discovered model is now servable");
+    assert_eq!(
+        provider
+            .deployments
+            .get("qwen.qwen3-235b")
+            .map(|t| t[0].endpoint().to_string()),
+        Some("vertex/maas".to_owned()),
+        "it is deployed on the endpoint that listed it"
+    );
+    assert_eq!(
+        added.clients,
+        vec![ClientFamily::OpenAi],
+        "advertised like its endpoint"
+    );
     assert_eq!(
         added.upstream_model.as_deref(),
         Some("qwen/qwen3-235b-a22b-instruct-2507-maas")
@@ -107,8 +150,8 @@ fn an_unpriced_model_is_reported_by_its_vertex_name_and_never_registered() {
         vec!["qwen/qwen3-embedding-8b".to_string()],
         "a repeat across pages is still one finding"
     );
-    assert!(provider.find_model("qwen/qwen3-embedding-8b").is_none());
-    assert_eq!(provider.models.len(), 1);
+    assert!(provider.models.get("qwen/qwen3-embedding-8b").is_none());
+    assert_eq!(provider.models.models.len(), 1);
 }
 
 // Why: a listing gap is Google's editorial decision, not our deprecation --
@@ -119,20 +162,20 @@ fn a_priced_model_no_listing_returned_is_reported_with_its_declaration_intact() 
     let provider = provider();
     let mut report = DiscoveryReport::default();
     let mut seen: HashSet<String> = HashSet::new();
-    for entry in card.entries_for("vertex-maas") {
+    for entry in card.entries_for(WireProtocol::OpenAiChat) {
         if entry.upstream != "openai/gpt-oss-20b-maas" {
             seen.insert(entry.upstream.clone());
         }
     }
 
-    merge::record_unseen(&card, "vertex-maas", &seen, &mut report);
+    merge::record_unseen(&card, WireProtocol::OpenAiChat, &seen, &mut report);
 
     assert_eq!(
         report.priced_not_published,
         vec!["openai.gpt-oss-20b".to_string()]
     );
     assert!(
-        provider.find_model("openai.gpt-oss-20b").is_some(),
+        provider.models.get("openai.gpt-oss-20b").is_some(),
         "discovery never removes an explicit declaration"
     );
 }
@@ -141,12 +184,12 @@ fn a_priced_model_no_listing_returned_is_reported_with_its_declaration_intact() 
 fn a_provider_whose_card_entries_all_listed_reports_no_gap() {
     let card = card();
     let seen: HashSet<String> = card
-        .entries_for("vertex")
+        .entries_for(WireProtocol::Gemini)
         .map(|entry| entry.upstream.clone())
         .collect();
     let mut report = DiscoveryReport::default();
 
-    merge::record_unseen(&card, "vertex", &seen, &mut report);
+    merge::record_unseen(&card, WireProtocol::Gemini, &seen, &mut report);
 
     assert!(report.priced_not_published.is_empty());
 }
@@ -163,6 +206,7 @@ fn a_model_inside_its_retirement_window_is_withheld_and_reported() {
 
     merge::publish(
         &mut provider,
+        &endpoint(),
         &entry(&card, "qwen/qwen3-235b-a22b-instruct-2507-maas"),
         after_notice,
         &mut report,
@@ -170,7 +214,7 @@ fn a_model_inside_its_retirement_window_is_withheld_and_reported() {
 
     assert_eq!(report.retiring, vec!["qwen.qwen3-235b".to_string()]);
     assert!(report.discovered_priced.is_empty());
-    assert!(provider.find_model("qwen.qwen3-235b").is_none());
+    assert!(provider.models.get("qwen.qwen3-235b").is_none());
 }
 
 // Why: the catalog is the operator's; a retiring model they declared by hand
@@ -184,6 +228,7 @@ fn an_explicit_declaration_of_a_retiring_model_is_kept_but_reported_as_retiring(
 
     merge::publish(
         &mut provider,
+        &endpoint(),
         &entry(&card, "openai/gpt-oss-20b-maas"),
         after_notice,
         &mut report,
@@ -191,14 +236,14 @@ fn an_explicit_declaration_of_a_retiring_model_is_kept_but_reported_as_retiring(
 
     assert_eq!(report.retiring, vec!["openai.gpt-oss-20b".to_string()]);
     assert!(report.explicit_wins.is_empty());
-    assert!(provider.find_model("openai.gpt-oss-20b").is_some());
+    assert!(provider.models.get("openai.gpt-oss-20b").is_some());
 }
 
 // Why: removing a retired declaration empties the route that reached it, and
 // a route reaching no priced model fails boot; the date passing must not stop
-// the instance. The model stays priced and leaves every listing instead.
+// the instance. The model stays priced and is no longer advertised instead.
 #[test]
-fn an_explicit_declaration_past_its_retirement_date_is_hidden_not_removed() {
+fn an_explicit_declaration_past_its_retirement_date_is_unadvertised_not_removed() {
     let card = card();
     let mut provider = provider();
     let mut report = DiscoveryReport::default();
@@ -206,15 +251,20 @@ fn an_explicit_declaration_past_its_retirement_date_is_hidden_not_removed() {
 
     merge::publish(
         &mut provider,
+        &endpoint(),
         &entry(&card, "openai/gpt-oss-20b-maas"),
         after_retirement,
         &mut report,
     );
 
     let model = provider
-        .find_model("openai.gpt-oss-20b")
+        .models
+        .get("openai.gpt-oss-20b")
         .expect("a retired declaration stays in the catalog");
-    assert!(model.hidden, "a retired declaration leaves every listing");
+    assert!(
+        model.clients.is_empty(),
+        "a retired declaration leaves every listing"
+    );
     assert!(model.pricing.is_billable());
     assert_eq!(report.retiring, vec!["openai.gpt-oss-20b".to_string()]);
 }

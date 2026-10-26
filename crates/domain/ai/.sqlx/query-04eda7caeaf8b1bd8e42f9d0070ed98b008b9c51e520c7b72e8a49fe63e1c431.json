@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT credential, label, created_at, verified_at, last_used_at\n            FROM user_provider_credentials\n            WHERE user_id = $1\n            ORDER BY credential\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "credential",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_provider_credentials",
+            "name": "credential"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_provider_credentials",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "user_provider_credentials",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "verified_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "user_provider_credentials",
+            "name": "verified_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_used_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "user_provider_credentials",
+            "name": "last_used_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "04eda7caeaf8b1bd8e42f9d0070ed98b008b9c51e520c7b72e8a49fe63e1c431"
+}

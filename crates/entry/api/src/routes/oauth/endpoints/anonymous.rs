@@ -4,11 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Extension, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_manifest::Config;
 
 use crate::services::middleware::client_addr::ClientIp;
 
@@ -92,10 +93,12 @@ async fn issue_anonymous_session(
     Ok(token_response(body, jwt_token.as_str(), expires_in))
 }
 
-fn build_session_service(state: &OAuthState) -> SessionCreationService {
+fn build_session_service(state: &OAuthState, config: Arc<Config>) -> SessionCreationService {
     let mut session_service = SessionCreationService::new(
         Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
+        Arc::clone(state.token_authority()),
+        config,
     );
     if let Some(fp_provider) = state.fingerprint_provider() {
         session_service = session_service.with_fingerprint_provider(Arc::clone(fp_provider));
@@ -105,6 +108,7 @@ fn build_session_service(state: &OAuthState) -> SessionCreationService {
 
 pub async fn generate_anonymous_token(
     State(state): State<OAuthState>,
+    Extension(config): Extension<Arc<Config>>,
     ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
     Json(req): Json<AnonymousTokenRequest>,
@@ -119,7 +123,7 @@ pub async fn generate_anonymous_token(
         .map_err(|e| internal::reclassify(e, OAuthHttpError::invalid_client))?;
     let client_type = validation.client_type();
 
-    let session_service = build_session_service(&state);
+    let session_service = build_session_service(&state, config);
 
     let analytics = state.analytics_provider().extract_analytics(
         &headers,

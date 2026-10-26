@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, ProviderCapability, Result};
+use crate::error::{AiError, ProviderCapability, Result, RoutingError};
 use futures::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 
 use crate::models::ai::{AiRequest, GoogleSearchParams, SearchGroundedResponse, StreamChunk};
 use crate::services::providers::{
@@ -24,13 +24,13 @@ impl AiService {
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
-        let provider = self.get_provider(request.provider())?;
+        let provider = self.get_provider(request)?;
 
         if !provider.supports_streaming() {
-            return Err(AiError::CapabilityUnsupported {
-                provider: request.provider().to_owned(),
+            return Err(AiError::Routing(RoutingError::CapabilityUnsupported {
+                provider: ProviderId::new(request.provider()),
                 capability: ProviderCapability::Streaming,
-            });
+            }));
         }
 
         let mut params = GenerationParams::new(
@@ -66,13 +66,13 @@ impl AiService {
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
-        let provider = self.get_provider(request.provider())?;
+        let provider = self.get_provider(request)?;
 
         if !provider.supports_streaming() {
-            return Err(AiError::CapabilityUnsupported {
-                provider: request.provider().to_owned(),
+            return Err(AiError::Routing(RoutingError::CapabilityUnsupported {
+                provider: ProviderId::new(request.provider()),
                 capability: ProviderCapability::Streaming,
-            });
+            }));
         }
 
         let tools = request.tools.clone().unwrap_or_else(Vec::new);
@@ -109,12 +109,12 @@ impl AiService {
         params: GoogleSearchParams<'_>,
     ) -> Result<SearchGroundedResponse> {
         let provider = self
-            .providers
+            .clients
             .values()
             .find(|p| p.supports_google_search())
-            .ok_or(AiError::NoProviderWithCapability {
+            .ok_or(AiError::Routing(RoutingError::NoProviderWithCapability {
                 capability: ProviderCapability::GoogleSearch,
-            })?;
+            }))?;
         let model = params
             .model
             .or_else(|| {
@@ -138,8 +138,8 @@ impl AiService {
 
     pub async fn health_check(&self) -> Result<HashMap<String, bool>> {
         let mut health = HashMap::new();
-        for (name, provider) in &self.providers {
-            health.insert(format!("provider_{name}"), provider.is_available());
+        for (endpoint, provider) in self.clients.iter() {
+            health.insert(format!("provider_{endpoint}"), provider.is_available());
         }
         let tool_health = self.tool_provider.health_check().await?;
         for (service_id, is_healthy) in tool_health {
@@ -150,10 +150,10 @@ impl AiService {
 }
 
 fn priced_model(provider: &dyn ProviderClient, model: &str) -> Result<ModelPricing> {
-    provider
-        .get_pricing(model)
-        .ok_or_else(|| AiError::UnknownModel {
-            provider: provider.name().to_owned(),
-            model: model.to_owned(),
+    provider.get_pricing(model).ok_or_else(|| {
+        AiError::Routing(RoutingError::UnknownModel {
+            provider: ProviderId::new(provider.name()),
+            model: ModelId::new(model),
         })
+    })
 }

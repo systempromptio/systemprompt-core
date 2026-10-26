@@ -16,6 +16,8 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-extension = { workspace = true }
+tokio-util = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }

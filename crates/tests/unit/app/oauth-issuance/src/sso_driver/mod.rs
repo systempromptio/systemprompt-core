@@ -13,9 +13,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::sso::{FinishOutcome, SsoCallback, SsoDriver};
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, install_test_signing_key, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_config, test_db_pool};
 use systemprompt_traits::SessionAnalytics;
 use systemprompt_traits::sso::{SsoReturn, SsoReturnBinding};
 
@@ -29,17 +27,31 @@ struct Harness {
 
 fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let users = Arc::new(MemoryUsers::default());
     let sessions = Arc::new(CountingSessions::default());
+    let mut config = fixture_config("postgres://unused/unused");
+    config.api_external_url = api_external_url.to_owned();
+    let config = Arc::new(config);
     let service = SessionCreationService::new(
         Arc::clone(&sessions) as Arc<dyn systemprompt_traits::SessionProvider>,
         Arc::clone(&users) as Arc<dyn systemprompt_traits::UserProvider>,
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        Arc::clone(&config),
     );
-    let mut config = fixture_config("postgres://unused/unused");
-    config.api_external_url = api_external_url.to_owned();
     Harness {
-        driver: SsoDriver::discover(db, Arc::new(service), Arc::new(config)),
+        driver: SsoDriver::discover(
+            &systemprompt_oauth_issuance::sso::SsoHookContext {
+                db: Arc::clone(db),
+                config,
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                services_root: systemprompt_test_fixtures::test_boot_active_services_root(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            },
+            systemprompt_test_fixtures::oauth_fixture_repository(db),
+            Arc::new(service),
+        ),
         users,
         sessions,
     }

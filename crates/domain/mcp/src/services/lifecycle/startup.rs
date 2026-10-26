@@ -43,7 +43,9 @@ pub async fn start_server(
         .wait_for_port_release_with_retry(port, &config.service_name(), MAX_PORT_CLEANUP_ATTEMPTS)
         .await?;
 
-    let pid = ProcessService::spawn_server(lifecycle.app_paths(), config)?;
+    let pid = lifecycle
+        .process()
+        .spawn_server(lifecycle.app_paths(), config)?;
 
     wait_for_startup(config, pid, events).await?;
 

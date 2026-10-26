@@ -10,9 +10,9 @@
 
 pub mod types;
 
+mod cron_text;
 mod disable;
 mod enable;
-mod helpers;
 pub mod history;
 mod list;
 mod run;
@@ -50,7 +50,7 @@ pub enum JobsCommands {
 pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         JobsCommands::List => {
-            render_result(&list::execute(), &ctx.cli);
+            render_result(&list::execute(ctx)?, &ctx.cli);
             Ok(())
         },
         JobsCommands::Show(args) => {

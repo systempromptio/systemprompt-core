@@ -14,8 +14,8 @@ use systemprompt_identifiers::{JobName, ScheduledJobId, ServiceName};
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{
-    DbServiceRecord, DesiredStatus, JobStatus, ReconciliationResult, RuntimeStatus, ScheduledJob,
-    SchedulerError, ServiceAction, ServiceConfig, ServiceType, VerifiedServiceState,
+    DbServiceRecord, DesiredStatus, JobStatus, ReconciliationResult, ScheduledJob, SchedulerError,
+    ServiceAction, ServiceConfig, ServiceType, VerifiedService, VerifiedServiceState,
 };
 
 #[test]
@@ -221,22 +221,6 @@ fn test_desired_status_serialization() {
 }
 
 #[test]
-fn test_runtime_status_variants() {
-    assert_eq!(RuntimeStatus::Running, RuntimeStatus::Running);
-    assert_eq!(RuntimeStatus::Starting, RuntimeStatus::Starting);
-    assert_eq!(RuntimeStatus::Stopped, RuntimeStatus::Stopped);
-    assert_eq!(RuntimeStatus::Crashed, RuntimeStatus::Crashed);
-    assert_eq!(RuntimeStatus::Orphaned, RuntimeStatus::Orphaned);
-}
-
-#[test]
-fn test_runtime_status_not_equal() {
-    assert_ne!(RuntimeStatus::Running, RuntimeStatus::Stopped);
-    assert_ne!(RuntimeStatus::Starting, RuntimeStatus::Crashed);
-    assert_ne!(RuntimeStatus::Stopped, RuntimeStatus::Orphaned);
-}
-
-#[test]
 fn test_service_action_none() {
     let action = ServiceAction::None;
     assert!(!action.requires_process_change());
@@ -284,7 +268,7 @@ fn test_verified_state_enabled_running_no_action() {
         ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         8080,
     )
     .with_pid(1234)
@@ -301,7 +285,7 @@ fn test_verified_state_enabled_starting_no_action() {
         ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Starting,
+        VerifiedService::observed(ServiceStatus::Starting),
         8080,
     )
     .with_pid(1234)
@@ -317,7 +301,7 @@ fn test_verified_state_enabled_stopped_needs_start() {
         ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Stopped,
+        VerifiedService::observed(ServiceStatus::Stopped),
         8080,
     )
     .build();
@@ -333,7 +317,7 @@ fn test_verified_state_enabled_crashed_needs_restart() {
         ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Crashed,
+        VerifiedService::observed(ServiceStatus::Error),
         8080,
     )
     .build();
@@ -349,7 +333,7 @@ fn test_verified_state_enabled_orphaned_needs_restart() {
         ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Orphaned,
+        VerifiedService::orphaned(),
         8080,
     )
     .with_pid(9999)
@@ -365,7 +349,7 @@ fn test_verified_state_disabled_running_needs_stop() {
         ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         8080,
     )
     .with_pid(1234)
@@ -382,7 +366,7 @@ fn test_verified_state_disabled_starting_needs_stop() {
         ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Starting,
+        VerifiedService::observed(ServiceStatus::Starting),
         8080,
     )
     .with_pid(1234)
@@ -398,7 +382,7 @@ fn test_verified_state_disabled_stopped_needs_cleanup_db() {
         ServiceName::new("old-service"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Stopped,
+        VerifiedService::observed(ServiceStatus::Stopped),
         9000,
     )
     .build();
@@ -413,7 +397,7 @@ fn test_verified_state_disabled_crashed_needs_cleanup_db() {
         ServiceName::new("old-service"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Crashed,
+        VerifiedService::observed(ServiceStatus::Error),
         9000,
     )
     .build();
@@ -427,7 +411,7 @@ fn test_verified_state_disabled_orphaned_needs_cleanup_process() {
         ServiceName::new("orphan-service"),
         ServiceType::Mcp,
         DesiredStatus::Disabled,
-        RuntimeStatus::Orphaned,
+        VerifiedService::orphaned(),
         3005,
     )
     .with_pid(5678)
@@ -443,7 +427,7 @@ fn test_verified_state_status_display() {
         ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         8080,
     )
     .build();
@@ -453,7 +437,7 @@ fn test_verified_state_status_display() {
         ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Starting,
+        VerifiedService::observed(ServiceStatus::Starting),
         8080,
     )
     .build();
@@ -463,27 +447,27 @@ fn test_verified_state_status_display() {
         ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Stopped,
+        VerifiedService::observed(ServiceStatus::Stopped),
         8080,
     )
     .build();
     assert_eq!(stopped.status_display(), "stopped");
 
-    let crashed = VerifiedServiceState::builder(
+    let errored = VerifiedServiceState::builder(
         ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Crashed,
+        VerifiedService::observed(ServiceStatus::Error),
         8080,
     )
     .build();
-    assert_eq!(crashed.status_display(), "crashed");
+    assert_eq!(errored.status_display(), "error");
 
     let orphaned = VerifiedServiceState::builder(
         ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Orphaned,
+        VerifiedService::orphaned(),
         8080,
     )
     .build();
@@ -496,7 +480,7 @@ fn test_verified_state_action_display() {
         ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         8080,
     )
     .build();
@@ -506,7 +490,7 @@ fn test_verified_state_action_display() {
         ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Stopped,
+        VerifiedService::observed(ServiceStatus::Stopped),
         8080,
     )
     .build();
@@ -519,7 +503,7 @@ fn test_verified_state_builder_with_pid() {
         ServiceName::new("service"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         8080,
     )
     .with_pid(12345)
@@ -534,7 +518,7 @@ fn test_verified_state_builder_with_error() {
         ServiceName::new("service"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Crashed,
+        VerifiedService::observed(ServiceStatus::Error),
         8080,
     )
     .with_error("Process exited with code 1".to_string())
@@ -549,7 +533,7 @@ fn test_verified_state_builder_complete() {
         ServiceName::new("full-service"),
         ServiceType::Mcp,
         DesiredStatus::Enabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         3000,
     )
     .with_pid(9999)
@@ -558,7 +542,10 @@ fn test_verified_state_builder_complete() {
     assert_eq!(state.name, "full-service");
     assert_eq!(state.service_type, ServiceType::Mcp);
     assert_eq!(state.desired_status, DesiredStatus::Enabled);
-    assert_eq!(state.runtime_status, RuntimeStatus::Running);
+    assert_eq!(
+        state.runtime,
+        VerifiedService::observed(ServiceStatus::Running)
+    );
     assert_eq!(state.port, 3000);
     assert_eq!(state.pid, Some(9999));
     assert_eq!(state.needs_action, ServiceAction::None);
@@ -729,7 +716,7 @@ fn test_wedged_service_restarts_via_action() {
         ServiceName::new("wedged"),
         ServiceType::Mcp,
         DesiredStatus::Enabled,
-        RuntimeStatus::Crashed,
+        VerifiedService::observed(ServiceStatus::Error),
         5110,
     )
     .with_pid(4321)
@@ -767,7 +754,7 @@ fn test_all_enabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         8080,
     )
     .build();
@@ -777,7 +764,7 @@ fn test_all_enabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Starting,
+        VerifiedService::observed(ServiceStatus::Starting),
         8080,
     )
     .build();
@@ -787,7 +774,7 @@ fn test_all_enabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Stopped,
+        VerifiedService::observed(ServiceStatus::Stopped),
         8080,
     )
     .build();
@@ -797,7 +784,7 @@ fn test_all_enabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Crashed,
+        VerifiedService::observed(ServiceStatus::Error),
         8080,
     )
     .build();
@@ -807,7 +794,7 @@ fn test_all_enabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Orphaned,
+        VerifiedService::orphaned(),
         8080,
     )
     .build();
@@ -820,7 +807,7 @@ fn test_all_disabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         8080,
     )
     .build();
@@ -830,7 +817,7 @@ fn test_all_disabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Starting,
+        VerifiedService::observed(ServiceStatus::Starting),
         8080,
     )
     .build();
@@ -840,7 +827,7 @@ fn test_all_disabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Stopped,
+        VerifiedService::observed(ServiceStatus::Stopped),
         8080,
     )
     .build();
@@ -850,7 +837,7 @@ fn test_all_disabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Crashed,
+        VerifiedService::observed(ServiceStatus::Error),
         8080,
     )
     .build();
@@ -860,7 +847,7 @@ fn test_all_disabled_state_transitions() {
         ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
-        RuntimeStatus::Orphaned,
+        VerifiedService::orphaned(),
         8080,
     )
     .build();
@@ -873,7 +860,7 @@ fn test_verified_state_serialization() {
         ServiceName::new("test-service"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Running,
+        VerifiedService::observed(ServiceStatus::Running),
         8080,
     )
     .with_pid(1234)
@@ -891,7 +878,7 @@ fn test_verified_state_deserialization() {
         "name": "api-server",
         "service_type": "Api",
         "desired_status": "Enabled",
-        "runtime_status": "Running",
+        "runtime": {"status": "running", "orphaned": false},
         "pid": 5678,
         "port": 9000,
         "needs_action": "None",
@@ -1245,7 +1232,7 @@ fn test_verified_state_serialization_with_error() {
         ServiceName::new("error-service"),
         ServiceType::Api,
         DesiredStatus::Enabled,
-        RuntimeStatus::Crashed,
+        VerifiedService::observed(ServiceStatus::Error),
         8080,
     )
     .with_error("Connection refused".to_string())
@@ -1261,7 +1248,7 @@ fn test_verified_state_serialization_without_pid() {
         ServiceName::new("no-pid-service"),
         ServiceType::Mcp,
         DesiredStatus::Disabled,
-        RuntimeStatus::Stopped,
+        VerifiedService::observed(ServiceStatus::Stopped),
         3000,
     )
     .build();
@@ -1283,7 +1270,7 @@ fn test_verified_state_all_service_types() {
             ServiceName::new("type-test"),
             service_type,
             DesiredStatus::Enabled,
-            RuntimeStatus::Running,
+            VerifiedService::observed(ServiceStatus::Running),
             8080,
         )
         .build();
@@ -1330,12 +1317,6 @@ fn test_scheduler_error_display_all_variants() {
                 ProviderError::InvalidInput("error".to_owned()),
             ),
             "Job execution failed: job - Invalid input: error",
-        ),
-        (
-            SchedulerError::UnknownRetentionTable {
-                table: "nope".to_owned(),
-            },
-            "No retention path for table nope",
         ),
         (SchedulerError::AlreadyRunning, "Scheduler already running"),
         (SchedulerError::NotInitialized, "Scheduler not initialized"),
@@ -1452,39 +1433,5 @@ fn test_service_action_deserialization_all_variants() {
         let action: ServiceAction =
             serde_json::from_str(json).expect("ServiceAction should deserialize");
         assert_eq!(action, expected, "Deserialization mismatch for {}", json);
-    }
-}
-
-
-#[test]
-fn test_runtime_status_serialization() {
-    let statuses = [
-        (RuntimeStatus::Running, "\"Running\""),
-        (RuntimeStatus::Starting, "\"Starting\""),
-        (RuntimeStatus::Stopped, "\"Stopped\""),
-        (RuntimeStatus::Crashed, "\"Crashed\""),
-        (RuntimeStatus::Orphaned, "\"Orphaned\""),
-    ];
-
-    for (status, expected) in statuses {
-        let json = serde_json::to_string(&status).expect("RuntimeStatus should serialize");
-        assert_eq!(json, expected, "Serialization mismatch for {:?}", status);
-    }
-}
-
-#[test]
-fn test_runtime_status_deserialization() {
-    let cases = [
-        ("\"Running\"", RuntimeStatus::Running),
-        ("\"Starting\"", RuntimeStatus::Starting),
-        ("\"Stopped\"", RuntimeStatus::Stopped),
-        ("\"Crashed\"", RuntimeStatus::Crashed),
-        ("\"Orphaned\"", RuntimeStatus::Orphaned),
-    ];
-
-    for (json, expected) in cases {
-        let status: RuntimeStatus =
-            serde_json::from_str(json).expect("RuntimeStatus should deserialize");
-        assert_eq!(status, expected, "Deserialization mismatch for {}", json);
     }
 }

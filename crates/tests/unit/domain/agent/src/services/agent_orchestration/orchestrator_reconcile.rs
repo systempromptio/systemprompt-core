@@ -17,18 +17,13 @@ use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::ServicesConfig;
 use systemprompt_traits::{Phase, StartupEvent, startup_channel};
-use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state_for};
-use systemprompt_test_fixtures::{test_db_pool, unique_instance};
+use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
-
-fn unique_name(prefix: &str) -> AgentName {
-    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
-}
 
 fn app_paths() -> Arc<AppPaths> {
     let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -37,7 +32,7 @@ fn app_paths() -> Arc<AppPaths> {
 
 fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(pool, instance.clone());
-    AgentDatabaseService::new(repo).expect("db service")
+    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view())
 }
 
 fn registry_from(entries: &[(&AgentName, &AgentName, u16)]) -> AgentRegistry {
@@ -59,9 +54,15 @@ async fn make_orchestrator(
     entries: &[(&AgentName, &AgentName, u16)],
 ) -> AgentOrchestrator {
     let agent_state = make_agent_state_for(pool, instance);
-    let mut orchestrator = AgentOrchestrator::new(agent_state, app_paths(), None)
-        .await
-        .expect("orchestrator");
+    let mut orchestrator = AgentOrchestrator::new(
+        agent_state,
+        app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
+        crate::spawn_environment(),
+        None,
+    )
+    .await
+    .expect("orchestrator");
     orchestrator.set_registry(registry_from(entries));
     orchestrator
 }
@@ -71,8 +72,8 @@ async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let a = unique_name("recon_a");
-    let b = unique_name("recon_b");
+    let a = unique_agent_name("recon_a");
+    let b = unique_agent_name("recon_b");
     let orchestrator =
         make_orchestrator(&pool, &instance, &[(&a, &a, 39470), (&b, &b, 39471)]).await;
 
@@ -120,8 +121,8 @@ async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name(
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let key = unique_name("recon_key");
-    let declared = unique_name("recon_declared");
+    let key = unique_agent_name("recon_key");
+    let declared = unique_agent_name("recon_declared");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&key, &declared, 39472)]).await;
 
     let info = orchestrator.get_detailed_status().await.expect("status");
@@ -139,8 +140,8 @@ async fn disable_all_leaves_every_registry_agent_failed() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let a = unique_name("recon_dis_a");
-    let b = unique_name("recon_dis_b");
+    let a = unique_agent_name("recon_dis_a");
+    let b = unique_agent_name("recon_dis_b");
     let orchestrator =
         make_orchestrator(&pool, &instance, &[(&a, &a, 39473), (&b, &b, 39474)]).await;
 
@@ -168,7 +169,7 @@ async fn health_check_reports_a_dead_pid_as_not_running() {
     let pool = test_db_pool().await;
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let name = unique_name("recon_health");
+    let name = unique_agent_name("recon_health");
     let orchestrator = make_orchestrator(&pool, &instance, &[(&name, &name, 39475)]).await;
 
     let db = db_service(&pool, &instance);

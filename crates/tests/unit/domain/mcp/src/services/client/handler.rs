@@ -22,11 +22,15 @@ fn http_client_with_context_new_returns_clonable_value() {
 }
 
 #[test]
-fn rewrite_url_for_internal_use_falls_back_when_config_uninitialised() {
-    let url = "http://example.com/mcp";
-    let out = rewrite_url_for_internal_use(url);
+fn rewrite_url_for_internal_use_swaps_only_the_external_origin() {
+    let config = systemprompt_test_fixtures::test_config_with(|c| {
+        c.api_external_url = "https://public.example.invalid".to_owned();
+        c.api_server_url = "http://127.0.0.1:8080".to_owned();
+    });
     assert_eq!(
-        out, url,
-        "without Config::get, URL passes through unchanged"
+        rewrite_url_for_internal_use("https://public.example.invalid/mcp", &config),
+        "http://127.0.0.1:8080/mcp"
     );
+    let foreign = "http://example.com/mcp";
+    assert_eq!(rewrite_url_for_internal_use(foreign, &config), foreign);
 }

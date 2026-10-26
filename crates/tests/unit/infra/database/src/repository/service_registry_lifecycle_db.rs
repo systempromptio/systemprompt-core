@@ -10,7 +10,7 @@ use systemprompt_database::{
     ServiceStatus,
 };
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{LivePids, test_database_url};
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
@@ -115,7 +115,13 @@ async fn crashing_clears_the_pid_and_the_stale_sweep_reaps_the_row() {
         1
     );
 
-    assert_eq!(repo.cleanup_stale_entries().await.expect("sweep"), 1);
+    assert_eq!(
+        repo.reap_stale(&LivePids::of([222]))
+            .await
+            .expect("sweep")
+            .total(),
+        1
+    );
     assert!(
         repo.find_service_by_name(&crashed)
             .await

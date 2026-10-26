@@ -21,8 +21,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
-    test_database_url, test_db_pool,
+    DisposableDb, ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
 
 #[derive(Debug, Parser)]
@@ -39,7 +38,6 @@ fn parse(args: &[&str]) -> ServicesCommands {
 
 async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let url = test_database_url();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &url);
@@ -51,7 +49,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
     if json {
         cli = cli.with_output_format(OutputFormat::Json);
     }
-    CommandContext::with_app_context(cli, EnvOverrides::default(), Arc::clone(app))
+    crate::boot_ctx::with_app_boot(cli, EnvOverrides::default(), Arc::clone(app))
 }
 
 async fn applied_migration_count(pool: &DbPool) -> i64 {
@@ -129,7 +127,6 @@ async fn a_start_without_skip_migrate_runs_the_migration_phase_idempotently() {
     // this run: an install onto whatever an earlier run left behind proves
     // nothing about the phase under test.
     ensure_test_bootstrap();
-    install_test_signing_key();
     let disp = DisposableDb::with_schema("cov_cli_startmig").await;
     let pool = disp.test_pool().await;
     let app = test_app_context(&pool, disp.url());
@@ -244,9 +241,10 @@ fn service_flags_translate_into_a_target_set() {
 
 #[test]
 fn the_service_manifest_loads_from_the_bootstrap_profile() {
-    ensure_test_bootstrap();
+    let boot = ensure_test_bootstrap();
 
-    let configs = load_service_configs().expect("the bootstrap profile has a readable manifest");
+    let configs =
+        load_service_configs(&boot.boot).expect("the bootstrap profile has a readable manifest");
     assert!(
         configs.iter().all(|c| !c.name.as_str().is_empty()),
         "every manifest entry must carry a service name"

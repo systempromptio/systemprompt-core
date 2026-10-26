@@ -11,6 +11,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ServiceManagementService;
@@ -50,7 +51,7 @@ pub(super) async fn execute(
         if !config.is_json_output() {
             CliService::section("Stopping API Server");
         }
-        stop_api(force, config.is_json_output()).await?
+        stop_api(ctx.profile()?, force, config.is_json_output()).await?
     } else {
         false
     };
@@ -70,8 +71,8 @@ pub(super) async fn execute(
     Ok(CommandOutput::card_value("Stop Services", &output))
 }
 
-async fn stop_api(force: bool, quiet: bool) -> Result<bool> {
-    let port = get_api_port();
+async fn stop_api(profile: &Profile, force: bool, quiet: bool) -> Result<bool> {
+    let port = get_api_port(profile);
 
     let stops = ServiceManagementService::stop_api_by_port(port, force).await?;
     let mut cleared = true;
@@ -197,7 +198,7 @@ pub(super) async fn execute_individual_agent(
     }
 
     let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
-    let name = lifecycle::resolve_agent_name(agent).await?;
+    let name = lifecycle::resolve_agent_name(ctx.services_state(), agent)?;
 
     if force {
         orchestrator.delete_agent(&name).await?;

@@ -8,11 +8,17 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use systemprompt_extension::{
-    GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard, gateway_guards,
-    register_gateway_guard, run_gateway_guards,
+    GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
+    register_gateway_guard,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, UserId};
 use systemprompt_traits::DatabaseHandle;
+
+use crate::registry_validation::StubCtx;
+
+fn guards() -> GatewayGuards {
+    GatewayGuards::discover(&StubCtx)
+}
 
 static ARMED: AtomicBool = AtomicBool::new(false);
 // user, model, route, provider, streaming — as observed by the guard.
@@ -79,15 +85,13 @@ async fn an_unarmed_registry_admits_the_request() {
         attribution: &systemprompt_models::attribution::RequestAttribution::none(),
         api_key_id: None,
     };
-    assert!(run_gateway_guards(&StubDb, &request).await.is_ok());
+    assert!(guards().run(&StubDb, &request).await.is_ok());
 }
 
 #[test]
-fn guards_are_materialised_once_from_inventory() {
-    let first = gateway_guards();
-    let second = gateway_guards();
-    assert!(!first.is_empty());
-    assert!(std::ptr::eq(first.as_ptr(), second.as_ptr()));
+fn discovery_builds_every_registered_guard_from_the_context() {
+    assert!(!guards().is_empty());
+    assert!(GatewayGuards::default().is_empty());
 }
 
 #[tokio::test]
@@ -106,7 +110,8 @@ async fn a_guard_sees_the_resolved_request_and_its_forbidden_kind_survives() {
         attribution: &systemprompt_models::attribution::RequestAttribution::none(),
         api_key_id: None,
     };
-    let deny = run_gateway_guards(&StubDb, &request)
+    let deny = guards()
+        .run(&StubDb, &request)
         .await
         .expect_err("armed guard must deny");
     ARMED.store(false, Ordering::SeqCst);

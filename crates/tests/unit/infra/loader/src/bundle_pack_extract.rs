@@ -29,7 +29,7 @@ fn the_content_hash_is_reproducible_for_the_same_tree() {
     let b = tempfile::tempdir().expect("tempdir");
     base_tree(a.path());
     base_tree(b.path());
-    write(b.path(), "config/config.yaml", "version: 1\n");
+    write(b.path(), "config/config.yaml", "includes: []\n");
 
     let first = build_manifest(a.path(), "1.0.0", ">=0.1", BundleSourceInfo::default())
         .expect("manifest a");
@@ -96,7 +96,7 @@ fn a_packed_bundle_round_trips_through_extraction() {
     );
     assert_eq!(
         fs::read_to_string(dest.path().join("config/config.yaml")).expect("read"),
-        "version: 1\n"
+        "includes: []\n"
     );
 }
 

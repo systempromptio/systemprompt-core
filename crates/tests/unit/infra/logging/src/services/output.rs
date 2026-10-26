@@ -1,13 +1,11 @@
 //! Unit tests for output mode functions
 
 use std::sync::{Arc, Mutex};
-use systemprompt_logging::{FilterSystemFields, is_startup_mode, set_startup_mode};
+use systemprompt_logging::{FilterSystemFields, OutputState};
 use tracing::{Level, Subscriber, info, warn};
 use tracing_subscriber::filter::FilterFn;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{EnvFilter, Layer};
-
-static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Clone, Default)]
 struct CapturingWriter {
@@ -41,9 +39,12 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for CapturingWriter {
     }
 }
 
-fn make_dynamic_subscriber(writer: CapturingWriter) -> impl Subscriber + Send + Sync {
+fn make_dynamic_subscriber(
+    writer: CapturingWriter,
+    output: OutputState,
+) -> impl Subscriber + Send + Sync {
     let base = EnvFilter::new("info");
-    let gate = FilterFn::new(|meta| !is_startup_mode() || *meta.level() <= Level::WARN);
+    let gate = FilterFn::new(move |meta| !output.is_startup_mode() || *meta.level() <= Level::WARN);
     let layer = tracing_subscriber::fmt::layer()
         .fmt_fields(FilterSystemFields::new())
         .with_target(false)
@@ -56,50 +57,50 @@ fn make_dynamic_subscriber(writer: CapturingWriter) -> impl Subscriber + Send + 
 
 #[test]
 fn test_startup_mode_returns_bool() {
-    let _guard = STARTUP_MODE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    let _result = is_startup_mode();
-    set_startup_mode(true);
-    assert!(is_startup_mode());
+    let output = OutputState::new();
+    let _result = output.is_startup_mode();
+    output.set_startup_mode(true);
+    assert!(output.is_startup_mode());
 }
 
 #[test]
 fn test_set_startup_mode_true() {
-    let _guard = STARTUP_MODE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    set_startup_mode(true);
-    assert!(is_startup_mode());
+    let output = OutputState::new();
+    output.set_startup_mode(true);
+    assert!(output.is_startup_mode());
 }
 
 #[test]
 fn test_set_startup_mode_false() {
-    let _guard = STARTUP_MODE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    set_startup_mode(false);
-    assert!(!is_startup_mode());
+    let output = OutputState::new();
+    output.set_startup_mode(false);
+    assert!(!output.is_startup_mode());
 }
 
 #[test]
 fn test_startup_mode_toggle() {
-    let _guard = STARTUP_MODE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    set_startup_mode(true);
-    assert!(is_startup_mode());
+    let output = OutputState::new();
+    output.set_startup_mode(true);
+    assert!(output.is_startup_mode());
 
-    set_startup_mode(false);
-    assert!(!is_startup_mode());
+    output.set_startup_mode(false);
+    assert!(!output.is_startup_mode());
 
-    set_startup_mode(true);
-    assert!(is_startup_mode());
+    output.set_startup_mode(true);
+    assert!(output.is_startup_mode());
 }
 
 #[test]
 fn dynamic_filter_follows_startup_mode_after_init() {
-    let _guard = STARTUP_MODE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let output = OutputState::new();
     let writer = CapturingWriter::default();
-    let subscriber = make_dynamic_subscriber(writer.clone());
+    let subscriber = make_dynamic_subscriber(writer.clone(), output.clone());
 
     tracing::subscriber::with_default(subscriber, || {
-        set_startup_mode(true);
+        output.set_startup_mode(true);
         info!("startup-info-suppressed");
         warn!("startup-warn-shown");
-        set_startup_mode(false);
+        output.set_startup_mode(false);
         info!("ready-info-shown");
     });
 

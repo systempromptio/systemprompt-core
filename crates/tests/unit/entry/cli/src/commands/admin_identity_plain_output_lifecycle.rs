@@ -5,7 +5,7 @@ use std::process::{Command, Stdio};
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::identity::{self, IdentityCommands};
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_config::{decode_master_key, decode_seed};
 use systemprompt_security::keys::RsaSigningKey;
 
@@ -23,7 +23,7 @@ fn plain_identity_helper() {
     let command = Harness::try_parse_from(["identity", "generate"])
         .expect("parse identity command")
         .command;
-    let context = CommandContext::new(
+    let context = crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Table),

@@ -20,6 +20,7 @@ use crate::proxy::server::ProxyStats;
 use crate::proxy::session::SessionContext;
 use crate::proxy::token_cache::TokenCache;
 use crate::update::automatic::UpdateGate;
+use systemprompt_models::ApiPaths;
 
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 const HEARTBEAT_AUTH_THRESHOLD_SECS: u64 = 300;
@@ -155,8 +156,9 @@ async fn send_one(
     };
 
     let url = format!(
-        "{base}/v1/bridge/heartbeat",
+        "{base}{path}",
         base = gateway_base.as_str().trim_end_matches('/'),
+        path = ApiPaths::BRIDGE_HEARTBEAT,
     );
 
     let response = client
@@ -168,7 +170,9 @@ async fn send_one(
 
     let status = response.status();
     if status == reqwest::StatusCode::UNAUTHORIZED {
-        token_cache.reject_upstream("/v1/bridge/heartbeat").await;
+        token_cache
+            .reject_upstream(ApiPaths::BRIDGE_HEARTBEAT)
+            .await;
     }
     if !status.is_success() {
         let (status, rejection) = crate::gateway::GatewayRejection::read(response).await;

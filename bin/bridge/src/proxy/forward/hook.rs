@@ -16,7 +16,7 @@ pub(super) fn authenticate_hook_track(
     upstream_headers: &mut http::HeaderMap,
 ) -> ForwardResult<()> {
     let host = request_headers
-        .get("x-systemprompt-host")
+        .get(crate::headers::HOST)
         .and_then(|value| value.to_str().ok());
     if let Err(error) = crate::feedback::hooks::authenticate_forwarded_hook(
         gateway_base.as_str(),

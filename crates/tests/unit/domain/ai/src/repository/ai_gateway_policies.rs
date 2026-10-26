@@ -1,103 +1,87 @@
-// DB-backed tests for AiGatewayPolicyRepository upsert / list / delete.
-
-use serde_json::json;
-use systemprompt_ai::repository::AiGatewayPolicyRepository;
-use uuid::Uuid;
+// DB-backed tests for AiGatewayPolicyRepository: the plane's connection-scoped
+// list / upsert / delete and the request path's enabled-only read.
 
 use super::bootstrapped_pool;
+use serde_json::{Value, json};
+use systemprompt_ai::repository::{AiGatewayPolicyRepository, GatewayPolicyWrite};
+use systemprompt_test_fixtures::unique_name;
 
-async fn test_repo() -> AiGatewayPolicyRepository {
+async fn upsert(
+    pool: &systemprompt_database::DbPool,
+    name: &str,
+    spec: &Value,
+    enabled: bool,
+    priority: i32,
+) {
+    let mut conn = pool.write_pool().acquire().await.expect("conn");
+    AiGatewayPolicyRepository::upsert_on(
+        &mut conn,
+        &GatewayPolicyWrite {
+            name,
+            spec,
+            enabled,
+            priority,
+            source: "code:test",
+        },
+    )
+    .await
+    .expect("upsert");
+}
+
+#[tokio::test]
+async fn upsert_inserts_then_updates_and_list_includes_disabled() {
     let pool = bootstrapped_pool().await;
-    AiGatewayPolicyRepository::new(&pool)
-}
+    let name = unique_name("policy");
+    upsert(&pool, &name, &json!({"a": 1}), true, 0).await;
+    upsert(&pool, &name, &json!({"a": 2}), false, 42).await;
 
-fn unique_name() -> String {
-    format!("policy-{}", Uuid::new_v4())
-}
-
-#[tokio::test]
-async fn upsert_inserts_then_updates_same_name() {
-    let repo = test_repo().await;
-    let name = unique_name();
-    let spec = json!({"block_categories": ["pii"]});
-    let id1 = repo.upsert(&name, &spec, true, 0).await.expect("insert");
-
-    let spec2 = json!({"block_categories": ["pii", "malware"]});
-    let id2 = repo.upsert(&name, &spec2, false, 0).await.expect("update");
-    // ON CONFLICT (name) keeps the original row id.
-    assert_eq!(id1, id2);
-}
-
-#[tokio::test]
-async fn find_for_global_returns_only_enabled() {
-    let repo = test_repo().await;
-    let enabled = unique_name();
-    let disabled = unique_name();
-    repo.upsert(&enabled, &json!({}), true, 0)
+    let mut conn = pool.write_pool().acquire().await.expect("conn");
+    let rows = AiGatewayPolicyRepository::list_all_on(&mut conn)
         .await
-        .expect("enabled");
-    repo.upsert(&disabled, &json!({}), false, 0)
-        .await
-        .expect("disabled");
-
-    let rows = repo.list_for_global().await.expect("find");
-    assert!(rows.iter().any(|r| r.name == enabled && r.enabled));
-    assert!(!rows.iter().any(|r| r.name == disabled));
-}
-
-#[tokio::test]
-async fn list_all_names_includes_disabled() {
-    let repo = test_repo().await;
-    let name = unique_name();
-    repo.upsert(&name, &json!({}), false, 0)
-        .await
-        .expect("upsert");
-    let names = repo.list_all_names().await.expect("list");
-    assert!(names.contains(&name));
-}
-
-#[tokio::test]
-async fn delete_by_name_removes_policy() {
-    let repo = test_repo().await;
-    let name = unique_name();
-    repo.upsert(&name, &json!({}), true, 0)
-        .await
-        .expect("upsert");
-    repo.delete_by_name(&name).await.expect("delete");
-    let names = repo.list_all_names().await.expect("list");
-    assert!(!names.contains(&name));
-}
-
-#[tokio::test]
-async fn upsert_persists_priority_and_orders_ascending() {
-    let repo = test_repo().await;
-    let low = unique_name();
-    let high = unique_name();
-    repo.upsert(&low, &json!({}), true, 10).await.expect("low");
-    repo.upsert(&high, &json!({}), true, 20)
-        .await
-        .expect("high");
-
-    let rows = repo.list_for_global().await.expect("list");
-    let low_at = rows.iter().position(|r| r.name == low).expect("low row");
-    let high_at = rows.iter().position(|r| r.name == high).expect("high row");
-    assert!(low_at < high_at);
-    assert_eq!(rows[low_at].priority, 10);
-    assert_eq!(rows[high_at].priority, 20);
-}
-
-#[tokio::test]
-async fn upsert_updates_priority_on_conflict() {
-    let repo = test_repo().await;
-    let name = unique_name();
-    repo.upsert(&name, &json!({}), true, 5)
-        .await
-        .expect("insert");
-    repo.upsert(&name, &json!({}), true, 42)
-        .await
-        .expect("update");
-
-    let rows = repo.list_for_global().await.expect("list");
+        .expect("list");
     let row = rows.iter().find(|r| r.name == name).expect("row");
-    assert_eq!(row.priority, 42);
+    assert_eq!(
+        (row.enabled, row.priority, row.spec.clone()),
+        (false, 42, json!({"a": 2}))
+    );
+}
+
+#[tokio::test]
+async fn find_for_global_returns_only_enabled_in_priority_order() {
+    let pool = bootstrapped_pool().await;
+    let (low, high, off) = (
+        unique_name("policy"),
+        unique_name("policy"),
+        unique_name("policy"),
+    );
+    upsert(&pool, &high, &json!({}), true, 20).await;
+    upsert(&pool, &low, &json!({}), true, 10).await;
+    upsert(&pool, &off, &json!({}), false, 0).await;
+
+    let names: Vec<String> = AiGatewayPolicyRepository::new(&pool)
+        .list_for_global()
+        .await
+        .expect("list")
+        .into_iter()
+        .map(|r| r.name)
+        .collect();
+    assert!(!names.contains(&off));
+    let lo = names.iter().position(|n| *n == low).expect("low");
+    let hi = names.iter().position(|n| *n == high).expect("high");
+    assert!(lo < hi);
+}
+
+#[tokio::test]
+async fn delete_on_removes_the_policy() {
+    let pool = bootstrapped_pool().await;
+    let name = unique_name("policy");
+    upsert(&pool, &name, &json!({}), true, 0).await;
+    let mut conn = pool.write_pool().acquire().await.expect("conn");
+    AiGatewayPolicyRepository::delete_on(&mut conn, &name)
+        .await
+        .expect("delete");
+    let rows = AiGatewayPolicyRepository::list_all_on(&mut conn)
+        .await
+        .expect("list");
+    assert!(rows.iter().all(|r| r.name != name));
 }

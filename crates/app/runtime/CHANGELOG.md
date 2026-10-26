@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- `AppContextBuilder::with_database_url` connects to a given database instead of the profile's, dropping the profile's write and session URLs.
+- `AppContext::governance()` returns the current engine from a `ConfigWatch`; `governance_arc()` is removed; `governance_watch()` and `load_governance()` are new.
+- `builder::core_layer::discover_vertex_models(&mut CatalogDocument)` replaces the `ProviderRegistry` argument; the runtime's `AiService` is built from `ServicesBootstrap::catalog()`.
+- `RateWindow`, `DeploymentService`, `McpClient`, `McpDeploymentProviderImpl`, `ProcessService`, `FilterSystemFields` and `JsonEventFormat` no longer implement `Copy`, and `OutboundCtx`, `ServiceAccountTokens`, `StreamEvent`, `ImageProviderParams`, `ProviderClientParams`, `UpstreamTarget`, `McpClient`, `ProcessService`, `JwtTokenValidator`, `JwtValidationProviderImpl` and `HookTokenValidator` are no longer `UnwindSafe` or `RefUnwindSafe`, because they hold the injected config, token authority, token cache or spawner handles. Migrate by cloning where a copy was implied, and by wrapping in `AssertUnwindSafe` where one crosses `catch_unwind`.
+- `SchedulerError::UnknownRetentionTable` is removed and `SchedulerError` gains `Logging(LoggingError)` and `Mcp(McpDomainError)`; `RuntimeError` gains `SubjectSource(AlreadyBound)` and `AtRest(AtRestCipherError)`; `AuthzError` gains `Rules(RulesProblems)` and `Canonical(serde_json::Error)`. Exhaustive matches need an arm. `RoleDirectory` gains the required `async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError>`. Migrate by adding the arms and implementing `roles_of` on every registered role directory.
+
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

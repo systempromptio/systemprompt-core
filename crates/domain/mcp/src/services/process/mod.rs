@@ -11,30 +11,49 @@
 
 pub mod spawner;
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
+use systemprompt_config::SecretsService;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
+use systemprompt_loader::subprocess::{self, ChildKind, Spawner, StopOutcome};
+use systemprompt_manifest::Config;
 
 const STOP_GRACE: Duration = Duration::from_secs(5);
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ProcessService;
+#[derive(Debug, Clone)]
+pub struct ProcessService {
+    spawner: Arc<Spawner>,
+    config: Arc<Config>,
+    secrets: Arc<SecretsService>,
+}
 
 impl ProcessService {
-    pub const fn new() -> Self {
-        Self
+    pub const fn new(
+        spawner: Arc<Spawner>,
+        config: Arc<Config>,
+        secrets: Arc<SecretsService>,
+    ) -> Self {
+        Self {
+            spawner,
+            config,
+            secrets,
+        }
     }
 
-    pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
-        spawner::spawn_server(paths, config)
+    pub fn spawn_server(&self, paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
+        spawner::spawn_server(&self.spawner, &self.config, &self.secrets, paths, config)
     }
 
     pub async fn is_running(pid: u32) -> bool {
         subprocess::is_running(pid).await
+    }
+
+    pub async fn owns(pid: u32, service_name: &ServiceName) -> bool {
+        subprocess::owns(pid, ChildKind::Mcp, service_name).await
     }
 
     pub async fn owned_port_holders(

@@ -9,7 +9,7 @@ use systemprompt_cloud::{
     CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore, StoredTenant,
     TenantStore,
 };
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
 };
@@ -17,7 +17,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{CloudConfig, CloudValidationMode, ProfileType};
 use systemprompt_models::auth::UserType;
 
-const ISSUER: &str = "https://routing-issuer.test";
+const ISSUER: &str = "https://routing.example.invalid";
 
 struct WorkingDirectory(std::path::PathBuf);
 
@@ -77,12 +77,11 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     profile.paths.services = "/app/services".to_owned();
     profile.paths.bin = "/app/bin".to_owned();
     profile.paths.web_path = Some("/app/web".to_owned());
-    profile.server.api_external_url = "https://routing.example.invalid".to_owned();
+    profile.server.external_url = ISSUER.to_owned();
     profile
         .server
         .trusted_proxies
         .push("fc00::/7".parse().expect("valid cloud proxy range"));
-    profile.security.issuer = ISSUER.to_owned();
     profile.cloud = Some(CloudConfig {
         tenant_id: Some(routed_tenant.clone()),
         validation: CloudValidationMode::Strict,
@@ -117,9 +116,9 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     sessions.save(&sessions_dir).expect("save initial sessions");
 
     let _cwd = WorkingDirectory::enter(&system_root);
-    ProfileBootstrap::init_from_path(&fixture.profile_path).expect("initialize cloud profile");
+    let profile = LoadedProfile::from_path(&fixture.profile_path).expect("load cloud profile");
 
-    let initial = determine_execution_target().expect("valid cloud state routes remotely");
+    let initial = determine_execution_target(&profile).expect("valid cloud state routes remotely");
     match initial {
         ExecutionTarget::Remote {
             hostname,
@@ -136,7 +135,7 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     TenantStore::new(vec![other.clone()])
         .save_to_path(&tenants_path)
         .expect("remove the selected tenant from the cache");
-    let missing = determine_execution_target()
+    let missing = determine_execution_target(&profile)
         .expect_err("an unrelated cached account cannot replace the profile tenant");
     let missing_message = format!("{missing:#}");
     assert!(missing_message.contains(routed_tenant.as_str()));
@@ -157,8 +156,8 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     sessions
         .save(&sessions_dir)
         .expect("replace selected session with stale issuer");
-    let stale =
-        determine_execution_target().expect_err("an issuer-mismatched session must fail closed");
+    let stale = determine_execution_target(&profile)
+        .expect_err("an issuer-mismatched session must fail closed");
     assert!(format!("{stale:#}").contains("admin session login"));
 
     let repaired_context = ContextId::generate();
@@ -175,7 +174,7 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
         .save(&sessions_dir)
         .expect("repair selected session");
     let repaired =
-        determine_execution_target().expect("routing recovers from repaired durable state");
+        determine_execution_target(&profile).expect("routing recovers from repaired durable state");
     match repaired {
         ExecutionTarget::Remote {
             hostname,

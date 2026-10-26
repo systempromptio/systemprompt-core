@@ -1,33 +1,25 @@
-//! `admin config gateway` — edit the services gateway section
-//! (`services/ai/gateway.yaml`): enable state, routing patterns, and the
-//! default provider.
+//! `admin config gateway` — edit `services/ai/gateway.yaml`: enable state,
+//! the one `default_model`, and the policy routes.
 //!
-//! Every mutation resolves the resulting spec and validates it against the
-//! merged services provider registry, so a route or default-provider that names
-//! a provider absent from the registry fails at the edit rather than at the
-//! next boot. The gateway owns no catalog: providers and models live in
-//! `services/ai/providers.yaml` (see `admin config catalog`). The profile is
-//! never touched.
+//! Routing for the common case is the deployments file; a route here is
+//! policy only (a scope or request predicate, a deployment pin, a strategy or
+//! an alias) and has a declared id. Every edit re-resolves the whole catalog,
+//! so a default model or route naming something the catalog does not declare
+//! fails at the edit rather than at the next boot. The profile is never
+//! touched.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-
 use anyhow::{Result, anyhow, bail};
 use clap::{Args, Subcommand};
-use systemprompt_identifiers::ProviderId;
-use systemprompt_manifest::services::{
-    GatewayConfigSpec, GatewayRoute, GatewayState, ProviderRegistry,
-};
+use systemprompt_identifiers::ModelId;
+use systemprompt_manifest::services::catalog::CatalogDocument;
+use systemprompt_manifest::services::gateway::{ModelGlobs, RouteAlias, RouteDeployment};
+use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute};
 
-use super::services_io::{
-    GatewayFile, booted_services, gateway_relative, load_gateway_file, save_file,
-};
-use super::types::ConfigMutationOutput;
-use crate::CliConfig;
-use crate::shared::{CommandOutput, render_result};
-use systemprompt_models::artifacts::ListItem;
+use super::catalog_edit::{apply, parse_endpoints, read_active, render_list};
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum GatewayCommands {
@@ -37,195 +29,158 @@ pub enum GatewayCommands {
     #[command(about = "Disable the gateway")]
     Disable,
 
-    #[command(subcommand, about = "Manage gateway routes")]
+    #[command(subcommand, about = "Manage gateway policy routes")]
     Route(RouteCommands),
 
-    #[command(
-        subcommand,
-        about = "Manage the default provider (catch-all fallback route)"
-    )]
-    DefaultProvider(DefaultProviderCommands),
+    #[command(subcommand, about = "Manage the one default model")]
+    DefaultModel(DefaultModelCommands),
 }
 
 #[derive(Debug, Subcommand)]
-pub enum DefaultProviderCommands {
-    #[command(about = "Set the default provider (must exist in the services provider registry)")]
+pub enum DefaultModelCommands {
+    #[command(about = "Set gateway.default_model (a catalog model id, no `[1m]`)")]
     Set {
-        #[arg(
-            long,
-            help = "Provider name declared in the services provider registry",
-            value_parser = crate::shared::parse_provider_id
-        )]
-        provider: ProviderId,
+        #[arg(long, value_parser = crate::shared::parse_model_id)]
+        model: ModelId,
     },
 
-    #[command(about = "Clear the default provider")]
+    #[command(about = "Clear gateway.default_model")]
     Clear,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum RouteCommands {
-    #[command(about = "Add or replace a route (upsert by model pattern)")]
+    #[command(about = "Add or replace a policy route (upsert by id)")]
     Add(RouteAddArgs),
 
-    #[command(about = "Remove a route by model pattern")]
+    #[command(about = "Remove a policy route by id")]
     Remove {
-        #[arg(long, help = "Model pattern to remove (e.g. claude-*)")]
-        model_pattern: String,
+        #[arg(long)]
+        id: String,
     },
 
-    #[command(about = "List configured routes")]
+    #[command(about = "List policy routes")]
     List,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct RouteAddArgs {
-    #[arg(long, help = "Model pattern (e.g. claude-*)")]
-    pub model_pattern: String,
+    #[arg(long, help = "Declared, stable route id")]
+    pub id: String,
+
+    #[arg(long, help = "Audit label (defaults to the id)")]
+    pub label: Option<String>,
+
+    #[arg(long = "models", help = "Model glob the route applies to (repeatable)")]
+    pub models: Vec<String>,
+
+    #[arg(
+        long = "deployment",
+        help = "Pin the chain to these provider/endpoint deployments (repeatable)"
+    )]
+    pub deployments: Vec<String>,
 
     #[arg(
         long,
-        help = "Provider name (must exist in the services provider registry)",
-        value_parser = crate::shared::parse_provider_id
+        help = "Alias as REQUESTED=MODEL: the requested id resolves to MODEL"
     )]
-    pub provider: ProviderId,
-
-    #[arg(long, help = "Upstream model name the provider expects (optional)")]
-    pub upstream_model: Option<String>,
+    pub alias: Option<String>,
 }
 
-pub async fn execute(command: &GatewayCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &GatewayCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        GatewayCommands::Route(RouteCommands::List) => list_routes(config),
-        GatewayCommands::Enable => apply(config, |file| set_enabled(file, true)).await,
-        GatewayCommands::Disable => apply(config, |file| set_enabled(file, false)).await,
+        GatewayCommands::Route(RouteCommands::List) => list_routes(ctx),
+        GatewayCommands::Enable => edit(ctx, |spec| Ok(set_enabled(spec, true))).await,
+        GatewayCommands::Disable => edit(ctx, |spec| Ok(set_enabled(spec, false))).await,
         GatewayCommands::Route(RouteCommands::Add(args)) => {
-            apply(config, |file| add_route(file, args)).await
+            edit(ctx, |spec| add_route(spec, args)).await
         },
-        GatewayCommands::Route(RouteCommands::Remove { model_pattern }) => {
-            apply(config, |file| remove_route(file, model_pattern)).await
+        GatewayCommands::Route(RouteCommands::Remove { id }) => {
+            edit(ctx, |spec| remove_route(spec, id)).await
         },
-        GatewayCommands::DefaultProvider(DefaultProviderCommands::Set { provider }) => {
-            apply(config, |file| set_default_provider(file, provider)).await
+        GatewayCommands::DefaultModel(DefaultModelCommands::Set { model }) => {
+            edit(ctx, |spec| {
+                spec.default_model = Some(model.clone());
+                Ok(format!("Gateway default model set to {model}"))
+            })
+            .await
         },
-        GatewayCommands::DefaultProvider(DefaultProviderCommands::Clear) => {
-            apply(config, clear_default_provider).await
+        GatewayCommands::DefaultModel(DefaultModelCommands::Clear) => {
+            edit(ctx, |spec| {
+                spec.default_model = None;
+                Ok("Gateway default model cleared".to_owned())
+            })
+            .await
         },
     }
 }
 
-async fn apply(
-    config: &CliConfig,
-    mutate: impl FnOnce(&mut GatewayFile) -> Result<String>,
+async fn edit(
+    ctx: &CommandContext,
+    mutate: impl FnOnce(&mut GatewayConfigSpec) -> Result<String>,
 ) -> Result<()> {
-    let mut file = load_gateway_file()?;
-    let message = mutate(&mut file.content)?;
-
-    let registry = &booted_services()?.providers;
-    validate_gateway(&file.content, registry)?;
-    save_file(&file, gateway_relative())?;
-    let source = file.path.display().to_string();
-    let outcome =
-        super::reconcile::reconcile_authz(file.content.gateway.as_ref(), registry, &source).await;
-
-    render_result(
-        &CommandOutput::card_value(
-            "Gateway Updated",
-            &ConfigMutationOutput {
-                field: "gateway".to_owned(),
-                message: super::reconcile::append_reconcile_notice(message, &outcome),
-            },
-        ),
-        config,
-    );
-    Ok(())
+    apply(ctx, "Gateway Updated", |document, context| {
+        let message = mutate(spec_mut(document))?;
+        document
+            .resolve(context)
+            .map_err(|e| anyhow!("gateway validation failed: {e}"))?;
+        Ok(message)
+    })
+    .await
 }
 
-pub fn spec_mut(file: &mut GatewayFile) -> Result<&mut GatewayConfigSpec> {
-    file.gateway
-        .get_or_insert_with(|| GatewayState::Spec(GatewayConfigSpec::default()))
-        .as_spec_mut()
-        .ok_or_else(|| anyhow!("gateway is in a resolved state and cannot be edited"))
+pub fn spec_mut(document: &mut CatalogDocument) -> &mut GatewayConfigSpec {
+    document
+        .gateway
+        .get_or_insert_with(GatewayConfigSpec::default)
 }
 
-pub fn set_enabled(file: &mut GatewayFile, enabled: bool) -> Result<String> {
-    spec_mut(file)?.enabled = enabled;
-    Ok(format!("Gateway enabled = {}", enabled))
+pub fn set_enabled(spec: &mut GatewayConfigSpec, enabled: bool) -> String {
+    spec.enabled = enabled;
+    format!("Gateway enabled = {enabled}")
 }
 
-pub fn add_route(file: &mut GatewayFile, args: &RouteAddArgs) -> Result<String> {
-    let mut route = GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: args.model_pattern.clone(),
-        provider: args.provider.clone(),
-        upstream_model: args.upstream_model.clone(),
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
-    let spec = spec_mut(file)?;
-    spec.routes
-        .retain(|r| r.model_pattern != args.model_pattern);
-    spec.routes.push(route);
-    Ok(format!(
-        "Route {} -> {} added",
-        args.model_pattern, args.provider
-    ))
-}
-
-pub fn set_default_provider(file: &mut GatewayFile, provider: &ProviderId) -> Result<String> {
-    spec_mut(file)?.default_provider = Some(provider.clone());
-    Ok(format!("Gateway default provider set to {}", provider))
-}
-
-pub fn clear_default_provider(file: &mut GatewayFile) -> Result<String> {
-    spec_mut(file)?.default_provider = None;
-    Ok("Gateway default provider cleared".to_owned())
-}
-
-pub fn remove_route(file: &mut GatewayFile, model_pattern: &str) -> Result<String> {
-    let spec = spec_mut(file)?;
-    let before = spec.routes.len();
-    spec.routes.retain(|r| r.model_pattern != model_pattern);
-    if spec.routes.len() == before {
-        bail!("No route found for model pattern {}", model_pattern);
+pub fn add_route(spec: &mut GatewayConfigSpec, args: &RouteAddArgs) -> Result<String> {
+    let mut route = GatewayRoute::new(&args.id);
+    route.label.clone_from(&args.label);
+    route.models = ModelGlobs(args.models.clone());
+    route.deployments = parse_endpoints(&args.deployments)?
+        .into_iter()
+        .map(RouteDeployment::Endpoint)
+        .collect();
+    if let Some(raw) = args.alias.as_deref() {
+        let Some((requested, model)) = raw.split_once('=') else {
+            bail!("invalid --alias '{raw}'; expected REQUESTED=MODEL");
+        };
+        route.alias = Some(RouteAlias {
+            requested: ModelId::new(requested.trim()),
+            model: ModelId::new(model.trim()),
+        });
     }
-    Ok(format!("Route {} removed", model_pattern))
+    spec.routes.retain(|r| r.id != route.id);
+    spec.routes.push(route);
+    Ok(format!("Route {} saved", args.id))
 }
 
-pub fn validate_gateway(file: &GatewayFile, registry: &ProviderRegistry) -> Result<()> {
-    let Some(state) = &file.gateway else {
-        return Ok(());
-    };
-    let resolved = state.clone().into_spec().resolve();
-    resolved
-        .validate(registry)
-        .map_err(|e| anyhow!("gateway validation failed: {e}"))
+pub fn remove_route(spec: &mut GatewayConfigSpec, id: &str) -> Result<String> {
+    let before = spec.routes.len();
+    spec.routes.retain(|r| r.id.as_str() != id);
+    if spec.routes.len() == before {
+        bail!("No route with id {id}");
+    }
+    Ok(format!("Route {id} removed"))
 }
 
-fn list_routes(config: &CliConfig) -> Result<()> {
-    let items: Vec<ListItem> = booted_services()?
-        .gateway_config()
-        .map(|gateway| gateway.routes.clone())
+fn list_routes(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let document = read_active(ctx)?;
+    let rows = document
+        .gateway
+        .map(|gateway| gateway.routes)
         .unwrap_or_default()
         .iter()
-        .map(|r| {
-            let route = format!("{} -> {}", r.model_pattern, r.provider.as_str());
-            ListItem::new(route, String::new(), String::new())
-        })
+        .map(|r| format!("{} ({}) models {:?}", r.id, r.audit_label(), r.models.0))
         .collect();
-    render_result(
-        &CommandOutput::list(items).with_title("Gateway Routes"),
-        config,
-    );
+    render_list(config, "Gateway Routes", rows);
     Ok(())
 }

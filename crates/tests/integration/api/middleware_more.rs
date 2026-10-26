@@ -133,7 +133,14 @@ async fn drive_site_auth(uri: &str) -> StatusCode {
         .route("/{*rest}", get(|| async { "ok" }))
         .route("/login", get(|| async { "login" }))
         .layer(middleware::from_fn(move |req, next| async move {
-            site_auth_gate(req, next, config, "https://issuer.test").await
+            site_auth_gate(
+                req,
+                next,
+                config,
+                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+                &systemprompt_test_fixtures::test_signing_keys(),
+            )
+            .await
         }));
     let resp = app
         .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
@@ -323,7 +330,7 @@ async fn jti_revocation_checker_fails_closed_on_revoked() -> Result<()> {
     let epochs = systemprompt_traits::CacheEpochs::new();
     epochs.set_relay_live(true);
     let checker = JtiRevocationChecker::from_repository(
-        systemprompt_oauth::repository::OAuthRepository::new(&pool),
+        systemprompt_test_fixtures::oauth_fixture_repository(&pool),
         epochs,
     );
 

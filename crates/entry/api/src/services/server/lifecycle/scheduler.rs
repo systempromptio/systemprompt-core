@@ -5,7 +5,6 @@
 
 use anyhow::{Result, bail};
 use std::sync::Arc;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
 use systemprompt_scheduler::services::{
@@ -14,25 +13,21 @@ use systemprompt_scheduler::services::{
 };
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
-use crate::services::server::scheduler_health;
+use crate::services::server::scheduler_health::SchedulerHealth;
 
 pub(in crate::services::server) async fn initialize_scheduler(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
+    scheduler_health: &SchedulerHealth,
 ) -> Result<Option<SchedulerHandle>> {
     events.scheduler_initializing();
     reconcile_config_planes(ctx).await?;
 
-    let config = ConfigLoader::load().map_or_else(
-        |e| {
-            tracing::warn!(error = %e, "Failed to load scheduler config, using defaults");
-            SchedulerConfig::with_system_admin()
-        },
-        |c| {
-            c.scheduler
-                .unwrap_or_else(SchedulerConfig::with_system_admin)
-        },
-    );
+    let config = ctx
+        .services_config()
+        .scheduler
+        .clone()
+        .unwrap_or_else(SchedulerConfig::with_system_admin);
 
     let scheduler = SchedulerService::new(config, Arc::clone(ctx.db_pool()), Arc::new(ctx.clone()));
 
@@ -45,7 +40,7 @@ pub(in crate::services::server) async fn initialize_scheduler(
             "scheduler started degraded: jobs skipped due to unresolved owners"
         );
     }
-    scheduler_health::record(startup.degraded);
+    scheduler_health.record(startup.degraded);
 
     events.scheduler_ready(startup.scheduled, available_jobs);
     Ok(startup.handle)
@@ -72,8 +67,8 @@ async fn reconcile_config_planes(ctx: &AppContext) -> Result<()> {
     }
     tracing::info!(
         planes = report.planes.len(),
-        changes = report.changes(),
-        "config planes reconciled at boot"
+        drift_rows = report.drift_rows(),
+        "config planes checked at boot; nothing applied"
     );
     Ok(())
 }

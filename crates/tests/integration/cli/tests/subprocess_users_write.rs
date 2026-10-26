@@ -47,6 +47,7 @@ fn user_create_update_show_delete_cycle() {
     full_fixture();
     let name = unique("covuser_cycle");
     let email = format!("{name}@example.com");
+    let updated_email = format!("{name}-updated@example.com");
     run_ok(&[
         "admin",
         "users",
@@ -83,7 +84,7 @@ fn user_create_update_show_delete_cycle() {
         "update",
         &id,
         "--email",
-        "covuser_cycle2@example.com",
+        &updated_email,
         "--full-name",
         "Updated User",
         "--display-name",

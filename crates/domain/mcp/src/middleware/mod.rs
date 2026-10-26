@@ -12,7 +12,7 @@ use rmcp::{ErrorData as McpError, RoleServer};
 use systemprompt_models::RequestContext as SysRequestContext;
 use systemprompt_traits::ContextPropagation;
 
-pub use rbac::{AuthResult, AuthenticatedRequestContext, enforce_rbac_from_registry};
+pub use rbac::{AuthResult, AuthenticatedRequestContext, JwtVerifier, enforce_rbac_from_registry};
 pub use session_handler::{DatabaseSessionHandler, PostgresSessionStore};
 
 pub fn extract_bearer_token(

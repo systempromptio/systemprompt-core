@@ -9,10 +9,10 @@
 //!
 //! Where a stored secret has to be replayed upstream rather than merely
 //! matched — an MCP proxy identity's bearer JWT, say — a digest is no use and
-//! [`seal`]/[`open`] encrypt it instead, with ChaCha20-Poly1305 under the
-//! deployment's `encryption_master_key`. That is the same key and the same
-//! AEAD the gateway accounting journal uses on disk, so a deployment has one
-//! at-rest key to hold, not two.
+//! [`AtRestCipher::seal`]/[`AtRestCipher::open`] encrypt it instead, with
+//! ChaCha20-Poly1305 under the deployment's `encryption_master_key`. That is
+//! the same key and the same AEAD the gateway accounting journal uses on disk,
+//! so a deployment has one at-rest key to hold, not two.
 //!
 //! Rotation is out of scope here: rolling the pepper invalidates every
 //! row hashed under the old key, and rolling the master key invalidates every
@@ -26,6 +26,7 @@ use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{ChaCha20Poly1305, Nonce};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
+use systemprompt_manifest::secrets::Secrets;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -52,40 +53,60 @@ pub enum AtRestCipherError {
     NotAuthentic,
 }
 
-fn cipher() -> Result<ChaCha20Poly1305, AtRestCipherError> {
-    let secrets = systemprompt_config::SecretsBootstrap::get()
-        .map_err(|_e| AtRestCipherError::KeyUnavailable)?;
-    let key = secrets
-        .get("encryption_master_key")
-        .ok_or(AtRestCipherError::KeyUnavailable)?;
-    let decoded =
-        systemprompt_config::decode_master_key(key).map_err(|_e| AtRestCipherError::KeyInvalid)?;
-    Ok(ChaCha20Poly1305::new(&decoded.into()))
+/// The deployment's at-rest AEAD, keyed once from `encryption_master_key`.
+#[derive(Clone)]
+pub struct AtRestCipher {
+    key: std::sync::Arc<[u8; 32]>,
 }
 
-pub fn seal(plaintext: &str) -> Result<String, AtRestCipherError> {
-    let nonce: [u8; NONCE_BYTES] = rand::random();
-    let sealed = cipher()?
-        .encrypt(&Nonce::from(nonce), plaintext.as_bytes())
-        .map_err(|_e| AtRestCipherError::NotAuthentic)?;
-    let mut out = Vec::with_capacity(NONCE_BYTES + sealed.len());
-    out.extend_from_slice(&nonce);
-    out.extend_from_slice(&sealed);
-    Ok(hex::encode(out))
-}
-
-pub fn open(sealed: &str) -> Result<String, AtRestCipherError> {
-    let bytes = hex::decode(sealed).map_err(|_e| AtRestCipherError::Malformed)?;
-    if bytes.len() <= NONCE_BYTES {
-        return Err(AtRestCipherError::Malformed);
+impl std::fmt::Debug for AtRestCipher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("AtRestCipher(<redacted>)")
     }
-    let nonce: [u8; NONCE_BYTES] = bytes[..NONCE_BYTES]
-        .try_into()
-        .map_err(|_e| AtRestCipherError::Malformed)?;
-    let plaintext = cipher()?
-        .decrypt(&Nonce::from(nonce), &bytes[NONCE_BYTES..])
-        .map_err(|_e| AtRestCipherError::NotAuthentic)?;
-    String::from_utf8(plaintext).map_err(|_e| AtRestCipherError::Malformed)
+}
+
+impl AtRestCipher {
+    pub fn from_secrets(secrets: &Secrets) -> Result<Self, AtRestCipherError> {
+        let key = secrets
+            .get("encryption_master_key")
+            .ok_or(AtRestCipherError::KeyUnavailable)?;
+        let key = systemprompt_config::decode_master_key(key)
+            .map_err(|_e| AtRestCipherError::KeyInvalid)?;
+        Ok(Self {
+            key: std::sync::Arc::new(key),
+        })
+    }
+
+    fn aead(&self) -> ChaCha20Poly1305 {
+        ChaCha20Poly1305::new(&(*self.key).into())
+    }
+
+    pub fn seal(&self, plaintext: &str) -> Result<String, AtRestCipherError> {
+        let nonce: [u8; NONCE_BYTES] = rand::random();
+        let sealed = self
+            .aead()
+            .encrypt(&Nonce::from(nonce), plaintext.as_bytes())
+            .map_err(|_e| AtRestCipherError::NotAuthentic)?;
+        let mut out = Vec::with_capacity(NONCE_BYTES + sealed.len());
+        out.extend_from_slice(&nonce);
+        out.extend_from_slice(&sealed);
+        Ok(hex::encode(out))
+    }
+
+    pub fn open(&self, sealed: &str) -> Result<String, AtRestCipherError> {
+        let bytes = hex::decode(sealed).map_err(|_e| AtRestCipherError::Malformed)?;
+        if bytes.len() <= NONCE_BYTES {
+            return Err(AtRestCipherError::Malformed);
+        }
+        let nonce: [u8; NONCE_BYTES] = bytes[..NONCE_BYTES]
+            .try_into()
+            .map_err(|_e| AtRestCipherError::Malformed)?;
+        let plaintext = self
+            .aead()
+            .decrypt(&Nonce::from(nonce), &bytes[NONCE_BYTES..])
+            .map_err(|_e| AtRestCipherError::NotAuthentic)?;
+        String::from_utf8(plaintext).map_err(|_e| AtRestCipherError::Malformed)
+    }
 }
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]

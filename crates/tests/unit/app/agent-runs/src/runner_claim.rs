@@ -13,16 +13,16 @@ use systemprompt_agent_runs::repository::RunCredentialRepositories;
 use systemprompt_agent_runs::runner::{A2aRunHandler, A2aRunnerConfig};
 use systemprompt_agent_runs::service::{ClaimLoop, claimer_id};
 use systemprompt_identifiers::{ContextId, TaskId};
-use systemprompt_test_fixtures::{install_test_signing_key, test_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::{AgentRunLaunch, AgentRunLauncher};
 use tokio_util::sync::CancellationToken;
 
 use crate::execute_support::ShHost;
 use crate::repository::{fixture, request};
+use systemprompt_identifiers::AgentRunOriginId;
 
 #[tokio::test]
 async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
-    install_test_signing_key();
     let f = fixture().await;
     let pool = test_db_pool().await;
     let (task_id, context_id) = (TaskId::generate(), ContextId::generate());
@@ -46,7 +46,7 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
             context_id,
             request: serde_json::to_value(request()).expect("request json"),
             origin_kind: f.origin_kind.clone(),
-            origin_id: task_id.to_string(),
+            origin_id: AgentRunOriginId::new(task_id.to_string()),
         })
         .await
         .expect("enqueue");
@@ -59,9 +59,13 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
     };
     let handler = A2aRunHandler::new(
         RunCredentialService::new(
-            RunCredentialRepositories::new(&pool),
-            "https://issuer.test",
+            RunCredentialRepositories::new(
+                &pool,
+                systemprompt_test_fixtures::oauth_fixture_repository(&pool),
+            ),
             systemprompt_users::ApiKeyLifetime::unbounded(),
+            systemprompt_test_fixtures::test_token_authority("https://issuer.test"),
+            systemprompt_test_fixtures::test_config(),
         ),
         config,
     )

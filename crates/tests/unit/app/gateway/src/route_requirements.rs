@@ -10,66 +10,48 @@
 //! directions of that fallback are asserted — a model can be stricter than its
 //! provider, and it can be laxer.
 
+use systemprompt_catalog_fixtures::{CatalogFixture, claude_model, platform};
 use systemprompt_gateway::service::route_match::enforce_route_requirements;
-use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId, RouteId, SecretName};
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_manifest::services::ai::ModelGovernance;
-use systemprompt_manifest::services::{
-    GatewayRoute, ProviderEntry, ProviderModel, RouteRequirements,
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, ModelEntry, ProviderConfig, ResolvedHop,
 };
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_manifest::services::{GatewayRoute, RouteRequirements};
 use systemprompt_wire::WireProtocol;
 
 fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
     GatewayRoute {
-        id: Some(RouteId::new("eu-route")),
-        name: None,
-        description: None,
-        model_pattern: "model-*".to_owned(),
-        provider: ProviderId::new("acme"),
-        upstream_model: None,
-        extra_headers: Default::default(),
-        pricing: None,
-        when: None,
         requires,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
+        ..GatewayRoute::new("eu-route")
     }
 }
 
-fn provider(governance: ModelGovernance, models: Vec<ProviderModel>) -> ProviderEntry {
-    ProviderEntry {
-        name: ProviderId::new("acme"),
-        display_name: None,
-        description: None,
-        wire: WireProtocol::Anthropic,
-        surface: ApiSurface::Anthropic,
-        endpoint: "https://acme.invalid".to_owned(),
-        api_key_secret: Some(SecretName::new("acme_api_key")),
-        credential: Default::default(),
-        credential_from: None,
-        user_agent: None,
-        forward_headers: Vec::new(),
-        extra_headers: Default::default(),
-        accepted_betas: None,
-        models,
-        governance,
-    }
-}
-
-fn model(id: &str, governance: Option<ModelGovernance>) -> ProviderModel {
-    ProviderModel {
-        id: ModelId::new(id),
-        aliases: Vec::new(),
-        hidden: false,
-        upstream_model: None,
-        pricing: Default::default(),
-        capabilities: Default::default(),
-        limits: Default::default(),
-        governance,
-    }
+fn hop(provider: ModelGovernance, model: Option<ModelGovernance>) -> ResolvedHop {
+    let catalog = CatalogFixture::new()
+        .credential("acme", platform("acme_api_key"))
+        .provider(
+            "acme",
+            ProviderConfig {
+                governance: provider,
+                ..ProviderConfig::new("acme")
+            },
+        )
+        .endpoint(
+            "acme",
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, "https://acme.invalid"),
+        )
+        .model(
+            "model-a",
+            ModelEntry {
+                governance: model,
+                ..claude_model(0)
+            },
+        )
+        .deploy("model-a", ["acme/api"])
+        .build();
+    catalog.deployments("model-a")[0].clone()
 }
 
 const EUROPEAN: ModelGovernance = ModelGovernance {
@@ -81,8 +63,8 @@ const NOTHING: ModelGovernance = ModelGovernance {
     no_retain: false,
 };
 
-fn enforce(route: &GatewayRoute, provider: &ProviderEntry, model: &str) -> Result<(), String> {
-    enforce_route_requirements(route, provider, model, &AiRequestId::generate())
+fn enforce(route: &GatewayRoute, hop: &ResolvedHop, _model: &str) -> Result<(), String> {
+    enforce_route_requirements(Some(route), hop, &AiRequestId::generate())
         .map_err(|e| format!("{e:?}"))
 }
 
@@ -90,14 +72,14 @@ fn enforce(route: &GatewayRoute, provider: &ProviderEntry, model: &str) -> Resul
 // denied, every ordinary route would stop dispatching.
 #[test]
 fn a_route_declaring_nothing_is_always_allowed() {
-    let provider = provider(NOTHING, vec![]);
+    let provider = hop(NOTHING, None);
 
     enforce(&route(None), &provider, "model-a").expect("an unconstrained route must dispatch");
 }
 
 #[test]
 fn a_satisfied_requirement_allows_the_dispatch() {
-    let provider = provider(EUROPEAN, vec![]);
+    let provider = hop(EUROPEAN, None);
 
     enforce(
         &route(Some(RouteRequirements {
@@ -115,7 +97,7 @@ fn a_satisfied_requirement_allows_the_dispatch() {
 // succeeds and the guarantee is simply untrue.
 #[test]
 fn an_unmet_requirement_denies_and_names_what_was_missing() {
-    let provider = provider(NOTHING, vec![]);
+    let provider = hop(NOTHING, None);
 
     let err = enforce(
         &route(Some(RouteRequirements {
@@ -139,7 +121,7 @@ fn an_unmet_requirement_denies_and_names_what_was_missing() {
 
 #[test]
 fn every_unmet_requirement_is_reported_not_just_the_first() {
-    let provider = provider(NOTHING, vec![]);
+    let provider = hop(NOTHING, None);
 
     let err = enforce(
         &route(Some(RouteRequirements {
@@ -163,7 +145,7 @@ fn every_unmet_requirement_is_reported_not_just_the_first() {
 // judged on the model actually being called.
 #[test]
 fn a_model_that_is_laxer_than_its_provider_is_denied() {
-    let provider = provider(EUROPEAN, vec![model("model-a", Some(NOTHING))]);
+    let provider = hop(EUROPEAN, Some(NOTHING));
 
     let err = enforce(
         &route(Some(RouteRequirements {
@@ -183,7 +165,7 @@ fn a_model_that_is_laxer_than_its_provider_is_denied() {
 // rather than refused on the provider's.
 #[test]
 fn a_model_that_is_stricter_than_its_provider_is_allowed() {
-    let provider = provider(NOTHING, vec![model("model-a", Some(EUROPEAN))]);
+    let provider = hop(NOTHING, Some(EUROPEAN));
 
     enforce(
         &route(Some(RouteRequirements {
@@ -200,7 +182,7 @@ fn a_model_that_is_stricter_than_its_provider_is_allowed() {
 // the fallback an undeclared model would be treated as satisfying nothing.
 #[test]
 fn a_model_without_governance_inherits_the_providers() {
-    let provider = provider(EUROPEAN, vec![model("model-a", None)]);
+    let provider = hop(EUROPEAN, None);
 
     enforce(
         &route(Some(RouteRequirements {

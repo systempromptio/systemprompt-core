@@ -28,7 +28,7 @@ pub(crate) mod xml;
 
 pub use apply::install;
 pub use builders::InstallOptionsBuilder;
-pub use error::{InstallError, SchedulerError};
+pub use error::{InstallError, ManagedProfileRemoveError, ScheduleRemovalError, SchedulerError};
 pub use mdm::{
     MdmError, MdmPayloadInputs, bridge_policy_values, cowork_egress_allowed_hosts,
     default_inference_models, is_uuid_like, parse_egress_allowed_hosts, snippet as mdm_snippet,
@@ -124,7 +124,7 @@ pub struct ScheduleApplied {
 pub enum ScheduleRemoval {
     NotInstalled(String),
     Removed(String),
-    Failed(String),
+    Failed(ScheduleRemovalError),
 }
 
 #[derive(Debug)]
@@ -144,7 +144,7 @@ pub enum ManagedProfileOutcome {
     NotApplicable,
     Removed(&'static str),
     NotInstalled(&'static str),
-    RemoveFailed(String),
+    RemoveFailed(ManagedProfileRemoveError),
 }
 
 #[derive(Debug)]
@@ -196,18 +196,20 @@ pub fn uninstall(
     }
     let foreign_plugins = purge_plugin_dirs(&location.path, &owned_plugins)?;
 
-    let schedule = remove_schedule(&bridge.schedule);
-    if let ScheduleRemoval::Failed(e) = &schedule {
-        return Err(InstallError::ScheduleApply(e.clone()));
-    }
+    let schedule = match remove_schedule(&bridge.schedule) {
+        ScheduleRemoval::Failed(e) => return Err(InstallError::ScheduleRemove(e)),
+        removal => removal,
+    };
 
-    let managed_profile = managed_profile::remove(&bridge.policy_store);
-    if let ManagedProfileOutcome::RemoveFailed(e) = &managed_profile {
-        return Err(InstallError::ManagedProfileRemove(e.clone()));
-    }
+    let managed_profile = match managed_profile::remove(&bridge.policy_store) {
+        ManagedProfileOutcome::RemoveFailed(e) => {
+            return Err(InstallError::ManagedProfileRemove(e));
+        },
+        outcome => outcome,
+    };
 
     let credentials = if purge {
-        match crate::auth::setup::logout() {
+        match crate::auth::setup::logout(bridge.secrets()) {
             Ok(p) => CredentialsOutcome::Purged(p.pat_file),
             Err(e) => return Err(InstallError::CredentialPurge(e)),
         }

@@ -9,20 +9,22 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use chrono::Utc;
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_catalog_fixtures::vertex_regions;
 use systemprompt_database::DbPool;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_loader::{ActiveServicesRoot, ServicesBootstrap, ServicesProvenance};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::ServicesSource;
-use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::bundle::{
     BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
     ServicesBundleState, SignedBundleManifest,
 };
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
+use systemprompt_manifest::services::{GatewayState, ServicesConfig};
 use systemprompt_runtime::RuntimeError;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
-use systemprompt_test_fixtures::{DisposableDb, closed_db_pool, ensure_test_bootstrap};
+use systemprompt_test_fixtures::{
+    DisposableDb, TestBootstrap, closed_db_pool, init_services_bootstrap,
+};
 use tempfile::TempDir;
 
 const SOURCE: &str = "astound";
@@ -35,12 +37,47 @@ struct Fixture {
     cache: BundleCache,
 }
 
+const GATEWAY_SERVICES: &str = r#"
+credentials:
+  anthropic:
+    kind: platform
+    secret: anthropic_api_key
+providers:
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api:
+        wire: anthropic
+        url: http://127.0.0.1:1
+models:
+  claude-fixture-1:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 3.0
+      output_per_million: 15.0
+      cache_read_per_million: 0.0
+deployments:
+  claude-fixture-1:
+  - anthropic/api
+gateway:
+  enabled: true
+  default_model: claude-fixture-1
+  routes:
+    - id: fixture-route
+      models: ["claude-*"]
+      deployments: [anthropic/api]
+"#;
+
+fn bootstrap() -> &'static TestBootstrap {
+    static BOOT: std::sync::OnceLock<TestBootstrap> = std::sync::OnceLock::new();
+    BOOT.get_or_init(|| init_services_bootstrap(GATEWAY_SERVICES))
+}
+
 fn fixture(with_source: bool) -> Fixture {
-    ensure_test_bootstrap();
+    bootstrap();
     let tmp = TempDir::new().expect("tempdir");
-    let mut profile = ProfileBootstrap::get()
-        .expect("bootstrapped profile")
-        .clone();
+    let mut profile = bootstrap().boot.profile().clone();
     profile.services.cache_dir = Some(tmp.path().to_string_lossy().into_owned());
     profile.services.sources = if with_source {
         vec![ServicesSource {
@@ -59,8 +96,20 @@ fn fixture(with_source: bool) -> Fixture {
     }
 }
 
-fn services() -> &'static ServicesConfig {
-    ServicesBootstrap::get().expect("bootstrapped services config")
+fn services() -> std::sync::Arc<ServicesConfig> {
+    bootstrap().services.config()
+}
+
+fn services_with_declared_routes() -> ServicesConfig {
+    let document = vertex_regions().document().clone();
+    let spec = document.gateway.expect("the fixture declares a gateway");
+    let mut routed = ServicesConfig::default();
+    routed.credentials = document.credentials;
+    routed.providers = document.providers;
+    routed.models = document.models;
+    routed.deployments = document.deployments;
+    routed.gateway = Some(GatewayState::Resolved(spec.resolve()));
+    routed
 }
 
 fn fetched_root(path: &std::path::Path) -> ActiveServicesRoot {
@@ -128,7 +177,7 @@ async fn a_baked_tree_is_reconciled_without_touching_the_database() {
             base: PathBuf::from(&f.profile.paths.services),
             provenance: ServicesProvenance::Bundled,
         },
-        services(),
+        &services(),
         &db,
     )
     .await
@@ -147,7 +196,7 @@ async fn a_source_with_no_cached_fetch_state_refuses_the_boot() {
     let db: DbPool = closed_db_pool().await;
 
     let err =
-        reconcile_fetched_services(&f.profile, &fetched_root(f.cache.root()), services(), &db)
+        reconcile_fetched_services(&f.profile, &fetched_root(f.cache.root()), &services(), &db)
             .await
             .expect_err("a composed source with no cached fetch state cannot be projected");
 
@@ -167,7 +216,7 @@ async fn an_unreadable_cached_manifest_refuses_the_boot() {
     let db: DbPool = closed_db_pool().await;
 
     let err =
-        reconcile_fetched_services(&f.profile, &fetched_root(f.cache.root()), services(), &db)
+        reconcile_fetched_services(&f.profile, &fetched_root(f.cache.root()), &services(), &db)
             .await
             .expect_err("a cached manifest that is not on disk cannot be projected");
 
@@ -186,11 +235,11 @@ async fn a_failed_projection_refuses_the_boot_and_records_nothing() {
         .expect("seed cache state");
     write_manifest(&f.cache, BundleOwnership::default());
     let db: DbPool = closed_db_pool().await;
+    let routed = services_with_declared_routes();
 
-    let err =
-        reconcile_fetched_services(&f.profile, &fetched_root(f.cache.root()), services(), &db)
-            .await
-            .expect_err("a projection that cannot reach the database must refuse the boot");
+    let err = reconcile_fetched_services(&f.profile, &fetched_root(f.cache.root()), &routed, &db)
+        .await
+        .expect_err("a projection that cannot reach the database must refuse the boot");
 
     assert!(
         matches!(err, RuntimeError::ServicesReconcile(_)),
@@ -205,7 +254,7 @@ async fn a_failed_projection_refuses_the_boot_and_records_nothing() {
 
 #[tokio::test]
 async fn a_projected_composition_is_recorded_and_not_projected_again() {
-    let boot = ensure_test_bootstrap();
+    let boot = bootstrap();
     let disposable = DisposableDb::with_schema("services_reconcile").await;
     let f = fixture(true);
     f.cache
@@ -222,7 +271,7 @@ async fn a_projected_composition_is_recorded_and_not_projected_again() {
         },
     };
 
-    let outcome = reconcile_fetched_services(&f.profile, &root, services(), &db)
+    let outcome = reconcile_fetched_services(&f.profile, &root, &services(), &db)
         .await
         .expect("a composition over a migrated database projects");
     assert_eq!(outcome, ReconcileOutcome::Projected);
@@ -234,7 +283,7 @@ async fn a_projected_composition_is_recorded_and_not_projected_again() {
     );
 
     let closed = closed_db_pool().await;
-    let outcome = reconcile_fetched_services(&f.profile, &root, services(), &closed)
+    let outcome = reconcile_fetched_services(&f.profile, &root, &services(), &closed)
         .await
         .expect("the recorded composition makes the step a no-op on restart");
     assert_eq!(outcome, ReconcileOutcome::NothingPending);

@@ -17,7 +17,6 @@ use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
     StaticContentState, compute_etag, serve_static_content,
 };
-use systemprompt_files::FilesConfig;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
@@ -33,6 +32,7 @@ async fn state_with_dist(
     let web = tmp.path().join("web");
     std::fs::create_dir_all(web.join("dist"))?;
     let paths = PathsConfig {
+        root: None,
         system: tmp.path().to_string_lossy().into_owned(),
         services: "/tmp".to_owned(),
         bin: "/tmp".to_owned(),
@@ -43,7 +43,6 @@ async fn state_with_dist(
         data: None,
     };
     let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
-    let _ = FilesConfig::init(ctx.app_paths());
     let state = StaticContentState {
         ctx,
         matcher: Arc::new(matcher),

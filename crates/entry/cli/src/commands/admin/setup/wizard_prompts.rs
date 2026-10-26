@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{Email, ProviderId};
 use systemprompt_logging::CliService;
 
-use super::common::PostgresConfig;
+use super::postgres_access::PostgresConfig;
 use super::{SetupArgs, postgres, secrets};
 
 #[doc(hidden)]

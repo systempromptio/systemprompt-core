@@ -180,6 +180,7 @@ fn plugin(id: &str) -> PluginEntry {
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files: vec![],
         hooks: Default::default(),
+        publication: None,
     }
 }
 
@@ -227,6 +228,7 @@ fn manifest_marketplace(id: &str, name: &str, plugin_ids: &[&str]) -> ManifestMa
         external_marketplaces: vec![],
         external_plugins: vec![],
         claude_code: None,
+        opencode: None,
     }
 }
 

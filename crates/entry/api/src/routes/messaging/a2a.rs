@@ -1,7 +1,7 @@
 //! The A2A backend leg of the messaging pipeline.
 //!
 //! Mints a per-user bearer, builds the blocking `SendMessage` request the
-//! proxy forwards to the agent service, runs it through [`ProxyEngine`], and
+//! proxy forwards to the agent service, runs it through [`ProxyService`], and
 //! extracts the agent's reply text.
 //!
 //! This is the only part of dispatch that speaks the A2A wire protocol; the
@@ -9,6 +9,8 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::extract::Request;
@@ -28,7 +30,7 @@ use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::User;
 
-use crate::services::proxy::{ProxyEngine, ProxyKind, ProxyTarget};
+use crate::services::proxy::{ProxyKind, ProxyService, ProxyTarget};
 
 use super::{MessagingError, MessagingInbound};
 
@@ -71,6 +73,7 @@ pub(super) fn mint_a2a_token(
     };
     let signing = JwtSigningParams {
         issuer: &ctx.config().jwt_issuer,
+        keys: ctx.signing_keys(),
     };
     generate_jwt(
         authed,
@@ -151,10 +154,16 @@ pub(super) async fn run_agent(
         kind: ProxyKind::Agent,
     };
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let response = ProxyEngine::new(identities)
-        .proxy_request(target, request, ctx.clone())
-        .await
-        .map_err(MessagingError::Dispatch)?;
+    let response = ProxyService::new(
+        identities,
+        Arc::clone(ctx.connector_tokens()),
+        &ctx.services_state().view(),
+        Arc::clone(ctx.config_arc()),
+        Arc::clone(ctx.secrets()),
+    )
+    .proxy_request(target, request, ctx.clone())
+    .await
+    .map_err(MessagingError::Dispatch)?;
 
     let bytes = to_bytes(response.into_body(), MAX_A2A_RESPONSE_BYTES)
         .await

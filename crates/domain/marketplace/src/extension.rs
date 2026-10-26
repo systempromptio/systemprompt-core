@@ -86,6 +86,10 @@ fn publication_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/managed_publication_selections.sql"),
         ),
         SchemaDefinition::new(
+            "managed_publication_cohort_selections",
+            include_str!("../schema/managed_publication_cohort_selections.sql"),
+        ),
+        SchemaDefinition::new(
             "managed_distribution_outbox",
             include_str!("../schema/managed_distribution_outbox.sql"),
         ),

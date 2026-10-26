@@ -17,11 +17,7 @@ database:
 server:
   host: localhost
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
-  use_https: false
-  cors_allowed_origins: []
+  external_url: http://localhost:8080
 
 paths:
   system: /tmp/system
@@ -29,7 +25,6 @@ paths:
   bin: /tmp/bin
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -67,14 +62,14 @@ runtime:
 #[test]
 fn test_list_available_empty() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let profiles = ProfileLoader::list_available(temp_dir.path());
+    let profiles = ProfileLoader::list_available(&temp_dir.path().join("profiles"));
     assert!(profiles.is_empty());
 }
 
 #[test]
 fn test_list_available_no_profiles_dir() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let profiles = ProfileLoader::list_available(temp_dir.path());
+    let profiles = ProfileLoader::list_available(&temp_dir.path().join("profiles"));
     assert!(profiles.is_empty());
 }
 
@@ -85,22 +80,22 @@ fn test_list_available_with_profiles() {
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
     std::fs::write(
-        profiles_dir.join("dev.secrets.profile.yaml"),
+        overlay_at(&profiles_dir, "dev"),
         create_valid_profile_yaml(),
     )
     .expect("Failed to write dev profile");
     std::fs::write(
-        profiles_dir.join("prod.secrets.profile.yaml"),
+        overlay_at(&profiles_dir, "prod"),
         create_valid_profile_yaml(),
     )
     .expect("Failed to write prod profile");
     std::fs::write(
-        profiles_dir.join("staging.secrets.profile.yaml"),
+        overlay_at(&profiles_dir, "staging"),
         create_valid_profile_yaml(),
     )
     .expect("Failed to write staging profile");
 
-    let profiles = ProfileLoader::list_available(temp_dir.path());
+    let profiles = ProfileLoader::list_available(&temp_dir.path().join("profiles"));
     assert_eq!(profiles.len(), 3);
     assert!(profiles.contains(&"dev".to_string()));
     assert!(profiles.contains(&"prod".to_string()));
@@ -114,7 +109,7 @@ fn test_list_available_ignores_other_files() {
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
     std::fs::write(
-        profiles_dir.join("dev.secrets.profile.yaml"),
+        overlay_at(&profiles_dir, "dev"),
         create_valid_profile_yaml(),
     )
     .expect("Failed to write profile");
@@ -124,7 +119,7 @@ fn test_list_available_ignores_other_files() {
     std::fs::write(profiles_dir.join("dev.backup.yaml"), "backup: true")
         .expect("Failed to write backup");
 
-    let profiles = ProfileLoader::list_available(temp_dir.path());
+    let profiles = ProfileLoader::list_available(&temp_dir.path().join("profiles"));
     assert_eq!(profiles.len(), 1);
     assert_eq!(profiles[0], "dev");
 }
@@ -152,9 +147,7 @@ database:
 server:
   host: localhost
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
+  external_url: http://localhost:8080
 
 paths:
   system: {}
@@ -162,7 +155,6 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -195,17 +187,17 @@ system_admin:
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
     let profile = ProfileLoader::load_from_path(&profile_path).expect("Failed to load profile");
 
-    ProfileLoader::save(&profile, temp_dir.path()).expect("should save profile");
+    ProfileLoader::save(&profile, &temp_dir.path().join("profiles")).expect("should save profile");
 
     let saved_path = temp_dir
         .path()
         .join("profiles")
-        .join("save-test.secrets.profile.yaml");
+        .join("save-test")
+        .join("profile.yaml");
     assert!(saved_path.exists());
 
     let saved_content = std::fs::read_to_string(&saved_path).expect("Failed to read saved file");
-    assert!(saved_content.contains("WARNING"));
-    assert!(saved_content.contains("DO NOT commit"));
+    assert!(saved_content.contains("Overlay over ../base.yaml"));
 }
 
 #[test]
@@ -231,9 +223,7 @@ database:
 server:
   host: localhost
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
+  external_url: http://localhost:8080
 
 paths:
   system: {}
@@ -241,7 +231,6 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -276,7 +265,7 @@ system_admin:
 
     assert!(!temp_dir.path().join("profiles").exists());
 
-    ProfileLoader::save(&profile, temp_dir.path())
+    ProfileLoader::save(&profile, &temp_dir.path().join("profiles"))
         .expect("should save profile and create directory");
 
     assert!(temp_dir.path().join("profiles").exists());
@@ -293,10 +282,10 @@ fn test_save_errors_when_profiles_path_is_a_file() {
     std::fs::write(&profile_path, create_valid_profile_yaml()).expect("Failed to write profile");
     let profile = ProfileLoader::load_from_path(&profile_path).expect("Failed to load profile");
 
-    let err = ProfileLoader::save(&profile, temp_dir.path())
+    let err = ProfileLoader::save(&profile, &temp_dir.path().join("profiles"))
         .expect_err("save must fail when the profiles path is a regular file");
     assert!(
-        err.to_string().contains("io error"),
+        err.to_string().contains("Failed to write profile"),
         "expected io error, got: {err}"
     );
 }
@@ -310,7 +299,7 @@ fn test_list_available_unreadable_dir_returns_empty() {
     let profiles_dir = temp_dir.path().join("profiles");
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
     std::fs::write(
-        profiles_dir.join("dev.secrets.profile.yaml"),
+        overlay_at(&profiles_dir, "dev"),
         create_valid_profile_yaml(),
     )
     .expect("Failed to write profile");
@@ -318,7 +307,7 @@ fn test_list_available_unreadable_dir_returns_empty() {
     std::fs::set_permissions(&profiles_dir, std::fs::Permissions::from_mode(0o000))
         .expect("Failed to strip permissions");
     let dir_is_actually_unreadable = std::fs::read_dir(&profiles_dir).is_err();
-    let profiles = ProfileLoader::list_available(temp_dir.path());
+    let profiles = ProfileLoader::list_available(&temp_dir.path().join("profiles"));
     std::fs::set_permissions(&profiles_dir, std::fs::Permissions::from_mode(0o755))
         .expect("Failed to restore permissions");
 
@@ -330,4 +319,10 @@ fn test_list_available_unreadable_dir_returns_empty() {
     } else {
         assert_eq!(profiles.len(), 1, "root ignores directory permissions");
     }
+}
+
+fn overlay_at(profiles_dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let dir = profiles_dir.join(name);
+    std::fs::create_dir_all(&dir).expect("create profile dir");
+    dir.join("profile.yaml")
 }

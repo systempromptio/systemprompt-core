@@ -30,15 +30,33 @@ async fn get_and_list_reflect_injected_config() {
     disabled.enabled = false;
     let registry = registry_with(vec![agent_config("alpha"), disabled]);
 
-    let alpha = registry.get_agent("alpha").await.expect("alpha");
+    let alpha = registry.get_agent("alpha").expect("alpha");
     assert_eq!(alpha.name, "alpha");
 
-    let all = registry.list_agents().await.expect("list");
+    let all = registry.list_agents();
     assert_eq!(all.len(), 2);
 
-    let enabled = registry.list_enabled_agents().await.expect("enabled");
+    let enabled = registry.list_enabled_agents(false);
     assert_eq!(enabled.len(), 1);
     assert_eq!(enabled[0].name, "alpha");
+}
+
+#[tokio::test]
+async fn cloud_deployments_withhold_dev_only_agents() {
+    let mut dev = agent_config("dev_only_agent");
+    dev.dev_only = true;
+    dev.default = true;
+    let registry = registry_with(vec![agent_config("alpha"), dev]);
+
+    assert_eq!(registry.list_enabled_agents(false).len(), 2);
+    let cloud = registry.list_enabled_agents(true);
+    assert_eq!(cloud.len(), 1);
+    assert_eq!(cloud[0].name, "alpha");
+    assert!(registry.get_default_agent(true).is_err());
+    assert_eq!(
+        registry.get_default_agent(false).expect("default").name,
+        "dev_only_agent"
+    );
 }
 
 #[tokio::test]
@@ -48,11 +66,11 @@ async fn default_agent_resolution() {
     default_agent.default = true;
     let registry = registry_with(vec![agent_config("other"), default_agent]);
 
-    let resolved = registry.get_default_agent().await.expect("default");
+    let resolved = registry.get_default_agent(false).expect("default");
     assert_eq!(resolved.name, "primary");
 
     let none = registry_with(vec![agent_config("other")]);
-    assert!(none.get_default_agent().await.is_err());
+    assert!(none.get_default_agent(false).is_err());
 }
 
 #[tokio::test]
@@ -60,7 +78,7 @@ async fn find_next_available_port_skips_used_ports() {
     let mut a = agent_config("porter");
     a.port = 9000;
     let registry = registry_with(vec![a]);
-    let port = registry.find_next_available_port().await.expect("port");
+    let port = registry.find_next_available_port().expect("port");
     assert_eq!(port, 9001);
 }
 
@@ -72,7 +90,6 @@ async fn get_mcp_servers_returns_included_list() {
 
     let servers = registry
         .get_mcp_servers(&AgentName::new("mcp_agent"))
-        .await
         .expect("mcp");
     assert_eq!(servers, vec![McpServerId::new("server_one")]);
 }
@@ -89,11 +106,10 @@ async fn to_agent_card_builds_interfaces_and_extensions() {
     let card = registry
         .to_agent_card(
             "card_agent",
-            "https://api.example.invalid",
+            crate::card_site("https://api.example.invalid"),
             Vec::new(),
-            Some(("running".to_owned(), Some(9100), Some(4321))),
+            Some(&("running".to_owned(), Some(9100), Some(4321))),
         )
-        .await
         .expect("card");
 
     assert_eq!(card.name, "card_agent");
@@ -121,8 +137,12 @@ async fn to_agent_card_transport_variants() {
         a.card.preferred_transport = transport.to_owned();
         let registry = registry_with(vec![a]);
         let card = registry
-            .to_agent_card("transport_agent", "http://localhost:8080", Vec::new(), None)
-            .await
+            .to_agent_card(
+                "transport_agent",
+                crate::card_site("http://localhost:8080"),
+                Vec::new(),
+                None,
+            )
             .expect("card");
         assert_eq!(card.supported_interfaces.len(), 1);
     }
@@ -133,8 +153,12 @@ async fn to_agent_card_unknown_agent_errors() {
     let registry = registry_with(vec![]);
     assert!(
         registry
-            .to_agent_card("ghost", "http://localhost:8080", Vec::new(), None)
-            .await
+            .to_agent_card(
+                "ghost",
+                crate::card_site("http://localhost:8080"),
+                Vec::new(),
+                None
+            )
             .is_err()
     );
 }

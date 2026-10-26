@@ -4,19 +4,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::{ExtensionConfigError, ExtensionRegistry, LoaderError};
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
 use systemprompt_manifest::Config;
-use systemprompt_traits::validation_report::ValidationIssue;
-use systemprompt_traits::{StartupValidationReport, ValidationReport};
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
+use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 
 use super::config_loaders::{ConfigFileError, load_extension_config};
 
 pub(super) fn validate_extensions(
+    boot: &BootContext,
     config: &Config,
     report: &mut StartupValidationReport,
     verbose: bool,
@@ -55,24 +56,21 @@ pub(super) fn validate_extensions(
         validate_single_extension(config, ext.as_ref(), report, verbose);
     }
 
-    let paths = ProfileBootstrap::get().ok().and_then(|p| {
-        AppPaths::from_profile(
-            &p.paths,
-            p.path_resolution(),
-            systemprompt_loader::ServicesRootBootstrap::get().map(|r| r.path.as_path()),
-        )
-        .ok()
-    });
-
-    match paths {
-        Some(paths) => validate_extension_assets(&extensions, &paths, report, verbose),
-        None if verbose => {
-            CliService::output(&format!(
-                "  {} Asset validation skipped (profile not loaded)",
-                BrandColors::dim("○")
+    let profile = boot.profile();
+    match AppPaths::from_profile(
+        &profile.paths,
+        profile.path_resolution(),
+        boot.services_root().map(|r| r.path.as_path()),
+    ) {
+        Ok(paths) => validate_extension_assets(&extensions, &paths, report, verbose),
+        Err(e) => {
+            let mut ext_report = ValidationReport::new("ext:assets".to_owned());
+            ext_report.add_error(ValidationIssue::new(
+                "extension_asset_paths",
+                format!("Failed to resolve the profile paths for asset validation: {e}"),
             ));
+            report.add_extension(ext_report);
         },
-        None => {},
     }
 }
 

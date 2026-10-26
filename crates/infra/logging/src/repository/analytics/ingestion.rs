@@ -17,7 +17,10 @@ impl AnalyticsEventStore for AnalyticsRepository {
             return Ok(());
         }
 
-        let ids: Vec<_> = events.iter().map(|event| event.id.clone()).collect();
+        let ids: Vec<_> = events
+            .iter()
+            .map(|event| event.id.as_str().to_owned())
+            .collect();
         let user_ids: Vec<_> = events
             .iter()
             .map(|event| event.user_id.to_string())

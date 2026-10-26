@@ -19,7 +19,7 @@ use systemprompt_models::attribution::{AttributionSource, RequestAttribution, Sc
 use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -112,7 +112,11 @@ async fn resolve(
     resolve_scope_attribution(
         ScopeResolution {
             providers: case.providers,
-            user_id: case.user,
+            subject: &case
+                .providers
+                .gather(case.user)
+                .await
+                .expect("subject attributes"),
             headers: &scope_headers,
             key_bindings: case.bindings,
             api_key_id: Some(&api_key_id),
@@ -120,7 +124,6 @@ async fn resolve(
         },
         partial,
     )
-    .await
 }
 
 fn project_entry(attribution: &RequestAttribution) -> (&str, AttributionSource) {
@@ -429,7 +432,7 @@ async fn a_completed_request_persists_its_attribution_and_api_key() -> anyhow::R
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut dispatch = inputs(&cred, canonical_request(MODEL, false), false);
     dispatch.ctx.attribution = RequestAttribution {

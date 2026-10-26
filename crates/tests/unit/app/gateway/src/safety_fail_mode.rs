@@ -6,17 +6,19 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalResponse, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
+    CanonicalSampling, CanonicalTooling, Role,
 };
 use systemprompt_gateway::registry::SafetyScannerRegistry;
 use systemprompt_gateway::service::finalize::safety::{
     request_finding_blocks, response_finding_blocks, scan_bounded,
 };
 use systemprompt_gateway::{
-    CATEGORY_SCANNER_FAILURE, Finding, PHASE_REQUEST, PHASE_RESPONSE, SafetyConfig, SafetyMode,
-    SafetyScanner, ScanError, ScannerFailMode, ScannerSettings, register_safety_scanner,
+    CATEGORY_SCANNER_FAILURE, Finding, PHASE_REQUEST, PHASE_RESPONSE, SafetyConfig, SafetyScanner,
+    ScanError, ScannerFailMode, ScannerSettings, register_safety_scanner,
 };
 use systemprompt_identifiers::ModelId;
+use systemprompt_manifest::EnforcementMode;
 
 const SLEEPER: &str = "test_fail_mode_sleeper";
 
@@ -42,7 +44,10 @@ impl SafetyScanner for SleepingScanner {
     }
 }
 
-register_safety_scanner!(|_: &ScannerSettings| SleepingScanner, name = SLEEPER);
+register_safety_scanner!(
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| SleepingScanner,
+    name = SLEEPER
+);
 
 fn settings(fail_mode: ScannerFailMode, timeout_ms: u64) -> ScannerSettings {
     ScannerSettings {
@@ -52,7 +57,7 @@ fn settings(fail_mode: ScannerFailMode, timeout_ms: u64) -> ScannerSettings {
     }
 }
 
-fn policy(fail_mode: ScannerFailMode, mode: SafetyMode) -> SafetyConfig {
+fn policy(fail_mode: ScannerFailMode, mode: EnforcementMode) -> SafetyConfig {
     SafetyConfig {
         mode,
         scanners: vec![SLEEPER.to_owned()],
@@ -71,28 +76,37 @@ fn empty_request() -> CanonicalRequest {
             content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 1,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
 async fn timed_out_request_finding(fail_mode: ScannerFailMode) -> Finding {
-    let safety = policy(fail_mode, SafetyMode::Enforce);
-    let scanner = SafetyScannerRegistry::global()
+    let safety = policy(fail_mode, EnforcementMode::Enforce);
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create(SLEEPER, &safety)
         .expect("sleeper is registered");
     let request = empty_request();
@@ -126,14 +140,14 @@ async fn a_scanner_past_its_timeout_becomes_a_timed_out_failure_finding() {
 #[tokio::test]
 async fn a_closed_scanner_timeout_blocks_the_request() {
     let finding = timed_out_request_finding(ScannerFailMode::Closed).await;
-    let safety = policy(ScannerFailMode::Closed, SafetyMode::Enforce);
+    let safety = policy(ScannerFailMode::Closed, EnforcementMode::Enforce);
     assert!(request_finding_blocks(&finding, &safety));
 }
 
 #[tokio::test]
 async fn an_open_scanner_timeout_is_recorded_but_does_not_block() {
     let finding = timed_out_request_finding(ScannerFailMode::Open).await;
-    let safety = policy(ScannerFailMode::Open, SafetyMode::Enforce);
+    let safety = policy(ScannerFailMode::Open, EnforcementMode::Enforce);
     assert!(finding.is_scanner_failure());
     assert!(!request_finding_blocks(&finding, &safety));
 }
@@ -141,15 +155,18 @@ async fn an_open_scanner_timeout_is_recorded_but_does_not_block() {
 #[tokio::test]
 async fn warn_mode_never_blocks_a_closed_scanner_failure() {
     let finding = timed_out_request_finding(ScannerFailMode::Closed).await;
-    let safety = policy(ScannerFailMode::Closed, SafetyMode::Warn);
+    let safety = policy(ScannerFailMode::Closed, EnforcementMode::Warn);
     assert!(!request_finding_blocks(&finding, &safety));
 }
 
 #[tokio::test]
 async fn a_response_scan_obeys_the_same_timeout_and_fail_mode() {
-    let closed = policy(ScannerFailMode::Closed, SafetyMode::Enforce);
-    let open = policy(ScannerFailMode::Open, SafetyMode::Enforce);
-    let scanner = SafetyScannerRegistry::global()
+    let closed = policy(ScannerFailMode::Closed, EnforcementMode::Enforce);
+    let open = policy(ScannerFailMode::Open, EnforcementMode::Enforce);
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create(SLEEPER, &closed)
         .expect("sleeper is registered");
     let response = CanonicalResponse::default();
@@ -170,7 +187,7 @@ async fn a_response_scan_obeys_the_same_timeout_and_fail_mode() {
 
 #[tokio::test]
 async fn an_erroring_scanner_under_open_fail_mode_is_recorded_not_blocking() {
-    let safety = policy(ScannerFailMode::Open, SafetyMode::Enforce);
+    let safety = policy(ScannerFailMode::Open, EnforcementMode::Enforce);
     let mut findings = Vec::new();
     scan_bounded(
         &mut findings,
@@ -190,13 +207,13 @@ async fn an_erroring_scanner_under_open_fail_mode_is_recorded_not_blocking() {
     assert!(!request_finding_blocks(finding, &safety));
     assert!(request_finding_blocks(
         finding,
-        &policy(ScannerFailMode::Closed, SafetyMode::Enforce)
+        &policy(ScannerFailMode::Closed, EnforcementMode::Enforce)
     ));
 }
 
 #[tokio::test]
 async fn a_scan_inside_its_timeout_keeps_its_own_findings() {
-    let safety = policy(ScannerFailMode::Closed, SafetyMode::Enforce);
+    let safety = policy(ScannerFailMode::Closed, EnforcementMode::Enforce);
     let mut findings = Vec::new();
     scan_bounded(
         &mut findings,

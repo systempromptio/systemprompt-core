@@ -18,9 +18,9 @@ use crate::schema::ProviderCapabilities;
 pub enum WireProtocol {
     #[serde(rename = "anthropic")]
     Anthropic,
-    #[serde(rename = "openai-chat", alias = "openai_chat", alias = "openai")]
+    #[serde(rename = "openai-chat")]
     OpenAiChat,
-    #[serde(rename = "openai-responses", alias = "openai_responses")]
+    #[serde(rename = "openai-responses")]
     OpenAiResponses,
     #[serde(rename = "gemini")]
     Gemini,
@@ -41,8 +41,8 @@ impl WireProtocol {
     pub fn from_tag(tag: &str) -> Option<Self> {
         match tag {
             "anthropic" => Some(Self::Anthropic),
-            "openai-chat" | "openai_chat" | "openai" => Some(Self::OpenAiChat),
-            "openai-responses" | "openai_responses" => Some(Self::OpenAiResponses),
+            "openai-chat" => Some(Self::OpenAiChat),
+            "openai-responses" => Some(Self::OpenAiResponses),
             "gemini" => Some(Self::Gemini),
             _ => None,
         }

@@ -14,12 +14,16 @@ use systemprompt_traits::{FederatedIdentityClaims, SenderIdentity};
 use super::verify::bot_token;
 use crate::routes::messaging::{
     DispatchOutcome, MessagingConversation, MessagingInbound, ReplyTarget, dispatch_messaging,
-    guarded_http_client,
 };
 
 // Why: Slack requires acknowledgment within three seconds.
-pub(super) fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig) {
-    let bot_token = bot_token(app);
+pub(super) fn spawn_reply(
+    ctx: AppContext,
+    http: reqwest::Client,
+    inbound: MessagingInbound,
+    app: &SlackAppConfig,
+) {
+    let bot_token = bot_token(&ctx.secrets().get(), app);
     let link_by_email = app.authz.link_by_workspace_email;
     let background = ctx.background_tasks().clone();
     background.spawn("slack_reply", async move {
@@ -28,9 +32,9 @@ pub(super) fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &Slac
             && let Some(token) = bot_token.clone()
             && let MessagingConversation::Slack { user_id, .. } = &inbound.conversation
         {
-            inbound.sender = workspace_sender(&token, user_id).await;
+            inbound.sender = workspace_sender(&http, &token, user_id).await;
         }
-        let (text, ephemeral) = match dispatch_messaging(&ctx, inbound.clone()).await {
+        let (text, ephemeral) = match Box::pin(dispatch_messaging(&ctx, inbound.clone())).await {
             Ok(DispatchOutcome::Replied(reply)) => (non_empty(reply), false),
             Ok(DispatchOutcome::Denied(reason)) => (format!("⛔ {reason}"), true),
             Err(err) => {
@@ -39,10 +43,6 @@ pub(super) fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &Slac
             },
         };
         let blocks = systemprompt_slack::blockkit::render_blocks(&text);
-        let Some(http) = guarded_http_client() else {
-            tracing::error!("no guarded http client; cannot post slack reply");
-            return;
-        };
         let result = match &inbound.reply {
             ReplyTarget::Channel { id } => {
                 let Some(token) = bot_token else {
@@ -63,12 +63,12 @@ pub(super) fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &Slac
     });
 }
 
-async fn workspace_sender(bot_token: &str, slack_user_id: &SlackUserId) -> SenderIdentity {
-    let Some(http) = guarded_http_client() else {
-        tracing::error!("no guarded http client; cannot read slack profile");
-        return SenderIdentity::Unlinked;
-    };
-    match SlackClient::new(http, bot_token.to_owned())
+async fn workspace_sender(
+    http: &reqwest::Client,
+    bot_token: &str,
+    slack_user_id: &SlackUserId,
+) -> SenderIdentity {
+    match SlackClient::new(http.clone(), bot_token.to_owned())
         .user_info(slack_user_id)
         .await
     {

@@ -7,7 +7,7 @@ settings:
   agent_port_range: [9000, 9999]
 mcp_servers:
   systemprompt:
-    type: internal
+    server_type: internal
     binary: systemprompt-mcp-agent
     port: 5010
     enabled: true
@@ -19,7 +19,7 @@ mcp_servers:
       audience: mcp
       client_id: null
   upstream:
-    type: external
+    server_type: external
     endpoint: https://example.test/mcp
     enabled: true
     tool_policy: allow

@@ -10,11 +10,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use systemprompt_identifiers::{ChallengeId, UserId};
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::FinishRegistrationParams;
 use tracing::instrument;
@@ -65,12 +67,13 @@ pub(super) struct FinishRegisterResponse {
     pub auth_token: Option<String>,
 }
 
-#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
+#[instrument(skip(state, config, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
 pub async fn finish_register(
     State(state): State<OAuthState>,
+    Extension(config): Extension<Arc<Config>>,
     Json(request): Json<FinishRegisterRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    super::ensure_registration_enabled()?;
+    super::ensure_registration_enabled(&config)?;
     request
         .validate()
         .map_err(OAuthHttpError::invalid_request)?;

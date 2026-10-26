@@ -5,6 +5,8 @@
 
 use std::fs;
 use std::path::Path;
+use systemprompt_bridge::auth::plugin_oauth::SecretStore;
+use systemprompt_test_fixtures::{block_on, install_headless_keystore};
 
 use systemprompt_bridge::auth::plugin_oauth::{self, OAuthClientCreds};
 use systemprompt_bridge::cli::doctor::{self, Status};
@@ -15,38 +17,12 @@ use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+fn use_headless_keystore() -> SecretStore {
+    install_headless_keystore();
+    SecretStore::resolve()
+}
+
 const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
-
-// The bridge's own lazy platform-store bootstrap must stand down before the
-// first entry is created, so a headless store is installed here instead. Linux
-// CI gets the kernel keyring, which needs no Secret Service daemon; elsewhere
-// the in-memory mock plays the same role without reaching for the platform
-// keychain, which would prompt or fail on a developer's machine.
-#[cfg(target_os = "linux")]
-fn use_headless_keystore() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(
-            linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
-        );
-    });
-}
-
-#[cfg(not(target_os = "linux"))]
-fn use_headless_keystore() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
-    });
-}
-
-fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(fut)
-}
 
 fn sandbox_vars(home: &TempDir) -> Vec<(&'static str, Option<String>)> {
     let root = home.path().to_string_lossy().into_owned();
@@ -169,7 +145,7 @@ fn status_of<'a>(checks: &'a [doctor::Check], name: &str) -> &'a doctor::Check {
 
 #[test]
 fn fully_provisioned_sandbox_yields_no_failing_checks() {
-    use_headless_keystore();
+    let secrets = use_headless_keystore();
     let home = TempDir::new().unwrap();
     let root = home.path().to_path_buf();
 
@@ -188,13 +164,16 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
     write_org_plugin(&root);
 
     temp_env::with_vars(sandbox_vars(&home), || {
-        plugin_oauth::store_creds(&OAuthClientCreds {
-            gateway: None,
-            client_id: ClientId::new(format!("doctor-client-{}", std::process::id())),
-            client_secret: "doctor-secret".into(),
-            token_endpoint: format!("{uri}/oauth/token"),
-            scopes: vec!["hook:govern".into(), "hook:track".into()],
-        })
+        plugin_oauth::store_creds(
+            &secrets,
+            &OAuthClientCreds {
+                gateway: None,
+                client_id: ClientId::new(format!("doctor-client-{}", std::process::id())),
+                client_secret: "doctor-secret".into(),
+                token_endpoint: format!("{uri}/oauth/token"),
+                scopes: vec!["hook:govern".into(), "hook:track".into()],
+            },
+        )
         .unwrap();
 
         let bridge = bridge();
@@ -241,13 +220,13 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
             );
         }
 
-        plugin_oauth::delete_creds().unwrap();
+        plugin_oauth::delete_creds(&secrets).unwrap();
     });
 }
 
 #[test]
 fn hook_token_mint_rejection_is_reported_as_failure() {
-    use_headless_keystore();
+    let secrets = use_headless_keystore();
     let home = TempDir::new().unwrap();
     let root = home.path().to_path_buf();
 
@@ -273,13 +252,16 @@ fn hook_token_mint_rejection_is_reported_as_failure() {
     write_config(&root, &uri, &pat_file);
 
     temp_env::with_vars(sandbox_vars(&home), || {
-        plugin_oauth::store_creds(&OAuthClientCreds {
-            gateway: None,
-            client_id: ClientId::new(format!("doctor-reject-{}", std::process::id())),
-            client_secret: "doctor-secret".into(),
-            token_endpoint: format!("{uri}/oauth/token"),
-            scopes: vec![],
-        })
+        plugin_oauth::store_creds(
+            &secrets,
+            &OAuthClientCreds {
+                gateway: None,
+                client_id: ClientId::new(format!("doctor-reject-{}", std::process::id())),
+                client_secret: "doctor-secret".into(),
+                token_endpoint: format!("{uri}/oauth/token"),
+                scopes: vec![],
+            },
+        )
         .unwrap();
 
         let (checks, any_fail) = block_on(doctor::run_checks(&bridge()));
@@ -288,7 +270,7 @@ fn hook_token_mint_rejection_is_reported_as_failure() {
         assert_eq!(mint.status, Status::Fail);
         assert!(mint.detail.contains("403"), "detail: {}", mint.detail);
 
-        plugin_oauth::delete_creds().unwrap();
+        plugin_oauth::delete_creds(&secrets).unwrap();
     });
 }
 

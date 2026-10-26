@@ -48,16 +48,9 @@ impl ScannedDispatch {
         audit: &GatewayAudit,
     ) -> Result<(), GatewayError> {
         let prepared = &mut self.0;
-        let requested = prepared.request.model.as_str().to_owned();
-        let upstream_model = upstream
-            .provider
-            .upstream_model_for(upstream.route.upstream_model.as_deref(), &requested)
-            .to_owned();
-        let model_limits = upstream
-            .provider
-            .find_served_model(&requested)
-            .map(|m| m.limits);
-        if upstream.provider.wire == WireProtocol::Gemini {
+        let upstream_model = upstream.hop.upstream_model.clone();
+        let model_limits = Some(upstream.model_limits());
+        if upstream.hop.wire == WireProtocol::Gemini {
             inline_url_images(&mut prepared.request, &ImageFetchPolicy::default()).await?;
         }
         let ctx = outbound_ctx(
@@ -69,7 +62,6 @@ impl ScannedDispatch {
                 automatic_prompt_caching: automatic_prompt_caching(
                     prepared.automatic_prompt_caching_enabled,
                     upstream,
-                    &upstream_model,
                 ),
                 forward_headers: &[],
                 raw_body: None,

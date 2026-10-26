@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{AccessTokenId, AuthorizationCode, RefreshTokenId};
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
@@ -23,7 +22,7 @@ async fn split_pool() -> DbPool {
 #[tokio::test]
 async fn token_and_revocation_lookups_read_the_primary() {
     let db = split_pool().await;
-    let repo = OAuthRepository::new(&db);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&db);
     let nonce = Uuid::new_v4().simple().to_string();
 
     assert!(

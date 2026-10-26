@@ -388,15 +388,8 @@ async fn profile_edit_applies_real_interactive_server_security_runtime_and_secre
             ("What would you like to edit?", "\r", false),
             ("Host", "0.0.0.0\r", false),
             ("Port", "9099\r", false),
-            ("API Server URL", "http://127.0.0.1:9099\r", false),
-            (
-                "API External URL",
-                "https://edited.example.invalid\r",
-                false,
-            ),
-            ("Use HTTPS?", "y", false),
+            ("External URL", "https://edited.example.invalid\r", false),
             ("What would you like to edit?", "\x1b[B\r", false),
-            ("JWT Issuer", "https://issuer.edited.invalid\r", false),
             ("Access Token Expiration", "\r", false),
             ("Refresh Token Expiration", "\r", false),
             ("What would you like to edit?", "\x1b[B\x1b[B\r", false),
@@ -437,16 +430,17 @@ async fn profile_edit_applies_real_interactive_server_security_runtime_and_secre
     .expect("edited profile YAML");
     assert_eq!(profile["server"]["host"], "0.0.0.0");
     assert_eq!(profile["server"]["port"], 9099);
-    assert_eq!(profile["server"]["api_server_url"], "http://127.0.0.1:9099");
     assert_eq!(
-        profile["server"]["api_external_url"],
+        profile["server"]["external_url"],
         "https://edited.example.invalid"
     );
-    assert_eq!(profile["server"]["use_https"], true);
-    assert_eq!(
-        profile["security"]["jwt_issuer"],
-        "https://issuer.edited.invalid"
-    );
+    for derived in ["api_server_url", "api_external_url", "use_https"] {
+        assert!(
+            profile["server"].get(derived).is_none(),
+            "the overlay never states the derived server.{derived}"
+        );
+    }
+    assert!(profile["security"].get("jwt_issuer").is_none());
     assert_eq!(profile["runtime"]["environment"], "staging");
     assert_eq!(profile["runtime"]["log_level"], "debug");
     let secrets: serde_json::Value =

@@ -45,27 +45,6 @@ fn empty_update_returns_no_changes() {
 }
 
 #[test]
-fn issuer_update_records_old_and_new_values() {
-    let mut config = security();
-    let update = SecurityUpdate {
-        jwt_issuer: Some("https://new.example.com".to_owned()),
-        ..SecurityUpdate::default()
-    };
-
-    let changes = SecurityConfigService::apply_update(&mut config, &update).unwrap();
-
-    assert_eq!(config.issuer, "https://new.example.com");
-    assert_eq!(changes.len(), 1);
-    assert_eq!(changes[0].field, "jwt_issuer");
-    assert_eq!(changes[0].old_value, "https://old.example.com");
-    assert_eq!(changes[0].new_value, "https://new.example.com");
-    assert_eq!(
-        changes[0].message,
-        "Updated JWT issuer to https://new.example.com"
-    );
-}
-
-#[test]
 fn expiry_updates_apply_both_fields() {
     let mut config = security();
     let update = SecurityUpdate {

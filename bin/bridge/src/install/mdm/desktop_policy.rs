@@ -78,7 +78,7 @@ pub fn entries_with_policy(
     policy: &DesktopPolicy,
 ) -> Result<Vec<PolicyEntry>, MdmError> {
     let mut entries = resolved_settings(policy)?;
-    let endpoint = format!("{}/otel", inputs.base_url.trim_end_matches('/'));
+    let endpoint = systemprompt_models::ApiPaths::otel_under(inputs.base_url);
     entries.extend([
         ("otlpEndpoint", PolicyValue::Str(endpoint)),
         ("otlpProtocol", PolicyValue::Str("http/protobuf".to_owned())),

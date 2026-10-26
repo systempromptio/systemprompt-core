@@ -17,17 +17,19 @@ use axum::body::Body;
 use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
-use systemprompt_config::ProfileBootstrap;
+use axum::routing::get;
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_marketplace::ResolvedCatalog;
 use systemprompt_runtime::AppContext;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use super::{bridge_plugin_archive, bridge_resolved, bridge_services_cache};
+use super::bridge_plugin_archive::ArchiveMemo;
+use super::{bridge_plugin_archive, bridge_resolved};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
 pub async fn handle(
+    memo: ArchiveMemo,
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     headers: HeaderMap,
@@ -50,7 +52,7 @@ pub async fn handle(
     })?;
 
     if let Some(sha256) = bridge_plugin_archive::archive_sha(&relative_path) {
-        return bridge_plugin_archive::serve(&ctx, &user.id, &id, sha256).await;
+        return bridge_plugin_archive::serve(&memo, &ctx, &user.id, &id, sha256).await;
     }
 
     let resolved = resolve_entitled(&ctx, &user.id, &id).await?;
@@ -71,6 +73,21 @@ pub async fn handle(
     Ok(response)
 }
 
+pub(super) fn route(
+    ctx: &AppContext,
+    jwt_extractor: &Arc<JwtContextExtractor>,
+) -> axum::routing::MethodRouter {
+    let ctx = ctx.clone();
+    let jwt = Arc::clone(jwt_extractor);
+    let memo = ArchiveMemo::default();
+    get(move |headers, path| {
+        let extractor = Arc::clone(&jwt);
+        let context = ctx.clone();
+        let memo = memo.clone();
+        async move { handle(memo, extractor, context, headers, path).await }
+    })
+}
+
 // Why: the downloads of one sync follow its manifest, so the user's latest
 // resolution already holds the bytes that manifest hashed; only a cold or
 // expired memo pays for a fingerprinted resolution.
@@ -86,10 +103,8 @@ pub(super) async fn resolve_entitled(
     {
         return Ok(latest);
     }
-    let services = bridge_services_cache::load_services_config()
-        .map_err(|e| BridgeError::internal("plugin bundle: services config load failed", e))?;
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| BridgeError::internal("plugin bundle: profile not ready", e))?;
+    let services = ctx.services_config();
+    let profile = ctx.profile();
     let resolved = bridge_resolved::resolve_for_user(
         ctx,
         &services,

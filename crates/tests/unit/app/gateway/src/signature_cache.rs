@@ -11,8 +11,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{GatewayConversationId, ModelId, UserId};
 
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalResponse, CanonicalStopReason,
-    CanonicalUsage, Role,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalResponse,
+    CanonicalSampling, CanonicalStopReason, CanonicalTooling, CanonicalUsage, Role,
 };
 use systemprompt_gateway::signature_cache::ThoughtSignatureCache;
 use systemprompt_test_fixtures::test_db_pool;
@@ -95,22 +95,28 @@ fn request_with(content: Vec<CanonicalContent>) -> CanonicalRequest {
             content,
         }],
         max_tokens: 10,
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        stop_sequences: vec![],
-        tools: vec![],
-        tool_choice: None,
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: vec![],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![],
+            tool_choice: None,
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 

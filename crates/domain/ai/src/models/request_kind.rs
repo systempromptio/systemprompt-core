@@ -1,26 +1,10 @@
-//! Lifecycle status and purpose of a persisted AI request.
+//! Purpose of a persisted AI request; its lifecycle status is the shared
+//! [`RequestStatus`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RequestStatus {
-    Pending,
-    Completed,
-    Failed,
-    Rejected,
-}
-
-impl RequestStatus {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Completed => "completed",
-            Self::Failed => "failed",
-            Self::Rejected => "rejected",
-        }
-    }
-}
+pub use systemprompt_traits::RequestStatus;
 
 /// What a request was for.
 ///

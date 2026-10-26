@@ -2,8 +2,6 @@ use std::sync::Once;
 
 use base64::Engine;
 use ed25519_dalek::SigningKey;
-use systemprompt_config::SecretsBootstrap;
-use systemprompt_security::manifest_signing;
 
 const SEED_B64: &str = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
@@ -17,41 +15,44 @@ fn ensure_bootstrap() {
                 "JWT_SECRET",
                 "signing-key-independence-jwt-secret-A-32-bytes-or-longer",
             );
-            std::env::set_var(
-                "DATABASE_URL",
-                "postgres://placeholder:placeholder@localhost/placeholder",
-            );
+            if std::env::var_os("DATABASE_URL").is_none() {
+                std::env::set_var(
+                    "DATABASE_URL",
+                    "postgres://placeholder:placeholder@localhost/placeholder",
+                );
+            }
             std::env::set_var("MANIFEST_SIGNING_SECRET_SEED", SEED_B64);
         }
-        systemprompt_test_fixtures::secrets::install_named_secret(
-            "encryption_master_key",
-            &"44".repeat(32),
-        );
-        let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
+        systemprompt_test_fixtures::ensure_test_bootstrap();
     });
 }
 
-fn expected_pubkey_b64() -> String {
+fn manifest_keys() -> systemprompt_security::keys::SigningKeys {
+    systemprompt_security::keys::SigningKeys::new(
+        systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX),
+        &seed_bytes(),
+    )
+    .expect("build signing keys from the seed")
+}
+
+fn seed_bytes() -> [u8; 32] {
     let raw = base64::engine::general_purpose::STANDARD
         .decode(SEED_B64)
         .expect("test seed must decode");
     let mut seed = [0u8; 32];
     seed.copy_from_slice(&raw);
-    let key = SigningKey::from_bytes(&seed);
+    seed
+}
+
+fn expected_pubkey_b64() -> String {
+    let key = SigningKey::from_bytes(&seed_bytes());
     base64::engine::general_purpose::STANDARD.encode(key.verifying_key().to_bytes())
 }
 
 #[test]
 fn pubkey_derives_from_seed_not_jwt_secret() {
     ensure_bootstrap();
-    let actual = match manifest_signing::pubkey_b64() {
-        Ok(k) => k,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let actual = manifest_keys().manifest_pubkey_b64();
     assert_eq!(
         actual,
         expected_pubkey_b64(),
@@ -62,14 +63,7 @@ fn pubkey_derives_from_seed_not_jwt_secret() {
 #[test]
 fn pubkey_stable_across_jwt_secret_rotation() {
     ensure_bootstrap();
-    let before = match manifest_signing::pubkey_b64() {
-        Ok(k) => k,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let before = manifest_keys().manifest_pubkey_b64();
 
     unsafe {
         std::env::set_var(
@@ -78,7 +72,7 @@ fn pubkey_stable_across_jwt_secret_rotation() {
         );
     }
 
-    let after = manifest_signing::pubkey_b64().expect("pubkey after rotation");
+    let after = manifest_keys().manifest_pubkey_b64();
     assert_eq!(
         before, after,
         "rotating the JWT secret must not change the manifest signing pubkey"
@@ -86,18 +80,14 @@ fn pubkey_stable_across_jwt_secret_rotation() {
 }
 
 #[test]
-fn seed_accessor_returns_dedicated_value() {
-    ensure_bootstrap();
-    let seed = match SecretsBootstrap::manifest_signing_secret_seed() {
-        Ok(s) => s,
-        Err(e) => {
-            // skip-ok: secrets bootstrap is process-global and another suite may own it
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
-    let raw = base64::engine::general_purpose::STANDARD
-        .decode(SEED_B64)
-        .expect("seed decode");
-    assert_eq!(&seed[..], &raw[..]);
+fn seed_accessor_returns_the_dedicated_secret_not_the_jwt_secret() {
+    let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
+    let seed = secrets
+        .manifest_signing_secret_seed()
+        .expect("bootstrapped manifest signing seed");
+    assert_eq!(seed, [0u8; 32]);
+    assert_ne!(
+        &seed[..],
+        b"signing-key-independence-jwt-secret-A-32".as_slice()
+    );
 }

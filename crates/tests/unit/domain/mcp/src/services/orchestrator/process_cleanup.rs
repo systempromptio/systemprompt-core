@@ -35,6 +35,7 @@ const FIXTURE_PORT: u16 = 65500;
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: bootstrap.system_path.display().to_string(),
         services: bootstrap.services_path.display().to_string(),
         bin: bootstrap.bin_path.display().to_string(),
@@ -67,7 +68,11 @@ async fn fixture() -> Fixture {
     let database = DatabaseService::new(
         repo.clone(),
         app_paths,
-        RegistryService::new(fixture_user_id()),
+        RegistryService::new(
+            fixture_user_id(),
+            crate::harness::services_state().view(),
+            crate::harness::config(),
+        ),
     );
     Fixture {
         bootstrap,

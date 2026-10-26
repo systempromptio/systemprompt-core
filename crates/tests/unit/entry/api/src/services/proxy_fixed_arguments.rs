@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use serde_json::json;
-use systemprompt_api::services::proxy::engine::fixed_arguments::apply;
+use systemprompt_api::services::proxy::service::fixed_arguments::apply;
 use systemprompt_models::mcp::deployment::ToolMetadata;
 
 fn tools() -> HashMap<String, ToolMetadata> {

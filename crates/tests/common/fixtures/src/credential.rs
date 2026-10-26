@@ -15,12 +15,12 @@ use jsonwebtoken::{encode, Algorithm, Header};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
+    UserType,
 };
-use systemprompt_security::keys::authority::{active_kid, encoding_key};
 use uuid::Uuid;
 
-use crate::jwt::install_test_signing_key;
+use crate::jwt::test_signing_keys;
 
 #[derive(Debug, Clone)]
 pub struct AuthedFixture {
@@ -115,37 +115,39 @@ fn mint_jwt_internal(
     roles: Vec<String>,
     rate_limit_tier: RateLimitTier,
 ) -> JwtToken {
-    install_test_signing_key();
+    let keys = test_signing_keys();
     let now = Utc::now();
     let expiry = now + Duration::hours(1);
     let claims = JwtClaims {
-        sub: user_id.to_string(),
-        iat: now.timestamp(),
-        exp: expiry.timestamp(),
-        nbf: Some(now.timestamp()),
-        iss: issuer.to_owned(),
-        aud: JwtAudience::standard(),
-        jti: Uuid::new_v4().to_string(),
-        scope,
-        username: email.to_owned(),
-        email: email.to_owned(),
-        user_type,
-        roles,
-        attributes: BTreeMap::new(),
-        client_id: None,
-        token_type: TokenType::Bearer,
-        auth_time: now.timestamp(),
-        session_id: Some(session_id.clone()),
-        rate_limit_tier: Some(rate_limit_tier),
-        plugin_id: None,
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: user_id.to_string(),
+            iat: now.timestamp(),
+            exp: expiry.timestamp(),
+            nbf: Some(now.timestamp()),
+            iss: issuer.to_owned(),
+            aud: JwtAudience::standard(),
+            jti: Uuid::new_v4().to_string(),
+        },
+        custom: CustomClaims {
+            scope,
+            username: email.to_owned(),
+            email: email.to_owned(),
+            user_type,
+            roles,
+            attributes: BTreeMap::new(),
+            client_id: None,
+            token_type: TokenType::Bearer,
+            auth_time: now.timestamp(),
+            session_id: Some(session_id.clone()),
+            rate_limit_tier: Some(rate_limit_tier),
+            plugin_id: None,
+            act: None,
+            purpose: None,
+        },
     };
-    let kid = active_kid().expect("active kid present");
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_owned());
-    let key = encoding_key().expect("encoding key present");
-    let token = encode(&header, &claims, key).expect("encode jwt");
+    header.kid = Some(keys.active_kid().to_owned());
+    let token = encode(&header, &claims, keys.encoding_key()).expect("encode jwt");
     JwtToken::new(token)
 }
 

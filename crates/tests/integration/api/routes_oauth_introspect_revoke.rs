@@ -11,36 +11,23 @@
 //! the access-token `jti` recording path, and the refusals: an unsigned token
 //! or another user's token is answered with 200 but never recorded.
 
-use std::sync::Once;
 
 use axum::Router;
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, Response, StatusCode, header};
+use axum::body::Body;
+use axum::http::{Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::authenticated_router;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
-    mint_admin_jwt, seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, mint_admin_jwt, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::setup_ctx;
-
-static CONFIG_INSTALL: Once = Once::new();
-
-fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let mut config = fixture_config("postgres://x");
-        config.allowed_resource_audiences = vec!["hook".to_owned()];
-        let _ = Config::install(config);
-    });
-}
+use super::common::{read_json, setup_ctx};
 
 fn ctx_for(user: &UserId) -> RequestContext {
     RequestContext::new(
@@ -53,14 +40,13 @@ fn ctx_for(user: &UserId) -> RequestContext {
 }
 
 async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
-    ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     let inject = move |mut req: Request<Body>, next: Next| {
         let ctx = ctx_for(&user);
@@ -71,7 +57,8 @@ async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
     };
     Ok(authenticated_router()
         .layer(middleware::from_fn(inject))
-        .with_state(state))
+        .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn seeded_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
@@ -89,9 +76,13 @@ async fn seeded_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
 }
 
 fn mint_access_token(user: &UserId) -> String {
-    mint_admin_jwt(user, "introspect@introspect.invalid", "https://issuer.test")
-        .as_str()
-        .to_owned()
+    mint_admin_jwt(
+        user,
+        "introspect@introspect.invalid",
+        systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+    )
+    .as_str()
+    .to_owned()
 }
 
 fn form_post(uri: &str, body: String) -> Request<Body> {
@@ -101,11 +92,6 @@ fn form_post(uri: &str, body: String) -> Request<Body> {
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(Body::from(body))
         .expect("build")
-}
-
-async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {
-    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    Ok(serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
 }
 
 fn urlencode(pairs: &[(&str, &str)]) -> String {
@@ -313,7 +299,7 @@ fn unsigned_access_token(claims: serde_json::Value) -> String {
 fn base_claims() -> serde_json::Value {
     serde_json::json!({
         "sub": Uuid::new_v4().to_string(),
-        "iss": "https://issuer.test",
+        "iss": systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         "aud": ["api"],
         "exp": chrono::Utc::now().timestamp() + 3600,
         "iat": chrono::Utc::now().timestamp(),

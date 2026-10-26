@@ -50,8 +50,14 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
     } = params;
 
     async move {
-        database.cleanup_stale_services().await?;
-        database.delete_crashed_services().await?;
+        let reaped = database.reap_stale_services().await?;
+        if reaped.total() > 0 {
+            tracing::info!(
+                stale_rows = reaped.stale_rows,
+                dead_processes = reaped.dead.len(),
+                "Reaped stale service rows"
+            );
+        }
 
         let enabled_servers = registry.get_managed_servers()?;
 

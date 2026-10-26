@@ -28,6 +28,7 @@ fn cloud_profile() -> Profile {
             can_issue_id_jag: false,
         })
         .build()
+        .unwrap()
 }
 
 fn local_profile() -> Profile {

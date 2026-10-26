@@ -1,67 +1,67 @@
-//! Unit tests for ServiceStatus and Icons
+//! Unit tests for StatusGlyph and Icons
 
 use systemprompt_logging::services::cli::theme::{
-    Icons, ItemStatus, MessageLevel, ModuleType, ServiceStatus,
+    Icons, ItemStatus, MessageLevel, ModuleType, StatusGlyph,
 };
 
 #[test]
 fn test_service_status_running_symbol() {
-    assert_eq!(ServiceStatus::Running.symbol(), "\u{25cf}");
+    assert_eq!(StatusGlyph::Running.symbol(), "\u{25cf}");
 }
 
 #[test]
 fn test_service_status_stopped_symbol() {
-    assert_eq!(ServiceStatus::Stopped.symbol(), "\u{25cb}");
+    assert_eq!(StatusGlyph::Stopped.symbol(), "\u{25cb}");
 }
 
 #[test]
 fn test_service_status_starting_symbol() {
-    assert_eq!(ServiceStatus::Starting.symbol(), "\u{25d0}");
+    assert_eq!(StatusGlyph::Starting.symbol(), "\u{25d0}");
 }
 
 #[test]
 fn test_service_status_failed_symbol() {
-    assert_eq!(ServiceStatus::Failed.symbol(), "\u{2717}");
+    assert_eq!(StatusGlyph::Failed.symbol(), "\u{2717}");
 }
 
 #[test]
 fn test_service_status_unknown_symbol() {
-    assert_eq!(ServiceStatus::Unknown.symbol(), "?");
+    assert_eq!(StatusGlyph::Unknown.symbol(), "?");
 }
 
 #[test]
 fn test_service_status_running_text() {
-    assert_eq!(ServiceStatus::Running.text(), "Running");
+    assert_eq!(StatusGlyph::Running.text(), "Running");
 }
 
 #[test]
 fn test_service_status_stopped_text() {
-    assert_eq!(ServiceStatus::Stopped.text(), "Stopped");
+    assert_eq!(StatusGlyph::Stopped.text(), "Stopped");
 }
 
 #[test]
 fn test_service_status_starting_text() {
-    assert_eq!(ServiceStatus::Starting.text(), "Starting");
+    assert_eq!(StatusGlyph::Starting.text(), "Starting");
 }
 
 #[test]
 fn test_service_status_failed_text() {
-    assert_eq!(ServiceStatus::Failed.text(), "Failed");
+    assert_eq!(StatusGlyph::Failed.text(), "Failed");
 }
 
 #[test]
 fn test_service_status_unknown_text() {
-    assert_eq!(ServiceStatus::Unknown.text(), "Unknown");
+    assert_eq!(StatusGlyph::Unknown.text(), "Unknown");
 }
 
 #[test]
 fn test_service_status_all_variants_have_unique_symbols() {
     let variants = [
-        ServiceStatus::Running,
-        ServiceStatus::Stopped,
-        ServiceStatus::Starting,
-        ServiceStatus::Failed,
-        ServiceStatus::Unknown,
+        StatusGlyph::Running,
+        StatusGlyph::Stopped,
+        StatusGlyph::Starting,
+        StatusGlyph::Failed,
+        StatusGlyph::Unknown,
     ];
 
     for i in 0..variants.len() {
@@ -80,11 +80,11 @@ fn test_service_status_all_variants_have_unique_symbols() {
 #[test]
 fn test_service_status_all_variants_have_unique_text() {
     let variants = [
-        ServiceStatus::Running,
-        ServiceStatus::Stopped,
-        ServiceStatus::Starting,
-        ServiceStatus::Failed,
-        ServiceStatus::Unknown,
+        StatusGlyph::Running,
+        StatusGlyph::Stopped,
+        StatusGlyph::Starting,
+        StatusGlyph::Failed,
+        StatusGlyph::Unknown,
     ];
 
     for i in 0..variants.len() {
@@ -102,14 +102,14 @@ fn test_service_status_all_variants_have_unique_text() {
 
 #[test]
 fn test_service_status_equality() {
-    assert_eq!(ServiceStatus::Running, ServiceStatus::Running);
-    assert_ne!(ServiceStatus::Running, ServiceStatus::Stopped);
+    assert_eq!(StatusGlyph::Running, StatusGlyph::Running);
+    assert_ne!(StatusGlyph::Running, StatusGlyph::Stopped);
 }
 
 #[test]
 fn test_service_status_debug() {
-    assert_eq!(format!("{:?}", ServiceStatus::Running), "Running");
-    assert_eq!(format!("{:?}", ServiceStatus::Failed), "Failed");
+    assert_eq!(format!("{:?}", StatusGlyph::Running), "Running");
+    assert_eq!(format!("{:?}", StatusGlyph::Failed), "Failed");
 }
 
 #[test]

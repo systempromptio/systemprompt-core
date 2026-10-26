@@ -1,6 +1,9 @@
-//! The services manifest: agents, plugins, hooks, MCP servers, skills,
-//! marketplaces, providers and the gateway policy, as loaded from the services
-//! YAML tree and validated at boot.
+//! The services manifest, as loaded from the services YAML tree and validated
+//! at boot.
+//!
+//! Agents, plugins, hooks, MCP servers, skills, marketplaces, the model
+//! catalog (credentials, providers, models, deployments) and the gateway
+//! policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +13,8 @@ pub mod ai;
 pub mod artifacts;
 pub mod bridge_policy;
 pub mod bundle;
+pub mod catalog;
+pub mod enforcement;
 pub mod external_agent;
 pub mod frontmatter;
 pub mod gateway;
@@ -22,10 +27,12 @@ pub mod marketplace_external;
 mod marketplace_external_error;
 pub mod marketplace_external_plugin;
 mod marketplace_mirror;
+mod marketplace_opencode;
+pub mod marketplace_publication;
 pub mod mcp;
 pub mod plugin;
-pub mod providers;
 pub mod registry;
+pub mod root;
 pub mod rules;
 pub mod runtime;
 pub mod scheduler;
@@ -37,8 +44,10 @@ pub mod slack;
 pub mod system_admin;
 pub mod teams;
 mod validation;
+pub mod view;
 
 pub use includable::IncludableString;
+pub use view::ServicesView;
 
 pub use agent_config::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
@@ -46,8 +55,8 @@ pub use agent_config::{
     OAuthConfig, RetiredCardKeyError,
 };
 pub use ai::{
-    AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
-    ModelGovernance, ModelPricing, ResilienceSettings, SamplingConfig,
+    AiConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition, ModelGovernance,
+    ModelPricing, ResilienceSettings, SamplingConfig,
 };
 pub use artifacts::{ARTIFACT_CONFIG_FILENAME, DEFAULT_ARTIFACT_CONTENT_FILE, DiskArtifactConfig};
 pub use bridge_policy::BridgePolicyConfig;
@@ -57,14 +66,23 @@ pub use bundle::{
     FileEntry, MARKETPLACE_BUNDLE_DIRS, ServicesBundleManifest, ServicesBundleState,
     SignedBundleManifest,
 };
+pub use catalog::vertex::{
+    DiscoveryReport, DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS, VertexRateCard,
+    VertexRateCardEntry,
+};
+pub use catalog::{
+    CatalogContext, CatalogError, CatalogInput, CredentialRegistry, DeploymentRegistry,
+    ModelRegistry, ModelRequest, ProviderRegistry, ResolvedCatalog,
+};
+pub use enforcement::{EnforcementMode, UnknownEnforcementMode};
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
-    BridgeReleasesSpec, ChainSelection, GatewayConfig, GatewayConfigSpec, GatewayProfileError,
-    GatewayResult, GatewayRoute, GatewayState, OverrideRuleAction, QuotaFaultMode,
-    ResponseFormatKind, RouteDeployment, RouteMatch, RouteRequirements, RouteScopeChains,
-    ScopeChain, SelectionStrategy, SystemPromptRule, UnmappedScope, estimate_input_tokens,
-    slugify_pattern, synthesize_route_id,
+    BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult,
+    GatewayRoute, GatewayState, ModelGlobs, OverrideRuleAction, QuotaFaultMode, ResponseFormatKind,
+    RouteAlias, RouteDeployment, RouteMatch, RouteRequirements, SelectionStrategy,
+    SystemPromptRule, WeightedDeployment, estimate_input_tokens, slugify_pattern,
+    synthesize_route_id,
 };
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookEventsConfig, HookMatcher, HookType,
@@ -72,21 +90,19 @@ pub use hooks::{
 pub use marketplace::{
     ClaudeCodeMarketplaceConfig, ExternalMarketplace, ExternalMarketplaceSource, MarketplaceAccess,
     MarketplaceAccessRule, MarketplaceConfig, MarketplaceConfigFile, MarketplaceMemberKind,
-    MarketplaceRuleAccess, MarketplaceVisibility,
+    MarketplaceRuleAccess, MarketplaceVisibility, OpenCodeMarketplaceConfig, OpenCodeThemeConfig,
 };
 pub use marketplace_external_plugin::{ExternalPluginEntry, ExternalPluginSource};
+pub use marketplace_publication::{
+    CohortRing, ManagedMarketplaceConfig, PublicationConfig, PublicationGateConfig,
+};
 pub use mcp::{McpDeploymentProvider, McpServerSummary};
 pub use plugin::{
     PluginAuthor, PluginConfig, PluginConfigFile, PluginScript, PluginSummary, PluginVariableDef,
 };
-pub use providers::{
-    DiscoveryReport, DocumentedLaunchStage, ProviderCredentialSource, ProviderEntry, ProviderModel,
-    ProviderRegistry, ProviderRegistryError, ProviderRegistryResult, RETIREMENT_NOTICE_DAYS,
-    VertexRateCard, VertexRateCardEntry,
-};
 pub use registry::{ServiceModule, ServiceStatus, UnknownServiceModule, UnknownServiceStatus};
 pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};
-pub use runtime::{RuntimeStatus, ServiceType};
+pub use runtime::ServiceType;
 pub use scheduler::*;
 pub use settings::*;
 pub use skills::{
@@ -126,6 +142,8 @@ pub struct ServicesConfig {
     #[serde(default)]
     pub marketplaces: HashMap<MarketplaceId, MarketplaceConfig>,
     #[serde(default)]
+    pub marketplace: Option<ManagedMarketplaceConfig>,
+    #[serde(default)]
     pub skills: SkillsConfig,
     #[serde(default)]
     pub external_agents: HashMap<ExternalAgentId, ExternalAgentConfig>,
@@ -136,7 +154,13 @@ pub struct ServicesConfig {
     #[serde(default)]
     pub bridge_policy: Option<BridgePolicyConfig>,
     #[serde(default)]
+    pub credentials: CredentialRegistry,
+    #[serde(default)]
     pub providers: ProviderRegistry,
+    #[serde(default)]
+    pub models: ModelRegistry,
+    #[serde(default)]
+    pub deployments: DeploymentRegistry,
     #[serde(default)]
     pub gateway: Option<GatewayState>,
 }
@@ -200,7 +224,7 @@ impl ServicesConfig {
         }
 
         self.validate_single_governance_hook_owner()?;
-        self.validate_single_evaluation_hook_owner()?;
+        self.validate_single_judge_hook_owner()?;
 
         for (id, marketplace) in &self.marketplaces {
             marketplace.validate(id.as_str())?;
@@ -210,6 +234,10 @@ impl ServicesConfig {
 
         self.validate_marketplace_selector()?;
 
+        if let Some(marketplace) = &self.marketplace {
+            marketplace.validate()?;
+        }
+
         for (name, app) in &self.slack_apps {
             app.validate(name)?;
         }
@@ -218,19 +246,27 @@ impl ServicesConfig {
             app.validate(name)?;
         }
 
-        self.validate_providers_and_gateway()
+        self.resolve_catalog(&CatalogContext::default())
+            .map(drop)
+            .map_err(|e| ServicesValidationError::invalid_field_cause("catalog", e))
     }
 
-    fn validate_providers_and_gateway(&self) -> Result<(), ServicesValidationError> {
-        self.providers
-            .validate()
-            .map_err(|e| ServicesValidationError::invalid_field_cause("providers", e))?;
-        match &self.gateway {
-            Some(GatewayState::Resolved(config)) => config.validate(&self.providers),
-            Some(GatewayState::Spec(spec)) => spec.clone().resolve().validate(&self.providers),
-            None => Ok(()),
-        }
-        .map_err(|e| ServicesValidationError::invalid_field_cause("gateway", e))
+    pub fn resolve_catalog(
+        &self,
+        context: &CatalogContext,
+    ) -> Result<ResolvedCatalog, CatalogError> {
+        let gateway = self.gateway.as_ref().map(GatewayState::config);
+        ResolvedCatalog::build(
+            CatalogInput {
+                credentials: &self.credentials,
+                providers: &self.providers,
+                models: &self.models,
+                deployments: &self.deployments,
+                gateway: gateway.as_deref(),
+                default_image_model: self.ai.default_image_model.as_ref(),
+            },
+            context,
+        )
     }
 
     #[must_use]

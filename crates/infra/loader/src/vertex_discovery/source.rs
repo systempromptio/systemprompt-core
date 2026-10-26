@@ -9,17 +9,28 @@
 //!
 //! So a [`CatalogSource`] answers only the narrow questions, in a vocabulary
 //! that carries no Google in it: given a provider and the credential its
-//! secret parsed into, do I apply, and if so what does this upstream say it
-//! serves? The next source — an Azure deployment listing, a self-hosted
-//! `/v1/models` — is a new implementation and no change to the caller.
+//! secret parsed into, do I apply to this one endpoint, and if so what does
+//! it say it serves? Discovery runs per `(provider, endpoint)`: one vendor
+//! account can expose a listing on one wire and none on another. The next
+//! source — an Azure deployment listing, a self-hosted `/v1/models` — is a new
+//! implementation and no change to the caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_manifest::services::ProviderEntry;
+use systemprompt_manifest::services::catalog::EndpointRef;
 use systemprompt_security::credential::{AuthHeader, CredentialScope, ProviderCredential};
+use systemprompt_wire::WireProtocol;
 use thiserror::Error;
+
+/// One catalog endpoint a source may list: its address, wire and URL.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiscoveryEndpoint {
+    pub endpoint: EndpointRef,
+    pub wire: WireProtocol,
+    pub url: String,
+}
 
 /// How far along an upstream considers a model to be.
 ///
@@ -76,9 +87,9 @@ pub enum DiscoveryError {
 
 /// An upstream that can be asked which models it serves.
 ///
-/// `name` labels the source in report lines and logs. `matches_provider` is
+/// `name` labels the source in report lines and logs. `matches_endpoint` is
 /// the cheap, credential-free question — could this source ever list this
-/// provider? — kept separate from `applies` (the same question with the
+/// endpoint? — kept separate from `applies` (the same question with the
 /// secret parsed) so the caller knows whether a provider is worth parsing a
 /// secret for before it parses one, and so a malformed secret on an unrelated
 /// provider is not reported as a discovery failure. `list` asks the upstream
@@ -89,15 +100,15 @@ pub enum DiscoveryError {
 pub trait CatalogSource: Send + Sync {
     fn name(&self) -> &'static str;
 
-    fn matches_provider(&self, provider: &ProviderEntry) -> bool;
+    fn matches_endpoint(&self, endpoint: &DiscoveryEndpoint) -> bool;
 
-    fn applies(&self, provider: &ProviderEntry, credential: &ProviderCredential) -> bool;
+    fn applies(&self, endpoint: &DiscoveryEndpoint, credential: &ProviderCredential) -> bool;
 
     async fn list(
         &self,
         http: &reqwest::Client,
         auth: &AuthHeader,
-        provider: &ProviderEntry,
+        endpoint: &DiscoveryEndpoint,
         scope: &CredentialScope,
     ) -> Result<CatalogListing, DiscoveryError>;
 }

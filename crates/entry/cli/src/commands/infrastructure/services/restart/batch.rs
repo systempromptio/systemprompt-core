@@ -28,7 +28,7 @@ pub async fn execute_all_agents(
     }
 
     let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
-    let snapshots = agent_snapshots(&orchestrator).await?;
+    let snapshots = agent_snapshots(&orchestrator, ctx.services_state()).await?;
     let plan = RestartPlan::compute(RestartScope::AllAgents, &snapshots);
 
     let mut restarted = 0usize;
@@ -100,7 +100,7 @@ pub async fn execute_failed(ctx: &Arc<AppContext>, config: &CliConfig) -> Result
 
     let handles = lifecycle::OrchestratorHandles::build(ctx).await?;
 
-    let mut snapshots = agent_snapshots(&handles.agents).await?;
+    let mut snapshots = agent_snapshots(&handles.agents, ctx.services_state()).await?;
     snapshots.extend(mcp_snapshots(ctx, true).await?);
     let plan = RestartPlan::compute(RestartScope::Failed, &snapshots);
 

@@ -50,13 +50,13 @@ fn missing_database_url_fails() {
 
 #[test]
 fn proxy_topology_passes_for_generated_cloud_profile() {
-    let profile = CloudProfileBuilder::new("prod").build();
+    let profile = CloudProfileBuilder::new("prod").build().unwrap();
     assert_eq!(check_proxy_topology(&profile).status, CheckStatus::Pass);
 }
 
 #[test]
 fn proxy_topology_warns_when_fly_range_missing() {
-    let mut profile = CloudProfileBuilder::new("prod").build();
+    let mut profile = CloudProfileBuilder::new("prod").build().unwrap();
     profile.server.trusted_proxies = vec!["104.16.0.0/13".parse().unwrap()];
     let result = check_proxy_topology(&profile);
     assert_eq!(result.status, CheckStatus::Warn);
@@ -66,7 +66,7 @@ fn proxy_topology_warns_when_fly_range_missing() {
 
 #[test]
 fn proxy_topology_warns_when_only_fly_public_edge_missing() {
-    let mut profile = CloudProfileBuilder::new("prod").build();
+    let mut profile = CloudProfileBuilder::new("prod").build().unwrap();
     profile.server.trusted_proxies = vec!["fc00::/7".parse().unwrap()];
     let result = check_proxy_topology(&profile);
     assert_eq!(result.status, CheckStatus::Warn);
@@ -75,14 +75,14 @@ fn proxy_topology_warns_when_only_fly_public_edge_missing() {
 
 #[test]
 fn proxy_topology_warns_for_empty_cloud_list() {
-    let mut profile = CloudProfileBuilder::new("prod").build();
+    let mut profile = CloudProfileBuilder::new("prod").build().unwrap();
     profile.server.trusted_proxies = Vec::new();
     assert_eq!(check_proxy_topology(&profile).status, CheckStatus::Warn);
 }
 
 #[test]
 fn proxy_topology_skips_non_cloud_profiles() {
-    let mut profile = CloudProfileBuilder::new("dev").build();
+    let mut profile = CloudProfileBuilder::new("dev").build().unwrap();
     profile.target = ProfileType::Local;
     profile.server.trusted_proxies = Vec::new();
     assert_eq!(check_proxy_topology(&profile).status, CheckStatus::Pass);

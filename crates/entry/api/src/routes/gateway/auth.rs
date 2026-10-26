@@ -88,15 +88,18 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
         .ok_or_else(|| ApiHttpError::unauthorized("Invalid PAT"))?;
 
     let analytics = require_analytics(&ctx)?;
-    let caller_ip = client_ip_from_request(&request);
+    let caller_ip = client_ip_from_request(&request, ctx.config());
     let users = require_user_provider(&ctx)?;
     let result = issue_bridge_access(
+        ctx.signing_keys(),
         analytics.as_ref(),
         ctx.session_provider()
-            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .ok_or_else(|| {
+                ApiHttpError::internal("Session provider unavailable", "provider is not registered")
+            })?
             .as_ref(),
         users.as_ref(),
-        BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id)
+        BridgeAccessRequest::bridge(ctx.config(), request.headers(), caller_ip, &record.user_id)
             .with_purpose(record.purpose.clone()),
     )
     .await?;
@@ -120,13 +123,17 @@ pub async fn session(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         ctx.session_provider()
-            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .ok_or_else(|| {
+                ApiHttpError::internal("Session provider unavailable", "provider is not registered")
+            })?
             .as_ref(),
         users.as_ref(),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip,
             code: body.code.trim(),
+            keys: ctx.signing_keys(),
+            config: ctx.config(),
         },
     )
     .await?
@@ -175,7 +182,7 @@ async fn mint_device_pat(
         .await
         .map_err(|error| {
             tracing::warn!(%error, "user lookup for the session PAT failed");
-            ApiHttpError::internal_error("user lookup failed")
+            ApiHttpError::internal("user lookup failed", error)
         })?
         .ok_or_else(|| ApiHttpError::unauthorized("exchange code user no longer exists"))?;
     refuse_service_account(user.is_service_account, &user_id)?;
@@ -210,7 +217,7 @@ pub async fn provision_oauth_client(
         .decode_for_gateway(&JwtToken::new(bearer))
         .await?;
 
-    let token_endpoint = build_token_endpoint(request.headers())?;
+    let token_endpoint = build_token_endpoint(ctx.config(), request.headers())?;
 
     let result = provision_bridge_oauth_client(
         &ctx.oauth_repositories().oauth,
@@ -227,8 +234,7 @@ pub async fn provision_oauth_client(
     reason = "ApiError carries response context that is intentionally large; boxing here would \
               propagate to every caller for negligible gain"
 )]
-fn build_token_endpoint(headers: &HeaderMap) -> Result<String, ApiHttpError> {
-    let cfg = Config::get()?;
+fn build_token_endpoint(cfg: &Config, headers: &HeaderMap) -> Result<String, ApiHttpError> {
     let configured = url::Url::parse(&cfg.api_external_url)
         .map_err(|e| BridgeError::internal("Configured external URL is invalid", e))?;
     let raw_host = headers.get(header::HOST).and_then(|v| v.to_str().ok());
@@ -248,8 +254,12 @@ fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
               propagate to every caller for negligible gain"
 )]
 fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, ApiHttpError> {
-    ctx.analytics_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("analytics provider unavailable"))
+    ctx.analytics_provider().ok_or_else(|| {
+        ApiHttpError::internal(
+            "analytics provider unavailable",
+            "provider is not registered",
+        )
+    })
 }
 
 #[expect(
@@ -258,6 +268,7 @@ fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, Api
               propagate to every caller for negligible gain"
 )]
 fn require_user_provider(ctx: &AppContext) -> Result<Arc<dyn UserProvider>, ApiHttpError> {
-    ctx.user_provider()
-        .ok_or_else(|| ApiHttpError::internal_error("User provider unavailable"))
+    ctx.user_provider().ok_or_else(|| {
+        ApiHttpError::internal("User provider unavailable", "provider is not registered")
+    })
 }

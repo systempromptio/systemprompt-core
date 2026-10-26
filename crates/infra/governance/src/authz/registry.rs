@@ -19,9 +19,33 @@
 
 use std::sync::Arc;
 
+use systemprompt_manifest::services::ServicesView;
+use systemprompt_models::authz::SubjectSourceHandle;
+use systemprompt_traits::CacheEpochs;
+
 use super::audit::AuthzAuditSink;
 use super::composite::CompositeAuthzHook;
 use super::hook::SharedAuthzHook;
+use super::parent_chain::ChainSources;
+use super::subject::SubjectProviderSet;
+
+/// The chain sources, cache epochs and services a rule-based hook is wired
+/// from at the composition root.
+#[derive(Clone)]
+pub struct AuthzWiring {
+    pub sources: ChainSources,
+    pub epochs: CacheEpochs,
+    pub services: ServicesView,
+    pub subjects: SubjectSourceHandle,
+    pub providers: SubjectProviderSet,
+    pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
+}
+
+impl std::fmt::Debug for AuthzWiring {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthzWiring").finish_non_exhaustive()
+    }
+}
 
 /// Inputs passed to every registered factory at bootstrap.
 ///
@@ -32,6 +56,9 @@ use super::hook::SharedAuthzHook;
 pub struct AuthzHookContext {
     pub pool: Arc<sqlx::PgPool>,
     pub sink: Arc<dyn AuthzAuditSink>,
+    pub services: ServicesView,
+    pub subjects: SubjectSourceHandle,
+    pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
 }
 
 impl std::fmt::Debug for AuthzHookContext {
@@ -64,7 +91,7 @@ pub fn discover_authz_hook(ctx: &AuthzHookContext) -> Option<SharedAuthzHook> {
 #[macro_export]
 macro_rules! register_authz_hook {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::authz::AuthzHookRegistration {
                 factory: $factory,
             }

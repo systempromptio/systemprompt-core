@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::response::sse::Event;
@@ -14,12 +15,8 @@ use systemprompt_models::RequestContext;
 use tokio::sync::mpsc::Sender;
 
 use crate::models::a2a::Message;
-use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::services::a2a_server::handlers::AgentHandlerState;
-use crate::services::a2a_server::processing::message::MessageProcessor;
+use crate::services::a2a_server::processing::message::MessageHandler;
 
-use super::frames::jsonrpc_error_event;
-use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 
 use super::agent_loader::{LoadAgentRuntimeParams, load_agent_runtime};
 use super::broadcast::{BroadcastTaskCreatedParams, broadcast_task_created};
@@ -41,31 +38,6 @@ pub(super) fn align_context_agent_name(agent_name: &AgentName, context: &mut Req
 
 pub(super) fn resolve_task_id(message: &Message) -> TaskId {
     message.task_id.clone().unwrap_or_else(TaskId::generate)
-}
-
-fn create_processor(
-    state: &AgentHandlerState,
-    tx: &Sender<Event>,
-    request_id: &NumberOrString,
-) -> Result<MessageProcessor, ()> {
-    MessageProcessor::new(
-        Arc::clone(state.agent_state.repositories()),
-        Arc::clone(&state.ai_service),
-        state.agent_state.webhooks(),
-    )
-    .map_err(|e| {
-        tracing::error!(error = %e, "Failed to create MessageProcessor");
-        if tx
-            .try_send(jsonrpc_error_event(
-                JsonRpcErrorBuilder::internal_error()
-                    .with_metadata("detail", "Failed to initialize message processor"),
-                request_id,
-            ))
-            .is_err()
-        {
-            tracing::trace!("Failed to send error event, channel closed");
-        }
-    })
 }
 
 pub(super) async fn setup_stream(
@@ -127,7 +99,13 @@ pub(super) async fn setup_stream(
     })
     .await?;
 
-    let processor = create_processor(&state, tx, &request_id)?;
+    let processor = MessageHandler::new(
+        Arc::clone(state.agent_state.repositories()),
+        Arc::clone(&state.ai_service),
+        state.agent_state.webhooks(),
+        state.agent_state.services().clone(),
+        PathBuf::from(&state.agent_state.config().skills_path),
+    );
 
     Ok(StreamSetupResult {
         task_id,

@@ -114,7 +114,7 @@ fn a_failure_message_is_carried_through_verbatim_so_the_cause_is_visible() {
 #[test]
 fn removing_an_empty_selection_succeeds_with_nothing_to_report() {
     let reports =
-        remove_host_profiles(&Selection::Ids(Vec::new())).expect("empty selection is valid");
+        remove_host_profiles(&Selection::Ids(Vec::new()), &[]).expect("empty selection is valid");
     assert!(reports.is_empty());
     assert_eq!(
         systemprompt_bridge::integration::enrol::render(&reports),
@@ -125,7 +125,7 @@ fn removing_an_empty_selection_succeeds_with_nothing_to_report() {
 #[test]
 fn removing_an_unknown_host_fails_the_whole_request_rather_than_reporting_per_host() {
     let err = Selection::parse_ids(&["not-a-host".to_owned()])
-        .and_then(|selection| remove_host_profiles(&selection))
+        .and_then(|selection| remove_host_profiles(&selection, &[]))
         .expect_err("an unknown id is rejected");
     assert!(
         matches!(&err, SelectionError::Unknown { id, .. } if id == "not-a-host"),

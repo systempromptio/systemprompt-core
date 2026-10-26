@@ -21,6 +21,7 @@ struct AuditSeed {
     request_id: String,
     session_id: String,
     model: String,
+    module: String,
 }
 
 impl AuditSeed {
@@ -35,6 +36,7 @@ impl AuditSeed {
         let request_id = format!("audit_req_{tag}");
         let session_id = format!("audit_session_{tag}");
         let model = format!("model-{tag}");
+        let module = format!("audit_seed_{tag}");
 
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
             .bind(&user_id)
@@ -101,6 +103,7 @@ impl AuditSeed {
             request_id,
             session_id,
             model,
+            module,
         }
     }
 
@@ -213,7 +216,7 @@ impl AuditSeed {
     async fn insert_log(&self, level: &str, message: &str, metadata: Option<&str>) -> String {
         let id: String = sqlx::query_scalar(
             "INSERT INTO logs (level, module, message, metadata, trace_id, task_id, context_id, \
-             user_id, session_id) VALUES ($1, 'audit_seed_mod', $2, $3, $4, $5, $6, $7, $8) \
+             user_id, session_id) VALUES ($1, $9, $2, $3, $4, $5, $6, $7, $8) \
              RETURNING id",
         )
         .bind(level)
@@ -224,6 +227,7 @@ impl AuditSeed {
         .bind(&self.context_id)
         .bind(&self.user_id)
         .bind(&self.session_id)
+        .bind(&self.module)
         .fetch_one(&self.pool)
         .await
         .unwrap();
@@ -583,7 +587,7 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     assert!(
         log_events
             .iter()
-            .any(|e| e.details == "audit_seed_mod: seeded lookup marker")
+            .any(|e| e.details == format!("{}: seeded lookup marker", seed.module))
     );
     assert!(log_events.iter().all(|e| e.task_id.is_some()));
 
@@ -616,7 +620,7 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
         .unwrap();
     assert_eq!(searched.len(), 1);
     assert_eq!(searched[0].id.as_str(), good_id);
-    assert_eq!(searched[0].module, "audit_seed_mod");
+    assert_eq!(searched[0].module, seed.module);
 
     let levels = svc.count_logs_by_level(Some(since)).await.unwrap();
     let error_count = levels
@@ -629,7 +633,7 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     assert!(
         modules
             .iter()
-            .any(|m| m.module == "audit_seed_mod" && m.count == 2)
+            .any(|m| m.module == seed.module && m.count == 2)
     );
 
     let range = svc.log_time_range(Some(since)).await.unwrap();

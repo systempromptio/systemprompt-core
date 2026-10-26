@@ -95,7 +95,7 @@ pub mod profile {
     use super::container;
 
     pub const DEFAULT_DB_TYPE: &str = "postgres";
-    pub const DEFAULT_PORT: u16 = 8080;
+    pub const DEFAULT_PORT: u16 = systemprompt_models::defaults::DEFAULT_API_PORT;
     pub const LOCAL_HOST: &str = "127.0.0.1";
     pub const CLOUD_HOST: &str = "0.0.0.0";
     pub const DEFAULT_CLOUD_URL: &str = "https://cloud.systemprompt.io";

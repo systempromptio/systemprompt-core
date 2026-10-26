@@ -10,8 +10,8 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
-use systemprompt_extension::ExtensionRegistry;
-use systemprompt_manifest::WebConfig;
+use systemprompt_extension::{ExtensionContext, ExtensionRegistry};
+use systemprompt_manifest::{Config, WebConfig};
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{ContentDataProvider, Dependencies};
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
@@ -19,9 +19,9 @@ use systemprompt_templates::{
     CoreTemplateProvider, EmbeddedDefaultsProvider, TemplateRegistry, TemplateRegistryBuilder,
 };
 use tokio::fs;
-use tokio::sync::OnceCell;
 
 use crate::error::{GeneratorResult, PublishError};
+use crate::prerender::engine::PrerenderEnv;
 use crate::templates::{get_templates_path, load_web_config};
 
 pub(super) struct PrerenderAssets {
@@ -62,16 +62,12 @@ impl std::fmt::Debug for PrerenderContext {
     }
 }
 
-static PRERENDER_ASSETS: OnceCell<Arc<PrerenderAssets>> = OnceCell::const_new();
-
 pub(super) async fn load_prerender_context(
     db_pool: DbPool,
     content_repo: ContentRepository,
-    paths: &AppPaths,
+    env: PrerenderEnv<'_>,
 ) -> GeneratorResult<PrerenderContext> {
-    let assets = PRERENDER_ASSETS
-        .get_or_try_init(|| async { load_prerender_assets(paths).await.map(Arc::new) })
-        .await?;
+    let assets = Arc::new(load_prerender_assets(env.config, env.paths, env.extensions).await?);
 
     let dependencies = Dependencies::new()
         .with(db_pool)
@@ -79,11 +75,15 @@ pub(super) async fn load_prerender_context(
     Ok(PrerenderContext {
         content_repo,
         dependencies,
-        assets: Arc::clone(assets),
+        assets,
     })
 }
 
-async fn load_prerender_assets(paths: &AppPaths) -> GeneratorResult<PrerenderAssets> {
+async fn load_prerender_assets(
+    config: &Config,
+    paths: &AppPaths,
+    ext_ctx: &dyn ExtensionContext,
+) -> GeneratorResult<PrerenderAssets> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path).await.map_err(|source| {
@@ -92,13 +92,13 @@ async fn load_prerender_assets(paths: &AppPaths) -> GeneratorResult<PrerenderAss
             source,
         }
     })?;
-    let config: ContentConfigRaw =
+    let content_config: ContentConfigRaw =
         serde_yaml::from_str(&yaml_content).map_err(|source| PublishError::ContentConfigParse {
             path: config_path.to_path_buf(),
             source,
         })?;
 
-    let web_config = load_web_config(paths).await?;
+    let web_config = load_web_config(config, paths).await?;
 
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
@@ -112,7 +112,8 @@ async fn load_prerender_assets(paths: &AppPaths) -> GeneratorResult<PrerenderAss
     }
 
     let registry_builder = base_registry_builder(&extension_template_path).await?;
-    let (registry_builder, mut content_data_providers) = register_extensions(registry_builder)?;
+    let (registry_builder, mut content_data_providers) =
+        register_extensions(registry_builder, ext_ctx)?;
 
     content_data_providers.sort_by_key(|p| p.priority());
 
@@ -121,7 +122,7 @@ async fn load_prerender_assets(paths: &AppPaths) -> GeneratorResult<PrerenderAss
     let dist_dir = paths.web().dist().to_path_buf();
 
     Ok(PrerenderAssets {
-        config,
+        config: content_config,
         web_config,
         template_registry,
         dist_dir,
@@ -150,6 +151,7 @@ async fn base_registry_builder(
 
 fn register_extensions(
     mut registry_builder: TemplateRegistryBuilder,
+    ext_ctx: &dyn ExtensionContext,
 ) -> GeneratorResult<(TemplateRegistryBuilder, Vec<Arc<dyn ContentDataProvider>>)> {
     let extensions = ExtensionRegistry::discover()?;
 
@@ -157,11 +159,11 @@ fn register_extensions(
     let mut contributing = 0usize;
 
     for ext in extensions.extensions() {
-        let providers = ext.page_data_providers();
-        let prerenderers = ext.page_prerenderers();
-        let content_providers = ext.content_data_providers();
-        let components = ext.component_renderers();
-        let extenders = ext.template_data_extenders();
+        let providers = ext.page_data_providers(ext_ctx);
+        let prerenderers = ext.page_prerenderers(ext_ctx);
+        let content_providers = ext.content_data_providers(ext_ctx);
+        let components = ext.component_renderers(ext_ctx);
+        let extenders = ext.template_data_extenders(ext_ctx);
 
         if !providers.is_empty()
             || !prerenderers.is_empty()

@@ -295,7 +295,7 @@ fn api_error_forbidden() {
 
 #[test]
 fn api_error_internal_error() {
-    let error = ApiError::internal_error("Something went wrong");
+    let error = ApiError::internal("Something went wrong", "cause");
     assert!(matches!(error.code, ErrorCode::InternalError));
 }
 
@@ -325,7 +325,7 @@ fn api_error_with_path() {
 
 #[test]
 fn api_error_with_trace_id() {
-    let error = ApiError::internal_error("Oops")
+    let error = ApiError::internal("Oops", "cause")
         .with_trace_id(systemprompt_identifiers::TraceId::new("trace-abc-123"));
     assert_eq!(
         error.trace_id.as_ref().map(|id| id.as_str()),

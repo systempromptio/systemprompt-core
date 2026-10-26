@@ -7,17 +7,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::OauthResult as Result;
-use chrono::{Duration, Utc};
+use chrono::Duration;
 use jsonwebtoken::{Algorithm, Header, encode};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
 use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::auth::{
-    ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
+    AccountKind, ActClaim, AuthenticatedUser, JwtAudience, Permission, TokenAuthority,
+    UserJwtRequest,
 };
-use systemprompt_security::keys::authority;
+use systemprompt_security::jwt::{encode_rs256, user_claims};
+use systemprompt_security::keys::SigningKeys;
 
 pub mod id_jag;
 mod secret;
@@ -75,6 +76,7 @@ mod expires_in_seconds {
 #[derive(Debug, Clone)]
 pub struct JwtSigningParams<'a> {
     pub issuer: &'a str,
+    pub keys: &'a SigningKeys,
 }
 
 impl Default for JwtConfig {
@@ -111,8 +113,8 @@ pub fn generate_jwt_with_act(params: DelegatedJwtParams<'_>) -> Result<String> {
         params.session_id,
         params.signing,
     )?;
-    token.act = Some(params.act);
-    encode_claims(&token, params.signing)
+    token.custom.act = Some(params.act);
+    encode_with_keys(params.signing.keys, &token)
 }
 
 fn build_claims(
@@ -122,67 +124,36 @@ fn build_claims(
     session_id: &SessionId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<JwtClaims> {
-    let expires_in = validated_expiry(config.expires_in)?;
-    let expiration = Utc::now()
-        .checked_add_signed(expires_in)
-        .ok_or(crate::error::OauthError::Internal(
-            "Failed to calculate token expiration",
-        ))?
-        .timestamp();
-    let now = Utc::now().timestamp();
-    let user_type = UserType::from_permissions(&config.permissions);
-    let mut audience = config.audience.clone();
-    if let Some(ref resource) = config.resource {
-        audience.push(JwtAudience::Resource(resource.clone()));
+    let mut audience = config.audience;
+    if let Some(resource) = config.resource {
+        audience.push(JwtAudience::Resource(resource));
     }
-    Ok(JwtClaims {
-        sub: user.id.to_string(),
-        iat: now,
-        exp: expiration,
-        nbf: Some(now),
-        iss: signing.issuer.to_owned(),
-        aud: audience,
-        jti: String::from(jti),
-        scope: config.permissions,
-        username: user.username.clone(),
-        email: user.email.clone(),
-        user_type,
-        roles: user.roles().to_vec(),
-        attributes: user.attributes().clone(),
+    let request = UserJwtRequest {
+        user: user.clone(),
+        session_id: session_id.clone(),
+        jti,
+        permissions: config.permissions,
+        audience,
+        ttl: config.expires_in,
         client_id: config.client_id,
-        token_type: TokenType::Bearer,
-        auth_time: now,
-        session_id: Some(session_id.clone()),
-        rate_limit_tier: Some(user_type.rate_tier()),
-        plugin_id: config.plugin_id,
-        act: None,
         purpose: config.purpose,
-    })
+        plugin_id: config.plugin_id,
+    };
+    Ok(user_claims(signing.issuer, &request)?)
 }
 
-fn encode_claims(claims: &JwtClaims, _signing: &JwtSigningParams<'_>) -> Result<String> {
-    encode_with_authority(claims)
+fn encode_with_keys(keys: &SigningKeys, claims: &JwtClaims) -> Result<String> {
+    Ok(encode_rs256(keys, claims)?)
 }
 
-fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
-    let kid = authority::active_kid()?;
-    let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_owned());
-    let key = authority::encoding_key()?;
-    let token = encode(&header, claims, key)?;
-    Ok(token)
-}
-
-fn encode_id_jag_with_authority(
+fn encode_id_jag_with_keys(
+    keys: &SigningKeys,
     claims: &crate::services::validation::id_jag::IdJagClaims,
 ) -> Result<String> {
-    let kid = authority::active_kid()?;
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_owned());
+    header.kid = Some(keys.active_kid().to_owned());
     header.typ = Some(crate::services::validation::id_jag::ID_JAG_TYP.to_owned());
-    let key = authority::encoding_key()?;
-    let token = encode(&header, claims, key)?;
-    Ok(token)
+    Ok(encode(&header, claims, keys.encoding_key())?)
 }
 
 pub fn generate_jwt(
@@ -193,59 +164,34 @@ pub fn generate_jwt(
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
     let claims = build_claims(user, config, jti, session_id, signing)?;
-    encode_with_authority(&claims)
-}
-
-pub fn generate_anonymous_jwt(
-    user_id: &UserId,
-    session_id: &SessionId,
-    client_id: &ClientId,
-    signing: &JwtSigningParams<'_>,
-) -> Result<String> {
-    let expires_in_seconds = Config::get()?.jwt_access_token_expiration;
-    generate_anonymous_jwt_with_expiry(user_id, session_id, client_id, signing, expires_in_seconds)
+    encode_with_keys(signing.keys, &claims)
 }
 
 pub fn generate_anonymous_jwt_with_expiry(
+    authority: &dyn TokenAuthority,
     user_id: &UserId,
     session_id: &SessionId,
     client_id: &ClientId,
-    signing: &JwtSigningParams<'_>,
     expires_in_seconds: i64,
 ) -> Result<String> {
-    let expires_in = validated_expiry(Duration::seconds(expires_in_seconds))?;
-    let expiration = Utc::now()
-        .checked_add_signed(expires_in)
-        .ok_or(crate::error::OauthError::Internal(
-            "Failed to calculate token expiration",
-        ))?
-        .timestamp();
-
-    let now = Utc::now().timestamp();
-
-    let claims = JwtClaims {
-        sub: user_id.to_string(),
-        iat: now,
-        exp: expiration,
-        nbf: Some(now),
-        iss: signing.issuer.to_owned(),
-        aud: JwtAudience::standard(),
-        jti: String::from(AccessTokenId::generate()),
-        scope: vec![Permission::Anonymous],
-        username: user_id.to_string(),
-        email: user_id.to_string(),
-        user_type: UserType::Anon,
-        roles: vec!["anonymous".to_owned()],
-        attributes: std::collections::BTreeMap::new(),
+    let request = UserJwtRequest {
+        user: AuthenticatedUser {
+            id: user_id.clone(),
+            username: user_id.to_string(),
+            email: user_id.to_string(),
+            permissions: vec![Permission::Anonymous],
+            roles: vec!["anonymous".to_owned()],
+            attributes: std::collections::BTreeMap::new(),
+            account_kind: AccountKind::Person,
+        },
+        session_id: session_id.clone(),
+        jti: AccessTokenId::generate(),
+        permissions: vec![Permission::Anonymous],
+        audience: JwtAudience::standard(),
+        ttl: validated_expiry(Duration::seconds(expires_in_seconds))?,
         client_id: Some(client_id.clone()),
-        token_type: TokenType::Bearer,
-        auth_time: now,
-        session_id: Some(session_id.clone()),
-        rate_limit_tier: Some(RateLimitTier::Anon),
-        plugin_id: None,
-        act: None,
         purpose: None,
+        plugin_id: None,
     };
-
-    encode_with_authority(&claims)
+    Ok(authority.mint_user_jwt(&request)?)
 }

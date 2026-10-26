@@ -23,6 +23,7 @@ pub mod traffic;
 use anyhow::Result;
 use clap::Subcommand;
 
+use crate::commands::analytics::shared::with_resolved_export;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
@@ -59,8 +60,12 @@ pub enum AnalyticsCommands {
 pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         AnalyticsCommands::Overview(args) => {
-            let result =
-                overview::execute_with_pool(args, &ctx.database().await?, &ctx.cli).await?;
+            let result = overview::execute_with_pool(
+                with_resolved_export!(args, ctx),
+                &ctx.database().await?,
+                &ctx.cli,
+            )
+            .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

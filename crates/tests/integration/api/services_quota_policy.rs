@@ -11,7 +11,7 @@ use systemprompt_gateway::quota::{
     release, settle,
 };
 use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{QuotaSubjectKind, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
 
@@ -100,6 +100,9 @@ fn providers(p: &systemprompt_database::DbPool) -> SubjectProviderSet {
     SubjectProviderSet::discover(&AuthzHookContext {
         pool: p.pool(),
         sink: std::sync::Arc::new(NullAuditSink),
+        services: systemprompt_test_fixtures::fixture_services_view(),
+        subjects: Default::default(),
+        secrets: systemprompt_test_fixtures::fixture_secret_store(),
     })
 }
 
@@ -338,7 +341,7 @@ async fn settle_trues_up_the_reserved_bucket_across_a_window_boundary() {
     .expect("seed the admitted bucket");
     let reservation = QuotaReservation {
         windows: vec![ReservedWindow {
-            subject_kind: "user".to_owned(),
+            subject_kind: QuotaSubjectKind::User,
             subject_id: user.as_str().to_owned(),
             window_seconds: 60,
             window_start,
@@ -405,7 +408,10 @@ async fn an_attributed_scope_keys_its_window_by_the_attributed_value() {
     let ReserveOutcome::Admitted(reservation) = outcome else {
         panic!("expected admission");
     };
-    assert_eq!(reservation.windows[0].subject_kind, ERROR_DIMENSION);
+    assert_eq!(
+        reservation.windows[0].subject_kind,
+        ERROR_DIMENSION.parse::<QuotaSubjectKind>().unwrap()
+    );
     assert_eq!(reservation.windows[0].subject_id, value);
 }
 
@@ -642,6 +648,7 @@ async fn policy_resolver_falls_back_when_empty() {
     let resolver = PolicyResolver::from_repository(
         systemprompt_ai::repository::AiGatewayPolicyRepository::new(&p),
         systemprompt_traits::CacheEpochs::new(),
+        Default::default(),
     );
     let _spec1 = resolver
         .resolve(QuotaFaultMode::Open)
@@ -695,6 +702,7 @@ fn unreadable_policy_resolver() -> PolicyResolver {
     PolicyResolver::from_repository(
         systemprompt_ai::repository::AiGatewayPolicyRepository::new(&db),
         systemprompt_traits::CacheEpochs::new(),
+        Default::default(),
     )
 }
 

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_traits::{AgentInfo, AgentRegistryProvider, RegistryError, ServiceOAuthConfig};
 
 use super::registry::AgentRegistry;
@@ -11,27 +12,26 @@ use crate::error::AgentError;
 #[derive(Debug, Clone)]
 pub struct AgentRegistryProviderService {
     registry: AgentRegistry,
+    is_cloud: bool,
 }
 
 impl AgentRegistryProviderService {
-    pub fn new() -> Result<Self, RegistryError> {
-        let registry = AgentRegistry::new().map_err(|e| RegistryError::Unavailable(e.into()))?;
-
-        Ok(Self { registry })
+    #[must_use]
+    pub fn new(services: &ServicesView, is_cloud: bool) -> Self {
+        Self {
+            registry: AgentRegistry::new(services),
+            is_cloud,
+        }
     }
 
-    pub const fn from_registry(registry: AgentRegistry) -> Self {
-        Self { registry }
+    pub const fn from_registry(registry: AgentRegistry, is_cloud: bool) -> Self {
+        Self { registry, is_cloud }
     }
 }
 
 impl AgentRegistryProvider for AgentRegistryProviderService {
-    async fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
-        let agent = self
-            .registry
-            .get_agent(name)
-            .await
-            .map_err(registry_error)?;
+    fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
+        let agent = self.registry.get_agent(name).map_err(registry_error)?;
 
         Ok(AgentInfo {
             name: agent.name,
@@ -46,12 +46,8 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
         })
     }
 
-    async fn list_enabled_agents(&self) -> Result<Vec<AgentInfo>, RegistryError> {
-        let agents = self
-            .registry
-            .list_enabled_agents()
-            .await
-            .map_err(registry_error)?;
+    fn list_enabled_agents(&self) -> Result<Vec<AgentInfo>, RegistryError> {
+        let agents = self.registry.list_enabled_agents(self.is_cloud);
 
         Ok(agents
             .into_iter()
@@ -69,11 +65,10 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
             .collect())
     }
 
-    async fn get_default_agent(&self) -> Result<AgentInfo, RegistryError> {
+    fn get_default_agent(&self) -> Result<AgentInfo, RegistryError> {
         let agent = self
             .registry
-            .get_default_agent()
-            .await
+            .get_default_agent(self.is_cloud)
             .map_err(registry_error)?;
 
         Ok(AgentInfo {

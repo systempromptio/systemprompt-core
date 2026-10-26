@@ -19,7 +19,7 @@ function providerGroup(p) {
     <div class="sp-kpi-card__group"${p.configured ? "" : ' data-state="muted"'}>
       <div class="sp-kpi-card__group-head">
         <span class="sp-kpi-card__group-name">${escapeHtml(p.name)}</span>
-        <span class="sp-kpi-card__group-surface">${escapeHtml(p.surface)}</span>
+        <span class="sp-kpi-card__group-surface">${escapeHtml((p.clients || []).join(", "))}</span>
         <span class="sp-kpi-card__group-count">${p.models.length}</span>
       </div>
       ${issue ? `<p class="sp-kpi-card__group-issue">${escapeHtml(issue)}</p>` : ""}

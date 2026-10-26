@@ -2,7 +2,6 @@ use chrono::Duration;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::session::{SessionGenerator, SessionParams};
-use systemprompt_test_fixtures::install_test_signing_key;
 
 fn make_params<'a>(
     user_id: &'a UserId,
@@ -26,10 +25,12 @@ fn make_params<'a>(
 
 #[test]
 fn session_generator_mints_valid_token() {
-    install_test_signing_key();
     let uid = UserId::new("session-user");
     let sid = SessionId::generate();
-    let sg = SessionGenerator::new("test-issuer");
+    let sg = SessionGenerator::new(
+        "test-issuer",
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let params = make_params(
         &uid,
         &sid,
@@ -43,10 +44,12 @@ fn session_generator_mints_valid_token() {
 
 #[test]
 fn session_generator_token_is_decodable() {
-    install_test_signing_key();
     let uid = UserId::new("decode-user");
     let sid = SessionId::generate();
-    let sg = SessionGenerator::new("decode-issuer");
+    let sg = SessionGenerator::new(
+        "decode-issuer",
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let params = make_params(
         &uid,
         &sid,
@@ -68,10 +71,12 @@ fn session_generator_token_is_decodable() {
 
 #[test]
 fn session_generator_admin_token_type() {
-    install_test_signing_key();
     let uid = UserId::new("admin-session-user");
     let sid = SessionId::generate();
-    let sg = SessionGenerator::new("admin-issuer");
+    let sg = SessionGenerator::new(
+        "admin-issuer",
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let params = make_params(
         &uid,
         &sid,

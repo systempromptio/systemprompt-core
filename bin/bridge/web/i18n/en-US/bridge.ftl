@@ -207,6 +207,11 @@ agent-action-show-profile-file = Show profile file
 agent-action-add-personal-key = Add your key
 agent-action-pick-cowork-session = Choose organization
 cowork-picker-title = Choose your Cowork organization
+cowork-session = Cowork organization
+cowork-source-pinned = pinned on this computer
+cowork-source-gateway = named by the gateway
+cowork-source-personal = personal session
+cowork-source-only-session = the only session
 cowork-picker-hint = Claude Desktop has several Cowork sessions on this computer. Pick the one for this organization; the plugins are enabled there.
 cowork-picker-empty = No Cowork session was found. Open Claude Desktop's Cowork tab once, then try again.
 cowork-picker-cancel = Cancel
@@ -657,7 +662,6 @@ setup-health-label-not-checked = not checked yet
 host-profile-absent = no configuration profile
 agent-kind-cli-tool = Command line
 agent-kind-desktop-app = Desktop app
-agent-kind-desktop-and-cli = Desktop app & CLI
 settings-schedule-not-installed = Manual — sync from the Marketplace pane
 
 update-phase-downloading = Downloading { $percent }%
@@ -672,6 +676,7 @@ marketplace-detail-auth = Authentication
 ## Settings — personal subscriptions
 personal-keys-heading = Personal subscriptions
 personal-keys-hint = Use your own subscription key for these providers. Each key is verified, stored encrypted, and used only for your requests.
+personal-keys-serves = Serves: { $endpoints }
 personal-keys-placeholder = Paste your API key
 personal-keys-save = Test & save
 personal-keys-remove = Remove

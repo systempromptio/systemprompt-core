@@ -7,11 +7,10 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginListOutput, PluginSummary};
-use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
@@ -22,8 +21,8 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let plugins_path = get_plugins_path()?;
+pub(super) fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let plugins_path = ctx.boot()?.require_services_root().path.join("plugins");
     let plugins = scan_plugins(&plugins_path)?;
 
     let filtered: Vec<PluginSummary> = plugins
@@ -53,14 +52,6 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
         &output.plugins,
     )
     .with_title("Plugins"))
-}
-
-fn get_plugins_path() -> Result<std::path::PathBuf> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(ServicesRootBootstrap::active_path_or(
-        &profile.paths.services,
-        "plugins",
-    ))
 }
 
 pub fn scan_plugins(plugins_path: &Path) -> Result<Vec<PluginSummary>> {

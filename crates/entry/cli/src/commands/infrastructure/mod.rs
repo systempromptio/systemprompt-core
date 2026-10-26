@@ -49,7 +49,7 @@ pub async fn execute(cmd: InfraCommands, ctx: &CommandContext) -> Result<()> {
                 )
         )
     {
-        return Err(crate::shared::database_scoped_command_error());
+        return Err(crate::shared::database_scoped_command_error(ctx));
     }
 
     match cmd {

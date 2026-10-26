@@ -7,6 +7,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 
 use super::RequestMeta;
+use systemprompt_manifest::Config;
 use systemprompt_models::api::ApiError;
 use systemprompt_oauth::services::{
     CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
@@ -36,12 +37,13 @@ pub(super) async fn create_new_session(
         })
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to create anonymous session");
-            ApiError::internal_error("Service temporarily unavailable")
+            ApiError::internal("Service temporarily unavailable", e)
         })
 }
 
 pub(super) async fn refresh_session_for_user(
     session_creation_service: &Arc<SessionCreationService>,
+    config: &Config,
     user_id: &UserId,
     meta: &RequestMeta<'_>,
 ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
@@ -53,28 +55,22 @@ pub(super) async fn refresh_session_for_user(
                 ApiError::not_found(format!("User not found: {}", user_id))
                     .with_error_key("user_not_found")
             },
-            SessionCreationError::Internal(ref msg) => {
-                tracing::error!(error = %msg, user_id = %user_id, "Failed to create session for user");
-                ApiError::internal_error("Failed to refresh session")
+            SessionCreationError::Internal(source) => {
+                tracing::error!(error = %source, user_id = %user_id, "Failed to create session for user");
+                ApiError::internal("Failed to refresh session", source)
             },
         })?;
 
-    let config = systemprompt_manifest::Config::get().map_err(|e| {
-        tracing::error!(error = %e, "Failed to get config during session refresh");
-        ApiError::internal_error("Failed to refresh session")
-    })?;
-
-    let token = systemprompt_oauth::services::generation::generate_anonymous_jwt(
+    let token = systemprompt_oauth::services::generation::generate_anonymous_jwt_with_expiry(
+        session_creation_service.token_authority().as_ref(),
         user_id,
         &session_id,
         &ClientId::new("sp_web".to_owned()),
-        &systemprompt_oauth::services::JwtSigningParams {
-            issuer: &config.jwt_issuer,
-        },
+        config.jwt_access_token_expiration,
     )
     .map_err(|e| {
         tracing::error!(error = %e, "Failed to generate JWT during session refresh");
-        ApiError::internal_error("Failed to refresh session")
+        ApiError::internal("Failed to refresh session", e)
     })?;
 
     Ok((

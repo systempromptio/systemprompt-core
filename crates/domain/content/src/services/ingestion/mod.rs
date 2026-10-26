@@ -8,6 +8,8 @@ mod builder;
 mod processors;
 mod scanner;
 
+pub(crate) use scanner::{ParsedFrontmatter, parse_frontmatter};
+
 use crate::error::ContentError;
 use crate::models::{
     CreateContentParams, IngestionOptions, IngestionReport, IngestionSource, UpdateContentParams,
@@ -34,7 +36,7 @@ struct IngestCandidate<'a> {
     new_hash: String,
     slug: String,
     source: &'a IngestionSource<'a>,
-    parsed: &'a scanner::ParsedFrontmatter,
+    parsed: &'a ParsedFrontmatter,
 }
 
 #[derive(Debug)]
@@ -94,7 +96,7 @@ impl IngestionService {
         options: IngestionOptions,
     ) -> Result<IngestFileResult, ContentError> {
         let markdown_text = tokio::fs::read_to_string(path).await?;
-        let parsed = scanner::parse_frontmatter(&markdown_text)?;
+        let parsed = parse_frontmatter(&markdown_text)?;
 
         let resolved_category_id = match parsed.metadata.category.clone() {
             Some(category) => CategoryId::try_new(category)?,

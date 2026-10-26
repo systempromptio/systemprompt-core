@@ -28,7 +28,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -37,56 +36,12 @@ use systemprompt_identifiers::UserId;
 
 use super::registry::AuthzHookContext;
 use super::types::RuleType;
+pub use systemprompt_models::authz::{
+    SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectSourceError,
+};
 
 pub const USER_PRECEDENCE: u16 = 0;
 pub const ROLE_PRECEDENCE: u16 = 200;
-
-/// Describes one subject dimension to the resolver.
-///
-/// Metadata only: no behaviour and no I/O, so it is cheap to clone and safe to
-/// hold in a `const`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SubjectDimension {
-    pub rule_type: RuleType,
-    pub label: &'static str,
-    pub precedence: u16,
-}
-
-/// Subject values per dimension, gathered before the pure resolver runs.
-///
-/// A dimension with no values for the user is simply absent, which makes its
-/// rules unmatchable for that request.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct SubjectAttributes(BTreeMap<RuleType, Vec<String>>);
-
-impl SubjectAttributes {
-    pub const EMPTY: Self = Self(BTreeMap::new());
-
-    #[must_use]
-    pub const fn new() -> Self {
-        Self::EMPTY
-    }
-
-    pub fn insert(&mut self, rule_type: RuleType, values: Vec<String>) {
-        self.0.insert(rule_type, values);
-    }
-
-    #[must_use]
-    pub fn values(&self, rule_type: &RuleType) -> &[String] {
-        self.0.get(rule_type).map_or(&[], Vec::as_slice)
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-impl FromIterator<(RuleType, Vec<String>)> for SubjectAttributes {
-    fn from_iter<I: IntoIterator<Item = (RuleType, Vec<String>)>>(iter: I) -> Self {
-        Self(iter.into_iter().collect())
-    }
-}
 
 pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
 
@@ -97,6 +52,11 @@ pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
 /// `false` makes the dimension header-only: such a request carries no
 /// attribution for it, while a header or key binding is still verified against
 /// `values_for`.
+///
+/// `key_bound_values` are values no user holds: an API key bound to one
+/// carries it, and a header may name it only when the authenticating key is
+/// bound to that same value. Key issuance accepts them without a membership
+/// check, so binding one is the issuer's authority, never the caller's.
 ///
 /// `#[async_trait]` because providers are held as
 /// [`SharedSubjectAttributeProvider`], an `Arc<dyn …>`, so the trait must stay
@@ -109,6 +69,10 @@ pub trait SubjectAttributeProvider: Send + Sync + Debug {
 
     fn default_attribution(&self) -> bool {
         true
+    }
+
+    fn key_bound_values(&self) -> &'static [&'static str] {
+        &[]
     }
 }
 
@@ -155,7 +119,7 @@ pub async fn gather_subject_attributes(
 #[macro_export]
 macro_rules! register_subject_attribute_provider {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::authz::SubjectProviderRegistration {
                 factory: $factory,
             }
@@ -167,32 +131,86 @@ macro_rules! register_subject_attribute_provider {
 /// composition root and shared by every consumer that needs to look a
 /// dimension up by name (gateway scope attribution, quota subjects).
 #[derive(Debug, Clone, Default)]
-pub struct SubjectProviderSet(Arc<[SharedSubjectAttributeProvider]>);
+pub struct SubjectProviderSet {
+    providers: Arc<[SharedSubjectAttributeProvider]>,
+    dimensions: Arc<[SubjectDimension]>,
+}
 
 impl SubjectProviderSet {
     #[must_use]
     pub fn discover(ctx: &AuthzHookContext) -> Self {
-        Self(discover_subject_providers(ctx).into())
+        Self::from_providers(discover_subject_providers(ctx))
     }
 
     #[must_use]
     pub fn from_providers(providers: Vec<SharedSubjectAttributeProvider>) -> Self {
-        Self(providers.into())
+        Self {
+            dimensions: dimensions_of(&providers).into(),
+            providers: providers.into(),
+        }
     }
 
     #[must_use]
     pub fn find(&self, dimension: &str) -> Option<&SharedSubjectAttributeProvider> {
-        self.0
+        self.providers
             .iter()
             .find(|provider| provider.dimension().rule_type.as_str() == dimension)
     }
 
     #[must_use]
     pub fn registered_dimensions(&self) -> Vec<RuleType> {
-        self.0.iter().map(|p| p.dimension().rule_type).collect()
+        self.providers
+            .iter()
+            .map(|p| p.dimension().rule_type)
+            .collect()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &SharedSubjectAttributeProvider> {
-        self.0.iter()
+        self.providers.iter()
+    }
+
+    pub async fn gather(&self, user_id: &UserId) -> Result<SubjectAttributes, super::AuthzError> {
+        gather_subject_attributes(&self.providers, user_id).await
+    }
+}
+
+fn source_error(dimension: &RuleType, source: super::AuthzError) -> SubjectSourceError {
+    SubjectSourceError::Provider {
+        dimension: dimension.as_str().to_owned(),
+        source: source.into(),
+    }
+}
+
+#[async_trait]
+impl SubjectAttributeSource for SubjectProviderSet {
+    fn dimensions(&self) -> &[SubjectDimension] {
+        &self.dimensions
+    }
+
+    async fn values_for(
+        &self,
+        user: &UserId,
+        dimension: &SubjectDimension,
+    ) -> Result<Vec<String>, SubjectSourceError> {
+        let provider = self.find(dimension.rule_type.as_str()).ok_or_else(|| {
+            SubjectSourceError::UnknownDimension(dimension.rule_type.as_str().to_owned())
+        })?;
+        provider
+            .values_for(user)
+            .await
+            .map_err(|e| source_error(&dimension.rule_type, e))
+    }
+
+    async fn resolve_all(&self, user: &UserId) -> Result<SubjectAttributes, SubjectSourceError> {
+        let mut attributes = SubjectAttributes::new();
+        for provider in self.providers.iter() {
+            let rule_type = provider.dimension().rule_type;
+            let values = provider
+                .values_for(user)
+                .await
+                .map_err(|e| source_error(&rule_type, e))?;
+            attributes.insert(rule_type, values);
+        }
+        Ok(attributes)
     }
 }

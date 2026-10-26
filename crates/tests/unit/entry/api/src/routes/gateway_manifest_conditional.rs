@@ -14,8 +14,8 @@ use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_HEADER, SignedManifestEnvelope};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, install_test_signing_key,
-    seed_bridge_credential, seed_user_row, test_db_pool,
+    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, seed_bridge_credential,
+    seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 
@@ -27,6 +27,7 @@ fn boot() -> &'static TestBootstrap {
 
 fn boot_paths(boot: &TestBootstrap) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -46,7 +47,6 @@ struct Harness {
 
 async fn harness(mailbox: &str) -> Harness {
     let boot = boot();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = fixture_app_context_with(
         &pool,
@@ -71,6 +71,7 @@ async fn harness(mailbox: &str) -> Harness {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     let consumer = seed_bridge_credential(&pool, mailbox)
         .await

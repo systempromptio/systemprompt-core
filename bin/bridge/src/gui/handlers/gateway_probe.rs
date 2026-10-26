@@ -227,11 +227,17 @@ async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome
     };
 
     let catalog = match &status {
-        GatewayStatus::Reachable { .. } => client
-            .fetch_bridge_profile(crate::auth::cache::cached_bearer(client.base_url()).as_ref())
+        GatewayStatus::Reachable { .. } => crate::auth::profile::fetch_signed_in(&client)
             .await
             .map(|profile| profile.providers)
-            .map_err(|e| CatalogFetchError::Fetch(Arc::new(e))),
+            .map_err(|e| match e {
+                crate::auth::profile::ProfileFetchError::Gateway(e) => {
+                    CatalogFetchError::Fetch(Arc::new(e))
+                },
+                other => CatalogFetchError::SignedOut {
+                    reason: other.to_string(),
+                },
+            }),
         GatewayStatus::Unreachable { reason } => Err(CatalogFetchError::Unreachable {
             reason: reason.clone(),
         }),

@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_traits::RepositoryError;
 
@@ -36,10 +35,7 @@ impl<'a> QuotaAdmission<'a> {
         request: &CanonicalRequest,
         priced: Priced<'_>,
     ) -> Self {
-        let model_limits = upstream
-            .provider
-            .find_served_model(request.model.as_str())
-            .map(|m| m.limits);
+        let model_limits = Some(upstream.model_limits());
         Self {
             policy,
             fault_mode,
@@ -165,21 +161,25 @@ fn count_denial(decision: &quota::QuotaDecision, policy: &GatewayPolicySpec) {
 }
 
 pub(super) async fn enforce_request_guards(
-    db: &DbPool,
-    user_id: &UserId,
-    upstream: &ResolvedUpstream<'_>,
-    request: &CanonicalRequest,
-    audit: &GatewayAudit,
+    opened: &super::OpenedDispatch<'_>,
 ) -> Result<(), DispatchError> {
-    if systemprompt_extension::gateway_guards().is_empty() {
+    let guards = &opened.engines.guards;
+    let (db, user_id, upstream, request, audit) = (
+        opened.db,
+        &opened.ctx.user_id,
+        &opened.upstream,
+        &opened.request,
+        &opened.audit,
+    );
+    if guards.is_empty() {
         return Ok(());
     }
-    let route_id = upstream.route.effective_id();
+    let route_id = upstream.route_id.as_ref();
     let guard_request = systemprompt_extension::GatewayGuardRequest {
         user_id,
         model: &request.model,
-        route_id: Some(&route_id),
-        provider: &upstream.route.provider,
+        route_id,
+        provider: &upstream.hop.provider,
         streaming: request.stream,
         attribution: &audit.ctx.attribution,
         api_key_id: audit.ctx.attribution.api_key_id.as_ref(),
@@ -189,7 +189,7 @@ pub(super) async fn enforce_request_guards(
             "Request guards require a database connection",
         ))
     } else {
-        systemprompt_extension::run_gateway_guards(db.as_ref(), &guard_request).await
+        guards.run(db.as_ref(), &guard_request).await
     };
     let Err(deny) = outcome else {
         return Ok(());
@@ -197,7 +197,7 @@ pub(super) async fn enforce_request_guards(
     tracing::warn!(
         user_id = %user_id,
         model = %request.model,
-        route_id = %route_id,
+        route_id = ?route_id,
         kind = ?deny.kind,
         reason = %deny.message,
         "Gateway request denied by request guard"

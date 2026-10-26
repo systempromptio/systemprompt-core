@@ -10,17 +10,18 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use systemprompt_logging::CliService;
 
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_config::{ProfileBootstrap, write_private_atomic};
+use systemprompt_config::write_private_atomic;
 use systemprompt_manifest::profile::SecretsSource;
 
-use super::profile_io::{load_profile, profile_dir};
+use super::profile_io::{load_profile, profile_dir, profile_path};
 use super::types::ConfigMutationOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 const RESERVED: &[&str] = &[
@@ -51,13 +52,14 @@ pub struct SetArgs {
     pub value: String,
 }
 
-pub async fn execute(command: &SecretCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &SecretCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     let args = match command {
         SecretCommands::Set(args) => args,
-        SecretCommands::Check => return super::secret_check::execute(config).await,
+        SecretCommands::Check => return super::secret_check::execute(ctx).await,
     };
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let profile = load_profile(profile_path)?;
     let secrets_config = profile
         .secrets
@@ -109,7 +111,7 @@ pub fn set_secret(secrets_file: &Path, name: &str, value: &str) -> Result<()> {
     })?;
     object.insert(name.to_owned(), serde_json::Value::String(value.to_owned()));
 
-    let serialized = serde_json::to_string_pretty(&doc).context("Failed to serialize secrets")?;
+    let serialized = CliService::json_string(&doc).context("Failed to serialize secrets")?;
     write_private_atomic(secrets_file, serialized.as_bytes())
         .with_context(|| format!("Failed to write {}", secrets_file.display()))
 }

@@ -18,8 +18,18 @@ use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 
 async fn provider() -> McpToolProvider {
     let db = test_db_pool().await;
-    let registry = RegistryService::new(fixture_user_id());
-    McpToolProvider::new(db, registry, &ResilienceSettings::default())
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        crate::harness::services_state().view(),
+        crate::harness::config(),
+    );
+    McpToolProvider::new(
+        db,
+        registry,
+        &ResilienceSettings::default(),
+        std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    )
 }
 
 fn base_ctx() -> ToolContext {

@@ -90,7 +90,9 @@ fn purging_a_device_with_no_proxy_state_removes_nothing_and_succeeds() {
 fn leftovers_name_a_managed_policy_that_could_not_be_removed() {
     let summary = summary(
         vec!["Cowork enable-key cleanup failed: eacces".to_owned()],
-        ManagedProfileOutcome::RemoveFailed("access is denied".to_owned()),
+        ManagedProfileOutcome::RemoveFailed(
+            std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access is denied").into(),
+        ),
     );
 
     let leftovers = report(summary, None).leftovers();

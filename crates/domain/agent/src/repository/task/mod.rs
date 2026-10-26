@@ -37,10 +37,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
 use systemprompt_traits::{DynSessionUsageCounters, RepositoryError};
 
-#[expect(
-    missing_debug_implementations,
-    reason = "params struct holds non-Debug references"
-)]
+#[derive(Debug)]
 pub struct RepoCreateTaskParams<'a> {
     pub task: &'a Task,
     pub user_id: &'a UserId,

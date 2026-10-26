@@ -3,36 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow, bail};
-use systemprompt_cloud::{
-    CloudCredentials, CloudPath, CredentialsBootstrap, StoredTenant, TenantType, get_cloud_paths,
-};
-use systemprompt_config::ProfileBootstrap;
+use anyhow::{Result, anyhow};
+use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, StoredTenant, TenantType};
 use systemprompt_identifiers::TenantId;
+use systemprompt_manifest::Profile;
 
 use crate::interactive::Prompter;
 
 pub fn get_credentials() -> Result<CloudCredentials> {
-    if CredentialsBootstrap::is_initialized() {
-        return CredentialsBootstrap::require()
-            .map_err(|e| {
-                anyhow!(
-                    "Credentials required. Run 'systemprompt cloud auth login': {}",
-                    e
-                )
-            })?
-            .clone()
-            .pipe(Ok);
-    }
-
-    let cloud_paths = get_cloud_paths();
-    let creds_path = cloud_paths.resolve(CloudPath::Credentials);
-
-    if creds_path.exists() {
-        CloudCredentials::load_from_path(&creds_path).map_err(Into::into)
-    } else {
-        bail!("Not logged in. Run 'systemprompt cloud auth login' first.")
-    }
+    CredentialsBootstrap::read_unvalidated()
+        .map_err(|e| anyhow!("Credentials required. Run 'systemprompt cloud auth login': {e}"))?
+        .ok_or_else(|| anyhow!("Not logged in. Run 'systemprompt cloud auth login' first."))
 }
 
 pub fn select_tenant<'a>(
@@ -55,26 +36,14 @@ pub fn select_tenant<'a>(
     Ok(&tenants[selection])
 }
 
-pub fn resolve_tenant_id(tenant: Option<TenantId>) -> Result<TenantId> {
+pub fn resolve_tenant_id(tenant: Option<TenantId>, profile: Option<&Profile>) -> Result<TenantId> {
     if let Some(id) = tenant {
         return Ok(id);
     }
 
-    ProfileBootstrap::get()
-        .ok()
+    profile
         .and_then(|p| p.cloud.as_ref()?.tenant_id.clone())
         .ok_or_else(|| {
             anyhow!("No tenant specified. Use --tenant or configure a tenant in your profile.")
         })
 }
-
-trait Pipe: Sized {
-    fn pipe<F, R>(self, f: F) -> R
-    where
-        F: FnOnce(Self) -> R,
-    {
-        f(self)
-    }
-}
-
-impl<T> Pipe for T {}

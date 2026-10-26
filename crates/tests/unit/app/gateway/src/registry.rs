@@ -3,7 +3,7 @@ use systemprompt_gateway::registry::{GatewayUpstreamRegistry, SafetyScannerRegis
 
 #[test]
 fn built_in_protocol_tags_present() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
     for tag in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
         assert!(registry.get(tag).is_some(), "missing built-in tag: {tag}");
     }
@@ -11,14 +11,15 @@ fn built_in_protocol_tags_present() {
 
 #[test]
 fn provider_names_are_not_registry_keys() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
     assert!(registry.get("openai").is_none());
     assert!(registry.get("minimax").is_none());
 }
 
 #[test]
 fn the_registry_enumerates_the_tags_it_can_dispatch() {
-    let tags = GatewayUpstreamRegistry::global().tags();
+    let registry = GatewayUpstreamRegistry::new();
+    let tags = registry.tags();
 
     for expected in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
         assert!(
@@ -30,7 +31,7 @@ fn the_registry_enumerates_the_tags_it_can_dispatch() {
 
 #[test]
 fn every_enumerated_tag_resolves_to_an_adapter() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
 
     for tag in registry.tags() {
         assert!(
@@ -40,9 +41,12 @@ fn every_enumerated_tag_resolves_to_an_adapter() {
     }
 }
 
-#[test]
-fn the_safety_registry_carries_both_builtins() {
-    let registry = SafetyScannerRegistry::global();
+#[tokio::test]
+async fn the_safety_registry_carries_both_builtins() {
+    let registry =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ));
     let safety = SafetyConfig::default();
 
     assert!(
@@ -55,20 +59,25 @@ fn the_safety_registry_carries_both_builtins() {
     );
 }
 
-#[test]
-fn an_unknown_scanner_name_resolves_to_nothing() {
+#[tokio::test]
+async fn an_unknown_scanner_name_resolves_to_nothing() {
     // A policy naming a scanner that was never registered must fail to resolve
     // rather than silently falling back to a permissive one.
     assert!(
-        SafetyScannerRegistry::global()
-            .create("no-such-scanner", &SafetyConfig::default())
-            .is_none()
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await
+        ))
+        .create("no-such-scanner", &SafetyConfig::default())
+        .is_none()
     );
 }
 
-#[test]
-fn every_named_safety_scanner_resolves() {
-    let registry = SafetyScannerRegistry::global();
+#[tokio::test]
+async fn every_named_safety_scanner_resolves() {
+    let registry =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ));
 
     let safety = SafetyConfig::default();
     let names = registry.names();

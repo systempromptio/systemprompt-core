@@ -1,14 +1,13 @@
 //! Shared profile + FilesConfig bootstrap for the files integration tests.
 //!
-//! `ProfileBootstrap` and `FilesConfig` are process-wide `OnceLock` globals,
-//! so every test in this binary cooperates on one tempdir-backed profile and
-//! exactly one initialisation. Returns the [`TestEnv`] so tests can reach the
+//! Every test in this binary shares one tempdir-backed profile and one
+//! initialisation. Returns the [`TestEnv`] so tests can reach the
 //! tempdir paths without re-creating them.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
 use tempfile::TempDir;
@@ -17,6 +16,7 @@ pub struct TestEnv {
     pub _tmp: TempDir,
     pub storage_root: PathBuf,
     pub app_paths: AppPaths,
+    pub files_config: FilesConfig,
 }
 
 static ENV: OnceLock<TestEnv> = OnceLock::new();
@@ -51,11 +51,8 @@ database:
 server:
   host: localhost
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
-  use_https: false
-  cors_allowed_origins:
+  external_url: http://localhost:8080
+  extra_cors_origins:
     - http://localhost:8080
   content_negotiation:
     enabled: false
@@ -79,7 +76,6 @@ paths:
   storage: {storage}
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences:
@@ -122,25 +118,21 @@ extensions:
     let profile_path = tmp_path.join("profile.yaml");
     std::fs::write(&profile_path, yaml).expect("write profile yaml");
 
-    if let Err(e) = ProfileBootstrap::init_from_path(&profile_path) {
-        eprintln!("ProfileBootstrap::init_from_path failed: {e}");
-    }
-
-    let profile = ProfileBootstrap::get().expect("profile initialised");
+    let profile = LoadedProfile::from_path(&profile_path).expect("profile loads");
     let app_paths = AppPaths::from_profile(
-        &profile.paths,
+        &profile.profile().paths,
         systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths");
 
-    if let Err(e) = FilesConfig::init(&app_paths) {
-        eprintln!("FilesConfig::init failed: {e}");
-    }
+    let files_config = FilesConfig::from_profile(profile.profile(), &app_paths)
+        .expect("files config from profile");
 
     TestEnv {
         _tmp: tmp,
         storage_root: storage_dir,
         app_paths,
+        files_config,
     }
 }

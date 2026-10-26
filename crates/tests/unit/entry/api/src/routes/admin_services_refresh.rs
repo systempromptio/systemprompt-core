@@ -11,9 +11,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::admin::services::{RefreshLock, RefreshQuery, refresh};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_loader::services_root::{
-    ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap,
-};
+use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};
@@ -118,7 +116,7 @@ async fn a_refresh_already_in_flight_is_refused_rather_than_queued() {
 #[tokio::test]
 async fn a_composition_that_no_longer_resolves_is_a_change_and_restarts() {
     let ctx = context().await;
-    ServicesRootBootstrap::install(ActiveServicesRoot {
+    ctx.boot().install_services_root(ActiveServicesRoot {
         path: std::path::PathBuf::from("/app/services-cache/current"),
         base: std::path::PathBuf::from("/app/services"),
         provenance: ServicesProvenance::Fetched {

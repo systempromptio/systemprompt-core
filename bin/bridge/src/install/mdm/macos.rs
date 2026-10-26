@@ -110,12 +110,7 @@ pub(crate) fn apply(
             }
         })?;
     }
-    let user = std::env::var("USER").map_err(MdmError::ManagedPrefsUserUnset)?;
-    if user.is_empty() || user.contains('/') || user == "." || user == ".." {
-        return Err(MdmError::ManagedPrefsUser {
-            detail: format!("{user:?}"),
-        });
-    }
+    let user = managed_prefs_user()?;
     let dest_system = MANAGED_PREFS_PATH;
     let dest_user =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
@@ -135,23 +130,7 @@ pub(crate) fn apply(
             "Bridge needs administrator privileges to install the Claude Desktop managed preferences.",
         )?;
     }
-    let mut files = Vec::new();
-    for (_, target, bytes) in writes {
-        let receipt = crate::fsutil::FileReceipt::verify(target, bytes)
-            .map_err(|source| MdmError::Io {
-                action: "verify policy",
-                path: target.to_path_buf(),
-                source,
-            })
-            .map_err(|source| MdmError::Partial {
-                completed: super::MdmApplication {
-                    files: files.clone(),
-                    ..Default::default()
-                },
-                source: Box::new(source),
-            })?;
-        files.push(receipt);
-    }
+    let mut files = verify_writes(&writes)?;
 
     let standalone =
         super::claude_code_settings::write_standalone_settings(gateway).map_err(|source| {
@@ -176,6 +155,39 @@ pub(crate) fn apply(
         files,
         policies: Vec::new(),
     })
+}
+
+fn managed_prefs_user() -> Result<String, MdmError> {
+    let user = std::env::var("USER").map_err(MdmError::ManagedPrefsUserUnset)?;
+    if user.is_empty() || user.contains('/') || user == "." || user == ".." {
+        return Err(MdmError::ManagedPrefsUser {
+            detail: format!("{user:?}"),
+        });
+    }
+    Ok(user)
+}
+
+fn verify_writes(
+    writes: &[(&PathBuf, &Path, &[u8])],
+) -> Result<Vec<crate::fsutil::FileReceipt>, MdmError> {
+    let mut files = Vec::new();
+    for &(_, target, bytes) in writes {
+        let receipt = crate::fsutil::FileReceipt::verify(target, bytes)
+            .map_err(|source| MdmError::Io {
+                action: "verify policy",
+                path: target.to_path_buf(),
+                source,
+            })
+            .map_err(|source| MdmError::Partial {
+                completed: super::MdmApplication {
+                    files: files.clone(),
+                    ..Default::default()
+                },
+                source: Box::new(source),
+            })?;
+        files.push(receipt);
+    }
+    Ok(files)
 }
 
 fn apply_summary(

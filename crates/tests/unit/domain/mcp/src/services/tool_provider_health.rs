@@ -70,7 +70,17 @@ async fn provider_over_internal_servers(
     ));
 
     (
-        McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience()),
+        McpToolProvider::new(
+            db,
+            RegistryService::new(
+                fixture_user_id(),
+                crate::harness::services_state().view(),
+                crate::harness::config(),
+            ),
+            &resilience(),
+            std::sync::Arc::default(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        ),
         bootstrap,
     )
 }

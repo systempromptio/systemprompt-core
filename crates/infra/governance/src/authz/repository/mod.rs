@@ -5,8 +5,9 @@
 //! carries the `default_included` flag plus a `source` provenance string.
 //! `access_control_rules` is the per-(entity, subject) grant table, with a
 //! foreign key back to the entity catalog. Both tables carry a `source`
-//! provenance string; a rule row stamped `dashboard` is owned by the operator
-//! who wrote it and is never rewritten by YAML or bundle ingestion. Callers
+//! provenance string in the closed vocabulary; a rule row stamped
+//! `console:<user>` is owned by the operator who wrote it and is never
+//! rewritten by ingestion. Callers
 //! fetch the entity row first (a `None` result signals an entity unknown to
 //! access control), then list rules for it, and hand both to
 //! [`super::resolver::resolve`].
@@ -16,6 +17,7 @@
 
 mod entities;
 pub(crate) mod ingestion;
+mod route_ids;
 mod rules;
 
 pub use rules::ChainFingerprint;

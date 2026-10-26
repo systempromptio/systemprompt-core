@@ -14,9 +14,10 @@ use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::message::{
-    MessageProcessor, MessageStream, StreamEvent,
+    MessageHandler, MessageStream, StreamEvent,
 };
 use systemprompt_agent::services::a2a_server::streaming::{ProcessEventsParams, process_events};
+use systemprompt_agent::services::shared::AgentServiceError;
 use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::{
     CallToolResult, ExecutionStep, StepContent, StepId, StepStatus, ToolCall,
@@ -100,14 +101,13 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
     };
 
     let (broadcaster, rec) = arc_recording_broadcaster();
-    let processor = Arc::new(
-        MessageProcessor::new(
-            Arc::new(crate::repository::repos(&pool)),
-            Arc::new(StubAiProvider::new()),
-            broadcaster,
-        )
-        .expect("processor"),
-    );
+    let processor = Arc::new(MessageHandler::new(
+        Arc::new(crate::repository::repos(&pool)),
+        Arc::new(StubAiProvider::new()),
+        broadcaster,
+        systemprompt_test_fixtures::fixture_services_view(),
+        systemprompt_test_fixtures::test_skills_root(),
+    ));
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let request = request_context(&ctx, &session, &user, "loop-agent");
 
@@ -314,8 +314,10 @@ async fn process_events_streams_each_artifact_as_a_last_chunk_before_the_termina
 async fn process_events_error_path_fails_task_and_broadcasts() {
     let mut ctx = spawn_loop().await;
 
+    let error = AgentServiceError::ToolExecution("model exploded".to_owned());
+    let expected = error.to_string();
     ctx.event_tx
-        .send(StreamEvent::Error("model exploded".to_owned()))
+        .send(StreamEvent::Error(Arc::new(error)))
         .await
         .expect("send error");
 
@@ -336,7 +338,7 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
     assert_eq!(stored.status.state, TaskState::Failed);
     assert_eq!(
         persisted_task_error(&ctx.pool, &ctx.task_id).await,
-        "model exploded"
+        expected
     );
 
     let a2a = a2a_for(&ctx.rec, &ctx.task_id);

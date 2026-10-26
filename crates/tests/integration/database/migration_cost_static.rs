@@ -57,7 +57,6 @@ fn migration_dirs(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// `<extension>/<file stem>`, the same label the baseline records.
 fn label(path: &Path) -> String {
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();
     let extension = path

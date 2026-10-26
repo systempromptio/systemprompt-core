@@ -177,6 +177,7 @@ jobs:
             --workspace --lib --bins --tests --list-type binaries-only \
             --message-format json > /mnt/out/binaries.json
           cp /mnt/coverage-target/debug/systemprompt-test-migrate /mnt/out/
+          (cd /mnt/out && sha256sum tests.tar.zst > tests.tar.zst.sha256)
           ls -lh /mnt/out; df -h / /mnt
 
       - run: sccache --show-stats
@@ -296,6 +297,8 @@ jobs:
       # the archive without invoking cargo build.
       - name: Unpack the archive
         run: bash scripts/coverage-unpack.sh /mnt/dl /mnt/bins /mnt/coverage-target
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Run shard
         id: run
@@ -416,6 +419,8 @@ jobs:
           path: /mnt/bins
       - name: Unpack the archive
         run: bash scripts/coverage-unpack.sh /mnt/dl /mnt/bins /mnt/coverage-target
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Merge profdata and render
         run: |

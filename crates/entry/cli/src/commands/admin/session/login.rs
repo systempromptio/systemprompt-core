@@ -11,24 +11,25 @@ use chrono::Duration as ChronoDuration;
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::SessionKey;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
+use systemprompt_loader::BootContext;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::{Profile, Secrets};
+use systemprompt_manifest::Profile;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{User, UserRole};
 
 use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
 };
-use crate::session::api::create_local_session_row;
+use crate::session::api::{create_local_session_row, load_signing_keys};
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
@@ -57,12 +58,8 @@ pub struct LoginOutput {
     pub expires_in_hours: i64,
 }
 
-pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let profile = ProfileBootstrap::get().context("No profile loaded")?;
-    let profile_path = ProfileBootstrap::get_path().context("Profile path not set")?;
-    let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
-
-    login_for_profile(profile, profile_path, secrets, &args).await
+pub async fn execute(args: LoginArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    login_for_profile(ctx.boot()?, &args).await
 }
 
 fn ensure_interactive_admin(admin_user: &User) -> Result<()> {
@@ -75,21 +72,26 @@ fn ensure_interactive_admin(admin_user: &User) -> Result<()> {
     Ok(())
 }
 
-pub async fn login_for_profile(
-    profile: &Profile,
-    profile_path: &str,
-    secrets: &Secrets,
-    args: &LoginArgs,
-) -> Result<CommandOutput> {
-    let sessions_dir = ResolvedPaths::discover().sessions_dir();
-    let session_key = session_key_for_profile(profile);
-
+async fn connect_profile_database(boot: &BootContext) -> Result<DbPool> {
+    let profile = boot.profile();
+    let secrets = boot.secrets().get();
     let database_url = secrets.effective_database_url(profile.database.external_db_access);
-
     let db = Database::new_postgres(database_url)
         .await
         .context("Failed to connect to database")?;
-    let db_pool = DbPool::from(Arc::new(db));
+    Ok(DbPool::from(Arc::new(db)))
+}
+
+pub async fn login_for_profile(boot: &BootContext, args: &LoginArgs) -> Result<CommandOutput> {
+    let profile = boot.profile();
+    let profile_path = boot
+        .profile_path()
+        .to_str()
+        .context("Profile path is not valid UTF-8")?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir();
+    let session_key = session_key_for_profile(profile);
+
+    let db_pool = connect_profile_database(boot).await?;
 
     if !args.force_new
         && let Some(output) = try_use_existing_session(
@@ -116,10 +118,13 @@ pub async fn login_for_profile(
     ensure_interactive_admin(&admin_user)?;
 
     progress(args, "Creating session...");
+    let keys = load_signing_keys(boot)?;
     let session_id = create_local_session_row(
         &db_pool,
         &admin_user.id,
         chrono::Duration::hours(args.duration_hours),
+        keys.clone(),
+        boot,
     )
     .await?;
 
@@ -128,7 +133,7 @@ pub async fn login_for_profile(
         create_cli_context(&db_pool, &admin_user.id, &session_id, profile_path).await?;
 
     progress(args, "Generating token...");
-    let session_token = generate_session_token(profile, args, &admin_user, &session_id)?;
+    let session_token = generate_session_token(profile, keys, args, &admin_user, &session_id)?;
 
     save_session_to_store(SessionStoreParams {
         sessions_dir: &sessions_dir,
@@ -194,11 +199,12 @@ async fn create_cli_context(
 
 fn generate_session_token(
     profile: &Profile,
+    keys: SigningKeys,
     args: &LoginArgs,
     admin_user: &User,
     session_id: &SessionId,
 ) -> Result<SessionToken> {
-    let session_generator = SessionGenerator::new(&profile.security.issuer);
+    let session_generator = SessionGenerator::new(&profile.security.issuer, keys);
     session_generator
         .generate(&SessionParams {
             user_id: &admin_user.id,

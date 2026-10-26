@@ -10,8 +10,8 @@ use std::fs;
 use crate::CliConfig;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
 use systemprompt_models::content_config::ContentConfigRaw;
 
 use super::super::types::ContentTypeEditOutput;
@@ -55,8 +55,8 @@ pub(super) fn execute(
     args: &EditArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    profile: &Profile,
 ) -> Result<CommandOutput> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
     let content = fs::read_to_string(&content_config_path)

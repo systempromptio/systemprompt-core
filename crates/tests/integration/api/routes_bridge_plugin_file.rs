@@ -5,18 +5,16 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, header};
 use http::StatusCode;
-use systemprompt_api::routes::gateway::bridge_data::load_services_config;
 use systemprompt_api::routes::gateway::bridge_plugin_file::{content_type, relative_path_is_safe};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_bridge_credential, test_db_pool};
+use systemprompt_test_fixtures::{seed_bridge_credential, test_db_pool};
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
 
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
-    install_test_signing_key();
     Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
 }
 
@@ -79,11 +77,7 @@ async fn plugin_file_unknown_plugin_misses_bundle_or_reports_unavailable() -> an
             cred.jwt.as_str(),
         ))
         .await?;
-    if load_services_config().is_ok() {
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    } else {
-        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
-    }
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     Ok(())
 }
 
@@ -118,7 +112,6 @@ pub(crate) fn seed_plugin_tree() {
     std::fs::write(skills.join("index.md"), "Cov skill instructions.\n").expect("write skill md");
     std::fs::write(b.services_path.join("config/config.yaml"), PLUGIN_CONFIG)
         .expect("write services config");
-    systemprompt_test_fixtures::refresh_services_config();
 }
 
 pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)> {
@@ -126,6 +119,7 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
     seed_plugin_tree();
     let pool = test_db_pool().await;
     let paths = systemprompt_manifest::profile::PathsConfig {
+        root: None,
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),
         bin: b.bin_path.to_string_lossy().into_owned(),
@@ -135,13 +129,12 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
         shipped_files: None,
         data: None,
     };
-    let ctx = systemprompt_test_fixtures::fixture_app_context_with(
+    let ctx = systemprompt_test_fixtures::fixture_app_context_on_bootstrap_with_paths(
+        b,
         &pool,
-        &b.database_url,
         paths,
         std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
-    install_test_signing_key();
     Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
 }
 

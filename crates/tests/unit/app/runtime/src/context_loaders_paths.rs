@@ -70,6 +70,7 @@ fn fixture_config(geoip: Option<String>) -> Config {
 
 fn app_paths_for(system: &std::path::Path) -> AppPaths {
     let paths = PathsConfig {
+        root: None,
         system: system.display().to_string(),
         services: system.join("services").display().to_string(),
         bin: system.join("bin").display().to_string(),

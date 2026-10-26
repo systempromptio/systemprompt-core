@@ -5,13 +5,14 @@
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use systemprompt_config::ProfileBootstrap;
+
 use systemprompt_logging::CliService;
 
+use super::super::profile_io::profile_path;
 use super::super::types::{CorsListOutput, CorsModifyOutput};
 use super::{load_profile, save_profile};
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 use systemprompt_models::artifacts::ListItem;
 
@@ -39,16 +40,17 @@ pub struct CorsRemoveArgs {
     pub origin: String,
 }
 
-pub(super) fn execute(command: &CorsCommands, config: &CliConfig) -> Result<()> {
+pub(super) fn execute(command: &CorsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        CorsCommands::List => execute_list(config),
-        CorsCommands::Add(args) => execute_add(args, config),
-        CorsCommands::Remove(args) => execute_remove(args, config),
+        CorsCommands::List => execute_list(ctx),
+        CorsCommands::Add(args) => execute_add(args, ctx),
+        CorsCommands::Remove(args) => execute_remove(args, ctx),
     }
 }
 
-fn execute_list(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+fn execute_list(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
 
     let output = CorsListOutput {
         origins: profile.server.cors_allowed_origins.clone(),
@@ -68,8 +70,9 @@ fn execute_list(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn execute_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
-    let profile_path = ProfileBootstrap::get_path()?;
+fn execute_add(args: &CorsAddArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
 
     if profile.server.cors_allowed_origins.contains(&args.origin) {
@@ -82,10 +85,7 @@ fn execute_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    profile
-        .server
-        .cors_allowed_origins
-        .push(args.origin.clone());
+    profile.server.extra_cors_origins.push(args.origin.clone());
     save_profile(&profile, profile_path)?;
 
     let output = CorsModifyOutput {
@@ -105,21 +105,25 @@ fn execute_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn execute_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> {
-    let profile_path = ProfileBootstrap::get_path()?;
+fn execute_remove(args: &CorsRemoveArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
 
-    let original_len = profile.server.cors_allowed_origins.len();
+    let original_len = profile.server.extra_cors_origins.len();
     profile
         .server
-        .cors_allowed_origins
+        .extra_cors_origins
         .retain(|o| o != &args.origin);
 
-    if profile.server.cors_allowed_origins.len() == original_len {
+    if profile.server.extra_cors_origins.len() == original_len {
         let output = CorsModifyOutput {
             action: "skipped".to_owned(),
             origin: args.origin.clone(),
-            message: format!("Origin {} not found", args.origin),
+            message: format!(
+                "Origin {} is not an extra origin (the external_url origin is derived)",
+                args.origin
+            ),
         };
         render_result(&CommandOutput::card_value("CORS Origin", &output), config);
         return Ok(());

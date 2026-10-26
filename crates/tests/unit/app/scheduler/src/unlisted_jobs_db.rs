@@ -12,7 +12,9 @@ use systemprompt_scheduler::{
     JobConfig, SchedulerConfig, SchedulerError, SchedulerRepository, SchedulerService,
     unlisted_job_names,
 };
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{
+    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
+};
 use systemprompt_traits::Job;
 
 use crate::test_jobs::{FAILING_JOB, WORKING_JOB};
@@ -30,7 +32,7 @@ fn config(mode: UnlistedJobs, jobs: Vec<JobConfig>) -> SchedulerConfig {
 }
 
 fn names(config: &SchedulerConfig) -> Vec<String> {
-    unlisted_job_names(config)
+    unlisted_job_names(config, &ensure_test_bootstrap().boot)
         .into_iter()
         .map(|name| name.as_str().to_owned())
         .collect()

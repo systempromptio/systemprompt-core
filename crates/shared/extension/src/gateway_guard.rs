@@ -9,7 +9,7 @@
 //! balance — without the core needing to know about it.
 //!
 //! [`GatewayRequestGuard`] is held as `Arc<dyn GatewayRequestGuard>` in the
-//! inventory-built [`gateway_guards`] list, so it uses `#[async_trait]`;
+//! [`GatewayGuards`] list, so it uses `#[async_trait]`;
 //! native `async fn` in traits is not `dyn`-compatible. A guard receives the
 //! database as `&dyn DatabaseHandle` and downcasts through
 //! `DatabaseHandle::as_any` to the concrete handle it was compiled against;
@@ -18,11 +18,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use systemprompt_identifiers::{ApiKeyId, ModelId, ProviderId, RouteId, UserId};
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_traits::DatabaseHandle;
+
+use crate::context::ExtensionContext;
 
 /// The resolved gateway request a guard is asked to admit or deny.
 #[derive(Debug, Clone)]
@@ -91,53 +93,73 @@ pub trait GatewayRequestGuard: Send + Sync {
     ) -> Result<(), GatewayDenyReason>;
 }
 
-/// Compile-time registration of a [`GatewayRequestGuard`], collected via
-/// `inventory`.
+/// Compile-time registration of a [`GatewayRequestGuard`].
+///
+/// Collected via `inventory`. The factory receives the extension context so a
+/// guard can hold the services, subject attributes or token cache it needs.
 #[derive(Debug, Clone, Copy)]
 pub struct GatewayRequestGuardRegistration {
-    pub factory: fn() -> Arc<dyn GatewayRequestGuard>,
+    pub factory: fn(&dyn ExtensionContext) -> Arc<dyn GatewayRequestGuard>,
 }
 
 inventory::collect!(GatewayRequestGuardRegistration);
 
 #[macro_export]
 macro_rules! register_gateway_guard {
+    (factory = $factory:expr) => {
+        $crate::__inventory::submit! {
+            $crate::GatewayRequestGuardRegistration {
+                factory: $factory,
+            }
+        }
+    };
     ($guard_type:ty) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::GatewayRequestGuardRegistration {
-                factory: || ::std::sync::Arc::new(<$guard_type>::default())
-                    as ::std::sync::Arc<dyn $crate::GatewayRequestGuard>,
-            }
-        }
-    };
-    ($guard_expr:expr) => {
-        ::inventory::submit! {
-            $crate::GatewayRequestGuardRegistration {
-                factory: || ::std::sync::Arc::new($guard_expr)
+                factory: |_| ::std::sync::Arc::new(<$guard_type>::default())
                     as ::std::sync::Arc<dyn $crate::GatewayRequestGuard>,
             }
         }
     };
 }
 
-static GATEWAY_GUARDS: LazyLock<Vec<Arc<dyn GatewayRequestGuard>>> = LazyLock::new(|| {
-    inventory::iter::<GatewayRequestGuardRegistration>
-        .into_iter()
-        .map(|registration| (registration.factory)())
-        .collect()
-});
+/// The guards one gateway owns, built once at the composition root from the
+/// registered factories.
+#[derive(Clone, Default)]
+pub struct GatewayGuards(Vec<Arc<dyn GatewayRequestGuard>>);
 
-#[must_use]
-pub fn gateway_guards() -> &'static [Arc<dyn GatewayRequestGuard>] {
-    &GATEWAY_GUARDS
-}
-
-pub async fn run_gateway_guards(
-    db: &dyn DatabaseHandle,
-    request: &GatewayGuardRequest<'_>,
-) -> Result<(), GatewayDenyReason> {
-    for guard in gateway_guards() {
-        guard.check(db, request).await?;
+impl std::fmt::Debug for GatewayGuards {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GatewayGuards")
+            .field("guards", &self.0.len())
+            .finish()
     }
-    Ok(())
+}
+
+impl GatewayGuards {
+    #[must_use]
+    pub fn discover(ctx: &dyn ExtensionContext) -> Self {
+        Self(
+            inventory::iter::<GatewayRequestGuardRegistration>
+                .into_iter()
+                .map(|registration| (registration.factory)(ctx))
+                .collect(),
+        )
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub async fn run(
+        &self,
+        db: &dyn DatabaseHandle,
+        request: &GatewayGuardRequest<'_>,
+    ) -> Result<(), GatewayDenyReason> {
+        for guard in &self.0 {
+            guard.check(db, request).await?;
+        }
+        Ok(())
+    }
 }

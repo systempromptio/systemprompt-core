@@ -17,9 +17,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use super::{AgentUsageItem, ErrorItem, StatusBreakdownItem, ToolShowOutput, ToolStatsOutput};
 use crate::CliConfig;
-use crate::commands::analytics::shared::{
-    export_single_to_csv, parse_time_range, resolve_export_path,
-};
+use crate::commands::analytics::shared::{export_single_to_csv, parse_time_range};
 use crate::shared::{CommandOutput, parse_mcp_tool_name};
 
 #[derive(Debug, Args)]
@@ -155,9 +153,8 @@ fn render_output(export: Option<&Path>, output: &ToolShowOutput) -> Result<Comma
     let title = format!("Tool: {}", output.tool_name);
 
     if let Some(path) = export {
-        let resolved_path = resolve_export_path(path)?;
-        export_single_to_csv(output, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_single_to_csv(output, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(CommandOutput::card_value(title, output).with_skip_render());
     }
 

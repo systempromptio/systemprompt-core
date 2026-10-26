@@ -7,25 +7,20 @@
 // deterministically.
 
 use std::sync::Arc;
-use systemprompt_identifiers::{AgentName, InstanceId};
+use systemprompt_identifiers::InstanceId;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::orchestrator::AgentOrchestrator;
 use systemprompt_config::paths::AppPaths;
-use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::make_agent_state_for;
-use systemprompt_test_fixtures::{test_db_pool, unique_instance};
+use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
-
-fn unique_name(prefix: &str) -> AgentName {
-    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
-}
 
 fn app_paths() -> Arc<AppPaths> {
     let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -34,7 +29,7 @@ fn app_paths() -> Arc<AppPaths> {
 
 fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(pool, instance.clone());
-    AgentDatabaseService::new(repo).expect("db service")
+    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view())
 }
 
 async fn make_orchestrator(
@@ -42,9 +37,15 @@ async fn make_orchestrator(
     instance: &InstanceId,
 ) -> AgentOrchestrator {
     let agent_state = make_agent_state_for(pool, instance);
-    AgentOrchestrator::new(agent_state, app_paths(), None)
-        .await
-        .expect("orchestrator")
+    AgentOrchestrator::new(
+        agent_state,
+        app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
+        crate::spawn_environment(),
+        None,
+    )
+    .await
+    .expect("orchestrator")
 }
 
 #[tokio::test]
@@ -66,7 +67,7 @@ async fn get_status_reflects_registered_dead_pid() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool, &instance).await;
 
-    let name = unique_name("orchx");
+    let name = unique_agent_name("orchx");
     db_service(&pool, &instance)
         .register_agent(&name, DEAD_PID, 9400)
         .await
@@ -88,7 +89,7 @@ async fn list_agents_includes_registered() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool, &instance).await;
 
-    let name = unique_name("orchlist");
+    let name = unique_agent_name("orchlist");
     db_service(&pool, &instance)
         .register_agent(&name, DEAD_PID, 9401)
         .await
@@ -117,7 +118,7 @@ async fn delete_agent_removes_service_row() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool, &instance).await;
 
-    let name = unique_name("orchdel");
+    let name = unique_agent_name("orchdel");
     db_service(&pool, &instance)
         .register_agent(&name, DEAD_PID, 9403)
         .await
@@ -142,7 +143,7 @@ async fn disable_agent_for_dead_pid_removes_row() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool, &instance).await;
 
-    let name = unique_name("orchdis");
+    let name = unique_agent_name("orchdis");
     db_service(&pool, &instance)
         .register_agent(&name, DEAD_PID, 9404)
         .await
@@ -161,7 +162,7 @@ async fn update_running_then_stopped_transitions() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool, &instance).await;
 
-    let name = unique_name("orchupd");
+    let name = unique_agent_name("orchupd");
     orchestrator
         .update_agent_running(&name, DEAD_PID, 9405)
         .await

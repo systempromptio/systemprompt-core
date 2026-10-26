@@ -8,6 +8,7 @@ use crate::error::AiError;
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
 use crate::repository::{AiRequestPayloadRepository, AiRequestRepository};
+use crate::services::tools::ToolArgsValidator;
 use systemprompt_models::RequestContext;
 use systemprompt_traits::{DynAiSessionProvider, DynContextMaterializer, EnsureContextParams};
 
@@ -34,6 +35,7 @@ pub struct RequestStorage {
     ai_request_repo: AiRequestRepository,
     payload_repo: AiRequestPayloadRepository,
     session_provider: DynAiSessionProvider,
+    session_ttl_seconds: i64,
     context_materializer: Option<DynContextMaterializer>,
 }
 
@@ -50,11 +52,13 @@ impl RequestStorage {
         ai_request_repo: AiRequestRepository,
         payload_repo: AiRequestPayloadRepository,
         session_provider: DynAiSessionProvider,
+        session_ttl_seconds: i64,
     ) -> Self {
         Self {
             ai_request_repo,
             payload_repo,
             session_provider,
+            session_ttl_seconds,
             context_materializer: None,
         }
     }
@@ -74,7 +78,15 @@ impl RequestStorage {
             cost_microdollars: params.cost_microdollars,
         });
         let messages = extract_messages(params.request, params.response, params.status);
-        let tool_calls = extract_tool_calls(params.response);
+        let validator = ToolArgsValidator::compile(
+            params
+                .request
+                .tools
+                .iter()
+                .flatten()
+                .map(|tool| (tool.name.as_str(), tool.input_schema.as_ref())),
+        );
+        let tool_calls = extract_tool_calls(params.response, &validator);
 
         let user_id = record.user_id.clone();
         let session_id = record.session_id.clone();
@@ -82,7 +94,13 @@ impl RequestStorage {
         let cost = record.cost_microdollars;
 
         if let Some(session_id) = session_id.as_ref() {
-            touch_session(self.session_provider.as_ref(), session_id, &user_id).await;
+            touch_session(
+                self.session_provider.as_ref(),
+                session_id,
+                &user_id,
+                self.session_ttl_seconds,
+            )
+            .await;
         }
 
         if let Some(materializer) = self.context_materializer.as_ref()

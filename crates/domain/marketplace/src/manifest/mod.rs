@@ -28,8 +28,10 @@ use systemprompt_identifiers::{LibraryArtifactId, SkillId, UserId};
 use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_models::bridge::ids::ManifestSignature;
 use systemprompt_models::bridge::manifest::{
-    ManifestClaudeCode, ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
+    ManifestClaudeCode, ManifestMarketplace, ManifestOpenCode, SignedManifest,
+    SignedManifestEnvelope, ThemeRef,
 };
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
@@ -103,7 +105,7 @@ impl ManifestService {
             cache,
         } = *request;
         let hooks = load_hooks(services_root)?;
-        let plugins = load_plugins(services, &catalog.as_content(), cache)?;
+        let plugins = catalog.stamp_plugins(load_plugins(services, &catalog.as_content(), cache)?);
         let skill_owners = skill_owners(services, &catalog.as_content());
         let rule_owners = rule_owners(services, &catalog.as_content());
         let selected_skills: BTreeSet<SkillId> = skill_owners.keys().cloned().collect();
@@ -160,9 +162,12 @@ impl ManifestService {
         Ok(filtered)
     }
 
-    pub fn seal(manifest: &SignedManifest) -> Result<SignedManifestEnvelope, MarketplaceError> {
+    pub fn seal(
+        keys: &SigningKeys,
+        manifest: &SignedManifest,
+    ) -> Result<SignedManifestEnvelope, MarketplaceError> {
         let payload = manifest_signing::canonicalize(manifest)?;
-        let signature = manifest_signing::sign_bytes(payload.as_bytes())?;
+        let signature = keys.sign_manifest_bytes(payload.as_bytes());
         Ok(SignedManifestEnvelope {
             payload,
             signature: ManifestSignature::new(signature),
@@ -203,6 +208,14 @@ fn listed_marketplaces(
                     .collect(),
                 claude_code: marketplace.claude_code.map(|c| ManifestClaudeCode {
                     skill_listing_budget_chars: c.skill_listing_budget_chars,
+                }),
+                opencode: marketplace.opencode.as_ref().map(|o| ManifestOpenCode {
+                    min_client_version: o.min_client_version.clone(),
+                    theme: o.theme.as_ref().map(|t| ThemeRef {
+                        name: t.name.clone(),
+                        sha: t.sha256.clone(),
+                    }),
+                    cli_defaults: o.cli_defaults.clone(),
                 }),
             }
         })

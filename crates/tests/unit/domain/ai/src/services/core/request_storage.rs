@@ -80,6 +80,7 @@ fn storage(pool: &DbPool, provider: Arc<RecordingSessionProvider>) -> RequestSto
         AiRequestRepository::new(pool),
         AiRequestPayloadRepository::new(pool),
         provider,
+        3600,
     )
 }
 
@@ -206,6 +207,7 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
         AiRequestRepository::new(&pool),
         AiRequestPayloadRepository::new(&pool),
         Arc::new(FailingSessionProvider),
+        3600,
     );
 
     let request = request(ctx);

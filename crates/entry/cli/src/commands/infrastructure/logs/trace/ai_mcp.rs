@@ -86,7 +86,7 @@ fn print_tool_io(exec: &McpToolExecution, show_full: bool) {
 
 fn print_tool_content(content: &str) {
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(content)
-        && let Ok(pretty) = serde_json::to_string_pretty(&json)
+        && let Ok(pretty) = CliService::json_string(&json)
     {
         for line in pretty.lines() {
             CliService::info(&format!("      {line}"));

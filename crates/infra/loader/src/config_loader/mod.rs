@@ -1,48 +1,41 @@
 //! Reads, parses, and merges the active services configuration.
 //!
 //! [`ConfigLoader`] is the only public entry point. It resolves the active
-//! profile (via [`systemprompt_config::ProfileBootstrap`]) to a YAML path,
-//! parses the root file, recursively resolves the `includes:` graph
-//! (rejecting cycles and duplicate definitions), inlines `!include`
-//! references inside agent system prompts, skill instructions and gateway
-//! prompt overrides, projects the gateway spec to its resolved runtime form,
-//! and finally validates the merged configuration — provider registry and
-//! gateway references included — before returning it to the caller.
+//! profile's services root to a YAML path, parses the root file, recursively
+//! resolves the `includes:` graph (rejecting cycles and duplicate definitions),
+//! reads the model catalog by convention from `services/ai/` ([`catalog`]),
+//! inlines `!include` references inside agent system prompts, skill
+//! instructions and gateway prompt overrides, projects the gateway spec to its
+//! resolved runtime form, and finally validates the merged configuration — the
+//! catalog resolved with every reference checked — before returning it to the
+//! caller.
 //!
-//! A provider whose `api_key_secret` does not resolve is demoted to
-//! `surface: backend` before validation, so its models stop being advertised
-//! rather than being offered in every client's picker and failing on first use.
-//! It is not a boot failure: an instance serving one provider must still start
-//! when an unrelated credential is absent. An uninitialised secret store means
-//! "unknown", never "absent" — several entry points load services with no
-//! secrets at all, and demoting there would empty the catalog. That also keeps
-//! the memoisation below benign: the worst case is the old behaviour.
+//! A pre-0.73 tree is refused with the `systemprompt admin config migrate`
+//! hint. A provider whose secret is absent is still loaded: a missing
+//! credential is health state the gateway reports, never a rewrite of the
+//! catalog.
 //!
-//! [`ConfigLoader::load`] — the active-profile entry point — memoises its
-//! result for the lifetime of the process. The explicit
-//! [`ConfigLoader::load_from_path`] and [`ConfigLoader::validate_file`] forms
-//! are one-shot reads of a caller-supplied file and are never cached.
+//! Every entry point is a fresh read; the process holds the parsed result in
+//! [`crate::ServicesState`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod catalog;
 mod discovery;
 pub mod gateway;
 mod includes;
 mod merge;
 mod types;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{OnceLock, PoisonError, RwLock};
 
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_manifest::profile::Profile;
 use systemprompt_manifest::services::ServicesConfig;
-use systemprompt_models::providers::ApiSurface;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
-use crate::services_root::ServicesRootBootstrap;
 
 use discovery::{discover_marketplaces, discover_plugins, discover_skills};
 use includes::resolve_includes_recursively;
@@ -53,6 +46,7 @@ use types::IncludeResolveCtx;
 pub struct ConfigLoader {
     base_path: PathBuf,
     config_path: PathBuf,
+    port_offset: Option<u16>,
 }
 
 impl ConfigLoader {
@@ -65,71 +59,46 @@ impl ConfigLoader {
         Self {
             base_path,
             config_path,
+            port_offset: None,
         }
     }
 
-    pub fn for_active_profile() -> ConfigLoadResult<Self> {
-        let profile = ProfileBootstrap::get()?;
-        let root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
-        Ok(Self::new(root.join("config").join("config.yaml")))
+    #[must_use]
+    pub fn for_profile(profile: &Profile, services_root: &Path) -> Self {
+        Self::new(services_root.join("config").join("config.yaml")).with_profile(Some(profile))
     }
 
-    pub fn load() -> ConfigLoadResult<ServicesConfig> {
-        Self::for_active_profile()?.run_cached()
+    #[must_use]
+    pub fn with_profile(mut self, profile: Option<&Profile>) -> Self {
+        self.port_offset = profile
+            .filter(|profile| !profile.services.is_identity())
+            .map(|profile| profile.services.port_offset);
+        self
     }
 
-    pub fn reload() -> ConfigLoadResult<ServicesConfig> {
-        Self::for_active_profile()?.run_uncached()
+    pub fn load(self) -> ConfigLoadResult<ServicesConfig> {
+        self.run()
     }
 
-    fn run_uncached(&self) -> ConfigLoadResult<ServicesConfig> {
-        let config = self.run()?;
-        let key = fs::canonicalize(&self.config_path).unwrap_or_else(|_| self.config_path.clone());
-        cache_store(key, &config);
-        Ok(config)
+    pub fn load_from_path(
+        path: &Path,
+        profile: Option<&Profile>,
+    ) -> ConfigLoadResult<ServicesConfig> {
+        Self::new(path.to_path_buf()).with_profile(profile).run()
     }
 
-    pub fn load_cached_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
-        Self::new(path.to_path_buf()).run_cached()
+    pub fn load_from_content(
+        content: &str,
+        path: &Path,
+        profile: Option<&Profile>,
+    ) -> ConfigLoadResult<ServicesConfig> {
+        Self::new(path.to_path_buf())
+            .with_profile(profile)
+            .run_from_content(content)
     }
 
-    pub fn reload_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
-        Self::new(path.to_path_buf()).run_uncached()
-    }
-
-    fn run_cached(&self) -> ConfigLoadResult<ServicesConfig> {
-        let key = self.cache_key();
-
-        if let Some(cached) = cache_read(&key) {
-            return Ok(cached);
-        }
-
-        let config = self.run()?;
-        cache_store(key, &config);
-        Ok(config)
-    }
-
-    // Why: `fs::canonicalize` requires the path to exist, even for cache keys.
-    fn cache_key(&self) -> PathBuf {
-        let Some(parent) = self.config_path.parent() else {
-            return self.config_path.clone();
-        };
-        let Some(name) = self.config_path.file_name() else {
-            return self.config_path.clone();
-        };
-        fs::canonicalize(parent).map_or_else(|_| self.config_path.clone(), |dir| dir.join(name))
-    }
-
-    pub fn load_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
-        Self::new(path.to_path_buf()).run()
-    }
-
-    pub fn load_from_content(content: &str, path: &Path) -> ConfigLoadResult<ServicesConfig> {
-        Self::new(path.to_path_buf()).run_from_content(content)
-    }
-
-    pub fn validate_file(path: &Path) -> ConfigLoadResult<()> {
-        Self::load_from_path(path).map(|_| ())
+    pub fn validate_file(path: &Path, profile: Option<&Profile>) -> ConfigLoadResult<()> {
+        Self::load_from_path(path, profile).map(|_| ())
     }
 
     fn run(&self) -> ConfigLoadResult<ServicesConfig> {
@@ -141,11 +110,13 @@ impl ConfigLoader {
     }
 
     fn run_from_content(&self, content: &str) -> ConfigLoadResult<ServicesConfig> {
+        catalog::refuse_legacy(&self.config_path, content)?;
         let mut merged: ServicesConfig =
             serde_yaml::from_str(content).map_err(|e| ConfigLoadError::Yaml {
                 path: self.config_path.clone(),
                 source: e,
             })?;
+        catalog::refuse_catalog_sections(&self.config_path, &merged)?;
 
         let includes = std::mem::take(&mut merged.includes);
 
@@ -169,9 +140,11 @@ impl ConfigLoader {
             }
         }
 
+        let document = catalog::read_catalog_dir(&catalog::catalog_dir(&self.base_path))?;
+        catalog::install_catalog(&mut merged, document);
+
         resolve_system_prompt_includes(&self.base_path, &mut merged)?;
         resolve_skill_instruction_includes(&self.base_path, &mut merged)?;
-        gateway::resolve_file_gateway_includes(&self.base_path, &mut merged)?;
         gateway::project_gateway(&mut merged);
 
         discover_skills(&self.base_path, &mut merged)?;
@@ -188,13 +161,9 @@ impl ConfigLoader {
             merged.settings.config_path = Some(val);
         }
 
-        if let Ok(profile) = ProfileBootstrap::get()
-            && !profile.services.is_identity()
-        {
-            merged.apply_port_offset(profile.services.port_offset)?;
+        if let Some(port_offset) = self.port_offset {
+            merged.apply_port_offset(port_offset)?;
         }
-
-        demote_providers_without_credentials(&mut merged);
 
         merged.validate()?;
 
@@ -233,49 +202,5 @@ impl ConfigLoader {
     #[must_use]
     pub fn base_path(&self) -> &Path {
         &self.base_path
-    }
-}
-
-static CONFIG_CACHE: OnceLock<RwLock<HashMap<PathBuf, ServicesConfig>>> = OnceLock::new();
-
-fn config_cache() -> &'static RwLock<HashMap<PathBuf, ServicesConfig>> {
-    CONFIG_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
-}
-
-fn cache_read(key: &Path) -> Option<ServicesConfig> {
-    config_cache()
-        .read()
-        .unwrap_or_else(PoisonError::into_inner)
-        .get(key)
-        .cloned()
-}
-
-fn cache_store(key: PathBuf, config: &ServicesConfig) {
-    config_cache()
-        .write()
-        .unwrap_or_else(PoisonError::into_inner)
-        .insert(key, config.clone());
-}
-
-fn demote_providers_without_credentials(config: &mut ServicesConfig) {
-    let Ok(secrets) = systemprompt_config::SecretsBootstrap::get() else {
-        return;
-    };
-
-    for provider in &mut config.providers.providers {
-        if !provider.surface.is_advertised() || provider.is_user_credential() {
-            continue;
-        }
-        if provider
-            .platform_secret()
-            .is_some_and(|name| secrets.get(name.as_str()).is_some())
-        {
-            continue;
-        }
-        tracing::warn!(
-            provider = %provider.name.as_str(),
-            "provider has no credential in the secret store; its models will not be advertised"
-        );
-        provider.surface = ApiSurface::Backend;
     }
 }

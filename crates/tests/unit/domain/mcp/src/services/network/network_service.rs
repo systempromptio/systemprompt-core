@@ -11,8 +11,7 @@ async fn test_network_manager_is_port_responsive_unused_port() {
 
 
 #[test]
-fn test_network_manager_apply_cors_requires_config() {
+fn network_service_apply_cors_wraps_the_router() {
     let router = NetworkService::create_router();
-    let result = NetworkService::apply_cors(router);
-    let _ = result;
+    let _layered: axum::Router = NetworkService::apply_cors(router, &crate::harness::config());
 }

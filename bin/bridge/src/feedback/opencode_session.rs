@@ -22,3 +22,10 @@ pub fn session_uuid(native: &str) -> Result<ClientSessionId, IdValidationError> 
     let id = uuid::Uuid::new_v5(&OPENCODE_SESSION_NAMESPACE, native.as_bytes());
     ClientSessionId::try_new(id.hyphenated().to_string())
 }
+
+#[must_use]
+pub fn canonical_session_uuid(raw: &str) -> Option<uuid::Uuid> {
+    uuid::Uuid::parse_str(raw)
+        .ok()
+        .filter(|id| id.hyphenated().to_string() == raw)
+}

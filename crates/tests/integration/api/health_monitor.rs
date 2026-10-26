@@ -17,16 +17,11 @@ use systemprompt_api::services::health::{
 };
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
-use systemprompt_test_fixtures::unique_instance;
-
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}-{}", Uuid::new_v4().simple())
-}
+use systemprompt_test_fixtures::{unique_instance, unique_name};
 
 async fn register_running(
     pool: &systemprompt_database::DbPool,

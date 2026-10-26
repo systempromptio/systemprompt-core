@@ -11,10 +11,8 @@
 use std::borrow::Cow;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use systemprompt_identifiers::RouteId;
 
 use super::config::{GatewayConfig, GatewayConfigSpec};
-use crate::services::providers::ProviderRegistry;
 
 #[derive(Debug, Clone)]
 pub enum GatewayState {
@@ -53,12 +51,11 @@ impl GatewayState {
     }
 
     #[must_use]
-    pub fn dispatchable_route_ids(&self, registry: &ProviderRegistry) -> Vec<RouteId> {
-        let config = match self {
+    pub fn config(&self) -> Cow<'_, GatewayConfig> {
+        match self {
             Self::Resolved(c) => Cow::Borrowed(c),
             Self::Spec(s) => Cow::Owned(s.clone().resolve()),
-        };
-        config.dispatchable_route_ids(registry)
+        }
     }
 }
 

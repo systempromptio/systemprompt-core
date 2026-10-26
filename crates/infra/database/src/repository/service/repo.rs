@@ -196,10 +196,11 @@ impl ServiceRepository {
 
     pub async fn mark_service_crashed(&self, service_name: &ServiceName) -> DatabaseResult<()> {
         sqlx::query!(
-            r#"UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP
+            r#"UPDATE services SET status = $3, pid = NULL, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $1 AND name = $2"#,
             self.instance_id.as_str(),
-            service_name.as_str()
+            service_name.as_str(),
+            ServiceStatus::Error.as_str()
         )
         .execute(&*self.write_pool)
         .await?;
@@ -208,10 +209,11 @@ impl ServiceRepository {
 
     pub async fn update_service_stopped(&self, service_name: &ServiceName) -> DatabaseResult<()> {
         sqlx::query!(
-            r#"UPDATE services SET status = 'stopped', pid = NULL, updated_at = CURRENT_TIMESTAMP
+            r#"UPDATE services SET status = $3, pid = NULL, updated_at = CURRENT_TIMESTAMP
                WHERE instance_id = $1 AND name = $2"#,
             self.instance_id.as_str(),
-            service_name.as_str()
+            service_name.as_str(),
+            ServiceStatus::Stopped.as_str()
         )
         .execute(&*self.write_pool)
         .await?;

@@ -15,7 +15,9 @@
 -- point's own name; consumers that mean "MCP tools" exclude it. It,
 -- `input_summary` and `artifact_kind` are the execution's stored facts (mcp
 -- schema `tool_row_facts.sql`); NULL on an executed row means not yet
--- projected.
+-- projected. `args_validity` and `args_error_path` are the intent's
+-- measured argument verdict against the schema it was offered with; NULL on a
+-- row written before the verdict was recorded.
 CREATE OR REPLACE VIEW tool_call_ledger AS
 SELECT
     COALESCE(i.ai_tool_call_id, e.ai_tool_call_id) AS ai_tool_call_id,
@@ -53,7 +55,9 @@ SELECT
     COALESCE(e.started_at, i.created_at) AS occurred_at,
     CASE WHEN e.mcp_execution_id IS NULL THEN FALSE ELSE e.is_builtin END AS is_builtin,
     e.input_summary,
-    e.artifact_kind
+    e.artifact_kind,
+    i.args_validity,
+    i.args_error_path
 FROM ai_request_tool_calls i
 FULL OUTER JOIN mcp_tool_executions e
     ON e.ai_tool_call_id = i.ai_tool_call_id

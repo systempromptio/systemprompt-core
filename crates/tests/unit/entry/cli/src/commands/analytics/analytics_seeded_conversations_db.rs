@@ -197,10 +197,9 @@ fn the_conversation_listing_refuses_a_non_positive_limit() {
 
 #[tokio::test]
 async fn gateway_conversations_project_exact_owners_counts_and_global_order() {
-    use systemprompt_test_fixtures::{DisposableDb, install_test_signing_key};
+    use systemprompt_test_fixtures::DisposableDb;
 
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_gateway_conversation_projection").await;
     let pool = database.test_pool().await;
     let raw = pool.pool();

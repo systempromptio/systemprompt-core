@@ -27,7 +27,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 
-use crate::credential::cache::clamp_ttl;
+use crate::credential::cache::{TokenCache, clamp_ttl};
 use crate::credential::{CredentialError, http};
 
 // Why: Google limits a service-account JWT assertion's lifetime to one hour.
@@ -92,17 +92,22 @@ struct TokenResponse {
 }
 
 pub async fn access_token(
+    tokens: &TokenCache,
     cache_key: &str,
     key: &ServiceAccountKey,
 ) -> Result<String, CredentialError> {
-    crate::credential::cache::token_for(cache_key, || async {
-        let response = exchange(key).await?;
-        Ok((response.access_token, clamp_ttl(response.expires_in)))
-    })
-    .await
+    tokens
+        .token_for(cache_key, || async {
+            let response = exchange(tokens.http_client()?, key).await?;
+            Ok((response.access_token, clamp_ttl(response.expires_in)))
+        })
+        .await
 }
 
-async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse, CredentialError> {
+async fn exchange(
+    client: &reqwest::Client,
+    key: &ServiceAccountKey,
+) -> Result<TokenResponse, CredentialError> {
     let assertion = sign_assertion(key)?;
     let form = [
         (
@@ -112,7 +117,7 @@ async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse, CredentialEr
         ("assertion", assertion),
     ];
 
-    let body = http::post_form(&key.token_uri, &form).await?;
+    let body = http::post_form(client, &key.token_uri, &form).await?;
     serde_json::from_str(&body).map_err(CredentialError::UnreadableBody)
 }
 

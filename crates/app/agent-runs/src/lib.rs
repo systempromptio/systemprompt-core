@@ -15,6 +15,9 @@
 //! See <https://systemprompt.io> for licensing details.
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
+
 mod macros;
 
 pub mod a2a;
@@ -28,9 +31,12 @@ pub mod host;
 pub mod launcher;
 pub mod layout;
 pub mod lease;
+pub mod notify;
+pub mod origin;
 pub mod outcome;
 pub mod repository;
 pub mod request;
+pub mod retention;
 pub mod runner;
 pub mod service;
 
@@ -45,11 +51,11 @@ pub use execute::{
 pub use extension::AgentRunsExtension;
 pub use host::{
     Execution, ExitInfo, HeadlessHost, HostCapabilities, HostEvent, HostInvocation, PrepareContext,
-    host_for,
+    VersionRequirement, host_for,
 };
 pub use launcher::RepositoryRunLauncher;
 pub use layout::RunLayout;
 pub use outcome::{ErrorClass, RunOutcome, RunStatus};
 pub use repository::{AgentRunRepository, AgentRunRow};
-pub use request::{HostKind, McpServerSpec, PermissionMode, RunRequest};
+pub use request::{HarnessRef, HostKind, McpServerSpec, PermissionMode, RunRequest, TrafficClass};
 pub use runner::{A2aRunHandler, A2aRunnerConfig, A2aRunnerService, AGENT_RUN_ORIGIN_KIND};

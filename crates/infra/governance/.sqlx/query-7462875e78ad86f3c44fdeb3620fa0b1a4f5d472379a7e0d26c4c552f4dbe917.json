@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO access_control_rules\n              (entity_type, entity_id, rule_type, rule_value, access, justification, source)\n          SELECT $1, $2, t.rule_type, t.rule_value, t.access, NULLIF(t.why, ''), $3\n            FROM UNNEST($4::text[], $5::text[], $6::text[], $7::text[])\n                 AS t(rule_type, rule_value, access, why)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7462875e78ad86f3c44fdeb3620fa0b1a4f5d472379a7e0d26c4c552f4dbe917"
+}

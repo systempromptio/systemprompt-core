@@ -12,9 +12,7 @@ use tokio::fs;
 
 use crate::error::GeneratorResult;
 
-pub async fn load_web_config(paths: &AppPaths) -> GeneratorResult<WebConfig> {
-    let config = Config::get()?;
-
+pub async fn load_web_config(config: &Config, paths: &AppPaths) -> GeneratorResult<WebConfig> {
     let content = fs::read_to_string(&config.web_config_path)
         .await
         .map_err(|e| WebConfigError::Io {

@@ -24,7 +24,7 @@ fn files_config(bootstrap: &TestBootstrap, yaml: Option<&str>) -> FilesConfig {
         std::fs::write(bootstrap.services_path.join("config/files.yaml"), content)
             .expect("write files.yaml");
     }
-    FilesConfig::from_profile(&bootstrap.app_paths).expect("from_profile")
+    FilesConfig::from_profile(bootstrap.boot.profile(), &bootstrap.app_paths).expect("from_profile")
 }
 
 fn local_storage(bootstrap: &TestBootstrap) -> Arc<dyn FileStorage> {

@@ -1,4 +1,5 @@
-//! Projecting a freshly swapped composition into the authz tables.
+//! Projecting a freshly swapped composition's gateway routes into the authz
+//! tables.
 //!
 //! `services refresh` swaps the composed root the same way a boot does, so it
 //! carries the same obligation: a composition whose rules were never projected
@@ -7,29 +8,21 @@
 //! bundle can never revoke another's grants. The reconciled hash is recorded
 //! in the cache state, which makes the next boot recognise the work as done.
 //!
-//! Two columns of the summary are easy to misread. `protected` counts rules an
-//! operator authored in the dashboard that ingestion declined to overwrite —
-//! a non-zero value is the ownership rule working, not a fault to drive to
-//! zero. `deleted` counts grants a bundle stopped declaring, so a swap that
-//! revokes access reports them here rather than failing.
-//!
-//! `inert_role_rules` names only roles. A role is checkable because it lives
-//! in the `users.roles` array, so one no user holds is a dead grant. Group and
-//! project values are extension-owned subject dimensions with no core table to
-//! check against and are never reported, so an empty column means "no dead
-//! roles found", never "every subject resolves".
+//! `deleted` counts gateway routes the composition stopped dispatching, so a
+//! swap that retires a route reports it here rather than failing. Access rules
+//! are not projected by a swap: `config apply` owns them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
 use serde::Serialize;
-use systemprompt_governance::authz::ingestion::IngestReport;
 use systemprompt_governance::authz::{ReconcileReport, reconcile_composed_bundles};
+use systemprompt_loader::ConfigLoader;
 use systemprompt_loader::bundle::BundleCache;
-use systemprompt_loader::{ActiveServicesRoot, ConfigLoader};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::bundle::SignedBundleManifest;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
 
 use crate::context::CommandContext;
@@ -39,11 +32,8 @@ const CONFIG_RELPATH: &str = "config/config.yaml";
 #[derive(Debug, Serialize)]
 pub struct ReconcileRow {
     pub bundle: String,
-    pub inserted: usize,
-    pub updated: usize,
+    pub registered: usize,
     pub deleted: usize,
-    pub protected: usize,
-    pub inert_role_rules: String,
 }
 
 pub async fn reconcile_after_swap(
@@ -65,14 +55,14 @@ pub async fn reconcile_after_swap(
         .map(|(name, signed)| (name.as_str(), &signed.manifest))
         .collect();
 
-    let services = ConfigLoader::load_from_path(&root.path.join(CONFIG_RELPATH))
+    let services = ConfigLoader::load_from_path(&root.path.join(CONFIG_RELPATH), Some(profile))
         .context("Failed to load the composed services config")?;
     let pool = ctx
         .db_pool()
         .await
         .context("services refresh needs a database to project access rules into")?;
 
-    let reports = reconcile_composed_bundles(&pool, &services, &root.path, &bundles)
+    let reports = reconcile_composed_bundles(&pool, &services, &bundles)
         .await
         .context("Failed to reconcile the new composition's access rules")?;
 
@@ -84,31 +74,14 @@ pub async fn reconcile_after_swap(
 }
 
 fn summarise((name, report): &(String, ReconcileReport)) -> ReconcileRow {
-    let ingests: Vec<&IngestReport> = report
-        .roles
-        .iter()
-        .chain(report.marketplaces.iter())
-        .collect();
-    let total = |pick: fn(&IngestReport) -> usize| ingests.iter().map(|r| pick(r)).sum();
-
-    let inert: Vec<String> = ingests
-        .iter()
-        .flat_map(|r| r.unknown_subjects.iter())
-        .map(|subject| {
-            format!(
-                "{} {} on {}",
-                subject.rule_type, subject.value, subject.entity
-            )
-        })
-        .collect();
-
+    let (registered, pruned) = report
+        .gateway
+        .as_ref()
+        .map_or((0, 0), |gateway| (gateway.registered, gateway.pruned));
     ReconcileRow {
         bundle: name.clone(),
-        inserted: total(|r| r.inserted),
-        updated: total(|r| r.updated),
-        deleted: total(|r| r.deleted),
-        protected: total(|r| r.protected),
-        inert_role_rules: inert.join("; "),
+        registered,
+        deleted: usize::try_from(pruned).unwrap_or(usize::MAX),
     }
 }
 

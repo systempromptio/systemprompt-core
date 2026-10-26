@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use systemprompt_identifiers::JobName;
 
-use systemprompt_cli::CliConfig;
+use crate::boot_ctx::bootstrap_ctx;
+use systemprompt_cli::CommandContext;
 use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
@@ -47,6 +48,8 @@ fn make_profile(services: &Path) -> Profile {
             port: 8080,
             api_server_url: "http://localhost:8080".to_string(),
             api_internal_url: "http://localhost:8080".to_string(),
+            external_url: "https://example.com".to_string(),
+            extra_cors_origins: Vec::new(),
             api_external_url: "https://example.com".to_string(),
             use_https: false,
             cors_allowed_origins: vec![],
@@ -61,6 +64,7 @@ fn make_profile(services: &Path) -> Profile {
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
+            root: None,
             system: services.parent().unwrap().to_string_lossy().to_string(),
             services: services.to_string_lossy().to_string(),
             bin: "/tmp/test/bin".to_string(),
@@ -100,8 +104,14 @@ fn make_profile(services: &Path) -> Profile {
     }
 }
 
-fn cfg() -> CliConfig {
-    CliConfig::new().with_interactive(false)
+fn boot() -> systemprompt_loader::BootContext {
+    systemprompt_test_fixtures::ensure_test_bootstrap()
+        .boot
+        .clone()
+}
+
+fn cfg() -> CommandContext {
+    bootstrap_ctx()
 }
 
 #[test]
@@ -218,9 +228,14 @@ fn validate_accepts_a_serialized_profile_document() {
     let dir = tempfile::tempdir().unwrap();
     let services = dir.path().join("services");
     std::fs::create_dir_all(&services).unwrap();
-    let yaml = make_profile(&services).to_yaml().unwrap();
+    let mut profile = make_profile(&services);
+    profile.paths.system = ".".to_owned();
+    profile.paths.services = "services".to_owned();
+    profile.paths.bin = "bin".to_owned();
+    profile.paths.storage = None;
+    profile.security.signing_key_path = "signing_key.pem".into();
     let profile_path = dir.path().join("profile.yaml");
-    std::fs::write(&profile_path, yaml).unwrap();
+    std::fs::write(&profile_path, profile.to_yaml().unwrap()).unwrap();
 
     let args = ValidateArgs {
         target: Some(profile_path.to_string_lossy().to_string()),
@@ -229,6 +244,23 @@ fn validate_accepts_a_serialized_profile_document() {
     };
     let (_output, all_valid) = execute(&args, &cfg()).unwrap();
     assert!(all_valid);
+}
+
+#[test]
+fn validate_refuses_a_committed_absolute_temp_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let services = dir.path().join("services");
+    std::fs::create_dir_all(&services).unwrap();
+    let profile_path = dir.path().join("profile.yaml");
+    std::fs::write(&profile_path, make_profile(&services).to_yaml().unwrap()).unwrap();
+
+    let args = ValidateArgs {
+        target: Some(profile_path.to_string_lossy().to_string()),
+        strict: false,
+        schema: false,
+    };
+    let err = execute(&args, &cfg()).unwrap_err();
+    assert!(err.to_string().contains("absolute temp path"), "{err}");
 }
 
 #[test]
@@ -306,7 +338,8 @@ fn validate_names_every_unregistered_scheduler_job() {
 #[test]
 fn strict_validation_names_registered_jobs_the_config_omits() {
     let config = SchedulerConfig::with_system_admin();
-    let message = unlisted_jobs_message(&config).expect("the built-in set omits the rollups");
+    let message =
+        unlisted_jobs_message(&config, &boot()).expect("the built-in set omits the rollups");
     assert!(message.contains("trace_facts_rollup"), "got: {message}");
     assert!(!message.contains("database_cleanup"), "got: {message}");
 }
@@ -314,8 +347,8 @@ fn strict_validation_names_registered_jobs_the_config_omits() {
 #[test]
 fn strict_validation_passes_once_every_job_is_named() {
     let mut config = SchedulerConfig::with_system_admin();
-    for name in systemprompt_scheduler::unlisted_job_names(&config) {
+    for name in systemprompt_scheduler::unlisted_job_names(&config, &boot()) {
         config.jobs.push(JobConfig::new(name).disabled());
     }
-    assert!(unlisted_jobs_message(&config).is_none());
+    assert!(unlisted_jobs_message(&config, &boot()).is_none());
 }

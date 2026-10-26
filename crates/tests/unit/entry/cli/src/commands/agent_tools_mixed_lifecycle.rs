@@ -1,13 +1,12 @@
 //! Mixed MCP availability through the public agent-tools command.
 
-use std::process::{Command, Output, Stdio};
+use std::process::Command;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use clap::Parser;
 use systemprompt_cli::admin::agents::{self, AgentsCommands};
 use systemprompt_cli::paths::ResolvedPaths;
-use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cli::{CliConfig, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
 use systemprompt_identifiers::{
@@ -16,8 +15,8 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, TestBootstrap, fixture_app_context_with, fixture_user_id,
-    init_services_bootstrap, install_test_signing_key,
+    DisposableDb, FIXTURE_EXTERNAL_URL, TestBootstrap, bounded_output,
+    fixture_app_context_on_bootstrap_with_paths, fixture_user_id, init_services_bootstrap,
 };
 use wiremock::matchers::{body_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -79,7 +78,7 @@ fn services_yaml(healthy: &str, stopped: &str) -> String {
       audience: a2a
 mcp_servers:
   {HEALTHY}:
-    type: external
+    server_type: external
     endpoint: {healthy}/mcp
     enabled: true
     display_in_web: false
@@ -89,7 +88,7 @@ mcp_servers:
       audience: mcp
       client_id: null
   {STOPPED}:
-    type: external
+    server_type: external
     endpoint: {stopped}/mcp
     enabled: true
     display_in_web: false
@@ -110,7 +109,7 @@ fn seed_session(boot: &TestBootstrap) {
         .expect("profile name");
     let profile_name = ProfileName::try_new(profile_name_text).expect("valid profile name");
     let session = CliSession::builder(
-        SessionBinding::new(profile_name, "https://issuer.test".to_owned()),
+        SessionBinding::new(profile_name, FIXTURE_EXTERNAL_URL.to_owned()),
         SessionToken::new("mixed-tools-session-token"),
         SessionId::generate(),
         ContextId::generate(),
@@ -216,7 +215,6 @@ async fn mixed_agent_tools_helper() {
         .mount(&stopped)
         .await;
     let boot = init_services_bootstrap(&services_yaml(&healthy.uri(), &stopped.uri()));
-    install_test_signing_key();
     let project = tempfile::tempdir().expect("owned session project");
     std::fs::create_dir_all(project.path().join(".systemprompt")).expect("create .systemprompt");
     std::fs::create_dir_all(project.path().join("services")).expect("create services");
@@ -225,6 +223,7 @@ async fn mixed_agent_tools_helper() {
     let database = DisposableDb::with_schema("cli_agent_tools_mixed").await;
     let pool = database.test_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -234,9 +233,9 @@ async fn mixed_agent_tools_helper() {
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(
+    let app = fixture_app_context_on_bootstrap_with_paths(
+        &boot,
         &pool,
-        database.url(),
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
@@ -251,7 +250,7 @@ async fn mixed_agent_tools_helper() {
         })
         .await
         .expect("register only the healthy MCP server as running");
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json)
@@ -273,41 +272,11 @@ async fn mixed_agent_tools_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().expect("mixed-tools stdout");
-    let stderr = tempfile::NamedTempFile::new().expect("mixed-tools stderr");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn mixed-tools helper");
-    let deadline = Instant::now() + Duration::from_secs(20);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll mixed-tools helper") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).expect("read stdout"),
-                stderr: std::fs::read(stderr.path()).expect("read stderr"),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap mixed-tools helper");
-            panic!(
-                "mixed-tools helper timed out ({status})\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&std::fs::read(stdout.path()).unwrap()),
-                String::from_utf8_lossy(&std::fs::read(stderr.path()).unwrap())
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
 #[test]
 fn healthy_tools_survive_a_stopped_configured_server() {
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "agent tools mixed lifecycle");
     assert!(
         output.status.success(),
         "mixed-tools helper failed\nstdout:\n{}\nstderr:\n{}",

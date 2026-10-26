@@ -6,7 +6,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::services::validation::id_jag::IdJagError;
 use systemprompt_traits::BoxedSource;
@@ -103,11 +102,5 @@ impl IssuanceError {
             reason,
             source: source.into(),
         }
-    }
-}
-
-impl From<GlobalConfigError> for IssuanceError {
-    fn from(error: GlobalConfigError) -> Self {
-        Self::server("Configuration unavailable", error)
     }
 }

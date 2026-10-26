@@ -13,6 +13,7 @@ use crate::shared::CommandOutput;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateSummary, TemplatesConfig};
+use systemprompt_loader::BootContext;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
@@ -20,8 +21,12 @@ pub struct ListArgs {
     pub missing: bool,
 }
 
-pub(super) fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
-    execute_in_dir(args, config, &WebPaths::resolve()?.templates)
+pub(super) fn execute(
+    args: ListArgs,
+    config: &CliConfig,
+    boot: &BootContext,
+) -> Result<CommandOutput> {
+    execute_in_dir(args, config, &WebPaths::resolve(boot)?.templates)
 }
 
 pub fn execute_in_dir(

@@ -9,6 +9,10 @@ mod conditional;
 #[cfg(test)]
 mod gateway_client;
 #[cfg(test)]
-mod profile_bearer;
+mod model_view_clients;
+#[cfg(test)]
+mod personal_keys_by_credential;
+#[cfg(test)]
+mod profile_cache_user_key;
 #[cfg(test)]
 mod rejection;

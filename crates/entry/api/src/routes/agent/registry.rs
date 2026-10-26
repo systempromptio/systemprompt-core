@@ -6,49 +6,38 @@
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::{Extension, Router};
+use axum::{Extension, Json, Router};
 use std::sync::Arc;
 use systemprompt_database::ServiceRepository;
 use systemprompt_identifiers::ServiceName;
-use systemprompt_models::{ApiError, CollectionResponse, RequestContext};
+use systemprompt_models::{CollectionResponse, RequestContext};
 use systemprompt_runtime::AppContext;
 
 use systemprompt_agent::models::a2a::{AgentCard, AgentExtension, McpServerMetadata};
-use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::services::registry::{AgentRegistry, CardSite};
 use systemprompt_manifest::AgentConfig;
 
 pub async fn handle_agent_registry(
     Extension(_req_ctx): Extension<RequestContext>,
     State(ctx): State<AppContext>,
 ) -> impl IntoResponse {
-    let registry = match AgentRegistry::new() {
-        Ok(r) => Arc::new(r),
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to load agent registry");
-            return ApiError::internal_error("Failed to load agent registry").into_response();
-        },
-    };
+    let registry = Arc::new(AgentRegistry::new(&ctx.services_state().view()));
     let service_repo = ctx.service_repository();
-    let api_external_url = &ctx.config().api_external_url;
+    let site = CardSite {
+        api_external_url: &ctx.config().api_external_url,
+        skills_dir: std::path::Path::new(&ctx.config().skills_path),
+    };
 
-    match registry.list_agents().await {
-        Ok(agents) => {
-            let mut agent_cards =
-                build_agent_cards(&registry, service_repo, api_external_url, agents).await;
-            sort_default_first(&mut agent_cards);
-            CollectionResponse::new(agent_cards).into_response()
-        },
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to list agents");
-            ApiError::internal_error("Failed to retrieve agent registry").into_response()
-        },
-    }
+    let agents = registry.list_agents();
+    let mut agent_cards = build_agent_cards(&registry, service_repo, site, agents).await;
+    sort_default_first(&mut agent_cards);
+    Json(CollectionResponse::new(agent_cards)).into_response()
 }
 
 async fn build_agent_cards(
     registry: &AgentRegistry,
     service_repo: &ServiceRepository,
-    api_external_url: &str,
+    site: CardSite<'_>,
     agents: Vec<AgentConfig>,
 ) -> Vec<AgentCard> {
     let mut agent_cards = Vec::new();
@@ -56,29 +45,26 @@ async fn build_agent_cards(
     for agent_config in agents {
         let service_name = ServiceName::new(agent_config.name.as_str());
         let runtime_status = match service_repo.find_service_by_name(&service_name).await {
-            Ok(Some(service)) => Some((
+            Ok(Some(service)) => (
                 service.status.to_string(),
                 Some(agent_config.port),
                 service.pid.map(|p| p as u32),
-            )),
-            Ok(None) => Some(("NotStarted".to_owned(), Some(agent_config.port), None)),
-            Err(_) => Some(("Unknown".to_owned(), Some(agent_config.port), None)),
+            ),
+            Ok(None) => ("NotStarted".to_owned(), Some(agent_config.port), None),
+            Err(_) => ("Unknown".to_owned(), Some(agent_config.port), None),
         };
 
         let mcp_extensions = create_mcp_extensions_from_config(
             &agent_config.metadata.mcp_servers.include,
-            api_external_url,
+            site.api_external_url,
         );
 
-        match registry
-            .to_agent_card(
-                &agent_config.name,
-                api_external_url,
-                mcp_extensions,
-                runtime_status,
-            )
-            .await
-        {
+        match registry.to_agent_card(
+            &agent_config.name,
+            site,
+            mcp_extensions,
+            Some(&runtime_status),
+        ) {
             Ok(card) => {
                 agent_cards.push(card);
             },

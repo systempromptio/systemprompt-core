@@ -128,7 +128,7 @@ mod database_layer {
 
     use systemprompt_identifiers::{SessionId, TraceId, UserId};
     use systemprompt_logging::layer::ProxyDatabaseLayer;
-    use systemprompt_logging::{DatabaseLayer, LogActor, LogEntry, LogLevel, enqueue_background};
+    use systemprompt_logging::{DatabaseLayer, LogActor, LogEntry, LogLevel, LogSink};
     use systemprompt_test_fixtures::test_db_pool;
     use tracing::{error, info, info_span};
     use tracing_subscriber::Layer;
@@ -257,13 +257,11 @@ mod database_layer {
     }
 
     #[tokio::test]
-    async fn enqueue_background_persists_error_entry() {
+    async fn database_layer_enqueue_persists_error_entry() {
         let db = test_db_pool().await;
         let raw = db.pool().as_ref().clone();
 
-        // Constructing a layer installs the process-global background sender
-        // used by `enqueue_background`.
-        let (_layer, _writer) = DatabaseLayer::new(&db);
+        let (layer, _writer) = DatabaseLayer::new(&db);
 
         let trace_id = format!("enqueue-trace-{}", uuid::Uuid::new_v4().simple());
         let actor = LogActor::new(
@@ -278,8 +276,7 @@ mod database_layer {
             actor,
         );
 
-        // Error entries request an immediate flush.
-        enqueue_background(entry);
+        layer.enqueue(entry);
 
         let mut count = 0_i64;
         for _ in 0..50 {
@@ -291,7 +288,7 @@ mod database_layer {
         }
         assert!(
             count >= 1,
-            "enqueue_background should persist an error entry, got {count}"
+            "DatabaseLayer::enqueue should persist an error entry, got {count}"
         );
 
         sqlx::query!("DELETE FROM logs WHERE trace_id = $1", trace_id.as_str())
@@ -463,19 +460,17 @@ mod database_layer {
     }
 
     #[test]
-    fn enqueue_background_without_sink_is_silent() {
-        // When no sink is attached the entry is dropped without panicking. In a
-        // shared process another test may have installed the global sender, so
-        // this only asserts the call is infallible.
-        let proxy = ProxyDatabaseLayer::new();
-        let _ = format!("{proxy:?}");
+    fn unattached_sink_counts_enqueued_entry_as_dropped() {
+        let sink = LogSink::default();
         let actor = LogActor::new(
             UserId::new("noop-user"),
             SessionId::new("noop-session"),
             TraceId::new("noop-trace"),
         );
         let entry = LogEntry::new(LogLevel::Info, "m".to_owned(), "noop".to_owned(), actor);
-        enqueue_background(entry);
+        sink.enqueue(entry);
+        assert_eq!(sink.dropped_entries(), 1);
+        assert!(sink.instance_id().is_none());
     }
 }
 

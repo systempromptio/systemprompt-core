@@ -1,27 +1,28 @@
 //! Gateway configuration: on-disk spec and resolved runtime form.
 //!
 //! [`GatewayConfigSpec`] is the serde shape accepted under `gateway:` in the
-//! services tree; [`GatewayConfig`] is its runtime projection. Routes carry no
-//! embedded provider catalog — every route resolves its provider against
-//! `services.providers` (the merged `providers:` list of the services tree)
-//! (`ProviderRegistry`) at use time.
+//! services tree; [`GatewayConfig`] is its runtime projection. The gateway
+//! owns no catalog: `default_model` and every route name catalog models and
+//! endpoints, and are resolved against them by
+//! [`ResolvedCatalog`](crate::services::catalog::ResolvedCatalog).
+//!
+//! A request that no declared route matched has no route id: access control
+//! evaluates it against the `model/<id>` and `provider/<name>` entities that
+//! match it at decision time.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod runtime;
 mod validate;
-mod validate_chain;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::ProviderId;
+use systemprompt_identifiers::ModelId;
 
 use crate::services::gateway::override_rule::SystemPromptRule;
 use crate::services::gateway::route::GatewayRoute;
 
 pub use runtime::GatewayConfig;
-
-pub(crate) const DEFAULT_ROUTE_PATTERN: &str = "*";
 
 /// What the gateway does when it cannot evaluate a quota or policy.
 ///
@@ -60,13 +61,7 @@ pub struct GatewayConfigSpec {
     #[serde(default)]
     pub routes: Vec<GatewayRoute>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_provider: Option<ProviderId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_model: Option<String>,
-    #[serde(default)]
-    pub allow_unlisted_models: bool,
-    #[serde(default = "default_true")]
-    pub hidden_requires_route: bool,
+    pub default_model: Option<ModelId>,
     #[serde(default)]
     pub quota_fault_mode: QuotaFaultMode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -121,10 +116,7 @@ impl Default for GatewayConfigSpec {
         Self {
             enabled: false,
             routes: Vec::new(),
-            default_provider: None,
             default_model: None,
-            allow_unlisted_models: false,
-            hidden_requires_route: true,
             quota_fault_mode: QuotaFaultMode::default(),
             require_scopes: Vec::new(),
             automatic_prompt_caching: true,
@@ -150,10 +142,7 @@ impl GatewayConfigSpec {
         let Self {
             enabled,
             routes,
-            default_provider,
             default_model,
-            allow_unlisted_models,
-            hidden_requires_route,
             quota_fault_mode,
             require_scopes,
             automatic_prompt_caching,
@@ -166,10 +155,7 @@ impl GatewayConfigSpec {
         GatewayConfig {
             enabled,
             routes,
-            default_provider,
             default_model,
-            allow_unlisted_models,
-            hidden_requires_route,
             quota_fault_mode,
             require_scopes,
             automatic_prompt_caching,

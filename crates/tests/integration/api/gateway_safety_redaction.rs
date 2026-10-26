@@ -7,7 +7,7 @@ use systemprompt_database::DbPool;
 use systemprompt_gateway::protocol::CanonicalContent;
 use systemprompt_gateway::service::GatewayService;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
@@ -51,7 +51,7 @@ async fn redacted_categories_are_rewritten_before_the_upstream_sees_them() -> an
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(format!(

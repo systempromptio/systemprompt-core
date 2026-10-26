@@ -39,7 +39,7 @@ fn anthropic_claude_3_5_enables_extended_thinking() {
         256,
     )
     .into_request();
-    let thinking = req.thinking.expect("thinking auto-enabled");
+    let thinking = req.reasoning.thinking.expect("thinking auto-enabled");
     assert!(thinking.enabled);
     assert_eq!(thinking.budget_tokens, Some(10240));
 }
@@ -49,7 +49,7 @@ fn anthropic_non_3_5_leaves_thinking_unset() {
     let messages = [msg(MessageRole::User, "hi")];
     let req = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-3-opus", 256)
         .into_request();
-    assert!(req.thinking.is_none());
+    assert!(req.reasoning.thinking.is_none());
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn openai_o_series_requests_medium_reasoning() {
     for model in ["o3", "o3-mini"] {
         let req = CanonicalBuild::new(BridgeProvider::OpenAi, &messages, model, 256).into_request();
         assert!(matches!(
-            req.reasoning_effort,
+            req.reasoning.reasoning_effort,
             Some(systemprompt_wire::canonical::ReasoningEffort::Medium)
         ));
     }
@@ -68,7 +68,7 @@ fn openai_o_series_requests_medium_reasoning() {
 fn openai_chat_model_has_no_reasoning_effort() {
     let messages = [msg(MessageRole::User, "hi")];
     let req = CanonicalBuild::new(BridgeProvider::OpenAi, &messages, "gpt-4o", 256).into_request();
-    assert!(req.reasoning_effort.is_none());
+    assert!(req.reasoning.reasoning_effort.is_none());
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn openai_streaming_defaults_temperature_when_unset() {
     let req = CanonicalBuild::new(BridgeProvider::OpenAi, &messages, "gpt-4o", 256)
         .with_stream(true)
         .into_request();
-    assert_eq!(req.temperature, Some(0.8));
+    assert_eq!(req.sampling.temperature, Some(0.8));
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn explicit_temperature_overrides_streaming_default() {
         .with_sampling(Some(&sampling))
         .with_stream(true)
         .into_request();
-    assert_eq!(req.temperature, Some(0.2));
+    assert_eq!(req.sampling.temperature, Some(0.2));
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn anthropic_streaming_does_not_inject_temperature() {
     let req = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-3-opus", 256)
         .with_stream(true)
         .into_request();
-    assert!(req.temperature.is_none());
+    assert!(req.sampling.temperature.is_none());
 }
 
 #[test]

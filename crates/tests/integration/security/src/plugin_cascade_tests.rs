@@ -126,7 +126,7 @@ async fn cleanup(fixture: &Fixture) {
 async fn grant(fixture: &Fixture, kind: &str, id: &str, role: &str, default_included: bool) {
     sqlx::query(
         "INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) \
-         VALUES ($1, $2, $3, 'test')",
+         VALUES ($1, $2, $3, 'code:test')",
     )
     .bind(kind)
     .bind(id)
@@ -136,7 +136,7 @@ async fn grant(fixture: &Fixture, kind: &str, id: &str, role: &str, default_incl
     .expect("insert entity");
     sqlx::query(
         "INSERT INTO access_control_rules (id, entity_type, entity_id, rule_type, rule_value, \
-         access) VALUES ($1, $2, $3, 'role', $4, 'allow')",
+         access, source) VALUES ($1, $2, $3, 'role', $4, 'allow', 'code:test')",
     )
     .bind(format!("rule-{}", Uuid::new_v4()))
     .bind(kind)

@@ -22,6 +22,7 @@ pub(in crate::service) use self::outbound::audit_upstream_failure;
 use self::outbound::{
     CtxParts, outbound_ctx, resolve_url_images, send_bracketed, strip_caller_identity,
 };
+pub(in crate::service) use self::scanned::SafetyScan;
 use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::inbound::InboundAdapter;
@@ -29,6 +30,7 @@ use super::super::protocol::outbound::{OutboundOutcome, PreparedBody};
 use super::finalize::apply_system_prompt_override;
 use super::resolve::ResolvedUpstream;
 use super::{DispatchError, GatewayError, GovernanceDenied, PromptRepairRequired};
+use crate::policies::OverridePolicy;
 
 const UNSANITIZABLE_SECRET_MESSAGE: &str = "Secret content could not be safely sanitized; remove \
                                             the affected content or restart with a corrected \
@@ -38,6 +40,7 @@ const FALLBACK_REPAIR_LOCATION: &str = "provider_payload";
 pub(super) struct UpstreamRelay<'a> {
     pub raw_body: &'a Bytes,
     pub inbound: &'a dyn InboundAdapter,
+    pub overrides: &'a OverridePolicy,
 }
 
 pub(super) struct PreparedDispatch {
@@ -61,16 +64,11 @@ impl PreparedDispatch {
         audit: &GatewayAudit,
         relay: UpstreamRelay<'_>,
     ) -> Result<Self, DispatchError> {
-        let upstream_model = upstream
-            .provider
-            .upstream_model_for(
-                upstream.route.upstream_model.as_deref(),
-                request.model.as_str(),
-            )
-            .to_owned();
+        let upstream_model = upstream.hop.upstream_model.clone();
         let override_descriptor = apply_system_prompt_override(
+            relay.overrides,
             config,
-            &upstream.provider.name,
+            &upstream.hop.provider,
             &upstream_model,
             &mut request,
         )
@@ -78,17 +76,14 @@ impl PreparedDispatch {
         if let Some(descriptor) = &override_descriptor {
             audit.set_system_prompt_override(descriptor).await;
         }
-        let model_limits = upstream
-            .provider
-            .find_served_model(request.model.as_str())
-            .map(|m| m.limits);
+        let model_limits = Some(upstream.model_limits());
         let raw_body = match &override_descriptor {
             Some(_) => None,
-            None => (relay.inbound.passthrough_wire() == Some(upstream.provider.wire))
+            None => (relay.inbound.passthrough_wire() == Some(upstream.hop.wire))
                 .then_some(relay.raw_body),
         };
         strip_caller_identity(&mut request);
-        resolve_url_images(upstream.provider.wire, &mut request, audit).await?;
+        resolve_url_images(upstream.hop.wire, &mut request, audit).await?;
 
         let ctx = outbound_ctx(
             upstream,
@@ -99,7 +94,6 @@ impl PreparedDispatch {
                 automatic_prompt_caching: automatic_prompt_caching(
                     config.automatic_prompt_caching,
                     upstream,
-                    &upstream_model,
                 ),
                 forward_headers: &[],
                 raw_body,
@@ -122,16 +116,12 @@ impl PreparedDispatch {
     }
 }
 
-fn automatic_prompt_caching(
-    enabled: bool,
-    upstream: &ResolvedUpstream<'_>,
-    upstream_model: &str,
-) -> bool {
+fn automatic_prompt_caching(enabled: bool, upstream: &ResolvedUpstream<'_>) -> bool {
     enabled
-        && upstream.provider.wire == systemprompt_wire::WireProtocol::Anthropic
+        && upstream.hop.wire == systemprompt_wire::WireProtocol::Anthropic
         && upstream
-            .provider
-            .find_served_model(upstream_model)
+            .catalog
+            .model(upstream.hop.model.as_str())
             .is_some_and(|model| model.capabilities.prompt_caching)
 }
 

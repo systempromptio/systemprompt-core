@@ -12,17 +12,12 @@ use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseSe
 use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle;
 use systemprompt_config::paths::AppPaths;
 use tokio::net::TcpListener;
-use uuid::Uuid;
 
-use systemprompt_test_fixtures::{test_db_pool, unique_instance};
+use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
-
-fn unique_name(prefix: &str) -> AgentName {
-    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
-}
 
 fn app_paths() -> Arc<AppPaths> {
     let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -33,13 +28,15 @@ fn lifecycle(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> Age
     AgentLifecycle::new(
         AgentServiceRepository::new(pool, instance.clone()),
         app_paths(),
+        systemprompt_test_fixtures::test_spawner(),
+        crate::spawn_environment(),
+        &systemprompt_test_fixtures::fixture_services_view(),
     )
-    .expect("lifecycle")
 }
 
 fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(pool, instance.clone());
-    AgentDatabaseService::new(repo).expect("db service")
+    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view())
 }
 
 async fn ephemeral_listener() -> (TcpListener, u16) {
@@ -110,7 +107,7 @@ async fn verify_startup_times_out_without_clearing_the_pid() {
     let lc = lifecycle(&pool, &instance);
     let db = db_service(&pool, &instance);
 
-    let name = unique_name("lc_verify_dead");
+    let name = unique_agent_name("lc_verify_dead");
     db.register_agent_starting(&name, DEAD_PID, 39461)
         .await
         .expect("register");
@@ -150,14 +147,14 @@ async fn log_startup_failure_covers_stored_statuses() {
     lc.log_startup_failure(&AgentName::new("lc_log_missing"), 39462)
         .await;
 
-    let running = unique_name("lc_log_running");
+    let running = unique_agent_name("lc_log_running");
     db.register_agent(&running, std::os::unix::process::parent_id(), 39463)
         .await
         .expect("register running");
     lc.log_startup_failure(&running, 39463).await;
     db.remove_agent_service(&running).await.ok();
 
-    let dead = unique_name("lc_log_dead");
+    let dead = unique_agent_name("lc_log_dead");
     db.register_agent(&dead, DEAD_PID, 39464)
         .await
         .expect("register dead");

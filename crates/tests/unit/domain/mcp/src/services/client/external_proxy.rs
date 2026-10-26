@@ -60,7 +60,14 @@ fn context() -> RequestContext {
 #[tokio::test]
 async fn resolve_external_proxy_target_errors_without_accessor() {
     let config = external_config(false);
-    let result = McpClient::resolve_external_proxy_target(&config, &context()).await;
+    let result = McpClient::new(
+        std::sync::Arc::default(),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
+        crate::harness::config(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    )
+    .resolve_external_proxy_target(&config, &context())
+    .await;
     assert!(
         result.is_err(),
         "an external server without external_auth cannot mint a per-user bearer",
@@ -76,9 +83,15 @@ async fn resolve_external_proxy_target_refuses_without_a_broker_secret() {
     let config = external_config(true);
     let ctx = context().with_auth_token(JwtToken::new("employee-jwt"));
 
-    let err = McpClient::resolve_external_proxy_target(&config, &ctx)
-        .await
-        .expect_err("no broker secret is configured in the test secrets");
+    let err = McpClient::new(
+        std::sync::Arc::default(),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
+        crate::harness::config(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    )
+    .resolve_external_proxy_target(&config, &ctx)
+    .await
+    .expect_err("no broker secret is configured in the test secrets");
     assert!(
         err.to_string().contains("mcp_credential_broker_secret"),
         "the refusal names the missing secret: {err}"

@@ -1,15 +1,17 @@
-//! The one way this crate and the gateway address an upstream provider.
+//! The one way this crate and the gateway address an upstream endpoint.
 //!
-//! A catalog [`ProviderEntry`](systemprompt_manifest::services::providers::ProviderEntry) names an endpoint template and the secret that
-//! authenticates it. [`UpstreamTarget::resolve`] turns the pair into something
-//! a request can be sent to: the secret parsed into a
+//! A [`ResolvedHop`](systemprompt_manifest::services::catalog::ResolvedHop)
+//! names an endpoint (wire, URL, betas, hosting), its provider (headers, user
+//! agent) and the provider's credential. [`UpstreamTarget::resolve`] turns
+//! the hop plus the credential's secret into something a request can be sent
+//! to: the secret parsed into a
 //! [`ProviderCredential`](systemprompt_security::credential::ProviderCredential),
-//! the endpoint filled from the credential's scope (`{project}` from a Google
-//! service account), and the hosting read off the endpoint host. Per request,
-//! [`UpstreamTarget::call`] mints the auth header — a verbatim API key, or a
-//! Google OAuth token refreshed from the shared cache — and yields an
-//! [`UpstreamCall`], which renders the URL, headers and body envelope for a
-//! given wire through [`UpstreamDialect`].
+//! the URL filled from the credential's scope (`{project}` from a Google
+//! service account), and the token cache key taken from the credential id.
+//! Per request, [`UpstreamTarget::call`] mints the auth header — a verbatim
+//! API key, or a Google OAuth token from the credential-keyed cache — and
+//! yields an [`UpstreamCall`], which renders the URL, headers and body
+//! envelope for a given wire through [`UpstreamDialect`].
 //!
 //! Both the gateway's outbound adapters and the in-process provider clients go
 //! through here, so a platform either stack can reach, the other can too.
@@ -24,4 +26,4 @@ mod target;
 pub use call::UpstreamCall;
 pub use error::UpstreamTargetError;
 pub use systemprompt_wire::upstream::UpstreamDialect;
-pub use target::UpstreamTarget;
+pub use target::{EndpointBinding, UpstreamTarget};

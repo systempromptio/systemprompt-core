@@ -13,7 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::Value;
-use systemprompt_ai::models::AiRequestRecord;
+use systemprompt_ai::models::{AiRequestRecord, ServedHop};
 use systemprompt_ai::repository::{
     AdmissionWrite, InsertSafetyFinding, PreparedDigest, RequestMessageRow, UpsertPayloadParams,
 };
@@ -30,12 +30,29 @@ pub(super) struct PendingAdmission {
     pub(super) offered_tools: Option<Value>,
     pub(super) messages: Vec<(&'static str, String)>,
     route_match: Option<String>,
-    served_provider: Option<String>,
+    served_hop: Option<OwnedHop>,
     system_prompt_override: Option<String>,
     // JSON: client tool definitions, stored verbatim as JSONB.
     prepared: Option<(String, Option<Value>)>,
     findings: Vec<PendingFinding>,
     decisions: Vec<DecisionAudit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct OwnedHop {
+    pub(super) provider: String,
+    pub(super) credential: String,
+    pub(super) endpoint: String,
+}
+
+impl OwnedHop {
+    pub(super) fn as_served(&self) -> ServedHop<'_> {
+        ServedHop {
+            provider: &self.provider,
+            credential: &self.credential,
+            endpoint: &self.endpoint,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -62,7 +79,7 @@ impl PendingAdmission {
             offered_tools,
             messages,
             route_match: None,
-            served_provider: None,
+            served_hop: None,
             system_prompt_override: None,
             prepared: None,
             findings: Vec::new(),
@@ -83,8 +100,8 @@ impl GatewayAudit {
         self.stash(|p| p.route_match = Some(descriptor.to_owned()))
     }
 
-    pub(super) fn stash_served_provider(&self, provider: &str) -> bool {
-        self.stash(|p| p.served_provider = Some(provider.to_owned()))
+    pub(super) fn stash_served_hop(&self, hop: &OwnedHop) -> bool {
+        self.stash(|p| p.served_hop = Some(hop.clone()))
     }
 
     pub(super) fn stash_system_prompt_override(&self, descriptor: &str) -> bool {
@@ -180,7 +197,7 @@ impl GatewayAudit {
                 offered_tools: pending.offered_tools.as_ref(),
                 messages: &messages,
                 route_match: pending.route_match.as_deref(),
-                served_provider: pending.served_provider.as_deref(),
+                served_hop: pending.served_hop.as_ref().map(OwnedHop::as_served),
                 system_prompt_override: pending.system_prompt_override.as_deref(),
                 prepared: pending
                     .prepared

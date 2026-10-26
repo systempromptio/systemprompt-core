@@ -27,7 +27,7 @@ pub use startup::{
 pub use table::{ServiceTableEntry, render_service_table, render_startup_complete, render_table};
 pub use theme::{
     ActionType, BrandColors, ColorType, Colors, EmphasisType, IconType, Icons, ItemStatus,
-    MessageLevel, ModuleType, ServiceStatus, Theme,
+    MessageLevel, ModuleType, StatusGlyph, Theme,
 };
 
 use super::output;

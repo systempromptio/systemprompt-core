@@ -1,8 +1,6 @@
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_oauth::models::OAuthClient;
-use systemprompt_oauth::repository::{
-    ClientRepository, CreateClientParams, OAuthRepository, UpdateClientParams,
-};
+use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, UpdateClientParams};
 use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
 use uuid::Uuid;
 
@@ -29,7 +27,7 @@ async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_c
     seed_user_row(&pool, &owner, &format!("{}@oauth.invalid", owner.as_str()))
         .await
         .expect("seed OAuth owner");
-    let repository = OAuthRepository::new(&pool);
+    let repository = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     let clients = ClientRepository::new(&pool);
     let client_id = ClientId::new(format!("atomic-{}", Uuid::new_v4().simple()));
     let original = repository

@@ -56,10 +56,10 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     let runtime_env = determine_environment(env_name);
     let is_prod = matches!(runtime_env, Environment::Production);
     let server = sections::server(is_prod);
-    let governance = sections::governance(&server.api_internal_url);
-    let security = sections::security(&server.api_external_url);
+    let governance = sections::governance();
+    let security = sections::security();
 
-    let profile = Profile {
+    let mut profile = Profile {
         storage: systemprompt_manifest::profile::StorageConfig::default(),
         observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
         config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
@@ -110,6 +110,9 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         },
     };
 
+    profile
+        .derive_fields()
+        .context("generated profile has an invalid server.external_url")?;
     profile
         .validate()
         .context("generated profile failed validation")?;

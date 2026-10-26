@@ -13,7 +13,7 @@ use systemprompt_scheduler::{
     DesiredStatus, ReconciliationResult, SchedulerError, ServiceAction, ServiceConfig,
     ServiceReconciler, ServiceStateVerifier,
 };
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_service_name};
 
 fn isolated_instance() -> InstanceId {
     InstanceId::new(format!("reconciler-{}", uuid::Uuid::new_v4().simple()))
@@ -335,10 +335,11 @@ mod state_verifier_db {
             .expect("get_running_services must succeed");
 
         for state in &running {
-            use systemprompt_manifest::RuntimeStatus;
+            use systemprompt_manifest::ServiceStatus;
+            use systemprompt_scheduler::VerifiedService;
             assert_eq!(
-                state.runtime_status,
-                RuntimeStatus::Running,
+                state.runtime,
+                VerifiedService::observed(ServiceStatus::Running),
                 "get_running_services must only return services in Running state"
             );
         }
@@ -362,10 +363,11 @@ mod state_verifier_db {
             .expect("get_crashed_services must succeed");
 
         for state in &crashed {
-            use systemprompt_manifest::RuntimeStatus;
+            use systemprompt_manifest::ServiceStatus;
+            use systemprompt_scheduler::VerifiedService;
             assert_eq!(
-                state.runtime_status,
-                RuntimeStatus::Crashed,
+                state.runtime,
+                VerifiedService::observed(ServiceStatus::Error),
                 "get_crashed_services must only return services in Crashed state"
             );
         }
@@ -448,10 +450,6 @@ mod reconciler_action_arms {
         }
     }
 
-    fn unique_name(prefix: &str) -> ServiceName {
-        ServiceName::new(format!("{prefix}-{}", uuid::Uuid::new_v4().simple()))
-    }
-
     async fn insert_service(
         repo: &ServiceRepository,
         name: &ServiceName,
@@ -516,7 +514,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn crashed_enabled_service_is_restarted() {
         let t = seeded().await;
-        let name = unique_name("rec-restart-ok");
+        let name = unique_service_name("rec-restart-ok");
         insert_service(
             &t.repo,
             &name,
@@ -561,7 +559,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn restart_records_failure_when_start_callback_errors() {
         let t = seeded().await;
-        let name = unique_name("rec-restart-fail");
+        let name = unique_service_name("rec-restart-fail");
         insert_service(
             &t.repo,
             &name,
@@ -601,7 +599,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn stopped_orphan_row_is_swept_from_the_db() {
         let t = seeded().await;
-        let name = unique_name("rec-orphan-db");
+        let name = unique_service_name("rec-orphan-db");
         insert_service(&t.repo, &name, ServiceStatus::Stopped, None, 27403).await;
 
         let result = t
@@ -620,7 +618,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn orphan_sweep_leaves_another_instances_row_alone() {
         let t = seeded().await;
-        let name = unique_name("rec-orphan-scoped");
+        let name = unique_service_name("rec-orphan-scoped");
         insert_service(&t.repo, &name, ServiceStatus::Stopped, None, 27404).await;
         let other_repo = ServiceRepository::new(&t.pool, isolated_instance());
         insert_service(&other_repo, &name, ServiceStatus::Stopped, None, 27404).await;
@@ -644,7 +642,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn orphaned_process_is_terminated_and_row_swept() {
         let t = seeded().await;
-        let name = unique_name("rec-orphan-proc");
+        let name = unique_service_name("rec-orphan-proc");
         let (_holder, pid, port) = spawn_port_holder(Some(&name));
         insert_service(&t.repo, &name, ServiceStatus::Stopped, None, port).await;
 
@@ -668,7 +666,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn unmarked_port_holder_survives_the_orphan_sweep() {
         let t = seeded().await;
-        let name = unique_name("rec-orphan-foreign");
+        let name = unique_service_name("rec-orphan-foreign");
         let (_holder, pid, port) = spawn_port_holder(None);
         insert_service(&t.repo, &name, ServiceStatus::Stopped, None, port).await;
 
@@ -688,7 +686,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn disabled_running_service_is_stopped() {
         let t = seeded().await;
-        let name = unique_name("rec-stop");
+        let name = unique_service_name("rec-stop");
         let (_holder, pid, port) = spawn_port_holder(Some(&name));
         insert_service(&t.repo, &name, ServiceStatus::Running, Some(pid), port).await;
 
@@ -720,7 +718,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn disabled_service_with_an_unmarked_recorded_pid_fails_the_stop() {
         let t = seeded().await;
-        let name = unique_name("rec-stop-foreign");
+        let name = unique_service_name("rec-stop-foreign");
         let (_holder, pid, port) = spawn_port_holder(None);
         insert_service(&t.repo, &name, ServiceStatus::Running, Some(pid), port).await;
 
@@ -751,7 +749,7 @@ mod reconciler_action_arms {
     #[tokio::test]
     async fn healthy_running_service_needs_no_action() {
         let t = seeded().await;
-        let name = unique_name("rec-noop");
+        let name = unique_service_name("rec-noop");
         let (_holder, pid, port) = spawn_port_holder(Some(&name));
         insert_service(&t.repo, &name, ServiceStatus::Running, Some(pid), port).await;
 

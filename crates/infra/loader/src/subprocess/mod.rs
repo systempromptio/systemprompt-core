@@ -4,10 +4,11 @@
 //!
 //! # Spawning
 //!
-//! [`spawn_supervised`] is the only sanctioned way to start a child, and
-//! [`mark_child`] stamps it with the environment markers that later prove it
-//! is ours. Every spawn runs on one dedicated thread, which on Linux also arms
-//! the parent-death signal.
+//! [`Spawner::spawn_supervised`] is the only sanctioned way to start a child,
+//! and [`mark_child`] stamps it with the environment markers that later prove
+//! it is ours. A [`Spawner`] owns the one dedicated thread every spawn runs on,
+//! which on Linux also arms the parent-death signal; the composition root
+//! creates it once and injects it.
 //!
 //! # Control
 //!
@@ -83,14 +84,13 @@ use unsupported::live_environ;
 pub use unsupported::{is_zombie, live_pid_is_subprocess};
 
 pub use control::{
-    StopOutcome, Termination, is_running, owns, pids_listening_on, process_group, stop_owned,
-    terminate_gracefully, terminate_group_gracefully,
+    StopOutcome, SubprocessLiveness, Termination, is_running, owns, pids_listening_on,
+    process_group, stop_owned, terminate_gracefully, terminate_group_gracefully,
 };
 pub use error::SupervisionError;
 pub use ports::{parse_lsof_pids, parse_netstat_listeners};
 pub use spawn::{
-    ApiServerStamp, mark_child, place_in_own_process_group, spawn_owned_supervised,
-    spawn_supervised, stamp_api_server,
+    ApiServerStamp, Spawner, mark_child, place_in_own_process_group, stamp_api_server,
 };
 
 /// Which kind of supervised process a pid is claimed to be; selects the

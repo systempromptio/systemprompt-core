@@ -16,16 +16,23 @@ set -uo pipefail
 # never reaches it. It is scanned explicitly here — four violations lived there
 # undetected precisely because every gate stopped at the root manifest.
 
-cd "$(dirname "$0")/.."
+#   scripts/lint-inline-tests.sh            # core roots
+#   scripts/lint-inline-tests.sh ROOT...    # scan other source roots; paths
+#                                           # resolve against the caller's cwd
+
+if [ "$#" -eq 0 ]; then
+    cd "$(dirname "$0")/.."
+    set -- crates bin systemprompt
+fi
 
 fail=0
 while IFS=: read -r file line _; do
     case "$file" in
-        crates/tests/*) continue ;;
+        */tests/*|tests/*) continue ;;
     esac
     echo "$file:$line: inline \`#[cfg(test)] mod tests\` — move it to crates/tests/"
     fail=1
-done < <(grep -rn --include='*.rs' -A1 '#\[cfg(test)\]' crates bin systemprompt 2>/dev/null \
+done < <(grep -rn --include='*.rs' -A1 '#\[cfg(test)\]' "$@" 2>/dev/null \
     | grep -B0 'mod tests' \
     | sed -E 's/-([0-9]+)-/:\1:/' \
     | grep -E '^[^:]+:[0-9]+:.*mod tests')

@@ -149,6 +149,21 @@ test-group = 'logs-cleanup-db'
 filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
 test-group = 'logs-cleanup-db'
 
+# Why: an enforced `DatabaseCleanupJob` run deletes every expired row in the shared
+# database, so it removes the fixture the dry-run test seeds and then asserts is
+# still there (`without_enforce_an_expired_row_is_kept` failed in Coverage).
+[[profile.default.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
+test-group = 'logs-cleanup-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
+test-group = 'logs-cleanup-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
+test-group = 'logs-cleanup-db'
+
 [[profile.default.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
 test-group = 'logs-cleanup-db'
@@ -254,7 +269,7 @@ filter = 'package(systemprompt-security-integration-tests) and test(/gateway_rec
 test-group = 'gateway-reconcile-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/))'
+filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/) or test(/db_migrate_exec::(verbose_)?profile_migrate/))'
 test-group = 'cli-migration-ledger-db'
 
 [[profile.default.overrides]]
@@ -270,7 +285,7 @@ filter = 'package(systemprompt-security-integration-tests) and test(/gateway_rec
 test-group = 'gateway-reconcile-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/))'
+filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/) or test(/db_migrate_exec::(verbose_)?profile_migrate/))'
 test-group = 'cli-migration-ledger-db'
 
 [[profile.ci.overrides]]
@@ -454,7 +469,7 @@ filter = 'package(systemprompt-security-integration-tests) and test(/gateway_rec
 test-group = 'gateway-reconcile-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/))'
+filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/) or test(/db_migrate_exec::(verbose_)?profile_migrate/))'
 test-group = 'cli-migration-ledger-db'
 
 [[profile.coverage.overrides]]
@@ -508,3 +523,31 @@ test-group = 'scheduler-services-db'
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-api-tests) and test(coverage_agent_reconciliation)'
 test-group = 'scheduler-services-db'
+
+# Each of these spawns a child CLI that boots a full runtime; run unthrottled
+# alongside the rest of the suite they oversubscribe the CPU and trip the
+# subprocess hang guard. Counting each as 4 threads spaces them out.
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-cli-tests) and test(/(services_refresh_changed_exit|admin_bridge_signing_rotation|admin_plugin_token_lifecycle|admin_agent_tools_empty_output|cloud_profile_optional_config_recovery|mcp_logs_follow_lifecycle|services_cleanup_owned_lifecycle|db_doctor_repair_lifecycle|db_migrate_status_collision_orphan|agent_tools_mixed_lifecycle|mcp_internal_status_lifecycle|admin_users_delete_preview_lifecycle|admin_access_control_public_lifecycle|agent_logs_follow_lifecycle|core_files_ai_output_lifecycle|core_contexts_public_lifecycle)::/)'
+threads-required = 4
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and binary(serve_lifecycle)'
+threads-required = 4
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-cli-tests) and test(/(services_refresh_changed_exit|admin_bridge_signing_rotation|admin_plugin_token_lifecycle|admin_agent_tools_empty_output|cloud_profile_optional_config_recovery|mcp_logs_follow_lifecycle|services_cleanup_owned_lifecycle|db_doctor_repair_lifecycle|db_migrate_status_collision_orphan|agent_tools_mixed_lifecycle|mcp_internal_status_lifecycle|admin_users_delete_preview_lifecycle|admin_access_control_public_lifecycle|agent_logs_follow_lifecycle|core_files_ai_output_lifecycle|core_contexts_public_lifecycle)::/)'
+threads-required = 4
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and binary(serve_lifecycle)'
+threads-required = 4
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-cli-tests) and test(/(services_refresh_changed_exit|admin_bridge_signing_rotation|admin_plugin_token_lifecycle|admin_agent_tools_empty_output|cloud_profile_optional_config_recovery|mcp_logs_follow_lifecycle|services_cleanup_owned_lifecycle|db_doctor_repair_lifecycle|db_migrate_status_collision_orphan|agent_tools_mixed_lifecycle|mcp_internal_status_lifecycle|admin_users_delete_preview_lifecycle|admin_access_control_public_lifecycle|agent_logs_follow_lifecycle|core_files_ai_output_lifecycle|core_contexts_public_lifecycle)::/)'
+threads-required = 4
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and binary(serve_lifecycle)'
+threads-required = 4

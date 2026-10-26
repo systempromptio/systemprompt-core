@@ -9,9 +9,7 @@ use systemprompt_cli::session::{
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CloudCredentials, SessionKey};
 use systemprompt_identifiers::{CloudAuthToken, Email, UserId};
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles, test_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row_with_roles, test_db_pool};
 
 struct Project {
     previous: PathBuf,
@@ -67,7 +65,6 @@ impl Drop for Project {
 
 async fn admin() -> UserId {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let id = UserId::new(format!("sessionflow-{}", uuid::Uuid::new_v4().simple()));
     seed_user_row_with_roles(
@@ -127,7 +124,10 @@ async fn coverage_active_profile_is_resolved_after_explicit_override_is_removed(
     let ctx = CommandContext::new(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
-    );
+    )
+    .with_profile(Some(
+        systemprompt_config::LoadedProfile::from_path(&project.profile).unwrap(),
+    ));
     let resumed = get_or_create_session(&ctx).await.unwrap().session;
     assert_eq!(resumed.session_id, first.session_id);
     assert_eq!(resumed.user_id, user);
@@ -170,9 +170,17 @@ async fn coverage_clearing_sessions_is_persisted_and_idempotent() {
     get_or_create_session(&project.context(false))
         .await
         .unwrap();
-    clear_session(&project.paths()).unwrap();
+    clear_session(
+        &project.paths(),
+        &systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap(),
+    )
+    .unwrap();
     assert!(load_session_store(&project.paths()).unwrap().is_empty());
-    clear_session(&project.paths()).unwrap();
+    clear_session(
+        &project.paths(),
+        &systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap(),
+    )
+    .unwrap();
     get_or_create_session(&project.context(false))
         .await
         .unwrap();
@@ -475,11 +483,8 @@ async fn coverage_profile_edit_persists_server_security_and_runtime_choices() {
                 "0",
                 "127.0.0.2",
                 "8123",
-                "http://127.0.0.2:8123",
                 "https://fixture.example",
-                "yes",
                 "1",
-                "https://issuer.example",
                 "600",
                 "1200",
                 "2",
@@ -496,7 +501,7 @@ async fn coverage_profile_edit_persists_server_security_and_runtime_choices() {
     assert_eq!(after.server.host, "127.0.0.2");
     assert_eq!(after.server.port, 8123);
     assert!(after.server.use_https);
-    assert_eq!(after.security.issuer, "https://issuer.example");
+    assert_eq!(after.security.issuer, "https://fixture.example");
     assert_eq!(after.security.access_token_expiration, 600);
     assert_eq!(after.security.refresh_token_expiration, 1200);
     assert_eq!(after.runtime.environment.to_string(), "staging");

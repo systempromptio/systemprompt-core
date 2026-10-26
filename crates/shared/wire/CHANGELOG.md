@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `CanonicalRequest` groups its sampling, tooling and reasoning fields into `sampling: CanonicalSampling`, `tooling: CanonicalTooling` and `reasoning: CanonicalReasoning`. Migrate by reading and building the fields through those groups.
+
+### Changed
+
+- Header constants come from `systemprompt_identifiers::headers`.
+
 ## [0.72.0] - 2026-10-22
 
 ### Added

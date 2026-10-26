@@ -10,8 +10,7 @@ use clap::Args;
 
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
-use crate::CliConfig;
-use crate::interactive::Prompter;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -37,15 +36,13 @@ pub struct LogsArgs {
     pub logs_dir: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: LogsArgs,
-    prompter: &dyn Prompter,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: LogsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let prompter = ctx.prompter();
+    let config = &ctx.cli;
     let logs_path = match args.logs_dir.as_deref() {
         Some(dir) => PathBuf::from(dir),
         None => PathBuf::from(
-            systemprompt_manifest::Config::get()
+            ctx.config()
                 .context("agent log directory requires an initialised profile")?
                 .logs_path(),
         ),
@@ -59,7 +56,7 @@ pub(super) async fn execute(
         return execute_disk_mode(&args, prompter, config, &logs_path);
     }
 
-    match execute_db_mode(&args, config).await {
+    match execute_db_mode(&args, ctx).await {
         Ok(result) => Ok(result),
         Err(e) => {
             tracing::debug!(error = %e, "DB log query failed, falling back to disk");

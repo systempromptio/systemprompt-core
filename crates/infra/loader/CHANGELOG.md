@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- `bundle::degraded` (`DegradedRecord`, `BundleCache::{read,write,clear}_degraded`): the on-disk record of a fallback boot.
+- `ServicesSourceBootstrap` load-validates the composed tree before swapping `current` or writing `state.json`; an unloadable composition falls back per `on_fetch_failure` with an error naming the sources and the loader's file, line and rule.
+- `ProfileLoader::load`/`load_and_validate` take the profiles directory and load `<dir>/<name>/profile.yaml` over `<dir>/base.yaml`; `save` writes the overlay; `list_available` lists `<dir>/<name>/profile.yaml`. The `<name>.secrets.profile.yaml` layout is gone.
+- The loader reads the model catalog by convention from `services/ai/{credentials,providers,models,deployments,gateway}.yaml` and refuses a catalog section (`credentials:`, `providers:`, `models:`, `deployments:`, `gateway:`) in the root or any include with `ConfigLoadError::CatalogOutsideConvention`; every file is checked by `detect_legacy_shape` and a pre-0.73 tree fails with `ConfigLoadError::LegacyCatalog` naming `systemprompt admin config migrate`. New variants `CatalogDocument` and `Catalog` (boxed); `DuplicateProvider` is deleted.
+- `ServicesBootstrap::catalog()` returns the booted `ResolvedCatalog`, resolved with `{install}` expanded from the profile's `site.name` (`services_bootstrap::catalog_context`); `ServicesBootstrap::providers()` is deleted and `try_init_with_discovery` augments a `CatalogDocument`.
+- `demote_providers_without_credentials` is deleted: a missing secret is health state, never a catalog rewrite. `config_loader::gateway::backfill_route_ids` and `resolve_file_gateway_includes` are deleted (route ids are declared; overrides resolve beside `services/ai/gateway.yaml`).
+- Vertex discovery runs per `(provider, endpoint)`: `discover`/`discover_with` take `&mut CatalogDocument`, `CatalogSource::{matches_endpoint, applies, list}` take a `DiscoveryEndpoint`, `classify`/`classify_discovered`/`merge::record_unseen` key the rate card by `WireProtocol`, the listing token is cached under the credential's `TokenCacheKey`, and `merge::publish` appends one model plus one deployment on the listing endpoint; a retired declared model gets `clients: []` instead of `hidden`.
+- `SecurityUpdate::jwt_issuer` is removed, because the issuer is derived from `server.external_url`. `ConfigFingerprint::current` takes `(&Profile, &SecretsService, services_sha)`; `bundle::provenance::owning_bundle_hashes` takes the `&Profile`. `ProfileBootstrapError::{NotInitialized, AlreadyInitialized}` are removed and `PathNotSet` is the only variant. Migrate by setting `server.external_url`, passing the boot context's profile and secrets, and dropping the removed arms.
+
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

@@ -8,8 +8,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#
 }
 
@@ -98,7 +96,7 @@ fn discover_skills_from_disk() {
         "Auto Skill Two",
     );
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert!(
         config.skills.skills.contains_key("auto_skill_one"),
         "auto_skill_one should be discovered"
@@ -123,7 +121,7 @@ fn discover_skills_skips_non_dirs() {
     std::fs::create_dir_all(&skills_dir).expect("create skills dir");
     std::fs::write(skills_dir.join("not-a-dir.txt"), "just a file").expect("write file");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert!(config.skills.skills.is_empty());
 }
 
@@ -142,7 +140,7 @@ fn discover_skills_skips_dirs_without_config() {
     std::fs::create_dir_all(&no_config_dir).expect("create dir without config");
     std::fs::write(no_config_dir.join("index.md"), "content").expect("write index");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert!(config.skills.skills.is_empty());
 }
 
@@ -159,8 +157,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 skills:
   enabled: true
   auto_discover: false
@@ -181,7 +177,7 @@ skills:
     let skills_dir = services_dir.join("skills");
     write_skill_config(&skills_dir.join("my_skill"), "my_skill", "Disk Skill Name");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     let skill = config.skills.skills.get("my_skill").expect("skill present");
     assert_eq!(
         skill.name, "Explicit Skill",
@@ -202,7 +198,7 @@ fn discover_plugins_from_disk() {
     let plugins_dir = services_dir.join("plugins");
     write_plugin_config(&plugins_dir.join("my-plugin"), "my-plugin", "My Plugin");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert!(
         config.plugins.contains_key("my-plugin"),
         "plugin must be discovered from disk"
@@ -222,7 +218,7 @@ fn discover_plugins_skips_non_dirs() {
     std::fs::create_dir_all(&plugins_dir).expect("create plugins dir");
     std::fs::write(plugins_dir.join("not-a-dir.txt"), "data").expect("write file");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert!(config.plugins.is_empty());
 }
 
@@ -240,7 +236,7 @@ fn discover_plugins_skips_dirs_without_config() {
     std::fs::create_dir_all(&no_config).expect("create dir without config");
     std::fs::write(no_config.join("README.md"), "no config").expect("write readme");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert!(config.plugins.is_empty());
 }
 
@@ -256,8 +252,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 plugins:
   my-plugin:
     id: my-plugin
@@ -287,7 +281,7 @@ plugins:
         "Disk Plugin Name",
     );
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     let plugin = config.plugins.get("my-plugin").expect("plugin present");
     assert_eq!(
         plugin.name, "Explicit Plugin",
@@ -308,7 +302,7 @@ fn discover_marketplaces_from_disk() {
     let mkt_dir = services_dir.join("marketplaces");
     write_marketplace_config(&mkt_dir.join("my-market"), "my-market", "My Market");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     let found = config
         .marketplaces
         .iter()
@@ -329,7 +323,7 @@ fn discover_marketplaces_skips_non_dirs() {
     std::fs::create_dir_all(&mkt_dir).expect("create marketplaces dir");
     std::fs::write(mkt_dir.join("stray.txt"), "data").expect("write stray");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert!(config.marketplaces.is_empty());
 }
 
@@ -347,7 +341,7 @@ fn discover_marketplaces_skips_dirs_without_config() {
     std::fs::create_dir_all(&no_cfg).expect("create dir");
     std::fs::write(no_cfg.join("README.md"), "empty").expect("write readme");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert!(config.marketplaces.is_empty());
 }
 
@@ -365,7 +359,7 @@ fn duplicate_marketplace_via_disk_discovery_errors() {
     write_marketplace_config(&mkt_dir.join("dup-a"), "dup-market", "Dup A");
     write_marketplace_config(&mkt_dir.join("dup-b"), "dup-market", "Dup B");
 
-    let result = ConfigLoader::load_from_path(&config_path);
+    let result = ConfigLoader::load_from_path(&config_path, None);
     assert!(
         result.is_err(),
         "duplicate marketplace IDs from disk must error"
@@ -403,7 +397,7 @@ fn discover_multiple_plugins_and_skills() {
         );
     }
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load");
+    let config = ConfigLoader::load_from_path(&config_path, None).expect("should load");
     assert_eq!(config.skills.skills.len(), 3);
     assert_eq!(config.plugins.len(), 3);
 }
@@ -421,7 +415,7 @@ fn discover_skills_malformed_yaml_errors() {
     std::fs::write(skill_dir.join("config.yaml"), "id: : : not valid: yaml")
         .expect("write malformed skill config");
 
-    let result = ConfigLoader::load_from_path(&config_path);
+    let result = ConfigLoader::load_from_path(&config_path, None);
     let err = result.expect_err("malformed skill config.yaml must surface a parse error");
     let msg = format!("{err:#}");
     assert!(
@@ -443,7 +437,7 @@ fn discover_plugins_malformed_yaml_errors() {
     std::fs::write(plugin_dir.join("config.yaml"), "plugin: : : bad: yaml")
         .expect("write malformed plugin config");
 
-    let result = ConfigLoader::load_from_path(&config_path);
+    let result = ConfigLoader::load_from_path(&config_path, None);
     let err = result.expect_err("malformed plugin config.yaml must surface a parse error");
     let msg = format!("{err:#}");
     assert!(
@@ -465,7 +459,7 @@ fn discover_marketplaces_malformed_yaml_errors() {
     std::fs::write(mkt_dir.join("config.yaml"), "marketplace: : : bad: yaml")
         .expect("write malformed marketplace config");
 
-    let result = ConfigLoader::load_from_path(&config_path);
+    let result = ConfigLoader::load_from_path(&config_path, None);
     let err = result.expect_err("malformed marketplace config.yaml must surface a parse error");
     let msg = format!("{err:#}");
     assert!(
@@ -480,7 +474,7 @@ fn discover_skips_missing_parent_no_panic() {
     let config_path = temp.path().join("services.yaml");
     std::fs::write(&config_path, base_config()).expect("write config");
 
-    let config = ConfigLoader::load_from_path(&config_path)
+    let config = ConfigLoader::load_from_path(&config_path, None)
         .expect("should load even with no parent services dir structure");
     assert!(config.skills.skills.is_empty());
     assert!(config.plugins.is_empty());
@@ -499,7 +493,7 @@ fn duplicate_skill_via_disk_discovery_errors() {
     write_skill_config(&skills_dir.join("dup-a"), "dup_skill", "Dup A");
     write_skill_config(&skills_dir.join("dup-b"), "dup_skill", "Dup B");
 
-    let result = ConfigLoader::load_from_path(&config_path);
+    let result = ConfigLoader::load_from_path(&config_path, None);
     assert!(result.is_err(), "duplicate skill ids from disk must error");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
@@ -520,7 +514,7 @@ fn duplicate_plugin_via_disk_discovery_errors() {
     write_plugin_config(&plugins_dir.join("dup-a"), "dup-plugin", "Dup A");
     write_plugin_config(&plugins_dir.join("dup-b"), "dup-plugin", "Dup B");
 
-    let result = ConfigLoader::load_from_path(&config_path);
+    let result = ConfigLoader::load_from_path(&config_path, None);
     assert!(result.is_err(), "duplicate plugin ids from disk must error");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(

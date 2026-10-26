@@ -41,9 +41,12 @@ async fn service_with_ledger(
     deps.tool_executions = tool_execution_ledger(ledger);
     let repositories = A2ARepositories::new(pool, deps);
     let steps = Arc::new(ExecutionStepRepository::new(pool));
-    let skills = Arc::new(
-        SkillService::new(not_managed_skills(), steps, recording_webhooks()).expect("skills"),
-    );
+    let skills = Arc::new(SkillService::new(
+        systemprompt_test_fixtures::test_skills_root(),
+        not_managed_skills(),
+        steps,
+        recording_webhooks(),
+    ));
     ArtifactPublishingService::new(&repositories, skills)
 }
 

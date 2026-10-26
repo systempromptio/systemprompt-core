@@ -20,17 +20,18 @@
 //! - [`vertex_discovery`] — boot-time catalog discovery: each provider's
 //!   credential decides which `CatalogSource` may list it, and every priced,
 //!   serverless model it returns is folded into the provider registry.
-//! - [`services_root`] — the process-wide cell naming the services root the
-//!   instance actually runs, with its provenance.
-//! - [`services_bootstrap`] — the process-wide cell holding the loaded services
-//!   config (provider catalog and gateway included), initialised right after
-//!   the profile at boot.
+//! - [`boot`] — [`BootContext`], the owned profile, secrets, resolved config
+//!   and services root the entry crates build once at startup.
+//! - [`services_state`] — [`ServicesState`], the owned services config, its
+//!   resolved catalog and the discovery report, built once at boot and handed
+//!   to every consumer.
 //! - [`error`] — public error types ([`ConfigLoadError`], [`ConfigWriteError`],
 //!   [`ExtensionLoadError`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod boot;
 pub mod bundle;
 pub mod config_loader;
 pub mod config_writer;
@@ -39,11 +40,11 @@ pub mod extension_binary_index;
 pub mod extension_loader;
 pub mod module_loader;
 pub mod profile_loader;
-pub mod services_bootstrap;
-pub mod services_root;
+pub mod services_state;
 pub mod subprocess;
 pub mod vertex_discovery;
 
+pub use boot::BootContext;
 pub use bundle::{BundleError, BundleResult, ServicesSourceBootstrap};
 pub use config_loader::ConfigLoader;
 pub use config_writer::ConfigWriter;
@@ -55,5 +56,4 @@ pub use extension_binary_index::ExtensionBinaryIndex;
 pub use extension_loader::{ExtensionLoader, ExtensionValidationResult};
 pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
-pub use services_bootstrap::ServicesBootstrap;
-pub use services_root::{ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap};
+pub use services_state::{DiscoveryFuture, ServicesState, catalog_context};

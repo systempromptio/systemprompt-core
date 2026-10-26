@@ -38,7 +38,7 @@ pub fn clear_hosts() -> Vec<String> {
     // Why: a profile left on any host keeps pointing that host at a proxy port
     // and secret the purge has just discarded; every enrolled host is cleared,
     // not only the two the Cowork path knew about.
-    match super::enrol::remove_host_profiles(&super::enrol::Selection::All) {
+    match super::enrol::remove_host_profiles(&super::enrol::Selection::All, &[]) {
         Ok(reports) => {
             for report in reports {
                 match report.outcome {
@@ -99,8 +99,8 @@ pub fn purge_device(
     ctx: &crate::context::BridgeContext,
 ) -> Result<PurgeReport, crate::install::InstallError> {
     let uninstall = uninstall(true, ctx)?;
-    let clean =
-        crate::auth::setup::clean().map_err(crate::install::InstallError::CleanLocalState)?;
+    let clean = crate::auth::setup::clean(ctx.secrets())
+        .map_err(crate::install::InstallError::CleanLocalState)?;
     let proxy_state_removed = remove_proxy_state()?;
     let foreign_proxy = match crate::proxy::peer::probe_identity(
         crate::proxy::DEFAULT_PROXY_PORT,

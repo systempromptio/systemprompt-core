@@ -1,24 +1,22 @@
 //! `admin config server` command: show and edit profile server settings.
 //!
-//! [`ServerCommands`] reports and updates host, port, URLs, and HTTPS settings,
-//! and delegates the CORS allowed-origins list to the `cors` submodule. Changes
-//! persist to the active profile.
+//! [`ServerCommands`] reports and updates host, port and `external_url` (every
+//! other server URL derives from those), and delegates the extra CORS origins
+//! to the `cors` submodule. Changes persist to the active profile's overlay.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod cors;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use std::fs;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Profile;
 
+pub(super) use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{ServerConfigOutput, ServerSetOutput};
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -41,33 +39,29 @@ pub struct SetArgs {
     #[arg(long, help = "Server port")]
     pub port: Option<u16>,
 
-    #[arg(long, help = "Enable/disable HTTPS")]
-    pub use_https: Option<bool>,
-
-    #[arg(long, help = "API server URL")]
-    pub api_server_url: Option<String>,
-
-    #[arg(long, help = "API internal URL")]
-    pub api_internal_url: Option<String>,
-
-    #[arg(long, help = "API external URL")]
-    pub api_external_url: Option<String>,
+    #[arg(
+        long,
+        help = "Public URL; the API URLs, JWT issuer, CORS origin and HTTPS flag derive from it"
+    )]
+    pub external_url: Option<String>,
 }
 
-pub fn execute(command: &ServerCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: &ServerCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        ServerCommands::Show => execute_show(config),
-        ServerCommands::Set(args) => execute_set(args, config),
-        ServerCommands::Cors(cmd) => cors::execute(cmd, config),
+        ServerCommands::Show => execute_show(ctx),
+        ServerCommands::Set(args) => execute_set(args, ctx),
+        ServerCommands::Cors(cmd) => cors::execute(cmd, ctx),
     }
 }
 
-pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
 
     let output = ServerConfigOutput {
         host: profile.server.host.clone(),
         port: profile.server.port,
+        external_url: profile.server.external_url.clone(),
         api_server_url: profile.server.api_server_url.clone(),
         api_internal_url: profile.server.api_internal_url.clone(),
         api_external_url: profile.server.api_external_url.clone(),
@@ -92,21 +86,13 @@ fn change(field: &str, old: String, new: String) -> ServerSetOutput {
     }
 }
 
-pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
-    if args.host.is_none()
-        && args.port.is_none()
-        && args.use_https.is_none()
-        && args.api_server_url.is_none()
-        && args.api_internal_url.is_none()
-        && args.api_external_url.is_none()
-    {
-        bail!(
-            "Must specify at least one option: --host, --port, --use-https, --api-server-url, \
-             --api-internal-url, --api-external-url"
-        );
+pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    if args.host.is_none() && args.port.is_none() && args.external_url.is_none() {
+        bail!("Must specify at least one option: --host, --port, --external-url");
     }
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
 
     let mut changes: Vec<ServerSetOutput> = Vec::new();
@@ -123,31 +109,20 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         changes.push(change("port", old.to_string(), port.to_string()));
     }
 
-    if let Some(use_https) = args.use_https {
-        let old = profile.server.use_https;
-        profile.server.use_https = use_https;
-        changes.push(change("use_https", old.to_string(), use_https.to_string()));
-    }
-
-    if let Some(ref url) = args.api_server_url {
-        let old = profile.server.api_server_url.clone();
-        profile.server.api_server_url.clone_from(url);
-        changes.push(change("api_server_url", old, url.clone()));
-    }
-
-    if let Some(ref url) = args.api_internal_url {
-        let old = profile.server.api_internal_url.clone();
-        profile.server.api_internal_url.clone_from(url);
-        changes.push(change("api_internal_url", old, url.clone()));
-    }
-
-    if let Some(ref url) = args.api_external_url {
-        let old = profile.server.api_external_url.clone();
-        profile.server.api_external_url.clone_from(url);
-        changes.push(change("api_external_url", old, url.clone()));
+    if let Some(ref url) = args.external_url {
+        let old = profile.server.external_url.clone();
+        profile.server.external_url.clone_from(url);
+        changes.push(change("external_url", old, url.clone()));
     }
 
     save_profile(&profile, profile_path)?;
+
+    if args.external_url.is_some() {
+        crate::session::clear_session(&crate::paths::ResolvedPaths::discover(), ctx.profile()?)?;
+        CliService::info(
+            "Cleared the stored CLI session: its token was minted under the previous issuer.",
+        );
+    }
 
     for change in &changes {
         render_result(&CommandOutput::card_value("Server Updated", change), config);
@@ -157,19 +132,5 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
-}
-
-fn load_profile(path: &str) -> Result<Profile> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("Failed to read profile: {}", path))?;
-    let profile: Profile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse profile: {}", path))?;
-    Ok(profile)
-}
-
-pub(super) fn save_profile(profile: &Profile, path: &str) -> Result<()> {
-    let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
-    fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
     Ok(())
 }

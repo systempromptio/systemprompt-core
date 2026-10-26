@@ -24,7 +24,7 @@ fn parse(args: &[&str]) -> ConfigCommands {
 }
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -79,24 +79,33 @@ async fn paths_arm_shows_and_validates_the_configured_paths() {
 }
 
 #[tokio::test]
-async fn provider_arm_reads_the_ai_config_when_present_and_reports_it_when_absent() {
+async fn provider_arm_lists_the_catalog_and_toggles_a_provider() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    let ai_config = boot.services_path.join("ai/config.yaml");
-
-    let err = run(&["provider", "list"]).await.unwrap_err();
-    assert!(format!("{err:#}").contains("ai/config.yaml"), "{err:#}");
-
-    std::fs::create_dir_all(ai_config.parent().unwrap()).unwrap();
-    std::fs::write(
-        &ai_config,
-        "ai:\n  default_provider: anthropic\n  providers:\n    anthropic:\n      enabled: \
-         true\n      model: claude-sonnet-4-5\n",
-    )
-    .unwrap();
+    let ai = boot.services_path.join("ai");
+    std::fs::create_dir_all(&ai).unwrap();
 
     run(&["provider", "list"]).await.unwrap();
-    run(&["provider", "enable", "anthropic"]).await.unwrap();
-    run(&["provider", "disable", "anthropic"]).await.unwrap();
+
+    let err = run(&["provider", "enable", "--id", "anthropic"])
+        .await
+        .unwrap_err();
+    assert!(
+        format!("{err:#}").contains("'anthropic' is not declared"),
+        "{err:#}"
+    );
+
+    for (name, body) in systemprompt_manifest::services::catalog::DefaultCatalog::FILES {
+        std::fs::write(ai.join(name), body).unwrap();
+    }
+    run(&["provider", "list"]).await.unwrap();
+    run(&["provider", "disable", "--id", "gemini"])
+        .await
+        .unwrap();
+    let providers = std::fs::read_to_string(ai.join("providers.yaml")).unwrap();
+    assert!(providers.contains("enabled: false"), "{providers}");
+    run(&["provider", "enable", "--id", "gemini"])
+        .await
+        .unwrap();
 }
 
 #[tokio::test]

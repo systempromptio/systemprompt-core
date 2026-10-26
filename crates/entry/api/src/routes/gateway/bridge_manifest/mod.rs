@@ -17,7 +17,6 @@ use axum::Json;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::BridgePolicyConfig;
 use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
@@ -27,9 +26,10 @@ use systemprompt_models::bridge::manifest::{
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::keys::SigningKeys;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use super::{bridge_resolved, bridge_services_cache};
+use super::bridge_resolved;
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
@@ -42,17 +42,11 @@ pub async fn manifest(
     let started = Instant::now();
     let schema = shape::requested_schema(&headers);
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| BridgeError::unavailable("manifest: profile not ready", e))?;
+    let profile = ctx.profile();
 
-    let ManifestStamp {
-        manifest_version,
-        issued_at,
-        not_before,
-    } = build_version()?;
+    let stamp = build_version()?;
 
-    let services = bridge_services_cache::load_services_config()
-        .map_err(|e| BridgeError::internal("manifest: services config load failed", e))?;
+    let services = ctx.services_config();
     let instance_hosts = services.instance_enabled_hosts();
     let desktop_policy = desktop_policy(&services);
 
@@ -60,7 +54,7 @@ pub async fn manifest(
         &ctx,
         profile,
         &claims.user_id,
-        services,
+        (*services).clone(),
         bridge_resolved::Freshness::from_headers(&headers),
     )
     .await?;
@@ -89,9 +83,9 @@ pub async fn manifest(
     let manifest = SignedManifest {
         min_schema_version: MANIFEST_INLINE_SCHEMA_VERSION,
         min_bridge_version: Some(manifest_min_bridge_version(&marketplaces)),
-        manifest_version,
-        issued_at,
-        not_before,
+        manifest_version: stamp.manifest_version,
+        issued_at: stamp.issued_at,
+        not_before: stamp.not_before,
         user_id: claims.user_id,
         tenant_id: tenant_id(profile),
         user,
@@ -113,6 +107,7 @@ pub async fn manifest(
     };
 
     Ok(respond(
+        ctx.signing_keys(),
         manifest,
         schema,
         &headers,
@@ -121,6 +116,7 @@ pub async fn manifest(
 }
 
 fn respond(
+    keys: &SigningKeys,
     mut manifest: SignedManifest,
     schema: u32,
     headers: &HeaderMap,
@@ -137,7 +133,7 @@ fn respond(
     }
 
     let signing_at = Instant::now();
-    let envelope: SignedManifestEnvelope = ManifestService::seal(&manifest)
+    let envelope: SignedManifestEnvelope = ManifestService::seal(keys, &manifest)
         .map_err(|e| BridgeError::internal("manifest signing failed", e))?;
     log_timings(started, resolved_at, per_user_at, Some(signing_at));
     Ok(with_validators(Json(envelope).into_response(), &etag))

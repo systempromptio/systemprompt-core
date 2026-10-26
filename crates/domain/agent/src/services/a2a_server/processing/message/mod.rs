@@ -1,7 +1,7 @@
 //! Message processing for the A2A server.
 //!
-//! [`MessageProcessor`] owns the repositories and services needed to handle an
-//! inbound message and persist the resulting task. [`StreamProcessor`] drives
+//! [`MessageHandler`] owns the repositories and services needed to handle an
+//! inbound message and persist the resulting task. [`StreamService`] drives
 //! the streaming execution pipeline, reporting progress as [`StreamEvent`]s
 //! over an mpsc channel. Both the streaming and non-streaming entry points live
 //! in the submodules.
@@ -12,15 +12,17 @@
 pub mod content;
 pub mod message_handler;
 pub mod persistence;
-pub mod stream_processor;
+pub mod stream_service;
 
 pub use content::extract_message_content;
 pub use message_handler::HandleMessageParams;
 pub use persistence::PersistOutcome;
-pub use stream_processor::StreamProcessor;
+pub use stream_service::StreamService;
 
-use crate::services::shared::Result;
+use crate::services::shared::{AgentServiceError, Result};
+use std::path::PathBuf;
 use std::sync::Arc;
+use systemprompt_manifest::services::ServicesView;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -49,7 +51,7 @@ pub enum StreamEvent {
         full_text: String,
         artifacts: Vec<Artifact>,
     },
-    Error(String),
+    Error(Arc<AgentServiceError>),
     Cancelled,
 }
 
@@ -90,7 +92,7 @@ pub struct ProcessMessageStreamParams<'a> {
     pub cancel: CancellationToken,
 }
 
-pub struct MessageProcessor {
+pub struct MessageHandler {
     repositories: Arc<A2ARepositories>,
     ai_service: DynAiProvider,
     context_service: ContextService,
@@ -98,32 +100,36 @@ pub struct MessageProcessor {
     execution_step_repo: Arc<ExecutionStepRepository>,
     publishing: ArtifactPublishingService,
     webhooks: DynWebhookBroadcaster,
+    services: ServicesView,
 }
 
-impl std::fmt::Debug for MessageProcessor {
+impl std::fmt::Debug for MessageHandler {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MessageProcessor")
+        f.debug_struct("MessageHandler")
             .field("ai_service", &"<DynAiProvider>")
             .finish()
     }
 }
 
-impl MessageProcessor {
+impl MessageHandler {
     pub fn new(
         repositories: Arc<A2ARepositories>,
         ai_service: DynAiProvider,
         webhooks: DynWebhookBroadcaster,
-    ) -> Result<Self> {
+        services: ServicesView,
+        skills_root: PathBuf,
+    ) -> Self {
         let context_service = ContextService::new(repositories.tasks.clone());
         let execution_step_repo = Arc::new(repositories.execution_steps.clone());
         let skill_service = Arc::new(SkillService::new(
+            skills_root,
             repositories.managed_skill_resolver(),
             Arc::clone(&execution_step_repo),
             Arc::clone(&webhooks),
-        )?);
+        ));
         let publishing = ArtifactPublishingService::new(&repositories, Arc::clone(&skill_service));
 
-        Ok(Self {
+        Self {
             repositories,
             ai_service,
             context_service,
@@ -131,7 +137,8 @@ impl MessageProcessor {
             execution_step_repo,
             publishing,
             webhooks,
-        })
+            services,
+        }
     }
 
     #[must_use]
@@ -139,11 +146,11 @@ impl MessageProcessor {
         Arc::clone(&self.webhooks)
     }
 
-    pub async fn load_agent_runtime(&self, agent_name: &AgentName) -> Result<AgentRuntimeInfo> {
+    pub fn load_agent_runtime(&self, agent_name: &AgentName) -> Result<AgentRuntimeInfo> {
         use crate::services::registry::AgentRegistry;
 
-        let registry = AgentRegistry::new()?;
-        let agent_config = registry.get_agent(agent_name.as_str()).await?;
+        let registry = AgentRegistry::new(&self.services);
+        let agent_config = registry.get_agent(agent_name.as_str())?;
 
         Ok(agent_config.into())
     }
@@ -169,7 +176,7 @@ impl MessageProcessor {
         &self,
         params: ProcessMessageStreamParams<'_>,
     ) -> Result<MessageStream> {
-        let stream_processor = StreamProcessor {
+        let stream_processor = StreamService {
             ai_service: Arc::clone(&self.ai_service),
             context_service: self.context_service.clone(),
             skill_service: Arc::clone(&self.skill_service),

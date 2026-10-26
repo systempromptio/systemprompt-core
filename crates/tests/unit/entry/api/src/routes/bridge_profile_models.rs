@@ -1,567 +1,232 @@
 //! Unit tests for the advertised model catalog behind `/v1/bridge/profile` and
-//! `/v1/models`. The gateway transcodes every inbound wire to every provider
-//! wire, so both front doors advertise the *whole* advertised set: the flat
-//! `models` list is never narrowed by surface, and `model_entries` is called
-//! with an empty surface slice. Only a `surface: backend` provider is withheld.
-//! The per-surface views that remain (Claude Desktop's carve-out) are built by
-//! the bridge from `providers`, and `surfaces_from_header` still validates the
-//! advisory `x-inference-protocol` header.
+//! `/v1/models`. Both list every advertised model (`clients` not empty) that a
+//! configured credential can serve; a model with `clients: []` still routes but
+//! is never listed, and a platform credential whose secret is absent, or a
+//! personal credential the caller stored no key for, withholds its models while
+//! `providers` still reports the provider with the reason.
+//! `families_from_header` validates the advisory `x-inference-protocol` header.
 
-use std::collections::HashMap;
-use systemprompt_manifest::services::providers::surface_for;
+use std::collections::BTreeSet;
 
 use axum::http::HeaderMap;
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
-use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
-use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
-use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
-use systemprompt_manifest::bridge_profile::{BridgeProfileParams, build as profile_build};
-use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
+use systemprompt_api::routes::gateway::bridge::provider_health;
+use systemprompt_api::routes::gateway::models::{families_from_header, model_entries};
+use systemprompt_catalog_fixtures::{
+    CatalogFixture, claude_model, model, personal, platform, priced,
 };
+use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
+use systemprompt_manifest::bridge_profile::{BridgeProfileParams, CredentialFacts, build};
+use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
 use systemprompt_models::api::ErrorCode;
 use systemprompt_models::bridge::profile::BridgeProfileResponse;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::WireProtocol;
 
-fn build_profile(registry: &ProviderRegistry) -> BridgeProfileResponse {
-    profile_build(
+fn catalog() -> ResolvedCatalog {
+    CatalogFixture::new()
+        .credential("anthropic", platform("anthropic"))
+        .credential("openai", platform("openai"))
+        .credential("go", personal("Go"))
+        .provider("anthropic", ProviderConfig::new("anthropic"))
+        .provider("openai", ProviderConfig::new("openai"))
+        .provider("go", ProviderConfig::new("go"))
+        .endpoint(
+            "anthropic",
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, "https://a.invalid/v1"),
+        )
+        .endpoint(
+            "openai",
+            "api",
+            EndpointConfig::new(WireProtocol::OpenAiChat, "https://o.invalid/v1"),
+        )
+        .endpoint(
+            "go",
+            "chat",
+            EndpointConfig::new(WireProtocol::OpenAiChat, "https://g.invalid/v1"),
+        )
+        .model("claude-sonnet-5", claude_model(1_000_000))
+        .model(
+            "claude-internal",
+            model(&[], 200_000, priced(1.0, 2.0, 0.1)),
+        )
+        .model(
+            "gpt-5",
+            model(&[ClientFamily::OpenAi], 400_000, priced(1.0, 2.0, 0.1)),
+        )
+        .model(
+            "go-kimi",
+            model(&[ClientFamily::OpenAi], 0, priced(1.0, 2.0, 0.1)),
+        )
+        .deploy("claude-sonnet-5", ["anthropic/api"])
+        .deploy("claude-internal", ["anthropic/api"])
+        .deploy("gpt-5", ["openai/api"])
+        .deploy("go-kimi", ["go/chat"])
+        .default_model("claude-sonnet-5")
+        .build()
+}
+
+fn profile(catalog: &ResolvedCatalog, secrets: &[&str], keys: &[&str]) -> BridgeProfileResponse {
+    let present = |name: &str| secrets.contains(&name);
+    let personal_keys: BTreeSet<String> = keys.iter().map(|k| (*k).to_owned()).collect();
+    build(
         BridgeProfileParams {
             inference_gateway_base_url: "https://gw.invalid/v1".to_owned(),
             auth_scheme: "bearer".to_owned(),
             organization_uuid: None,
-            default_model: None,
-            registry,
-            gateway: None,
+            catalog,
         },
-        |_| true,
+        &CredentialFacts {
+            secret_present: &present,
+            personal_keys: &personal_keys,
+        },
     )
 }
 
-fn build_models(registry: &ProviderRegistry) -> Vec<String> {
-    build_profile(registry).models
-}
-
-fn model(id: &str, aliases: &[&str]) -> ProviderModel {
-    ProviderModel {
-        id: ModelId::new(id),
-        aliases: aliases.iter().map(|a| ModelId::new(*a)).collect(),
-        hidden: false,
-        governance: None,
-        upstream_model: None,
-        pricing: Default::default(),
-        capabilities: Default::default(),
-        limits: Default::default(),
-    }
-}
-
-fn provider(name: &str, wire: WireProtocol, models: Vec<ProviderModel>) -> ProviderEntry {
-    provider_with_secret(name, wire, name, models)
-}
-
-fn provider_with_secret(
-    name: &str,
-    wire: WireProtocol,
-    secret: &str,
-    models: Vec<ProviderModel>,
-) -> ProviderEntry {
-    provider_with_surface(name, wire, surface_for(wire), secret, models)
-}
-
-fn provider_with_surface(
-    name: &str,
-    wire: WireProtocol,
-    surface: ApiSurface,
-    secret: &str,
-    models: Vec<ProviderModel>,
-) -> ProviderEntry {
-    ProviderEntry {
-        name: ProviderId::new(name),
-        display_name: None,
-        description: None,
-        wire,
-        surface,
-        endpoint: "https://example.invalid/v1".to_owned(),
-        api_key_secret: Some(SecretName::new(secret)),
-        credential: Default::default(),
-        credential_from: None,
-        user_agent: None,
-        forward_headers: Vec::new(),
-        governance: Default::default(),
-        extra_headers: Default::default(),
-        accepted_betas: None,
-        models,
-    }
-}
-
 #[test]
-fn advertises_canonical_ids_without_aliases() {
-    let registry = ProviderRegistry {
-        providers: vec![provider(
-            "anthropic",
-            WireProtocol::Anthropic,
-            vec![
-                model("claude-sonnet-4-6", &["claude-sonnet"]),
-                model("claude-haiku-4-5", &[]),
-            ],
-        )],
-    };
-
-    let models = registry.advertised_model_ids(&[ApiSurface::Anthropic]);
-
+fn the_profile_lists_advertised_servable_models_only() {
+    let c = catalog();
+    let p = profile(&c, &["anthropic", "openai"], &[]);
     assert_eq!(
-        models,
-        vec![
-            "claude-sonnet-4-6".to_owned(),
-            "claude-haiku-4-5".to_owned(),
-        ]
+        p.models,
+        vec!["claude-sonnet-5".to_owned(), "gpt-5".to_owned()]
     );
-    assert!(registry.contains_model("claude-sonnet"));
+    assert_eq!(p.default_model.as_deref(), Some("claude-sonnet-5[1m]"));
 }
 
 #[test]
-fn includes_every_advertised_surface() {
-    let registry = ProviderRegistry {
-        providers: vec![
-            provider(
-                "anthropic",
-                WireProtocol::Anthropic,
-                vec![model("claude-sonnet-4-6", &["claude-sonnet"])],
-            ),
-            provider(
-                "gemini",
-                WireProtocol::Gemini,
-                vec![model("gemini-3.1-flash-lite-preview", &["gemini-flash"])],
-            ),
-            provider(
-                "openai",
-                WireProtocol::OpenAiChat,
-                vec![model("gpt-5", &[])],
-            ),
-        ],
-    };
-
-    let models = build_models(&registry);
-
-    for expected in [
-        "claude-sonnet-4-6",
-        "gemini-3.1-flash-lite-preview",
-        "gpt-5",
-    ] {
-        assert!(
-            models.iter().any(|m| m == expected),
-            "{expected} missing from {models:?}"
-        );
-    }
-    assert!(!models.iter().any(|model| model == "claude-sonnet"));
-    assert!(!models.iter().any(|model| model == "gemini-flash"));
-}
-
-#[test]
-fn empty_only_when_every_provider_is_backend() {
-    let gemini_only = ProviderRegistry {
-        providers: vec![provider(
-            "gemini",
-            WireProtocol::Gemini,
-            vec![model("gemini-3.1-flash-lite-preview", &[])],
-        )],
-    };
-    assert_eq!(
-        build_models(&gemini_only),
-        vec!["gemini-3.1-flash-lite-preview".to_owned()],
-        "a non-Anthropic provider is still advertised"
+fn a_personal_credential_serves_only_a_caller_who_stored_a_key() {
+    let c = catalog();
+    assert!(
+        !profile(&c, &["anthropic"], &[])
+            .models
+            .contains(&"go-kimi".to_owned())
     );
-
-    let backend_only = ProviderRegistry {
-        providers: vec![provider_with_surface(
-            "minimax",
-            WireProtocol::Anthropic,
-            ApiSurface::Backend,
-            "minimax_key",
-            vec![model("MiniMax-M2", &[])],
-        )],
-    };
-    assert!(build_models(&backend_only).is_empty());
-}
-
-#[test]
-fn backend_provider_is_absent_from_models_and_providers() {
-    let registry = ProviderRegistry {
-        providers: vec![
-            provider(
-                "anthropic",
-                WireProtocol::Anthropic,
-                vec![model("claude-sonnet-4-6", &[])],
-            ),
-            provider_with_surface(
-                "minimax",
-                WireProtocol::Anthropic,
-                ApiSurface::Backend,
-                "minimax_key",
-                vec![model("MiniMax-M2", &[])],
-            ),
-        ],
-    };
-
-    let response = build_profile(&registry);
-
-    assert_eq!(response.models, vec!["claude-sonnet-4-6".to_owned()]);
-    assert!(response.providers.iter().all(|p| p.name != "minimax"));
-}
-
-#[test]
-fn empty_protocols_returns_full_catalog() {
-    let registry = ProviderRegistry {
-        providers: vec![
-            provider(
-                "anthropic",
-                WireProtocol::Anthropic,
-                vec![model("claude-sonnet-4-6", &[])],
-            ),
-            provider(
-                "gemini",
-                WireProtocol::Gemini,
-                vec![model("gemini-3.1-flash-lite-preview", &[])],
-            ),
-        ],
-    };
-
-    let models = registry.advertised_model_ids(&[]);
-
-    assert!(models.iter().any(|m| m == "claude-sonnet-4-6"));
-    assert!(models.iter().any(|m| m == "gemini-3.1-flash-lite-preview"));
-}
-
-#[test]
-fn model_entries_returns_the_whole_catalog() {
-    let registry = ProviderRegistry {
-        providers: vec![
-            provider(
-                "anthropic",
-                WireProtocol::Anthropic,
-                vec![model("claude-sonnet-4-6", &[])],
-            ),
-            provider(
-                "gemini",
-                WireProtocol::Gemini,
-                vec![model("gemini-3.1-flash-lite-preview", &["gemini-flash"])],
-            ),
-        ],
-    };
-
-    let entries = model_entries(&registry, &[], None, |_| true);
-
-    let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
-    assert_eq!(
-        ids,
-        vec!["claude-sonnet-4-6", "gemini-3.1-flash-lite-preview"]
+    assert!(
+        profile(&c, &["anthropic"], &["go"])
+            .models
+            .contains(&"go-kimi".to_owned())
     );
-    assert!(entries.iter().all(|e| e.kind == "model"));
 }
 
 #[test]
-fn model_entries_still_honours_an_explicit_surface_slice() {
-    let registry = ProviderRegistry {
-        providers: vec![
-            provider(
-                "anthropic",
-                WireProtocol::Anthropic,
-                vec![model("claude-sonnet-4-6", &[])],
-            ),
-            provider(
-                "gemini",
-                WireProtocol::Gemini,
-                vec![model("gemini-3.1-flash-lite-preview", &[])],
-            ),
-        ],
-    };
+fn a_missing_secret_withholds_models_but_reports_the_provider() {
+    let c = catalog();
+    let p = profile(&c, &["anthropic"], &[]);
+    assert!(!p.models.contains(&"gpt-5".to_owned()));
+    let openai = p
+        .providers
+        .iter()
+        .find(|h| h.name == "openai")
+        .expect("provider still reported");
+    assert!(!openai.configured);
+    assert!(
+        openai
+            .config_issue
+            .as_deref()
+            .is_some_and(|m| m.contains("openai"))
+    );
+    assert_eq!(openai.clients, vec![ClientFamily::OpenAi]);
+}
 
-    let ids: Vec<String> = model_entries(&registry, &[ApiSurface::Anthropic], None, |_| true)
+#[test]
+fn provider_health_carries_credential_and_clients() {
+    let c = catalog();
+    let present = |_: &str| true;
+    let keys = BTreeSet::new();
+    let health = provider_health(
+        &c,
+        &CredentialFacts {
+            secret_present: &present,
+            personal_keys: &keys,
+        },
+    );
+    let anthropic = health
+        .iter()
+        .find(|h| h.name == "anthropic")
+        .expect("listed");
+    assert_eq!(anthropic.credential, "anthropic");
+    assert_eq!(anthropic.models, vec!["claude-sonnet-5".to_owned()]);
+    assert!(!anthropic.models.contains(&"claude-internal".to_owned()));
+    let go = health.iter().find(|h| h.name == "go").expect("listed");
+    assert!(go.personal_key && !go.configured);
+}
+
+#[test]
+fn model_entries_list_every_advertised_configured_model() {
+    let c = catalog();
+    let ids: Vec<String> = model_entries(&c, |name| name == "anthropic")
         .into_iter()
         .map(|e| e.id)
         .collect();
-    assert_eq!(ids, vec!["claude-sonnet-4-6".to_owned()]);
-}
-
-#[test]
-fn header_helper_parses_known_tags_and_defaults_to_empty() {
-    let mut headers = HeaderMap::new();
-    assert_eq!(surfaces_from_header(&headers).unwrap(), Vec::new());
-
-    headers.insert(INFERENCE_PROTOCOL, "anthropic, gemini".parse().unwrap());
     assert_eq!(
-        surfaces_from_header(&headers).unwrap(),
-        vec![ApiSurface::Anthropic, ApiSurface::Gemini]
+        ids,
+        vec!["claude-sonnet-5".to_owned(), "go-kimi".to_owned()]
     );
+    let entry = model_entries(&c, |_| true)
+        .into_iter()
+        .find(|e| e.id == "claude-sonnet-5")
+        .expect("listed");
+    assert_eq!(entry.max_input_tokens, Some(1_000_000));
 }
 
 #[test]
-fn header_helper_rejects_backend_and_garbage() {
-    for bad in ["backend", "not-a-protocol"] {
-        let mut headers = HeaderMap::new();
-        headers.insert(INFERENCE_PROTOCOL, bad.parse().unwrap());
-        let err = ApiHttpError::from(surfaces_from_header(&headers).unwrap_err()).into_inner();
-        assert_eq!(err.code, ErrorCode::BadRequest, "{bad}");
-    }
-}
-
-#[test]
-fn provider_health_reports_configured_and_models() {
-    let registry = ProviderRegistry {
-        providers: vec![provider_with_secret(
-            "anthropic",
-            WireProtocol::Anthropic,
-            "anthropic_key",
-            vec![model("claude-sonnet-4-6", &["claude-sonnet"])],
-        )],
-    };
-
-    let health = provider_health(&registry, |name| name == "anthropic_key");
-
-    assert_eq!(health.len(), 1);
-    let entry = &health[0];
-    assert_eq!(entry.name, "anthropic");
-    assert_eq!(entry.surface, ApiSurface::Anthropic);
-    assert!(entry.configured);
-    assert!(entry.config_issue.is_none());
-    assert_eq!(entry.models, vec!["claude-sonnet-4-6".to_owned()]);
-}
-
-#[test]
-fn hidden_models_remain_routable_but_are_not_advertised() {
-    let mut legacy = model("claude-opus-4-8", &["claude-opus-legacy"]);
-    legacy.hidden = true;
-    let registry = ProviderRegistry {
-        providers: vec![provider(
-            "anthropic",
-            WireProtocol::Anthropic,
-            vec![model("claude-opus-5", &[]), legacy],
-        )],
-    };
-
-    let profile = build_profile(&registry);
-
-    assert_eq!(profile.models, vec!["claude-opus-5".to_owned()]);
-    assert_eq!(profile.providers[0].models, profile.models);
-    assert!(registry.contains_model("claude-opus-4-8"));
-    assert!(registry.contains_model("claude-opus-legacy"));
-}
-
-#[test]
-fn provider_health_flags_missing_secret() {
-    let registry = ProviderRegistry {
-        providers: vec![
-            provider_with_secret(
-                "anthropic",
-                WireProtocol::Anthropic,
-                "anthropic_key",
-                vec![model("claude-sonnet-4-6", &[])],
-            ),
-            provider_with_secret(
-                "gemini",
-                WireProtocol::Gemini,
-                "gemini_key",
-                vec![model("gemini-3.1-flash-lite-preview", &[])],
-            ),
-        ],
-    };
-
-    let health = provider_health(&registry, |name| name == "anthropic_key");
-
-    let gemini = health.iter().find(|h| h.name == "gemini").unwrap();
-    assert!(!gemini.configured);
+fn header_helper_parses_client_families_and_defaults_to_empty() {
+    assert!(
+        families_from_header(&HeaderMap::new())
+            .expect("ok")
+            .is_empty()
+    );
+    let mut h = HeaderMap::new();
+    h.insert(INFERENCE_PROTOCOL, "claude, openai".parse().unwrap());
     assert_eq!(
-        gemini.config_issue.as_deref(),
-        Some("API key secret 'gemini_key' is not configured")
-    );
-
-    let anthropic = health.iter().find(|h| h.name == "anthropic").unwrap();
-    assert!(anthropic.configured);
-}
-
-#[test]
-fn provider_health_excludes_backend_provider() {
-    let registry = ProviderRegistry {
-        providers: vec![
-            provider_with_secret(
-                "anthropic",
-                WireProtocol::Anthropic,
-                "anthropic_key",
-                vec![model("claude-3-7-sonnet-20250219", &[])],
-            ),
-            provider_with_surface(
-                "minimax",
-                WireProtocol::Anthropic,
-                ApiSurface::Backend,
-                "minimax_key",
-                vec![model("MiniMax-M2", &[])],
-            ),
-        ],
-    };
-
-    let health = provider_health(&registry, |_| true);
-
-    assert!(
-        health.iter().all(|h| h.name != "minimax"),
-        "backend provider must never appear in bridge profile provider health"
-    );
-    assert!(
-        !health
-            .iter()
-            .flat_map(|h| h.models.iter())
-            .any(|m| m == "MiniMax-M2")
+        families_from_header(&h).expect("ok"),
+        vec![ClientFamily::Claude, ClientFamily::OpenAi]
     );
 }
 
 #[test]
-fn canonicalize_org_uuid_peels_local_prefix_from_uuid_tenant() {
+fn header_helper_rejects_garbage() {
+    let mut h = HeaderMap::new();
+    h.insert(INFERENCE_PROTOCOL, "anthropic".parse().unwrap());
+    let err = ApiHttpError::from(families_from_header(&h).expect_err("not a family")).into_inner();
+    assert_eq!(err.code, ErrorCode::BadRequest);
+}
+
+#[test]
+fn organization_uuid_peels_local_prefix_from_uuid_tenant() {
     let tenant = TenantId::new("local_6fa459ea-ee8a-3ca4-894e-db77e160355e");
     assert_eq!(
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "6fa459ea-ee8a-3ca4-894e-db77e160355e"
     );
 }
 
 #[test]
-fn canonicalize_org_uuid_normalizes_bare_uuid_to_lowercase_canonical() {
+fn organization_uuid_normalizes_bare_uuid_to_lowercase_canonical() {
     let tenant = TenantId::new("6FA459EA-EE8A-3CA4-894E-DB77E160355E");
     assert_eq!(
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "6fa459ea-ee8a-3ca4-894e-db77e160355e"
     );
 }
 
 #[test]
-fn canonicalize_org_uuid_derives_stable_v5_for_non_uuid_tenant() {
+fn organization_uuid_derives_stable_v5_for_non_uuid_tenant() {
     let tenant = TenantId::new("local_acme-corp");
-    let got = canonicalize_org_uuid(&tenant);
+    let got = tenant.organization_uuid();
     assert_eq!(got.len(), 36, "{got}");
     assert_eq!(got.as_bytes()[14], b'5', "expected a v5 UUID: {got}");
     assert_eq!(
         got,
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "derivation must be deterministic"
     );
     assert_ne!(
         got,
-        canonicalize_org_uuid(&TenantId::new("local_other-corp")),
+        TenantId::new("local_other-corp").organization_uuid(),
         "distinct tenants must not collide"
     );
-}
-
-fn two_provider_registry() -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![
-            provider_with_secret(
-                "anthropic",
-                WireProtocol::Anthropic,
-                "anthropic_key",
-                vec![model("claude-sonnet-4-6", &[])],
-            ),
-            provider_with_secret(
-                "vertex-maas",
-                WireProtocol::OpenAiChat,
-                "vertex_maas",
-                vec![model("qwen3-coder", &[])],
-            ),
-        ],
-    }
-}
-
-fn routed(pattern: &str, provider: &str) -> GatewayConfig {
-    let mut route = GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: pattern.to_owned(),
-        provider: ProviderId::new(provider),
-        upstream_model: None,
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
-    GatewayConfig {
-        enabled: true,
-        routes: vec![route],
-        ..GatewayConfig::default()
-    }
-}
-
-#[test]
-fn models_of_an_unconfigured_provider_are_not_advertised() {
-    let registry = two_provider_registry();
-
-    let ids: Vec<String> = model_entries(&registry, &[], None, |name| name == "anthropic_key")
-        .into_iter()
-        .map(|e| e.id)
-        .collect();
-
-    assert_eq!(ids, vec!["claude-sonnet-4-6".to_owned()]);
-}
-
-#[test]
-fn the_profile_drops_unservable_models_but_still_reports_their_provider() {
-    let registry = two_provider_registry();
-
-    let response = profile_build(
-        BridgeProfileParams {
-            inference_gateway_base_url: "https://gw.invalid/v1".to_owned(),
-            auth_scheme: "bearer".to_owned(),
-            organization_uuid: None,
-            default_model: None,
-            registry: &registry,
-            gateway: None,
-        },
-        |name| name == "anthropic_key",
-    );
-
-    assert_eq!(response.models, vec!["claude-sonnet-4-6".to_owned()]);
-    assert!(!response.model_limits.contains_key("qwen3-coder"));
-    let maas = response
-        .providers
-        .iter()
-        .find(|p| p.name == "vertex-maas")
-        .expect("an unconfigured provider stays visible to admins");
-    assert!(!maas.configured);
-}
-
-#[test]
-fn a_model_routed_to_a_configured_provider_is_advertised() {
-    let registry = two_provider_registry();
-    let gateway = routed("qwen3-*", "anthropic");
-
-    let ids: Vec<String> = model_entries(&registry, &[], Some(&gateway), |name| {
-        name == "anthropic_key"
-    })
-    .into_iter()
-    .map(|e| e.id)
-    .collect();
-
-    assert_eq!(
-        ids,
-        vec!["claude-sonnet-4-6".to_owned(), "qwen3-coder".to_owned()]
-    );
-}
-
-#[test]
-fn a_model_routed_to_an_unconfigured_provider_is_withheld() {
-    let registry = two_provider_registry();
-    let gateway = routed("claude-*", "vertex-maas");
-
-    let ids: Vec<String> = model_entries(&registry, &[], Some(&gateway), |name| {
-        name == "anthropic_key"
-    })
-    .into_iter()
-    .map(|e| e.id)
-    .collect();
-
-    assert!(ids.is_empty(), "{ids:?}");
 }

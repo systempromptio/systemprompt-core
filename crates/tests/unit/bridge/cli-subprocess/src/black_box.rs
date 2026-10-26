@@ -7,6 +7,7 @@
 
 use std::path::PathBuf;
 use std::process::{Command, Output};
+use systemprompt_test_fixtures::block_on;
 
 use chrono::Utc;
 use systemprompt_bridge::feedback::credentials::Enrollment;
@@ -16,7 +17,7 @@ use systemprompt_identifiers::{
     ConsumerInstallationId, DeviceId, InstallationReceiptId, ManagedResourceId, PublicationId,
     ResourceRevisionId, UserId,
 };
-use systemprompt_models::bridge::manifest::SkillPublication;
+use systemprompt_models::bridge::manifest::ManagedPublicationRef;
 use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, ConsumerReceiptResponse, FileReadback, ReadbackStatus,
     ReceiptAcknowledgement, RuntimeFileReadback,
@@ -141,9 +142,9 @@ fn receipt(publication: &str, generation: i64) -> ConsumerReceiptRequest {
     }
 }
 
-fn publication(publication: &str, generation: i64) -> SkillPublication {
+fn publication(publication: &str, generation: i64) -> ManagedPublicationRef {
     let digest = ContentDigest::of(format!("{publication}-bundle").as_bytes());
-    SkillPublication {
+    ManagedPublicationRef {
         publication_id: PublicationId::new(publication),
         resource_id: ManagedResourceId::new("feedback-status-resource"),
         revision_id: ResourceRevisionId::new(format!("{publication}-revision")),
@@ -219,14 +220,6 @@ fn run_without_credentials_exits_5() {
     let sb = sandbox(None);
     let out = require_bin!(run_bridge(&sb, &["run"]));
     assert_eq!(out.status.code(), Some(5));
-}
-
-fn block_on<F: std::future::Future>(fut: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(fut)
 }
 
 #[test]

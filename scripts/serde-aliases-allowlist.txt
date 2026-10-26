@@ -1,0 +1,5 @@
+# Serde aliases the gate accepts, one per line:
+#   path:field_or_variant — reason
+# Only a vendor format we do not own earns an alias; "hand-off" entries are
+# removed by the session that owns the file.
+crates/shared/wire/src/openai_chat/response.rs:reasoning_content — vendor: DeepSeek, Qwen and Moonshot emit `reasoning_content`; some OpenAI-compatible servers spell it `reasoning`

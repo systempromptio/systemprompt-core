@@ -66,6 +66,7 @@ pub(super) async fn dispatch_to_provider(
         access_scope: principal.access_scope(),
         client_id: principal.client_id().cloned(),
         provider,
+        hop: None,
         requested_model: Some(gateway_request.model.to_string()),
         model: upstream_model,
         max_tokens: Some(max_tokens),
@@ -85,7 +86,7 @@ pub(super) async fn dispatch_to_provider(
 
     match Box::pin(GatewayService::dispatch(
         gateway_config,
-        &rc.services.providers,
+        rc.catalog,
         rc.ctx.db_pool(),
         rc.repos,
         DispatchInputs {
@@ -96,7 +97,8 @@ pub(super) async fn dispatch_to_provider(
             forward_headers: client_headers.forward,
             identity_headers: client_headers.identity,
             trace_sampled,
-            governance: rc.ctx.governance_arc(),
+            governance: rc.ctx.governance(),
+            engines: Arc::clone(rc.engines),
         },
     ))
     .await

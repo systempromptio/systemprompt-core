@@ -14,6 +14,7 @@ async fn adopted(f: &Fixture) -> (ManagedResourceId, ResourceRevisionId) {
                 actor: &f.owner,
                 root: f.root.path(),
                 services: &ServicesConfig::default(),
+                sources: sources(),
             },
             &mut PublishGuard::default(),
         )
@@ -88,6 +89,7 @@ fn request(
         operation_key: format!("admission-{}", uuid::Uuid::new_v4()),
         comparison_evidence: serde_json::from_value(evidence).expect("evidence object"),
         limitations: String::new(),
+        cohort: None,
     }
 }
 

@@ -1,7 +1,7 @@
-//! Set-based reads for the catalogue overlay: every managed skill of one
-//! principal resolved in a single query, the revoked keys of one consumer in
-//! another, and the published revision closures assembled two queries at a
-//! time instead of two per skill.
+//! Set-based reads for the catalogue overlay: every managed resource of one
+//! kind and principal resolved in a single query, the revoked keys of one
+//! consumer in another, and the published revision closures assembled two
+//! queries at a time instead of two per skill.
 //!
 //! The per-key path (`resolve_managed` → `get_publication_bundle` →
 //! `get_revision_bundle`) stays the runtime's authority; this module returns
@@ -20,21 +20,25 @@ use systemprompt_models::managed::{
 
 use crate::managed::error::invalid;
 use crate::managed::publication::{
-    AssetDigest, ManagedError, ManagedRepository, ManagedResolution, Result, RevisionBundle,
-    SelectionRow, resolution_from_row,
+    AssetDigest, ManagedError, ManagedRepository, ManagedResolution, ResourceKind, Result,
+    RevisionBundle, SelectionRow, resolution_from_row,
 };
 
-/// One managed skill of a principal with the publication that currently
+/// One managed resource of a principal with the publication that currently
 /// selects it, and — when that publication is a live one — the retained
 /// revision the selection pins.
 #[derive(Debug, Clone)]
-pub struct SkillResolutionRow {
+pub struct ResourceResolutionRow {
     pub resource_key: String,
     pub resolution: ManagedResolution,
 }
 
 impl ManagedRepository {
-    pub async fn list_skill_resolutions(&self, owner: &UserId) -> Result<Vec<SkillResolutionRow>> {
+    pub async fn list_resolutions(
+        &self,
+        owner: &UserId,
+        kind: ResourceKind,
+    ) -> Result<Vec<ResourceResolutionRow>> {
         let rows = sqlx::query!(
             r#"SELECT r.id, r.resource_key,
                 s.generation AS "generation?", s.state AS "state?", s.publication_id AS "publication_id?",
@@ -44,9 +48,10 @@ impl ManagedRepository {
             LEFT JOIN managed_publication_selections s ON s.owner_id=r.owner_id AND s.resource_id=r.id
             LEFT JOIN managed_publications p ON p.owner_id=s.owner_id AND p.resource_id=s.resource_id
                 AND p.generation=s.generation AND p.revision_id IS NOT NULL
-            WHERE r.owner_id=$1 AND r.kind='skill'
+            WHERE r.owner_id=$1 AND r.kind=$2
             ORDER BY r.resource_key, r.id"#,
-            owner.as_str()
+            owner.as_str(),
+            kind.as_str()
         )
         .fetch_all(&self.pool)
         .await?;
@@ -79,7 +84,7 @@ impl ManagedRepository {
                                 || row.published_bundle_digest.as_deref()
                                     != Some(bundle_digest.as_str()))
                         {
-                            return Ok(SkillResolutionRow {
+                            return Ok(ResourceResolutionRow {
                                 resource_key: row.resource_key,
                                 resolution: ManagedResolution::IntegrityFailure {
                                     resource_id: resource_id.clone(),
@@ -91,7 +96,7 @@ impl ManagedRepository {
                     },
                     _ => ManagedResolution::NeverAdopted { resource_id },
                 };
-                Ok(SkillResolutionRow {
+                Ok(ResourceResolutionRow {
                     resource_key: row.resource_key,
                     resolution,
                 })
@@ -101,30 +106,36 @@ impl ManagedRepository {
 
     pub async fn managed_catalog_stamp(&self, owner: &UserId, consumer: &UserId) -> Result<String> {
         let principals = vec![owner.as_str().to_owned(), consumer.as_str().to_owned()];
+        let cohorts = self.cohort_stamp(consumer).await?;
         let stamp = sqlx::query_scalar!(
             r#"SELECT md5(concat_ws('|',
-                (SELECT count(*)::text || ':' || coalesce(max(created_at)::text, '') FROM managed_resources WHERE owner_id = ANY($1) AND kind='skill'),
+                (SELECT count(*)::text || ':' || coalesce(max(created_at)::text, '') FROM managed_resources WHERE owner_id = ANY($1) AND kind IN ('skill','plugin','rule')),
                 (SELECT count(*)::text || ':' || coalesce(sum(generation)::text, '') || ':' || coalesce(max(updated_at)::text, '') FROM managed_publication_selections WHERE owner_id = ANY($1)),
-                (SELECT count(revoked_at)::text || ':' || coalesce(max(revoked_at)::text, '') FROM managed_consumer_grants WHERE owner_id=$2 AND consumer_id=$3)
+                (SELECT count(*)::text || ':' || coalesce(sum(generation)::text, '') || ':' || coalesce(max(updated_at)::text, '') FROM managed_publication_cohort_selections WHERE owner_id = ANY($1)),
+                (SELECT count(revoked_at)::text || ':' || coalesce(max(revoked_at)::text, '') FROM managed_consumer_grants WHERE owner_id=$2 AND consumer_id=$3),
+                $4::text
             )) AS "stamp!""#,
             &principals,
             owner.as_str(),
-            consumer.as_str()
+            consumer.as_str(),
+            cohorts
         )
         .fetch_one(&self.pool)
         .await?;
         Ok(stamp)
     }
 
-    pub async fn revoked_skill_keys(
+    pub async fn revoked_keys(
         &self,
         owner: &UserId,
         consumer: &UserId,
+        kind: ResourceKind,
     ) -> Result<BTreeSet<String>> {
         let keys = sqlx::query_scalar!(
-            "SELECT r.resource_key FROM managed_consumer_grants g JOIN managed_resources r ON r.id=g.resource_id AND r.owner_id=g.owner_id WHERE g.owner_id=$1 AND g.consumer_id=$2 AND r.kind='skill' AND g.revoked_at IS NOT NULL",
+            "SELECT r.resource_key FROM managed_consumer_grants g JOIN managed_resources r ON r.id=g.resource_id AND r.owner_id=g.owner_id WHERE g.owner_id=$1 AND g.consumer_id=$2 AND r.kind=$3 AND g.revoked_at IS NOT NULL",
             owner.as_str(),
-            consumer.as_str()
+            consumer.as_str(),
+            kind.as_str()
         )
         .fetch_all(&self.pool)
         .await?;

@@ -27,7 +27,7 @@ struct Ctx {
 async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = OAuthRepository::new(&pool);
+    let repo = systemprompt_test_fixtures::oauth_fixture_repository(&pool);
     let cleanup = OauthCleanupRepository::new(&pool);
     let write = pool.write_pool();
     let user_id = unique_user_id(prefix);

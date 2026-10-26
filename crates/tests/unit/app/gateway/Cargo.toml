@@ -11,9 +11,12 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }

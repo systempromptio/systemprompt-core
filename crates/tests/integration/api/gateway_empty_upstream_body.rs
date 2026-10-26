@@ -19,8 +19,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, TestBootstrap, init_services_bootstrap, install_test_signing_key,
-    seed_admin_credential, test_app_context, test_db_pool,
+    AuthedFixture, TestBootstrap, init_services_bootstrap, seed_admin_credential,
+    test_app_context_on, test_db_pool,
 };
 use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;
@@ -42,25 +42,30 @@ static HARNESS: OnceCell<Harness> = OnceCell::const_new();
 fn gateway_yaml(endpoint: &str) -> String {
     format!(
         r#"
+credentials:
+  anthropic:
+    kind: platform
+    secret: {SECRET_NAME}
 providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: {endpoint}
-    api_key_secret: {SECRET_NAME}
-    models:
-      - id: {MODEL}
-        pricing:
-          input_per_million: 3.0
-          output_per_million: 15.0
-          cache_read_per_million: 0.0
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api:
+        wire: anthropic
+        url: {endpoint}
+models:
+  {MODEL}:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 3.0
+      output_per_million: 15.0
+      cache_read_per_million: 0.0
+deployments:
+  {MODEL}:
+  - anthropic/api
 gateway:
   enabled: true
-  allow_unlisted_models: false
-  routes:
-    - id: empty-body-fixture
-      model_pattern: "{MODEL}"
-      provider: anthropic
 "#
     )
 }
@@ -92,9 +97,8 @@ async fn harness() -> &'static Harness {
 
 async fn app() -> Result<(Router, DbPool, Arc<AppContext>)> {
     let h = harness().await;
-    install_test_signing_key();
     let pool = test_db_pool().await;
-    let ctx = test_app_context(&pool, &h.boot.database_url);
+    let ctx = test_app_context_on(&h.boot, &pool);
     Ok((
         gateway_router(&ctx).expect("gateway router builds"),
         pool,

@@ -14,6 +14,7 @@ use crate::shared::CommandOutput;
 use super::super::paths::WebPaths;
 use super::super::types::{AssetSummary, AssetType};
 use super::asset_type::determine_asset_type;
+use systemprompt_loader::BootContext;
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum AssetTypeFilter {
@@ -32,8 +33,12 @@ pub struct ListArgs {
     pub asset_type: AssetTypeFilter,
 }
 
-pub(super) fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
-    execute_in_dir(args, config, &WebPaths::resolve()?.assets)
+pub(super) fn execute(
+    args: ListArgs,
+    config: &CliConfig,
+    boot: &BootContext,
+) -> Result<CommandOutput> {
+    execute_in_dir(args, config, &WebPaths::resolve(boot)?.assets)
 }
 
 pub fn execute_in_dir(

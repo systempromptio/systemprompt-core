@@ -164,12 +164,16 @@ where
 /// The gateway's scanner registry seeds its built-ins, then folds in every
 /// `inventory`-collected registration. A registration whose `name` collides
 /// with a built-in is rejected at registry build time. The factory receives the
-/// policy's `scanner_settings.<name>` entry (defaults when absent), whose
-/// `config` mapping is the scanner's own, uninterpreted by core.
+/// running deployment's extension context and the policy's
+/// `scanner_settings.<name>` entry (defaults when absent), whose `config`
+/// mapping is the scanner's own, uninterpreted by core.
 #[derive(Debug, Clone, Copy)]
 pub struct SafetyScannerRegistration {
     pub name: &'static str,
-    pub factory: fn(&ScannerSettings) -> Arc<dyn SafetyScanner>,
+    pub factory: fn(
+        &dyn systemprompt_extension::ExtensionContext,
+        &ScannerSettings,
+    ) -> Arc<dyn SafetyScanner>,
 }
 
 inventory::collect!(SafetyScannerRegistration);
@@ -177,11 +181,12 @@ inventory::collect!(SafetyScannerRegistration);
 #[macro_export]
 macro_rules! register_safety_scanner {
     ($factory:expr, name = $name:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::SafetyScannerRegistration {
                 name: $name,
-                factory: |settings: &$crate::ScannerSettings| {
-                    ::std::sync::Arc::new(($factory)(settings))
+                factory: |ctx: &dyn $crate::__ExtensionContext,
+                          settings: &$crate::ScannerSettings| {
+                    ::std::sync::Arc::new(($factory)(ctx, settings))
                 },
             }
         }

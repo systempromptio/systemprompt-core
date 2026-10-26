@@ -30,7 +30,6 @@ An extension declares its schemas, API routes, scheduled jobs, providers, seeds,
 | `purge` | `UserPurgeTable` and orphan-sweep registrations (`user_purge_tables!`, `orphan_sweeps!`). |
 | `registry` | `ExtensionRegistry`, `ExtensionRegistration`, `RESERVED_PATHS`, discovery, queries, validation. |
 | `router` | `ExtensionRouter`, `ExtensionRouterConfig`, `SiteAuthConfig`. |
-| `runtime_config` | Process-level fallback injection of extensions when the `inventory` collector is stripped (for example by LTO). |
 | `seed` | `Seed`: idempotent post-migration data fixtures applied on every boot, outside migration tracking. |
 | `traits` (private, re-exported) | The `Extension` trait and `register_extension!` macro. |
 
@@ -38,7 +37,7 @@ An extension declares its schemas, API routes, scheduled jobs, providers, seeds,
 
 ```toml
 [dependencies]
-systemprompt-extension = "0.72"
+systemprompt-extension = "0.73"
 ```
 
 ```rust

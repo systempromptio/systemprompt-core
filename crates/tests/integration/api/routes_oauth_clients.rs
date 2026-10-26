@@ -10,35 +10,24 @@
 //! compared with the hash stored on the client, so a well-formed but foreign
 //! token is refused exactly like a missing one.
 
-use std::sync::Once;
 
 use axum::Router;
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, Response, StatusCode, header};
+use axum::body::Body;
+use axum::http::{Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::{authenticated_router, public_router};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::hash_registration_token;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
-    seed_oauth_client, test_db_pool,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::setup_ctx;
-
-static CONFIG_INSTALL: Once = Once::new();
-
-fn ensure_config() {
-    CONFIG_INSTALL.call_once(|| {
-        let _ = Config::install(fixture_config("postgres://x"));
-    });
-}
+use super::common::{read_json, setup_ctx};
 
 fn ctx_for(user: &UserId) -> RequestContext {
     RequestContext::new(
@@ -51,14 +40,13 @@ fn ctx_for(user: &UserId) -> RequestContext {
 }
 
 async fn clients_app(user: UserId) -> anyhow::Result<Router> {
-    ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
     let inject = move |mut req: Request<Body>, next: Next| {
         let ctx = ctx_for(&user);
@@ -69,20 +57,24 @@ async fn clients_app(user: UserId) -> anyhow::Result<Router> {
     };
     Ok(authenticated_router()
         .layer(middleware::from_fn(inject))
-        .with_state(state))
+        .with_state(state)
+        .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn client_config_app() -> anyhow::Result<Router> {
-    ensure_config();
-    install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
+        systemprompt_test_fixtures::test_oauth_signing(),
     );
-    Ok(public_router().with_state(state))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state)
+    .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
 async fn seed_owner() -> anyhow::Result<UserId> {
@@ -153,11 +145,6 @@ fn body_with_auth(
         },
         None => builder.body(Body::empty()).expect("build"),
     }
-}
-
-async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {
-    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    Ok(serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
 }
 
 #[tokio::test]

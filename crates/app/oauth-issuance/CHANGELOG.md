@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.73.0] - 2026-10-25
+
+### Breaking
+
+- **Breaking:** `token_exchange::subject::shared_jwks_client` is removed in favour of `JwksCache`, one JWKS client per trusted issuer owned by the `/oauth/token` route; `TokenIssuanceOrchestrator::new`, `handle_token_exchange`, `validate_subject_token`, `validate_id_jag_subject`, `validate_oidc_subject` and `issue_id_jag` take a `&JwksCache`. Migrate by building one `JwksCache::new()` where the OAuth routes are mounted.
+- **Breaking:** `IdJagGrant` carries the `SigningKeys` it signs with (`IdJagGrant::keys`). Migrate by passing `ctx.signing_keys()`.
+- **Breaking:** SSO request, owner, user and client message ids decode as typed identifiers. Migrate by reading the values through `as_str()`.
+- `ClientCredentialsError::ConfigUnavailable`, `UserTokenError::Config` and `ConnectorGrantError::Secrets` are removed, because the config and secrets arrive as arguments; `UserTokenParams` gains `config: &Arc<Config>`. `credential::cache::token_for` is the method `TokenCache::token_for(&self, key, mint)`. Migrate by adding `config` to `UserTokenParams` literals, dropping the removed match arms, and calling `token_for` on the `TokenCache` the caller owns.
+
+
 ## [0.69.0] - 2026-10-15
 
 ### Fixed

@@ -1,8 +1,6 @@
 //! Public plugin-token admission and backing-session persistence.
 
-use std::io::{Read, Seek, SeekFrom};
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 use systemprompt_identifiers::PluginId;
 
 use base64::Engine;
@@ -10,10 +8,9 @@ use clap::Parser;
 use systemprompt_cli::admin::keys::{self, KeysCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::Config;
 use systemprompt_security::HookTokenValidator;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,
+    DisposableDb, bounded_output, ensure_test_bootstrap, seed_user_row_with_roles,
 };
 
 const HELPER: &str = "commands::admin_plugin_token_lifecycle::plugin_token_helper";
@@ -41,8 +38,7 @@ async fn plugin_token_helper() {
         std::env::set_var("DATABASE_URL", database.url());
         std::env::set_var("TEST_DATABASE_URL", database.url());
     }
-    ensure_test_bootstrap();
-    install_test_signing_key();
+    let boot = ensure_test_bootstrap();
     let pool = database.test_pool().await;
     let admin = UserId::new(uuid::Uuid::new_v4().to_string());
     let member = UserId::new(uuid::Uuid::new_v4().to_string());
@@ -59,7 +55,8 @@ async fn plugin_token_helper() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-    );
+    )
+    .with_boot(Some(boot.boot.clone()));
 
     println!("BEGIN_PLUGIN_TOKEN");
     keys::execute(
@@ -123,45 +120,12 @@ async fn plugin_token_helper() {
     database.drop_now().await;
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let mut stdout = tempfile::NamedTempFile::new().expect("plugin-token stdout");
-    let mut stderr = tempfile::NamedTempFile::new().expect("plugin-token stderr");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn plugin-token helper");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = child.try_wait().expect("poll plugin-token helper") {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            break child.wait().expect("reap plugin-token helper");
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let read = |file: &mut tempfile::NamedTempFile| {
-        file.seek(SeekFrom::Start(0)).expect("rewind capture");
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes).expect("read capture");
-        bytes
-    };
-    Output {
-        status,
-        stdout: read(&mut stdout),
-        stderr: read(&mut stderr),
-    }
-}
-
 #[test]
 fn plugin_token_requires_admin_and_persists_its_backing_session() {
     ensure_test_bootstrap();
-    install_test_signing_key();
     let mut command = Command::new(std::env::current_exe().expect("unit-test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "admin plugin token lifecycle");
     assert!(output.status.success(), "plugin-token helper failed");
     let stdout = String::from_utf8(output.stdout).expect("UTF-8 plugin-token output");
     let artifact = stdout
@@ -190,12 +154,17 @@ fn plugin_token_requires_admin_and_persists_its_backing_session() {
         .decode(segments[1])
         .expect("decode JWT claims");
     let claims: serde_json::Value = serde_json::from_slice(&claims).expect("JWT claims JSON");
-    let validator = HookTokenValidator::new(
-        Config::get()
-            .expect("fixture configuration")
-            .jwt_issuer
-            .clone(),
-    );
+    let validator = HookTokenValidator::new(std::sync::Arc::new(
+        systemprompt_security::DeploymentTokenAuthority::new(
+            systemprompt_test_fixtures::test_signing_keys(),
+            ensure_test_bootstrap()
+                .boot
+                .config()
+                .expect("fixture configuration")
+                .jwt_issuer
+                .clone(),
+        ),
+    ));
     let govern = validator
         .validate_govern(&token, Some(&PluginId::new(PLUGIN)))
         .expect("issued token has a valid signature, issuer, audience, govern scope, and plugin");

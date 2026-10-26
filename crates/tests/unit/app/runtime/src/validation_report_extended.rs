@@ -1,9 +1,9 @@
 use std::path::PathBuf;
-use systemprompt_traits::validation_report::{
+use systemprompt_manifest::validators::validation_report::{
     StartupValidationError, StartupValidationReport, ValidationIssue, ValidationReport,
     ValidationWarning,
 };
-use systemprompt_traits::{DomainConfig, DomainConfigError, DomainConfigRegistry};
+use systemprompt_manifest::validators::{DomainConfig, DomainConfigError, DomainConfigRegistry};
 
 #[test]
 fn test_validation_error_display_basic() {

@@ -9,13 +9,13 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use serde::Serialize;
-use systemprompt_config::ProfileBootstrap;
-use systemprompt_loader::ServicesRootBootstrap;
+use systemprompt_loader::BootContext;
 use systemprompt_loader::bundle::{BundleCache, cache_root, verify};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_security::manifest_signing::{canonical_manifest_bytes, verify_with_pubkey};
 
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -57,20 +57,19 @@ pub struct ActiveReport {
     pub detail: Option<String>,
 }
 
-pub fn execute(args: &InspectArgs) -> Result<CommandOutput> {
+pub fn execute(args: &InspectArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     if let Some(archive) = args.bundle.as_deref() {
         let signed = verify::read_manifest(archive)
             .with_context(|| format!("Failed to read {}", archive.display()))?;
-        let report = describe_bundle(&signed, ProfileBootstrap::get().ok());
+        let report = describe_bundle(&signed, ctx.profile().ok());
         return Ok(CommandOutput::card_value("Services Bundle", &report));
     }
     if !args.active {
         bail!("Pass --bundle <archive> or --active");
     }
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     Ok(CommandOutput::card_value(
         "Active Services Root",
-        &describe_active(profile)?,
+        &describe_active(ctx.boot()?)?,
     ))
 }
 
@@ -140,8 +139,10 @@ fn signature_status(signed: &SignedBundleManifest, profile: Option<&Profile>) ->
     }
 }
 
-fn describe_active(profile: &Profile) -> Result<ActiveReport> {
-    let root = ServicesRootBootstrap::get()
+fn describe_active(boot: &BootContext) -> Result<ActiveReport> {
+    let profile = boot.profile();
+    let root = boot
+        .services_root()
         .context("The services root has not been resolved in this process")?;
     let state = BundleCache::new(cache_root(profile)).read_state();
     let sources = state
@@ -152,11 +153,14 @@ fn describe_active(profile: &Profile) -> Result<ActiveReport> {
         .join(", ");
 
     let (provenance, composed_hash, detail) = match &root.provenance {
-        systemprompt_loader::ServicesProvenance::Bundled => ("bundled", None, None),
-        systemprompt_loader::ServicesProvenance::Fetched { composed_hash, .. } => {
-            ("fetched", Some(composed_hash.clone()), None)
+        systemprompt_manifest::services::root::ServicesProvenance::Bundled => {
+            ("bundled", None, None)
         },
-        systemprompt_loader::ServicesProvenance::LastGood {
+        systemprompt_manifest::services::root::ServicesProvenance::Fetched {
+            composed_hash,
+            ..
+        } => ("fetched", Some(composed_hash.clone()), None),
+        systemprompt_manifest::services::root::ServicesProvenance::LastGood {
             composed_hash,
             error,
         } => (
@@ -164,7 +168,7 @@ fn describe_active(profile: &Profile) -> Result<ActiveReport> {
             Some(composed_hash.clone()),
             Some(error.clone()),
         ),
-        systemprompt_loader::ServicesProvenance::BundledFallback { error } => {
+        systemprompt_manifest::services::root::ServicesProvenance::BundledFallback { error } => {
             ("bundled_fallback", None, Some(error.clone()))
         },
     };

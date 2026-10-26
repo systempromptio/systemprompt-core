@@ -13,8 +13,7 @@ use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::api::ErrorCode;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_app_context_with, fixture_app_context_with_user_repository,
-    init_isolated_bootstrap, install_test_signing_key, seed_bridge_credential, seed_user_row,
-    test_db_pool,
+    init_isolated_bootstrap, seed_bridge_credential, seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use systemprompt_users::UserRepository;
@@ -27,6 +26,7 @@ fn boot() -> &'static TestBootstrap {
 
 fn boot_paths(boot: &TestBootstrap) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -52,7 +52,6 @@ async fn closed_write_pool(url: &str) -> Arc<sqlx::PgPool> {
 #[tokio::test]
 async fn manifest_is_not_signed_when_the_revocation_read_fails() {
     let boot = boot();
-    install_test_signing_key();
     let pool = test_db_pool().await;
     let healthy = fixture_app_context_with(
         &pool,
@@ -73,6 +72,7 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
             systemprompt_traits::CacheEpochs::new(),
         ),
         healthy.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     let consumer = seed_bridge_credential(&pool, "manifest-policy@example.invalid")
         .await

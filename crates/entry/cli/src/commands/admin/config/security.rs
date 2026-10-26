@@ -9,16 +9,15 @@
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_config::{
-    ProfileBootstrap, SecurityChange, SecurityConfigService, SecurityUpdate,
-};
+use systemprompt_config::{SecurityChange, SecurityConfigService, SecurityUpdate};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::TrustedIssuer;
 
-use super::profile_io::{load_profile, save_profile};
+use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -35,9 +34,6 @@ pub enum SecurityCommands {
 
 #[derive(Debug, Clone, Args)]
 pub struct SetArgs {
-    #[arg(long, help = "JWT issuer")]
-    pub jwt_issuer: Option<String>,
-
     #[arg(long, help = "Access token expiry in seconds")]
     pub access_expiry: Option<i64>,
 
@@ -75,16 +71,17 @@ pub struct TrustedIssuerAddArgs {
     pub audience: String,
 }
 
-pub fn execute(command: &SecurityCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: &SecurityCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        SecurityCommands::Show => execute_show(config),
-        SecurityCommands::Set(args) => execute_set(args, config),
-        SecurityCommands::TrustedIssuer(cmd) => execute_trusted_issuer(cmd, config),
+        SecurityCommands::Show => execute_show(ctx),
+        SecurityCommands::Set(args) => execute_set(args, ctx),
+        SecurityCommands::TrustedIssuer(cmd) => execute_trusted_issuer(cmd, ctx),
     }
 }
 
-pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
 
     let output = SecurityConfigOutput {
         jwt_issuer: profile.security.issuer.clone(),
@@ -106,22 +103,21 @@ pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
-    if args.jwt_issuer.is_none()
-        && args.access_expiry.is_none()
+pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    if args.access_expiry.is_none()
         && args.refresh_expiry.is_none()
         && args.resource_audiences.is_empty()
     {
         bail!(
-            "Must specify at least one option: --jwt-issuer, --access-expiry, --refresh-expiry, --resource-audience"
+            "Must specify at least one option: --access-expiry, --refresh-expiry, --resource-audience"
         );
     }
 
-    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
 
     let update = SecurityUpdate {
-        jwt_issuer: args.jwt_issuer.clone(),
         access_token_expiration: args.access_expiry,
         refresh_token_expiration: args.refresh_expiry,
         resource_audiences: args.resource_audiences.clone(),
@@ -134,19 +130,13 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
 
     save_profile(&profile, profile_path)?;
 
-    if args.jwt_issuer.is_some() {
-        crate::session::clear_session(&crate::paths::ResolvedPaths::discover())?;
-        CliService::info(
-            "Cleared the stored CLI session: its token was minted under the previous issuer.",
-        );
-    }
-
     render_changes(&changes, config);
     Ok(())
 }
 
-fn execute_trusted_issuer(command: &TrustedIssuerCommands, config: &CliConfig) -> Result<()> {
-    let profile_path = ProfileBootstrap::get_path()?;
+fn execute_trusted_issuer(command: &TrustedIssuerCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile_path = profile_path(ctx)?;
     let mut profile = load_profile(profile_path)?;
 
     let change = match command {

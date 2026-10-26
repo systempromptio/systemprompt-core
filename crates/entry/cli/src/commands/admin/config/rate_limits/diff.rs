@@ -6,19 +6,19 @@
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::Path;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
 use super::DiffArgs;
-use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{DiffEntry, DiffOutput};
 
-pub(super) fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
-    let profile = ProfileBootstrap::get()?;
+pub(super) fn execute_diff(args: &DiffArgs, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
+    let profile = ctx.profile()?;
     let current = &profile.rate_limits;
 
     let (compare_with, source) = if args.defaults {

@@ -1,7 +1,7 @@
 //! `cloud` command tree for systemprompt.io Cloud.
 //!
 //! Routes [`CloudCommands`] to the auth, init, tenant, profile, deploy,
-//! backup, status, and dockerfile subcommands, and declares each command's
+//! backup, status, dockerfile and sync subcommands, and declares each command's
 //! profile/secret requirements via [`DescribeCommand`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -14,6 +14,7 @@ pub mod doctor;
 pub mod init;
 pub mod profile;
 mod status;
+pub mod sync;
 pub mod templates;
 pub mod tenant;
 pub mod types;
@@ -111,6 +112,12 @@ pub enum CloudCommands {
 
     #[command(about = "Generate Dockerfile based on discovered extensions")]
     Dockerfile,
+
+    #[command(
+        subcommand,
+        about = "Database-to-code sync: export console changes as declarations"
+    )]
+    Sync(sync::SyncCommands),
 }
 
 impl DescribeCommand for CloudCommands {
@@ -118,6 +125,7 @@ impl DescribeCommand for CloudCommands {
         match self {
             Self::Deploy { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
+            Self::Sync(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::NONE,
         }
     }
@@ -178,11 +186,13 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             .await
         },
         CloudCommands::Status => {
-            let result = status::execute(&ctx.cli).await?;
+            let result =
+                status::execute(&ctx.cli, ctx.profile().ok(), ctx.cloud_credentials()).await?;
             crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },
         CloudCommands::Dockerfile => execute_dockerfile(&ctx.cli),
+        CloudCommands::Sync(cmd) => sync::execute(cmd, ctx).await,
     }
 }
 

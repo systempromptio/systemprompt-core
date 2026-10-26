@@ -51,8 +51,8 @@ use systemprompt_models::bridge::host::HostKind;
 use crate::drift::DesiredProfile;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
-    HostAppSnapshot, HostProcesses, ProbeEnv, ProfileInstalled, ProfileRemoval, ProfileState,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
+    HostProcesses, ProbeEnv, ProfileInstalled, ProfileRemoval, ProfileState,
 };
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::profile_state::ProfileProbe;
@@ -86,7 +86,10 @@ impl HostApp for ClaudeDesktopHost {
             read_error: read.probe_error.as_deref(),
             desired: &desired,
         });
-        let found = HostProcesses::from_enumeration(os::list_claude_processes());
+        let found = HostProcesses::from_enumeration(
+            os::list_claude_processes(),
+            systemprompt_models::bridge::host::HostAppKind::DesktopApp,
+        );
         let update_needs_approval = os::update_needs_approval(read.source_path.as_deref(), env);
         HostAppSnapshot {
             host_id: self.id(),
@@ -154,10 +157,6 @@ impl HostApp for ClaudeDesktopHost {
         }
     }
 
-    fn kind(&self) -> HostAppKind {
-        HostAppKind::DesktopApp
-    }
-
     fn description(&self) -> &'static str {
         "Anthropic's official desktop client for Claude. Routes inference through the systemprompt \
          gateway via managed policy."
@@ -183,15 +182,6 @@ impl HostApp for ClaudeDesktopHost {
 
     fn download_url(&self) -> &'static str {
         "https://claude.ai/download"
-    }
-
-    // Why: the single carve-out from the reachability rule. Every other host
-    // inherits the empty default and is offered the whole advertised catalog,
-    // because the gateway transcodes every inbound wire to every provider wire.
-    // Claude Desktop is the exception: it rejects non-Claude ids in
-    // `inferenceModels` outright, so advertising them breaks the app.
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::providers::ApiSurface] {
-        crate::install::mdm::policy::DESKTOP_SURFACES
     }
 }
 

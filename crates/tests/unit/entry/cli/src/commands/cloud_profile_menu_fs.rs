@@ -22,7 +22,7 @@ fn ctx(answers: &[&str]) -> CommandContext {
         profile: Some(boot.profile_path.to_string_lossy().to_string()),
         ..EnvOverrides::default()
     };
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(true)
             .with_assume_terminal(true),

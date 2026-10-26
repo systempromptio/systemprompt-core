@@ -31,12 +31,16 @@ pub async fn ensure_session(
     caller_ip: Option<IpAddr>,
     ctx: &AppContext,
 ) -> Result<SessionInfo> {
-    let config = systemprompt_manifest::Config::get()?;
+    let config = ctx.config();
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers)
-        && let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-        && let Some(session_id) = claims.session_id
-        && let Ok(user_id) = UserId::try_new(claims.sub)
+        && let Ok(claims) = validate_jwt_token(
+            ctx.token_authority().as_ref(),
+            &token,
+            &config.jwt_audiences,
+        )
+        && let Some(session_id) = claims.custom.session_id
+        && let Ok(user_id) = UserId::try_new(claims.registered.sub)
     {
         return Ok(SessionInfo {
             session_id: SessionId::new(session_id),
@@ -49,7 +53,12 @@ pub async fn ensure_session(
     let user_service = UserService::new(Arc::clone(ctx.user_repository()));
     let concrete = Arc::clone(&ctx.analytics_repositories().session_store);
     let analytics: Arc<dyn systemprompt_traits::SessionProvider> = concrete;
-    let session_service = SessionCreationService::new(analytics, Arc::new(user_service));
+    let session_service = SessionCreationService::new(
+        analytics,
+        Arc::new(user_service),
+        ctx.token_authority(),
+        Arc::clone(ctx.config_arc()),
+    );
 
     let client_id = ClientId::new("sp_web");
     let request_analytics = ctx

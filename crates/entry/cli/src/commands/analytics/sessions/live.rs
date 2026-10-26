@@ -13,7 +13,7 @@ use systemprompt_runtime::DatabaseContext;
 
 use super::{ActiveSessionRow, LiveSessionsOutput};
 use crate::CliConfig;
-use crate::commands::analytics::shared::{export_to_csv, resolve_export_path};
+use crate::commands::analytics::shared::export_to_csv;
 use crate::shared::{CommandOutput, render_result};
 
 const LIVE_SESSION_COLUMNS: [&str; 5] = [
@@ -59,10 +59,9 @@ async fn execute_internal(
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
         let output = fetch_live_sessions(repo, args.limit).await?;
-        export_to_csv(&output.sessions, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        export_to_csv(&output.sessions, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
         return Ok(
             CommandOutput::table_of(LIVE_SESSION_COLUMNS.to_vec(), &output.sessions)
                 .with_skip_render(),

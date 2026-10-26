@@ -16,10 +16,12 @@ use std::sync::{Arc, Mutex, PoisonError};
 use async_trait::async_trait;
 use tracing::{info, warn};
 
+use systemprompt_config::SecretsService;
 use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_manifest::services::ResilienceSettings;
+use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{
     BoxedSource, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext, ToolInventory,
     ToolProvider, ToolProviderError, ToolProviderResult,
@@ -65,6 +67,7 @@ pub struct McpToolProvider {
     registry: RegistryService,
     resilience: ResilienceSettings,
     guards: GuardMap,
+    client: Arc<McpClient>,
 }
 
 impl McpToolProvider {
@@ -72,12 +75,21 @@ impl McpToolProvider {
         db_pool: DbPool,
         registry: RegistryService,
         resilience: &ResilienceSettings,
+        connector_tokens: Arc<TokenCache>,
+        secrets: Arc<SecretsService>,
     ) -> Self {
+        let client = Arc::new(McpClient::new(
+            connector_tokens,
+            registry.deployments(),
+            Arc::clone(registry.config()),
+            secrets,
+        ));
         Self {
             db_pool,
             registry,
             resilience: *resilience,
             guards: Arc::new(Mutex::new(HashMap::new())),
+            client,
         }
     }
 
@@ -106,7 +118,7 @@ impl ToolProvider for McpToolProvider {
         agent_name: &AgentName,
         context: &ToolContext,
     ) -> ToolProviderResult<ToolInventory> {
-        let assigned_servers = load_agent_servers(agent_name)
+        let assigned_servers = load_agent_servers(&self.registry.deployments(), agent_name)
             .map_err(|e| configuration_error("Failed to load agent config", e))?;
 
         info!(
@@ -122,7 +134,7 @@ impl ToolProvider for McpToolProvider {
                 configuration_error(format!("Failed to resolve MCP server {server_name}"), e)
             })?;
             let request_ctx = create_request_context(context, &server_config)?;
-            match McpClient::list_tools(&server_config, &request_ctx).await {
+            match self.client.list_tools(&server_config, &request_ctx).await {
                 Ok(tools) => {
                     info!(
                         server = server_name,
@@ -179,9 +191,10 @@ impl ToolProvider for McpToolProvider {
         );
 
         let guard = self.guard_for(service_id.as_str());
+        let client = Arc::clone(&self.client);
         let result = guard
             .execute(McpDomainError::classify, || {
-                McpClient::call_tool(
+                client.call_tool(
                     &server_config,
                     request.name.clone(),
                     Some(request.arguments.clone()),
@@ -195,7 +208,7 @@ impl ToolProvider for McpToolProvider {
     }
 
     async fn refresh_connections(&self, agent_name: &AgentName) -> ToolProviderResult<()> {
-        let assigned_servers = load_agent_servers(agent_name)
+        let assigned_servers = load_agent_servers(&self.registry.deployments(), agent_name)
             .map_err(|e| configuration_error("Failed to load agent config", e))?;
 
         info!(
@@ -208,15 +221,14 @@ impl ToolProvider for McpToolProvider {
             .validate()
             .map_err(|e| ToolProviderError::Internal(Box::new(e)))?;
 
-        let api_server_url = systemprompt_manifest::Config::get()
-            .map_err(|e| configuration_error("Failed to get configuration", e))?
-            .api_server_url
-            .clone();
+        let config = self.registry.config();
+        let api_server_url = config.api_server_url.clone();
 
         for server_name in assigned_servers {
             match McpServerId::try_new(server_name) {
                 Ok(server_id) => {
-                    check_server_connection(&self.registry, &server_id, &api_server_url).await;
+                    check_server_connection(&self.registry, &server_id, &api_server_url, config)
+                        .await;
                 },
                 Err(error) => {
                     warn!(agent = %agent_name, %error, "Agent lists an invalid MCP server name");
@@ -230,10 +242,7 @@ impl ToolProvider for McpToolProvider {
     async fn health_check(&self) -> ToolProviderResult<HashMap<String, bool>> {
         let mut health_status = HashMap::new();
 
-        let config_api_server_url = systemprompt_manifest::Config::get()
-            .map_err(|e| configuration_error("Failed to get configuration", e))?
-            .api_server_url
-            .clone();
+        let config_api_server_url = self.registry.config().api_server_url.clone();
 
         let servers = self
             .registry

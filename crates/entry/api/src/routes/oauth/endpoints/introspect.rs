@@ -3,12 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_manifest::Config;
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::validate_client_credentials;
 
@@ -49,6 +52,8 @@ pub struct IntrospectResponse {
 }
 
 pub async fn handle_introspect(
+    State(state): State<OAuthState>,
+    Extension(config): Extension<Arc<Config>>,
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<IntrospectRequest>,
 ) -> Result<Response, OAuthHttpError> {
@@ -60,7 +65,7 @@ pub async fn handle_introspect(
 
     validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 
-    let response = match introspect_token(&repo, &request.token)? {
+    let response = match introspect_token(&state, &config, &request.token) {
         Some(full) => {
             let authoritative_client_id = full.client_id.as_deref();
             if authoritative_client_id == Some(client_id.as_str()) {
@@ -81,26 +86,39 @@ pub async fn handle_introspect(
 }
 
 fn introspect_token(
-    _repo: &OAuthRepository,
+    state: &OAuthState,
+    config: &Config,
     token: &str,
-) -> Result<Option<IntrospectResponse>, OAuthHttpError> {
-    let config = systemprompt_manifest::Config::get()?;
-    match validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences) {
-        Ok(claims) => Ok(Some(IntrospectResponse {
+) -> Option<IntrospectResponse> {
+    match validate_jwt_token(
+        state.token_authority().as_ref(),
+        token,
+        &config.jwt_audiences,
+    ) {
+        Ok(claims) => Some(IntrospectResponse {
             active: true,
             scope: Some(systemprompt_models::auth::permissions_to_string(
-                &claims.scope,
+                &claims.custom.scope,
             )),
-            client_id: claims.client_id.as_ref().map(|c| c.as_str().to_owned()),
-            username: Some(claims.username),
+            client_id: claims
+                .custom
+                .client_id
+                .as_ref()
+                .map(|c| c.as_str().to_owned()),
+            username: Some(claims.custom.username),
             token_type: Some("Bearer".to_owned()),
-            exp: Some(claims.exp),
-            iat: Some(claims.iat),
-            sub: Some(claims.sub),
-            aud: claims.aud.iter().map(ToString::to_string).collect(),
-            iss: Some(claims.iss),
-            jti: Some(claims.jti),
-        })),
-        Err(_) => Ok(None),
+            exp: Some(claims.registered.exp),
+            iat: Some(claims.registered.iat),
+            sub: Some(claims.registered.sub),
+            aud: claims
+                .registered
+                .aud
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+            iss: Some(claims.registered.iss),
+            jti: Some(claims.registered.jti),
+        }),
+        Err(_) => None,
     }
 }

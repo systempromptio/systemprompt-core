@@ -21,6 +21,22 @@
 //! whose rows this one references; [`ConfigPlaneSet`] orders the set so they
 //! are reconciled first.
 //!
+//! The per-entity contract the explicit apply drives is
+//! [`ConfigPlane::sources`] (each declared entity with its hash and origin),
+//! [`ConfigPlane::read`] (the database state), [`ConfigPlane::write`] (a
+//! resolved entity set) and [`ConfigPlane::render_declarations`] (entities as
+//! declaration text, for export). Every write runs under the change context
+//! the host set on the transaction, so the plane never stamps provenance
+//! itself.
+//! The default `sources` attributes every declared entry to
+//! `code:<declared_path>`; a plane fed by bundles overrides it.
+//!
+//! [`resolve_apply`] turns a whole-declaration [`ApplyRequest`] into entity
+//! writes against the current rows: every admitted declared entity that
+//! differs (and, under [`ApplyMode::InsertOnly`], is absent), and every
+//! admitted row the declaration no longer names as a deletion, each with the
+//! declaration file as its origin. It is the default [`ConfigPlane::apply`].
+//!
 //! [`ConfigPlane::export`] renders the current database state as declaration
 //! text, which is how an operator captures console-only rows before switching
 //! a plane to `file` authority.
@@ -29,9 +45,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod diff;
+mod entities;
 mod error;
 mod request;
 mod set;
+mod source;
 mod tx;
 
 use std::collections::BTreeMap;
@@ -43,11 +61,15 @@ use sha2::{Digest, Sha256};
 use crate::dependencies::{Dependencies, MissingDependency};
 
 pub use diff::{DriftKind, DriftRow, diff_snapshots};
+pub use entities::{
+    DeclaredEntities, DeclaredEntity, ResolvedEntities, ResolvedEntity, entity_hash,
+};
 pub use error::{ConfigPlaneError, ConfigPlaneResult};
 pub use request::{
     ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, EntityScope, PlaneEffect,
 };
 pub use set::{ConfigPlaneSet, EffectiveAuthority, PlaneAuthority, PlaneWriter};
+pub use source::{ChangeSource, ChangeSourceError};
 pub use tx::PlaneTx;
 
 pub type PlaneSnapshot = BTreeMap<String, String>;
@@ -115,7 +137,10 @@ impl<'a> PlaneContext<'a> {
 /// host re-reads after every apply and rolls back an apply that did not
 /// converge. The host inserts `DbPool` into the context's dependencies.
 ///
-/// The defaulted methods refuse: [`ConfigPlane::export`] answers
+/// [`ConfigPlane::apply`] defaults to [`resolve_apply`] over
+/// [`ConfigPlane::read_current`] and [`ConfigPlane::write`], so a plane that
+/// implements the per-entity contract gets the whole-plane apply for free.
+/// The other defaulted methods refuse: [`ConfigPlane::export`] answers
 /// [`ConfigPlaneError::Unsupported`], and a scoped apply reaches a plane only
 /// when [`ConfigPlane::supports_scoped_apply`] is true. Planes are held as
 /// `Arc<dyn ConfigPlane>`, and native `async fn` in traits is not
@@ -155,16 +180,95 @@ pub trait ConfigPlane: Send + Sync {
         ctx: &PlaneContext<'_>,
         tx: &mut PlaneTx<'_>,
         request: &ApplyRequest<'_>,
-    ) -> ConfigPlaneResult<ApplyOutcome>;
+    ) -> ConfigPlaneResult<ApplyOutcome> {
+        let current = self.read_current(ctx, tx).await?;
+        let resolved = resolve_apply(request, &current, self.declared_path());
+        self.write(ctx, tx, &resolved).await
+    }
 
     async fn export(
         &self,
         _ctx: &PlaneContext<'_>,
         _tx: &mut PlaneTx<'_>,
     ) -> ConfigPlaneResult<Option<String>> {
-        Err(ConfigPlaneError::Unsupported {
-            plane: self.name().to_owned(),
-            operation: "export",
-        })
+        Err(unsupported(self.name(), "export"))
+    }
+
+    fn sources(&self, services_root: &Path) -> ConfigPlaneResult<Option<DeclaredEntities>> {
+        let Some(declared) = self.load_declared(services_root)? else {
+            return Ok(None);
+        };
+        let origin = ChangeSource::Code(self.declared_path().to_owned());
+        Ok(Some(
+            declared
+                .entries
+                .into_iter()
+                .map(|(key, value)| (key, DeclaredEntity::new(value, origin.clone())))
+                .collect(),
+        ))
+    }
+
+    async fn read(
+        &self,
+        ctx: &PlaneContext<'_>,
+        tx: &mut PlaneTx<'_>,
+    ) -> ConfigPlaneResult<PlaneSnapshot> {
+        self.read_current(ctx, tx).await
+    }
+
+    async fn write(
+        &self,
+        _ctx: &PlaneContext<'_>,
+        _tx: &mut PlaneTx<'_>,
+        _entities: &ResolvedEntities,
+    ) -> ConfigPlaneResult<ApplyOutcome> {
+        Err(unsupported(self.name(), "write"))
+    }
+
+    fn render_declarations(&self, _entities: &PlaneSnapshot) -> ConfigPlaneResult<String> {
+        Err(unsupported(self.name(), "render_declarations"))
+    }
+}
+
+#[must_use]
+pub fn resolve_apply(
+    request: &ApplyRequest<'_>,
+    current: &PlaneSnapshot,
+    declared_path: &str,
+) -> ResolvedEntities {
+    let origin = ChangeSource::Code(declared_path.to_owned());
+    let mut resolved = ResolvedEntities::new();
+    for (key, value) in &request.declared.entries {
+        let kept = request.mode == ApplyMode::InsertOnly && current.contains_key(key);
+        if request.scope.admits(key) && current.get(key) != Some(value) && !kept {
+            resolved.insert(
+                key.clone(),
+                ResolvedEntity {
+                    value: Some(value.clone()),
+                    source: origin.clone(),
+                },
+            );
+        }
+    }
+    if request.mode != ApplyMode::InsertOnly {
+        for key in current.keys() {
+            if request.scope.admits(key) && !request.declared.entries.contains_key(key) {
+                resolved.insert(
+                    key.clone(),
+                    ResolvedEntity {
+                        value: None,
+                        source: origin.clone(),
+                    },
+                );
+            }
+        }
+    }
+    resolved
+}
+
+fn unsupported(plane: &str, operation: &'static str) -> ConfigPlaneError {
+    ConfigPlaneError::Unsupported {
+        plane: plane.to_owned(),
+        operation,
     }
 }

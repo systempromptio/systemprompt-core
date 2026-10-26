@@ -21,7 +21,8 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
 use systemprompt_identifiers::{AccessTokenId, ClientId, JwtToken, SessionId};
 use systemprompt_models::auth::{
-    ActClaim, JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    ActClaim, CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims,
+    TokenType, UserType,
 };
 use systemprompt_security::AuthValidationService;
 use systemprompt_security::error::AuthError;
@@ -30,34 +31,40 @@ use systemprompt_security::keys::RsaSigningKey;
 const ISSUER: &str = "https://issuer.test";
 const SUBJECT: &str = "00000000-0000-4000-8000-0000000a0001";
 
-fn ensure_authority() -> &'static RsaSigningKey {
-    systemprompt_test_fixtures::install_test_signing_key()
+fn ensure_authority() -> RsaSigningKey {
+    systemprompt_test_fixtures::test_signing_keys()
+        .signing_key()
+        .clone()
 }
 
 fn base_claims() -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
-        sub: SUBJECT.to_string(),
-        iat: now.timestamp(),
-        exp: (now + Duration::hours(1)).timestamp(),
-        nbf: Some(now.timestamp()),
-        iss: ISSUER.to_string(),
-        aud: vec![JwtAudience::Api],
-        jti: "jti-auth-1".to_string(),
-        scope: vec![Permission::User],
-        username: "u".to_string(),
-        email: "u@example.com".to_string(),
-        user_type: UserType::User,
-        roles: vec!["user".to_string()],
-        attributes: BTreeMap::new(),
-        client_id: Some(ClientId::new("c")),
-        token_type: TokenType::Bearer,
-        auth_time: now.timestamp(),
-        session_id: Some(SessionId::new("sess-auth-1")),
-        rate_limit_tier: Some(RateLimitTier::User),
-        plugin_id: None,
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: SUBJECT.to_string(),
+            iat: now.timestamp(),
+            exp: (now + Duration::hours(1)).timestamp(),
+            nbf: Some(now.timestamp()),
+            iss: ISSUER.to_string(),
+            aud: vec![JwtAudience::Api],
+            jti: "jti-auth-1".to_string(),
+        },
+        custom: CustomClaims {
+            scope: vec![Permission::User],
+            username: "u".to_string(),
+            email: "u@example.com".to_string(),
+            user_type: UserType::User,
+            roles: vec!["user".to_string()],
+            attributes: BTreeMap::new(),
+            client_id: Some(ClientId::new("c")),
+            token_type: TokenType::Bearer,
+            auth_time: now.timestamp(),
+            session_id: Some(SessionId::new("sess-auth-1")),
+            rate_limit_tier: Some(RateLimitTier::User),
+            plugin_id: None,
+            act: None,
+            purpose: None,
+        },
     }
 }
 
@@ -83,7 +90,11 @@ fn bearer_headers(token: &str) -> HeaderMap {
 }
 
 fn service() -> AuthValidationService {
-    AuthValidationService::new(ISSUER.to_string(), vec![JwtAudience::Api])
+    AuthValidationService::new(
+        ISSUER.to_string(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    )
 }
 
 #[test]
@@ -105,8 +116,8 @@ fn valid_token_yields_context_with_subject_and_session() {
 #[test]
 fn user_type_is_derived_from_the_granted_scope() {
     let mut claims = base_claims();
-    claims.scope = vec![Permission::User, Permission::Admin];
-    claims.user_type = UserType::Admin;
+    claims.custom.scope = vec![Permission::User, Permission::Admin];
+    claims.custom.user_type = UserType::Admin;
     let headers = bearer_headers(&sign(&claims));
 
     let ctx = service()
@@ -119,8 +130,8 @@ fn user_type_is_derived_from_the_granted_scope() {
 #[test]
 fn a_claimed_user_type_that_the_scope_does_not_support_is_rejected() {
     let mut claims = base_claims();
-    claims.scope = vec![Permission::User];
-    claims.user_type = UserType::Admin;
+    claims.custom.scope = vec![Permission::User];
+    claims.custom.user_type = UserType::Admin;
     let headers = bearer_headers(&sign(&claims));
 
     let err = service()
@@ -142,8 +153,8 @@ fn a_claimed_user_type_that_the_scope_does_not_support_is_rejected() {
 #[test]
 fn an_admin_scope_that_the_claim_does_not_declare_is_rejected() {
     let mut claims = base_claims();
-    claims.scope = vec![Permission::User, Permission::Admin];
-    claims.user_type = UserType::User;
+    claims.custom.scope = vec![Permission::User, Permission::Admin];
+    claims.custom.user_type = UserType::User;
     let headers = bearer_headers(&sign(&claims));
 
     let err = service()
@@ -174,7 +185,7 @@ fn missing_authorization_header_is_rejected() {
 #[test]
 fn missing_session_id_is_rejected() {
     let mut claims = base_claims();
-    claims.session_id = None;
+    claims.custom.session_id = None;
     let headers = bearer_headers(&sign(&claims));
 
     let err = service()
@@ -202,7 +213,7 @@ fn over_deep_act_chain_is_rejected() {
     }
 
     let mut claims = base_claims();
-    claims.act = Some(nest(20));
+    claims.custom.act = Some(nest(20));
     let headers = bearer_headers(&sign(&claims));
 
     let err = service()
@@ -218,8 +229,11 @@ fn over_deep_act_chain_is_rejected() {
 
 #[test]
 fn wrong_issuer_is_rejected() {
-    let svc =
-        AuthValidationService::new("https://other.issuer".to_string(), vec![JwtAudience::Api]);
+    let svc = AuthValidationService::new(
+        "https://other.issuer".to_string(),
+        vec![JwtAudience::Api],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let headers = bearer_headers(&sign(&base_claims()));
 
     let err = svc.validate_request(&headers).expect_err("issuer mismatch");
@@ -231,7 +245,11 @@ fn wrong_issuer_is_rejected() {
 
 #[test]
 fn wrong_audience_is_rejected() {
-    let svc = AuthValidationService::new(ISSUER.to_string(), vec![JwtAudience::Mcp]);
+    let svc = AuthValidationService::new(
+        ISSUER.to_string(),
+        vec![JwtAudience::Mcp],
+        systemprompt_test_fixtures::test_signing_keys(),
+    );
     let headers = bearer_headers(&sign(&base_claims()));
 
     let err = svc

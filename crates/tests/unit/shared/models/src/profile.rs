@@ -13,6 +13,7 @@ use systemprompt_models::auth::JwtAudience;
 
 fn make_paths_config(base: &str) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: format!("{base}/system"),
         services: format!("{base}/services"),
         bin: format!("{base}/bin"),
@@ -30,6 +31,8 @@ fn make_server_config() -> ServerConfig {
         port: 8080,
         api_server_url: "http://localhost:8080".to_string(),
         api_internal_url: "http://localhost:8080".to_string(),
+        external_url: "https://example.com".to_string(),
+        extra_cors_origins: Vec::new(),
         api_external_url: "https://example.com".to_string(),
         use_https: false,
         cors_allowed_origins: vec![],
@@ -373,31 +376,27 @@ fn profile_to_yaml_roundtrip() {
 }
 
 #[test]
-fn from_yaml_rejects_moved_providers_and_gateway_sections() {
+fn from_yaml_rejects_legacy_top_level_sections_with_migrate_hint() {
     let base = make_profile("test").to_yaml().unwrap();
     let path = Path::new("/tmp/test/profile.yaml");
 
-    for (key, extra, destination) in [
-        ("providers", "providers: []\n", "services/ai/providers.yaml"),
-        (
-            "gateway",
-            "gateway:\n  enabled: true\n",
-            "services/ai/gateway.yaml",
-        ),
+    for (key, extra) in [
+        ("providers", "providers: []\n"),
+        ("gateway", "gateway:\n  enabled: true\n"),
+        ("evaluation", "evaluation: {}\n"),
     ] {
         let yaml = format!("{base}{extra}");
-        let err = Profile::from_yaml(&yaml, path).expect_err("moved section must be rejected");
+        let err = Profile::from_yaml(&yaml, path).expect_err("legacy section must be rejected");
         assert!(
-            matches!(
-                &err,
-                ProfileError::MovedToServices { key: k, destination: d, .. }
-                    if k == key && d == destination
-            ),
+            matches!(&err, ProfileError::LegacyShape { key: k, .. } if k == key),
             "unexpected error for {key}: {err:?}"
         );
         let message = err.to_string();
         assert!(message.contains(key), "{message}");
-        assert!(message.contains(destination), "{message}");
+        assert!(
+            message.contains("systemprompt admin config migrate"),
+            "{message}"
+        );
     }
 }
 
@@ -497,6 +496,7 @@ fn paths_config_geoip_resolved_some() {
 #[test]
 fn paths_config_resolve_relative_to() {
     let mut paths = PathsConfig {
+        root: None,
         system: "system".to_string(),
         services: "services".to_string(),
         bin: "bin".to_string(),
@@ -518,6 +518,7 @@ fn paths_config_resolve_relative_to() {
 #[test]
 fn paths_config_resolve_relative_to_preserves_absolute() {
     let mut paths = PathsConfig {
+        root: None,
         system: "/absolute/system".to_string(),
         services: "/absolute/services".to_string(),
         bin: "/absolute/bin".to_string(),
@@ -942,6 +943,7 @@ fn validate_rejects_governance_webhook_malformed_url() {
             },
         }),
         audit: AuditConfig::default(),
+        unapplied_planes: Default::default(),
     });
     let err = profile
         .validate()

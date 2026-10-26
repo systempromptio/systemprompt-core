@@ -18,9 +18,7 @@ use systemprompt_models::origin::{
 const CLAUDE_BODY: &[u8] = br#"{"metadata":{"user_id":"user_ab12_account_3f2504e0-4f89-11d3-9a0c-0305e82c3301_session_6ba7b810-9dad-11d1-80b4-00c04fd430c8"}}"#;
 const CODEX_BODY: &[u8] =
     br#"{"client_metadata":{"x-codex-turn-metadata":"{\"thread_id\":\"t\"}"}}"#;
-/// Claude Code ≥ 2.1.25x: the session rides as a JSON string.
 const CLAUDE_JSON_BODY: &[u8] = br#"{"metadata":{"user_id":"{\"account_uuid\":\"\",\"device_id\":\"3c2a1f\",\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#;
-/// A Cowork (Claude Desktop local agent) turn on a third-party gateway.
 const COWORK_BODY: &[u8] = br#"{"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.260.07b; cc_entrypoint=local-agent;\nYou are Claude Code"}],"metadata":{"user_id":"{\"account_uuid\":\"\",\"device_id\":\"3c2a1f\",\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#;
 const DESKTOP_BODY: &[u8] = br#"{"system":"x-anthropic-billing-header: cc_version=2.1.270.0e5; cc_entrypoint=claude-desktop-3p;","messages":[]}"#;
 const CLI_BODY: &[u8] = br#"{"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.274.1a2; cc_entrypoint=cli;"}],"messages":[]}"#;
@@ -409,14 +407,16 @@ fn internal_origin_pairs_all_three_halves() {
 
 #[test]
 fn every_known_bridge_host_maps_onto_the_wire_vocabulary() {
-    for host in HostKind::ALL.map(HostKind::as_str) {
-        let kind = ClientKind::from_bridge_host_id(host)
-            .unwrap_or_else(|| panic!("{host} has no ClientKind"));
-        assert_eq!(kind.bridge_host_id(), Some(host));
+    for host in HostKind::ALL {
+        let kind = ClientKind::from(host);
+        assert!(kind.hosts().any(|h| h == host), "{host}");
         assert!(EvaluatorClient::try_from(kind).is_ok(), "{host}");
     }
-    assert_eq!(ClientKind::from_bridge_host_id("codex"), None);
-    assert_eq!(ClientKind::Pi.bridge_host_id(), None);
+    assert_eq!(
+        ClientKind::from(HostKind::Codex),
+        ClientKind::from(HostKind::CodexCli)
+    );
+    assert_eq!(ClientKind::Pi.hosts().count(), 0);
 }
 
 #[test]

@@ -1,4 +1,6 @@
-//! Isolated lifecycle coverage for profile-driven AI provider configuration.
+//! Isolated lifecycle coverage for the profile-driven default model: a
+//! missing catalog is seeded, an existing one only has its
+//! `gateway.default_model` moved to the chosen vendor.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -8,47 +10,43 @@ use systemprompt_cli::cloud::profile::templates::update_ai_config_default_provid
 
 const HELPER: &str = "commands::cloud_profile_ai_config_lifecycle::ai_config_lifecycle_helper";
 
+fn gateway(root: &std::path::Path) -> serde_yaml::Value {
+    let text = std::fs::read_to_string(root.join("ai/gateway.yaml")).expect("read gateway.yaml");
+    serde_yaml::from_str(&text).expect("valid gateway YAML")
+}
+
 #[test]
 #[ignore = "re-executed with an isolated services path by the parent test"]
 fn ai_config_lifecycle_helper() {
     let root = std::env::var("SYSTEMPROMPT_SERVICES_PATH")
         .expect("the parent supplies an isolated services root");
-    let config = std::path::Path::new(&root).join("ai/config.yaml");
+    let root = std::path::Path::new(&root);
 
-    update_ai_config_default_provider("anthropic").expect("create the missing AI config");
-    let created = std::fs::read_to_string(&config).expect("read created AI config");
-    let created_yaml: serde_yaml::Value =
-        serde_yaml::from_str(&created).expect("valid created YAML");
-    assert_eq!(
-        created_yaml["default_provider"].as_str(),
-        Some("anthropic"),
-        "{created}"
-    );
+    update_ai_config_default_provider("anthropic").expect("seed the missing catalog");
+    assert!(root.join("ai/config.yaml").exists());
+    assert!(root.join("ai/providers.yaml").exists());
+    let created = gateway(root);
+    let model = created["gateway"]["default_model"]
+        .as_str()
+        .expect("default model");
+    assert!(model.starts_with("claude-"), "{created:?}");
 
-    std::fs::write(
-        &config,
-        "default_provider: \"anthropic\"\nproviders:\n  anthropic:\n    enabled: true\n",
-    )
-    .expect("replace with a minimal existing config");
-    update_ai_config_default_provider("openai").expect("update the existing AI config");
-
-    let updated = std::fs::read_to_string(&config).expect("read updated AI config");
-    let updated_yaml: serde_yaml::Value =
-        serde_yaml::from_str(&updated).expect("valid updated YAML");
+    let providers_before = std::fs::read_to_string(root.join("ai/providers.yaml")).unwrap();
+    update_ai_config_default_provider("openai").expect("move the default model");
+    let updated = gateway(root);
+    let model = updated["gateway"]["default_model"]
+        .as_str()
+        .expect("default model");
+    assert!(!model.starts_with("claude-"), "{updated:?}");
     assert_eq!(
-        updated_yaml["default_provider"].as_str(),
-        Some("openai"),
-        "{updated}"
-    );
-    assert_eq!(
-        updated_yaml["providers"]["anthropic"]["enabled"].as_bool(),
-        Some(true),
-        "updating the provider must preserve the rest of the config: {updated}"
+        std::fs::read_to_string(root.join("ai/providers.yaml")).unwrap(),
+        providers_before,
+        "moving the default model must not rewrite the providers"
     );
 }
 
 #[test]
-fn ai_config_is_created_then_updated_without_losing_existing_provider_configuration() {
+fn ai_config_is_seeded_then_its_default_model_moves() {
     let services = tempfile::tempdir().expect("isolated services root");
     let output = Command::new(std::env::current_exe().expect("unit-test binary path"))
         .args(["--exact", HELPER, "--ignored", "--nocapture"])
@@ -62,9 +60,5 @@ fn ai_config_is_created_then_updated_without_losing_existing_provider_configurat
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-
-    let config = std::fs::read_to_string(services.path().join("ai/config.yaml"))
-        .expect("helper produced the AI config");
-    assert!(config.contains("default_provider: \"openai\""), "{config}");
-    assert!(config.contains("anthropic:"), "{config}");
+    assert!(gateway(services.path())["gateway"]["default_model"].is_string());
 }

@@ -9,9 +9,8 @@ pub mod security;
 pub mod skills;
 
 use std::sync::Arc;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{AgentName, McpServerId};
-use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
 use crate::error::{AgentError, AgentResult};
@@ -23,15 +22,23 @@ use security::{oauth_to_security_config, override_oauth_urls, requirements_from_
 use skills::load_skill_from_disk;
 use std::path::Path;
 
+#[derive(Debug, Clone, Copy)]
+pub struct CardSite<'a> {
+    pub api_external_url: &'a str,
+    pub skills_dir: &'a Path,
+}
+
 #[derive(Clone, Debug)]
 pub struct AgentRegistry {
     config: Arc<ServicesConfig>,
 }
 
 impl AgentRegistry {
-    pub fn new() -> AgentResult<Self> {
-        let config = ConfigLoader::load()?;
-        Ok(Self::from_config(config))
+    #[must_use]
+    pub fn new(services: &ServicesView) -> Self {
+        Self {
+            config: services.config(),
+        }
     }
 
     #[must_use]
@@ -41,13 +48,7 @@ impl AgentRegistry {
         }
     }
 
-    #[expect(
-        clippy::unused_async,
-        clippy::unused_async_trait_impl,
-        reason = "async signature required by AgentRegistryProvider trait impl in \
-                  registry_provider.rs"
-    )]
-    pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
+    pub fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
         self.config
             .agents
             .get(name)
@@ -55,41 +56,20 @@ impl AgentRegistry {
             .ok_or_else(|| AgentError::NotFound(name.to_owned()))
     }
 
-    #[expect(
-        clippy::unused_async,
-        clippy::unused_async_trait_impl,
-        reason = "async signature required by AgentRegistryProvider trait impl in \
-                  registry_provider.rs"
-    )]
-    pub async fn list_agents(&self) -> AgentResult<Vec<AgentConfig>> {
-        Ok(self.config.agents.values().cloned().collect())
+    pub fn list_agents(&self) -> Vec<AgentConfig> {
+        self.config.agents.values().cloned().collect()
     }
 
-    #[expect(
-        clippy::unused_async,
-        clippy::unused_async_trait_impl,
-        reason = "async signature required by AgentRegistryProvider trait impl in \
-                  registry_provider.rs"
-    )]
-    pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
-        let is_cloud = is_cloud_deployment()?;
-        Ok(self
-            .config
+    pub fn list_enabled_agents(&self, is_cloud: bool) -> Vec<AgentConfig> {
+        self.config
             .agents
             .values()
             .filter(|a| a.enabled && !(a.dev_only && is_cloud))
             .cloned()
-            .collect())
+            .collect()
     }
 
-    #[expect(
-        clippy::unused_async,
-        clippy::unused_async_trait_impl,
-        reason = "async signature required by AgentRegistryProvider trait impl in \
-                  registry_provider.rs"
-    )]
-    pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
-        let is_cloud = is_cloud_deployment()?;
+    pub fn get_default_agent(&self, is_cloud: bool) -> AgentResult<AgentConfig> {
         self.config
             .agents
             .values()
@@ -98,17 +78,21 @@ impl AgentRegistry {
             .ok_or_else(|| AgentError::NotFound("default agent not configured".to_owned()))
     }
 
-    pub async fn to_agent_card(
+    pub fn to_agent_card(
         &self,
         name: &str,
-        api_external_url: &str,
+        site: CardSite<'_>,
         mcp_extensions: Vec<AgentExtension>,
-        runtime_status: Option<(String, Option<u16>, Option<u32>)>,
+        runtime_status: Option<&(String, Option<u16>, Option<u32>)>,
     ) -> AgentResult<AgentCard> {
-        let agent = self.get_agent(name).await?;
+        let agent = self.get_agent(name)?;
+        let CardSite {
+            api_external_url,
+            skills_dir,
+        } = site;
         let url = agent.construct_url(api_external_url);
 
-        let extensions = build_extensions(&agent, runtime_status.as_ref(), mcp_extensions);
+        let extensions = build_extensions(&agent, runtime_status, mcp_extensions);
 
         let (security_schemes, security_requirements) = if agent.card.security_schemes.is_some()
             || agent.card.security_requirements.is_some()
@@ -129,7 +113,7 @@ impl AgentRegistry {
             oauth_to_security_config(&agent.oauth, api_external_url)
         };
 
-        let all_skills = load_agent_skills(&agent)?;
+        let all_skills = load_agent_skills_from_dir(&agent, skills_dir)?;
 
         let protocol_binding = match agent.card.preferred_transport.as_str() {
             "GRPC" => ProtocolBinding::Grpc,
@@ -168,8 +152,8 @@ impl AgentRegistry {
         })
     }
 
-    pub async fn get_mcp_servers(&self, agent_name: &AgentName) -> AgentResult<Vec<McpServerId>> {
-        let agent = self.get_agent(agent_name.as_str()).await?;
+    pub fn get_mcp_servers(&self, agent_name: &AgentName) -> AgentResult<Vec<McpServerId>> {
+        let agent = self.get_agent(agent_name.as_str())?;
         Ok(agent
             .metadata
             .mcp_servers
@@ -179,11 +163,11 @@ impl AgentRegistry {
             .collect())
     }
 
-    pub async fn find_next_available_port(&self) -> AgentResult<u16> {
+    pub fn find_next_available_port(&self) -> AgentResult<u16> {
         const BASE_PORT: u16 = 9000;
         const MAX_PORT: u16 = 9999;
 
-        let agents = self.list_agents().await?;
+        let agents = self.list_agents();
         let used_ports: Vec<u16> = agents.iter().map(|a| a.port).collect();
 
         for port in BASE_PORT..=MAX_PORT {
@@ -197,12 +181,6 @@ impl AgentRegistry {
             max: MAX_PORT,
         })
     }
-}
-
-fn is_cloud_deployment() -> AgentResult<bool> {
-    systemprompt_manifest::Config::get()
-        .map(|config| config.is_cloud)
-        .map_err(|e| AgentError::invalid_config("cannot resolve dev_only agents", e))
 }
 
 fn build_extensions(
@@ -227,13 +205,6 @@ fn build_extensions(
 
     extensions.extend(mcp_extensions);
     extensions
-}
-
-fn load_agent_skills(agent: &AgentConfig) -> AgentResult<Vec<crate::models::a2a::AgentSkill>> {
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| AgentError::invalid_config("profile is not initialised", e))?;
-    let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
-    load_agent_skills_from_dir(agent, &skills_path)
 }
 
 // Why: the card advertises every skill in `metadata.skills.include`; a skill

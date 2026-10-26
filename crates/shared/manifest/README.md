@@ -13,7 +13,7 @@ Defines the services manifest, the on-disk profile, the secrets document and the
 
 ```toml
 [dependencies]
-systemprompt-manifest = "0.72"
+systemprompt-manifest = "0.73"
 ```
 
 ## Module map
@@ -21,7 +21,7 @@ systemprompt-manifest = "0.72"
 | Module | Contents |
 |--------|----------|
 | `services` | Services manifest: agents, plugins, hooks, MCP servers, skills, marketplaces, scheduler, provider registry, gateway policy, Slack and Teams apps, services bundles. |
-| `validators` | Startup validation passes over the loaded configuration. |
+| `validators` | Startup validation passes over the loaded configuration, the `DomainConfig` trait and registry, and the `ValidationReport` types. |
 | `profile` | On-disk profile: server, security, database, paths, cloud, rate limits, retention, observability. |
 | `config` | Global `Config` singleton assembled from the profile and secrets. |
 | `secrets` | Secrets document model and parsing. |

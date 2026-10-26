@@ -16,9 +16,10 @@ use tokio::fs;
 
 use crate::content::render_markdown;
 use crate::error::{GeneratorResult, PublishError};
+use crate::prerender::components::render_components;
 use crate::prerender::context::PrerenderContext;
+use crate::prerender::json_merge::merge_json_data;
 use crate::prerender::toc::generate_toc;
-use crate::prerender::utils::{merge_json_data, render_components};
 
 const SLUG_PLACEHOLDER: &str = "{slug}";
 

@@ -16,7 +16,6 @@ use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, UserId};
-use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
@@ -31,7 +30,7 @@ use systemprompt_models::feedback::receipts::{
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, install_test_signing_key,
+    TestBootstrap, fixture_app_context_on_bootstrap, fixture_config, init_isolated_bootstrap,
     seed_bridge_credential, seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
@@ -65,19 +64,6 @@ static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
 fn boot() -> &'static TestBootstrap {
     BOOT.get_or_init(|| init_isolated_bootstrap("http://127.0.0.1", SERVICES_CONFIG))
-}
-
-fn boot_paths(boot: &TestBootstrap) -> PathsConfig {
-    PathsConfig {
-        system: boot.system_path.display().to_string(),
-        services: boot.services_path.display().to_string(),
-        bin: boot.bin_path.display().to_string(),
-        web_path: Some(boot.system_path.join("web").display().to_string()),
-        storage: Some(boot.storage_path.display().to_string()),
-        geoip_database: None,
-        shipped_files: None,
-        data: None,
-    }
 }
 
 // Keeps everything except skills, standing in for a per-user marketplace
@@ -121,10 +107,10 @@ struct Harness {
 
 async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
     let boot = boot();
-    install_test_signing_key();
     let pool = test_db_pool().await;
-    let ctx = fixture_app_context_with(&pool, &boot.database_url, boot_paths(boot), filter)
-        .expect("fixture context");
+    let ctx =
+        fixture_app_context_on_bootstrap(boot, &pool, fixture_config(&boot.database_url), filter)
+            .expect("fixture context");
     let owner = ctx.system_admin().id();
     seed_user_row(&pool, owner, &format!("{owner}@manifest-grants.invalid"))
         .await
@@ -137,6 +123,7 @@ async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     Harness {
         pool,
@@ -244,6 +231,7 @@ async fn publish_organisation_skill_with_hosts(
                 ),
                 limitations: String::new(),
                 operation_key: format!("adopt-{key}"),
+                cohort: None,
             },
         )
         .await
@@ -714,7 +702,14 @@ async fn consumer_http_flow_binds_receipts_and_refuses_another_device() {
         serde_json::from_slice(&to_bytes(response.into_body(), 1_000_000).await.unwrap()).unwrap();
     assert!(recorded.fully_verified);
     repository
-        .reconcile_inventory(&owner, &[])
+        .reconcile_inventory(
+            &owner,
+            &[],
+            systemprompt_marketplace::inventory::SourcesContext {
+                profile: harness.ctx.profile(),
+                active_root: harness.ctx.boot().services_root(),
+            },
+        )
         .await
         .expect("managed inventory projection");
     repository
@@ -795,10 +790,10 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
     let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     let pool = database.test_pool().await;
     let boot = boot();
-    let ctx = fixture_app_context_with(
+    let ctx = fixture_app_context_on_bootstrap(
+        boot,
         &pool,
-        database.url(),
-        boot_paths(boot),
+        fixture_config(database.url()),
         Arc::new(AllowAllFilter),
     )
     .unwrap();
@@ -814,6 +809,7 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
             systemprompt_traits::CacheEpochs::new(),
         ),
         ctx.config().jwt_issuer.clone(),
+        systemprompt_test_fixtures::test_signing_keys(),
     ));
     let harness = Harness {
         pool,

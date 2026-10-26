@@ -32,7 +32,7 @@ use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
-use systemprompt_security::keys::TokenAuthorityError;
+use systemprompt_security::keys::SigningKeysError;
 use systemprompt_traits::{BoxedSource, FileStorageError, RepositoryError};
 use systemprompt_users::UserError;
 use thiserror::Error;
@@ -41,6 +41,9 @@ pub type RuntimeResult<T> = Result<T, RuntimeError>;
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
+    #[error(transparent)]
+    SubjectSource(#[from] systemprompt_models::authz::AlreadyBound),
+
     #[error(transparent)]
     Profile(#[from] ProfileConfigError),
 
@@ -89,6 +92,9 @@ pub enum RuntimeError {
     #[error(transparent)]
     Secrets(#[from] SecretsBootstrapError),
 
+    #[error(transparent)]
+    AtRest(#[from] systemprompt_security::at_rest::AtRestCipherError),
+
     #[error("services config: {0}")]
     ServicesConfig(#[from] ConfigLoadError),
 
@@ -111,8 +117,11 @@ pub enum RuntimeError {
     #[error("services reconcile state: {0}")]
     ServicesReconcileState(#[source] BundleError),
 
+    #[error("subprocess spawner: {0}")]
+    Spawner(#[source] std::io::Error),
+
     #[error("signing key init: {0}")]
-    Signing(#[from] TokenAuthorityError),
+    Signing(#[from] SigningKeysError),
 
     #[error("authz bootstrap: {0}")]
     Authz(#[from] AuthzError),

@@ -7,17 +7,31 @@
 use super::OrchestrationError;
 use crate::AppContext;
 use systemprompt_identifiers::UserId;
-use systemprompt_marketplace::inventory::{BaselineScope, InventoryService, InventoryStatus};
+use systemprompt_marketplace::inventory::{
+    BaselineScope, InventoryService, InventoryStatus, SourcesContext,
+};
 pub use systemprompt_marketplace::inventory::{LatestPublication, LatestPublicationStatus};
+
+fn sources(ctx: &AppContext) -> SourcesContext<'_> {
+    SourcesContext {
+        profile: ctx.profile(),
+        active_root: ctx.boot().services_root(),
+    }
+}
 
 pub async fn refresh(
     ctx: &AppContext,
     owner: &UserId,
 ) -> Result<InventoryStatus, OrchestrationError> {
-    let services = load_services(ctx, owner).await?;
+    let services = ctx.services_config();
     Ok(
         InventoryService::new(ctx.managed_repository().as_ref().clone())
-            .refresh(owner, ctx.app_paths().system().services(), &services)
+            .refresh(
+                owner,
+                ctx.app_paths().system().services(),
+                &services,
+                sources(ctx),
+            )
             .await?,
     )
 }
@@ -27,10 +41,15 @@ pub async fn publish_latest(
     owner: &UserId,
     actor: &UserId,
 ) -> Result<Vec<LatestPublication>, OrchestrationError> {
-    let services = load_services(ctx, owner).await?;
+    let services = ctx.services_config();
     let service = InventoryService::new(ctx.managed_repository().as_ref().clone());
     service
-        .refresh(owner, ctx.app_paths().system().services(), &services)
+        .refresh(
+            owner,
+            ctx.app_paths().system().services(),
+            &services,
+            sources(ctx),
+        )
         .await?;
     let mut guard = ctx.publish_guard().lock().await;
     Ok(service
@@ -40,24 +59,9 @@ pub async fn publish_latest(
                 actor,
                 root: ctx.app_paths().system().services(),
                 services: &services,
+                sources: sources(ctx),
             },
             &mut guard,
         )
         .await?)
-}
-
-async fn load_services(
-    ctx: &AppContext,
-    owner: &UserId,
-) -> Result<systemprompt_manifest::services::ServicesConfig, OrchestrationError> {
-    match systemprompt_loader::ConfigLoader::load() {
-        Ok(services) => Ok(services),
-        Err(error) => {
-            tracing::warn!(%error, "Configured inventory could not be loaded; previous inventory retained");
-            ctx.managed_repository()
-                .record_inventory_failure(owner)
-                .await?;
-            Err(OrchestrationError::InventoryLoad(error))
-        },
-    }
 }

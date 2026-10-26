@@ -189,7 +189,7 @@ fn build_messages_merges_client_message_id_into_metadata() {
     let task_id = TaskId::generate();
     let ctx = ContextId::generate();
     let mut row = message_row(&task_id, &ctx, "user", 1);
-    row.client_message_id = Some("cmid-1".to_owned());
+    row.client_message_id = Some(MessageId::new("cmid-1"));
     row.metadata = Some(serde_json::json!({"existing": true}));
     let rows = vec![&row];
     let parts: HashMap<MessageId, Vec<&MessagePart>> = HashMap::new();

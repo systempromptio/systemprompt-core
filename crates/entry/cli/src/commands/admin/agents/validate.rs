@@ -7,12 +7,10 @@ use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::{ValidationIssue, ValidationOutput};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use systemprompt_config::SecretsBootstrap;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::secrets::Secrets;
-use systemprompt_manifest::services::ProviderRegistry;
+use systemprompt_manifest::services::catalog::{CatalogContext, ResolvedCatalog};
 use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
 #[derive(Debug, Args)]
@@ -24,18 +22,23 @@ pub struct ValidateArgs {
 #[derive(Debug)]
 pub struct ValidationSources<'a> {
     pub services_config: &'a ServicesConfig,
-    pub registry: &'a ProviderRegistry,
+    pub catalog: &'a ResolvedCatalog,
     pub secrets: Option<&'a Secrets>,
 }
 
-pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-    let registry = &services_config.providers;
-    let secrets = SecretsBootstrap::get().context("secrets are not initialised")?;
+pub(super) fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
+    let services_config = ctx
+        .boot()?
+        .load_services_config()
+        .context("Failed to load services configuration")?;
+    let catalog = services_config
+        .resolve_catalog(&CatalogContext::default())
+        .context("The services catalog does not resolve")?;
+    let secrets = ctx.secrets()?.get();
     let sources = ValidationSources {
         services_config: &services_config,
-        registry,
-        secrets: Some(secrets),
+        catalog: &catalog,
+        secrets: Some(&secrets),
     };
 
     let mut errors = Vec::new();
@@ -134,58 +137,50 @@ pub fn check_provider(
         return;
     };
 
-    let Some(provider_config) = sources.services_config.ai.providers.get(provider_name) else {
+    let Some(provider) = sources.catalog.provider(provider_name) else {
         errors.push(ValidationIssue {
             source: name.to_owned(),
             message: format!(
-                "Provider '{}' is not configured in ai.providers",
-                provider_name
+                "Provider '{provider_name}' is not declared in services/ai/providers.yaml"
             ),
             suggestion: None,
         });
         return;
     };
 
-    if !provider_config.enabled {
+    if !provider.enabled {
         errors.push(ValidationIssue {
             source: name.to_owned(),
             message: format!(
-                "Provider '{}' is disabled in AI config (set enabled: true)",
-                provider_name
+                "Provider '{provider_name}' is disabled in services/ai/providers.yaml (set \
+                 enabled: true)"
             ),
             suggestion: None,
         });
     }
 
-    match sources.registry.find_provider(provider_name) {
-        None => {
-            errors.push(ValidationIssue {
-                source: name.to_owned(),
-                message: format!(
-                    "Provider '{}' has no connectivity entry in the services provider registry",
-                    provider_name
-                ),
-                suggestion: None,
-            });
-        },
-        Some(entry) if entry.is_user_credential() => {},
-        Some(entry) => {
-            let secret_name = entry.api_key_secret.as_ref().map_or("", |s| s.as_str());
-            let key_present = sources
-                .secrets
-                .and_then(|s| s.get(secret_name))
-                .is_some_and(|k| !k.is_empty());
-            if !key_present {
-                errors.push(ValidationIssue {
-                    source: name.to_owned(),
-                    message: format!(
-                        "No API key configured for provider '{}' (secret '{}' not found)",
-                        provider_name, secret_name
-                    ),
-                    suggestion: None,
-                });
-            }
-        },
+    let Some(secret_name) = sources
+        .catalog
+        .credential(provider.credential.as_str())
+        .and_then(|credential| credential.platform_secret())
+    else {
+        return;
+    };
+    let key_present = sources
+        .secrets
+        .and_then(|s| s.get(secret_name.as_str()))
+        .is_some_and(|k| !k.is_empty());
+    if !key_present {
+        errors.push(ValidationIssue {
+            source: name.to_owned(),
+            message: format!(
+                "No API key configured for provider '{provider_name}' (credential '{}', secret \
+                 '{}' not found)",
+                provider.credential,
+                secret_name.as_str()
+            ),
+            suggestion: None,
+        });
     }
 }
 

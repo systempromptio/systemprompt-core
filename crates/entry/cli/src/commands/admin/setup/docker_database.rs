@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use systemprompt_logging::CliService;
 use tokio::process::Command;
 
-use super::common::PostgresConfig;
+use super::postgres_access::PostgresConfig;
 
 pub(super) async fn create_database_in_docker(
     config: &PostgresConfig,

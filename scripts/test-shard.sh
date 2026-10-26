@@ -11,7 +11,7 @@ group_prefixes() {
     domain)      echo "/tests/unit/domain/" ;;
     # The gateway crate sits beside the runtime it is composed into; its unit
     # tests ride this shard rather than adding a CI matrix entry.
-    app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/" ;;
+    app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/ /tests/unit/app/gateway-golden/" ;;
     app-scheduler) echo "/tests/unit/app/scheduler/" ;;
     app-agent-runs)  echo "/tests/unit/app/agent-runs/" ;;
     app-generator) echo "/tests/unit/app/generator/" ;;
@@ -27,9 +27,10 @@ group_prefixes() {
     integration-api)  echo "/tests/integration/api/" ;;
     integration-cli)  echo "/tests/integration/cli/ /tests/integration/cloud/" ;;
     integration-rest|integration-rest-1|integration-rest-2)
-                      echo "/tests/integration/agent/ /tests/integration/analytics/ \
+                      echo "/tests/integration/agent/ /tests/integration/analytics/ /tests/integration/config-migrate/ \
                              /tests/integration/content/ /tests/integration/database/ \
                              /tests/integration/events/ /tests/integration/extension/ \
+                             /tests/integration/facade-macros/ \
                              /tests/integration/files/ /tests/integration/gateway/ \
                              /tests/integration/generator/ /tests/integration/mcp/ \
                              /tests/integration/oauth/ /tests/integration/runtime/ \
@@ -62,6 +63,10 @@ if [ "${1:-}" = "--archive" ]; then
   for g in $SHARD_GROUPS; do all_prefixes="$all_prefixes $(group_prefixes "$g")"; done
   ALL_PKGS=$(packages_under "$all_prefixes" | sort -u | sed 's/^/-p /' | tr '\n' ' ')
   test -n "$ALL_PKGS" || { echo "no packages matched any shard group" >&2; exit 1; }
+  UNSHARDED=$(comm -23 \
+    <(printf '%s' "$PACKAGE_JSON" | jq -r '.packages[] | select(.manifest_path | contains("/tests/common/") | not) | .name' | sort -u) \
+    <(packages_under "$all_prefixes" | sort -u))
+  test -z "$UNSHARDED" || { echo "test crates in no shard group (their tests never run):" >&2; echo "$UNSHARDED" >&2; exit 1; }
   cargo nextest archive --manifest-path crates/tests/Cargo.toml \
     --lib --tests $ALL_PKGS --archive-file "$archive" "$@"
   exit 0

@@ -10,34 +10,39 @@ use chrono::{Duration, Utc};
 use systemprompt_identifiers::{ClientId, McpServerId, SessionId};
 use systemprompt_mcp::middleware::rbac::jwt::{validate_audience, validate_scopes_for_permissions};
 use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
+    UserType,
 };
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 
 fn claims_for(audiences: Vec<JwtAudience>) -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
-        sub: "user_42".to_owned(),
-        iat: now.timestamp(),
-        exp: (now + Duration::hours(1)).timestamp(),
-        nbf: Some(now.timestamp()),
-        iss: "issuer".to_owned(),
-        aud: audiences,
-        jti: "jti-1".to_owned(),
-        scope: vec![Permission::User],
-        username: "u".to_owned(),
-        email: "u@example.com".to_owned(),
-        user_type: UserType::User,
-        roles: Vec::new(),
-        attributes: std::collections::BTreeMap::new(),
-        client_id: Some(ClientId::new("c")),
-        token_type: TokenType::Bearer,
-        auth_time: now.timestamp(),
-        session_id: Some(SessionId::new("s")),
-        rate_limit_tier: Some(RateLimitTier::User),
-        plugin_id: None,
-        act: None,
-        purpose: None,
+        registered: RegisteredClaims {
+            sub: "user_42".to_owned(),
+            iat: now.timestamp(),
+            exp: (now + Duration::hours(1)).timestamp(),
+            nbf: Some(now.timestamp()),
+            iss: "issuer".to_owned(),
+            aud: audiences,
+            jti: "jti-1".to_owned(),
+        },
+        custom: CustomClaims {
+            scope: vec![Permission::User],
+            username: "u".to_owned(),
+            email: "u@example.com".to_owned(),
+            user_type: UserType::User,
+            roles: Vec::new(),
+            attributes: std::collections::BTreeMap::new(),
+            client_id: Some(ClientId::new("c")),
+            token_type: TokenType::Bearer,
+            auth_time: now.timestamp(),
+            session_id: Some(SessionId::new("s")),
+            rate_limit_tier: Some(RateLimitTier::User),
+            plugin_id: None,
+            act: None,
+            purpose: None,
+        },
     }
 }
 

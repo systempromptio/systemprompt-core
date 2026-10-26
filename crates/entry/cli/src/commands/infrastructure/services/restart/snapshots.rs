@@ -15,13 +15,14 @@ use systemprompt_scheduler::{ServiceSnapshot, ServiceType};
 
 pub(super) async fn agent_snapshots(
     orchestrator: &AgentOrchestrator,
+    services: &systemprompt_loader::ServicesState,
 ) -> Result<Vec<ServiceSnapshot>> {
-    let agent_registry = AgentRegistry::new()?;
+    let agent_registry = AgentRegistry::new(&services.view());
     let all_agents = orchestrator.list_all().await?;
 
     let mut snapshots = Vec::with_capacity(all_agents.len());
     for (agent_id, status) in &all_agents {
-        let Ok(agent_config) = agent_registry.get_agent(agent_id.as_str()).await else {
+        let Ok(agent_config) = agent_registry.get_agent(agent_id.as_str()) else {
             continue;
         };
 
@@ -48,6 +49,8 @@ pub(super) async fn mcp_snapshots(
             (**ctx.service_repository()).clone(),
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),
+            Arc::clone(ctx.spawner()),
+            Arc::clone(ctx.secrets()),
         )?;
         manager
             .service_statuses()

@@ -27,13 +27,11 @@ fn absent_block_means_manual_only() {
     assert!(!profile.judge.automatic);
 }
 
-// Inserts the `evaluation` key on purpose: the `alias = "evaluation"` keeps a
-// deployed profile.yaml that spells it that way booting.
 #[test]
 fn automatic_flag_parses() {
     let mut map = profile_yaml_without_judge();
     let block: Value = serde_yaml::from_str("automatic: true").unwrap();
-    map.insert(Value::String("evaluation".to_owned()), block);
+    map.insert(Value::String("judge".to_owned()), block);
     let profile = parse(map).expect("parses with the block");
     assert!(profile.judge.automatic);
 }
@@ -42,7 +40,7 @@ fn automatic_flag_parses() {
 fn unknown_key_is_rejected() {
     let mut map = profile_yaml_without_judge();
     let block: Value = serde_yaml::from_str("automatik: true").unwrap();
-    map.insert(Value::String("evaluation".to_owned()), block);
+    map.insert(Value::String("judge".to_owned()), block);
     let err = parse(map).expect_err("unknown key rejected");
     assert!(err.to_string().contains("automatik"), "{err}");
 }

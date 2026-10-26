@@ -26,146 +26,175 @@ fn provider_list_with_formats() {
 }
 
 #[test]
-fn provider_enable_disable_and_set_default() {
+fn provider_enable_disable() {
     full_fixture();
-    run_ok(&["admin", "config", "provider", "enable", "openai"]);
-    run_ok(&["admin", "config", "provider", "set", "openai"]);
-    run_ok(&["admin", "config", "provider", "disable", "openai"]);
-    run_err(&["admin", "config", "provider", "set", "openai"]);
-    run_err(&["admin", "config", "provider", "set", "nonexistent"]);
-    run_err(&["admin", "config", "provider", "enable", "nonexistent"]);
-    run_ok(&["admin", "config", "provider", "set", "anthropic"]);
+    run_ok(&["admin", "config", "provider", "disable", "--id", "openai"]);
+    run_ok(&["admin", "config", "provider", "enable", "--id", "openai"]);
+    run_err(&[
+        "admin",
+        "config",
+        "provider",
+        "enable",
+        "--id",
+        "nonexistent",
+    ]);
 }
 
 #[test]
-fn catalog_provider_add_list_remove() {
+fn catalog_credential_provider_endpoint_add_list_remove() {
     full_fixture();
-    run_ok(&["admin", "config", "catalog", "provider", "list"]);
+    run_ok(&["admin", "config", "credential", "list"]);
     run_ok(&[
         "admin",
         "config",
-        "catalog",
+        "credential",
+        "add",
+        "--id",
+        "minimax",
+        "--kind",
+        "platform",
+        "--secret",
+        "minimax",
+    ]);
+    run_err(&[
+        "admin",
+        "config",
+        "credential",
+        "add",
+        "--id",
+        "bad",
+        "--kind",
+        "personal",
+        "--secret",
+        "x",
+    ]);
+    run_err(&[
+        "admin",
+        "config",
+        "credential",
+        "add",
+        "--id",
+        "bad",
+        "--kind",
+        "nope",
+    ]);
+    run_ok(&[
+        "admin",
+        "config",
         "provider",
         "add",
-        "--name",
+        "--id",
         "minimax",
-        "--wire",
-        "openai-chat",
-        "--surface",
-        "backend",
-        "--endpoint",
-        "https://api.minimax.example.com/v1/chat/completions",
-        "--api-key-secret",
+        "--credential",
         "minimax",
         "--header",
         "x-extra=1",
-    ]);
-    run_err(&[
-        "admin",
-        "config",
-        "catalog",
-        "provider",
-        "add",
-        "--name",
-        "badwire",
-        "--wire",
-        "not-a-wire",
-        "--surface",
-        "backend",
         "--endpoint",
-        "https://api.example.com",
-        "--api-key-secret",
-        "x",
-    ]);
-    run_err(&[
-        "admin",
-        "config",
-        "catalog",
-        "provider",
-        "add",
-        "--name",
-        "badsurface",
+        "messages",
         "--wire",
         "anthropic",
-        "--surface",
-        "nope",
-        "--endpoint",
-        "https://api.example.com",
-        "--api-key-secret",
-        "x",
+        "--url",
+        "https://api.minimax.example.com/anthropic/v1",
     ]);
     run_err(&[
         "admin",
         "config",
-        "catalog",
         "provider",
         "add",
-        "--name",
+        "--id",
         "badheader",
-        "--wire",
-        "anthropic",
-        "--surface",
-        "backend",
-        "--endpoint",
-        "https://api.example.com",
-        "--api-key-secret",
-        "x",
+        "--credential",
+        "minimax",
         "--header",
         "novalue",
     ]);
-    run_with_formats(&["admin", "config", "catalog", "provider", "list"]);
     run_ok(&[
-        "admin", "config", "catalog", "provider", "remove", "--name", "minimax",
+        "admin",
+        "config",
+        "endpoint",
+        "add",
+        "--provider",
+        "minimax",
+        "--id",
+        "chat",
+        "--wire",
+        "openai-chat",
+        "--url",
+        "https://api.minimax.example.com/v1",
     ]);
     run_err(&[
-        "admin", "config", "catalog", "provider", "remove", "--name", "minimax",
+        "admin",
+        "config",
+        "endpoint",
+        "add",
+        "--provider",
+        "minimax",
+        "--id",
+        "bad",
+        "--wire",
+        "not-a-wire",
+        "--url",
+        "https://api.example.com",
     ]);
+    run_with_formats(&["admin", "config", "provider", "list"]);
+    run_ok(&["admin", "config", "provider", "remove", "--id", "minimax"]);
+    run_err(&["admin", "config", "provider", "remove", "--id", "minimax"]);
+    run_ok(&["admin", "config", "credential", "remove", "--id", "minimax"]);
 }
 
 #[test]
-fn catalog_model_add_remove() {
+fn catalog_model_and_deployment_add_remove() {
     full_fixture();
     run_ok(&[
         "admin",
         "config",
-        "catalog",
         "model",
         "add",
-        "--provider",
-        "anthropic",
         "--id",
         "claude-haiku-4-5",
-        "--alias",
-        "haiku",
+        "--deployment",
+        "anthropic/api",
         "--upstream-model",
         "claude-haiku-4-5-latest",
+        "--clients",
+        "claude",
     ]);
     run_ok(&[
         "admin",
         "config",
-        "catalog",
+        "deployment",
+        "set",
+        "--model",
+        "claude-haiku-4-5",
+        "--endpoint",
+        "anthropic/api",
+        "--endpoint",
+        "openai/api",
+    ]);
+    run_with_formats(&["admin", "config", "deployment", "list"]);
+    run_ok(&[
+        "admin",
+        "config",
         "model",
         "remove",
-        "--provider",
-        "anthropic",
         "--id",
         "claude-haiku-4-5",
     ]);
     run_err(&[
         "admin",
         "config",
-        "catalog",
         "model",
         "add",
-        "--provider",
-        "missing",
         "--id",
         "some-model",
+        "--deployment",
+        "missing/api",
     ]);
+    run_err(&["admin", "config", "model", "add", "--id", "no-deployment"]);
 }
 
 #[test]
-fn gateway_enable_routes_default_provider() {
+fn gateway_enable_routes_default_model() {
     full_fixture();
     run_ok(&["admin", "config", "gateway", "route", "list"]);
     run_ok(&["admin", "config", "gateway", "enable"]);
@@ -175,41 +204,40 @@ fn gateway_enable_routes_default_provider() {
         "gateway",
         "route",
         "add",
-        "--model-pattern",
+        "--id",
+        "claude-pin",
+        "--models",
         "claude-*",
-        "--provider",
-        "anthropic",
-        "--upstream-model",
-        "claude-sonnet-4-5",
+        "--deployment",
+        "anthropic/api",
     ]);
     run_with_formats(&["admin", "config", "gateway", "route", "list"]);
     run_ok(&[
         "admin",
         "config",
         "gateway",
-        "default-provider",
+        "default-model",
         "set",
-        "--provider",
-        "anthropic",
+        "--model",
+        "claude-sonnet-4-5",
     ]);
     run_err(&[
         "admin",
         "config",
         "gateway",
-        "default-provider",
+        "default-model",
         "set",
-        "--provider",
+        "--model",
         "missing",
     ]);
-    run_ok(&["admin", "config", "gateway", "default-provider", "clear"]);
     run_ok(&[
         "admin",
         "config",
         "gateway",
         "route",
         "remove",
-        "--model-pattern",
-        "claude-*",
+        "--id",
+        "claude-pin",
     ]);
     run_err(&[
         "admin",
@@ -217,8 +245,8 @@ fn gateway_enable_routes_default_provider() {
         "gateway",
         "route",
         "remove",
-        "--model-pattern",
-        "claude-*",
+        "--id",
+        "claude-pin",
     ]);
     run_ok(&["admin", "config", "gateway", "disable"]);
 }
@@ -268,14 +296,8 @@ fn server_show_set_and_cors() {
         "0.0.0.0",
         "--port",
         "8090",
-        "--use-https",
-        "false",
-        "--api-server-url",
-        "http://0.0.0.0",
-        "--api-internal-url",
-        "http://0.0.0.0",
-        "--api-external-url",
-        "http://0.0.0.0:8090",
+        "--external-url",
+        "http://localhost:8090",
     ]);
     run(&["admin", "config", "server", "set"]);
     run_ok(&["admin", "config", "server", "cors", "list"]);
@@ -316,8 +338,6 @@ fn security_show_set_and_trusted_issuers() {
         "config",
         "security",
         "set",
-        "--jwt-issuer",
-        "https://issuer2.example.com",
         "--access-expiry",
         "7200",
         "--refresh-expiry",

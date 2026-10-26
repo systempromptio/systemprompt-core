@@ -61,9 +61,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     use std::sync::Arc;
     use systemprompt_cli::infrastructure::services::restart;
     use systemprompt_loader::subprocess::{self, ChildKind};
-    use systemprompt_test_fixtures::{
-        DisposableDb, fixture_app_context_with, install_test_signing_key,
-    };
+    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_on_bootstrap_with_paths};
 
     let root = seed_agents();
     let listener = (9000..=9999)
@@ -89,13 +87,12 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
         agent_yaml("covlister", port, "Coverage Lister", true),
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
 
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_restart_failed").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -105,9 +102,9 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(
+    let app = fixture_app_context_on_bootstrap_with_paths(
+        boot,
         &pool,
-        database.url(),
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
@@ -172,7 +169,7 @@ fn parse(args: &[&str]) -> AgentsCommands {
 }
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -203,7 +200,6 @@ fn seed_agents() -> PathBuf {
         "includes:\n  - ../agents/covlister.yaml\n  - ../agents/covdormant.yaml\nmcp_servers: {}\n",
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
     root
 }
 
@@ -348,7 +344,10 @@ async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
         !includes.contains("covlister"),
         "deletion must remove the profile include as well: {includes}"
     );
-    let config = systemprompt_loader::ConfigLoader::load().unwrap();
+    let config = systemprompt_test_fixtures::ensure_test_bootstrap()
+        .boot
+        .load_services_config()
+        .unwrap();
     assert!(
         !config.agents.contains_key("covlister"),
         "the reloaded config must not retain a deleted agent"
@@ -361,9 +360,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     use std::sync::Arc;
     use systemprompt_cli::infrastructure::services::restart;
     use systemprompt_loader::subprocess::{self, ChildKind};
-    use systemprompt_test_fixtures::{
-        DisposableDb, fixture_app_context_with, install_test_signing_key,
-    };
+    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_on_bootstrap_with_paths};
 
     let root = seed_agents();
     let listener = (9000..=9999)
@@ -391,12 +388,11 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
         agent_yaml("covlister", port, "Coverage Lister", true),
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_restart_all_agents").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -406,9 +402,9 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(
+    let app = fixture_app_context_on_bootstrap_with_paths(
+        boot,
         &pool,
-        database.url(),
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
@@ -466,18 +462,16 @@ const DELETE_ALL_HELPER: &str =
 #[ignore = "re-executed by delete_all_reports_exact_targets_and_preserves_unrelated_configuration"]
 async fn delete_all_agents_public_helper() {
     use std::sync::Arc;
-    use systemprompt_test_fixtures::{
-        DisposableDb, fixture_app_context_with, install_test_signing_key,
-    };
+    use systemprompt_test_fixtures::{DisposableDb, fixture_app_context_on_bootstrap_with_paths};
 
     let root = seed_agents();
     let control = root.join("config/control.yaml");
     std::fs::write(&control, "control: preserved\n").expect("write unrelated control");
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    install_test_signing_key();
     let database = DisposableDb::with_schema("cli_admin_delete_all").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -487,14 +481,14 @@ async fn delete_all_agents_public_helper() {
         shipped_files: None,
         data: None,
     };
-    let app = fixture_app_context_with(
+    let app = fixture_app_context_on_bootstrap_with_paths(
+        boot,
         &pool,
-        database.url(),
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )
     .expect("full private app context");
-    let context = CommandContext::with_app_context(
+    let context = crate::boot_ctx::with_app_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),

@@ -1,8 +1,8 @@
 //! Integration tests for FileUploadService.
 //!
 //! Requires `DATABASE_URL` to point at a migrated Postgres instance. Bootstraps
-//! `ProfileBootstrap` + `FilesConfig` via the shared `bootstrap` helper so the
-//! upload service can resolve storage roots.
+//! the fixture `BootContext` and builds the `FilesConfig` via the shared
+//! `bootstrap` helper so the upload service can resolve storage roots.
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -40,8 +40,7 @@ fn unique_context_id(_suffix: &str) -> ContextId {
 #[tokio::test]
 async fn upload_service_new_and_is_enabled() {
     let db = test_db_pool().await;
-    let _env = test_env();
-    let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
+    let files_config = test_env().files_config.clone();
 
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db),
@@ -61,8 +60,7 @@ async fn upload_service_new_and_is_enabled() {
 #[tokio::test]
 async fn upload_service_uploads_png_successfully() {
     let db = test_db_pool().await;
-    let _env = test_env();
-    let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
+    let files_config = test_env().files_config.clone();
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
@@ -89,8 +87,7 @@ async fn upload_service_uploads_png_successfully() {
 #[tokio::test]
 async fn upload_service_rejects_blocked_mime_type() {
     let db = test_db_pool().await;
-    let _env = test_env();
-    let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
+    let files_config = test_env().files_config.clone();
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
@@ -111,8 +108,7 @@ async fn upload_service_rejects_blocked_mime_type() {
 #[tokio::test]
 async fn upload_service_rejects_oversized_base64() {
     let db = test_db_pool().await;
-    let _env = test_env();
-    let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
+    let files_config = test_env().files_config.clone();
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
@@ -129,8 +125,7 @@ async fn upload_service_rejects_oversized_base64() {
 #[tokio::test]
 async fn upload_service_rejects_unknown_mime_type() {
     let db = test_db_pool().await;
-    let _env = test_env();
-    let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
+    let files_config = test_env().files_config.clone();
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db),
         files_config.clone(),

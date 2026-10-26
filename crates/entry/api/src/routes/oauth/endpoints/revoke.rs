@@ -16,6 +16,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use systemprompt_identifiers::{AccessTokenId, ClientId, RefreshTokenId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
@@ -60,9 +61,10 @@ impl Caller<'_> {
     }
 }
 
-#[instrument(skip(state, req_ctx, request, repo))]
+#[instrument(skip(state, config, req_ctx, request, repo))]
 pub async fn handle_revoke(
     Extension(req_ctx): Extension<RequestContext>,
+    Extension(config): Extension<Arc<Config>>,
     State(state): State<OAuthState>,
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<RevokeRequest>,
@@ -95,11 +97,11 @@ pub async fn handle_revoke(
             revoke_refresh_token(&repo, &request.token, &caller).await?;
         },
         Some("access_token") => {
-            revoke_access_token(&state, &repo, &request.token, &caller).await?;
+            revoke_access_token(&state, &config, &repo, &request.token, &caller).await?;
         },
         _ => {
             if !revoke_refresh_token(&repo, &request.token, &caller).await? {
-                revoke_access_token(&state, &repo, &request.token, &caller).await?;
+                revoke_access_token(&state, &config, &repo, &request.token, &caller).await?;
             }
         },
     }
@@ -144,21 +146,25 @@ async fn revoke_refresh_token(
 
 async fn revoke_access_token(
     state: &OAuthState,
+    config: &Config,
     repo: &OAuthRepository,
     token: &str,
     caller: &Caller<'_>,
 ) -> Result<(), OAuthHttpError> {
-    let config = Config::get()?;
-    let claims = match validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences) {
+    let claims = match validate_jwt_token(
+        state.token_authority().as_ref(),
+        token,
+        &config.jwt_audiences,
+    ) {
         Ok(claims) => claims,
         Err(e) => {
             tracing::debug!(error = %e, "Access token did not verify; nothing to revoke");
             return Ok(());
         },
     };
-    caller.check_client(claims.client_id.as_ref())?;
+    caller.check_client(claims.custom.client_id.as_ref())?;
 
-    let owner = match UserId::try_new(&claims.sub) {
+    let owner = match UserId::try_new(&claims.registered.sub) {
         Ok(owner) => owner,
         Err(e) => {
             tracing::debug!(error = %e, "Access token subject is not a user id; nothing to revoke");
@@ -173,12 +179,12 @@ async fn revoke_access_token(
         return Ok(());
     }
 
-    match AccessTokenId::try_new(&claims.jti) {
-        Ok(jti) => record_jti_revocation(repo, &jti, &owner, claims.exp).await?,
+    match AccessTokenId::try_new(&claims.registered.jti) {
+        Ok(jti) => record_jti_revocation(repo, &jti, &owner, claims.registered.exp).await?,
         Err(e) => tracing::debug!(error = %e, "Access token has no jti; nothing to record"),
     }
 
-    if let Some(session_id) = &claims.session_id {
+    if let Some(session_id) = &claims.custom.session_id {
         state
             .session_provider()
             .revoke_session(session_id)

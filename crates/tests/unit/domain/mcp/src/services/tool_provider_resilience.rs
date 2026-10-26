@@ -70,7 +70,17 @@ async fn provider_for_endpoint(
     );
     let _bootstrap = bootstrap_with_services(&yaml);
 
-    let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), resilience);
+    let provider = McpToolProvider::new(
+        db,
+        RegistryService::new(
+            fixture_user_id(),
+            crate::harness::services_state().view(),
+            crate::harness::config(),
+        ),
+        resilience,
+        std::sync::Arc::default(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    );
     (
         provider,
         McpServerId::try_new(&server_name).expect("valid McpServerId"),

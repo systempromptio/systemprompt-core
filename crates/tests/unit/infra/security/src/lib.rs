@@ -25,6 +25,10 @@ mod error_display;
 #[cfg(test)]
 mod extraction;
 #[cfg(test)]
+mod governance_plane;
+#[cfg(test)]
+mod governance_plane_unapplied;
+#[cfg(test)]
 mod hook_token_typed_ids;
 #[cfg(test)]
 mod jwks_fetch;
@@ -76,6 +80,8 @@ mod session_generator;
 mod signing_key_independence;
 #[cfg(test)]
 mod signing_key_pem_roundtrip;
+#[cfg(test)]
+mod token_authority;
 
 #[cfg(test)]
 mod connector_grant;

@@ -75,7 +75,7 @@ fn parse(args: &[&str]) -> AgentsCommands {
 }
 
 fn ctx() -> CommandContext {
-    CommandContext::new(
+    crate::boot_ctx::new_with_boot(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
@@ -93,7 +93,6 @@ fn seed() -> PathBuf {
         format!("includes:\n  - ../agents/{AGENT}.yaml\nmcp_servers: {{}}\n"),
     )
     .unwrap();
-    systemprompt_test_fixtures::refresh_services_config();
     root
 }
 

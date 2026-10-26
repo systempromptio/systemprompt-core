@@ -26,7 +26,12 @@ async fn router_for(role: NodeRole) -> anyhow::Result<Router> {
     config.trusted_proxies = Vec::new();
     config.role = role;
     let ctx = fixture_app_context_with_config(&pool, config)?;
-    setup_api_server(&ctx, None).map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
+    setup_api_server(
+        &ctx,
+        None,
+        &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
 }
 
 async fn get(app: &Router, uri: &str) -> anyhow::Result<(StatusCode, String)> {
@@ -92,7 +97,21 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
     config.role = NodeRole::Admin;
     let ctx = fixture_app_context_with_config(&pool, config)?;
 
-    let gateway = configure_routes_for_role(&ctx, NodeRole::Gateway, None)?;
+    let gateway = configure_routes_for_role(
+        &ctx,
+        NodeRole::Gateway,
+        None,
+        &std::sync::Arc::new(
+            systemprompt_gateway::GatewayEngines::new(
+                Default::default(),
+                &systemprompt_test_fixtures::fixture_extension_context(
+                    &systemprompt_test_fixtures::test_db_pool().await,
+                ),
+                systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            )
+            .expect("gateway engines build"),
+        ),
+    )?;
     assert!(is_mounted(&gateway, "/v1/models").await?);
     Ok(())
 }

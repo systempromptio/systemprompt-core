@@ -259,6 +259,10 @@ async fn minting_a_session_for_an_unknown_user_fails() {
         std::sync::Arc::clone(&h.sessions)
             as std::sync::Arc<dyn systemprompt_traits::SessionProvider>,
         std::sync::Arc::clone(&h.users) as std::sync::Arc<dyn systemprompt_traits::UserProvider>,
+        systemprompt_test_fixtures::test_token_authority(
+            systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+        ),
+        systemprompt_test_fixtures::test_config(),
     );
     let user_id = UserId::new(unique("nobody"));
 

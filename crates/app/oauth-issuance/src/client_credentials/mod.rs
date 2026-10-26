@@ -13,7 +13,6 @@ use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
 use systemprompt_models::errors::ParseEnumError;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use thiserror::Error;
 
@@ -66,8 +65,6 @@ pub enum ClientCredentialsError {
     SessionCreate(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("JWT signing failed: {0}")]
     JwtSign(#[source] Box<dyn std::error::Error + Send + Sync>),
-    #[error("Config unavailable: {0}")]
-    ConfigUnavailable(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 struct OwnerProfile {
@@ -97,14 +94,13 @@ async fn load_active_owner(
 }
 
 pub async fn generate_client_tokens(
-    repo: &OAuthRepository,
     client_id: &ClientId,
     origin: RequestOrigin<'_>,
     state: &OAuthState,
+    global_config: &Config,
     options: ClientTokenOptions<'_>,
 ) -> Result<TokenResponse, ClientCredentialsError> {
-    let global_config =
-        Config::get().map_err(|e| ClientCredentialsError::ConfigUnavailable(e.into()))?;
+    let repo = state.oauth_repository();
     let expires_in = global_config.jwt_access_token_expiration;
 
     let client = repo
@@ -154,6 +150,7 @@ pub async fn generate_client_tokens(
 
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
+        keys: state.signing_keys(),
     };
     let jwt_token = generate_jwt(
         &authenticated,

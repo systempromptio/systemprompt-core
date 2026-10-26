@@ -19,6 +19,7 @@ use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::commands::analytics::shared::with_resolved_export;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
@@ -137,32 +138,43 @@ pub async fn execute(command: TrafficCommands, ctx: &CommandContext) -> Result<(
     let db_ctx = ctx.database().await?;
     match command {
         TrafficCommands::Sources(args) => {
-            let result = sources::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                sources::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         TrafficCommands::Pages(args) => {
-            let result = pages::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                pages::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         TrafficCommands::Navigation(args) => {
-            let result = navigation::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                navigation::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         TrafficCommands::Geo(args) => {
-            let result = geo::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                geo::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         TrafficCommands::Devices(args) => {
-            let result = devices::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                devices::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         TrafficCommands::Bots(args) => {
-            let result = bots::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            let result =
+                bots::execute_with_pool(with_resolved_export!(args, ctx), &db_ctx, &ctx.cli)
+                    .await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

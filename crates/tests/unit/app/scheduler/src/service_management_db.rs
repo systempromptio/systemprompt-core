@@ -71,20 +71,22 @@ mod service_management_db {
     }
 
     #[tokio::test]
-    async fn cleanup_stale_entries_returns_count() {
+    async fn reap_stale_returns_a_report() {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
             unique_instance(),
         ));
 
-        let affected = svc
-            .cleanup_stale_entries()
+        let reaped = svc
+            .reap_stale()
             .await
-            .expect("cleanup_stale_entries must succeed against a migrated DB");
-
-        // Exact count depends on DB state; just assert the call succeeded.
-        let _ = affected;
+            .expect("reap_stale must succeed against a migrated DB");
+        assert_eq!(
+            reaped.total(),
+            0,
+            "a fresh instance id owns no rows to reap"
+        );
     }
 
     #[tokio::test]
@@ -103,27 +105,20 @@ mod service_management_db {
     }
 
     #[tokio::test]
-    async fn cleanup_stale_entries_is_idempotent() {
+    async fn reap_stale_is_idempotent() {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
             unique_instance(),
         ));
 
-        let first = svc
-            .cleanup_stale_entries()
-            .await
-            .expect("first cleanup_stale_entries");
-        let second = svc
-            .cleanup_stale_entries()
-            .await
-            .expect("second cleanup_stale_entries");
-
-        // Second run should find nothing to clean up after the first.
+        let first = svc.reap_stale().await.expect("first reap_stale");
+        let second = svc.reap_stale().await.expect("second reap_stale");
         assert_eq!(
-            second, 0,
-            "second cleanup_stale_entries run must delete 0 rows when the first already ran"
+            second.total(),
+            0,
+            "second reap_stale run must delete 0 rows when the first already ran"
         );
-        let _ = first;
+        assert_eq!(first.total(), 0);
     }
 }

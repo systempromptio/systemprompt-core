@@ -5,6 +5,7 @@
 
 mod acceptance;
 pub mod apply;
+mod attempt;
 mod error;
 mod manifest;
 mod manifest_cache;
@@ -19,9 +20,7 @@ mod stale_retry;
 mod summary;
 mod unsafe_flags;
 
-use self::org_plugins_scope::check_org_plugins_scope;
-use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
-use self::seed_model::seed_default_model_from_profile;
+use self::attempt::run_attempt;
 pub use crate::last_sync::{
     LastSyncState, ReplayStateError, last_synced_auto_update_policy, last_synced_enabled_hosts,
     read_last_sync,
@@ -36,9 +35,8 @@ pub use summary::SyncSummary;
 use summary::build_summary;
 pub use unsafe_flags::warn_unsafe_flags;
 
-use crate::config::{self, paths};
+use crate::config;
 use crate::gateway::Freshness;
-use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
 
@@ -125,142 +123,6 @@ fn persist_envelope(fetch: &manifest::ManifestFetch) -> Result<(), SyncError> {
     )
     .map(|_| ())
     .map_err(|e| SyncError::ApplyFailed(Box::new(e)))
-}
-
-#[tracing::instrument(level = "info", skip(bridge))]
-async fn run_attempt(
-    bridge: &crate::context::BridgeContext,
-    options: &SyncOptions,
-) -> Result<SyncSummary, SyncError> {
-    let SyncOptions {
-        allow_unsigned,
-        force_replay,
-        allow_tofu,
-        freshness,
-        cancel,
-    } = options;
-    let (allow_unsigned, force_replay, allow_tofu) = (*allow_unsigned, *force_replay, *allow_tofu);
-    retry_pending_feedback().await;
-    let operation =
-        std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
-    let _across_processes = process_lock::acquire().await?;
-    prepare_run(bridge)?;
-    let fetch = manifest::fetch_authenticated_manifest(&bridge.http, *freshness).await?;
-    let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
-    let run_gateway = fetch.client.base_url().clone();
-    ensure_device_enrolled(bridge, &fetch, &synced.user_id).await;
-
-    #[cfg_attr(
-        not(target_os = "windows"),
-        expect(unused_mut, reason = "only the windows heal path reassigns it")
-    )]
-    let mut location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
-    #[cfg(target_os = "windows")]
-    if let Err(err) = check_org_plugins_scope(&synced, &location) {
-        match heal_org_plugins_scope(bridge, std::sync::Arc::clone(&operation)).await? {
-            Some(healed) => location = healed,
-            None => return Err(err),
-        }
-    }
-    #[cfg(not(target_os = "windows"))]
-    check_org_plugins_scope(&synced, &location)?;
-    if !location.path.is_dir() {
-        match location.scope {
-            paths::Scope::User => {
-                fs::create_dir_all(&location.path).map_err(|source| {
-                    SyncError::OrgPluginsCreate {
-                        path: location.path.clone(),
-                        source,
-                    }
-                })?;
-                tracing::info!(path = %location.path.display(), "provisioned per-user org-plugins directory");
-            },
-            paths::Scope::System => {
-                provision::provision_system_org_plugins(
-                    bridge,
-                    &location.path,
-                    std::sync::Arc::clone(&operation),
-                )
-                .await?;
-            },
-        }
-    }
-
-    let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
-    let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
-    let now = chrono::Utc::now();
-    let last_state = acceptance::accept(
-        &synced,
-        &run_gateway,
-        force_replay,
-        acceptance::CurrentVersion::for_run(fetch.revalidated, acceptance::CurrentVersion::Replay),
-    )?;
-    persist_envelope(&fetch)?;
-
-    let request = apply::ApplyRequest {
-        client: &fetch.client,
-        bearer: &fetch.bearer,
-        bridge,
-        manifest: &synced,
-        location: &location,
-        cancel,
-    };
-    let outcome = match apply::apply_manifest(&request).await {
-        Ok(outcome) => outcome,
-        Err(e) if denied_inside_system_root(&e, &location) => {
-            let healed = heal_org_plugins_scope(bridge, std::sync::Arc::clone(&operation))
-                .await?
-                .ok_or_else(|| org_plugins_denied(e, &location))?;
-            tracing::warn!(
-                path = %healed.path.display(),
-                "org-plugins re-granted after a denied plugin replacement; applying again"
-            );
-            let healed_request = apply::ApplyRequest {
-                location: &healed,
-                ..request
-            };
-            apply::apply_manifest(&healed_request)
-                .await
-                .map_err(|e| org_plugins_denied(e, &healed))?
-        },
-        Err(e) => return Err(apply_error_to_sync(e)),
-    };
-    let report = match outcome {
-        apply::ApplyOutcome::Applied(report) => report,
-        apply::ApplyOutcome::Cancelled { applied } => {
-            return Err(SyncError::Cancelled { applied });
-        },
-    };
-
-    let sentinel = sentinel::SentinelInputs {
-        manifest: &synced,
-        report: &report,
-        now,
-        gateway: &run_gateway,
-    };
-    if !report.host_failures.is_empty() || !report.malformed.is_empty() {
-        sentinel.persist(
-            &last_sync_path,
-            sentinel::Applied::Partially { prior: &last_state },
-        )?;
-        return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
-    }
-    sentinel.persist(
-        &last_sync_path,
-        sentinel::Applied::Fully(synced.manifest_version.clone()),
-    )?;
-    seed_default_model_from_profile(&fetch.client).await?;
-
-    bridge
-        .activity
-        .ensure_persistence()
-        .map_err(|source| SyncError::Persistence {
-            path: crate::obs::log_dir()
-                .unwrap_or_default()
-                .join("activity.jsonl"),
-            source,
-        })?;
-    Ok(build_summary(&synced, report))
 }
 
 fn prior_checkpoint(

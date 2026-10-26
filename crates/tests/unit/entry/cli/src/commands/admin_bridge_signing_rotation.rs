@@ -1,14 +1,14 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
+use systemprompt_test_fixtures::bounded_output;
 
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::bridge::{self, BridgeCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::profile_authoring::LocalProfileBuilder;
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::LoadedProfile;
 
 const HELPER: &str = "commands::admin_bridge_signing_rotation::signing_rotation_helper";
 const ORIGINAL_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
@@ -25,13 +25,14 @@ fn rotate() -> BridgeCommands {
         .command
 }
 
-fn context() -> CommandContext {
+fn context(profile: &std::sync::Arc<LoadedProfile>) -> CommandContext {
     CommandContext::new(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
     )
+    .with_profile(Some(std::sync::Arc::clone(profile)))
 }
 
 #[tokio::test]
@@ -52,19 +53,21 @@ async fn signing_rotation_helper() {
         .to_string(),
     )
     .unwrap();
-    let mut profile = LocalProfileBuilder::new("rotation", &secrets, &services).build();
+    let mut profile = LocalProfileBuilder::new("rotation", &secrets, &services)
+        .build()
+        .unwrap();
     profile.security.issuer = "https://rotation.test".to_owned();
     let profile_path = fixture.path().join("profile.yaml");
     std::fs::write(&profile_path, serde_yaml::to_string(&profile).unwrap()).unwrap();
-    ProfileBootstrap::init_from_path(&profile_path).expect("initialize owned profile");
+    let loaded = LoadedProfile::from_path(&profile_path).expect("initialize owned profile");
 
     println!("BEGIN_FIRST_ROTATION");
-    bridge::execute(rotate(), &context())
+    bridge::execute(rotate(), &context(&loaded))
         .await
         .expect("first signing rotation");
     println!("END_FIRST_ROTATION");
     println!("BEGIN_SECOND_ROTATION");
-    bridge::execute(rotate(), &context())
+    bridge::execute(rotate(), &context(&loaded))
         .await
         .expect("second signing rotation");
     println!("END_SECOND_ROTATION");
@@ -88,41 +91,6 @@ async fn signing_rotation_helper() {
         persisted["oauth_at_rest_pepper"], "test-pepper-0123456789-abcdefghijkl",
         "rotation must preserve unrelated secrets"
     );
-}
-
-fn bounded_output(mut command: Command) -> Output {
-    let stdout = tempfile::NamedTempFile::new().unwrap();
-    let stderr = tempfile::NamedTempFile::new().unwrap();
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().unwrap()))
-        .stderr(Stdio::from(stderr.reopen().unwrap()));
-    let mut child = command.spawn().expect("spawn signing rotation helper");
-    let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        if let Some(status) = child.try_wait().expect("poll rotation helper") {
-            return Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let status = child.wait().expect("reap rotation helper");
-            let output = Output {
-                status,
-                stdout: std::fs::read(stdout.path()).unwrap(),
-                stderr: std::fs::read(stderr.path()).unwrap(),
-            };
-            panic!(
-                "rotation helper timed out\nstdout:\n{}\nstderr:\n{}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
 }
 
 fn marked<'a>(stdout: &'a str, marker: &str) -> &'a str {
@@ -149,7 +117,7 @@ fn pubkey(artifact: &serde_json::Value) -> String {
 fn rotation_changes_public_identity_and_persists_the_latest_seed() {
     let mut command = Command::new(std::env::current_exe().expect("unit test binary"));
     command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
+    let output = bounded_output(command, "admin bridge signing rotation");
     assert!(
         output.status.success(),
         "rotation helper failed\nstdout:\n{}\nstderr:\n{}",

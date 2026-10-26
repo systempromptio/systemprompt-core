@@ -27,9 +27,7 @@ database:
 server:
   host: localhost
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
+  external_url: http://localhost:8080
 
 paths:
   system: {}
@@ -37,7 +35,6 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -79,7 +76,7 @@ system_admin:
 fn test_load_from_path_nonexistent() {
     let path = Path::new("/nonexistent/profile.yaml");
     let err = ProfileLoader::load_from_path(path).unwrap_err();
-    assert!(err.to_string().contains("Failed to read"));
+    assert!(err.to_string().contains("does not exist"), "{err}");
 }
 
 #[test]
@@ -132,9 +129,7 @@ database:
 server:
   host: localhost
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
+  external_url: http://localhost:8080
 
 paths:
   system: {}
@@ -142,7 +137,6 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -171,10 +165,10 @@ system_admin:
         temp_dir.path().join("bin").display()
     );
 
-    let profile_path = profiles_dir.join("dev.secrets.profile.yaml");
+    let profile_path = overlay_at(&profiles_dir, "dev");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
-    let profile = ProfileLoader::load(temp_dir.path(), &profile_name("dev"))
+    let profile = ProfileLoader::load(&temp_dir.path().join("profiles"), &profile_name("dev"))
         .expect("should load profile by name");
     assert_eq!(profile.name, "dev");
 }
@@ -185,9 +179,19 @@ fn test_load_by_name_not_found() {
     let profiles_dir = temp_dir.path().join("profiles");
     std::fs::create_dir(&profiles_dir).expect("Failed to create profiles dir");
 
-    ProfileLoader::load(temp_dir.path(), &profile_name("nonexistent")).unwrap_err();
+    ProfileLoader::load(
+        &temp_dir.path().join("profiles"),
+        &profile_name("nonexistent"),
+    )
+    .unwrap_err();
 }
 
 fn profile_name(name: &str) -> systemprompt_identifiers::ProfileName {
     systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
+}
+
+fn overlay_at(profiles_dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let dir = profiles_dir.join(name);
+    std::fs::create_dir_all(&dir).expect("create profile dir");
+    dir.join("profile.yaml")
 }

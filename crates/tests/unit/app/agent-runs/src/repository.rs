@@ -61,6 +61,8 @@ pub(crate) fn request() -> RunRequest {
         attribution_scopes: Vec::new(),
         plugin_id: None,
         plugin_dirs: Vec::new(),
+        harness: None,
+        traffic: systemprompt_agent_runs::TrafficClass::Production,
     }
 }
 

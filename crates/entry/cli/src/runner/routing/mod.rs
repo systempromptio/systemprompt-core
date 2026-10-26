@@ -12,9 +12,9 @@ use std::io::{self, Write};
 use anyhow::{Context, Result};
 use systemprompt_client::{OutputSink, RemoteCliExecutor, RemoteCliRequest};
 use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
 
 use crate::paths::ResolvedPaths;
 
@@ -29,12 +29,7 @@ pub enum ExecutionTarget {
     },
 }
 
-pub fn determine_execution_target() -> Result<ExecutionTarget> {
-    let Ok(profile) = ProfileBootstrap::get() else {
-        tracing::debug!("No profile loaded, routing to local execution");
-        return Ok(ExecutionTarget::Local);
-    };
-
+pub fn determine_execution_target(profile: &Profile) -> Result<ExecutionTarget> {
     if profile.target.is_local() {
         tracing::debug!(
             profile_name = %profile.name,
@@ -81,7 +76,7 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
 }
 
 pub fn resolve_tenant(
-    profile: &systemprompt_manifest::Profile,
+    profile: &Profile,
     tenant: &systemprompt_identifiers::TenantId,
 ) -> Result<StoredTenant> {
     let tenants_path = ResolvedPaths::from_profile(profile).tenants_path();
@@ -102,7 +97,7 @@ pub fn resolve_tenant(
 }
 
 pub fn load_session_for_key(
-    profile: &systemprompt_manifest::Profile,
+    profile: &Profile,
     session_key: &SessionKey,
     issuer: &str,
 ) -> Result<systemprompt_cloud::CliSession> {

@@ -112,7 +112,9 @@ async fn prerender_jobs_run_to_success_with_empty_sources() {
         fixture_actor(),
         Dependencies::new()
             .with(db.clone())
-            .with(Arc::new(boot.app_paths.clone())),
+            .with(Arc::clone(boot.boot_config()))
+            .with(Arc::new(boot.app_paths.clone()))
+            .with(systemprompt_test_fixtures::fixture_extension_context(&db)),
     );
 
     let result = ContentPrerenderJob

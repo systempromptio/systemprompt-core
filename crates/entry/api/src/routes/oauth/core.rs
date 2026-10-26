@@ -4,17 +4,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{clients, endpoints, health, webauthn};
-use axum::Router;
-use axum::routing::{get, post};
-use systemprompt_oauth::OAuthState;
+use std::sync::Arc;
 
-pub fn router() -> Router<OAuthState> {
+use axum::routing::{get, post};
+use axum::{Extension, Router};
+use systemprompt_oauth::OAuthState;
+use systemprompt_oauth_issuance::JwksCache;
+
+pub fn router(jwks: Arc<JwksCache>) -> Router<OAuthState> {
     Router::new()
-        .merge(public_router())
+        .merge(public_router(jwks))
         .merge(authenticated_router())
 }
 
-pub fn public_router() -> Router<OAuthState> {
+pub fn public_router(jwks: Arc<JwksCache>) -> Router<OAuthState> {
     Router::new()
         .route("/health", get(health::handle_health_api))
         .route(
@@ -65,6 +68,7 @@ pub fn public_router() -> Router<OAuthState> {
             "/register/{client_id}",
             axum::routing::delete(endpoints::client_config::delete_client_configuration),
         )
+        .layer(Extension(jwks))
 }
 
 pub fn authenticated_router() -> Router<OAuthState> {

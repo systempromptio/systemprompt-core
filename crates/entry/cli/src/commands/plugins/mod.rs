@@ -61,7 +61,7 @@ pub enum PluginsCommands {
 impl DescribeCommand for PluginsCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Run(_) => CommandDescriptor::PROFILE_ONLY,
+            Self::Run(_) => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Mcp(_) => CommandDescriptor::FULL,
             _ => CommandDescriptor::PROFILE_ONLY.with_remote_eligible(),
         }

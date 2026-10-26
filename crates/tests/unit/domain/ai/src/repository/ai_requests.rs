@@ -2,7 +2,7 @@
 // aggregates, and per-turn message / tool-call writes.
 use systemprompt_models::origin::RequestOrigin;
 
-use systemprompt_ai::models::{AiRequestRecord, RequestStatus};
+use systemprompt_ai::models::{AiRequestRecord, ArgsCheck, ArgsValidity, RequestStatus};
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, ContextId, McpToolName};
 use uuid::Uuid;
@@ -27,16 +27,16 @@ async fn insert_then_get_by_id_round_trips() {
     let id = repo.insert(&record).await.expect("insert");
 
     let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
-    assert_eq!(fetched.id, id);
-    assert_eq!(fetched.user_id, uid);
-    assert_eq!(fetched.provider.as_deref(), Some("anthropic"));
-    assert_eq!(fetched.model.as_deref(), Some("claude-3-opus"));
-    assert_eq!(fetched.status, "completed");
-    assert_eq!(fetched.input_tokens, Some(100));
-    assert_eq!(fetched.output_tokens, Some(50));
-    assert!(fetched.cache_hit);
-    assert_eq!(fetched.cost_microdollars, 1_500);
-    assert!(fetched.completed_at.is_some());
+    assert_eq!(fetched.identity.id, id);
+    assert_eq!(fetched.identity.user_id, uid);
+    assert_eq!(fetched.routing.provider.as_deref(), Some("anthropic"));
+    assert_eq!(fetched.routing.model.as_deref(), Some("claude-3-opus"));
+    assert_eq!(fetched.lifecycle.status, "completed");
+    assert_eq!(fetched.accounting.input_tokens, Some(100));
+    assert_eq!(fetched.accounting.output_tokens, Some(50));
+    assert!(fetched.accounting.cache_hit);
+    assert_eq!(fetched.accounting.cost_microdollars, 1_500);
+    assert!(fetched.lifecycle.completed_at.is_some());
 }
 
 #[tokio::test]
@@ -59,9 +59,9 @@ async fn rejection_without_a_resolved_provider_still_persists_a_row() {
     let id = repo.insert(&record).await.expect("rejection must persist");
 
     let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
-    assert_eq!(fetched.status, "rejected");
-    assert_eq!(fetched.provider, None);
-    assert_eq!(fetched.model, None);
+    assert_eq!(fetched.lifecycle.status, "rejected");
+    assert_eq!(fetched.routing.provider, None);
+    assert_eq!(fetched.routing.model, None);
 }
 
 #[tokio::test]
@@ -170,12 +170,12 @@ async fn insert_persists_the_reasoning_share_of_output_tokens() {
 
     let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
     assert_eq!(
-        fetched.reasoning_tokens,
+        fetched.accounting.reasoning_tokens,
         Some(40),
         "the INSERT must write reasoning_tokens, not leave it NULL"
     );
     assert_eq!(
-        fetched.tokens_used,
+        fetched.accounting.tokens_used,
         Some(180),
         "tokens_used is input + output + cache; reasoning is already inside \
          output_tokens and must not be summed again"
@@ -192,9 +192,12 @@ async fn update_error_sets_failed_status_and_message() {
         .update_error(&id, RequestStatus::Failed, "provider exploded")
         .await
         .expect("update error");
-    assert_eq!(updated.status, "failed");
-    assert_eq!(updated.error_message.as_deref(), Some("provider exploded"));
-    assert!(updated.completed_at.is_some());
+    assert_eq!(updated.lifecycle.status, "failed");
+    assert_eq!(
+        updated.lifecycle.error_message.as_deref(),
+        Some("provider exploded")
+    );
+    assert!(updated.lifecycle.completed_at.is_some());
 }
 
 #[tokio::test]
@@ -207,7 +210,7 @@ async fn update_error_can_stamp_a_pre_routing_rejection() {
         .update_error(&id, RequestStatus::Rejected, "HTTP 400: no messages")
         .await
         .expect("update error");
-    assert_eq!(updated.status, "rejected");
+    assert_eq!(updated.lifecycle.status, "rejected");
 }
 
 #[tokio::test]
@@ -219,7 +222,7 @@ async fn update_model_changes_model() {
         .await
         .expect("update model");
     let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
-    assert_eq!(fetched.model.as_deref(), Some("claude-3-5-sonnet"));
+    assert_eq!(fetched.routing.model.as_deref(), Some("claude-3-5-sonnet"));
 }
 
 #[tokio::test]
@@ -302,11 +305,26 @@ async fn insert_and_get_tool_calls() {
             tool_name: &McpToolName::new("search"),
             tool_input: r#"{"q":"rust"}"#,
             sequence_number: 0,
+            args: Some(&ArgsCheck {
+                validity: ArgsValidity::Invalid,
+                error_path: Some("/q".to_owned()),
+            }),
         })
         .await
         .expect("insert tool call");
     assert_eq!(inserted.tool_name, "search");
     assert_eq!(inserted.sequence_number, 0);
+    let recorded: (Option<String>, Option<String>) = sqlx::query_as(
+        "SELECT args_validity, args_error_path FROM ai_request_tool_calls WHERE id = $1",
+    )
+    .bind(&inserted.id)
+    .fetch_one(pool.pool().as_ref())
+    .await
+    .expect("read args validity");
+    assert_eq!(
+        recorded,
+        (Some("invalid".to_owned()), Some("/q".to_owned()))
+    );
 
     let calls = repo.list_tool_calls(&id).await.expect("tool calls");
     assert_eq!(calls.len(), 1);

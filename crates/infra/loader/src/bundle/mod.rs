@@ -27,6 +27,7 @@
 pub mod bootstrap;
 pub mod cache;
 pub mod compose;
+pub mod degraded;
 pub mod error;
 pub mod extract;
 pub mod pack;
@@ -37,10 +38,11 @@ pub mod verify;
 pub use bootstrap::{ServicesSourceBootstrap, cache_root};
 pub use cache::BundleCache;
 pub use compose::{BundleMember, compose, composed_hash};
+pub use degraded::DegradedRecord;
 pub use error::{BundleError, BundleResult, VerifyFailure};
 pub use extract::{BUNDLE_TREE_PREFIX, ExtractOptions, TarLayout, extract_bytes, extract_tarball};
 pub use provenance::{
-    BundleProvenance, SourcesProvenance, owning_bundle_hashes, sources_provenance,
+    BaseTreeHashMemo, BundleProvenance, SourcesProvenance, owning_bundle_hashes, sources_provenance,
 };
 pub use source::{AnyFetcher, BundleFetcher, FetchedBundle, RemoteRef};
 pub use verify::{verify_bundle, verify_extracted};

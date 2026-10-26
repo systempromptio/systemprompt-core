@@ -5,7 +5,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cli::session::resolution::helpers::revalidate_context;
+use systemprompt_cli::session::resolution::context_resolver::revalidate_context;
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};

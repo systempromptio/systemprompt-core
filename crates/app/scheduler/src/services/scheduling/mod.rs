@@ -18,12 +18,16 @@ mod registration;
 mod unlisted;
 
 use crate::error::{SchedulerError, SchedulerResult};
+use crate::jobs::InventoryRefreshMemo;
 use crate::models::{SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+
 use systemprompt_database::{BudgetedDb, DbPool};
+use systemprompt_extension::ExtensionContext;
 use systemprompt_identifiers::{Actor, JobName, UserId};
+use systemprompt_loader::BootContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{DbBudget, Dependencies, Job as JobTrait, JobContext};
 use tokio::sync::Mutex;
@@ -128,6 +132,7 @@ pub struct SchedulerService {
     user_repository: Arc<systemprompt_users::UserRepository>,
     logging_repository: systemprompt_logging::LoggingRepository,
     app_context: Arc<AppContext>,
+    inventory_memo: Arc<InventoryRefreshMemo>,
 }
 
 impl SchedulerService {
@@ -142,6 +147,7 @@ impl SchedulerService {
             user_repository,
             logging_repository,
             app_context,
+            inventory_memo: Arc::new(InventoryRefreshMemo::new()),
         }
     }
 
@@ -244,13 +250,31 @@ pub(crate) fn make_job_context(
     db_pool: DbPool,
     app_context: Arc<AppContext>,
     budget: Option<DbBudget>,
+    inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
     let dependencies = Dependencies::new()
+        .with(Arc::clone(inventory_memo))
         .with(Arc::clone(app_context.app_paths_arc()))
+        .with(Arc::clone(app_context.files_config()))
+        .with(app_context.signing_keys().clone())
+        .with(app_context.services_state().view())
         .with(BudgetedDb::new(Arc::clone(&db_pool), budget))
         .with(db_pool)
+        .with(Arc::clone(app_context.config_arc()))
+        .with(Arc::clone(app_context.oauth_repositories()))
+        .with(extension_context(&app_context))
         .with(app_context);
     JobContext::new(actor, dependencies)
+}
+
+fn extension_context(app_context: &Arc<AppContext>) -> Arc<dyn ExtensionContext> {
+    let concrete = Arc::clone(app_context);
+    let ext: Arc<dyn ExtensionContext> = concrete;
+    ext
+}
+
+pub(crate) fn deployment_dependencies(boot: &BootContext) -> Dependencies {
+    Dependencies::new().with(Arc::clone(boot.loaded_profile()))
 }
 
 pub(crate) fn job_app_context(ctx: &JobContext) -> SchedulerResult<&Arc<AppContext>> {

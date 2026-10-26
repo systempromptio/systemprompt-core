@@ -7,11 +7,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 use systemprompt_identifiers::SkillId;
-use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_manifest::SKILL_CONFIG_FILENAME;
 
 use crate::CommandContext;
@@ -37,7 +36,7 @@ pub struct ListArgs {
 }
 
 pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let skills_path = get_skills_path()?;
+    let skills_path = get_skills_path(ctx)?;
     if let Some(name) = args.name {
         return show_resolved_skill(&name, ctx).await;
     }
@@ -187,15 +186,11 @@ pub async fn show_resolved_skill(
             },
         }
     }
-    show_skill_detail(skill_id, &get_skills_path()?)
+    show_skill_detail(skill_id, &get_skills_path(ctx)?)
 }
 
-fn get_skills_path() -> Result<std::path::PathBuf> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(ServicesRootBootstrap::active_path_or(
-        &profile.paths.services,
-        "skills",
-    ))
+fn get_skills_path(ctx: &CommandContext) -> Result<std::path::PathBuf> {
+    Ok(ctx.boot()?.require_services_root().path.join("skills"))
 }
 
 pub fn show_skill_detail(skill_id: &SkillId, skills_path: &Path) -> Result<CommandOutput> {

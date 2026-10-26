@@ -1,0 +1,1181 @@
+# Provider catalog — every upstream this deployment can dispatch to, with the
+# models it serves, their pricing, capabilities, limits and governance flags.
+# Implementation configuration shipped in the image: the same file boots every
+# environment. Credentials are NOT here — each entry names its key by
+# api_key_secret, and the profile secret store supplies it.
+# Edit by hand or with: systemprompt admin config catalog ...
+providers:
+- name: anthropic
+  # Claude on Anthropic's own API, by API key. Kept declared and routable,
+  # but this installation serves Claude from Vertex AI (`vertex-anthropic`
+  # below), so the bare `claude-*` ids belong there.
+  #
+  # Every model here is `hidden`: none is listed to clients, so nobody picks
+  # an `anthropic-claude-*` id. The entries stay for the opt-in
+  # `anthropic-claude-*` route and the `claude-native-tools` route, which
+  # finds them by `upstream_model` (ProviderEntry::find_served_model ignores
+  # `hidden`) and prices the served request from them. No `claude-*` failover
+  # chain reaches this provider; that is vertex-anthropic-eu.
+  #
+  # Why the `anthropic-` prefix: a model id must be unique across the whole
+  # catalog (ProviderRegistry::validate), and Claude Code asks for the bare
+  # ids. `upstream_model` carries the real name, so a client asking for
+  # `anthropic-claude-sonnet-5` reaches Anthropic's `claude-sonnet-5`.
+  display_name: Anthropic
+  description: >-
+    Claude models on Anthropic's own API, authenticated with the anthropic key. Reached by the anthropic-claude-* ids; the bare claude-* ids are served from Vertex AI.
+  wire: anthropic
+  surface: anthropic
+  endpoint: https://api.anthropic.com/v1
+  api_key_secret: anthropic
+  governance:
+    european: false
+    no_retain: true
+  models:
+  - id: anthropic-claude-opus-5-5
+    hidden: true
+    upstream_model: claude-opus-5-5
+    pricing:
+      input_per_million: 4.0
+      output_per_million: 20.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 5.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: anthropic-claude-sonnet-5-5
+    hidden: true
+    upstream_model: claude-sonnet-5-5
+    pricing:
+      input_per_million: 2.0
+      output_per_million: 10.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 2.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: anthropic-claude-haiku-5-5
+    hidden: true
+    upstream_model: claude-haiku-5-5
+    pricing:
+      input_per_million: 0.1
+      output_per_million: 0.5
+      cache_read_per_million: 0.01
+      cache_write_per_million: 0.125
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: anthropic-claude-opus-5
+    hidden: true
+    upstream_model: claude-opus-5
+    pricing:
+      input_per_million: 5.0
+      output_per_million: 25.0
+      cache_read_per_million: 0.5
+      cache_write_per_million: 6.25
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: anthropic-claude-sonnet-5
+    hidden: true
+    upstream_model: claude-sonnet-5
+    pricing:
+      input_per_million: 2.0
+      output_per_million: 10.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 2.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: anthropic-claude-fable-5-1
+    hidden: true
+    upstream_model: claude-fable-5-1
+    pricing:
+      input_per_million: 10.0
+      output_per_million: 50.0
+      cache_read_per_million: 1.0
+      cache_write_per_million: 12.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: anthropic-claude-fable-5
+    hidden: true
+    upstream_model: claude-fable-5
+    pricing:
+      input_per_million: 10.0
+      output_per_million: 50.0
+      cache_read_per_million: 1.0
+      cache_write_per_million: 12.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: anthropic-claude-haiku-4-5
+    hidden: true
+    upstream_model: claude-haiku-4-5
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 5.0
+      cache_read_per_million: 0.1
+      cache_write_per_million: 1.25
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 200000
+      max_output_tokens: 64000
+  - id: anthropic-claude-haiku-4-5-20251001
+    hidden: true
+    upstream_model: claude-haiku-4-5-20251001
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 5.0
+      cache_read_per_million: 0.1
+      cache_write_per_million: 1.25
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 200000
+      max_output_tokens: 64000
+- name: gemini
+  # Google Gemini via the public endpoint, authenticated with an API key sent on
+  # x-goog-api-key. The Vertex-hosted copies of the same models are the `vertex`
+  # entry below: that host refuses API-key auth as a class and wants an OAuth
+  # token, so the two differ in credential and endpoint while sharing a wire.
+  # See docs/install/vertex.md.
+  display_name: Google Gemini (API key)
+  description: >-
+    Gemini via the public generativelanguage endpoint, authenticated with an API key. The classifier job and the gemini-* route use it; the Vertex copies of the same models are a separate provider.
+  wire: gemini
+  surface: gemini
+  endpoint: https://generativelanguage.googleapis.com/v1beta
+  #
+  # Why: cache_read_per_million is Google's published context-caching rate for
+  # each model (25% of the input rate), read from ai.google.dev/gemini-api/docs/
+  # pricing on 2026-09-05, at the <=200k-token tier. Google bills cache
+  # *storage* per hour rather than per written token, so cache_write_per_million
+  # is an explicit 0.0: there is no per-token write charge to pass on.
+  #
+  # The 2.5 family (Pro, Flash, Flash-Lite) was declared here until 2026-09-22
+  # and is gone: Google withdrew it from the public endpoint for accounts that
+  # had not already used it, so every request 404ed with "no longer available
+  # to new users" (15 of them on this instance between 09-11 and 09-18). The
+  # Vertex-hosted 2.5 copies are separately undeclared under `vertex` for the
+  # same family's 2026-10-20 retirement.
+  api_key_secret: gemini
+  governance:
+    european: false
+    no_retain: true
+  models:
+  # Why: the conversation_classifier job judges in-process through AiService,
+  # which speaks the public API-key endpoint only (the Vertex OAuth + project
+  # substitution lives in the gateway), so the 3.8 Flash it uses is declared
+  # here as well as under `vertex`. Same introductory pricing to 2026-12-31.
+  - id: gemini-3.8-flash
+    pricing:
+      input_per_million: 0.75
+      output_per_million: 3.75
+      cache_read_per_million: 0.075
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+      reasoning: true
+    limits:
+      context_window: 1000000
+      max_output_tokens: 65536
+      max_thinking_budget: 24576
+- name: vertex
+  # The Gemini models served from Vertex AI, which authenticates with an OAuth
+  # access token rather than an API key -- the gateway mints one from the
+  # service-account JSON in the `vertex` secret and refreshes it hourly.
+  #
+  # The ids are prefixed because a model id must be unique across the whole
+  # catalog, and the public-endpoint copies above already claim the bare names.
+  # `upstream_model` carries the real name, so a client asking for
+  # `vertex-gemini-3.8-flash` reaches Google's `gemini-3.8-flash`. The endpoint
+  # is project- and location-scoped; the wire appends
+  # /models/{upstream_model}:generateContent.
+  #
+  # Why `global`: every Gemini 3.x model is served from the global location
+  # only (docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini,
+  # read 2026-09-11); a regional endpoint such as us-central1 404s on all of
+  # them, which is what took the whole provider down before this change.
+  #
+  # `{project}` is filled by the gateway from the `project_id` of the service
+  # account in the `vertex` secret. A project id is a tenant identifier and
+  # Vertex echoes it in every IAM error the gateway relays, so it is never
+  # written here: this file ships in every image, and a literal id once sent
+  # a personal project name to a third-party developer's screen (2026-09-11).
+  # The boot validator refuses a literal `projects/<id>` on a Vertex host.
+  #
+  # Which models: only what Google's documentation lists as currently
+  # supported, from the model pages under models/gemini/ (read 2026-09-11).
+  # The 2.5 family retires 2026-10-20 and is not declared; the core rate card
+  # still prices it, so discovery publishes it until 30 days before the date
+  # and then stops on its own. 3.8/3.7/3.6 Flash are on introductory pricing
+  # to 2026-12-31 (then 1.50/7.50); the core rate card carries `price_until`
+  # and the scheduler warns 60 days ahead.
+  display_name: Google Vertex AI (Gemini)
+  description: >-
+    The Gemini models served from Vertex AI under a Google OAuth token minted from the vertex service-account secret.
+  wire: gemini
+  surface: gemini
+  endpoint: https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/google
+  # Cache writes are billed as storage per hour, not per token, hence an
+  # explicit 0.0.
+  api_key_secret: vertex
+  governance:
+    european: false
+    no_retain: true
+  models:
+  - id: vertex-gemini-3.8-flash
+    upstream_model: gemini-3.8-flash
+    pricing:
+      input_per_million: 0.75
+      output_per_million: 3.75
+      cache_read_per_million: 0.075
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+      reasoning: true
+    limits:
+      context_window: 1000000
+      max_output_tokens: 65536
+      max_thinking_budget: 24576
+  - id: vertex-gemini-3.5-flash
+    upstream_model: gemini-3.5-flash
+    pricing:
+      input_per_million: 1.5
+      output_per_million: 9.0
+      cache_read_per_million: 0.15
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+      reasoning: true
+    limits:
+      context_window: 1000000
+      max_output_tokens: 65536
+      max_thinking_budget: 24576
+  - id: vertex-gemini-3.5-flash-lite
+    upstream_model: gemini-3.5-flash-lite
+    pricing:
+      input_per_million: 0.3
+      output_per_million: 2.5
+      cache_read_per_million: 0.03
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+      reasoning: true
+    limits:
+      context_window: 1000000
+      max_output_tokens: 65536
+      max_thinking_budget: 24576
+- name: vertex-anthropic
+  # Claude served from Vertex AI (publisher `anthropic`), under the same
+  # Google service account as `vertex`: the gateway and the in-process AI
+  # service mint an OAuth token from the `vertex` secret, fill `{project}`
+  # from it, and post to the model's own `:rawPredict`/`:streamRawPredict`
+  # path with `anthropic_version: vertex-2023-10-16` in the body. The wire is
+  # the Anthropic Messages codec unchanged; hosting is read off the host.
+  #
+  # Which models: the current Claude family the Vertex publisher listing
+  # serves (read 2026-09-23). Current models are served on their `default` version, so the
+  # bare name is the upstream id; Haiku 4.5 is pinned to `@20251001`.
+  #
+  # `global` because every model above is listed there, and global is the
+  # cheapest tier (the US/EU multi-region and regional tables charge 10% more).
+  # Prices are Vertex's own global rates for <=200k input, from each model's
+  # partner-models/claude page and the pricing page (read 2026-09-23); cache
+  # write is the 5-minute rate. Fable 5.1's cache read is 0.25 there, not the
+  # usual tenth of input — kept as published. Haiku 4.5 is guaranteed only
+  # to 2026-10-15. The Claude 4.x Opus and Sonnet models were removed on
+  # 2026-09-24; the 5.x family replaces them.
+  #
+  # `accepted_betas` is the whole list of `anthropic-beta` flags the gateway
+  # forwards here; Vertex refuses a flag it does not serve, so the gateway
+  # sends none that is not declared. A flag that gates a body field
+  # (`context-management-*` gates `context_management`) must be declared or
+  # the field arrives alone and Vertex answers `context_management: Extra
+  # inputs are not permitted` — the 400 every Claude Code 2.1.283 prompt got
+  # on 2026-09-28 while this list was empty. Which flags: the betas Claude
+  # Code 2.1.283 sends (captured 2026-09-28) that Anthropic's feature matrix
+  # (platform.claude.com/docs/en/build-with-claude/overview, read 2026-09-28)
+  # lists for Google Cloud. Absent on purpose because Vertex does not serve
+  # them: advisor-tool-*, code-execution-*, mcp-client-*, files-api-*,
+  # skills-*, web-fetch-*; and context-1m-*, since Vertex serves 1M natively.
+  # Also sent by 2.1.283 but held back until Vertex is seen to accept them:
+  # claude-code-20250219, thinking-token-count-2026-05-13,
+  # prompt-caching-scope-2026-01-05, mid-conversation-system-2026-04-07.
+  # A flag Vertex still refuses is learned at runtime and dropped, together
+  # with the body field it gates, so a mistake here costs one round trip.
+  display_name: Google Vertex AI (Claude)
+  description: >-
+    Claude models served from Vertex AI under a Google OAuth token minted from the vertex service-account secret. Serves every claude-* request on this installation.
+  wire: anthropic
+  surface: anthropic
+  endpoint: https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic
+  api_key_secret: vertex
+  accepted_betas:
+  - context-management-2025-06-27
+  - interleaved-thinking-2025-05-14
+  - effort-2025-11-24
+  governance:
+    european: false
+    no_retain: true
+  models:
+  - id: claude-opus-5-5
+    pricing:
+      input_per_million: 4.0
+      output_per_million: 20.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 5.0
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: claude-sonnet-5-5
+    pricing:
+      input_per_million: 2.0
+      output_per_million: 10.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 2.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  # Haiku 5.5 bills 0.50 / 2.50 above a 100k-token prompt; the catalog
+  # carries one tier, so a long-prompt Haiku request is under-costed here.
+  - id: claude-haiku-5-5
+    pricing:
+      input_per_million: 0.1
+      output_per_million: 0.5
+      cache_read_per_million: 0.01
+      cache_write_per_million: 0.125
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: claude-opus-5
+    pricing:
+      input_per_million: 5.0
+      output_per_million: 25.0
+      cache_read_per_million: 0.5
+      cache_write_per_million: 6.25
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: claude-sonnet-5
+    pricing:
+      input_per_million: 2.0
+      output_per_million: 10.0
+      cache_read_per_million: 0.2
+      cache_write_per_million: 2.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: claude-fable-5-1
+    hidden: true
+    pricing:
+      input_per_million: 10.0
+      output_per_million: 50.0
+      cache_read_per_million: 0.25
+      cache_write_per_million: 12.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: claude-fable-5
+    hidden: true
+    pricing:
+      input_per_million: 10.0
+      output_per_million: 50.0
+      cache_read_per_million: 1.0
+      cache_write_per_million: 12.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: claude-haiku-4-5
+    upstream_model: claude-haiku-4-5@20251001
+    aliases:
+    - claude-haiku-4-5-20251001
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 5.0
+      cache_read_per_million: 0.1
+      cache_write_per_million: 1.25
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 200000
+      max_output_tokens: 64000
+- name: vertex-anthropic-eu
+  # The second Claude deployment on Vertex AI, and the failover target of every
+  # claude-* chain in gateway.yaml (vertex-anthropic -> vertex-anthropic-eu):
+  # same `vertex` service account, same Anthropic-on-Vertex wire, but the
+  # regional europe-west1 (Belgium) endpoint instead of `global`, so a global
+  # capacity shortfall lands on separately-provisioned regional quota. The
+  # project's Claude quota in europe-west1 must be requested in advance;
+  # without it this deployment answers 429 and the chain is exhausted.
+  #
+  # Model ids are unique across the catalog, so each entry is a hidden
+  # `vertex-eu-` alias whose `upstream_model` is the bare id clients ask for;
+  # the failover finds it by that name (ProviderEntry::find_served_model).
+  # Prices are vertex-anthropic's global rates plus Vertex's 10% regional
+  # premium. Haiku 4.5 is not declared: its Vertex id is version-pinned
+  # (`@20251001`) and retires 2026-10-15, so a Haiku request has no second
+  # deployment. `accepted_betas` mirrors vertex-anthropic; see its comment.
+  display_name: Google Vertex AI (Claude, europe-west1)
+  description: >-
+    Claude models served from Vertex AI's europe-west1 regional endpoint under the vertex service-account secret. The failover deployment for every claude-* request.
+  wire: anthropic
+  surface: anthropic
+  endpoint: https://europe-west1-aiplatform.googleapis.com/v1/projects/{project}/locations/europe-west1/publishers/anthropic
+  api_key_secret: vertex
+  accepted_betas:
+  - context-management-2025-06-27
+  - interleaved-thinking-2025-05-14
+  - effort-2025-11-24
+  governance:
+    european: true
+    no_retain: true
+  models:
+  - id: vertex-eu-claude-opus-5-5
+    hidden: true
+    upstream_model: claude-opus-5-5
+    pricing:
+      input_per_million: 4.4
+      output_per_million: 22.0
+      cache_read_per_million: 0.22
+      cache_write_per_million: 5.5
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: vertex-eu-claude-sonnet-5-5
+    hidden: true
+    upstream_model: claude-sonnet-5-5
+    pricing:
+      input_per_million: 2.2
+      output_per_million: 11.0
+      cache_read_per_million: 0.22
+      cache_write_per_million: 2.75
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: vertex-eu-claude-opus-5
+    hidden: true
+    upstream_model: claude-opus-5
+    pricing:
+      input_per_million: 5.5
+      output_per_million: 27.5
+      cache_read_per_million: 0.55
+      cache_write_per_million: 6.875
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: vertex-eu-claude-sonnet-5
+    hidden: true
+    upstream_model: claude-sonnet-5
+    pricing:
+      input_per_million: 2.2
+      output_per_million: 11.0
+      cache_read_per_million: 0.22
+      cache_write_per_million: 2.75
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: vertex-eu-claude-fable-5-1
+    hidden: true
+    upstream_model: claude-fable-5-1
+    pricing:
+      input_per_million: 11.0
+      output_per_million: 55.0
+      cache_read_per_million: 0.275
+      cache_write_per_million: 13.75
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+  - id: vertex-eu-claude-fable-5
+    hidden: true
+    upstream_model: claude-fable-5
+    pricing:
+      input_per_million: 11.0
+      output_per_million: 55.0
+      cache_read_per_million: 1.1
+      cache_write_per_million: 13.75
+      per_image_cents: null
+    capabilities:
+      vision: true
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 128000
+- name: vertex-maas
+  # Third-party open models on Vertex AI Model-as-a-Service, OpenAI-compatible
+  # surface. The wire appends /chat/completions. Advertised under the openai
+  # surface so gateway model discovery lists them in Claude Code's picker;
+  # `backend` would hide them. Vertex MaaS authenticates with a Google OAuth
+  # token minted from the same `vertex` service-account JSON as every other
+  # Vertex provider (one GCP project serves them all), with `{project}` filled
+  # from it.
+  #
+  # `max_thinking_budget` on a model marks it as a reasoning model for the
+  # openai-chat wire: the wire then sends the model's own output cap instead
+  # of the caller's `max_tokens`, so hidden reasoning cannot starve the visible
+  # answer. Measured 2026-09-05 at max_tokens:128 -- qwen3-next-thinking spent
+  # all 128 tokens thinking and returned no text; kimi-k2-thinking, glm-5 and
+  # gpt-oss burn 50-100 tokens of reasoning on a one-word reply.
+  display_name: Vertex AI Model-as-a-Service
+  description: >-
+    Third-party open models (Qwen, GLM, Kimi, DeepSeek, MiniMax, GPT-OSS) hosted by Vertex AI on an OpenAI-compatible surface on the global endpoint, under the same Google OAuth credential as vertex.
+  wire: openai-chat
+  surface: openai
+  endpoint: https://aiplatform.googleapis.com/v1beta1/projects/{project}/locations/global/endpoints/openapi
+  #
+  # Which models: every open model Vertex serves serverless on the global
+  # endpoint, per its page under models/maas/ (read 2026-09-23) and answered
+  # a call from this project's service account the same day. Prices are the
+  # pages' (global and regional are the same price); cache rates are what a
+  # page publishes, and an explicit 0.0 where it lists none.
+  #
+  # Retirement: Google deprecated every Qwen, GLM 4.7/5, Kimi, DeepSeek and
+  # MiniMax MaaS endpoint and gpt-oss-20b on 2026-07-21 and turns them off on
+  # 2026-10-21 (models/deprecations/open-models). They are declared anyway so
+  # they stay usable until then; after that date core hides a retired
+  # declaration from every listing and the upstream refuses it. Only glm-5.2
+  # (preview, guaranteed to at least 2026-10-08) is not retiring; gpt-oss-120b
+  # was dropped on 2026-10-07 because it was offered to every host while its
+  # upstream kept failing. Delete the retired entries once the date has passed.
+  #
+  # `max_output_tokens` is 32768 where a page states "same as the context
+  # window": a reasoning model is sent its own output cap as max_tokens, and
+  # a cap equal to the whole window leaves no room for the prompt.
+  api_key_secret: vertex
+  governance:
+    european: false
+    no_retain: true
+  models:
+  - id: qwen.qwen3-coder-480b
+    upstream_model: qwen/qwen3-coder-480b-a35b-instruct-maas
+    pricing:
+      input_per_million: 0.22
+      output_per_million: 1.8
+      cache_read_per_million: 0.022
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 65536
+  - id: zai.glm-5
+    upstream_model: zai-org/glm-5-maas
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 3.2
+      cache_read_per_million: 0.1
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 200000
+      max_output_tokens: 32768
+      max_thinking_budget: 16384
+  - id: zai.glm-5.2
+    upstream_model: zai-org/glm-5.2-maas
+    pricing:
+      input_per_million: 1.4
+      output_per_million: 4.4
+      cache_read_per_million: 0.14
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 1000000
+      max_output_tokens: 32768
+      max_thinking_budget: 16384
+  - id: zai.glm-4.7
+    upstream_model: zai-org/glm-4.7-maas
+    pricing:
+      input_per_million: 0.6
+      output_per_million: 2.2
+      cache_read_per_million: 0.06
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 200000
+      max_output_tokens: 32768
+      max_thinking_budget: 16384
+  - id: moonshotai.kimi-k2-thinking
+    upstream_model: moonshotai/kimi-k2-thinking-maas
+    pricing:
+      input_per_million: 0.6
+      output_per_million: 2.5
+      cache_read_per_million: 0.06
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 32768
+      max_thinking_budget: 16384
+  - id: deepseek.v3.2
+    upstream_model: deepseek-ai/deepseek-v3.2-maas
+    pricing:
+      input_per_million: 0.56
+      output_per_million: 1.68
+      cache_read_per_million: 0.056
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 163840
+      max_output_tokens: 65536
+  - id: minimax.m2
+    upstream_model: minimaxai/minimax-m2-maas
+    pricing:
+      input_per_million: 0.3
+      output_per_million: 1.2
+      cache_read_per_million: 0.03
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 196608
+      max_output_tokens: 32768
+      max_thinking_budget: 16384
+  - id: qwen.qwen3-235b
+    upstream_model: qwen/qwen3-235b-a22b-instruct-2507-maas
+    pricing:
+      input_per_million: 0.22
+      output_per_million: 0.88
+      cache_read_per_million: 0.0
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 16384
+  - id: qwen.qwen3-next-instruct
+    upstream_model: qwen/qwen3-next-80b-a3b-instruct-maas
+    pricing:
+      input_per_million: 0.15
+      output_per_million: 1.2
+      cache_read_per_million: 0.0
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 32768
+  - id: qwen.qwen3-next-thinking
+    upstream_model: qwen/qwen3-next-80b-a3b-thinking-maas
+    pricing:
+      input_per_million: 0.15
+      output_per_million: 1.2
+      cache_read_per_million: 0.0
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 262144
+      max_output_tokens: 32768
+      max_thinking_budget: 16384
+  - id: openai.gpt-oss-20b
+    upstream_model: openai/gpt-oss-20b-maas
+    pricing:
+      input_per_million: 0.07
+      output_per_million: 0.25
+      cache_read_per_million: 0.007
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 131072
+      max_output_tokens: 32768
+      max_thinking_budget: 16384
+- name: vertex-maas-us-central1
+  # DeepSeek R1 is served only from the us-central1 MaaS endpoint (its page,
+  # read 2026-09-23; the global endpoint 404s it), and an endpoint is per
+  # provider, so it needs a provider of its own. Same credential as
+  # vertex-maas. Retires 2026-10-21 with the other DeepSeek endpoints.
+  # DeepSeek V3.1 is documented for us-central1 too but Vertex refuses it
+  # there for this project ("not available in region"), so it is not declared.
+  display_name: Vertex AI Model-as-a-Service (us-central1)
+  description: >-
+    Open models Vertex AI serves only from the us-central1 endpoint (DeepSeek R1), under the same Google OAuth credential as vertex.
+  wire: openai-chat
+  surface: openai
+  endpoint: https://us-central1-aiplatform.googleapis.com/v1beta1/projects/{project}/locations/us-central1/endpoints/openapi
+  api_key_secret: vertex
+  governance:
+    european: false
+    no_retain: true
+  models:
+  - id: deepseek.r1-0528
+    upstream_model: deepseek-ai/deepseek-r1-0528-maas
+    pricing:
+      input_per_million: 1.35
+      output_per_million: 5.4
+      cache_read_per_million: 0.0
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: true
+      structured_output: true
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 163840
+      max_output_tokens: 32768
+      max_thinking_budget: 16384
+- name: e2e-mock
+  display_name: E2E mock (loopback)
+  description: >-
+    Loopback Anthropic-wire mock for the Playwright suite on 127.0.0.1; never advertised to clients and unreachable on hosts without the mock running.
+  wire: anthropic
+  surface: backend
+  endpoint: http://127.0.0.1:18091/v1
+  api_key_secret: anthropic
+  governance:
+    european: false
+    no_retain: true
+  models:
+  # Why: the mock never reports cached tokens, so both cache rates are an
+  # explicit 0.0 -- present because boot refuses an absent cache_read rate.
+  - id: e2e-mock-sonnet
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 2.0
+      cache_read_per_million: 0.0
+      cache_write_per_million: 0.0
+      per_image_cents: null
+    capabilities:
+      vision: false
+      audio_input: false
+      video_input: false
+      image_generation: false
+      audio_generation: false
+      streaming: true
+      tools: false
+      structured_output: false
+      system_prompts: true
+      image_resolution_config: false
+    limits:
+      context_window: 128000
+      max_output_tokens: 8192

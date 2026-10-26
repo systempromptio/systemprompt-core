@@ -25,6 +25,7 @@ use systemprompt_test_fixtures::unique_instance;
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: bootstrap.system_path.display().to_string(),
         services: bootstrap.services_path.display().to_string(),
         bin: bootstrap.bin_path.display().to_string(),
@@ -57,10 +58,20 @@ async fn orchestrator_and_repo(
         )
         .expect("application paths"),
     );
-    let registry = RegistryService::new(fixture_user_id());
+    let registry = RegistryService::new(
+        fixture_user_id(),
+        crate::harness::services_state().view(),
+        crate::harness::config(),
+    );
     let service_repo = ServiceRepository::new(&db, unique_instance());
-    let orchestrator =
-        McpOrchestrator::new(service_repo.clone(), app_paths, registry).expect("MCP orchestrator");
+    let orchestrator = McpOrchestrator::new(
+        service_repo.clone(),
+        app_paths,
+        registry,
+        systemprompt_test_fixtures::test_spawner(),
+        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+    )
+    .expect("MCP orchestrator");
     (orchestrator, service_repo)
 }
 

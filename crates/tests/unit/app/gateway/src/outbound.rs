@@ -4,13 +4,12 @@
 //! access.
 
 use super::support;
-use std::collections::HashMap;
 
 use futures_util::StreamExt;
 use serde_json::json;
 use systemprompt_gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalStopReason, CanonicalTool,
-    CanonicalToolChoice, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalReasoning, CanonicalRequest, CanonicalSampling,
+    CanonicalStopReason, CanonicalTool, CanonicalToolChoice, CanonicalTooling, Role, SystemBlock,
 };
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
@@ -18,8 +17,7 @@ use systemprompt_gateway::protocol::outbound::openai_responses::OpenAiResponsesO
 use systemprompt_gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamError,
 };
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -31,24 +29,14 @@ async fn send_via<A: OutboundAdapter>(
     adapter.send(ctx, &body).await
 }
 
-fn route(provider: &str) -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new("r1")),
-        name: None,
-        description: None,
-        model_pattern: "*".into(),
-        provider: ProviderId::new(provider),
-        upstream_model: Some("upstream-1".into()),
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+fn route(provider: &str) -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        provider,
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    )
 }
 
 fn buffered_request() -> CanonicalRequest {
@@ -67,28 +55,34 @@ fn buffered_request() -> CanonicalRequest {
             },
         ],
         max_tokens: 64,
-        temperature: Some(0.5),
-        top_p: Some(0.9),
-        top_k: Some(40),
-        stop_sequences: vec!["END".into()],
-        tools: vec![CanonicalTool {
-            anthropic_definition: None,
-            name: "t".into(),
-            description: Some("do".into()),
-            input_schema: json!({"type":"object"}),
-            cache_control: None,
-        }],
-        tool_choice: Some(CanonicalToolChoice::Auto),
         stream: false,
-        thinking: None,
         metadata: None,
         response_format: None,
-        reasoning_effort: None,
-        search: None,
-        code_execution: false,
-        presence_penalty: None,
-        frequency_penalty: None,
         forwarded_surface: Default::default(),
+        sampling: CanonicalSampling {
+            temperature: Some(0.5),
+            top_p: Some(0.9),
+            top_k: Some(40),
+            stop_sequences: vec!["END".into()],
+            presence_penalty: None,
+            frequency_penalty: None,
+        },
+        tooling: CanonicalTooling {
+            tools: vec![CanonicalTool {
+                anthropic_definition: None,
+                name: "t".into(),
+                description: Some("do".into()),
+                input_schema: json!({"type":"object"}),
+                cache_control: None,
+            }],
+            tool_choice: Some(CanonicalToolChoice::Auto),
+            search: None,
+            code_execution: false,
+        },
+        reasoning: CanonicalReasoning {
+            thinking: None,
+            reasoning_effort: None,
+        },
     }
 }
 
@@ -119,8 +113,9 @@ async fn anthropic_outbound_buffered_parses_text() {
     let route = route("anthropic");
     let req = buffered_request();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -154,8 +149,9 @@ async fn anthropic_outbound_buffered_propagates_upstream_error() {
     let route = route("anthropic");
     let req = buffered_request();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -185,8 +181,9 @@ async fn anthropic_outbound_streaming_returns_stream() {
     let route = route("anthropic");
     let req = streaming_request();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -232,8 +229,9 @@ async fn openai_chat_outbound_buffered_parses_response() {
     let route = route("openai");
     let req = buffered_request();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -264,8 +262,9 @@ async fn openai_chat_outbound_streaming_returns_stream() {
     let route = route("openai");
     let req = streaming_request();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -299,8 +298,9 @@ async fn openai_chat_outbound_buffered_propagates_upstream_error() {
     let route = route("openai");
     let req = buffered_request();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -336,8 +336,9 @@ async fn openai_responses_outbound_buffered_parses_response() {
     let route = route("openai");
     let req = buffered_request();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -386,10 +387,11 @@ async fn anthropic_outbound_buffered_handles_rich_request() {
     let adapter = AnthropicOutbound;
     let route_a = route("anthropic");
     let mut req = buffered_request();
-    req.tool_choice = Some(CanonicalToolChoice::Tool("do".into()));
+    req.tooling.tool_choice = Some(CanonicalToolChoice::Tool("do".into()));
     let ctx = OutboundCtx {
-        route: &route_a,
+        target: &route_a,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -421,8 +423,9 @@ async fn anthropic_outbound_buffered_handles_invalid_json() {
     let route_a = route("anthropic");
     let req = buffered_request();
     let ctx = OutboundCtx {
-        route: &route_a,
+        target: &route_a,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -460,10 +463,11 @@ async fn openai_chat_outbound_buffered_covers_tool_choice_variants() {
         let adapter = OpenAiChatOutbound;
         let route_a = route("openai");
         let mut req = buffered_request();
-        req.tool_choice = Some(tc);
+        req.tooling.tool_choice = Some(tc);
         let ctx = OutboundCtx {
-            route: &route_a,
+            target: &route_a,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -501,10 +505,11 @@ async fn anthropic_outbound_buffered_covers_tool_choice_variants() {
         let adapter = AnthropicOutbound;
         let route_a = route("anthropic");
         let mut req = buffered_request();
-        req.tool_choice = Some(tc);
+        req.tooling.tool_choice = Some(tc);
         let ctx = OutboundCtx {
-            route: &route_a,
+            target: &route_a,
             upstream: &support::api_key_call(&server.uri(), "k"),
+            http: &reqwest::Client::new(),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -565,8 +570,9 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
         }],
     });
     let ctx = OutboundCtx {
-        route: &route_o,
+        target: &route_o,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -603,8 +609,9 @@ async fn anthropic_outbound_buffered_rejects_a_body_that_does_not_parse() {
     let route_a = route("anthropic");
     let req = buffered_request();
     let ctx = OutboundCtx {
-        route: &route_a,
+        target: &route_a,
         upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

@@ -12,12 +12,13 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::CliConfig;
+use crate::boot_ctx::bootstrap_ctx;
+use systemprompt_cli::CommandContext;
 use systemprompt_cli::admin::config::services::{ServicesCommands, SetArgs, execute};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-fn cfg() -> CliConfig {
-    CliConfig::new().with_interactive(false)
+fn cfg() -> CommandContext {
+    bootstrap_ctx()
 }
 
 fn profile_path() -> std::path::PathBuf {
@@ -89,12 +90,6 @@ fn setting_the_offset_persists_it_to_the_profile() {
     );
 }
 
-/// Every key present before must still be present, with the same value.
-/// Added keys are tolerated: the round trip materialises serde defaults that
-/// the input file omits — `security.id_jag_ttl_secs` is written explicitly
-/// with the default it already had. That changes the
-/// file without changing the configuration, so the property to hold is that
-/// nothing is lost or altered, not that the file is byte-identical.
 fn assert_nothing_lost(before: &serde_yaml::Value, after: &serde_yaml::Value, path: &str) {
     match before {
         serde_yaml::Value::Mapping(before_map) => {
