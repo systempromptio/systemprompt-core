@@ -1674,7 +1674,7 @@ async fn remount_settings_gateway(
 #[test]
 fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign_rows() {
     let rt = setup_runtime();
-    let manifest = manifest_with(vec![], vec![]);
+    let manifest = manifest_with(vec![], vec![HostKind::ClaudeCode]);
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
         remount_settings_gateway(&server, &manifest, &["minimax-old", "claude-sonnet"], None).await;
@@ -1782,9 +1782,46 @@ fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign
 }
 
 #[test]
-fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
+fn sync_leaves_claude_code_settings_alone_when_the_manifest_does_not_enable_it() {
     let rt = setup_runtime();
     let manifest = manifest_with(vec![], vec![]);
+    let (_server, dirs, _pat_dir) = rt.block_on(async {
+        let server = MockServer::start().await;
+        remount_settings_gateway(
+            &server,
+            &manifest,
+            &["minimax-default"],
+            Some("minimax-default"),
+        )
+        .await;
+        let pat_dir = tempfile::tempdir().unwrap();
+        let pat_file = pat_dir.path().join("pat.txt");
+        fs::write(&pat_file, "sp-live-test-pat").unwrap();
+        let dirs = sandbox(&server.uri(), &pat_file, None);
+        (server, dirs, pat_dir)
+    });
+    let settings = PathBuf::from(dirs.home.clone()).join(".claude/settings.json");
+    fs::create_dir_all(settings.parent().expect("Claude settings parent")).unwrap();
+    let original = serde_json::to_vec_pretty(&serde_json::json!({
+        "apiKeyHelper": "foreign-helper",
+        "theme": "dark",
+    }))
+    .unwrap();
+    fs::write(&settings, &original).unwrap();
+
+    run_sync(&dirs).expect("the sync completes");
+
+    assert_eq!(
+        fs::read(&settings).expect("read settings"),
+        original,
+        "a manifest without Claude Code seeds no model and rewrites nothing"
+    );
+}
+
+#[test]
+fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
+    let rt = setup_runtime();
+    let manifest = manifest_with(vec![], vec![HostKind::ClaudeCode]);
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
         remount_settings_gateway(
@@ -1819,7 +1856,6 @@ fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
         seeded["model"], "minimax-default",
         "the gateway default fills an empty Claude Code choice"
     );
-    assert_eq!(seeded["apiKeyHelper"], "foreign-helper");
     assert_eq!(seeded["theme"], "dark");
 
     seeded["model"] = serde_json::json!("operator-choice");
@@ -1850,10 +1886,9 @@ fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
         "a Gemini-surface provider never contributes a Claude Code picker row"
     );
     assert_eq!(
-        after["apiKeyHelper"], "foreign-helper",
+        after["theme"], "dark",
         "sync preserves unrelated settings while refreshing the owned picker"
     );
-    assert_eq!(after["theme"], "dark");
     let _ = (&server, &pat_dir);
 }
 
