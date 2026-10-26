@@ -77,6 +77,8 @@ pub trait TokenAuthority: Send + Sync + std::fmt::Debug {
 
     fn verify_hook_token(&self, token: &str) -> TokenResult<JwtClaims>;
 
+    // JSON: an extension-defined claim set has no fixed schema; the signer only
+    // serialises it
     fn sign_claims(&self, claims: &serde_json::Value) -> TokenResult<String>;
 
     fn mint_user_jwt(&self, req: &UserJwtRequest) -> TokenResult<String>;

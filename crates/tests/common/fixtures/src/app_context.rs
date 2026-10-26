@@ -445,7 +445,11 @@ fn fixture_app_context_assembled_on(
         },
         Plugins {
             extension_registry,
-            mcp_registry: RegistryService::new(fixture_user_id(), fixture_services_view(), config),
+            mcp_registry: RegistryService::new(
+                fixture_user_id(),
+                services.view(),
+                Arc::clone(&config),
+            ),
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),
             subject_providers: fixture_subject_providers(pool),

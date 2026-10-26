@@ -125,6 +125,8 @@ impl TokenAuthority for DeploymentTokenAuthority {
         Ok(decode_rs256_claims(&self.keys, token, &policy)?)
     }
 
+    // JSON: an extension-defined claim set has no fixed schema; the signer only
+    // serialises it
     fn sign_claims(&self, claims: &serde_json::Value) -> TokenResult<String> {
         encode_rs256(&self.keys, claims).map_err(|e| TokenError::Signing(Box::new(e)))
     }

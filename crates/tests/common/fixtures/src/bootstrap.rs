@@ -1,6 +1,6 @@
 //! Process-wide bootstrap fixture.
 //!
-//! Builds the owned [`BootContext`] (profile, secrets, runtime [`Config`]) and
+//! Builds the owned [`BootContext`] (profile, secrets, runtime `Config`) and
 //! [`FilesConfig`] from a tempdir-backed profile bundle.
 
 use std::env;

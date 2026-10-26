@@ -1,5 +1,7 @@
-//! Personal credentials: which ones take a member's own key, and storing one
-//! after every endpoint it authenticates proves it works. A key is stored under
+//! Personal credentials: which ones take a member's own key, and storing one.
+//!
+//! A key is stored only after every endpoint it authenticates proves it works,
+//! and it is stored under
 //! the catalog credential id, so one stored key serves every endpoint of every
 //! provider that names the credential. The gateway's provider-credentials route
 //! and consoles call [`store_personal_key`].

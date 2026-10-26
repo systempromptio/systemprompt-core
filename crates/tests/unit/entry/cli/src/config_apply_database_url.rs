@@ -24,7 +24,7 @@ async fn applied_planes(url: &str) -> i64 {
 
 #[tokio::test]
 async fn apply_with_a_database_url_writes_to_that_database_only() {
-    ensure_test_bootstrap();
+    let boot = ensure_test_bootstrap();
     let other = DisposableDb::with_schema("cfg_apply_db_url").await;
     seed_fixture_system_admin(&other.test_pool().await)
         .await
@@ -39,6 +39,7 @@ async fn apply_with_a_database_url_writes_to_that_database_only() {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
     )
+    .with_boot(Some(boot.boot.clone()))
     .with_database_url_override(Some(other.url().to_owned()));
     let args = ApplyArgs {
         planes: Vec::new(),
