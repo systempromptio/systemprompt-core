@@ -26,8 +26,8 @@ use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, Session
 use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_user_id, free_port_in_range, init_services_bootstrap,
-    seed_fixture_system_admin, test_db_pool,
+    FIXTURE_EXTERNAL_URL, TestBootstrap, fixture_user_id, free_port_in_range,
+    init_services_bootstrap, seed_fixture_system_admin, test_db_pool,
 };
 
 const ENABLED: &str = "fixture_enabled_server";
@@ -76,7 +76,7 @@ fn seed_cli_session(b: &TestBootstrap) {
         .expect("the bootstrap profile directory name is a valid ProfileName");
 
     let session = CliSession::builder(
-        SessionBinding::new(profile_name, "https://issuer.test".to_owned()),
+        SessionBinding::new(profile_name, FIXTURE_EXTERNAL_URL.to_owned()),
         SessionToken::new("fixture-session-token"),
         SessionId::generate(),
         ContextId::generate(),
