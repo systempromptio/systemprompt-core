@@ -260,28 +260,11 @@ pub(super) fn set_enabled(
         }
     }
 
-    drop_created_empty_maps(&mut root, &original);
+    foreign::drop_created_empty_maps(&mut root, &original);
     if root == original {
         return Ok(());
     }
     write_json(&path, &Value::Object(root))
-}
-
-// Why: Claude Code `settings.json` is foreign config; a map the sweep created
-// and left empty was never there to write.
-fn drop_created_empty_maps(
-    root: &mut serde_json::Map<String, Value>,
-    original: &serde_json::Map<String, Value>,
-) {
-    for key in ["enabledPlugins", "extraKnownMarketplaces"] {
-        let created_empty = !original.contains_key(key)
-            && root
-                .get(key)
-                .is_some_and(|v| v.as_object().is_some_and(serde_json::Map::is_empty));
-        if created_empty {
-            root.remove(key);
-        }
-    }
 }
 
 // JSON: Claude Code `marketplace.json` — foreign file format, unknown keys must
