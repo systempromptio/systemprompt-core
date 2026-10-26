@@ -181,6 +181,9 @@ impl Commands {
             | Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
             Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
                 args,
+            ))) if args.profiles.is_some() => CommandDescriptor::NONE,
+            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
+                args,
             ))) if !args.data => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Admin(admin::AdminCommands::Setup(_))
             | Self::Core(

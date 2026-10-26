@@ -29,6 +29,7 @@ fn migrate(check: bool, services: &std::path::Path) -> AdminCommands {
         check,
         data: false,
         services: Some(services.to_path_buf()),
+        profiles: None,
     }))
 }
 

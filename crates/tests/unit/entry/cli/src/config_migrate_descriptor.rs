@@ -45,6 +45,29 @@ fn migrate_loads_the_profile_and_secrets_but_not_the_services_tree() {
 }
 
 #[test]
+fn migrate_profiles_loads_no_profile_because_a_legacy_one_cannot_load() {
+    for args in [
+        vec!["admin", "config", "migrate", "--profiles", "/tmp/profiles"],
+        vec![
+            "admin",
+            "config",
+            "migrate",
+            "--profiles",
+            "/tmp/profiles",
+            "--check",
+        ],
+    ] {
+        let desc = descriptor(&args);
+        assert!(
+            !desc.profile(),
+            "{args:?} must not load the profile it rewrites"
+        );
+        assert!(!desc.secrets(), "{args:?} needs no secrets");
+        assert!(!desc.database(), "{args:?} touches files only");
+    }
+}
+
+#[test]
 fn migrate_data_loads_the_migrated_tree() {
     assert!(descriptor(&["admin", "config", "migrate", "--data"]).paths());
 }

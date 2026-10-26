@@ -22,6 +22,7 @@ mod judge;
 pub mod layered;
 mod legacy;
 mod masking;
+pub mod migrate;
 mod node_role;
 mod observability;
 mod oci_reference;

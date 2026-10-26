@@ -13,7 +13,7 @@ use serde_yaml::Value;
 
 use super::{ProfileError, ProfileResult};
 
-pub const MIGRATE_COMMAND: &str = "systemprompt admin config migrate";
+pub const MIGRATE_COMMAND: &str = "systemprompt admin config migrate --profiles <profiles dir>";
 
 const LEGACY_TOP_LEVEL_KEYS: &[(&str, &str)] = &[
     (

@@ -18,6 +18,8 @@ mod hooks;
 #[cfg(test)]
 mod legacy_wire;
 #[cfg(test)]
+mod profiles;
+#[cfg(test)]
 mod roles;
 #[cfg(test)]
 mod support;

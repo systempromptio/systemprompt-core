@@ -13,6 +13,8 @@
 //! including access rules addressed to a legacy route id. The retired
 //! `access-control/roles.yaml` is folded into `rules.yaml` ([`roles`]), and
 //! the retired plugin `hooks.evaluation` key becomes `hooks.judge` ([`hooks`]).
+//! `--profiles <dir>` instead rewrites the pre-0.73 profiles in that directory
+//! ([`profiles`]) without loading one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +29,7 @@ pub mod legacy_map;
 mod legacy_wire;
 pub mod models;
 pub mod plan;
+pub mod profiles;
 pub mod replay;
 pub mod roles;
 pub mod routes;
@@ -63,6 +66,14 @@ pub struct MigrateArgs {
         help = "services/ directory to migrate (defaults to the active profile's; required with --database-url)"
     )]
     pub services: Option<PathBuf>,
+
+    #[arg(
+        long,
+        value_name = "DIR",
+        conflicts_with_all = ["data", "services"],
+        help = "Rewrite the pre-0.73 profiles in DIR (e.g. .systemprompt/profiles) instead of the services tree; loads no profile"
+    )]
+    pub profiles: Option<PathBuf>,
 }
 
 fn services_dir(args: &MigrateArgs, ctx: &CommandContext) -> Result<PathBuf> {
@@ -73,11 +84,15 @@ fn services_dir(args: &MigrateArgs, ctx: &CommandContext) -> Result<PathBuf> {
 }
 
 fn render(config: &CliConfig, title: &str, message: String) {
+    render_field(config, "catalog", title, message);
+}
+
+fn render_field(config: &CliConfig, field: &str, title: &str, message: String) {
     render_result(
         &CommandOutput::card_value(
             title,
             &ConfigMutationOutput {
-                field: "catalog".to_owned(),
+                field: field.to_owned(),
                 message,
             },
         ),
@@ -100,7 +115,47 @@ fn describe(plan: &MigrationPlan, written: &[PathBuf]) -> String {
     lines.join("\n")
 }
 
+fn execute_profiles(args: &MigrateArgs, dir: &std::path::Path, config: &CliConfig) -> Result<()> {
+    if args.check {
+        let pending = profiles::plan(dir)?;
+        if pending.is_empty() {
+            render_field(
+                config,
+                "profiles",
+                "Profile Migration",
+                profiles::describe(&pending),
+            );
+            return Ok(());
+        }
+        render_field(
+            config,
+            "profiles",
+            "Profile Migration Pending",
+            profiles::describe(&pending),
+        );
+        bail!(
+            "a profile migration is pending; run `systemprompt admin config migrate --profiles {}`",
+            dir.display()
+        );
+    }
+    let written = profiles::apply(dir)?;
+    render_field(
+        config,
+        "profiles",
+        "Profiles Migrated",
+        profiles::describe(&written),
+    );
+    Ok(())
+}
+
 pub async fn execute(args: &MigrateArgs, ctx: &CommandContext) -> Result<()> {
+    match args.profiles.as_ref() {
+        Some(dir) => execute_profiles(args, dir, &ctx.cli),
+        None => execute_services(args, ctx).await,
+    }
+}
+
+async fn execute_services(args: &MigrateArgs, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     let services = services_dir(args, ctx)?;
     let pending = plan(&services)?;

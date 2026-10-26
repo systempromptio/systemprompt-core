@@ -1,11 +1,12 @@
 # Upgrading to 0.73
 
-How to move a production deployment from an earlier release to 0.73.0. The release changes three things an operator acts on: the AI provider catalog has a new file format, declared configuration reaches the database only through an explicit `config apply`, and the gateway and bridge must be upgraded together. The full list of changes, with a migration note for each, is under `### Breaking` in `CHANGELOG.md` and the per-crate changelogs.
+How to move a production deployment from an earlier release to 0.73.0. The release changes four things an operator acts on: a profile states its public URL once and lives at `profiles/<env>/profile.yaml`, the AI provider catalog has a new file format, declared configuration reaches the database only through an explicit `config apply`, and the gateway and bridge must be upgraded together. The full list of changes, with a migration note for each, is under `### Breaking` in `CHANGELOG.md` and the per-crate changelogs.
 
 ## At a glance
 
 | Area | Action | Required |
 |---|---|---|
+| Profiles | `systemprompt admin config migrate --profiles <dir>` | Yes. A 0.72 profile is refused at load, so no other command runs until it is migrated |
 | AI provider catalog (`services/ai/`) | `systemprompt admin config migrate` | Yes. A 0.72 tree is refused at boot |
 | Configuration planes | `systemprompt admin config apply --reason <why>` after every upgrade, and once on a fresh install | Yes. Unapplied planes are not enforced |
 | Profile `governance.unapplied_planes` | New: `warn` (default) or `deny` | Choose a value |
@@ -19,7 +20,39 @@ How to move a production deployment from an earlier release to 0.73.0. The relea
 
 ## 1. Convert the services tree
 
-### 1.1 The provider catalog
+### 1.1 Profiles
+
+A profile now states its public URL once, as `server.external_url`. The loader derives the rest from it and from the bind address, and refuses a profile that states any of them:
+
+| Removed key | Derived from |
+|---|---|
+| `server.api_server_url`, `server.api_external_url` | `server.external_url` |
+| `server.use_https` | the scheme of `server.external_url` |
+| `server.cors_allowed_origins` | the origin of `server.external_url`, plus `server.extra_cors_origins` |
+| `security.jwt_issuer` | `server.external_url` |
+| `server.api_internal_url` | `server.host` and `server.port` |
+| `governance.authz.hook.url` | `server.host` and `server.port` |
+
+A profile lives at `profiles/<env>/profile.yaml`, optionally layered over a shared `profiles/base.yaml`: maps merge with the overlay winning, and a list in the overlay replaces the base's. The `<name>.secrets.profile.yaml` layout is refused. Relative paths resolve against `paths.root`, which defaults to the profile's directory.
+
+Migrate the profiles before anything else, because no other command runs on a 0.72 profile:
+
+```bash
+systemprompt admin config migrate --profiles .systemprompt/profiles --check   # exits non-zero while a change is pending
+systemprompt admin config migrate --profiles .systemprompt/profiles
+```
+
+The command loads no profile. For each layer it replaces the URL keys with one `server.external_url` in place, so comments stay attached. CORS origins other than the public one become `server.extra_cors_origins`, and a top-level `evaluation:` becomes `judge:`. A `<name>.secrets.profile.yaml` moves to `<name>/profile.yaml` and gains `paths.root: ".."`, so its relative paths resolve where they did. Every rewritten profile is loaded through the 0.73 loader before anything is written, and a second run makes no changes.
+
+The command refuses, and writes nothing, where 0.73 would silently change behaviour:
+
+- `security.jwt_issuer` differs from the public URL. 0.73 issues tokens as `server.external_url`, so every token issued under the old issuer would stop verifying. Decide which URL is public and make both say it.
+- `api_server_url` and `api_external_url` disagree, or `use_https` contradicts the URL's scheme.
+- `api_internal_url` or the authz webhook URL differs from what `server.host` and `server.port` give.
+
+A legacy profile that moves into a directory with a `base.yaml` starts inheriting the base's keys, and the report says so. `${VAR}` references are carried over verbatim, so run the migration where those variables are set: the verification step resolves them.
+
+### 1.2 The provider catalog
 
 The single `providers.yaml` list of providers with nested models is replaced by five objects in fixed files under `services/ai/`:
 
@@ -37,7 +70,7 @@ The loader reads these files by name. An `includes:` entry naming a catalog file
 
 Removed keys: `ai.default_provider`, `ai.providers`, `gateway.default_provider`, `gateway.catalog_route_id`, `allow_unlisted_models`, `hidden_requires_route`, `model_pattern` routes, route `by_scope` and `fallbacks` chains, route `extra_headers`, and the per-provider `surface` (replaced by each model's `clients`).
 
-### 1.2 Gateway routes
+### 1.3 Gateway routes
 
 Every route carries a declared `id`. The other route keys are `label`, `models` (globs), `when.scope`, `deployments`, `context_fallbacks` and `alias`.
 
@@ -56,7 +89,7 @@ gateway:
 
 An alias route sends the target model's `upstream_model` upstream.
 
-### 1.3 Plugin hooks: `evaluation` is `judge`
+### 1.4 Plugin hooks: `evaluation` is `judge`
 
 A plugin descriptor's hooks block says `judge`. The `evaluation` alias is removed, a tree that still uses it is refused, and `evaluation/` is no longer an allowed services-bundle directory. `config migrate` renames `hooks.evaluation` to `hooks.judge` and keeps comments, and `config migrate --check` reports the rename as pending.
 
@@ -70,17 +103,17 @@ The other retired serde aliases are removed as well:
 | Claude plugin manifest | alias | `mcpServers` |
 | `marketplace.json` | aliases | `pluginRoot`, `allowCrossMarketplaceDependenciesOn` |
 
-### 1.4 Access control
+### 1.5 Access control
 
 Core reads one access-control file, `services/access-control/rules.yaml`, with one `entities:` block per `<kind>/<id>`. `access-control/roles.yaml` is no longer read, and a tree that still carries it is refused. `config migrate` folds it into `rules.yaml`.
 
 A marketplace's `access:` block is no longer ingested at boot or by `services refresh`. `config apply` reads it as the `marketplace/<id>` entity. Declaring the same entity there and in `rules.yaml` is refused.
 
-### 1.5 Host ids
+### 1.6 Host ids
 
 There are seven bridge host ids: `claude-code`, `claude-desktop`, `codex`, `codex-cli`, `opencode`, `opencode-cli` and `hermes`. `codex` and `opencode` name the desktop apps. `codex-cli` and `opencode-cli` name the command-line tools. Update `hosts:` lists, host rules and `enabled_hosts` that mean a CLI. A manifest that names an unknown host id fails to load, and an empty `enabled_hosts` enables no host.
 
-### 1.6 Running `config migrate`
+### 1.7 Running `config migrate`
 
 ```bash
 systemprompt admin config migrate --check   # exits non-zero while a change is pending
@@ -198,7 +231,7 @@ Queries that read `ai_requests.synthetic` must filter `traffic = 'production'` i
 
 1. **Back up the database** and confirm the backup restores. Rehearse steps 3 to 6 on a restored copy.
 2. **Bump the pins.** Set every `systemprompt*` crate to `0.73.0` together and update `Cargo.lock`. See [section 7](#7-api-changes-for-crate-consumers).
-3. **Convert the tree.** Run `config migrate --check` and `config migrate`, review the diff, and commit it with `services/ai/legacy_map.yaml`. Fix host ids. Repack and publish any services bundles.
+3. **Convert the profiles, then the tree.** Run `config migrate --profiles <dir>` (see [1.1](#11-profiles)) and commit the result. Then run `config migrate --check` and `config migrate`, review the diff, and commit it with `services/ai/legacy_map.yaml`. Fix host ids. Repack and publish any services bundles.
 4. **Migrate the database:**
    ```bash
    systemprompt infra db migrate --profile <name>
@@ -238,11 +271,13 @@ Queries that read `ai_requests.synthetic` must filter `traffic = 'production'` i
 This section summarises the changes. The changelogs give each signature and its migration.
 
 - **Owned state instead of process globals.** Signing keys (`AppContext::signing_keys()`), event broadcasters (`event_broadcasters()`), the subprocess spawner (`spawner()`), files config (`files_config()`), logging (`logging()`), the connector token cache (`connector_tokens()`) and the gateway engines (`GatewayEngines`) are built once by the application context and passed explicitly. The `::global()` accessors, `init`/`get` cells and free functions they replace are removed. Readiness and scheduler health are values owned by the server.
-- **Configuration planes.** `AppContext::governance()` returns the current engine, rebuilt when a plane changes. `ServicesRootBootstrap::{active_root_or, active_path_or}` are removed in favour of `ServicesRootBootstrap::require()`. `CredentialsBootstrap::load()` replaces `init`/`get`.
+- **Boot context instead of bootstrap statics.** `ProfileBootstrap`, `SecretsBootstrap`, `ServicesRootBootstrap` and `Config::get` are removed. The profile, the live secrets, the resolved `Config` and the active services root are one owned `BootContext` (`systemprompt_loader`): a binary builds it once, `AppContextBuilder` takes it, and code reads it from `AppContext::boot()` or the value it was handed. `AppContext::token_authority()` (`TokenAuthority`, in `systemprompt_models::auth`) verifies and signs tokens. Use it rather than holding `SigningKeys`.
+- **Configuration planes.** `AppContext::governance()` returns the current engine, rebuilt when a plane changes. `CredentialsBootstrap::load()` replaces `init`/`get`.
 - **Catalog.** `ProviderEntry`, `ProviderModel`, `AiProviderConfig`, `ApiSurface` (now `ClientFamily`) and `ServicesBootstrap::providers()` are removed. Use `ResolvedCatalog`, read from the services state.
 - **Services state.** The process-global services config is removed: `ServicesBootstrap` and the `ConfigLoader` result cache are gone, and `ConfigLoader::load` reads the tree on every call. `systemprompt_loader::ServicesState` owns the services config watch, the `ResolvedCatalog` and the boot discovery report. Build it once with `ServicesState::load` (or `load_from_path`, `load_with_discovery`, `from_config`), hand a prebuilt one to the builder with `AppContextBuilder::with_services`, and read it through `AppContext::services_state()`. Consumers do not hold the state itself: `ServicesState::view` builds a `ServicesView` (the services config watch and the `ResolvedCatalog`), and registries, deployment services, the agent orchestration, the proxy and the hook and factory contexts (`AuthzHookContext`, `SsoHookContext`, `MarketplaceFactoryContext`) take that view.
 - **Token cache and CLI output.** The provider token cache is a value: `ProviderCredential::bearer`, the upstream resolvers and `GatewayEngines::new` take it, so pass `ctx.connector_tokens()`; extensions reach it as `ProviderTokenCache` through `ExtensionContext::provider_tokens()`. The CLI output mode, structured-output flags and notice buffer are methods on an `OutputState` installed with the tracing subscriber.
 - **Extensions.** `ExtensionContext` gains the required `background_tasks()`, `services() -> ServicesView` and `provider_tokens() -> Arc<dyn ProviderTokenCache>`; `ProviderTokenCache` is a new trait in `systemprompt_traits`, implemented by `TokenCache`. `ExtensionContext` also gains `subject_attributes() -> Arc<dyn SubjectAttributeSource>`: `SubjectAttributeSource`, `SubjectAttributes`, `SubjectDimension` and `RuleType` live in `systemprompt_models::authz`, and governance re-exports them. A gateway guard factory takes the context (`fn(&dyn ExtensionContext) -> Arc<dyn GatewayRequestGuard>`, `register_gateway_guard!(factory = f)`), and the process-wide `gateway_guards()` and `run_gateway_guards()` are replaced by `GatewayGuards`, owned by `GatewayEngines`. Extensions register only through `register_extension!`, so `RuntimeBuilder::with_extension` and the injected-extension functions are removed.
+- **Extension context.** An extension reads the deployment through `ExtensionContext`: `profile()`, `app_config()`, `services_root()` (the `ActiveServicesRoot` with its provenance), `token_authority()`, `secrets()` (a live `SecretStore`, read at request time so reloads reach it; it replaces `secret(name)`) and `dependencies()` (the pool, paths, files config, OAuth and AI repositories). The content-pipeline hooks (`page_prerenderers`, `page_data_providers`, `component_renderers`, `template_data_extenders`, `content_data_providers`) take the context, so build site configuration inside the hook, not at construction. Safety scanner factories take `(ctx, settings)`. `SsoHookContext`, `AuthzHookContext` and `MarketplaceFactoryContext` carry the secrets store, and `HookTokenValidator::new` takes the `TokenAuthority`. The registration macros resolve through `$crate`, so a crate that reaches core only through the `systemprompt` facade needs no direct `inventory` or `systemprompt-extension` dependency.
 - **Models and identifiers.** `HostKind` has seven ids and is shared by the bridge and agent runs. `ClientSessionId` is an opaque token. `EnforcementMode` replaces `PolicyMode`, `SafetyMode` and `QuotaMode`. `JwtClaims`, `CanonicalRequest`, `AiRequest` and the session-store parameters group their fields into named sub-structs, with unchanged wire shapes.
 - **Errors.** `ApiError::internal(context, source)` is the only 500 constructor. `AiError` nests provider, routing, request, tool and storage errors.
 - **New struct fields.** `RunRequest.harness` and `traffic`, `PublicationRequest.cohort`, `ServicesConfig.marketplace`, `SettledToolCall.args`, `RuleEntry` and `PluginEntry.publication`, and `ManifestMarketplace.opencode` need values in struct literals.
