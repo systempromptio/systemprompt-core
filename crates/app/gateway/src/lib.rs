@@ -20,6 +20,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use inventory as __inventory;
+
 pub mod artifact_scanner;
 pub mod audit;
 pub mod captures;

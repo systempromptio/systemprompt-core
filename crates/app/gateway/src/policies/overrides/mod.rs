@@ -169,7 +169,7 @@ inventory::collect!(SystemPromptOverrideRegistration);
 #[macro_export]
 macro_rules! register_system_prompt_override {
     ($factory:expr, name = $name:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::SystemPromptOverrideRegistration {
                 name: $name,
                 factory: || ::std::sync::Arc::new($factory()),

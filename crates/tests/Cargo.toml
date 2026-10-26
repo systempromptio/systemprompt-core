@@ -20,6 +20,7 @@ members = [
     "integration/database",
     "integration/events",
     "integration/extension",
+    "integration/facade-macros",
     "integration/files",
     "integration/gateway",
     "integration/generator",
@@ -248,6 +249,7 @@ proptest = "1.12"
 systemprompt-identifiers = { path = "../shared/identifiers" }
 systemprompt-provider-contracts = { path = "../shared/provider-contracts" }
 systemprompt-traits = { path = "../shared/traits" }
+systemprompt = { path = "../../systemprompt", features = ["full"] }
 systemprompt-extension = { path = "../shared/extension" }
 systemprompt-models = { path = "../shared/models" }
 systemprompt-wire = { path = "../shared/wire" }

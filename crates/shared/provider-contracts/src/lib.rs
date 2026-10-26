@@ -44,6 +44,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use inventory as __inventory;
+
 mod component;
 pub mod config_plane;
 mod content_data;

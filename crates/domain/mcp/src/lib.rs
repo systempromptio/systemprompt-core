@@ -48,6 +48,9 @@ pub(crate) mod schema;
 pub mod services;
 pub(crate) mod tool;
 
+#[doc(hidden)]
+pub use inventory as __inventory;
+
 pub use extension::McpExtension;
 
 pub use error::{McpDomainError, McpDomainResult, ServiceStartFailure, ServiceStartFailures};

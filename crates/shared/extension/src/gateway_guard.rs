@@ -107,14 +107,14 @@ inventory::collect!(GatewayRequestGuardRegistration);
 #[macro_export]
 macro_rules! register_gateway_guard {
     (factory = $factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::GatewayRequestGuardRegistration {
                 factory: $factory,
             }
         }
     };
     ($guard_type:ty) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::GatewayRequestGuardRegistration {
                 factory: |_| ::std::sync::Arc::new(<$guard_type>::default())
                     as ::std::sync::Arc<dyn $crate::GatewayRequestGuard>,

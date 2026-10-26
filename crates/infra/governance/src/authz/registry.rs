@@ -91,7 +91,7 @@ pub fn discover_authz_hook(ctx: &AuthzHookContext) -> Option<SharedAuthzHook> {
 #[macro_export]
 macro_rules! register_authz_hook {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::authz::AuthzHookRegistration {
                 factory: $factory,
             }

@@ -6825,6 +6825,50 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt"
+version = "0.73.0"
+dependencies = [
+ "axum",
+ "rmcp",
+ "sqlx",
+ "systemprompt-agent",
+ "systemprompt-agent-runs",
+ "systemprompt-ai",
+ "systemprompt-analytics",
+ "systemprompt-api",
+ "systemprompt-cli",
+ "systemprompt-client",
+ "systemprompt-cloud",
+ "systemprompt-config",
+ "systemprompt-content",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-files",
+ "systemprompt-gateway",
+ "systemprompt-generator",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-marketplace",
+ "systemprompt-mcp",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-oauth-issuance",
+ "systemprompt-runtime",
+ "systemprompt-scheduler",
+ "systemprompt-security",
+ "systemprompt-storage",
+ "systemprompt-template-provider",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "systemprompt-wire",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "systemprompt-agent"
 version = "0.73.0"
 dependencies = [
@@ -8482,6 +8526,14 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "xxhash-rust",
+]
+
+[[package]]
+name = "systemprompt-facade-macros-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "systemprompt",
 ]
 
 [[package]]

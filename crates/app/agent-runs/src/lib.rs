@@ -15,6 +15,9 @@
 //! See <https://systemprompt.io> for licensing details.
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[doc(hidden)]
+pub use inventory as __inventory;
+
 mod macros;
 
 pub mod a2a;

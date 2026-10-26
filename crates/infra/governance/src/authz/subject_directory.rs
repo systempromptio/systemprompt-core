@@ -55,7 +55,7 @@ pub fn discover_role_directory(ctx: &AuthzHookContext) -> Option<SharedRoleDirec
 #[macro_export]
 macro_rules! register_role_directory {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::authz::RoleDirectoryRegistration {
                 factory: $factory,
             }

@@ -54,7 +54,7 @@ inventory::collect!(ArtifactThemeRegistration);
 #[macro_export]
 macro_rules! register_artifact_theme {
     ($factory:expr, name = $name:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::services::ui_renderer::ArtifactThemeRegistration {
                 name: $name,
                 factory: $factory,

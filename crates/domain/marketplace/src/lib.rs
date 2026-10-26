@@ -55,6 +55,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[doc(hidden)]
+pub use inventory as __inventory;
+
 pub mod bundle;
 mod candidate;
 pub mod catalog;

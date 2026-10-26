@@ -181,7 +181,7 @@ inventory::collect!(SafetyScannerRegistration);
 #[macro_export]
 macro_rules! register_safety_scanner {
     ($factory:expr, name = $name:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::SafetyScannerRegistration {
                 name: $name,
                 factory: |ctx: &dyn $crate::__ExtensionContext,

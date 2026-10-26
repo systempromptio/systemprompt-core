@@ -20,7 +20,7 @@ inventory::collect!(RunOriginRegistration);
 #[macro_export]
 macro_rules! register_run_origin {
     ($name:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::origin::RunOriginRegistration { name: $name }
         }
     };

@@ -98,7 +98,7 @@ pub fn discover_publication_gates() -> Vec<&'static PublicationGateRegistration>
 #[macro_export]
 macro_rules! register_publication_gate {
     ($factory:expr, priority = $priority:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::managed::PublicationGateRegistration {
                 factory: $factory,
                 priority: $priority,

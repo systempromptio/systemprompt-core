@@ -7,7 +7,7 @@
 //! takes session-scoped locks on the session pool. A context without a
 //! database refuses all three through [`UnavailableCoordination`].
 //!
-//! [`ExtensionContext::secret`] reads an operator-provisioned custom secret
+//! [`ExtensionContext::secrets`] reads operator-provisioned custom secrets
 //! from the platform secrets document, so an extension never reads its
 //! credentials from the process environment; [`ExtensionContext::instance_id`]
 //! is the node identity in place of `HOSTNAME`.

@@ -71,7 +71,7 @@ pub(super) fn discover_role_resolver(ctx: &SsoHookContext) -> Arc<dyn RoleResolv
 #[macro_export]
 macro_rules! register_role_resolver {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::sso::RoleResolverRegistration {
                 factory: $factory,
             }

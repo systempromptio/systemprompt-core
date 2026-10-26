@@ -30,6 +30,7 @@ group_prefixes() {
                       echo "/tests/integration/agent/ /tests/integration/analytics/ /tests/integration/config-migrate/ \
                              /tests/integration/content/ /tests/integration/database/ \
                              /tests/integration/events/ /tests/integration/extension/ \
+                             /tests/integration/facade-macros/ \
                              /tests/integration/files/ /tests/integration/gateway/ \
                              /tests/integration/generator/ /tests/integration/mcp/ \
                              /tests/integration/oauth/ /tests/integration/runtime/ \

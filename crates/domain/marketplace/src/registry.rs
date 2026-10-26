@@ -56,7 +56,7 @@ pub fn discover_filters() -> Vec<&'static MarketplaceFilterRegistration> {
 #[macro_export]
 macro_rules! register_marketplace_filter {
     ($factory:expr, priority = $priority:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::MarketplaceFilterRegistration {
                 factory: $factory,
                 priority: $priority,

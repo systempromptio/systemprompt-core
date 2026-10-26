@@ -58,7 +58,7 @@ inventory::collect!(RouteSelectorRegistration);
 #[macro_export]
 macro_rules! register_route_selector {
     ($factory:expr, name = $name:expr $(,)?) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::RouteSelectorRegistration {
                 name: $name,
                 factory: || ::std::sync::Arc::new($factory()),

@@ -80,7 +80,7 @@ pub(super) fn discover_sinks(ctx: &SsoHookContext) -> Vec<Arc<dyn AuthEventSink>
 #[macro_export]
 macro_rules! register_sso_provider {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::sso::SsoProviderRegistration {
                 factory: $factory,
             }
@@ -91,7 +91,7 @@ macro_rules! register_sso_provider {
 #[macro_export]
 macro_rules! register_auth_event_sink {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::sso::AuthEventSinkRegistration {
                 factory: $factory,
             }

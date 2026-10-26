@@ -119,7 +119,7 @@ pub async fn gather_subject_attributes(
 #[macro_export]
 macro_rules! register_subject_attribute_provider {
     ($factory:expr) => {
-        ::inventory::submit! {
+        $crate::__inventory::submit! {
             $crate::authz::SubjectProviderRegistration {
                 factory: $factory,
             }
