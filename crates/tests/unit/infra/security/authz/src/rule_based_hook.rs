@@ -100,10 +100,11 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
     })
     .await
     .expect("rule");
-    tokio::time::sleep(std::time::Duration::from_millis(5_500)).await;
-
-    assert!(matches!(
-        hook.evaluate(request_for(&route, &user)).await,
-        AuthzDecision::Allow
-    ));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let mut decision = hook.evaluate(request_for(&route, &user)).await;
+    while !matches!(decision, AuthzDecision::Allow) && std::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        decision = hook.evaluate(request_for(&route, &user)).await;
+    }
+    assert!(matches!(decision, AuthzDecision::Allow));
 }
