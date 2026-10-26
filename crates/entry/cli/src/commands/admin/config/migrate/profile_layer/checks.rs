@@ -7,7 +7,7 @@
 use serde_yaml::Value;
 
 use super::ProfileMigrationError;
-use crate::profile::derived::{AUTHZ_WEBHOOK_PATH, internal_url_for};
+use systemprompt_manifest::profile::derived::{AUTHZ_WEBHOOK_PATH, internal_url_for};
 
 pub(super) fn lookup<'v>(value: &'v Value, path: &[&str]) -> Option<&'v Value> {
     path.iter()

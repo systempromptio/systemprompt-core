@@ -29,6 +29,7 @@ pub mod legacy_map;
 mod legacy_wire;
 pub mod models;
 pub mod plan;
+pub mod profile_layer;
 pub mod profiles;
 pub mod replay;
 pub mod roles;

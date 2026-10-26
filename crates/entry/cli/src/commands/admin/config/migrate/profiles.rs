@@ -15,11 +15,11 @@
 
 use std::path::{Path, PathBuf};
 
+use super::profile_layer::{ProfileMigration, migrate_profile_layer};
 use anyhow::{Context, Result, bail};
 use serde_yaml::Value;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::env::{interpolate, read_env_optional};
-use systemprompt_manifest::profile::migrate::{ProfileMigration, migrate_profile_layer};
 use systemprompt_manifest::profile::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 
 const LEGACY_SUFFIX: &str = ".secrets.profile.yaml";

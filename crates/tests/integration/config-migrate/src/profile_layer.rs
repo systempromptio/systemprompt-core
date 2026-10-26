@@ -3,8 +3,10 @@
 //! same derived values 0.72 stated, and a change the loader would make
 //! silently (a new JWT issuer, a different internal URL) is refused.
 
+use systemprompt_cli::commands::admin::config::migrate::profile_layer::{
+    ProfileMigrationError, migrate_profile_layer,
+};
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::profile::migrate::{ProfileMigrationError, migrate_profile_layer};
 
 const PROFILE_072: &str = r"name: prod
 display_name: Production
@@ -48,7 +50,7 @@ runtime:
 fn migrated(
     text: &str,
     moved_down: bool,
-) -> systemprompt_manifest::profile::migrate::ProfileMigration {
+) -> systemprompt_cli::commands::admin::config::migrate::profile_layer::ProfileMigration {
     migrate_profile_layer(text, None, moved_down)
         .expect("the profile migrates")
         .expect("a 0.72 profile has something to migrate")
