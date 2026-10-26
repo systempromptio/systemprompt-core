@@ -134,6 +134,14 @@ impl ExtensionContext for AppContext {
         locks
     }
 
+    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies {
+        systemprompt_provider_contracts::Dependencies::new()
+            .with(Arc::clone(self.db_pool()))
+            .with(Arc::clone(self.app_paths_arc()))
+            .with(Arc::clone(self.files_config()))
+            .with(Arc::clone(self.oauth_repositories()))
+    }
+
     fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
         let concrete = Arc::clone(Self::secrets(self));
         let store: Arc<dyn systemprompt_traits::SecretStore> = concrete;

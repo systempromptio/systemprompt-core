@@ -204,6 +204,9 @@ impl ExtensionContext for MockExtensionContext {
     fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
         systemprompt_test_fixtures::fixture_secret_store()
     }
+    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies {
+        systemprompt_provider_contracts::Dependencies::new()
+    }
     fn services(&self) -> systemprompt_manifest::services::ServicesView {
         systemprompt_test_fixtures::fixture_services_view()
     }

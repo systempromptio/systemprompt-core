@@ -75,6 +75,8 @@ pub trait ExtensionContext: Send + Sync {
 
     fn secrets(&self) -> Arc<dyn SecretStore>;
 
+    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies;
+
     fn get_extension(&self, id: &str) -> Option<Arc<dyn crate::Extension>>;
 
     fn has_extension(&self, id: &str) -> bool {

@@ -146,3 +146,14 @@ async fn the_extension_view_hands_out_the_shared_background_tasks() {
         .await;
     assert!(outcome.is_drained());
 }
+
+#[tokio::test]
+async fn the_extension_dependencies_carry_the_oauth_repositories() {
+    let (ctx, _url) = context().await;
+    let view: &dyn ExtensionContext = ctx.as_ref();
+    let deps = view.dependencies();
+    let repos = deps
+        .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
+        .expect("the oauth repositories are a context dependency");
+    assert!(std::sync::Arc::ptr_eq(repos, ctx.oauth_repositories()));
+}

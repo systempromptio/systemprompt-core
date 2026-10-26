@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** **Extension:** `ExtensionContext` gains the required `dependencies() -> Dependencies`, the typed set of shared handles a job also receives: the `DbPool`, `Arc<AppPaths>`, `Arc<FilesConfig>` and `Arc<OAuthRepositories>`. An extension router reaches the OAuth repository through it to drive `SsoDriver::discover` or build run credentials.
 - **Breaking:** **OAuth:** `SsoHookContext` carries `services_root: ActiveServicesRoot` and `secrets: Arc<dyn SecretStore>`, so an SSO provider factory loads its configuration from the services tree and reads its client secret live. `SsoDriver::discover` takes `(&SsoHookContext, oauth, session_service)`.
 - **Breaking:** **Gateway:** a safety scanner factory receives the deployment's `&dyn ExtensionContext` with its `ScannerSettings` (`register_safety_scanner!(|ctx, settings| …)`). `SafetyScannerRegistry::new` and its `Default` are replaced by `SafetyScannerRegistry::discover(&Arc<dyn ExtensionContext>)`, and `GatewayEngines::new(tokens, &extensions, secrets)` builds the scanners and the request guards from that context. Migrate scanner factories to the two-argument form.
 - **Breaking:** **Security:** `HookTokenValidator::new` takes the `Arc<dyn TokenAuthority>` in place of an issuer and `SigningKeys`, and keeps its scope and `plugin_id` checks; a verification failure is `AuthError::Verification`. Migrate by passing `ctx.token_authority()`.
