@@ -18,8 +18,12 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
+use systemprompt_manifest::services::ServicesView;
+
+use crate::registry::MarketplaceFactoryContext;
 use systemprompt_governance::authz::{
-    AuthzHookContext, AuthzServices, NullAuditSink, SubjectProviderSet,
+    AuthzHookContext, NullAuditSink, SharedRoleDirectory, SubjectProviderSet,
+    discover_role_directory,
 };
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
 use systemprompt_manifest::services::ManagedMarketplaceConfig;
@@ -73,7 +77,9 @@ pub enum PublicationGateError {
 }
 
 type PublicationGateFactory =
-    fn(&DbPool) -> std::result::Result<Arc<dyn PublicationGate>, PublicationGateError>;
+    fn(
+        &MarketplaceFactoryContext,
+    ) -> std::result::Result<Arc<dyn PublicationGate>, PublicationGateError>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PublicationGateRegistration {
@@ -116,6 +122,7 @@ pub struct PublicationPolicy {
     pub(crate) config: ManagedMarketplaceConfig,
     gates: Vec<Arc<dyn PublicationGate>>,
     pub(crate) subjects: SubjectProviderSet,
+    pub(crate) roles: Option<SharedRoleDirectory>,
 }
 
 impl std::fmt::Debug for PublicationPolicy {
@@ -142,33 +149,44 @@ impl PublicationPolicy {
         config: ManagedMarketplaceConfig,
         gates: Vec<Arc<dyn PublicationGate>>,
         subjects: SubjectProviderSet,
+        roles: Option<SharedRoleDirectory>,
     ) -> Self {
         Self {
             config,
             gates,
             subjects,
+            roles,
         }
     }
 
     pub fn discover(
         db: &DbPool,
         config: ManagedMarketplaceConfig,
-        services: AuthzServices,
+        services: ServicesView,
     ) -> Result<Self> {
+        let factory_ctx = MarketplaceFactoryContext {
+            db: Arc::clone(db),
+            services: services.clone(),
+        };
         let gates = discover_publication_gates()
             .into_iter()
-            .map(|registration| (registration.factory)(db))
+            .map(|registration| (registration.factory)(&factory_ctx))
             .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|source| ManagedError::Internal {
                 context: "publication gate factory",
                 source: source.into(),
             })?;
-        let subjects = SubjectProviderSet::discover(&AuthzHookContext {
+        let hook_ctx = AuthzHookContext {
             pool: db.pool(),
             sink: Arc::new(NullAuditSink),
             services,
-        });
-        Ok(Self::new(config, gates, subjects))
+        };
+        Ok(Self::new(
+            config,
+            gates,
+            SubjectProviderSet::discover(&hook_ctx),
+            discover_role_directory(&hook_ctx),
+        ))
     }
 
     #[must_use]

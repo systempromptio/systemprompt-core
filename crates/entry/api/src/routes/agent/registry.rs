@@ -21,7 +21,7 @@ pub async fn handle_agent_registry(
     Extension(_req_ctx): Extension<RequestContext>,
     State(ctx): State<AppContext>,
 ) -> impl IntoResponse {
-    let registry = Arc::new(AgentRegistry::new(ctx.services_state()));
+    let registry = Arc::new(AgentRegistry::new(&ctx.services_state().view()));
     let service_repo = ctx.service_repository();
     let api_external_url = &ctx.config().api_external_url;
 

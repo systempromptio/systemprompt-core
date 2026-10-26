@@ -15,10 +15,10 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use sqlx::PgPool;
 use systemprompt_identifiers::UserId;
 
 use super::error::AuthzError;
+use super::registry::AuthzHookContext;
 
 /// Answers which candidate roles no user holds, and which roles one user
 /// holds.
@@ -36,19 +36,20 @@ pub type SharedRoleDirectory = Arc<dyn RoleDirectory>;
 
 /// One inventory submission per
 /// [`register_role_directory!`][crate::register_role_directory] call. The
-/// factory receives the write pool the ingestion service runs on.
+/// factory receives the hook context built over the write pool the ingestion
+/// service runs on.
 #[derive(Debug, Clone, Copy)]
 pub struct RoleDirectoryRegistration {
-    pub factory: fn(Arc<PgPool>) -> SharedRoleDirectory,
+    pub factory: fn(&AuthzHookContext) -> SharedRoleDirectory,
 }
 
 inventory::collect!(RoleDirectoryRegistration);
 
 #[must_use]
-pub fn discover_role_directory(pool: &Arc<PgPool>) -> Option<SharedRoleDirectory> {
+pub fn discover_role_directory(ctx: &AuthzHookContext) -> Option<SharedRoleDirectory> {
     inventory::iter::<RoleDirectoryRegistration>()
         .next()
-        .map(|reg| (reg.factory)(Arc::clone(pool)))
+        .map(|reg| (reg.factory)(ctx))
 }
 
 #[macro_export]

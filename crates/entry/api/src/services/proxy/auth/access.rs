@@ -109,7 +109,7 @@ async fn lookup_oauth_requirement(
 ) -> Result<OAuthRequirement, ProxyError> {
     match service.module_name {
         ServiceModule::Agent => {
-            let registry = AgentRegistryProviderService::new(ctx.services_state());
+            let registry = AgentRegistryProviderService::new(&ctx.services_state().view());
             let info = registry
                 .get_agent(service_name.as_str())
                 .map_err(|error| registry_lookup_error(service_name, error))?;

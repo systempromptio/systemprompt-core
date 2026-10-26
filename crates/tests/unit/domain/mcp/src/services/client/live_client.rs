@@ -27,7 +27,7 @@ async fn list_tools_maps_schemas_and_metadata() {
     let tools = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .list_tools(&config, &request_context("list"))
@@ -59,7 +59,7 @@ async fn call_tool_round_trips_result() {
     let result = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .call_tool(
@@ -88,7 +88,7 @@ async fn oauth_required_without_token_is_rejected() {
     let err = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .list_tools(&config, &request_context("auth"))
@@ -110,7 +110,7 @@ async fn oauth_required_with_token_sends_bearer() {
     let tools = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .list_tools(&config, &context)
@@ -132,7 +132,7 @@ async fn external_auth_without_user_is_rejected() {
     let err = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .call_tool(&config, "echo".to_owned(), None, &request_context("ext"))
@@ -155,7 +155,7 @@ async fn external_auth_with_unreachable_accessor_fails() {
     let err = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .call_tool(&config, "echo".to_owned(), None, &context)

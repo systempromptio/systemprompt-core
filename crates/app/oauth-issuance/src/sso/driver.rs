@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_oauth::repository::{OAuthRepository, PostgresReplayGuard};
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::sso::{
@@ -78,10 +79,12 @@ impl SsoDriver {
         db: &DbPool,
         session_service: Arc<SessionCreationService>,
         config: Arc<Config>,
+        services: ServicesView,
     ) -> Self {
         let ctx = SsoHookContext {
             db: Arc::clone(db),
             config: Arc::clone(&config),
+            services,
         };
         let SsoRepositories {
             oauth: repo,

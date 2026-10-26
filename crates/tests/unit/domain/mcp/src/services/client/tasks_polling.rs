@@ -146,7 +146,7 @@ async fn call_echo(
     let outcome = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .call_tool(&config, "echo".to_owned(), None, &request_context(tag))
@@ -359,7 +359,7 @@ async fn a_direct_input_required_tool_response_is_reissued_once_with_the_origina
         McpClient::new(
             std::sync::Arc::default(),
             systemprompt_mcp::services::DeploymentService::new(
-                systemprompt_test_fixtures::fixture_services_state(),
+                systemprompt_test_fixtures::fixture_services_view(),
             ),
         )
         .call_tool(

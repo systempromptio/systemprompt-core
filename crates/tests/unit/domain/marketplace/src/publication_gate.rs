@@ -7,7 +7,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_governance::authz::{
+    AuthzHookContext, NullAuditSink, SubjectProviderSet, discover_role_directory,
+};
 use systemprompt_identifiers::{ResourceRevisionId, UserId};
 use systemprompt_manifest::services::{
     CohortRing, ManagedMarketplaceConfig, PublicationConfig, PublicationGateConfig,
@@ -50,10 +52,17 @@ fn gated(
             },
             gates,
             SubjectProviderSet::default(),
+            None,
         ))
 }
 
-fn ringed(f: &Fixture, rings: &[(&str, &str)]) -> ManagedRepository {
+async fn ringed(f: &Fixture, rings: &[(&str, &str)]) -> ManagedRepository {
+    let db = test_db_pool().await;
+    let roles = discover_role_directory(&AuthzHookContext {
+        pool: db.pool(),
+        sink: Arc::new(NullAuditSink),
+        services: systemprompt_test_fixtures::fixture_services_view(),
+    });
     f.repository
         .clone()
         .with_publication_policy(PublicationPolicy::new(
@@ -69,6 +78,7 @@ fn ringed(f: &Fixture, rings: &[(&str, &str)]) -> ManagedRepository {
             },
             Vec::new(),
             SubjectProviderSet::default(),
+            roles,
         ))
 }
 
@@ -294,7 +304,7 @@ async fn the_first_matching_ring_with_a_selection_decides() {
     publish(&f).await;
     let alpha = next_revision(&f, "# alpha\n").await;
     let beta = next_revision(&f, "# beta\n").await;
-    let repository = ringed(&f, &[("role", "beta"), ("role", "alpha")]);
+    let repository = ringed(&f, &[("role", "beta"), ("role", "alpha")]).await;
     repository
         .review_and_publish(
             &f.owner,
@@ -356,7 +366,7 @@ async fn a_cohort_outside_the_configured_rings_is_refused() {
     let f = fixture().await;
     publish(&f).await;
     let candidate = next_revision(&f, "# improved\n").await;
-    let repository = ringed(&f, &[("role", "beta")]);
+    let repository = ringed(&f, &[("role", "beta")]).await;
     let refused = repository
         .review_and_publish(
             &f.owner,
@@ -380,7 +390,7 @@ async fn a_cohort_outside_the_configured_rings_is_refused() {
 async fn a_ring_on_an_unregistered_dimension_fails_resolution() {
     let f = fixture().await;
     publish(&f).await;
-    let repository = ringed(&f, &[("department", "finance")]);
+    let repository = ringed(&f, &[("department", "finance")]).await;
     let reader = consumer(&["user"]).await;
     let resolution = repository
         .list_resolutions_for(&f.owner, &reader, ResourceKind::Skill)
@@ -396,7 +406,7 @@ async fn the_catalog_stamp_moves_with_a_cohort_generation() {
     let f = fixture().await;
     publish(&f).await;
     let candidate = next_revision(&f, "# beta\n").await;
-    let repository = ringed(&f, &[("role", "beta")]);
+    let repository = ringed(&f, &[("role", "beta")]).await;
     let reader = consumer(&["beta"]).await;
     let before = repository
         .managed_catalog_stamp(&f.owner, &reader)

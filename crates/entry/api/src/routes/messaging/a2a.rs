@@ -157,7 +157,7 @@ pub(super) async fn run_agent(
     let response = ProxyService::new(
         identities,
         Arc::clone(ctx.connector_tokens()),
-        ctx.services_state(),
+        &ctx.services_state().view(),
     )
     .proxy_request(target, request, ctx.clone())
     .await

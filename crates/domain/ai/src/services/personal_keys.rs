@@ -2,10 +2,9 @@
 //! after every endpoint it authenticates proves it works.
 //!
 //! A key is stored under the catalog credential id, so one stored key serves
-//! every endpoint of every provider that names the credential. Both the
-//! gateway's `/v1/me/provider-credentials` route and any in-process console
-//! call [`store_personal_key`], so a key is verified and sealed the same way
-//! whichever surface the member added it from.
+//! every endpoint of every provider that names the credential. The gateway's
+//! `/v1/me/provider-credentials` route and any in-process console call
+//! [`store_personal_key`], so a key is verified and sealed one way.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +17,7 @@ use systemprompt_manifest::services::catalog::{
     ResolvedCatalog, ResolvedCredential, ResolvedEndpoint,
 };
 use systemprompt_security::credential::TokenCache;
+use systemprompt_traits::ProviderTokenCache;
 
 use super::upstream::{EndpointBinding, UpstreamCall, UpstreamTarget};
 use crate::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
@@ -82,7 +82,7 @@ pub struct PersonalKeyRequest<'a> {
 }
 
 pub async fn store_personal_key(
-    tokens: &Arc<TokenCache>,
+    tokens: &Arc<dyn ProviderTokenCache>,
     credentials: &UserProviderCredentialRepository,
     catalog: &ResolvedCatalog,
     request: PersonalKeyRequest<'_>,
@@ -115,12 +115,14 @@ pub async fn store_personal_key(
 }
 
 pub async fn verify_personal_key(
-    tokens: &Arc<TokenCache>,
+    tokens: &Arc<dyn ProviderTokenCache>,
     catalog: &ResolvedCatalog,
     credential: &ResolvedCredential,
     key: &str,
     user_id: &UserId,
 ) -> Result<(), PersonalKeyError> {
+    let tokens = TokenCache::from_handle(tokens)
+        .ok_or_else(|| PersonalKeyError::Internal("foreign token cache".into()))?;
     let endpoints = credential_endpoints(catalog, credential);
     if endpoints.is_empty() {
         return Err(PersonalKeyError::NotPersonalCredential(
@@ -130,7 +132,7 @@ pub async fn verify_personal_key(
     for endpoint in endpoints {
         let binding = EndpointBinding::of_endpoint(catalog, &endpoint.endpoint_ref())
             .map_err(|e| PersonalKeyError::Internal(e.into()))?;
-        verify_endpoint(tokens, catalog, binding, key, user_id).await?;
+        verify_endpoint(&tokens, catalog, binding, key, user_id).await?;
     }
     Ok(())
 }

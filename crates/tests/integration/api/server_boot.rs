@@ -120,7 +120,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             extension_registry: Arc::new(ExtensionRegistry::new()),
             mcp_registry: RegistryService::new(
                 fixture_user_id(),
-                systemprompt_test_fixtures::fixture_services_state(),
+                systemprompt_test_fixtures::fixture_services_view(),
             ),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),

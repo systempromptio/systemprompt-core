@@ -271,7 +271,7 @@ async fn catalog_file_lifecycle_helper() {
     println!("END_DISCOVERY_EMPTY");
 
     use systemprompt_scheduler::jobs::vertex_discovery::VertexDiscoveryJob;
-    let report = VertexDiscoveryJob::probe(&systemprompt_test_fixtures::fixture_services_state())
+    let report = VertexDiscoveryJob::probe(&systemprompt_test_fixtures::fixture_services_view())
         .await
         .expect("discovery job produces a report");
     println!("DISCOVERY_RAN_AT={}", report.ran_at);

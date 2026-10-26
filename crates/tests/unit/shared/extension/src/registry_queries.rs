@@ -186,21 +186,25 @@ impl systemprompt_traits::FileStorage for StubFiles {
     }
 }
 
-impl ExtensionContext for StubCtx {
-    fn services_config(
-        &self,
-    ) -> systemprompt_traits::ConfigWatch<systemprompt_manifest::services::ServicesConfig> {
-        systemprompt_traits::ConfigWatch::new(
-            systemprompt_manifest::services::ServicesConfig::default(),
-        )
+#[derive(Debug)]
+struct StubTokens;
+
+impl systemprompt_traits::ProviderTokenCache for StubTokens {
+    fn into_any(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync> {
+        self
     }
-    fn resolved_catalog(&self) -> Arc<systemprompt_manifest::services::catalog::ResolvedCatalog> {
+}
+
+impl ExtensionContext for StubCtx {
+    fn provider_tokens(&self) -> Arc<dyn systemprompt_traits::ProviderTokenCache> {
+        Arc::new(StubTokens)
+    }
+    fn services(&self) -> systemprompt_manifest::services::ServicesView {
         systemprompt_loader::ServicesState::from_config(
             systemprompt_manifest::services::ServicesConfig::default(),
         )
         .expect("default services config resolves")
-        .catalog()
-        .clone()
+        .view()
     }
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
         systemprompt_identifiers::UserId::new("extension-test-owner")

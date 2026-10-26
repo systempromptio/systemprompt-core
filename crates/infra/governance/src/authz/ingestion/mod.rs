@@ -38,7 +38,10 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
+use systemprompt_manifest::services::ServicesView;
 
+use super::audit::NullAuditSink;
+use super::registry::AuthzHookContext;
 use super::subject_directory::{RoleDirectory, SharedRoleDirectory, discover_role_directory};
 
 pub use catalog::RegisteredEntities;
@@ -92,13 +95,17 @@ pub struct AccessControlIngestionService {
 }
 
 impl AccessControlIngestionService {
-    pub fn new(db: &DbPool) -> Self {
+    pub fn new(db: &DbPool, services: ServicesView) -> Self {
         let write_pool = db.write_pool();
-        Self::from_pool(write_pool)
+        Self::from_pool(write_pool, services)
     }
 
-    pub fn from_pool(pool: Arc<PgPool>) -> Self {
-        let role_directory = discover_role_directory(&pool);
+    pub fn from_pool(pool: Arc<PgPool>, services: ServicesView) -> Self {
+        let role_directory = discover_role_directory(&AuthzHookContext {
+            pool: Arc::clone(&pool),
+            sink: Arc::new(NullAuditSink),
+            services,
+        });
         Self {
             write_pool: pool,
             role_directory,

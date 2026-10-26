@@ -16,7 +16,7 @@ pub fn router(ctx: &AppContext) -> Router {
     let engine = ProxyService::new(
         identities,
         Arc::clone(ctx.connector_tokens()),
-        ctx.services_state(),
+        &ctx.services_state().view(),
     );
     let engine_with_path = engine.clone();
 

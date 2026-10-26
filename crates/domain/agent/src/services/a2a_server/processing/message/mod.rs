@@ -21,7 +21,7 @@ pub use stream_service::StreamService;
 
 use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
-use systemprompt_loader::ServicesState;
+use systemprompt_manifest::services::ServicesView;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -99,7 +99,7 @@ pub struct MessageHandler {
     execution_step_repo: Arc<ExecutionStepRepository>,
     publishing: ArtifactPublishingService,
     webhooks: DynWebhookBroadcaster,
-    services: ServicesState,
+    services: ServicesView,
 }
 
 impl std::fmt::Debug for MessageHandler {
@@ -115,7 +115,7 @@ impl MessageHandler {
         repositories: Arc<A2ARepositories>,
         ai_service: DynAiProvider,
         webhooks: DynWebhookBroadcaster,
-        services: ServicesState,
+        services: ServicesView,
     ) -> Result<Self> {
         let context_service = ContextService::new(repositories.tasks.clone());
         let execution_step_repo = Arc::new(repositories.execution_steps.clone());

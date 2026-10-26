@@ -26,8 +26,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Deserialize;
-use systemprompt_loader::ServicesState;
-use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_manifest::services::{BridgeReleasesSpec, ServicesView};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 use systemprompt_runtime::AppContext;
@@ -56,7 +55,7 @@ pub struct LatestQuery {
 
 pub async fn latest(
     jwt_extractor: Arc<JwtContextExtractor>,
-    services: &ServicesState,
+    services: &ServicesView,
     feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Query(query): Query<LatestQuery>,
@@ -73,7 +72,7 @@ pub async fn latest(
 
 pub async fn download(
     jwt_extractor: Arc<JwtContextExtractor>,
-    services: &ServicesState,
+    services: &ServicesView,
     feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Path(platform): Path<String>,
@@ -116,7 +115,7 @@ pub async fn download(
         .into_response())
 }
 
-fn releases_spec(services: &ServicesState) -> Result<BridgeReleasesSpec, ReleaseError> {
+fn releases_spec(services: &ServicesView) -> Result<BridgeReleasesSpec, ReleaseError> {
     services
         .config()
         .gateway_config()
@@ -128,8 +127,8 @@ pub(in crate::routes::gateway) fn routes(
     ctx: &AppContext,
     jwt_extractor: &Arc<JwtContextExtractor>,
 ) -> Router {
-    let services_latest = ctx.services_state().clone();
-    let services_download = ctx.services_state().clone();
+    let services_latest = ctx.services_state().view();
+    let services_download = ctx.services_state().view();
     let jwt_latest = Arc::clone(jwt_extractor);
     let jwt_download = Arc::clone(jwt_extractor);
     let feed = Arc::new(ReleaseFeed::default());

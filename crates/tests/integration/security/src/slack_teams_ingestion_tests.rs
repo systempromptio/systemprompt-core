@@ -111,7 +111,10 @@ async fn role_values(pg: &PgPool, entity_type: &str, id: &str) -> Vec<String> {
 async fn slack_happy_path_projects_entity_and_rules() {
     let f = setup().await;
     let id = slack_id();
-    let service = AccessControlIngestionService::new(&f.db);
+    let service = AccessControlIngestionService::new(
+        &f.db,
+        systemprompt_test_fixtures::fixture_services_view(),
+    );
 
     let report = service
         .ingest_slack_apps(
@@ -160,7 +163,10 @@ async fn slack_happy_path_projects_entity_and_rules() {
 async fn teams_happy_path_projects_entity_and_rules() {
     let f = setup().await;
     let id = teams_id();
-    let service = AccessControlIngestionService::new(&f.db);
+    let service = AccessControlIngestionService::new(
+        &f.db,
+        systemprompt_test_fixtures::fixture_services_view(),
+    );
 
     let report = service
         .ingest_teams_apps(
@@ -180,7 +186,10 @@ async fn disabled_and_empty_role_apps_produce_no_rows() {
     let f = setup().await;
     let disabled = slack_id();
     let empty = slack_id();
-    let service = AccessControlIngestionService::new(&f.db);
+    let service = AccessControlIngestionService::new(
+        &f.db,
+        systemprompt_test_fixtures::fixture_services_view(),
+    );
 
     let mut apps = HashMap::new();
     apps.insert(
@@ -215,7 +224,10 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
     let f = setup().await;
     let kept = slack_id();
     let swept = slack_id();
-    let service = AccessControlIngestionService::new(&f.db);
+    let service = AccessControlIngestionService::new(
+        &f.db,
+        systemprompt_test_fixtures::fixture_services_view(),
+    );
 
     // First pass seeds both workspaces.
     let mut both = HashMap::new();
@@ -258,7 +270,10 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
 async fn re_ingest_without_override_is_idempotent() {
     let f = setup().await;
     let id = slack_id();
-    let service = AccessControlIngestionService::new(&f.db);
+    let service = AccessControlIngestionService::new(
+        &f.db,
+        systemprompt_test_fixtures::fixture_services_view(),
+    );
 
     service
         .ingest_slack_apps(

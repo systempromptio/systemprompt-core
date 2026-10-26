@@ -28,7 +28,7 @@ async fn service(
     ensure_test_bootstrap();
     let _skills = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repo = AgentServiceRepository::new(pool, instance.clone());
-    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_state())
+    AgentDatabaseService::new(repo, &systemprompt_test_fixtures::fixture_services_view())
 }
 
 #[tokio::test]

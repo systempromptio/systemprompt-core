@@ -37,7 +37,7 @@ use super::hook::AuthzDecisionHook;
 use super::parent_chain::{
     ChainIndexCache, ChainSources, DecisionFacts, ParentChainIndex, ResolveBase,
 };
-use super::registry::{AuthzHookContext, AuthzServices};
+use super::registry::AuthzHookContext;
 use super::repository::AccessControlRepository;
 use super::rule_based_cache::{EntityRules, EntityRulesCache};
 use super::subject::{
@@ -45,6 +45,7 @@ use super::subject::{
     gather_subject_attributes,
 };
 use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason, EntityKind};
+use systemprompt_manifest::services::ServicesView;
 
 #[derive(Clone)]
 pub struct RuleBasedHook {
@@ -75,7 +76,7 @@ impl RuleBasedHook {
         sink: Arc<dyn AuthzAuditSink>,
         sources: ChainSources,
         epochs: CacheEpochs,
-        services: AuthzServices,
+        services: ServicesView,
     ) -> Self {
         let providers = discover_subject_providers(&AuthzHookContext {
             pool: Arc::clone(&pool),

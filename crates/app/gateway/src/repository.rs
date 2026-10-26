@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 
 use systemprompt_ai::repository::{
@@ -13,9 +14,7 @@ use systemprompt_ai::repository::{
     AiThoughtSignatureRepository, UserProviderCredentialRepository,
 };
 use systemprompt_database::DbPool;
-use systemprompt_governance::authz::{
-    AuthzHookContext, AuthzServices, NullAuditSink, SubjectProviderSet,
-};
+use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_governance::policy::RateWindowRepository;
 use systemprompt_logging::LoggingRuntime;
 use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
@@ -32,7 +31,7 @@ pub struct GatewayHandles {
     pub background: BackgroundTasks,
     pub cache_epochs: CacheEpochs,
     pub logging: LoggingRuntime,
-    pub services: AuthzServices,
+    pub services: ServicesView,
 }
 
 #[derive(Clone)]

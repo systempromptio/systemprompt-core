@@ -11,7 +11,7 @@ use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::OrchestrationResult;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_identifiers::AgentName;
-use systemprompt_loader::ServicesState;
+use systemprompt_manifest::services::ServicesView;
 
 #[derive(Debug)]
 pub struct AgentReconciler {
@@ -20,7 +20,7 @@ pub struct AgentReconciler {
 
 impl AgentReconciler {
     #[must_use]
-    pub fn new(agent_service_repo: AgentServiceRepository, services: &ServicesState) -> Self {
+    pub fn new(agent_service_repo: AgentServiceRepository, services: &ServicesView) -> Self {
         Self {
             db_service: AgentDatabaseService::new(agent_service_repo, services),
         }

@@ -71,11 +71,6 @@ impl AppContext {
     }
 
     #[must_use]
-    pub fn authz_services(&self) -> systemprompt_governance::authz::AuthzServices {
-        crate::builder::core_layer::authz_services(self.services_state())
-    }
-
-    #[must_use]
     pub const fn services_watch(&self) -> &ConfigWatch<ServicesConfig> {
         self.subsystems.services.watch()
     }

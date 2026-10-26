@@ -46,7 +46,7 @@ pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrc
         },
         Arc::clone(ctx.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
-        ctx.services_state().clone(),
+        ctx.services_state().view(),
     ));
     AgentOrchestrator::new(
         agent_state,
@@ -72,7 +72,7 @@ pub(crate) fn resolve_agent_name(
     services: &systemprompt_loader::ServicesState,
     agent_identifier: &str,
 ) -> Result<systemprompt_identifiers::AgentName> {
-    let registry = AgentRegistry::new(services);
+    let registry = AgentRegistry::new(&services.view());
     let agent = registry.get_agent(agent_identifier)?;
     Ok(systemprompt_identifiers::AgentName::new(agent.name))
 }

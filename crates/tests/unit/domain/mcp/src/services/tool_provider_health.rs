@@ -74,7 +74,7 @@ async fn provider_over_internal_servers(
             db,
             RegistryService::new(
                 fixture_user_id(),
-                systemprompt_test_fixtures::fixture_services_state(),
+                systemprompt_test_fixtures::fixture_services_view(),
             ),
             &resilience(),
             std::sync::Arc::default(),

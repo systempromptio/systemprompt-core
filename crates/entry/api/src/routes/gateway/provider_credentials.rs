@@ -68,8 +68,9 @@ pub async fn set(
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
     let catalog = ctx.services_state().catalog();
     let resolved = personal_credential(catalog, &credential).map_err(key_error)?;
+    let tokens = systemprompt_extension::ExtensionContext::provider_tokens(&ctx);
     let meta = store_personal_key(
-        ctx.connector_tokens(),
+        &tokens,
         repository(&ctx),
         catalog,
         PersonalKeyRequest {

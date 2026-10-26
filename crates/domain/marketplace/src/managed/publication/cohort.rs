@@ -13,10 +13,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_governance::authz::discover_role_directory;
 use systemprompt_identifiers::{ManagedResourceId, PublicationId, ResourceRevisionId, UserId};
 use systemprompt_manifest::services::CohortRing;
 
@@ -61,10 +59,9 @@ impl ManagedRepository {
 
     async fn dimension_values(&self, dimension: &str, consumer: &UserId) -> Result<Vec<String>> {
         if dimension == ROLE_DIMENSION {
-            let directory =
-                discover_role_directory(&Arc::new(self.pool.clone())).ok_or_else(|| {
-                    invalid("A cohort ring names roles but no role directory is registered")
-                })?;
+            let directory = self.publication_policy().roles.as_ref().ok_or_else(|| {
+                invalid("A cohort ring names roles but no role directory is registered")
+            })?;
             return directory
                 .roles_of(consumer)
                 .await

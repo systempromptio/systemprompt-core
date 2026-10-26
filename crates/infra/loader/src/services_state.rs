@@ -26,7 +26,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use systemprompt_manifest::services::catalog::{CatalogContext, CatalogDocument, ResolvedCatalog};
-use systemprompt_manifest::services::{DiscoveryReport, ServicesConfig};
+use systemprompt_manifest::services::{DiscoveryReport, ServicesConfig, ServicesView};
 use systemprompt_traits::ConfigWatch;
 
 use crate::config_loader::ConfigLoader;
@@ -84,6 +84,14 @@ impl ServicesState {
     #[must_use]
     pub const fn watch(&self) -> &ConfigWatch<ServicesConfig> {
         &self.watch
+    }
+
+    #[must_use]
+    pub fn view(&self) -> ServicesView {
+        ServicesView {
+            config: self.watch.clone(),
+            catalog: Arc::clone(&self.catalog),
+        }
     }
 
     #[must_use]

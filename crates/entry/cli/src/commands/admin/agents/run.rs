@@ -52,7 +52,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
             },
             Arc::clone(ctx.a2a_repositories()),
             Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
-            ctx.services_state().clone(),
+            ctx.services_state().view(),
         )
         .with_agent_run_launcher(AgentRunsExtension::launcher(&db_pool)),
     );

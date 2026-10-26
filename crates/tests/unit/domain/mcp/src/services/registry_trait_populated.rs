@@ -30,7 +30,7 @@ async fn populated_registry() -> (RegistryService, McpServerId, MockServer) {
     (
         RegistryService::new(
             fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
         name,
         mock,

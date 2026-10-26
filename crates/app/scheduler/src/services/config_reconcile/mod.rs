@@ -65,8 +65,7 @@ impl ConfigReconcileService {
     ) -> SchedulerResult<Self> {
         let dependencies = Dependencies::new()
             .with(Arc::clone(ctx.db_pool()))
-            .with(ctx.services_state().watch().clone())
-            .with(Arc::clone(ctx.services_state().catalog()))
+            .with(ctx.services_state().view())
             .with(Arc::clone(ctx));
         Ok(Self::new(ctx.config_planes()?, repository, dependencies))
     }

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_loader::ServicesState;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_traits::{AgentInfo, AgentRegistryProvider, RegistryError, ServiceOAuthConfig};
 
 use super::registry::AgentRegistry;
@@ -16,7 +16,7 @@ pub struct AgentRegistryProviderService {
 
 impl AgentRegistryProviderService {
     #[must_use]
-    pub fn new(services: &ServicesState) -> Self {
+    pub fn new(services: &ServicesView) -> Self {
         Self {
             registry: AgentRegistry::new(services),
         }

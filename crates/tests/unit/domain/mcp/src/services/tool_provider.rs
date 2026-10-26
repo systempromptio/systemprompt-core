@@ -10,7 +10,7 @@ async fn tool_provider_construction_and_accessors() {
     let db = test_db_pool().await;
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
     let resilience = ResilienceSettings::default();
     let provider = McpToolProvider::new(db, registry, &resilience, std::sync::Arc::default());
@@ -26,7 +26,7 @@ async fn tool_provider_list_tools_unknown_agent_returns_error_or_empty() {
     let db = test_db_pool().await;
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
     let provider = McpToolProvider::new(
         db,

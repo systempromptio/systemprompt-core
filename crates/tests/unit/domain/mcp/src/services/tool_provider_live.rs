@@ -63,7 +63,7 @@ async fn setup(agent: &str) -> (McpToolProvider, McpServerId, MockServer) {
         db,
         RegistryService::new(
             fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
         &resilience(),
         std::sync::Arc::default(),
@@ -218,7 +218,7 @@ async fn list_tools_tolerates_unreachable_server() {
         db,
         RegistryService::new(
             fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
         &resilience(),
         std::sync::Arc::default(),
@@ -268,7 +268,7 @@ async fn list_tools_keeps_healthy_server_inventory_when_another_assigned_server_
         db,
         RegistryService::new(
             fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
         &resilience(),
         std::sync::Arc::default(),

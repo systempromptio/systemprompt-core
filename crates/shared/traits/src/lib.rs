@@ -51,6 +51,8 @@ pub mod background_tasks;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod cache_epoch;
 pub use cache_epoch::{CacheDomain, CacheEpochs};
+pub mod provider_tokens;
+pub use provider_tokens::ProviderTokenCache;
 pub mod config_watch;
 pub use config_watch::{CONFIG_WATCH_POLL, ConfigVersionSource, ConfigWatch, WatchSignals};
 pub use stream_drain::{StreamDrain, StreamDrainWatch};

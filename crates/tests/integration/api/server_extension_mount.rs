@@ -211,7 +211,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             extension_registry: Arc::new(registry),
             mcp_registry: RegistryService::new(
                 fixture_user_id(),
-                systemprompt_test_fixtures::fixture_services_state(),
+                systemprompt_test_fixtures::fixture_services_view(),
             ),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),

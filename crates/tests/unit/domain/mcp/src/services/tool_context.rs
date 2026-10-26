@@ -20,7 +20,7 @@ async fn provider() -> McpToolProvider {
     let db = test_db_pool().await;
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
     McpToolProvider::new(
         db,

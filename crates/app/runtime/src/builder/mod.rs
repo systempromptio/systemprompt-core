@@ -11,7 +11,7 @@
 mod ai_service;
 mod assembly;
 mod composition;
-pub(crate) mod core_layer;
+mod core_layer;
 mod database;
 mod events;
 mod governance;
@@ -210,6 +210,8 @@ impl AppContextBuilder {
 
         let (ai_service, connector_tokens) =
             ai_service::build_ai_service(&database, &repositories, &mcp_registry, &services);
+        let filter = self.marketplace_filter;
+        let plugins = build_plugins(extensions, mcp_registry, filter, &database, &services);
         let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
         let subsystems = Subsystems {
             ai_service,
@@ -232,8 +234,6 @@ impl AppContextBuilder {
             publish_guard: Arc::default(),
             connector_tokens,
         };
-
-        let plugins = build_plugins(extensions, mcp_registry, self.marketplace_filter, &database);
 
         Ok(AppContext::from_parts(
             build_data_plane(
@@ -288,7 +288,7 @@ async fn build_domain_layer(
     );
     let system_admin = assembly::load_system_admin(config, &user_service).await?;
     repositories.install_organization_resolver(system_admin.id());
-    let mcp_registry = RegistryService::new(system_admin.id().clone(), services.clone());
+    let mcp_registry = RegistryService::new(system_admin.id().clone(), services.view());
     ensure_legacy_context(&repositories, &system_admin).await?;
     Ok((repositories, user_service, system_admin, mcp_registry))
 }

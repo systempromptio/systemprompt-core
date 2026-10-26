@@ -110,7 +110,7 @@ pub(super) async fn execute(cmd: ApiKeyCommands, ctx: &CommandContext) -> Result
                 SubjectProviderSet::discover(&AuthzHookContext {
                     pool: pool.pool(),
                     sink: Arc::new(NullAuditSink),
-                    services: ctx.app_context().await?.authz_services(),
+                    services: ctx.app_context().await?.services_state().view(),
                 })
                 .verify_scope_bindings(&args.user, &args.scopes)
                 .await?;

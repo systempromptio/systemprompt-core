@@ -9,7 +9,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use sqlx::PgPool;
-use systemprompt_governance::authz::{AuthzError, RoleDirectory, SharedRoleDirectory};
+use systemprompt_governance::authz::{
+    AuthzError, AuthzHookContext, RoleDirectory, SharedRoleDirectory,
+};
 use systemprompt_identifiers::UserId;
 
 #[derive(Debug)]
@@ -19,8 +21,10 @@ pub struct UsersRoleDirectory {
 
 impl UsersRoleDirectory {
     #[must_use]
-    pub fn shared(pool: Arc<PgPool>) -> SharedRoleDirectory {
-        Arc::new(Self { pool })
+    pub fn shared(ctx: &AuthzHookContext) -> SharedRoleDirectory {
+        Arc::new(Self {
+            pool: Arc::clone(&ctx.pool),
+        })
     }
 }
 

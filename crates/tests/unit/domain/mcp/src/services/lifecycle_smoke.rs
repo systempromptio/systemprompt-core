@@ -38,7 +38,7 @@ async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
     );
     let registry = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
     let database = DatabaseService::new(
         systemprompt_database::ServiceRepository::new(&db, unique_instance()),

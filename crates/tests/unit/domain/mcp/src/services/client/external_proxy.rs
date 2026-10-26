@@ -63,7 +63,7 @@ async fn resolve_external_proxy_target_errors_without_accessor() {
     let result = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .resolve_external_proxy_target(&config, &context())
@@ -86,7 +86,7 @@ async fn resolve_external_proxy_target_refuses_without_a_broker_secret() {
     let err = McpClient::new(
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
     )
     .resolve_external_proxy_target(&config, &ctx)

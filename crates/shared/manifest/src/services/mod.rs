@@ -43,8 +43,10 @@ pub mod slack;
 pub mod system_admin;
 pub mod teams;
 mod validation;
+pub mod view;
 
 pub use includable::IncludableString;
+pub use view::ServicesView;
 
 pub use agent_config::{
     AGENT_CONFIG_FILENAME, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,

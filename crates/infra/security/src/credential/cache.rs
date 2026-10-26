@@ -58,6 +58,12 @@ pub struct TokenCache {
     http: OnceLock<Result<reqwest::Client, Arc<reqwest::Error>>>,
 }
 
+impl systemprompt_traits::ProviderTokenCache for TokenCache {
+    fn into_any(self: Arc<Self>) -> Arc<dyn std::any::Any + Send + Sync> {
+        self
+    }
+}
+
 #[must_use]
 pub fn clamp_ttl(declared: Option<u64>) -> Duration {
     match declared {
@@ -70,6 +76,13 @@ impl TokenCache {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[must_use]
+    pub fn from_handle(
+        handle: &Arc<dyn systemprompt_traits::ProviderTokenCache>,
+    ) -> Option<Arc<Self>> {
+        Arc::clone(handle).into_any().downcast::<Self>().ok()
     }
 
     pub(crate) fn http_client(&self) -> Result<&reqwest::Client, CredentialError> {

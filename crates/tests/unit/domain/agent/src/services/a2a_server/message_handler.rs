@@ -48,7 +48,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
         Arc::new(repos.clone()),
         provider,
         recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     )
     .expect("processor");
 
@@ -107,7 +107,7 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
         Arc::new(repos.clone()),
         provider,
         recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     )
     .expect("processor");
 
@@ -144,7 +144,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
         Arc::new(repos.clone()),
         provider,
         recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     )
     .expect("processor");
 
@@ -197,7 +197,7 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
         Arc::new(repos.clone()),
         Arc::new(StubAiProvider::new().with_stalled_stream()),
         recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     )
     .expect("processor");
     let runtime = runtime_info("nonstream-agent");
@@ -257,7 +257,7 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
         Arc::new(repos.clone()),
         provider,
         recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     )
     .expect("processor");
 
@@ -312,7 +312,7 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
         Arc::new(repositories.clone()),
         Arc::new(StubAiProvider::new().with_text_stream(&["completed answer"])),
         recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     )
     .expect("message processor");
     let runtime = runtime_info("nonstream-agent");
@@ -407,7 +407,7 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
         Arc::new(repositories.clone()),
         provider.clone(),
         recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     )
     .expect("message processor");
     let runtime = runtime_info("nonstream-agent");
@@ -480,7 +480,7 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
         Arc::new(repositories.clone()),
         provider.clone(),
         recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     )
     .expect("message processor");
     let runtime = runtime_info("nonstream-agent");

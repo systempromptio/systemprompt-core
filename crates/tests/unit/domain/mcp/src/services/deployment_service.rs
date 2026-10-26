@@ -22,7 +22,7 @@ fn seed_config() -> DeploymentService {
             enabled: false,
         }),
     ]);
-    DeploymentService::new(bootstrap_with_services(&yaml).services.clone())
+    DeploymentService::new(bootstrap_with_services(&yaml).services.view())
 }
 
 #[test]

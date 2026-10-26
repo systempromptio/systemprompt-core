@@ -103,7 +103,7 @@ pub fn gateway_repositories(
             background: ctx.background_tasks().clone(),
             cache_epochs: ctx.cache_epochs().clone(),
             logging: ctx.logging().clone(),
-            services: ctx.authz_services(),
+            services: ctx.services_state().view(),
         },
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
@@ -136,7 +136,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             .merge(otel_routes(ctx, &jwt_extractor))
             .route(
                 "/models",
-                get(models::list).with_state(ctx.services_state().clone()),
+                get(models::list).with_state(ctx.services_state().view()),
             )
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),

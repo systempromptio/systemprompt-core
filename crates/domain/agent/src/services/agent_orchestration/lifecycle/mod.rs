@@ -13,8 +13,8 @@ mod verification;
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_loader::ServicesState;
 use systemprompt_loader::subprocess::Spawner;
+use systemprompt_manifest::services::ServicesView;
 
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
@@ -31,7 +31,7 @@ impl AgentLifecycle {
         agent_service_repo: AgentServiceRepository,
         app_paths: Arc<AppPaths>,
         spawner: Arc<Spawner>,
-        services: &ServicesState,
+        services: &ServicesView,
     ) -> Self {
         Self {
             db_service: AgentDatabaseService::new(agent_service_repo, services),

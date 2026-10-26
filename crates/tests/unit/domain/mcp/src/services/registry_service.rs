@@ -11,7 +11,7 @@ use systemprompt_test_fixtures::fixture_user_id;
 fn test_new_constructs() {
     let _r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
 }
 
@@ -19,7 +19,7 @@ fn test_new_constructs() {
 fn test_clone() {
     let r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
     let _r2 = r.clone();
 }
@@ -29,7 +29,7 @@ fn test_clone() {
 fn test_get_server_missing_propagates_error() {
     let r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
     let result = r.get_server("nonexistent");
     result.unwrap_err();
@@ -39,7 +39,7 @@ fn test_get_server_missing_propagates_error() {
 fn test_find_server_missing_returns_error_or_none() {
     let r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
     // Without a loaded Config, this errors at the loader. Either Err or
     // Ok(None) is acceptable.
@@ -50,7 +50,7 @@ fn test_find_server_missing_returns_error_or_none() {
 fn managed_and_external_servers_are_callable() {
     let r = RegistryService::new(
         fixture_user_id(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
     // Depending on global `Config` state these may load or error; both
     // accessors must at least be reachable and return the same result shape.

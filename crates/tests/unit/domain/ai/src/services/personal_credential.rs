@@ -124,7 +124,7 @@ async fn storing_a_key_probes_every_endpoint_of_the_credential() {
     let credential = personal_credential(&catalog, "go").expect("personal");
 
     verify_personal_key(
-        &Default::default(),
+        &tokens(),
         &catalog,
         credential,
         "sk-go",
@@ -145,7 +145,7 @@ async fn a_disabled_providers_endpoint_is_not_probed() {
     let credential = catalog.credential("go").expect("declared");
 
     let err = verify_personal_key(
-        &Default::default(),
+        &tokens(),
         &catalog,
         credential,
         "sk-go",
@@ -170,7 +170,7 @@ async fn a_key_any_endpoint_refuses_is_rejected() {
     let credential = personal_credential(&catalog, "go").expect("personal");
 
     let err = verify_personal_key(
-        &Default::default(),
+        &tokens(),
         &catalog,
         credential,
         "sk-go",
@@ -182,4 +182,8 @@ async fn a_key_any_endpoint_refuses_is_rejected() {
         matches!(err, PersonalKeyError::Rejected(ref label) if label == "Go"),
         "{err:?}"
     );
+}
+
+fn tokens() -> std::sync::Arc<dyn systemprompt_traits::ProviderTokenCache> {
+    std::sync::Arc::new(systemprompt_security::credential::TokenCache::new())
 }

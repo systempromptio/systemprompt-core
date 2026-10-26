@@ -112,15 +112,6 @@ pub(super) struct CoreOverrides {
     pub services: Option<ServicesState>,
 }
 
-pub(crate) fn authz_services(
-    services: &ServicesState,
-) -> systemprompt_governance::authz::AuthzServices {
-    systemprompt_governance::authz::AuthzServices {
-        config: services.watch().clone(),
-        catalog: Arc::clone(services.catalog()),
-    }
-}
-
 fn authz_wiring(
     services: &ServicesState,
     epochs: CacheEpochs,
@@ -128,7 +119,7 @@ fn authz_wiring(
     systemprompt_governance::authz::AuthzWiring {
         sources: chain_sources(&services.config()),
         epochs,
-        services: authz_services(services),
+        services: services.view(),
     }
 }
 
@@ -177,7 +168,7 @@ pub(super) async fn init_core(overrides: CoreOverrides) -> RuntimeResult<CoreLay
     let policy = systemprompt_marketplace::managed::PublicationPolicy::discover(
         &database,
         services_config.marketplace.clone().unwrap_or_default(),
-        authz_services(&services),
+        services.view(),
     )?;
 
     let cache_epochs = CacheEpochs::new();

@@ -40,7 +40,7 @@ async fn rule_based_hook_denies_when_the_pool_is_unavailable() {
         Arc::new(NullAuditSink),
         ChainSources::default(),
         systemprompt_traits::CacheEpochs::new(),
-        systemprompt_test_fixtures::fixture_authz_services(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
 
     let decision = hook.evaluate(fixture()).await;
@@ -79,7 +79,7 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
         Arc::new(NullAuditSink),
         ChainSources::default(),
         systemprompt_traits::CacheEpochs::new(),
-        systemprompt_test_fixtures::fixture_authz_services(),
+        systemprompt_test_fixtures::fixture_services_view(),
     );
 
     for _ in 0..3 {

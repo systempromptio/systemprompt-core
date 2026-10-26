@@ -347,7 +347,7 @@ fn fixture_app_context_assembled(
         },
         Plugins {
             extension_registry,
-            mcp_registry: RegistryService::new(fixture_user_id(), fixture_services_state()),
+            mcp_registry: RegistryService::new(fixture_user_id(), fixture_services_view()),
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),
         },
@@ -438,16 +438,12 @@ pub fn default_governance_watch(
     )
 }
 
-// The services config the test bootstrap serves, or an empty one when the
-// test runs without a services tree.
-pub fn fixture_authz_services() -> systemprompt_governance::authz::AuthzServices {
-    let state = fixture_services_state();
-    systemprompt_governance::authz::AuthzServices {
-        config: state.watch().clone(),
-        catalog: std::sync::Arc::clone(state.catalog()),
-    }
+pub fn fixture_services_view() -> systemprompt_manifest::services::ServicesView {
+    fixture_services_state().view()
 }
 
+// The services config the test bootstrap serves, or an empty one when the
+// test runs without a services tree.
 pub fn fixture_services_state() -> systemprompt_loader::ServicesState {
     systemprompt_loader::ServicesState::load().unwrap_or_else(|_| {
         systemprompt_loader::ServicesState::from_config(Default::default())

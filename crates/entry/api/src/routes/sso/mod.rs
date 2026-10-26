@@ -54,6 +54,7 @@ impl SsoRouteState {
             ctx.db_pool(),
             Arc::new(session_service),
             Arc::new(ctx.config().clone()),
+            ctx.services_state().view(),
         );
         Self {
             driver,

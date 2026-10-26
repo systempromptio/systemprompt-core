@@ -123,7 +123,7 @@ async fn plane_debug_impls_flag_optional_members() {
         extension_registry: Arc::new(ExtensionRegistry::new()),
         mcp_registry: RegistryService::new(
             systemprompt_test_fixtures::fixture_user_id(),
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
         marketplace_filter: Arc::new(AllowAllFilter),
         marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),

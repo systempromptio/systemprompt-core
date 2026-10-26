@@ -10,8 +10,8 @@
 use crate::Deployment;
 use crate::error::{McpDomainError, McpDomainResult};
 use std::sync::Arc;
-use systemprompt_loader::ServicesState;
 use systemprompt_manifest::ServicesConfig;
+use systemprompt_manifest::services::ServicesView;
 
 fn missing_deployment(name: &str) -> McpDomainError {
     McpDomainError::Configuration(format!(
@@ -21,12 +21,12 @@ fn missing_deployment(name: &str) -> McpDomainError {
 
 #[derive(Debug, Clone)]
 pub struct DeploymentService {
-    services: ServicesState,
+    services: ServicesView,
 }
 
 impl DeploymentService {
     #[must_use]
-    pub const fn new(services: ServicesState) -> Self {
+    pub const fn new(services: ServicesView) -> Self {
         Self { services }
     }
 

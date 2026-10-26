@@ -7,6 +7,7 @@ use super::{Arc, DataPlane, RuntimeResult, UserService, assembly};
 use crate::context::Plugins;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_loader::ServicesState;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 
@@ -163,12 +164,13 @@ pub(super) fn build_plugins(
     mcp_registry: RegistryService,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
     database: &DbPool,
+    services: &ServicesState,
 ) -> Plugins {
     Plugins {
         extension_registry,
         mcp_registry,
         marketplace_filter: marketplace_filter
-            .unwrap_or_else(|| assembly::build_marketplace_filter(database)),
+            .unwrap_or_else(|| assembly::build_marketplace_filter(database, services.view())),
         marketplace_cache: Arc::default(),
     }
 }

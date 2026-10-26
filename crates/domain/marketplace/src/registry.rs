@@ -12,12 +12,27 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_manifest::services::ServicesView;
 
 use crate::error::MarketplaceFilterError;
 use crate::filter::MarketplaceFilter;
 
+/// What a marketplace factory may read while building its filter or gate.
+#[derive(Clone)]
+pub struct MarketplaceFactoryContext {
+    pub db: DbPool,
+    pub services: ServicesView,
+}
+
+impl std::fmt::Debug for MarketplaceFactoryContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MarketplaceFactoryContext")
+            .finish_non_exhaustive()
+    }
+}
+
 type MarketplaceFilterFactory =
-    fn(&DbPool) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError>;
+    fn(&MarketplaceFactoryContext) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct MarketplaceFilterRegistration {

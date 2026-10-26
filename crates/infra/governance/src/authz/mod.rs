@@ -74,9 +74,7 @@ pub use parent_chain::{
 };
 pub use plane::{ACCESS_CONTROL_PLANE, AccessControlPlane, render_current_rules};
 pub use reconcile::{ReconcileReport, reconcile_composed_bundles, reconcile_services_authz};
-pub use registry::{
-    AuthzHookContext, AuthzHookRegistration, AuthzServices, AuthzWiring, discover_authz_hook,
-};
+pub use registry::{AuthzHookContext, AuthzHookRegistration, AuthzWiring, discover_authz_hook};
 pub use repository::{AccessControlRepository, ChainFingerprint, UpsertRuleParams};
 pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;

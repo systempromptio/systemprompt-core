@@ -122,7 +122,7 @@ impl MarketplaceFilter for CovMarketplaceFilter {
 }
 
 fn failing_filter_factory(
-    _pool: &systemprompt_database::DbPool,
+    _ctx: &systemprompt_marketplace::MarketplaceFactoryContext,
 ) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError> {
     Err(MarketplaceFilterError::Backend(
         "fixture factory always fails".into(),
@@ -130,7 +130,7 @@ fn failing_filter_factory(
 }
 
 fn cov_filter_factory(
-    _pool: &systemprompt_database::DbPool,
+    _ctx: &systemprompt_marketplace::MarketplaceFactoryContext,
 ) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError> {
     Ok(Arc::new(CovMarketplaceFilter))
 }

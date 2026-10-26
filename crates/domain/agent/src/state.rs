@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_loader::ServicesState;
 use systemprompt_manifest::Config;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{DynAgentRunLauncher, DynJwtValidationProvider};
 
@@ -37,7 +37,7 @@ pub struct AgentState {
     auth: AgentAuth,
     repositories: Arc<A2ARepositories>,
     webhooks: DynWebhookBroadcaster,
-    services: ServicesState,
+    services: ServicesView,
     agent_run_launcher: Option<DynAgentRunLauncher>,
 }
 
@@ -53,7 +53,7 @@ impl AgentState {
         auth: AgentAuth,
         repositories: Arc<A2ARepositories>,
         webhooks: DynWebhookBroadcaster,
-        services: ServicesState,
+        services: ServicesView,
     ) -> Self {
         Self {
             db_pool,
@@ -98,7 +98,7 @@ impl AgentState {
     }
 
     #[must_use]
-    pub const fn services(&self) -> &ServicesState {
+    pub const fn services(&self) -> &ServicesView {
         &self.services
     }
 

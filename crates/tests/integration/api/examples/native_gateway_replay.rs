@@ -215,7 +215,7 @@ async fn replay() -> Result<()> {
             background: background.clone(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            services: systemprompt_test_fixtures::fixture_authz_services(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
         },
     );
     let cred = seed_admin_credential(

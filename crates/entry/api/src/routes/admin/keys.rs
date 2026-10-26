@@ -96,7 +96,7 @@ async fn issue_key(
         SubjectProviderSet::discover(&AuthzHookContext {
             pool: ctx.db_pool().pool(),
             sink: Arc::new(NullAuditSink),
-            services: ctx.authz_services(),
+            services: ctx.services_state().view(),
         })
         .verify_scope_bindings(&target_user, &body.scopes)
         .await?;

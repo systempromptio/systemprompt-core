@@ -352,7 +352,7 @@ pub(crate) fn make_agent_state_for(pool: &DbPool, instance: &InstanceId) -> Arc<
         },
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
-        systemprompt_test_fixtures::fixture_services_state(),
+        systemprompt_test_fixtures::fixture_services_view(),
     ))
 }
 
@@ -482,7 +482,7 @@ pub(crate) fn make_handler_state_with_launcher(
             },
             Arc::new(repos),
             systemprompt_test_mocks::recording_webhooks(),
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         )
         .with_agent_run_launcher(launcher),
     );

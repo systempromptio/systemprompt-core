@@ -37,7 +37,12 @@ fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
     let mut config = fixture_config("postgres://unused/unused");
     config.api_external_url = api_external_url.to_owned();
     Harness {
-        driver: SsoDriver::discover(db, Arc::new(service), Arc::new(config)),
+        driver: SsoDriver::discover(
+            db,
+            Arc::new(service),
+            Arc::new(config),
+            systemprompt_test_fixtures::fixture_services_view(),
+        ),
         users,
         sessions,
     }

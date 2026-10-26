@@ -106,7 +106,7 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
             Arc::new(crate::repository::repos(&pool)),
             Arc::new(StubAiProvider::new()),
             broadcaster,
-            systemprompt_test_fixtures::fixture_services_state(),
+            systemprompt_test_fixtures::fixture_services_view(),
         )
         .expect("processor"),
     );

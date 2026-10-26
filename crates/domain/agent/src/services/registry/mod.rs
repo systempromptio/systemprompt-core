@@ -10,7 +10,8 @@ pub mod skills;
 
 use std::sync::Arc;
 use systemprompt_identifiers::{AgentName, McpServerId};
-use systemprompt_loader::{ServicesRootBootstrap, ServicesState};
+use systemprompt_loader::ServicesRootBootstrap;
+use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
 use crate::error::{AgentError, AgentResult};
@@ -29,7 +30,7 @@ pub struct AgentRegistry {
 
 impl AgentRegistry {
     #[must_use]
-    pub fn new(services: &ServicesState) -> Self {
+    pub fn new(services: &ServicesView) -> Self {
         Self {
             config: services.config(),
         }

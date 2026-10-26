@@ -67,7 +67,7 @@ pub(super) fn gw_repos(
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            services: systemprompt_test_fixtures::fixture_authz_services(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
         },
     )
 }
@@ -1554,7 +1554,7 @@ fn owned_gateway_repos(
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            services: systemprompt_test_fixtures::fixture_authz_services(),
+            services: systemprompt_test_fixtures::fixture_services_view(),
         },
     )
 }

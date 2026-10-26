@@ -178,7 +178,7 @@ async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
         },
         Arc::clone(app.a2a_repositories()),
         Arc::new(broadcaster),
-        app.services_state().clone(),
+        app.services_state().view(),
     ));
 
     AgentOrchestrator::new(

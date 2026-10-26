@@ -15,9 +15,8 @@ use crate::services::deployment::DeploymentService;
 use async_trait::async_trait;
 use std::future::ready;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_loader::ServicesState;
 use systemprompt_manifest::ServicesConfig;
-use systemprompt_manifest::services::McpDeploymentProvider;
+use systemprompt_manifest::services::{McpDeploymentProvider, ServicesView};
 use systemprompt_models::errors::{McpRegistryError, McpRegistryResult};
 use systemprompt_models::mcp::{McpRegistry, McpServerState};
 use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
@@ -25,17 +24,17 @@ use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, Ser
 #[derive(Debug, Clone)]
 pub struct RegistryService {
     owner: UserId,
-    services: ServicesState,
+    services: ServicesView,
 }
 
 impl RegistryService {
     #[must_use]
-    pub const fn new(owner: UserId, services: ServicesState) -> Self {
+    pub const fn new(owner: UserId, services: ServicesView) -> Self {
         Self { owner, services }
     }
 
     #[must_use]
-    pub const fn services(&self) -> &ServicesState {
+    pub const fn services(&self) -> &ServicesView {
         &self.services
     }
 
@@ -234,7 +233,7 @@ pub struct McpDeploymentProviderImpl {
 
 impl McpDeploymentProviderImpl {
     #[must_use]
-    pub const fn new(services: ServicesState) -> Self {
+    pub const fn new(services: ServicesView) -> Self {
         Self {
             deployments: DeploymentService::new(services),
         }
