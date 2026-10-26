@@ -1,6 +1,10 @@
 //! Claude Code enterprise policy paths and managed-key removal.
 //!
 //! Shared by installation and validation to identify bridge-managed settings.
+//! An MCP policy is the bridge's only when every server it names is the
+//! bridge's own loopback MCP endpoint (`http://127.0.0.1:<port>/mcp/<slug>`),
+//! the only shape a bridge ever wrote; any other policy belongs to whoever
+//! manages the machine and is never removed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -50,16 +54,85 @@ pub fn is_blank_file(path: &Path) -> bool {
     fs::read(path).is_ok_and(|bytes| bytes.iter().all(u8::is_ascii_whitespace))
 }
 
+/// Who wrote a Claude Code MCP policy file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolicyAuthor {
+    Bridge,
+    Foreign,
+}
+
+#[must_use]
+pub fn is_bridge_loopback_mcp_url(raw: &str) -> bool {
+    url::Url::parse(raw).is_ok_and(|url| {
+        url.scheme() == "http"
+            && matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]"))
+            && url.path().starts_with("/mcp/")
+    })
+}
+
+// JSON: Claude Code `managed-mcp.json` — foreign config whose author is judged
+// from its server URLs.
+fn servers_are_bridge_loopback(doc: &Value) -> bool {
+    doc.get("mcpServers")
+        .and_then(Value::as_object)
+        .is_some_and(|servers| {
+            !servers.is_empty()
+                && servers.values().all(|server| {
+                    server
+                        .get("url")
+                        .and_then(Value::as_str)
+                        .is_some_and(is_bridge_loopback_mcp_url)
+                })
+        })
+}
+
+pub fn managed_mcp_author(path: &Path) -> Result<Option<PolicyAuthor>, std::io::Error> {
+    let bytes = match fs::read(path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(crate::fsutil::io_context(path.display().to_string(), e)),
+    };
+    let ours =
+        serde_json::from_slice::<Value>(&bytes).is_ok_and(|doc| servers_are_bridge_loopback(&doc));
+    Ok(Some(if ours {
+        PolicyAuthor::Bridge
+    } else {
+        PolicyAuthor::Foreign
+    }))
+}
+
+// JSON: Claude Code managed `settings.json` — the allowlist is the bridge's
+// only when every entry names a bridge loopback MCP URL.
+fn allowlist_is_bridge_loopback(doc: &Map<String, Value>) -> bool {
+    doc.get("allowedMcpServers")
+        .and_then(Value::as_array)
+        .is_some_and(|entries| {
+            !entries.is_empty()
+                && entries.iter().all(|entry| {
+                    entry
+                        .get("serverUrl")
+                        .and_then(Value::as_str)
+                        .is_some_and(is_bridge_loopback_mcp_url)
+                })
+        })
+}
+
+#[must_use]
+pub fn holds_foreign_mcp_keys(path: &Path) -> bool {
+    read_settings(path).ok().flatten().is_some_and(|doc| {
+        BRIDGE_KEYS.iter().any(|key| doc.contains_key(*key)) && !allowlist_is_bridge_loopback(&doc)
+    })
+}
+
 pub fn stripped_settings(path: &Path) -> Result<Option<String>, std::io::Error> {
     let Some(mut doc) = read_settings(path)? else {
         return Ok(None);
     };
-    let mut changed = false;
-    for key in BRIDGE_KEYS {
-        changed |= doc.remove(key).is_some();
-    }
-    if !changed {
+    if !allowlist_is_bridge_loopback(&doc) {
         return Ok(None);
+    }
+    for key in BRIDGE_KEYS {
+        doc.remove(key);
     }
     Ok(Some(format!(
         "{}\n",

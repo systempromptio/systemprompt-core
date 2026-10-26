@@ -6,6 +6,7 @@
 
 - **Bridge:** first use syncs before it touches any host and then enrols or offers a profile only to the hosts the delivered manifest enables; with no manifest, no host is set up.
 - **Bridge:** a sync seeds Claude Code's default model and model picker only when the manifest enables Claude Code.
+- **Bridge:** a sync removes a Claude Code `managed-mcp.json` or strips the `allowedMcpServers`, `allowManagedMcpServersOnly` and `allowAllClaudeAiMcps` keys only when every server they name is the bridge's own loopback MCP endpoint; a policy anyone else deployed is left in place, logged, and reported by `doctor`.
 
 ### Added
 

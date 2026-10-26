@@ -117,3 +117,98 @@ fn nix_is_root() -> bool {
         .output()
         .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
 }
+
+#[test]
+fn an_allowlist_another_manager_deployed_is_left_in_place() {
+    let seeded = json!({
+        "allowManagedMcpServersOnly": true,
+        "allowedMcpServers": [{ "serverUrl": "https://mcp.corp.example/tools" }],
+    });
+    assert!(strip(Some(&seeded)).is_none());
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("managed-settings.json");
+    fs::write(&path, seeded.to_string()).expect("seed");
+    assert!(systemprompt_bridge::claude_policy::holds_foreign_mcp_keys(
+        &path
+    ));
+}
+
+#[test]
+fn an_allowlist_mixing_bridge_and_corporate_servers_is_not_the_bridges() {
+    let seeded = json!({
+        "allowManagedMcpServersOnly": true,
+        "allowedMcpServers": [
+            { "serverUrl": "http://127.0.0.1:1/mcp/x" },
+            { "serverUrl": "https://mcp.corp.example/tools" }
+        ],
+    });
+    assert!(strip(Some(&seeded)).is_none());
+}
+
+#[test]
+fn a_lock_with_no_allowlist_is_not_attributed_to_the_bridge() {
+    assert!(strip(Some(&json!({ "allowManagedMcpServersOnly": true }))).is_none());
+}
+
+fn mcp_author(body: &[u8]) -> Option<systemprompt_bridge::claude_policy::PolicyAuthor> {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("managed-mcp.json");
+    fs::write(&path, body).expect("seed");
+    systemprompt_bridge::claude_policy::managed_mcp_author(&path).expect("read")
+}
+
+#[test]
+fn a_managed_mcp_file_naming_only_bridge_loopback_servers_is_the_bridges() {
+    use systemprompt_bridge::claude_policy::PolicyAuthor;
+
+    let body = json!({ "mcpServers": {
+        "atlassian": { "type": "http", "url": "http://127.0.0.1:48123/mcp/atlassian" },
+        "systemprompt": { "type": "http", "url": "http://localhost:48123/mcp/systemprompt" }
+    }});
+    assert_eq!(
+        mcp_author(body.to_string().as_bytes()),
+        Some(PolicyAuthor::Bridge)
+    );
+}
+
+#[test]
+fn any_other_managed_mcp_file_belongs_to_whoever_deployed_it() {
+    use systemprompt_bridge::claude_policy::PolicyAuthor;
+
+    let corporate = json!({ "mcpServers": {
+        "corp": { "type": "http", "url": "https://mcp.corp.example/tools" }
+    }});
+    let mixed = json!({ "mcpServers": {
+        "atlassian": { "type": "http", "url": "http://127.0.0.1:48123/mcp/atlassian" },
+        "local": { "type": "stdio", "command": "corp-mcp" }
+    }});
+    let loopback_not_mcp = json!({ "mcpServers": {
+        "dev": { "type": "http", "url": "http://127.0.0.1:9000/tools" }
+    }});
+    for body in [
+        corporate,
+        mixed,
+        loopback_not_mcp,
+        json!({ "mcpServers": {} }),
+    ] {
+        assert_eq!(
+            mcp_author(body.to_string().as_bytes()),
+            Some(PolicyAuthor::Foreign),
+            "{body}"
+        );
+    }
+    assert_eq!(mcp_author(b""), Some(PolicyAuthor::Foreign));
+    assert_eq!(mcp_author(b"{ not json"), Some(PolicyAuthor::Foreign));
+}
+
+#[test]
+fn a_missing_managed_mcp_file_has_no_author() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert!(
+        systemprompt_bridge::claude_policy::managed_mcp_author(
+            &dir.path().join("managed-mcp.json")
+        )
+        .expect("read")
+        .is_none()
+    );
+}
