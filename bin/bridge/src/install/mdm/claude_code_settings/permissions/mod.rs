@@ -156,8 +156,12 @@ fn splice_rules(
     root: &mut serde_json::Map<String, serde_json::Value>,
     previously_ours: &PermissionRules,
     rules: &PermissionRules,
-) {
-    match merged_permissions(root.get("permissions"), previously_ours, rules) {
+) -> bool {
+    let merged = merged_permissions(root.get("permissions"), previously_ours, rules);
+    if merged.as_ref() == root.get("permissions") {
+        return false;
+    }
+    match merged {
         Some(permissions) => {
             root.insert("permissions".to_owned(), permissions);
         },
@@ -165,6 +169,7 @@ fn splice_rules(
             root.remove("permissions");
         },
     }
+    true
 }
 
 /// Where the derived rules landed.
@@ -183,8 +188,9 @@ pub(crate) fn apply_permissions(rules: &PermissionRules) -> Result<PermissionOut
     let mut lines = Vec::new();
     let standalone =
         standalone_settings_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    if let Some(mut root) = read_json_object(&standalone)? {
-        splice_rules(&mut root, &previously, rules);
+    if let Some(mut root) = read_json_object(&standalone)?
+        && splice_rules(&mut root, &previously, rules)
+    {
         write_atomic(&standalone, &render(root, &standalone)?)?;
         lines.push(format!(
             "wrote: {} (permissions, {} allow / {} deny)",
@@ -198,8 +204,8 @@ pub(crate) fn apply_permissions(rules: &PermissionRules) -> Result<PermissionOut
     // apiKeyHelper) is ours to add rules to; a stranger's file is left alone.
     if let Some(mut root) = read_json_object(&settings)?
         && root.contains_key("apiKeyHelper")
+        && splice_rules(&mut root, &previously, rules)
     {
-        splice_rules(&mut root, &previously, rules);
         write_atomic(&settings, &render(root, &settings)?)?;
         lines.push(format!(
             "wrote: {} (permissions, {} allow / {} deny)",

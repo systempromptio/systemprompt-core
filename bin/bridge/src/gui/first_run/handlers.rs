@@ -5,6 +5,11 @@
 //! back by taps at the end of those handlers. That keeps one code path for
 //! "install a host profile" whether a user clicked it or first use did.
 //!
+//! The first sync runs before any host is touched: the manifest it delivers
+//! names the hosts this instance enables, and only those are enrolled or
+//! offered a profile. A host the manifest does not enable, or every host when
+//! no manifest arrived, is skipped.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -23,21 +28,62 @@ pub(crate) fn on_start(app: &mut GuiApp) {
         .iter()
         .map(|h| (h.id(), h.display_name().to_owned()))
         .collect();
-    let desktop_hosts = hosts.len();
-    let claude_code = claude_code::installed_agent();
-    hosts.extend(claude_code.map(|a| (a.id, a.display_name.to_owned())));
+    hosts.extend(claude_code::installed_agent().map(|a| (a.id, a.display_name.to_owned())));
     app.state.begin_first_run(&hosts);
-    app.append_log("First use: provisioning your agents…");
-    if claude_code.is_some() {
-        enrol_claude_code(app);
-    }
+    app.append_log("First use: syncing your organisation's settings…");
     progress(app);
     start_sync(app);
-    if desktop_hosts == 0 {
-        advance(app);
-        return;
+}
+
+fn provision_enabled_hosts(app: &mut GuiApp, enabled: &[HostKind]) {
+    app.state.set_first_run_phase(FirstRunPhase::Probing);
+    let pending: Vec<HostKind> = app
+        .state
+        .snapshot()
+        .first_run
+        .hosts
+        .iter()
+        .filter(|h| h.status == StepStatus::Pending)
+        .map(|h| h.host_id)
+        .collect();
+    let mut probe = false;
+    for host_id in pending {
+        if !enabled.contains(&host_id) {
+            app.state.set_first_run_host(
+                host_id,
+                StepStatus::Skipped,
+                Some("not enabled on this instance".to_owned()),
+            );
+            app.append_log(format!(
+                "[{host_id}] not enabled on this instance — skipped"
+            ));
+        } else if host_id == HostKind::ClaudeCode {
+            enrol_claude_code(app);
+        } else {
+            app.state
+                .set_first_run_host(host_id, StepStatus::Probing, None);
+            probe = true;
+        }
     }
-    crate::gui::hosts::tick::request_initial_probe(app);
+    progress(app);
+    if probe {
+        crate::gui::hosts::tick::request_initial_probe(app);
+    }
+}
+
+// Why: with no delivered manifest the enabled hosts are unknown, so none is
+// provisioned rather than all of them.
+fn delivered_enabled_hosts(app: &GuiApp) -> Vec<HostKind> {
+    match crate::sync::last_synced_enabled_hosts() {
+        Ok(Some(hosts)) => hosts,
+        Ok(None) => Vec::new(),
+        Err(e) => {
+            app.append_log_error(format!(
+                "First use: the synced host list could not be read ({e}); no agent is set up"
+            ));
+            Vec::new()
+        },
+    }
 }
 
 fn enrol_claude_code(app: &GuiApp) {
@@ -138,6 +184,13 @@ pub(crate) fn on_sync_cancelled(app: &mut GuiApp) {
 }
 
 pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
+    let awaiting_hosts = app
+        .state
+        .snapshot()
+        .first_run
+        .hosts
+        .iter()
+        .any(|h| h.status == StepStatus::Pending);
     app.state.update_first_run(|s| {
         let first = s.sync_result.unwrap_or(true);
         s.sync_result = Some(if s.followup_sync {
@@ -152,6 +205,14 @@ pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
             StepStatus::Failed
         };
     });
+    if awaiting_hosts {
+        let enabled = if succeeded {
+            delivered_enabled_hosts(app)
+        } else {
+            Vec::new()
+        };
+        provision_enabled_hosts(app, &enabled);
+    }
     try_finish(app);
 }
 

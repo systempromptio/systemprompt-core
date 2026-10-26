@@ -1,14 +1,22 @@
 //! Seeds the Claude Code model picker and default model from the bridge
-//! profile once a sync has completed.
+//! profile once a sync has completed, on a manifest that enables Claude Code.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::bridge::host::HostKind;
+
 use super::SyncError;
+use crate::gateway::manifest::{SignedManifest, enables_host};
 
 pub(super) async fn seed_default_model_from_profile(
     client: &crate::gateway::GatewayClient,
+    manifest: &SignedManifest,
 ) -> Result<(), SyncError> {
+    if !enables_host(manifest, HostKind::ClaudeCode) {
+        tracing::debug!("manifest does not enable Claude Code; its model settings are not seeded");
+        return Ok(());
+    }
     let profile = match crate::auth::profile::fetch_signed_in(client).await {
         Ok(profile) => profile,
         // Why: a gateway older than the profile endpoint has no default model

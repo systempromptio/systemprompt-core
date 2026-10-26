@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.74.0] - 2026-10-26
+
+### Changed
+
+- **Bridge:** first use syncs before it touches any host and then enrols or offers a profile only to the hosts the delivered manifest enables; with no manifest, no host is set up.
+- **Bridge:** a sync seeds Claude Code's default model and model picker only when the manifest enables Claude Code.
+
+### Added
+
+- **Marketplace:** `core marketplace import` reports a skill directory without `SKILL.md`, a cited `references/…` path the imported skill does not carry, and a `../` path out of the skill directory; `--strict` refuses each.
+
+### Fixed
+
+- **Marketplace:** `core marketplace import` keeps a rule's frontmatter `hosts` and copies a plugin's `hosts/` tree, so host-targeted rules and host-native files reach the bundle.
+- **Bridge:** clearing Claude Code leaves `settings.json` unwritten when the bridge owns no permission rules in it.
+
 ## [0.73.0] - 2026-10-26
 
 ### Breaking
