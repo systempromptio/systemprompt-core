@@ -118,7 +118,7 @@ impl MessageHandler {
         webhooks: DynWebhookBroadcaster,
         services: ServicesView,
         skills_root: PathBuf,
-    ) -> Result<Self> {
+    ) -> Self {
         let context_service = ContextService::new(repositories.tasks.clone());
         let execution_step_repo = Arc::new(repositories.execution_steps.clone());
         let skill_service = Arc::new(SkillService::new(

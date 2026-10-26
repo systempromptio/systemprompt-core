@@ -9,7 +9,6 @@ use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_manifest::bridge_profile::{CredentialFacts, is_model_servable};
-use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::providers::ClientFamily;

@@ -11,7 +11,7 @@ use systemprompt_test_fixtures::fixture_user_id;
 fn test_new_constructs() {
     let _r = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
 }
@@ -20,7 +20,7 @@ fn test_new_constructs() {
 fn test_clone() {
     let r = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     let _r2 = r.clone();
@@ -31,7 +31,7 @@ fn test_clone() {
 fn test_get_server_missing_propagates_error() {
     let r = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     let result = r.get_server("nonexistent");
@@ -42,7 +42,7 @@ fn test_get_server_missing_propagates_error() {
 fn test_find_server_missing_returns_error_or_none() {
     let r = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     // Without a loaded Config, this errors at the loader. Either Err or
@@ -54,7 +54,7 @@ fn test_find_server_missing_returns_error_or_none() {
 fn managed_and_external_servers_are_callable() {
     let r = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     // Depending on global `Config` state these may load or error; both

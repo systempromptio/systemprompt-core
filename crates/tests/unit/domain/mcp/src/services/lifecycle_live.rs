@@ -46,7 +46,7 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
     );
     let registry = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     let repo = ServiceRepository::new(&db, unique_instance());

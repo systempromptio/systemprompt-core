@@ -202,11 +202,7 @@ impl ExtensionContext for MockExtensionContext {
         Arc::new(StubTokens)
     }
     fn services(&self) -> systemprompt_manifest::services::ServicesView {
-        systemprompt_loader::ServicesState::from_config(
-            systemprompt_manifest::services::ServicesConfig::default(),
-        )
-        .expect("default services config resolves")
-        .view()
+        systemprompt_test_fixtures::fixture_services_view()
     }
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
         systemprompt_identifiers::UserId::new("extension-test-owner")

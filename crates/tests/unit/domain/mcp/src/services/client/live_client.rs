@@ -26,7 +26,7 @@ async fn list_tools_maps_schemas_and_metadata() {
 
     let tools = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
@@ -58,7 +58,7 @@ async fn call_tool_round_trips_result() {
     let config = external_mcp_config("live_call", &format!("{}/mcp", server.uri()));
     let result = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
@@ -87,7 +87,7 @@ async fn oauth_required_without_token_is_rejected() {
 
     let err = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
@@ -109,7 +109,7 @@ async fn oauth_required_with_token_sends_bearer() {
     let context = request_context("auth-ok").with_auth_token(JwtToken::new("user-jwt"));
     let tools = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
@@ -131,7 +131,7 @@ async fn external_auth_without_user_is_rejected() {
 
     let err = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
@@ -154,7 +154,7 @@ async fn external_auth_with_unreachable_accessor_fails() {
     let context = request_context("ext2").with_auth_token(JwtToken::new("user-jwt"));
     let err = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )

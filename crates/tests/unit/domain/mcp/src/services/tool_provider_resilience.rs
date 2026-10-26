@@ -74,7 +74,7 @@ async fn provider_for_endpoint(
         db,
         RegistryService::new(
             fixture_user_id(),
-            crate::harness::services_state(),
+            crate::harness::services_state().view(),
             crate::harness::config(),
         ),
         resilience,

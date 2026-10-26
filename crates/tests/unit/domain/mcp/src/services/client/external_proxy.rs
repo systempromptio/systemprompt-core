@@ -62,7 +62,7 @@ async fn resolve_external_proxy_target_errors_without_accessor() {
     let config = external_config(false);
     let result = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )
@@ -85,7 +85,7 @@ async fn resolve_external_proxy_target_refuses_without_a_broker_secret() {
 
     let err = McpClient::new(
         std::sync::Arc::default(),
-        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state()),
+        systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )

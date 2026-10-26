@@ -21,7 +21,6 @@ use async_trait::async_trait;
 use chrono::{Days, NaiveDate};
 use std::sync::Arc;
 use systemprompt_manifest::secrets::Secrets;
-use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::catalog::{CatalogDocument, ModelRegistry};
 use systemprompt_manifest::services::{DiscoveryReport, ServicesView, VertexRateCard};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};

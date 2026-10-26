@@ -81,7 +81,7 @@ async fn live_server(prefix: &str) -> LiveServer {
         app_paths,
         RegistryService::new(
             fixture_user_id(),
-            crate::harness::services_state(),
+            crate::harness::services_state().view(),
             crate::harness::config(),
         ),
         systemprompt_test_fixtures::test_spawner(),

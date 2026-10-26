@@ -69,7 +69,7 @@ async fn fixture() -> Fixture {
         app_paths,
         RegistryService::new(
             fixture_user_id(),
-            crate::harness::services_state(),
+            crate::harness::services_state().view(),
             crate::harness::config(),
         ),
     );

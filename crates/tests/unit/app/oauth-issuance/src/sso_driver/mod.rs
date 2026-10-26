@@ -46,6 +46,7 @@ fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
             systemprompt_test_fixtures::oauth_fixture_repository(db),
             Arc::new(service),
             config,
+            systemprompt_test_fixtures::fixture_services_view(),
         ),
         users,
         sessions,

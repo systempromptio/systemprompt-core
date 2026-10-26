@@ -146,7 +146,7 @@ async fn start_server_rejects_external_servers() {
     let bootstrap = ensure_test_bootstrap();
     let registry = systemprompt_mcp::services::registry::RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     let database = systemprompt_mcp::services::database::DatabaseService::new(

@@ -1,10 +1,8 @@
 //! Personal credentials: which ones take a member's own key, and storing one
-//! after every endpoint it authenticates proves it works.
-//!
-//! A key is stored under the catalog credential id, so one stored key serves
-//! every endpoint of every provider that names the credential. The gateway's
-//! `/v1/me/provider-credentials` route and any in-process console call
-//! [`store_personal_key`], so a key is verified and sealed one way.
+//! after every endpoint it authenticates proves it works. A key is stored under
+//! the catalog credential id, so one stored key serves every endpoint of every
+//! provider that names the credential. The gateway's provider-credentials route
+//! and consoles call [`store_personal_key`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -100,8 +98,8 @@ pub async fn store_personal_key(
     }
     verify_personal_key(tokens, catalog, credential, key, user_id).await?;
     let label = label.map(str::trim).filter(|l| !l.is_empty());
-    let sealed = credentials
-        .cipher()
+    let cipher = credentials.cipher();
+    let sealed = cipher
         .seal(key)
         .map_err(|e| PersonalKeyError::Internal(e.into()))?;
     let meta = credentials

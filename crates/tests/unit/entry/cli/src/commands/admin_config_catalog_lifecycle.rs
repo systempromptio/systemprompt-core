@@ -276,7 +276,9 @@ async fn catalog_file_lifecycle_helper() {
 
     use systemprompt_scheduler::jobs::vertex_discovery::VertexDiscoveryJob;
     let report = VertexDiscoveryJob::probe(
-        &systemprompt_loader::ServicesState::load(&boot.boot).expect("services state"),
+        &systemprompt_loader::ServicesState::load(&boot.boot)
+            .expect("services state")
+            .view(),
         boot.boot.secrets().get(),
     )
     .await

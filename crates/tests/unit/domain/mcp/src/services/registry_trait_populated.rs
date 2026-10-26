@@ -30,7 +30,7 @@ async fn populated_registry() -> (RegistryService, McpServerId, MockServer) {
     (
         RegistryService::new(
             fixture_user_id(),
-            crate::harness::services_state(),
+            crate::harness::services_state().view(),
             crate::harness::config(),
         ),
         name,

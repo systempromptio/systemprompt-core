@@ -18,8 +18,8 @@ use crate::policies::{
 };
 use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
-use systemprompt_extension::GatewayGuards;
 use systemprompt_config::SecretsService;
+use systemprompt_extension::GatewayGuards;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_wire::WireProtocol;
 

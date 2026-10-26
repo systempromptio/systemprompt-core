@@ -9,8 +9,12 @@ use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 
 #[test]
 fn a_new_engine_set_carries_the_builtins_of_every_engine() {
-    let engines = GatewayEngines::new(Default::default(), ensure_test_secrets_bootstrap())
-        .expect("gateway engines build");
+    let engines = GatewayEngines::new(
+        Default::default(),
+        Default::default(),
+        ensure_test_secrets_bootstrap(),
+    )
+    .expect("gateway engines build");
 
     for tag in ["anthropic", "openai-chat", "openai-responses", "gemini"] {
         assert!(
@@ -39,12 +43,20 @@ fn a_new_engine_set_carries_the_builtins_of_every_engine() {
 #[test]
 fn engines_are_values_not_a_process_singleton() {
     let first = Arc::new(
-        GatewayEngines::new(Default::default(), ensure_test_secrets_bootstrap())
-            .expect("gateway engines build"),
+        GatewayEngines::new(
+            Default::default(),
+            Default::default(),
+            ensure_test_secrets_bootstrap(),
+        )
+        .expect("gateway engines build"),
     );
     let second = Arc::new(
-        GatewayEngines::new(Default::default(), ensure_test_secrets_bootstrap())
-            .expect("gateway engines build"),
+        GatewayEngines::new(
+            Default::default(),
+            Default::default(),
+            ensure_test_secrets_bootstrap(),
+        )
+        .expect("gateway engines build"),
     );
 
     assert!(
@@ -57,10 +69,18 @@ fn engines_are_values_not_a_process_singleton() {
 
 #[test]
 fn failover_state_is_owned_per_engine_set() {
-    let first = GatewayEngines::new(Default::default(), ensure_test_secrets_bootstrap())
-        .expect("gateway engines build");
-    let second = GatewayEngines::new(Default::default(), ensure_test_secrets_bootstrap())
-        .expect("gateway engines build");
+    let first = GatewayEngines::new(
+        Default::default(),
+        Default::default(),
+        ensure_test_secrets_bootstrap(),
+    )
+    .expect("gateway engines build");
+    let second = GatewayEngines::new(
+        Default::default(),
+        Default::default(),
+        ensure_test_secrets_bootstrap(),
+    )
+    .expect("gateway engines build");
     let key = "p/e".to_owned();
 
     let _held = first.load.enter(&key);
@@ -76,10 +96,18 @@ fn failover_state_is_owned_per_engine_set() {
 
 #[test]
 fn a_breaker_opened_on_one_engine_set_leaves_the_other_closed() {
-    let first = GatewayEngines::new(Default::default(), ensure_test_secrets_bootstrap())
-        .expect("gateway engines build");
-    let second = GatewayEngines::new(Default::default(), ensure_test_secrets_bootstrap())
-        .expect("gateway engines build");
+    let first = GatewayEngines::new(
+        Default::default(),
+        Default::default(),
+        ensure_test_secrets_bootstrap(),
+    )
+    .expect("gateway engines build");
+    let second = GatewayEngines::new(
+        Default::default(),
+        Default::default(),
+        ensure_test_secrets_bootstrap(),
+    )
+    .expect("gateway engines build");
     let settings = systemprompt_manifest::services::ResilienceSettings::default();
     let opened = first.breakers.for_endpoint("p/e", &settings);
     let untouched = second.breakers.for_endpoint("p/e", &settings);

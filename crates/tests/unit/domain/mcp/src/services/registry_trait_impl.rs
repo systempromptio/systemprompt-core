@@ -15,7 +15,7 @@ use systemprompt_test_fixtures::fixture_user_id;
 async fn list_servers_is_reachable() {
     let registry = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     let _ = McpRegistry::list_servers(&registry).await;
@@ -25,7 +25,7 @@ async fn list_servers_is_reachable() {
 async fn server_exists_is_reachable() {
     let registry = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     let _ = McpRegistry::server_exists(
@@ -39,7 +39,7 @@ async fn server_exists_is_reachable() {
 async fn find_server_is_reachable() {
     let registry = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     let _ = McpRegistry::find_server(
@@ -51,7 +51,7 @@ async fn find_server_is_reachable() {
 
 #[test]
 fn deployment_provider_reports_protocol_version() {
-    let provider = McpDeploymentProviderImpl::new(crate::harness::services_state());
+    let provider = McpDeploymentProviderImpl::new(crate::harness::services_state().view());
     assert!(
         !provider.protocol_version().is_empty(),
         "the MCP protocol version string is non-empty"
@@ -60,6 +60,6 @@ fn deployment_provider_reports_protocol_version() {
 
 #[tokio::test]
 async fn deployment_provider_load_config_is_reachable() {
-    let provider = McpDeploymentProviderImpl::new(crate::harness::services_state());
+    let provider = McpDeploymentProviderImpl::new(crate::harness::services_state().view());
     let _ = provider.load_config().await;
 }

@@ -68,9 +68,8 @@ pub(super) fn gw_repos(
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            catalog: std::sync::Arc::clone(
-                systemprompt_test_fixtures::fixture_services_view().catalog(),
-            ),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
             at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
                 &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
             )
@@ -277,6 +276,7 @@ pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
     Arc::clone(ENGINES.get_or_init(|| {
         Arc::new(
             systemprompt_gateway::GatewayEngines::new(
+                Default::default(),
                 Default::default(),
                 systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
             )
@@ -1567,9 +1567,8 @@ fn owned_gateway_repos(
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            catalog: std::sync::Arc::clone(
-                systemprompt_test_fixtures::fixture_services_view().catalog(),
-            ),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(pool),
             at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
                 &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
             )

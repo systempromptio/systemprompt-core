@@ -11,7 +11,7 @@ use systemprompt_config::SecretsService;
 use systemprompt_events::EventBroadcasters;
 use systemprompt_files::FilesConfig;
 use systemprompt_loader::BootContext;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_security::credential::TokenCache;
@@ -29,6 +29,10 @@ impl AppContext {
 
     pub fn secrets(&self) -> &Arc<SecretsService> {
         self.cfg.boot.secrets()
+    }
+
+    pub const fn config_arc(&self) -> &Arc<Config> {
+        &self.cfg.config
     }
 
     pub const fn files_config(&self) -> &Arc<FilesConfig> {

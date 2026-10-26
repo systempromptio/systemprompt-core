@@ -180,10 +180,6 @@ impl AppContext {
         &self.cfg.config
     }
 
-    pub const fn config_arc(&self) -> &Arc<Config> {
-        &self.cfg.config
-    }
-
     pub fn content_config(&self) -> Option<&ContentConfigRaw> {
         self.cfg.content_config.as_ref().map(AsRef::as_ref)
     }

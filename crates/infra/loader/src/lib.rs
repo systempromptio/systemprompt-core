@@ -22,8 +22,8 @@
 //!   serverless model it returns is folded into the provider registry.
 //! - [`boot`] — [`BootContext`], the owned profile, secrets, resolved config
 //!   and services root the entry crates build once at startup.
-//! - [`services_root`] — the services root the instance actually runs, with
-//!   its provenance.
+//! - [`services_root`] — the services root the instance actually runs, with its
+//!   provenance.
 //! - [`services_state`] — [`ServicesState`], the owned services config, its
 //!   resolved catalog and the discovery report, built once at boot and handed
 //!   to every consumer.

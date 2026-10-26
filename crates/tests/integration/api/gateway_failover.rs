@@ -367,6 +367,7 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
     install_provider_api_key();
     let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new(
         Default::default(),
+        Default::default(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )?);
     let (pool, _) = setup_ctx().await?;
@@ -452,6 +453,7 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
 -> anyhow::Result<()> {
     install_provider_api_key();
     let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new(
+        Default::default(),
         Default::default(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )?);
@@ -695,6 +697,7 @@ async fn three_deployments_fail_over_in_order_and_record_the_server() -> anyhow:
 async fn a_tripped_primary_is_skipped_while_a_later_deployment_is_healthy() -> anyhow::Result<()> {
     install_provider_api_key();
     let engines = std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new(
+        Default::default(),
         Default::default(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
     )?);

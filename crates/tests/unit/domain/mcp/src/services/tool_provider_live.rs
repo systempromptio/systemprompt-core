@@ -63,7 +63,7 @@ async fn setup(agent: &str) -> (McpToolProvider, McpServerId, MockServer) {
         db,
         RegistryService::new(
             fixture_user_id(),
-            crate::harness::services_state(),
+            crate::harness::services_state().view(),
             crate::harness::config(),
         ),
         &resilience(),
@@ -220,7 +220,7 @@ async fn list_tools_tolerates_unreachable_server() {
         db,
         RegistryService::new(
             fixture_user_id(),
-            crate::harness::services_state(),
+            crate::harness::services_state().view(),
             crate::harness::config(),
         ),
         &resilience(),
@@ -272,7 +272,7 @@ async fn list_tools_keeps_healthy_server_inventory_when_another_assigned_server_
         db,
         RegistryService::new(
             fixture_user_id(),
-            crate::harness::services_state(),
+            crate::harness::services_state().view(),
             crate::harness::config(),
         ),
         &resilience(),

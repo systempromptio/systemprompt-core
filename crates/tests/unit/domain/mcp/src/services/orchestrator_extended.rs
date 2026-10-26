@@ -38,7 +38,7 @@ async fn make_orchestrator() -> McpOrchestrator {
     );
     let registry = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     let service_repo = ServiceRepository::new(&db, unique_instance());

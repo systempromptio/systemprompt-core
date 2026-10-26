@@ -20,7 +20,7 @@ async fn provider() -> McpToolProvider {
     let db = test_db_pool().await;
     let registry = RegistryService::new(
         fixture_user_id(),
-        crate::harness::services_state(),
+        crate::harness::services_state().view(),
         crate::harness::config(),
     );
     McpToolProvider::new(

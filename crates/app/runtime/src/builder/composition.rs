@@ -220,7 +220,7 @@ pub(super) async fn build_domain_layer(
     repositories.install_organization_resolver(system_admin.id());
     let mcp_registry = RegistryService::new(
         system_admin.id().clone(),
-        services.clone(),
+        services.view(),
         Arc::clone(config),
     );
     ensure_legacy_context(&repositories, &system_admin).await?;

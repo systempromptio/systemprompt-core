@@ -38,9 +38,8 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
             background: systemprompt_traits::BackgroundTasks::new(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),
             logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-            catalog: std::sync::Arc::clone(
-                systemprompt_test_fixtures::fixture_services_view().catalog(),
-            ),
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            subject_providers: systemprompt_test_fixtures::fixture_subject_providers(db),
             at_rest: systemprompt_security::at_rest::AtRestCipher::from_secrets(
                 &systemprompt_test_fixtures::ensure_test_secrets_bootstrap().get(),
             )
