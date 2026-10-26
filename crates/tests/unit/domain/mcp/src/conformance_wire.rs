@@ -8,9 +8,10 @@ use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
     UserId,
 };
+use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
 use systemprompt_mcp::{
     ArtifactIngest, ClientProfile, McpOutputSchema, McpResponseBuilder, McpToolHandler,
-    ToolIdentity,
+    ResponseServices, ToolIdentity,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
@@ -96,7 +97,15 @@ async fn build(client: &ClientProfile, artifact: CliArtifact) -> CallToolResult 
         &exec_id,
         client,
     )
-    .build("summary line", &repo, &artifact_type, title)
+    .build(
+        "summary line",
+        ResponseServices {
+            ingest: &repo,
+            renderers: &create_default_registry(),
+        },
+        &artifact_type,
+        title,
+    )
     .await
     .expect("response builds")
 }

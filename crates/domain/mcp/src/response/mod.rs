@@ -29,6 +29,7 @@ mod wire;
 
 use crate::schema::McpOutputSchema;
 use crate::services::artifact_ingest::{ArtifactIngest, IngestOutcome, IngestRequest};
+use crate::services::ui_renderer::UiRendererRegistry;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock};
 use schemars::JsonSchema;
@@ -56,6 +57,12 @@ impl ToolIdentity {
             tool_name,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ResponseServices<'a> {
+    pub ingest: &'a ArtifactIngest,
+    pub renderers: &'a UiRendererRegistry,
 }
 
 pub struct McpResponseBuilder<T: Serialize + JsonSchema> {
@@ -96,10 +103,11 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
     pub async fn build(
         self,
         summary: impl Into<String>,
-        ingest: &ArtifactIngest,
+        services: ResponseServices<'_>,
         artifact_type: impl Into<String>,
         title: Option<String>,
     ) -> Result<CallToolResult, McpError> {
+        let ResponseServices { ingest, renderers } = services;
         let summary_str = summary.into();
         let artifact_type_str = artifact_type.into();
         let ToolIdentity {
@@ -171,7 +179,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             structured_output: wire_output,
             metadata: &metadata,
         };
-        Ok(shape.into_result(&rendered, &self.ctx))
+        Ok(shape.into_result(&rendered, &self.ctx, renderers))
     }
 }
 

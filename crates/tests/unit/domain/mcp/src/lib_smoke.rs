@@ -59,6 +59,7 @@ fn test_protocol_version_str_matches_owned() {
     let owned = mcp_protocol_version();
     let s = mcp_protocol_version_str();
     assert_eq!(owned, s);
+    assert_eq!(s, rmcp::model::ProtocolVersion::V_2026_07_28.to_string());
 }
 
 #[test]
@@ -66,6 +67,4 @@ fn test_protocol_version_str_stable_across_calls() {
     let a = mcp_protocol_version_str();
     let b = mcp_protocol_version_str();
     assert_eq!(a, b);
-    // Same pointer because of OnceLock.
-    assert_eq!(a.as_ptr(), b.as_ptr());
 }

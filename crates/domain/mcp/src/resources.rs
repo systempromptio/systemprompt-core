@@ -12,8 +12,8 @@ use rmcp::model::{
 use crate::capabilities::WEBSITE_URL;
 use crate::repository::McpArtifactRepository;
 use crate::services::ui_renderer::{
-    CspPolicy, MCP_APP_MIME_TYPE, RenderTarget, UiMetadata, artifact_ui_resource,
-    parse_artifact_resource_uri,
+    CspPolicy, MCP_APP_MIME_TYPE, RenderTarget, UiMetadata, UiRendererRegistry,
+    artifact_ui_resource, parse_artifact_resource_uri,
 };
 use systemprompt_identifiers::{ArtifactId, McpServerId};
 use systemprompt_models::mcp::McpResourceUiMeta;
@@ -91,6 +91,7 @@ pub async fn read_artifact_resource(
     request: &ReadResourceRequestParams,
     server_name: &McpServerId,
     repo: &McpArtifactRepository,
+    renderers: &UiRendererRegistry,
 ) -> Result<ReadResourceResult, McpError> {
     let uri = &request.uri;
     let (uri_server, artifact_id) = parse_artifact_resource_uri(uri).ok_or_else(|| {
@@ -141,7 +142,7 @@ pub async fn read_artifact_resource(
         title: record.title.clone(),
     };
 
-    let resource = artifact_ui_resource(&target).map_err(|error| {
+    let resource = artifact_ui_resource(renderers, &target).map_err(|error| {
         tracing::error!(%error, artifact_id = %artifact_id, "Failed to render artifact");
         McpError::internal_error("Failed to render artifact", None)
     })?;

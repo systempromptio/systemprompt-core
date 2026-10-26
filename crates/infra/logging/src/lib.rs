@@ -74,6 +74,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
+// Why: tracing's global default dispatcher is process-wide and set-once; this
+// flag mirrors it so a second install returns the existing proxy.
 static SUBSCRIBER_INITIALIZED: OnceLock<()> = OnceLock::new();
 
 const NOISE_FILTERS: &[&str] = &[

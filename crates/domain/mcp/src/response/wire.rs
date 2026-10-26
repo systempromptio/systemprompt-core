@@ -12,7 +12,7 @@ use systemprompt_models::mcp::{ClientProfile, McpResourceUiMeta};
 
 use super::UI_RESOURCE_URI_META_KEY;
 use crate::services::ui_renderer::{
-    RenderTarget, UiResource, artifact_resource_uri, artifact_ui_resource,
+    RenderTarget, UiRendererRegistry, UiResource, artifact_resource_uri, artifact_ui_resource,
 };
 
 pub(super) struct RenderedArtifact {
@@ -39,6 +39,7 @@ impl WireShape<'_> {
         self,
         artifact: &RenderedArtifact,
         ctx: &RequestContext,
+        renderers: &UiRendererRegistry,
     ) -> CallToolResult {
         let include_ui = self.client.supports_ui();
         let include_structured = self.client.supports_structured_content();
@@ -47,7 +48,7 @@ impl WireShape<'_> {
         let mut content = vec![ContentBlock::text(
             self.text_block(include_ui, include_structured),
         )];
-        if include_ui && let Some(block) = ui_resource_block(artifact, ctx, &uri) {
+        if include_ui && let Some(block) = ui_resource_block(artifact, ctx, renderers, &uri) {
             content.push(block);
         }
 
@@ -108,6 +109,7 @@ fn wire_meta(
 fn ui_resource_block(
     artifact: &RenderedArtifact,
     ctx: &RequestContext,
+    renderers: &UiRendererRegistry,
     uri: &str,
 ) -> Option<ContentBlock> {
     let target = RenderTarget {
@@ -118,7 +120,7 @@ fn ui_resource_block(
         title: artifact.title.clone(),
     };
 
-    let resource = match artifact_ui_resource(&target) {
+    let resource = match artifact_ui_resource(renderers, &target) {
         Ok(resource) => resource,
         Err(e) => {
             tracing::warn!(

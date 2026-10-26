@@ -33,8 +33,9 @@ pub const HTTP_BUCKETS: [f64; 11] = [
 const HTTP_REQUESTS_IN_FLIGHT: &str = "http_requests_in_flight";
 const SSE_CONNECTIONS: &str = "sse_active_connections";
 
-// Why: metrics::set_global_recorder rejects a second installation in the same
-// process.
+// Why: the metrics crate's global recorder is process-wide and set-once, and
+// `metrics::set_global_recorder` rejects a second installation; `RECORDER`
+// holds the installed handle and `RECORDER_INIT` serialises the one install.
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
 static RECORDER_INIT: Mutex<()> = Mutex::new(());
 

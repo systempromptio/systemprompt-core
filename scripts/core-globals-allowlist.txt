@@ -6,16 +6,13 @@
 # and link-time inventories that are set once and never mutated.
 
 # Immutable data: compiled once, never mutated.
-crates/shared/models/src/ai/execution_plan.rs:TEMPLATE_REF_REGEX — immutable data
-crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data
-crates/domain/mcp/src/lib.rs:VERSION — immutable data: the MCP protocol version string rendered once
-crates/domain/mcp/src/services/ui_renderer/artifact_ui.rs:REGISTRY — immutable data: the built-in UI renderer set, built once
-crates/entry/api/src/routes/gateway/otel/mod.rs:NO_SUBJECT_DIMENSIONS — immutable data: the empty subject-provider set for unauthenticated OTLP ingest
+crates/shared/models/src/ai/execution_plan.rs:TEMPLATE_REF_REGEX — immutable data: the compiled form of a literal pattern
+crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data: the compiled form of a literal pattern
 
 # Third-party set-once globals mirrored by a static.
-crates/infra/logging/src/lib.rs:SUBSCRIBER_INITIALIZED — tracing's global dispatcher is itself set-once
-crates/entry/api/src/services/server/metrics.rs:RECORDER — metrics::set_global_recorder is itself set-once
-crates/entry/api/src/services/server/metrics.rs:RECORDER_INIT — serialises the one metrics recorder install
+crates/infra/logging/src/lib.rs:SUBSCRIBER_INITIALIZED — external constraint: tracing's process-global default dispatcher is set-once
+crates/entry/api/src/services/server/metrics.rs:RECORDER — external constraint: the metrics crate's process-global recorder is set-once
+crates/entry/api/src/services/server/metrics.rs:RECORDER_INIT — external constraint: serialises the single install of that recorder
 
 # Debt: service state a later package moves onto an owner (logging, boot
 # display, process-wide HTTP clients, per-job memo, cloud credentials).

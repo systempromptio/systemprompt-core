@@ -46,9 +46,6 @@ use ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
 
-static NO_SUBJECT_DIMENSIONS: std::sync::LazyLock<SubjectProviderSet> =
-    std::sync::LazyLock::new(SubjectProviderSet::default);
-
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
@@ -58,13 +55,14 @@ pub async fn handle(
         return ApiHttpError::from(BridgeError::MissingCredential).into_response();
     };
     let header_session = optional_session_id(request.headers());
+    let no_subject_dimensions = SubjectProviderSet::default();
     let principal = match authenticate(
         &credential,
         AuthInputs {
             header_session: header_session.as_ref(),
             headers: request.headers(),
             jwt_extractor: &jwt_extractor,
-            providers: &NO_SUBJECT_DIMENSIONS,
+            providers: &no_subject_dimensions,
             ctx: &ctx,
         },
     )
