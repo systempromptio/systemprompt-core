@@ -88,7 +88,12 @@ impl SafetyScanner for ConfigReadingScanner {
     }
 }
 
-register_safety_scanner!(ConfigReadingScanner::from_settings, name = READER);
+register_safety_scanner!(
+    |_: &dyn systemprompt_extension::ExtensionContext, settings: &ScannerSettings| {
+        ConfigReadingScanner::from_settings(settings)
+    },
+    name = READER
+);
 
 struct UnreachableScanner;
 
@@ -113,7 +118,10 @@ impl SafetyScanner for UnreachableScanner {
     }
 }
 
-register_safety_scanner!(|_: &ScannerSettings| UnreachableScanner, name = UNREACHABLE);
+register_safety_scanner!(
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| UnreachableScanner,
+    name = UNREACHABLE
+);
 
 async fn install_policy(pool: &DbPool, safety: serde_json::Value) -> anyhow::Result<()> {
     sqlx::query(

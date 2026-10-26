@@ -8,7 +8,8 @@
 //!
 //! [`HookTokenValidator`] enforces, in this order:
 //!
-//! 1. JWT signature, issuer, and `aud` contains `hook`.
+//! 1. JWT signature, issuer, and `aud` contains `hook`, through the
+//!    deployment's [`TokenAuthority`].
 //! 2. `scope` contains the required permission for the endpoint
 //!    ([`Permission::HookGovern`] or [`Permission::HookTrack`]).
 //! 3. `plugin_id` claim is present.
@@ -19,12 +20,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_identifiers::{PluginId, UserId};
-use systemprompt_models::auth::{JwtAudience, Permission};
+use systemprompt_models::auth::{Permission, TokenAuthority};
 
 use crate::error::{AuthError, AuthResult};
-use crate::jwt::{ValidationPolicy, decode_rs256_claims};
-use crate::keys::SigningKeys;
 
 #[derive(Debug, Clone)]
 pub struct ValidatedHookClaims {
@@ -35,14 +36,13 @@ pub struct ValidatedHookClaims {
 
 #[derive(Debug)]
 pub struct HookTokenValidator {
-    issuer: String,
-    keys: SigningKeys,
+    authority: Arc<dyn TokenAuthority>,
 }
 
 impl HookTokenValidator {
     #[must_use]
-    pub const fn new(issuer: String, keys: SigningKeys) -> Self {
-        Self { issuer, keys }
+    pub fn new(authority: Arc<dyn TokenAuthority>) -> Self {
+        Self { authority }
     }
 
     pub fn validate_govern(
@@ -78,8 +78,10 @@ impl HookTokenValidator {
         required_scope_name: &'static str,
         request_plugin_id: Option<&PluginId>,
     ) -> AuthResult<ValidatedHookClaims> {
-        let policy = ValidationPolicy::issuer_scoped(&self.issuer, &[JwtAudience::Hook]);
-        let claims = decode_rs256_claims(&self.keys, token, &policy)?;
+        let claims = self
+            .authority
+            .verify_hook_token(token)
+            .map_err(AuthError::Verification)?;
 
         if !claims.custom.scope.contains(&required_scope) {
             return Err(AuthError::HookScopeMissing(required_scope_name));

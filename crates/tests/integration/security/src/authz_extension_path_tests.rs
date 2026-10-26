@@ -117,6 +117,7 @@ async fn extension_hook_evaluated_and_audited() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect("bootstrap ok");

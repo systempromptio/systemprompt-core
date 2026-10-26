@@ -244,7 +244,11 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
     );
     ingest.register_scanner(Arc::new(systemprompt_gateway::GatewayArtifactScanner::new(
         resolver,
-        Arc::new(systemprompt_gateway::SafetyScannerRegistry::new()),
+        Arc::new(systemprompt_gateway::SafetyScannerRegistry::discover(
+            &systemprompt_test_fixtures::fixture_extension_context(
+                &systemprompt_test_fixtures::test_db_pool().await,
+            ),
+        )),
     )));
     let mut repositories = gw_repos(&pool);
     repositories.artifact_ingest = Some(ingest);

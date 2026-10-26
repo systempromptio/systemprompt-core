@@ -115,6 +115,7 @@ async fn slack_happy_path_projects_entity_and_rules() {
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
         Default::default(),
+        systemprompt_test_fixtures::fixture_secret_store(),
     );
 
     let report = service
@@ -168,6 +169,7 @@ async fn teams_happy_path_projects_entity_and_rules() {
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
         Default::default(),
+        systemprompt_test_fixtures::fixture_secret_store(),
     );
 
     let report = service
@@ -192,6 +194,7 @@ async fn disabled_and_empty_role_apps_produce_no_rows() {
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
         Default::default(),
+        systemprompt_test_fixtures::fixture_secret_store(),
     );
 
     let mut apps = HashMap::new();
@@ -231,6 +234,7 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
         Default::default(),
+        systemprompt_test_fixtures::fixture_secret_store(),
     );
 
     // First pass seeds both workspaces.
@@ -278,6 +282,7 @@ async fn re_ingest_without_override_is_idempotent() {
         &f.db,
         systemprompt_test_fixtures::fixture_services_view(),
         Default::default(),
+        systemprompt_test_fixtures::fixture_secret_store(),
     );
 
     service

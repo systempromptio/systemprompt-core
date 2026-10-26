@@ -196,9 +196,12 @@ fn upstream_registry_serves_builtin_wire_adapters() {
     assert!(registry.tags().contains(&"anthropic"));
 }
 
-#[test]
-fn safety_scanner_registry_carries_the_builtins() {
-    let registry = SafetyScannerRegistry::new();
+#[tokio::test]
+async fn safety_scanner_registry_carries_the_builtins() {
+    let registry =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ));
     let safety = SafetyConfig::default();
     assert!(registry.create("null", &safety).is_some());
     assert!(registry.create("heuristic", &safety).is_some());

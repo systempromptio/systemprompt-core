@@ -148,9 +148,10 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
 pub fn gateway_engines(
     ctx: &AppContext,
 ) -> Result<GatewayEngines, systemprompt_gateway::GatewayEnginesError> {
+    let extensions: Arc<dyn systemprompt_extension::ExtensionContext> = Arc::new(ctx.clone());
     GatewayEngines::new(
         Arc::clone(ctx.connector_tokens()),
-        systemprompt_extension::GatewayGuards::discover(ctx),
+        &extensions,
         Arc::clone(ctx.secrets()),
     )
 }

@@ -277,7 +277,7 @@ pub(super) fn shared_engines() -> Arc<systemprompt_gateway::GatewayEngines> {
         Arc::new(
             systemprompt_gateway::GatewayEngines::new(
                 Default::default(),
-                Default::default(),
+                &systemprompt_test_fixtures::offline_extension_context(),
                 systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
             )
             .expect("gateway engines build"),

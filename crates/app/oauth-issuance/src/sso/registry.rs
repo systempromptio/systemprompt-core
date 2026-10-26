@@ -13,6 +13,8 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_traits::SecretStore;
 use systemprompt_traits::sso::{AuthEventSink, SsoProvider};
 
 /// What a factory may read while building its provider or sink.
@@ -21,6 +23,8 @@ pub struct SsoHookContext {
     pub db: DbPool,
     pub config: Arc<Config>,
     pub services: ServicesView,
+    pub services_root: ActiveServicesRoot,
+    pub secrets: Arc<dyn SecretStore>,
 }
 
 impl std::fmt::Debug for SsoHookContext {

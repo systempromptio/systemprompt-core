@@ -69,6 +69,7 @@ async fn no_governance_block_yields_deny_all() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect("build ok");
@@ -92,6 +93,7 @@ async fn disabled_mode_yields_deny_all() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect("build ok");
@@ -112,6 +114,7 @@ async fn webhook_mode_without_url_errors() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect_err("missing url must fail bootstrap");
@@ -134,6 +137,7 @@ async fn webhook_mode_with_blank_url_errors() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect_err("blank url must fail bootstrap");
@@ -160,6 +164,7 @@ async fn webhook_mode_with_metadata_ip_url_errors() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect_err("cloud-metadata url must fail bootstrap");
@@ -182,6 +187,7 @@ async fn webhook_mode_with_private_range_url_errors() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect_err("private-range url must fail bootstrap");
@@ -204,6 +210,7 @@ async fn webhook_mode_with_non_loopback_http_url_errors() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect_err("non-loopback http url must fail bootstrap");
@@ -226,6 +233,7 @@ async fn unrestricted_without_acknowledgement_errors() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect_err("missing acknowledgement must fail bootstrap");
@@ -248,6 +256,7 @@ async fn unrestricted_with_wrong_acknowledgement_errors() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect_err("wrong acknowledgement must fail bootstrap");
@@ -274,6 +283,7 @@ async fn unrestricted_with_correct_acknowledgement_yields_allow_all() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect("build ok with acknowledgement");
@@ -294,6 +304,7 @@ async fn webhook_mode_composes_the_rule_based_hook_ahead_of_the_webhook() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     )
     .expect("build ok");
@@ -371,6 +382,7 @@ mod extension_mode {
                 services: systemprompt_test_fixtures::fixture_services_view(),
                 subjects: Default::default(),
                 providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
             },
         )
         .expect_err("extension mode without hook must fail bootstrap");
@@ -394,6 +406,7 @@ mod extension_mode {
                 services: systemprompt_test_fixtures::fixture_services_view(),
                 subjects: Default::default(),
                 providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
             },
         )
         .expect("extension hook under webhook mode is used in place of the webhook");
@@ -413,6 +426,7 @@ mod extension_mode {
                 services: systemprompt_test_fixtures::fixture_services_view(),
                 subjects: Default::default(),
                 providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
             },
         )
         .expect_err("extension hook supplied under disabled mode must fail bootstrap");
@@ -442,6 +456,7 @@ mod extension_mode {
                 services: systemprompt_test_fixtures::fixture_services_view(),
                 subjects: Default::default(),
                 providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
             },
         )
         .expect_err("extension hook supplied under unrestricted mode must fail bootstrap");
@@ -466,6 +481,7 @@ mod extension_mode {
                 services: systemprompt_test_fixtures::fixture_services_view(),
                 subjects: Default::default(),
                 providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
             },
         )
         .expect_err("extension hook supplied without governance must fail bootstrap");
@@ -489,6 +505,7 @@ mod extension_mode {
                 services: systemprompt_test_fixtures::fixture_services_view(),
                 subjects: Default::default(),
                 providers: Default::default(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
             },
         )
         .expect("build ok");

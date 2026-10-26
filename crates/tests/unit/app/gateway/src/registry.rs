@@ -41,9 +41,12 @@ fn every_enumerated_tag_resolves_to_an_adapter() {
     }
 }
 
-#[test]
-fn the_safety_registry_carries_both_builtins() {
-    let registry = SafetyScannerRegistry::new();
+#[tokio::test]
+async fn the_safety_registry_carries_both_builtins() {
+    let registry =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ));
     let safety = SafetyConfig::default();
 
     assert!(
@@ -56,20 +59,25 @@ fn the_safety_registry_carries_both_builtins() {
     );
 }
 
-#[test]
-fn an_unknown_scanner_name_resolves_to_nothing() {
+#[tokio::test]
+async fn an_unknown_scanner_name_resolves_to_nothing() {
     // A policy naming a scanner that was never registered must fail to resolve
     // rather than silently falling back to a permissive one.
     assert!(
-        SafetyScannerRegistry::new()
-            .create("no-such-scanner", &SafetyConfig::default())
-            .is_none()
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await
+        ))
+        .create("no-such-scanner", &SafetyConfig::default())
+        .is_none()
     );
 }
 
-#[test]
-fn every_named_safety_scanner_resolves() {
-    let registry = SafetyScannerRegistry::new();
+#[tokio::test]
+async fn every_named_safety_scanner_resolves() {
+    let registry =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ));
 
     let safety = SafetyConfig::default();
     let names = registry.names();

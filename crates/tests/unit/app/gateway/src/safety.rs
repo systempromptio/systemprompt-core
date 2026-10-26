@@ -94,7 +94,7 @@ impl SafetyScanner for StubSecretsScanner {
 }
 
 register_safety_scanner!(
-    |_: &ScannerSettings| StubSecretsScanner,
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| StubSecretsScanner,
     name = "stub_secrets"
 );
 
@@ -124,13 +124,16 @@ impl SafetyScanner for StubBrokenScanner {
 }
 
 register_safety_scanner!(
-    |_: &ScannerSettings| StubBrokenScanner,
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| StubBrokenScanner,
     name = "stub_broken"
 );
 
 #[tokio::test]
 async fn a_failing_extension_scanner_reports_failure_instead_of_an_empty_clean_list() {
-    let scanner = SafetyScannerRegistry::new()
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create("stub_broken", &SafetyConfig::default())
         .expect("extension scanner is collected via inventory");
     let request_outcome = scanner.scan_request(&req_with("anything")).await;
@@ -175,26 +178,34 @@ fn severity_as_str() {
     assert_eq!(Severity::High.as_str(), "high");
 }
 
-#[test]
-fn registry_creates_the_builtin_heuristic_per_policy() {
-    let scanner = SafetyScannerRegistry::new()
+#[tokio::test]
+async fn registry_creates_the_builtin_heuristic_per_policy() {
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create("heuristic", &SafetyConfig::default())
         .expect("heuristic is built in");
     assert_eq!(scanner.name(), "heuristic");
 }
 
-#[test]
-fn registry_returns_none_for_unknown_scanner() {
+#[tokio::test]
+async fn registry_returns_none_for_unknown_scanner() {
     assert!(
-        SafetyScannerRegistry::new()
-            .create("does_not_exist", &SafetyConfig::default())
-            .is_none()
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await
+        ))
+        .create("does_not_exist", &SafetyConfig::default())
+        .is_none()
     );
 }
 
 #[tokio::test]
 async fn registry_resolves_registered_extension_scanner() {
-    let registry = SafetyScannerRegistry::new();
+    let registry =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ));
     let scanner = registry
         .create("stub_secrets", &SafetyConfig::default())
         .expect("extension scanner is collected via inventory");
@@ -206,14 +217,17 @@ async fn registry_resolves_registered_extension_scanner() {
     assert_eq!(findings[0].category, "secret");
 }
 
-#[test]
-fn registration_factory_builds_scanner() {
+#[tokio::test]
+async fn registration_factory_builds_scanner() {
+    let ctx = systemprompt_test_fixtures::fixture_extension_context(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    );
     let reg = SafetyScannerRegistration {
         name: "stub_secrets",
-        factory: |_| Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>,
+        factory: |_, _| Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>,
     };
     assert_eq!(
-        (reg.factory)(&ScannerSettings::default()).name(),
+        (reg.factory)(ctx.as_ref(), &ScannerSettings::default()).name(),
         "stub_secrets"
     );
 }
@@ -400,9 +414,12 @@ mod dedup {
     }
 }
 
-#[test]
-fn registry_resolves_the_null_scanner_by_name() {
-    let scanner = SafetyScannerRegistry::new()
+#[tokio::test]
+async fn registry_resolves_the_null_scanner_by_name() {
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create("null", &SafetyConfig::default())
         .expect("null is built in");
     assert_eq!(scanner.name(), "null");

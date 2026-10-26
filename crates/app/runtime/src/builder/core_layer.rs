@@ -162,7 +162,7 @@ pub(super) async fn init_core(
 
     let cache_epochs = CacheEpochs::new();
     let (policy, authz_hook, market) = super::authz::authz_stage(
-        profile,
+        boot,
         &database,
         &services,
         authz_hook_override,

@@ -8,24 +8,24 @@ use std::path::PathBuf;
 use super::OrchestrationError;
 use std::sync::Arc;
 
-use systemprompt_config::SecretsService;
 use systemprompt_identifiers::{ManagedSourceId, UserId};
 use systemprompt_marketplace::managed::{
     GitSyncRequest, GitSyncResult, ManagedRepository, SourceSpec,
 };
+use systemprompt_traits::SecretStore;
 
 #[derive(Debug, Clone)]
 pub struct GitSourceOrchestrator {
     managed: ManagedRepository,
     scratch_root: PathBuf,
-    secrets: Arc<SecretsService>,
+    secrets: Arc<dyn SecretStore>,
 }
 
 impl GitSourceOrchestrator {
     pub const fn new(
         managed: ManagedRepository,
         scratch_root: PathBuf,
-        secrets: Arc<SecretsService>,
+        secrets: Arc<dyn SecretStore>,
     ) -> Self {
         Self {
             managed,
@@ -61,12 +61,12 @@ impl GitSourceOrchestrator {
                 credential_reference: Some(reference),
                 ..
             } => {
-                let secrets = self.secrets.get();
-                let credential = secrets
-                    .get(&reference)
-                    .filter(|value| !value.is_empty())
+                let credential = self
+                    .secrets
+                    .secret(&reference)
+                    .filter(|value| !value.expose().is_empty())
                     .ok_or(OrchestrationError::CredentialUnresolved)?;
-                Ok(Some(credential.clone()))
+                Ok(Some(credential.expose().to_owned()))
             },
             SourceSpec::Git {
                 credential_reference: None,

@@ -70,6 +70,7 @@ pub fn build_authz_hook(
             sink: Arc::clone(&sink),
             services: wiring.services.clone(),
             subjects: wiring.subjects.clone(),
+            secrets: Arc::clone(&wiring.secrets),
         })
     });
 

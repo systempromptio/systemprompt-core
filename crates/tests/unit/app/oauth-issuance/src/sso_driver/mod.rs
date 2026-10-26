@@ -42,11 +42,15 @@ fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
     );
     Harness {
         driver: SsoDriver::discover(
-            db,
+            &systemprompt_oauth_issuance::sso::SsoHookContext {
+                db: Arc::clone(db),
+                config,
+                services: systemprompt_test_fixtures::fixture_services_view(),
+                services_root: systemprompt_test_fixtures::test_boot_active_services_root(),
+                secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            },
             systemprompt_test_fixtures::oauth_fixture_repository(db),
             Arc::new(service),
-            config,
-            systemprompt_test_fixtures::fixture_services_view(),
         ),
         users,
         sessions,

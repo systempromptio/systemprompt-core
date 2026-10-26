@@ -44,6 +44,7 @@ async fn rule_based_hook_denies_when_the_pool_is_unavailable() {
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     );
 
@@ -87,6 +88,7 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     );
 

@@ -55,7 +55,10 @@ impl SafetyScanner for FailingOnMarkerScanner {
     }
 }
 
-register_safety_scanner!(|_: &ScannerSettings| FailingOnMarkerScanner, name = SCANNER);
+register_safety_scanner!(
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| FailingOnMarkerScanner,
+    name = SCANNER
+);
 
 async fn install_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
     let pg = pool.pool();

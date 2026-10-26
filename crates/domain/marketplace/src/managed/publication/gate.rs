@@ -17,9 +17,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
-use systemprompt_manifest::services::ServicesView;
-use systemprompt_models::authz::SubjectSourceHandle;
 
 use crate::registry::MarketplaceFactoryContext;
 use systemprompt_governance::authz::{
@@ -161,30 +158,24 @@ impl PublicationPolicy {
     }
 
     pub fn discover(
-        db: &DbPool,
+        factory_ctx: &MarketplaceFactoryContext,
         config: ManagedMarketplaceConfig,
-        services: ServicesView,
-        subjects: SubjectSourceHandle,
         providers: SubjectProviderSet,
     ) -> Result<Self> {
-        let factory_ctx = MarketplaceFactoryContext {
-            db: Arc::clone(db),
-            services: services.clone(),
-            subjects: subjects.clone(),
-        };
         let gates = discover_publication_gates()
             .into_iter()
-            .map(|registration| (registration.factory)(&factory_ctx))
+            .map(|registration| (registration.factory)(factory_ctx))
             .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(|source| ManagedError::Internal {
                 context: "publication gate factory",
                 source: source.into(),
             })?;
         let hook_ctx = AuthzHookContext {
-            pool: db.pool(),
+            pool: factory_ctx.db.pool(),
             sink: Arc::new(NullAuditSink),
-            services,
-            subjects,
+            services: factory_ctx.services.clone(),
+            subjects: factory_ctx.subjects.clone(),
+            secrets: Arc::clone(&factory_ctx.secrets),
         };
         Ok(Self::new(
             config,

@@ -168,7 +168,9 @@ pub(super) fn tap_ctx(
         policy,
         quota_fault_mode: systemprompt_manifest::services::QuotaFaultMode::Open,
         ai_request_id: ai_request_id.clone(),
-        scanners: std::sync::Arc::new(systemprompt_gateway::SafetyScannerRegistry::new()),
+        scanners: std::sync::Arc::new(systemprompt_gateway::SafetyScannerRegistry::discover(
+            &systemprompt_test_fixtures::fixture_extension_context(db),
+        )),
     }
 }
 

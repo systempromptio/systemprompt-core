@@ -153,6 +153,7 @@ async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_rout
             services: systemprompt_test_fixtures::fixture_services_view(),
             subjects: Default::default(),
             providers: Default::default(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
         },
     ));
 

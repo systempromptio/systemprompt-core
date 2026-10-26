@@ -19,7 +19,7 @@ use crate::policies::{
 use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
 use systemprompt_config::SecretsService;
-use systemprompt_extension::GatewayGuards;
+use systemprompt_extension::{ExtensionContext, GatewayGuards};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_wire::WireProtocol;
 
@@ -96,12 +96,6 @@ pub struct SafetyScannerRegistry {
 
 const BUILTIN_SCANNER_NAMES: &[&str] = &["null", "heuristic"];
 
-impl Default for SafetyScannerRegistry {
-    fn default() -> Self {
-        Self::build()
-    }
-}
-
 impl std::fmt::Debug for SafetyScannerRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SafetyScannerRegistry")
@@ -112,8 +106,8 @@ impl std::fmt::Debug for SafetyScannerRegistry {
 
 impl SafetyScannerRegistry {
     #[must_use]
-    pub fn new() -> Self {
-        Self::build()
+    pub fn discover(extensions: &Arc<dyn ExtensionContext>) -> Self {
+        Self::build(extensions)
     }
 
     pub fn create(&self, name: &str, safety: &SafetyConfig) -> Option<Arc<dyn SafetyScanner>> {
@@ -129,7 +123,7 @@ impl SafetyScannerRegistry {
         names
     }
 
-    pub(super) fn build() -> Self {
+    fn build(extensions: &Arc<dyn ExtensionContext>) -> Self {
         fn null_factory(_: &SafetyConfig, _: &ScannerSettings) -> Arc<dyn SafetyScanner> {
             Arc::new(NullScanner)
         }
@@ -152,8 +146,11 @@ impl SafetyScannerRegistry {
                 continue;
             }
             let factory = registration.factory;
+            let extensions = Arc::clone(extensions);
             let settings_driven: Arc<dyn ScannerFactory> =
-                Arc::new(move |_: &SafetyConfig, settings: &ScannerSettings| factory(settings));
+                Arc::new(move |_: &SafetyConfig, settings: &ScannerSettings| {
+                    factory(extensions.as_ref(), settings)
+                });
             entries.insert(name, settings_driven);
         }
 
@@ -191,7 +188,7 @@ pub enum GatewayEnginesError {
 impl GatewayEngines {
     pub fn new(
         provider_tokens: Arc<TokenCache>,
-        guards: GatewayGuards,
+        extensions: &Arc<dyn ExtensionContext>,
         secrets: Arc<SecretsService>,
     ) -> Result<Self, GatewayEnginesError> {
         let http = systemprompt_client::guarded_client(&GuardedClientConfig {
@@ -201,14 +198,14 @@ impl GatewayEngines {
         .map_err(GatewayEnginesError::HttpClient)?;
         Ok(Self {
             upstream_registry: Arc::default(),
-            scanner_registry: Arc::default(),
+            scanner_registry: Arc::new(SafetyScannerRegistry::discover(extensions)),
             override_engine: Arc::default(),
             route_selector: Arc::default(),
             breakers: ProviderBreakers::new(),
             load: DeploymentLoad::default(),
             http,
             provider_tokens,
-            guards,
+            guards: GatewayGuards::discover(extensions.as_ref()),
             secrets,
         })
     }

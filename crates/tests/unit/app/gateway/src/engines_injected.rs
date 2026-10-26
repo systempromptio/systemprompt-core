@@ -7,11 +7,13 @@ use systemprompt_gateway::GatewayEngines;
 use systemprompt_gateway::policies::SafetyConfig;
 use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 
-#[test]
-fn a_new_engine_set_carries_the_builtins_of_every_engine() {
+#[tokio::test]
+async fn a_new_engine_set_carries_the_builtins_of_every_engine() {
     let engines = GatewayEngines::new(
         Default::default(),
-        Default::default(),
+        &systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
@@ -40,12 +42,14 @@ fn a_new_engine_set_carries_the_builtins_of_every_engine() {
     );
 }
 
-#[test]
-fn engines_are_values_not_a_process_singleton() {
+#[tokio::test]
+async fn engines_are_values_not_a_process_singleton() {
     let first = Arc::new(
         GatewayEngines::new(
             Default::default(),
-            Default::default(),
+            &systemprompt_test_fixtures::fixture_extension_context(
+                &systemprompt_test_fixtures::test_db_pool().await,
+            ),
             ensure_test_secrets_bootstrap(),
         )
         .expect("gateway engines build"),
@@ -53,7 +57,9 @@ fn engines_are_values_not_a_process_singleton() {
     let second = Arc::new(
         GatewayEngines::new(
             Default::default(),
-            Default::default(),
+            &systemprompt_test_fixtures::fixture_extension_context(
+                &systemprompt_test_fixtures::test_db_pool().await,
+            ),
             ensure_test_secrets_bootstrap(),
         )
         .expect("gateway engines build"),
@@ -67,17 +73,21 @@ fn engines_are_values_not_a_process_singleton() {
     assert!(Arc::ptr_eq(&shared, &first.scanner_registry));
 }
 
-#[test]
-fn failover_state_is_owned_per_engine_set() {
+#[tokio::test]
+async fn failover_state_is_owned_per_engine_set() {
     let first = GatewayEngines::new(
         Default::default(),
-        Default::default(),
+        &systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
     let second = GatewayEngines::new(
         Default::default(),
-        Default::default(),
+        &systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
@@ -94,17 +104,21 @@ fn failover_state_is_owned_per_engine_set() {
     ));
 }
 
-#[test]
-fn a_breaker_opened_on_one_engine_set_leaves_the_other_closed() {
+#[tokio::test]
+async fn a_breaker_opened_on_one_engine_set_leaves_the_other_closed() {
     let first = GatewayEngines::new(
         Default::default(),
-        Default::default(),
+        &systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");
     let second = GatewayEngines::new(
         Default::default(),
-        Default::default(),
+        &systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ),
         ensure_test_secrets_bootstrap(),
     )
     .expect("gateway engines build");

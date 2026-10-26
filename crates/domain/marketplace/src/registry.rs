@@ -24,6 +24,7 @@ pub struct MarketplaceFactoryContext {
     pub db: DbPool,
     pub services: ServicesView,
     pub subjects: SubjectSourceHandle,
+    pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
 }
 
 impl std::fmt::Debug for MarketplaceFactoryContext {

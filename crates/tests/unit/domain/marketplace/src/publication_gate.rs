@@ -63,6 +63,7 @@ async fn ringed(f: &Fixture, rings: &[(&str, &str)]) -> ManagedRepository {
         sink: Arc::new(NullAuditSink),
         services: systemprompt_test_fixtures::fixture_services_view(),
         subjects: Default::default(),
+        secrets: systemprompt_test_fixtures::fixture_secret_store(),
     });
     f.repository
         .clone()

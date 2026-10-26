@@ -79,6 +79,9 @@ pub enum AuthError {
         claimed: systemprompt_models::auth::UserType,
         derived: systemprompt_models::auth::UserType,
     },
+
+    #[error("token verification failed: {0}")]
+    Verification(#[source] systemprompt_models::auth::TokenError),
 }
 
 impl AuthError {

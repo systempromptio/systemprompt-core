@@ -35,6 +35,7 @@ mod subjects;
 mod upsert;
 
 use std::sync::Arc;
+use systemprompt_traits::SecretStore;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
@@ -96,21 +97,28 @@ pub struct AccessControlIngestionService {
 }
 
 impl AccessControlIngestionService {
-    pub fn new(db: &DbPool, services: ServicesView, subjects: SubjectSourceHandle) -> Self {
+    pub fn new(
+        db: &DbPool,
+        services: ServicesView,
+        subjects: SubjectSourceHandle,
+        secrets: Arc<dyn SecretStore>,
+    ) -> Self {
         let write_pool = db.write_pool();
-        Self::from_pool(write_pool, services, subjects)
+        Self::from_pool(write_pool, services, subjects, secrets)
     }
 
     pub fn from_pool(
         pool: Arc<PgPool>,
         services: ServicesView,
         subjects: SubjectSourceHandle,
+        secrets: Arc<dyn SecretStore>,
     ) -> Self {
         let role_directory = discover_role_directory(&AuthzHookContext {
             pool: Arc::clone(&pool),
             sink: Arc::new(NullAuditSink),
             services,
             subjects,
+            secrets,
         });
         Self {
             write_pool: pool,

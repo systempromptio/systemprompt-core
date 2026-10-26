@@ -51,12 +51,18 @@ impl SsoRouteState {
             Arc::clone(oauth.token_authority()),
             Arc::clone(ctx.config_arc()),
         );
+        let secrets: Arc<dyn systemprompt_traits::SecretStore> =
+            Arc::<systemprompt_config::SecretsService>::clone(ctx.secrets());
         let driver = SsoDriver::discover(
-            ctx.db_pool(),
+            &systemprompt_oauth_issuance::sso::SsoHookContext {
+                db: Arc::clone(ctx.db_pool()),
+                config: Arc::clone(ctx.config_arc()),
+                services: ctx.services_state().view(),
+                services_root: ctx.boot().require_services_root(),
+                secrets,
+            },
             oauth.oauth_repository().clone(),
             Arc::new(session_service),
-            Arc::clone(ctx.config_arc()),
-            ctx.services_state().view(),
         );
         Self {
             driver,

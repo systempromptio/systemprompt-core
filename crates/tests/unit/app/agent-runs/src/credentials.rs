@@ -115,10 +115,12 @@ async fn issue_then_revoke_round_trips_every_credential() {
     );
 
     let token = creds.hook_token.as_deref().expect("hook token");
-    let claims = HookTokenValidator::new(
-        ISSUER.to_owned(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    )
+    let claims = HookTokenValidator::new(std::sync::Arc::new(
+        systemprompt_security::DeploymentTokenAuthority::new(
+            systemprompt_test_fixtures::test_signing_keys(),
+            ISSUER.to_owned(),
+        ),
+    ))
     .validate_govern(token, Some(&PluginId::new("farm-governance")))
     .expect("hook token validates for govern");
     assert_eq!(claims.subject, user);

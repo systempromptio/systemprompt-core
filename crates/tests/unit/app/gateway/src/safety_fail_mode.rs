@@ -44,7 +44,10 @@ impl SafetyScanner for SleepingScanner {
     }
 }
 
-register_safety_scanner!(|_: &ScannerSettings| SleepingScanner, name = SLEEPER);
+register_safety_scanner!(
+    |_: &dyn systemprompt_extension::ExtensionContext, _: &ScannerSettings| SleepingScanner,
+    name = SLEEPER
+);
 
 fn settings(fail_mode: ScannerFailMode, timeout_ms: u64) -> ScannerSettings {
     ScannerSettings {
@@ -100,7 +103,10 @@ fn empty_request() -> CanonicalRequest {
 
 async fn timed_out_request_finding(fail_mode: ScannerFailMode) -> Finding {
     let safety = policy(fail_mode, EnforcementMode::Enforce);
-    let scanner = SafetyScannerRegistry::new()
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create(SLEEPER, &safety)
         .expect("sleeper is registered");
     let request = empty_request();
@@ -157,7 +163,10 @@ async fn warn_mode_never_blocks_a_closed_scanner_failure() {
 async fn a_response_scan_obeys_the_same_timeout_and_fail_mode() {
     let closed = policy(ScannerFailMode::Closed, EnforcementMode::Enforce);
     let open = policy(ScannerFailMode::Open, EnforcementMode::Enforce);
-    let scanner = SafetyScannerRegistry::new()
+    let scanner =
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
         .create(SLEEPER, &closed)
         .expect("sleeper is registered");
     let response = CanonicalResponse::default();

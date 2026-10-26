@@ -154,15 +154,17 @@ fn plugin_token_requires_admin_and_persists_its_backing_session() {
         .decode(segments[1])
         .expect("decode JWT claims");
     let claims: serde_json::Value = serde_json::from_slice(&claims).expect("JWT claims JSON");
-    let validator = HookTokenValidator::new(
-        ensure_test_bootstrap()
-            .boot
-            .config()
-            .expect("fixture configuration")
-            .jwt_issuer
-            .clone(),
-        systemprompt_test_fixtures::test_signing_keys(),
-    );
+    let validator = HookTokenValidator::new(std::sync::Arc::new(
+        systemprompt_security::DeploymentTokenAuthority::new(
+            systemprompt_test_fixtures::test_signing_keys(),
+            ensure_test_bootstrap()
+                .boot
+                .config()
+                .expect("fixture configuration")
+                .jwt_issuer
+                .clone(),
+        ),
+    ));
     let govern = validator
         .validate_govern(&token, Some(&PluginId::new(PLUGIN)))
         .expect("issued token has a valid signature, issuer, audience, govern scope, and plugin");

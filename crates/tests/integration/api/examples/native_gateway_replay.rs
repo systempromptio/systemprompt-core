@@ -345,7 +345,9 @@ async fn replay() -> Result<()> {
                         engines: std::sync::Arc::new(
                             systemprompt_gateway::GatewayEngines::new(
                                 Default::default(),
-                                Default::default(),
+                                &systemprompt_test_fixtures::fixture_extension_context(
+                                    &systemprompt_test_fixtures::test_db_pool().await,
+                                ),
                                 systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
                             )
                             .expect("gateway engines build"),
@@ -411,7 +413,9 @@ async fn replay() -> Result<()> {
                         engines: std::sync::Arc::new(
                             systemprompt_gateway::GatewayEngines::new(
                                 Default::default(),
-                                Default::default(),
+                                &systemprompt_test_fixtures::fixture_extension_context(
+                                    &systemprompt_test_fixtures::test_db_pool().await,
+                                ),
                                 systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
                             )
                             .expect("gateway engines build"),

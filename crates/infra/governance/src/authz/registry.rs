@@ -38,6 +38,7 @@ pub struct AuthzWiring {
     pub services: ServicesView,
     pub subjects: SubjectSourceHandle,
     pub providers: SubjectProviderSet,
+    pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
 }
 
 impl std::fmt::Debug for AuthzWiring {
@@ -57,6 +58,7 @@ pub struct AuthzHookContext {
     pub sink: Arc<dyn AuthzAuditSink>,
     pub services: ServicesView,
     pub subjects: SubjectSourceHandle,
+    pub secrets: Arc<dyn systemprompt_traits::SecretStore>,
 }
 
 impl std::fmt::Debug for AuthzHookContext {

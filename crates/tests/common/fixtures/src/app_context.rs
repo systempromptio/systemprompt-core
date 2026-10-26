@@ -552,6 +552,7 @@ pub fn fixture_subject_providers(
             sink: std::sync::Arc::new(systemprompt_governance::authz::NullAuditSink),
             services: fixture_services_view(),
             subjects: Default::default(),
+            secrets: fixture_secret_store(),
         },
     )
 }
@@ -562,6 +563,14 @@ pub fn fixture_extension_context(
     let concrete = test_app_context_on(crate::bootstrap::ensure_test_bootstrap(), pool);
     let ctx: Arc<dyn systemprompt_extension::ExtensionContext> = concrete;
     ctx
+}
+
+pub fn offline_extension_context() -> Arc<dyn systemprompt_extension::ExtensionContext> {
+    let pool: DbPool = Arc::new(systemprompt_database::Database::from_pools(
+        crate::db::lazy_pg_pool(),
+        None,
+    ));
+    fixture_extension_context(&pool)
 }
 
 pub fn fixture_secret_store() -> Arc<dyn systemprompt_traits::SecretStore> {
