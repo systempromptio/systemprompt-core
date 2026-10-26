@@ -140,6 +140,7 @@ impl ExtensionContext for AppContext {
             .with(Arc::clone(self.app_paths_arc()))
             .with(Arc::clone(self.files_config()))
             .with(Arc::clone(self.oauth_repositories()))
+            .with(Arc::clone(self.ai_repositories()))
     }
 
     fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {

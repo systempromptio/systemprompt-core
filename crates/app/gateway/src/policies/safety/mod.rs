@@ -184,7 +184,7 @@ macro_rules! register_safety_scanner {
         ::inventory::submit! {
             $crate::SafetyScannerRegistration {
                 name: $name,
-                factory: |ctx: &dyn ::systemprompt_extension::ExtensionContext,
+                factory: |ctx: &dyn $crate::__ExtensionContext,
                           settings: &$crate::ScannerSettings| {
                     ::std::sync::Arc::new(($factory)(ctx, settings))
                 },

@@ -70,3 +70,5 @@ pub use registry::{
 pub use repository::{GatewayHandles, GatewayRepositories};
 pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};
+#[doc(hidden)]
+pub use systemprompt_extension::ExtensionContext as __ExtensionContext;
