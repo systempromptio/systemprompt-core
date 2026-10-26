@@ -1,8 +1,9 @@
 //! `admin config governance` — set the authorization hook mode.
 //!
-//! Enforces the mode's invariants (webhook needs a URL; unrestricted needs the
-//! exact acknowledgement sentence) at edit time so a misconfigured governance
-//! block cannot reach the fail-closed bootstrap check.
+//! Enforces the mode's invariants at edit time (unrestricted needs the exact
+//! acknowledgement sentence) so a misconfigured governance block cannot reach
+//! the fail-closed bootstrap check. The webhook URL is derived from the bind
+//! address, so it is never set here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -36,9 +37,6 @@ pub struct SetArgs {
     )]
     pub mode: String,
 
-    #[arg(long, help = "Webhook URL (required for mode=webhook)")]
-    pub url: Option<String>,
-
     #[arg(long, help = "Webhook timeout in milliseconds")]
     pub timeout_ms: Option<u64>,
 
@@ -70,9 +68,6 @@ fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     let mode = parse_mode(&args.mode)?;
 
-    if matches!(mode, AuthzMode::Webhook) && args.url.is_none() {
-        bail!("mode=webhook requires --url");
-    }
     if matches!(mode, AuthzMode::Unrestricted)
         && args.acknowledgement.as_deref() != Some(UNRESTRICTED_ACKNOWLEDGEMENT)
     {
@@ -94,7 +89,7 @@ fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode,
-                url: args.url.clone(),
+                url: None,
                 timeout_ms: args.timeout_ms.unwrap_or(500),
                 acknowledgement: args.acknowledgement.clone(),
             },

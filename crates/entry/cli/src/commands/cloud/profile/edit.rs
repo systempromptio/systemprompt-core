@@ -123,7 +123,7 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
     }
 
     if let Some(url) = &args.set_external_url {
-        url.clone_into(&mut profile.server.api_external_url);
+        url.clone_into(&mut profile.server.external_url);
         profile_changed = true;
         CliService::success(&format!("Updated: external_url = {}", url));
     }

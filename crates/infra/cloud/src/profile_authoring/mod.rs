@@ -44,12 +44,12 @@ fn capitalize_first(name: &str) -> String {
     })
 }
 
-fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
+fn webhook_governance() -> GovernanceConfig {
     GovernanceConfig {
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Webhook,
-                url: Some(format!("{api_internal_url}/api/public/govern/authz")),
+                url: None,
                 timeout_ms: 500,
                 acknowledgement: None,
             },
@@ -60,13 +60,9 @@ fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
     }
 }
 
-fn security_config(
-    issuer: &str,
-    trusted_issuers: Vec<TrustedIssuer>,
-    open_enrolment: bool,
-) -> SecurityConfig {
+fn security_config(trusted_issuers: Vec<TrustedIssuer>, open_enrolment: bool) -> SecurityConfig {
     SecurityConfig {
-        issuer: issuer.to_owned(),
+        issuer: String::new(),
         access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
         refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
         audiences: JwtAudience::standard(),

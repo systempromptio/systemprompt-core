@@ -145,7 +145,7 @@ fn build_tenant_profile(
             let services_path = get_services_path()?;
             LocalProfileBuilder::new(name, "./secrets.json", &services_path)
                 .with_tenant_id(tenant.id.clone())
-                .build()
+                .build()?
         },
         TenantType::Cloud => {
             let mut builder = CloudProfileBuilder::new(name)
@@ -167,7 +167,7 @@ fn build_tenant_profile(
                     can_issue_id_jag: false,
                 });
             }
-            builder.build()
+            builder.build()?
         },
     })
 }

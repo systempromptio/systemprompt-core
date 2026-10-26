@@ -18,40 +18,20 @@ use systemprompt_manifest::profile::{
     default_resource_audiences,
 };
 use systemprompt_manifest::{
-    ContentNegotiationConfig, Environment, LogLevel, OutputFormat, PathsConfig, RuntimeConfig,
-    SecurityConfig, SecurityHeadersConfig, ServerConfig,
+    Environment, LogLevel, OutputFormat, PathsConfig, RuntimeConfig, SecurityConfig, ServerConfig,
 };
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL};
 
-
 pub(super) fn server(is_prod: bool) -> ServerConfig {
-    ServerConfig {
-        host: if is_prod {
-            "0.0.0.0".to_owned()
-        } else {
-            "127.0.0.1".to_owned()
-        },
-        port: DEFAULT_API_PORT,
-        api_server_url: DEFAULT_API_URL.to_owned(),
-        api_internal_url: DEFAULT_API_URL.to_owned(),
-        api_external_url: DEFAULT_API_URL.to_owned(),
-        use_https: is_prod,
-        cors_allowed_origins: vec![
-            DEFAULT_API_URL.to_owned(),
-            "http://localhost:5173".to_owned(),
-            format!("http://127.0.0.1:{DEFAULT_API_PORT}"),
-        ],
-        content_negotiation: ContentNegotiationConfig::default(),
-        security_headers: SecurityHeadersConfig::default(),
-        instance_id: None,
-        metrics_port: None,
-        max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
-        role: systemprompt_manifest::profile::NodeRole::All,
-        max_in_flight: None,
-        shutdown: systemprompt_manifest::profile::ShutdownConfig::default(),
-        trusted_proxies: Vec::new(),
-    }
+    let host = if is_prod { "0.0.0.0" } else { "127.0.0.1" };
+    let mut server = ServerConfig::new(host, DEFAULT_API_PORT, DEFAULT_API_URL);
+    server.extra_cors_origins = vec![
+        "http://localhost:5173".to_owned(),
+        format!("http://127.0.0.1:{DEFAULT_API_PORT}"),
+    ];
+    server.role = systemprompt_manifest::profile::NodeRole::All;
+    server
 }
 
 pub(super) fn paths(
@@ -60,6 +40,7 @@ pub(super) fn paths(
     ctx: &ProjectContext,
 ) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: project_root.to_string_lossy().to_string(),
         services: project_root.join("services").to_string_lossy().to_string(),
         bin: bin_path.map_or_else(
@@ -78,9 +59,9 @@ pub(super) fn paths(
     }
 }
 
-pub(super) fn security(api_external_url: &str) -> SecurityConfig {
+pub(super) fn security() -> SecurityConfig {
     SecurityConfig {
-        issuer: api_external_url.to_owned(),
+        issuer: String::new(),
         access_token_expiration: 2_592_000,
         refresh_token_expiration: 15_552_000,
         audiences: vec![
@@ -114,12 +95,12 @@ pub(super) const fn runtime(environment: Environment, is_prod: bool) -> RuntimeC
     }
 }
 
-pub(super) fn governance(api_internal_url: &str) -> GovernanceConfig {
+pub(super) fn governance() -> GovernanceConfig {
     GovernanceConfig {
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Webhook,
-                url: Some(format!("{}/api/public/govern/authz", api_internal_url)),
+                url: None,
                 timeout_ms: 500,
                 acknowledgement: None,
             },

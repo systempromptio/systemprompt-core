@@ -24,6 +24,7 @@ pub mod gateway;
 pub mod hooks;
 pub mod legacy;
 pub mod legacy_map;
+mod legacy_wire;
 pub mod models;
 pub mod plan;
 pub mod replay;

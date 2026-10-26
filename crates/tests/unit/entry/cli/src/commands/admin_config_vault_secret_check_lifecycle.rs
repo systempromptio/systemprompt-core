@@ -62,11 +62,8 @@ database:
 server:
   host: 127.0.0.1
   port: 8080
-  api_server_url: http://127.0.0.1
-  api_internal_url: http://127.0.0.1
-  api_external_url: http://127.0.0.1
-  use_https: false
-  cors_allowed_origins: [http://127.0.0.1]
+  external_url: http://127.0.0.1
+  extra_cors_origins: [http://127.0.0.1]
   content_negotiation:
     enabled: false
     markdown_suffix: .md
@@ -89,7 +86,6 @@ paths:
   storage: {storage}
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.example.invalid
   jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences: [api]

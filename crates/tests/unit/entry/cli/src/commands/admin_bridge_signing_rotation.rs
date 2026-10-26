@@ -53,7 +53,9 @@ async fn signing_rotation_helper() {
         .to_string(),
     )
     .unwrap();
-    let mut profile = LocalProfileBuilder::new("rotation", &secrets, &services).build();
+    let mut profile = LocalProfileBuilder::new("rotation", &secrets, &services)
+        .build()
+        .unwrap();
     profile.security.issuer = "https://rotation.test".to_owned();
     let profile_path = fixture.path().join("profile.yaml");
     std::fs::write(&profile_path, serde_yaml::to_string(&profile).unwrap()).unwrap();

@@ -17,6 +17,7 @@ use systemprompt_test_fixtures::{fixture_user_id, test_db_pool, unique_instance}
 async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryService) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),

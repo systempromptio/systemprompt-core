@@ -119,6 +119,7 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
     seed_plugin_tree();
     let pool = test_db_pool().await;
     let paths = systemprompt_manifest::profile::PathsConfig {
+        root: None,
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),
         bin: b.bin_path.to_string_lossy().into_owned(),

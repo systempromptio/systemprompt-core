@@ -13,11 +13,21 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-names='surface_for|canonicalize_org_uuid|ProviderEntry|YAML_SOURCE|DASHBOARD_SOURCE|legacy_id|find_served_model|by_scope|catalog_route_id'
+names='surface_for|canonicalize_org_uuid|ProviderEntry|YAML_SOURCE|DASHBOARD_SOURCE|legacy_id|find_served_model|by_scope|catalog_route_id|MOVED_SECTIONS|MovedToServices'
+
+# Spellings that are not identifiers: the pre-0.73 secrets sidecar and the
+# `evaluation` serde alias for `judge`.
+literals=(
+    '.secrets.profile.yaml'
+    'alias = "evaluation"'
+)
 
 allowed=(
     # config migrate reads the legacy shape by definition.
     'crates/entry/cli/src/commands/admin/config/migrate/'
+    # The loader's refusal of the pre-0.73 profile shape, and the suites that prove it.
+    'crates/shared/manifest/src/profile/legacy.rs'
+    'crates/tests/unit/shared/models/src/profile'
     # Proofs and fixtures of that migration, and the golden snapshot walker.
     'crates/tests/integration/config-migrate/'
     'crates/tests/unit/app/gateway-golden/'
@@ -35,7 +45,11 @@ hits=$(git ls-files -- 'crates' 'bin' 'scripts' 'justfile' ':!:*.lock' \
         for a in "${allowed[@]}"; do
             case "$f" in *"$a"*) continue 2 ;; esac
         done
-        [ -f "$f" ] && grep -nwE "$names" "$f" 2>/dev/null | sed "s#^#$f:#"
+        [ -f "$f" ] || continue
+        grep -nwE "$names" "$f" 2>/dev/null | sed "s#^#$f:#" || true
+        for lit in "${literals[@]}"; do
+            grep -nF -- "$lit" "$f" 2>/dev/null | sed "s#^#$f:#" || true
+        done
     done || true)
 
 if [ -n "$hits" ]; then

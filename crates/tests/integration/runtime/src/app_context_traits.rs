@@ -147,6 +147,7 @@ async fn files_config_validator_validate_when_initialised() {
     let paths = Arc::new(
         AppPaths::from_profile(
             &PathsConfig {
+                root: None,
                 system: p.clone(),
                 services: p.clone(),
                 bin: p.clone(),

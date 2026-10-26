@@ -52,9 +52,10 @@ pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
     init_services_bootstrap, init_unloadable_services_bootstrap,
     messaging_config_yaml_with_teams_endpoints, test_boot_profile, test_boot_services_root,
-    test_messaging_agent, test_skills_root, TestBootstrap, TEST_SLACK_BOT_TOKEN,
-    TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD,
-    TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
+    test_messaging_agent, test_skills_root, TestBootstrap, FIXTURE_EXTERNAL_URL,
+    TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID,
+    TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
+    TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_fixture_system_admin, seed_user_row,

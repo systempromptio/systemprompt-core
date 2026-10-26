@@ -8,14 +8,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use std::fs;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Profile;
 
-use super::profile_io::profile_path;
-use super::runtime::save_profile;
+use super::profile_io::{load_profile, profile_path, save_profile};
 use super::types::{ServicesConfigOutput, ServicesSetOutput};
 use crate::cli_settings::OutputFormat;
 use crate::context::CommandContext;
@@ -93,12 +90,4 @@ pub(super) fn execute_set(args: &SetArgs, ctx: &CommandContext) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn load_profile(path: &str) -> Result<Profile> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("Failed to read profile: {path}"))?;
-    let profile: Profile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse profile: {path}"))?;
-    Ok(profile)
 }

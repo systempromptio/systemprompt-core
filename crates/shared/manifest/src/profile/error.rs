@@ -6,7 +6,6 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
-
 pub type ProfileResult<T> = Result<T, ProfileError>;
 
 #[derive(Debug, Error)]
@@ -31,18 +30,49 @@ pub enum ProfileError {
     #[error("Invalid profile path: {path}")]
     InvalidProfilePath { path: PathBuf },
 
+    #[error("Failed to write profile {path}: {source}")]
+    WriteFile {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
     #[error(
-        "Profile {path} still carries a top-level `{key}:` section. The provider catalog and \
-         gateway routes are implementation configuration and now live in the services tree: \
-         move the `{key}:` block into `{destination}` (relative to `paths.services`), list that \
-         file in the root `includes:` of services/config/config.yaml, and delete it from the \
-         profile."
+        "Profile overlay {path} does not exist. A profile is profiles/<env>/profile.yaml, \
+         optionally layered over profiles/base.yaml"
     )]
-    MovedToServices {
+    MissingOverlay { path: PathBuf },
+
+    #[error(
+        "Profile {path} uses the pre-0.73 shape (`{key}`: {reason}). Run `{}` to rewrite it.",
+        super::legacy::MIGRATE_COMMAND
+    )]
+    LegacyShape {
         path: PathBuf,
         key: String,
-        destination: String,
+        reason: String,
     },
+
+    #[error(
+        "Profile {path} states `{field}`, which is derived from `{source_field}` at load. \
+         Delete it (run `{}` to rewrite the profile).",
+        super::legacy::MIGRATE_COMMAND
+    )]
+    DerivedField {
+        path: PathBuf,
+        field: String,
+        source_field: String,
+    },
+
+    #[error("server.external_url '{url}' is invalid")]
+    UnparsableExternalUrl {
+        url: String,
+        #[source]
+        source: url::ParseError,
+    },
+
+    #[error("server.external_url '{url}' must be an absolute http:// or https:// URL with a host")]
+    ExternalUrlNotHttp { url: String },
 
     #[error("Profile '{name}' validation failed:\n  - {}", errors.join("\n  - "))]
     Validation { name: String, errors: Vec<String> },

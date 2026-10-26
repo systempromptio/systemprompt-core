@@ -85,6 +85,7 @@ pub struct RateLimitsSummary {
 pub struct ServerConfigOutput {
     pub host: String,
     pub port: u16,
+    pub external_url: String,
     pub api_server_url: String,
     pub api_internal_url: String,
     pub api_external_url: String,

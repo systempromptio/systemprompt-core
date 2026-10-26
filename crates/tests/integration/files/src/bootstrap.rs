@@ -51,11 +51,8 @@ database:
 server:
   host: localhost
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
-  use_https: false
-  cors_allowed_origins:
+  external_url: http://localhost:8080
+  extra_cors_origins:
     - http://localhost:8080
   content_negotiation:
     enabled: false
@@ -79,7 +76,6 @@ paths:
   storage: {storage}
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences:

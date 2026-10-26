@@ -3,6 +3,7 @@ use systemprompt_manifest::profile::PathsConfig;
 
 fn paths_config_with_storage(storage: &str) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: "/tmp/system".to_owned(),
         services: "/tmp/services".to_owned(),
         bin: "/tmp/bin".to_owned(),
@@ -77,6 +78,7 @@ fn data_defaults_under_storage_and_moves_with_paths_data() {
 #[test]
 fn storage_paths_from_profile_errors_when_storage_not_set() {
     let cfg = PathsConfig {
+        root: None,
         system: "/tmp/system".to_owned(),
         services: "/tmp/services".to_owned(),
         bin: "/tmp/bin".to_owned(),
@@ -148,6 +150,7 @@ fn paths_config_storage_resolved_some_when_set() {
 #[test]
 fn paths_config_storage_resolved_none_when_unset() {
     let cfg = PathsConfig {
+        root: None,
         system: "/s".to_owned(),
         services: "/sv".to_owned(),
         bin: "/b".to_owned(),
@@ -169,6 +172,7 @@ mod path_resolution {
 
     fn paths_config(system: &str) -> PathsConfig {
         PathsConfig {
+            root: None,
             system: system.to_owned(),
             services: "/srv/services".to_owned(),
             bin: "/srv/bin".to_owned(),

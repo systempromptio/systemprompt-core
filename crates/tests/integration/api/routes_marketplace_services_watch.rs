@@ -46,6 +46,7 @@ impl ConfigVersionSource for FixedVersion {
 async fn context() -> anyhow::Result<AppContext> {
     let b = ensure_test_bootstrap();
     let paths = PathsConfig {
+        root: None,
         system: b.system_path.display().to_string(),
         services: b.services_path.display().to_string(),
         bin: b.bin_path.display().to_string(),

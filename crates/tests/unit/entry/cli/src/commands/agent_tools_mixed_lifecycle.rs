@@ -15,8 +15,8 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{
-    DisposableDb, TestBootstrap, bounded_output, fixture_app_context_on_bootstrap_with_paths,
-    fixture_user_id, init_services_bootstrap,
+    DisposableDb, FIXTURE_EXTERNAL_URL, TestBootstrap, bounded_output,
+    fixture_app_context_on_bootstrap_with_paths, fixture_user_id, init_services_bootstrap,
 };
 use wiremock::matchers::{body_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -109,7 +109,7 @@ fn seed_session(boot: &TestBootstrap) {
         .expect("profile name");
     let profile_name = ProfileName::try_new(profile_name_text).expect("valid profile name");
     let session = CliSession::builder(
-        SessionBinding::new(profile_name, "https://issuer.test".to_owned()),
+        SessionBinding::new(profile_name, FIXTURE_EXTERNAL_URL.to_owned()),
         SessionToken::new("mixed-tools-session-token"),
         SessionId::generate(),
         ContextId::generate(),
@@ -223,6 +223,7 @@ async fn mixed_agent_tools_helper() {
     let database = DisposableDb::with_schema("cli_agent_tools_mixed").await;
     let pool = database.test_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),
         bin: boot.bin_path.display().to_string(),

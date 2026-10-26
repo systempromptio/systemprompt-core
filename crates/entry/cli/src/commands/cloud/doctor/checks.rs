@@ -217,26 +217,7 @@ pub(super) fn check_governance_hook_url(profile: &Profile) -> CheckResult {
         return CheckResult::pass("hook-url", "no webhook URL to check for this mode");
     };
 
-    let hook_host = host_port(url).map(|(h, _)| h);
-    let external_host = host_port(&profile.server.api_external_url).map(|(h, _)| h);
-
-    match (hook_host, external_host) {
-        (Some(hook), Some(external)) if hook == external => {
-            CheckResult::pass("hook-url", format!("targets {external}"))
-        },
-        (Some(hook), Some(external)) if is_loopback(&hook) => CheckResult::warn(
-            "hook-url",
-            format!(
-                "points at {hook} but api_external_url is {external} — a loopback hook only works \
-                 if the gateway and webhook share the machine"
-            ),
-        ),
-        (Some(hook), Some(external)) => CheckResult::warn(
-            "hook-url",
-            format!("targets {hook}, but api_external_url is {external} — verify this is intended"),
-        ),
-        _ => CheckResult::warn("hook-url", "could not parse hook or api_external_url host"),
-    }
+    CheckResult::pass("hook-url", format!("derived from the bind address: {url}"))
 }
 
 fn host_port(raw: &str) -> Option<(String, u16)> {
@@ -246,9 +227,6 @@ fn host_port(raw: &str) -> Option<(String, u16)> {
     Some((host, port))
 }
 
-fn is_loopback(host: &str) -> bool {
-    host == "localhost" || host == "127.0.0.1" || host == "::1"
-}
 
 impl CheckResult {
     pub(super) fn pass(name: &'static str, detail: impl Into<String>) -> Self {

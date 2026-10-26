@@ -355,6 +355,7 @@ fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_config::paths::AppPath
     let p = tmp.path().to_string_lossy().to_string();
     systemprompt_config::paths::AppPaths::from_profile(
         &systemprompt_manifest::profile::PathsConfig {
+            root: None,
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),

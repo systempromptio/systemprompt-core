@@ -27,9 +27,7 @@ database:
 server:
   host: localhost
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
+  external_url: http://localhost:8080
 
 paths:
   system: {}
@@ -38,7 +36,6 @@ paths:
   storage: {}
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -100,9 +97,7 @@ database:
 server:
   host: localhost
   port: 0
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
+  external_url: http://localhost:8080
 
 paths:
   system: {}
@@ -110,7 +105,6 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -174,9 +168,7 @@ database:
 server:
   host: ${{TEST_PROFILE_HOST}}
   port: 8080
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
+  external_url: http://localhost:8080
 
 paths:
   system: {}
@@ -184,7 +176,6 @@ paths:
   bin: {}
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -240,9 +231,7 @@ database:
 server:
   host: localhost
   port: {port}
-  api_server_url: http://localhost:8080
-  api_internal_url: http://localhost:8080
-  api_external_url: http://localhost:8080
+  external_url: http://localhost:8080
 
 paths:
   system: {system}
@@ -251,7 +240,6 @@ paths:
   storage: {storage}
 
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 2592000
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
@@ -296,15 +284,14 @@ fn load_and_validate_by_name_valid() {
     prepare_dirs(&temp);
 
     std::fs::write(
-        temp.path()
-            .join("profiles")
-            .join("byname.secrets.profile.yaml"),
+        overlay_at(&temp.path().join("profiles"), "byname"),
         valid_by_name_profile(&temp, "byname", 8080),
     )
     .expect("write profile");
 
-    let profile = ProfileLoader::load_and_validate(temp.path(), &profile_name("byname"))
-        .expect("valid named profile should load and validate");
+    let profile =
+        ProfileLoader::load_and_validate(&temp.path().join("profiles"), &profile_name("byname"))
+            .expect("valid named profile should load and validate");
     assert_eq!(profile.name, "byname");
 }
 
@@ -314,15 +301,14 @@ fn load_and_validate_by_name_invalid_port_errors() {
     prepare_dirs(&temp);
 
     std::fs::write(
-        temp.path()
-            .join("profiles")
-            .join("badport.secrets.profile.yaml"),
+        overlay_at(&temp.path().join("profiles"), "badport"),
         valid_by_name_profile(&temp, "badport", 0),
     )
     .expect("write profile");
 
-    let err = ProfileLoader::load_and_validate(temp.path(), &profile_name("badport"))
-        .expect_err("port 0 must fail validation through the by-name path");
+    let err =
+        ProfileLoader::load_and_validate(&temp.path().join("profiles"), &profile_name("badport"))
+            .expect_err("port 0 must fail validation through the by-name path");
     assert!(err.to_string().contains("port"));
 }
 
@@ -331,10 +317,16 @@ fn load_and_validate_by_name_missing_errors() {
     let temp = TempDir::new().expect("Failed to create temp dir");
     prepare_dirs(&temp);
 
-    ProfileLoader::load_and_validate(temp.path(), &profile_name("absent"))
+    ProfileLoader::load_and_validate(&temp.path().join("profiles"), &profile_name("absent"))
         .expect_err("a missing named profile must error before validation");
 }
 
 fn profile_name(name: &str) -> systemprompt_identifiers::ProfileName {
     systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
+}
+
+fn overlay_at(profiles_dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let dir = profiles_dir.join(name);
+    std::fs::create_dir_all(&dir).expect("create profile dir");
+    dir.join("profile.yaml")
 }

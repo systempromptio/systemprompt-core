@@ -29,6 +29,7 @@ async fn state_with_dist() -> anyhow::Result<(TempDir, StaticContentState)> {
     let web = tmp.path().join("web");
     std::fs::create_dir_all(web.join("dist"))?;
     let paths = PathsConfig {
+        root: None,
         system: tmp.path().to_string_lossy().into_owned(),
         services: "/tmp".to_owned(),
         bin: "/tmp".to_owned(),

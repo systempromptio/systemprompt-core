@@ -16,6 +16,8 @@ mod golden;
 #[cfg(test)]
 mod hooks;
 #[cfg(test)]
+mod legacy_wire;
+#[cfg(test)]
 mod roles;
 #[cfg(test)]
 mod support;

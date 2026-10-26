@@ -15,6 +15,7 @@ use systemprompt_test_fixtures::fixture_user_id;
 
 fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
     let paths = PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: bin_dir.to_string(),
@@ -36,6 +37,7 @@ fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
 
 fn make_paths_with_system(system_dir: &str) -> Arc<AppPaths> {
     let paths = PathsConfig {
+        root: None,
         system: system_dir.to_string(),
         services: system_dir.to_string(),
         bin: system_dir.to_string(),

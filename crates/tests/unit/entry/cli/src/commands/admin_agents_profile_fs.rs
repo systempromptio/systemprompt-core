@@ -92,6 +92,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     let database = DisposableDb::with_schema("cli_restart_failed").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -391,6 +392,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     let database = DisposableDb::with_schema("cli_restart_all_agents").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -469,6 +471,7 @@ async fn delete_all_agents_public_helper() {
     let database = DisposableDb::with_schema("cli_admin_delete_all").await;
     let pool = database.test_pool().await;
     let paths = systemprompt_manifest::PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),

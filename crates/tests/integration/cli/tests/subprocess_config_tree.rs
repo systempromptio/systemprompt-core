@@ -296,14 +296,8 @@ fn server_show_set_and_cors() {
         "0.0.0.0",
         "--port",
         "8090",
-        "--use-https",
-        "false",
-        "--api-server-url",
-        "http://0.0.0.0",
-        "--api-internal-url",
-        "http://0.0.0.0",
-        "--api-external-url",
-        "http://0.0.0.0:8090",
+        "--external-url",
+        "http://localhost:8090",
     ]);
     run(&["admin", "config", "server", "set"]);
     run_ok(&["admin", "config", "server", "cors", "list"]);
@@ -344,8 +338,6 @@ fn security_show_set_and_trusted_issuers() {
         "config",
         "security",
         "set",
-        "--jwt-issuer",
-        "https://issuer2.example.com",
         "--access-expiry",
         "7200",
         "--refresh-expiry",

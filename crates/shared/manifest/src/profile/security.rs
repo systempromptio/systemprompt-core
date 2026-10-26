@@ -37,7 +37,7 @@ const fn default_id_jag_ttl_secs() -> i64 {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SecurityConfig {
-    #[serde(rename = "jwt_issuer")]
+    #[serde(skip)]
     pub issuer: String,
 
     #[serde(rename = "jwt_access_token_expiration")]

@@ -33,6 +33,7 @@ async fn layers() -> anyhow::Result<Layers> {
     std::fs::create_dir_all(&storage)?;
     std::fs::create_dir_all(&shipped)?;
     let paths = PathsConfig {
+        root: None,
         system: tmp.path().to_string_lossy().into_owned(),
         services: "/tmp".to_owned(),
         bin: "/tmp".to_owned(),

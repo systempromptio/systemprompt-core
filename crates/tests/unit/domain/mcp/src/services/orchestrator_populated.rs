@@ -25,6 +25,7 @@ use systemprompt_test_fixtures::unique_instance;
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: bootstrap.system_path.display().to_string(),
         services: bootstrap.services_path.display().to_string(),
         bin: bootstrap.bin_path.display().to_string(),

@@ -15,7 +15,6 @@ fn webhook_mode_yaml_round_trips() {
 authz:
   hook:
     mode: webhook
-    url: http://localhost:8080/govern/authz
     timeout_ms: 250
 ";
     let cfg: GovernanceConfig = serde_yaml::from_str(yaml).expect("yaml parses");
