@@ -23,6 +23,11 @@ pub(super) fn key_of(line: &str) -> Option<&str> {
     trimmed.split_once(':').map(|(key, _)| key.trim())
 }
 
+fn ends_block(line: &str, level: usize) -> bool {
+    let indent = indent_of(line);
+    is_content(line) && (indent < level || (indent == level && !line.trim_start().starts_with('-')))
+}
+
 pub(super) fn find_block(lines: &[String], path: &[&str]) -> Option<(usize, usize)> {
     let (mut lo, mut hi) = (0usize, lines.len());
     for (depth, key) in path.iter().enumerate() {
@@ -36,7 +41,7 @@ pub(super) fn find_block(lines: &[String], path: &[&str]) -> Option<(usize, usiz
                 && key_of(&lines[i]) == Some(*key)
         })?;
         let block_end = (index + 1..hi)
-            .find(|&i| is_content(&lines[i]) && indent_of(&lines[i]) <= level)
+            .find(|&i| ends_block(&lines[i], level))
             .unwrap_or(hi);
         let block_end = trim_trailing_blank(lines, index + 1, block_end);
         if depth + 1 == path.len() {

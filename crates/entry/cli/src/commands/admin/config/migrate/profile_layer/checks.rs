@@ -112,12 +112,35 @@ pub(super) fn derived_internal(root: &Value) -> Option<String> {
     Some(internal_url_for(&host, port))
 }
 
+pub(super) fn same_internal_url(stated: &str, derived: &str) -> bool {
+    if normalised(stated) == normalised(derived) {
+        return true;
+    }
+    let (Ok(a), Ok(b)) = (
+        url::Url::parse(&normalised(stated)),
+        url::Url::parse(&normalised(derived)),
+    ) else {
+        return false;
+    };
+    let loopback = |url: &url::Url| match url.host() {
+        Some(url::Host::Domain(name)) => name.eq_ignore_ascii_case("localhost"),
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+        None => false,
+    };
+    loopback(&a)
+        && loopback(&b)
+        && a.scheme() == b.scheme()
+        && a.port_or_known_default() == b.port_or_known_default()
+        && a.path() == b.path()
+}
+
 pub(super) fn check_internal(root: &Value) -> Result<(), ProfileMigrationError> {
     let derived = derived_internal(root);
     if let Some(stated) = lookup(root, &["server", "api_internal_url"]).and_then(text_of)
         && !is_reference(&stated)
         && let Some(derived) = derived.as_ref()
-        && normalised(&stated) != normalised(derived)
+        && !same_internal_url(&stated, derived)
     {
         return Err(ProfileMigrationError::InternalUrlChange {
             stated,
@@ -133,7 +156,7 @@ pub(super) fn check_internal(root: &Value) -> Result<(), ProfileMigrationError> 
         && let Some(internal) = derived
     {
         let derived = format!("{internal}{AUTHZ_WEBHOOK_PATH}");
-        if normalised(&stated) != normalised(&derived) {
+        if !same_internal_url(&stated, &derived) {
             return Err(ProfileMigrationError::HookUrlChange { stated, derived });
         }
     }

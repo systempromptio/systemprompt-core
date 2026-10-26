@@ -278,3 +278,98 @@ fn a_section_left_empty_is_removed_so_it_cannot_mask_the_base() {
         "{text}"
     );
 }
+
+const SAME_INDENT_LIST: &str = r"name: production
+display_name: Production
+site:
+  name: Site
+database:
+  type: postgres
+server:
+  host: 0.0.0.0
+  port: 8080
+  api_server_url: https://app.example.com
+  api_internal_url: http://localhost:8080
+  api_external_url: https://app.example.com
+  use_https: true
+  cors_allowed_origins:
+  - https://app.example.com
+  - https://edge.example.com
+  - https://claude.ai
+  content_negotiation:
+    enabled: false
+paths:
+  system: .
+  services: services
+  bin: bin
+security:
+  jwt_issuer: https://app.example.com
+  jwt_access_token_expiration: 3600
+  jwt_refresh_token_expiration: 86400
+  jwt_audiences: [api]
+rate_limits: {}
+system_admin:
+  username: admin
+runtime:
+  log_level: verbose
+";
+
+#[test]
+fn list_items_at_the_key_indent_belong_to_the_key() {
+    let migration = migrated(SAME_INDENT_LIST, false);
+    let profile = load(&migration.text);
+
+    assert_eq!(
+        migration.extra_cors_origins,
+        vec!["https://edge.example.com", "https://claude.ai"]
+    );
+    assert_eq!(
+        profile.server.cors_allowed_origins,
+        vec![
+            "https://app.example.com".to_owned(),
+            "https://edge.example.com".to_owned(),
+            "https://claude.ai".to_owned()
+        ]
+    );
+    assert!(
+        !migration.text.contains("\n  - https://app.example.com"),
+        "{}",
+        migration.text
+    );
+}
+
+#[test]
+fn a_loopback_name_for_the_bind_address_is_the_same_internal_url() {
+    let text = PROFILE_072
+        .replace("host: 0.0.0.0", "host: 127.0.0.1")
+        .replace(
+            "url: http://localhost:8080/api/public/govern/authz",
+            "url: http://127.0.0.1:8080/api/public/govern/authz",
+        );
+
+    let migration = migrated(&text, false);
+
+    assert!(
+        migration
+            .removed
+            .contains(&"server.api_internal_url".to_owned())
+    );
+    load(&migration.text);
+}
+
+#[test]
+fn a_loopback_url_on_another_port_is_still_refused() {
+    let text = PROFILE_072
+        .replace("host: 0.0.0.0", "host: 127.0.0.1")
+        .replace(
+            "api_internal_url: http://localhost:8080",
+            "api_internal_url: http://localhost:9090",
+        );
+
+    let err = migrate_profile_layer(&text, None, false).unwrap_err();
+
+    assert!(
+        matches!(err, ProfileMigrationError::InternalUrlChange { .. }),
+        "{err}"
+    );
+}
