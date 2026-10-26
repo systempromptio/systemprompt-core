@@ -25,6 +25,9 @@ pub enum ImportWarning {
     NoSkills { plugin: String },
     UnattachedRootRules { rules: Vec<String> },
     NodePackageWithoutLockfile { plugin: String },
+    MissingSkillManifest { plugin: String, dir: String },
+    MissingReference { skill: String, path: String },
+    SiblingSkillPath { skill: String, path: String },
 }
 
 impl ImportWarning {
@@ -39,6 +42,9 @@ impl ImportWarning {
                 | Self::RemotePluginSource { .. }
                 | Self::RemotePluginUnpinned { .. }
                 | Self::UnattachedRootRules { .. }
+                | Self::MissingSkillManifest { .. }
+                | Self::MissingReference { .. }
+                | Self::SiblingSkillPath { .. }
         )
     }
 }
@@ -99,6 +105,21 @@ impl fmt::Display for ImportWarning {
                 "plugin '{plugin}' ships package.json without a package-lock.json, \
                  npm-shrinkwrap.json or bun.lock, so its Node dependencies will not be installed \
                  on any host"
+            ),
+            Self::MissingSkillManifest { plugin, dir } => write!(
+                f,
+                "plugin '{plugin}' has a skills/{dir}/ directory without a SKILL.md, so nothing \
+                 in it was imported"
+            ),
+            Self::MissingReference { skill, path } => write!(
+                f,
+                "skill '{skill}' cites {path}, which the imported skill does not carry (missing, \
+                 or excluded as a dev file)"
+            ),
+            Self::SiblingSkillPath { skill, path } => write!(
+                f,
+                "skill '{skill}' cites {path} outside its own directory; skill directories are \
+                 renamed on composition, so the path cannot resolve on a client"
             ),
         }
     }

@@ -23,11 +23,15 @@ mod import_claude_code;
 #[cfg(test)]
 mod import_edges;
 #[cfg(test)]
+mod import_hosts;
+#[cfg(test)]
 mod import_manifest_shapes;
 #[cfg(test)]
 mod import_remote;
 #[cfg(test)]
 mod import_round_trip;
+#[cfg(test)]
+mod import_skill_refs;
 #[cfg(test)]
 mod import_strict;
 #[cfg(test)]

@@ -17,6 +17,7 @@ use serde::Deserialize;
 use systemprompt_identifiers::MarketplaceRuleId;
 use systemprompt_manifest::services::frontmatter::split_frontmatter;
 use systemprompt_manifest::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::error::MarketplaceError;
 
@@ -28,6 +29,8 @@ struct RuleFrontmatter {
     name: Option<String>,
     #[serde(default)]
     description: Option<String>,
+    #[serde(default)]
+    hosts: Vec<String>,
 }
 
 pub(super) fn import_rules_dir(
@@ -77,6 +80,14 @@ fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<(), MarketplaceEr
         None => RuleFrontmatter::default(),
     };
 
+    if let Err(unknown) = HostKind::parse_list(&front.hosts) {
+        return Err(MarketplaceError::import(
+            path,
+            "rule frontmatter `hosts`",
+            unknown,
+        ));
+    }
+
     let id = MarketplaceRuleId::try_new(name)
         .map_err(|e| MarketplaceError::import(path, "rule id", e))?;
     let doc = DiskRuleConfig {
@@ -89,7 +100,7 @@ fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<(), MarketplaceEr
         enabled: true,
         file: DEFAULT_RULE_CONTENT_FILE.to_owned(),
         tags: Vec::new(),
-        hosts: Vec::new(),
+        hosts: front.hosts,
     };
 
     let rel = Path::new("rules").join(name);

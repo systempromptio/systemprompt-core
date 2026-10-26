@@ -55,6 +55,7 @@ mod rules;
 mod scripts;
 pub mod sidecar;
 mod skill;
+mod skill_refs;
 mod warning;
 mod writer;
 

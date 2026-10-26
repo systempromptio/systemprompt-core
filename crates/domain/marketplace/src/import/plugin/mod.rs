@@ -25,6 +25,7 @@ use super::marketplace::DEFAULT_LICENSE;
 use super::rules::import_rules_dir;
 use super::sidecar::{PluginSidecar, SIDECAR_RELPATH, load_plugin_sidecar};
 use super::skill::{discover_skill_dirs, import_skill};
+use super::skill_refs::{skill_body_warnings, skill_dirs_without_manifest};
 use super::warning::ImportWarning;
 use super::writer::Sink;
 use super::{hooks, scripts};
@@ -92,7 +93,14 @@ pub(super) fn import_plugin(
 
     let category = resolve_category(&id, &sidecar, entry, &mut warnings);
 
-    let skills = import_skills(dir, &extra_skill_dirs, &category, scope, sink)?;
+    let (skills, skill_warnings) = import_skills(dir, &extra_skill_dirs, &category, scope, sink)?;
+    warnings.extend(skill_warnings);
+    for skill_dir in skill_dirs_without_manifest(dir) {
+        warnings.push(ImportWarning::MissingSkillManifest {
+            plugin: id.as_str().to_owned(),
+            dir: skill_dir,
+        });
+    }
     if skills.is_empty() {
         warnings.push(ImportWarning::NoSkills {
             plugin: id.as_str().to_owned(),
@@ -107,6 +115,7 @@ pub(super) fn import_plugin(
 
     scripts::copy_plugin_scripts(&id, dir, &sidecar.plugin.scripts, sink)?;
     scripts::copy_node_package_files(&id, dir, sink)?;
+    scripts::copy_host_files(&id, dir, sink)?;
 
     let config = plugin_config(
         &id,
@@ -197,8 +206,9 @@ fn import_skills(
     category: &str,
     scope: &mut PluginScope<'_>,
     sink: &Sink,
-) -> Result<Vec<String>, MarketplaceError> {
+) -> Result<(Vec<String>, Vec<ImportWarning>), MarketplaceError> {
     let mut skills = Vec::new();
+    let mut warnings = Vec::new();
     for (skill_id, skill_dir) in discover_skill_dirs(dir, extra) {
         if !scope.seen_skills.insert(skill_id.clone()) {
             return Err(MarketplaceError::Import {
@@ -212,9 +222,10 @@ fn import_skills(
         let typed = SkillId::try_new(skill_id.as_str())
             .map_err(|e| MarketplaceError::import(&skill_dir, "skill id", e))?;
         import_skill(&typed, &skill_dir, Some(category), sink)?;
+        warnings.extend(skill_body_warnings(&typed, &skill_dir, sink));
         skills.push(skill_id);
     }
-    Ok(skills)
+    Ok((skills, warnings))
 }
 
 fn hooks_ref(sidecar: &PluginSidecar, imported: &[String]) -> PluginHooksRef {
