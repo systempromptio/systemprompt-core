@@ -24,6 +24,8 @@
 - The embedded default catalog is `DefaultCatalog::FILES` (the five files in the new shape); `ProviderRegistry::default_seed` is gone.
 - The Vertex rate card moved to `services::catalog::vertex`; entries are keyed by endpoint shape (`wire`) instead of a provider name, `to_model_entry` replaces `to_provider_model`, and its errors are `VertexRateCardError`.
 - `bridge_profile` builds from the `ResolvedCatalog` with `CredentialFacts`; `default_model` is presented as `<id>[1m]` only when the model is advertised to Claude clients and its context window is at least 1M.
+- `systemprompt::RuntimeBuilder`, `systemprompt_governance::authz::ReconcileReport` and `systemprompt_cli::admin::config::catalog::CatalogCommands` implement `Copy`, so a non-`move` closure captures them by reference. `#[must_use]` is added to `AgentRegistry::new`, `AgentRegistryProviderService::new`, `AgentReconciler::new`, `AgentMonitor::new`, `AgentDatabaseService::new`, `LogActor::platform`, `GatewayConfig::find_route`, `DeploymentService::{load_config, list_enabled_servers}`, `bridge_profile::{provider_health, is_model_servable}` and `route_needs_thought_signatures`. Migrate by using each result, or binding it to `_` where it is discarded on purpose.
+- `RETIREMENT_NOTICE_DAYS` moves from `services::providers` to `services::catalog::vertex` (re-exported at `services`). `services::RouteDeployment` is an enum, `Endpoint(EndpointRef)` or `Weighted(WeightedDeployment { endpoint, weight })`, read through `endpoint()` and `weight()`. `RetentionConfig` gains `agent_run_dirs_days`. Migrate by matching the enum or calling its accessors, and adding the field to struct literals that do not spread `..Default::default()`.
 
 ### Fixed
 

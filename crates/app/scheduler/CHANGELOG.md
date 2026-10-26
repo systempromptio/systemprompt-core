@@ -7,6 +7,7 @@
 - `config apply` records every plane it runs, declared or not, in `config_plane_applied` on the apply's transaction (rolled back with a dry run).
 - The reconcile pass (boot and the `config_reconcile` job) reports drift and writes nothing; `PlaneOutcome::{Corrected, Seeded}`, `PlaneReport::changes`, `ReconcileReport::changes` and `PlaneStateUpdate::corrected` are removed and `ReconcileReport::drift_rows` is new. `services::ConfigApplyService` is the explicit three-way-merge apply (`apply`, `export_patches`; `merge::{verdict, merge_plane}`), with `ConfigReconcileRepository::{find_plane_applied, list_base, upsert_base, delete_base, upsert_conflict, update_conflict_converged, set_last_apply, list_open_conflicts}`. Migration `006_config_change_audit_merge_mode` admits mode `merge`.
 - `jobs::vertex_discovery::lifecycle_notices(&ModelRegistry, …)` replaces the `ProviderRegistry` argument; the job probes a clone of the booted catalog registries.
+- `SchedulerError::UnknownRetentionTable` is removed and `SchedulerError` gains `Logging(LoggingError)` and `Mcp(McpDomainError)`; `RuntimeError` gains `SubjectSource(AlreadyBound)` and `AtRest(AtRestCipherError)`; `AuthzError` gains `Rules(RulesProblems)` and `Canonical(serde_json::Error)`. Exhaustive matches need an arm. `RoleDirectory` gains the required `async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError>`. Migrate by adding the arms and implementing `roles_of` on every registered role directory.
 
 ### Added
 

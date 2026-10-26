@@ -13,6 +13,8 @@
 - `pricing::resolve(provider, candidates, &ResolvedCatalog)` and `pricing::resolve_hop`; `resolve_upstream` is deleted. Breakers (`ProviderBreakers::for_endpoint`) and `DeploymentLoad` are keyed per endpoint (`failover::breaker_key`); `breaker_settings` and `DeploymentLoad::key` are deleted.
 - `GatewayRequestContext.hop: Option<CatalogHop>` and `GatewayRequestContext::open_on`; `GatewayAudit::set_served_hop` replaces `set_served_provider` and records provider, credential and endpoint. `GatewayError::PersonalKeyRequired { credential }` replaces `{ provider }`; `GatewayError::UndeclaredProvider` is deleted.
 - Failover keeps the credential guard (`resolve::may_fail_over`): platform to platform allowed, personal needs the same credential, mixed refused.
+- `RateWindow`, `DeploymentService`, `McpClient`, `McpDeploymentProviderImpl`, `ProcessService`, `FilterSystemFields` and `JsonEventFormat` no longer implement `Copy`, and `OutboundCtx`, `ServiceAccountTokens`, `StreamEvent`, `ImageProviderParams`, `ProviderClientParams`, `UpstreamTarget`, `McpClient`, `ProcessService`, `JwtTokenValidator`, `JwtValidationProviderImpl` and `HookTokenValidator` are no longer `UnwindSafe` or `RefUnwindSafe`, because they hold the injected config, token authority, token cache or spawner handles. Migrate by cloning where a copy was implied, and by wrapping in `AssertUnwindSafe` where one crosses `catch_unwind`.
+- `service::route_match::enforce_route_requirements` takes `(Option<&GatewayRoute>, &ResolvedHop, &AiRequestId)` in place of the route, `ProviderEntry` and requested model. Migrate by passing the route resolution's route and hop.
 
 ### Changed
 

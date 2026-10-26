@@ -9,6 +9,8 @@
 - **Breaking:** `services::cli::ServiceStatus` is `StatusGlyph`, and `services::cli::table::truncate_to_width` is removed in favour of `systemprompt_models::text::truncate_with_ellipsis`.
 - **Breaking:** `JsonEventFormat` and `FilterSystemFields` are no longer unit structs. Migrate by `JsonEventFormat::default()` and `FilterSystemFields::new()`.
 - **Breaking:** `LoggingRepository::cleanup_old_logs` is removed. Migrate by calling `purge_before(cutoff, batch)` until a batch comes back short.
+- `RateWindow`, `DeploymentService`, `McpClient`, `McpDeploymentProviderImpl`, `ProcessService`, `FilterSystemFields` and `JsonEventFormat` no longer implement `Copy`, and `OutboundCtx`, `ServiceAccountTokens`, `StreamEvent`, `ImageProviderParams`, `ProviderClientParams`, `UpstreamTarget`, `McpClient`, `ProcessService`, `JwtTokenValidator`, `JwtValidationProviderImpl` and `HookTokenValidator` are no longer `UnwindSafe` or `RefUnwindSafe`, because they hold the injected config, token authority, token cache or spawner handles. Migrate by cloning where a copy was implied, and by wrapping in `AssertUnwindSafe` where one crosses `catch_unwind`.
+- `LoggingRepository::cleanup_old_logs(older_than)` is `purge_before(cutoff, batch)` and `DurableOutbox::prune_processed_before(cutoff)` is `purge_processed_before(cutoff, batch)` with `count_processed_before`; both delete in bounded batches. Migrate by passing a batch size and looping until a call returns 0.
 
 ### Changed
 

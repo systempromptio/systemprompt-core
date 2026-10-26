@@ -9,6 +9,8 @@
 - **Breaking:** the `TaskContext`, `TaskManager` and `TaskOptions` re-exports are removed and `services::registry::trait_impl` is folded into `services::registry`. Migrate by importing from `rmcp::task_manager`.
 - **Breaking:** `models::ExecutionStatus` is removed; `systemprompt_models::mcp::McpToolExecutionStatus` (adds `Timeout`) is the `mcp_tool_executions.status` vocabulary.
 - **Breaking:** `services::database::sync::{cleanup_stale_services, delete_crashed_services}` are removed. Migrate by `ServiceRepository::reap_stale(&SubprocessLiveness)`.
+- `RateWindow`, `DeploymentService`, `McpClient`, `McpDeploymentProviderImpl`, `ProcessService`, `FilterSystemFields` and `JsonEventFormat` no longer implement `Copy`, and `OutboundCtx`, `ServiceAccountTokens`, `StreamEvent`, `ImageProviderParams`, `ProviderClientParams`, `UpstreamTarget`, `McpClient`, `ProcessService`, `JwtTokenValidator`, `JwtValidationProviderImpl` and `HookTokenValidator` are no longer `UnwindSafe` or `RefUnwindSafe`, because they hold the injected config, token authority, token cache or spawner handles. Migrate by cloning where a copy was implied, and by wrapping in `AssertUnwindSafe` where one crosses `catch_unwind`.
+- readers of the config take it as an argument: `DefaultRssFeedProvider::new(content_repo, &Config, paths)`, `generate_feed_with_providers(&Config, providers)`, `client::external_auth::accessor_url(api_external_url, token_endpoint, &Config)` and `client::rewrite_url_for_internal_use(url, &Config)`. Migrate by passing the `Config` the `AppContext` holds.
 
 ### Changed
 

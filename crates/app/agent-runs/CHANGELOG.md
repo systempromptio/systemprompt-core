@@ -9,6 +9,7 @@
 - **Breaking:** `HeadlessHost` gains `version_requirement()` (default `None`) and `harness_targets()` (default `Workspace`); the executor probes the host program and refuses an older client.
 - **Breaking:** `HostKind::OpenCodeCli` runs headless on `OpenCode` V2 (>= 2.0.30) through `host::opencode::OpenCodeCli`; `host::opencode::execution` returning `Unsupported` is removed, and an older client fails the run as `connector_unavailable` before spawn.
 - **Breaking:** `ErrorClass::HarnessUnavailable` fails a run before spawn when its harness cannot be loaded, its digest differs from `HarnessRef::bundle_digest`, or it collides with or escapes its target; migrations `002_agent_runs_harness` and `003_agent_runs_idempotency` add `harness_digest`, `idempotency_key` and `request_digest`.
+- `AgentRunRepositories::new` and `RunCredentialRepositories::new` take `(db, OAuthRepository)`, and `AgentRunRepositories` gains `managed: ManagedRepository`. Migrate by passing the context's `OAuthRepository` and adding `managed` to struct literals.
 
 ### Added
 

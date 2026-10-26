@@ -11,6 +11,8 @@
 - `ServicesBootstrap::catalog()` returns the booted `ResolvedCatalog`, resolved with `{install}` expanded from the profile's `site.name` (`services_bootstrap::catalog_context`); `ServicesBootstrap::providers()` is deleted and `try_init_with_discovery` augments a `CatalogDocument`.
 - `demote_providers_without_credentials` is deleted: a missing secret is health state, never a catalog rewrite. `config_loader::gateway::backfill_route_ids` and `resolve_file_gateway_includes` are deleted (route ids are declared; overrides resolve beside `services/ai/gateway.yaml`).
 - Vertex discovery runs per `(provider, endpoint)`: `discover`/`discover_with` take `&mut CatalogDocument`, `CatalogSource::{matches_endpoint, applies, list}` take a `DiscoveryEndpoint`, `classify`/`classify_discovered`/`merge::record_unseen` key the rate card by `WireProtocol`, the listing token is cached under the credential's `TokenCacheKey`, and `merge::publish` appends one model plus one deployment on the listing endpoint; a retired declared model gets `clients: []` instead of `hidden`.
+- `SecurityUpdate::jwt_issuer` is removed, because the issuer is derived from `server.external_url`. `ConfigFingerprint::current` takes `(&Profile, &SecretsService, services_sha)`; `bundle::provenance::owning_bundle_hashes` takes the `&Profile`. `ProfileBootstrapError::{NotInitialized, AlreadyInitialized}` are removed and `PathNotSet` is the only variant. Migrate by setting `server.external_url`, passing the boot context's profile and secrets, and dropping the removed arms.
+
 
 ## [0.71.0] - 2026-10-21
 
