@@ -5,12 +5,16 @@
 //! values to typed ids, calls [`DocumentService`] and maps the outcome. The
 //! service authorizes every call; a handler never reads the store or the
 //! blob store directly. Content is streamed with the head's content hash as
-//! the `ETag`, and writes name their base revision in `If-Match`.
+//! the `ETag`, and writes name their base revision in `If-Match`. With the
+//! `collab` feature the `/{id}/collab/*` routes co-edit HTML and Markdown
+//! documents live.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod caller;
+#[cfg(feature = "collab")]
+mod collab;
 mod commits;
 mod content;
 mod download;
@@ -29,6 +33,8 @@ use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post, put};
 use systemprompt_files::documents::DocumentService;
+#[cfg(feature = "collab")]
+use systemprompt_files::documents::collab::{CollabService, CollabTuning};
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, UserProvider};
@@ -40,6 +46,8 @@ pub struct DocumentsState {
     pub(crate) service: Arc<DocumentService>,
     pub(crate) users: Arc<dyn UserProvider>,
     pub(crate) tokens: Arc<dyn TokenAuthority>,
+    #[cfg(feature = "collab")]
+    pub(crate) collab: Arc<CollabService>,
 }
 
 impl std::fmt::Debug for DocumentsState {
@@ -62,6 +70,8 @@ impl DocumentsState {
                 .user_provider()
                 .ok_or(DocumentsMountError::MissingUserProvider)?,
             tokens: ctx.token_authority(),
+            #[cfg(feature = "collab")]
+            collab: collab_service(ctx),
         })
     }
 
@@ -85,9 +95,33 @@ pub fn document_service(ctx: &AppContext) -> Arc<DocumentService> {
     Arc::clone(ctx.documents().service())
 }
 
+#[cfg(feature = "collab")]
+fn collab_service(ctx: &AppContext) -> Arc<CollabService> {
+    let service = Arc::new(CollabService::new(
+        document_service(ctx),
+        CollabTuning::default(),
+    ));
+    service.start(ctx.background_tasks());
+    service
+}
+
+#[cfg(feature = "collab")]
+fn with_collab(router: Router<DocumentsState>) -> Router<DocumentsState> {
+    router
+        .route("/{id}/collab/join", post(collab::join))
+        .route("/{id}/collab/updates", post(collab::updates))
+        .route("/{id}/collab/leave", post(collab::leave))
+        .route("/{id}/collab/cursor", post(collab::cursor))
+}
+
+#[cfg(not(feature = "collab"))]
+const fn with_collab(router: Router<DocumentsState>) -> Router<DocumentsState> {
+    router
+}
+
 pub fn router(state: DocumentsState) -> Router {
     let limit = state.max_body_bytes();
-    Router::new()
+    with_collab(Router::new())
         .route("/", get(items::list).post(items::create))
         .route(
             "/{id}",
