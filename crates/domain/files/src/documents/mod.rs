@@ -1,6 +1,8 @@
 //! Shared document store: folders, documents, content-addressed revisions,
 //! subject-keyed grants, locks, presence, edit sessions, codecs and templates.
 //!
+//! [`blob_store`] stores revision bytes by content hash over `FileStorage`,
+//! and [`jobs`] collects unreferenced blobs and expired presence rows.
 //! [`models`] holds the row and request types; [`repository`] holds one
 //! repository per table, built once into [`repository::DocumentRepositories`].
 //! [`codecs`] holds the core [`DocumentCodec`] implementations and the
@@ -15,7 +17,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod blob_store;
 pub mod codecs;
+pub mod jobs;
 pub mod models;
 pub mod repository;
 pub mod templates;

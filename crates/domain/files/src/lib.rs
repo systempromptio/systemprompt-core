@@ -42,8 +42,8 @@ pub use error::{FilesError, FilesResult};
 pub use extension::FilesExtension;
 
 pub use config::{
-    AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfig, FilesConfigValidator,
-    FilesConfigYaml,
+    AllowedFileTypes, DocumentsConfig, FilePersistenceMode, FileUploadConfig, FilesConfig,
+    FilesConfigValidator, FilesConfigYaml, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES,
 };
 pub use jobs::FileIngestionJob;
 pub use models::{

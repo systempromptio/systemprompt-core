@@ -48,6 +48,7 @@ hex = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
 serde_yaml = { workspace = true }
+futures-util = { workspace = true }
 pulldown-cmark = { workspace = true }
 ammonia = { workspace = true }
 scraper = { workspace = true }

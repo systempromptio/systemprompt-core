@@ -8,6 +8,8 @@ mod bootstrap;
 #[cfg(test)]
 mod config_paths;
 #[cfg(test)]
+mod documents_blob_store;
+#[cfg(test)]
 mod documents_repository;
 #[cfg(test)]
 mod file_ingestion;

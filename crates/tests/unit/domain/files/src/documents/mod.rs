@@ -1,3 +1,4 @@
+mod blob_ids;
 mod codecs_docx;
 mod codecs_docx_edits;
 mod codecs_html;

@@ -14,6 +14,7 @@
 
 ### Added
 
+- **Files:** a content-addressed `BlobStore` over `FileStorage` for document revisions, with a daily unreferenced-blob garbage collector, a presence sweep job and `files.documents` configuration (upload limit, GC grace, presence TTL).
 - **Files:** a document template registry that merges `DocumentTemplateProvider` registrations with the `services/documents/templates/*.yaml` catalog, highest priority per id, and ships the core blank text, Markdown and HTML templates and the blank Word, Excel and PowerPoint documents (feature `office`).
 - **Files:** core `DocumentCodec` implementations for HTML, Markdown and plain text with hash-anchored line and block projections, and the `CodecRegistry` that picks the highest-priority codec per format.
 - **Files:** an `.xlsx` `DocumentCodec` (feature `office`) that projects sheets, rows and cells to hash-anchored nodes, applies `SetCells` and text edits in place while keeping styles and formulas, renders an HTML preview and instantiates templates.
