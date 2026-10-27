@@ -165,6 +165,10 @@ A document has at most one open edit session. Every accepted update is logged wi
 
 The server stores a snapshot 30 seconds after the first unsaved update or after 200 updates, and commits the body as a revision with origin `edit_session` after 2 minutes of activity and when the last editor leaves, which also closes the session. For HTML the revision keeps the document around `<body>` from the revision the checkpoint is based on. A checkpoint that the revision engine merges with writes made outside the session puts the merged body back into the live text.
 
+### Extension pages
+
+While `files.documents.enabled` is on, the extension `Dependencies` carry `Arc<DocumentService>`; an extension router that serves a document page reads it with `ctx.dependencies().get::<Arc<DocumentService>>()` and authorizes the request through the service before rendering. With the store off the entry is absent, and a page that needs it is not mounted.
+
 ## Web components
 
 The files extension ships native ES module Web Components for browsing, previewing and editing documents. The generator's asset job copies them into the web distribution:

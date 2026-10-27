@@ -35,6 +35,7 @@
 
 ### Changed
 
+- **Runtime:** an extension's `Dependencies` carry `Arc<DocumentService>` while `files.documents.enabled` is on, so an extension router can authorize a document page server-side; with the store off the entry is absent and a page that needs it is not mounted.
 - **Files:** projections returned by `DocumentService::project` address nodes by stable id (`<writer>.<counter>`), kept across revisions while the block exists; the codec path is the node's `path` attribute. Edit ops name those ids.
 - **Files:** ops apply to the head for every format. A commit is refused only when a node an op touches changed at the head (`StaleAnchor` with the node's current text); otherwise it lands and answers `Merged` when the head moved past its base. `set_text`, `set_html` and `restore` still require the base to be the head.
 - **Files:** a whole Office file committed on a stale base is diffed against its base into `replace_text`, `delete` and `insert_after` ops on headings, paragraphs and list items, which land on the head under the same node guards. A change the diff cannot express, such as an added table, still conflicts. Text formats keep the three-way merge.
