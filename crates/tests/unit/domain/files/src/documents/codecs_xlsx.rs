@@ -204,7 +204,7 @@ fn preview_has_table_and_caption() {
 
 #[test]
 fn blank_projects_to_one_empty_sheet() {
-    let projection = project(&blank_xlsx());
+    let projection = project(&blank_xlsx().expect("blank"));
     assert_eq!(projection.root.len(), 1);
     assert_eq!(projection.root[0].id.as_str(), "sheet[Sheet1]");
     assert!(projection.root[0].children.is_empty());

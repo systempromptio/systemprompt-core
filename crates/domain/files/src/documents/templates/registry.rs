@@ -48,7 +48,7 @@ pub struct InstantiatedTemplate {
 struct Entry {
     template: DocumentTemplate,
     priority: u32,
-    generate: Option<fn() -> Vec<u8>>,
+    generate: Option<fn() -> Result<Vec<u8>, CodecError>>,
 }
 
 /// Every known document template, one per id.
@@ -150,7 +150,7 @@ impl TemplateRegistry {
             .get(id)
             .ok_or_else(|| TemplateError::NotFound { id: id.clone() })?;
         if let Some(generate) = entry.generate {
-            return Ok(generate());
+            return Ok(generate()?);
         }
         match &entry.template.source {
             TemplateSource::Embedded(bytes) => Ok(bytes.to_vec()),

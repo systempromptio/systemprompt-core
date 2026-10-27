@@ -7,7 +7,8 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::DocumentTemplateId;
 use systemprompt_provider_contracts::documents::{
-    DocumentFormat, DocumentTemplate, DocumentTemplateProvider, TemplatePlaceholder, TemplateSource,
+    CodecError, DocumentFormat, DocumentTemplate, DocumentTemplateProvider, TemplatePlaceholder,
+    TemplateSource,
 };
 use systemprompt_provider_contracts::register_document_template_provider;
 
@@ -94,7 +95,7 @@ fn blank(
 #[derive(Debug, Clone)]
 pub struct GeneratedBlank {
     pub template: DocumentTemplate,
-    pub generate: fn() -> Vec<u8>,
+    pub generate: fn() -> Result<Vec<u8>, CodecError>,
 }
 
 #[must_use]
@@ -102,7 +103,7 @@ pub fn generated_blank(
     id: &str,
     format: DocumentFormat,
     name: &str,
-    generate: fn() -> Vec<u8>,
+    generate: fn() -> Result<Vec<u8>, CodecError>,
 ) -> GeneratedBlank {
     GeneratedBlank {
         template: blank(id, format, name, &[], false),
@@ -112,5 +113,32 @@ pub fn generated_blank(
 
 #[must_use]
 pub fn office_blanks() -> Vec<GeneratedBlank> {
-    Vec::new()
+    #[cfg(feature = "office")]
+    {
+        use crate::documents::codecs::{docx, pptx, xlsx};
+        vec![
+            generated_blank(
+                "blank-docx",
+                DocumentFormat::Docx,
+                "Blank Word document",
+                docx::blank_docx,
+            ),
+            generated_blank(
+                "blank-xlsx",
+                DocumentFormat::Xlsx,
+                "Blank Excel workbook",
+                xlsx::blank_xlsx,
+            ),
+            generated_blank(
+                "blank-pptx",
+                DocumentFormat::Pptx,
+                "Blank PowerPoint presentation",
+                pptx::blank_pptx,
+            ),
+        ]
+    }
+    #[cfg(not(feature = "office"))]
+    {
+        Vec::new()
+    }
 }

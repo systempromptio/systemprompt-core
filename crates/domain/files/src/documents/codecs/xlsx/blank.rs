@@ -8,9 +8,8 @@ use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
 use super::workbook::{load, save};
 
-pub fn blank_xlsx() -> Vec<u8> {
-    let workbook = umya_spreadsheet::new_file();
-    save(&workbook).unwrap_or_default()
+pub fn blank_xlsx() -> Result<Vec<u8>, CodecError> {
+    save(&umya_spreadsheet::new_file())
 }
 
 pub(super) fn instantiate(template: &[u8], params: &TemplateParams) -> Result<Vec<u8>, CodecError> {

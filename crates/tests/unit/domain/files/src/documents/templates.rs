@@ -194,3 +194,28 @@ fn discover_includes_core_and_macro_registered_provider() {
         "probe me\n"
     );
 }
+
+#[test]
+fn office_blanks_are_listed_and_project() {
+    let registry = TemplateRegistry::discover(Vec::new());
+    let codecs = CodecRegistry::discover();
+    for (id, format) in [
+        ("blank-docx", DocumentFormat::Docx),
+        ("blank-xlsx", DocumentFormat::Xlsx),
+        ("blank-pptx", DocumentFormat::Pptx),
+    ] {
+        assert!(
+            registry
+                .list_for(format)
+                .iter()
+                .any(|t| t.id.as_str() == id),
+            "{id} not listed"
+        );
+        let bytes = registry.load_bytes(&tid(id)).expect("bytes");
+        codecs
+            .for_format(format)
+            .expect("codec")
+            .project(&bytes)
+            .expect("project");
+    }
+}
