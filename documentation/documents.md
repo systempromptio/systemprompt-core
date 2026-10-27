@@ -93,7 +93,7 @@ Document tools are exposed through MCP and authorise as the calling user, never 
 | `documents_share` | Grant a subject access to a document or a folder subtree, transfer a document's ownership, or revoke every grant on it. |
 | `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders, and the caller's level. |
 | `documents_copy` | A new document owned by the caller from another document's head, with its own history. |
-| `documents_update` | Rename a document or move it to another folder. |
+| `documents_update` | Rename a document or move it to another folder; `folder_id: null` moves it to the root. |
 | `documents_trash` | Move a document to the trash. |
 | `documents_restore_document` | Restore a trashed document. |
 | `documents_export` | A signed ten-minute download link, or the sanitised HTML preview for the document-preview app. |
@@ -109,7 +109,7 @@ The server `instructions` carry the working contract: read the outline, edit by 
 
 **Comments.** A comment is anchored to a stable node id and, optionally, to the nth occurrence of a quote inside that node; a reply carries its parent's anchor. Edits elsewhere never move an anchor. An edit that deletes the node or the quoted words is refused with `anchors_affected`, listing the comments, unless it sets `allow_detach`; a detached comment keeps its node and drops its quote. Bridge uploads and whole-file writes detach without refusing. Commenting needs `comment` access.
 
-**Lifecycle.** A trashed document leaves listings, and reads, edits and shares refuse it as `not_found` with `trashed: true`; only a caller who could reach it learns it is trashed. Trashing and restoring need `own`. A document restored into a deleted folder lands at the root, and a name taken in the meantime gains a ` (restored)` suffix. Trashed documents are deleted, with their revisions, after the retention period. Transferring ownership needs `own`, and the previous owner keeps `edit`.
+**Lifecycle.** A trashed document leaves listings, and reads, edits and shares refuse it as `not_found` with `trashed: true`; only a caller who could reach it learns it is trashed. Trashing and restoring need `own`. A document restored into a deleted folder lands at the root, and a name taken in the meantime gains the first free ` (restored)`, ` (restored 2)`, … suffix; a copy without a name takes the first free ` (copy)`, ` (copy 2)`, … name in its folder. Trashed documents are deleted, with their revisions, after the retention period. Transferring ownership needs `own`, and the previous owner keeps `edit`.
 
 **Results.** A result is a one-line summary plus structured content, sent once. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs, content hashes, each node id's positional path and the revision attribution. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read; a write landed on a moved head says `merged`, and a replayed `op_id` says `replayed`.
 

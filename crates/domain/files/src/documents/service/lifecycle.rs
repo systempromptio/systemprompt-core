@@ -5,7 +5,9 @@
 //! restored; `DocumentTrashPurgeJob` hard-deletes it, with its revisions and
 //! node ids, after `trash_retention_days`. Restoring into a folder that
 //! no longer exists lands the document at the root, and a name taken in the
-//! meantime gains a ` (restored)` suffix. A copy starts a new revision chain
+//! meantime gains the first free ` (restored)`, ` (restored 2)`, …
+//! suffix; a copy without a name takes the first free ` (copy)`, ` (copy 2)`, …
+//! name in its folder. Both retry once when a concurrent write takes the name. A copy starts a new revision chain
 //! from the source's head bytes and belongs to the caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -14,6 +16,7 @@
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
+use systemprompt_traits::{ConstraintKind, RepositoryError};
 
 use super::documents::NewContent;
 use super::support::document_name;
@@ -21,6 +24,10 @@ use super::{Author, DocumentService};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
+
+const COPY: &str = "copy";
+const RESTORED: &str = "restored";
+const MAX_SUFFIX: u32 = 1000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CopyRequest {
@@ -75,20 +82,23 @@ impl DocumentService {
             },
             other => other.clone(),
         };
-        if self
-            .repos
-            .documents
-            .find_in_folder(folder.as_ref(), &trashed.name)
-            .await?
-            .is_some()
-        {
-            let name = restored_name(&trashed.name);
-            self.repos.documents.rename_any(document, &name).await?;
+        let mut attempt = 0;
+        loop {
+            attempt += 1;
+            let current = self.load_trashed(document).await?;
+            let name = self
+                .free_name(folder.as_ref(), &trashed.name, RESTORED)
+                .await?;
+            if name != current.name {
+                self.repos.documents.rename_any(document, &name).await?;
+            }
+            match self.repos.documents.restore(document).await {
+                Ok(true) => return self.load_document(document).await,
+                Ok(false) => return Err(DocumentsError::not_found("trashed document", document)),
+                Err(error) if attempt == 1 && is_name_taken(&error) => {},
+                Err(error) => return Err(error.into()),
+            }
         }
-        if !self.repos.documents.restore(document).await? {
-            return Err(DocumentsError::not_found("trashed document", document));
-        }
-        self.load_document(document).await
     }
 
     pub async fn copy(
@@ -107,24 +117,80 @@ impl DocumentService {
         };
         let folder = request.folder.or_else(|| source.folder_id.clone());
         self.authorize_create(who, folder.as_ref(), trace).await?;
-        let name = match request.name {
-            Some(name) => document_name(&name, source.format)?,
-            None => copy_name(&source.name),
-        };
-        self.create_with_bytes(
-            who,
-            NewContent {
-                folder,
+        let explicit = request
+            .name
+            .map(|name| document_name(&name, source.format))
+            .transpose()?;
+        let mut attempt = 0;
+        loop {
+            attempt += 1;
+            let name = match &explicit {
+                Some(name) => name.clone(),
+                None => self.free_name(folder.as_ref(), &source.name, COPY).await?,
+            };
+            let content = NewContent {
+                folder: folder.clone(),
                 name,
                 format: source.format,
                 template_id: source.template_id.clone(),
-                bytes,
-                author: request.author,
+                bytes: bytes.clone(),
+                author: request.author.clone(),
                 message: Some(format!("copy of {}", source.id)),
                 ops: None,
-            },
-        )
-        .await
+            };
+            match self.create_with_bytes(who, content).await {
+                Err(DocumentsError::Repository(error))
+                    if attempt == 1 && explicit.is_none() && is_name_taken(&error) => {},
+                other => return other,
+            }
+        }
+    }
+
+    async fn load_trashed(&self, document: &DocumentId) -> Result<Document, DocumentsError> {
+        self.repos
+            .documents
+            .find_including_trashed(document)
+            .await?
+            .ok_or_else(|| DocumentsError::not_found("trashed document", document))
+    }
+
+    async fn free_name(
+        &self,
+        folder: Option<&DocumentFolderId>,
+        name: &str,
+        label: &str,
+    ) -> Result<String, DocumentsError> {
+        if label == RESTORED
+            && self
+                .repos
+                .documents
+                .find_in_folder(folder, name)
+                .await?
+                .is_none()
+        {
+            return Ok(name.to_owned());
+        }
+        let (stem, extension) = split_extension(name);
+        for n in 1..=MAX_SUFFIX {
+            let suffix = if n == 1 {
+                format!(" ({label})")
+            } else {
+                format!(" ({label} {n})")
+            };
+            let candidate = format!("{stem}{suffix}{extension}");
+            if self
+                .repos
+                .documents
+                .find_in_folder(folder, &candidate)
+                .await?
+                .is_none()
+            {
+                return Ok(candidate);
+            }
+        }
+        Err(DocumentsError::InvalidName {
+            name: name.to_owned(),
+        })
     }
 
     pub async fn update(
@@ -150,12 +216,12 @@ fn split_extension(name: &str) -> (&str, &str) {
         .map_or((name, ""), |dot| name.split_at(dot))
 }
 
-fn restored_name(name: &str) -> String {
-    let (stem, extension) = split_extension(name);
-    format!("{stem} (restored){extension}")
-}
-
-fn copy_name(name: &str) -> String {
-    let (stem, extension) = split_extension(name);
-    format!("{stem} (copy){extension}")
+fn is_name_taken(error: &RepositoryError) -> bool {
+    matches!(
+        error,
+        RepositoryError::Constraint {
+            kind: ConstraintKind::Unique,
+            ..
+        }
+    )
 }

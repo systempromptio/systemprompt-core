@@ -246,3 +246,55 @@ async fn the_guide_explains_comments_lifecycle_and_skeletons() {
         assert!(text.contains(needle), "guide lacks {needle}");
     }
 }
+
+#[test]
+fn update_folder_id_is_tri_state() {
+    let id = DocumentId::generate();
+    let parse = |extra: &str| -> UpdateInput {
+        serde_json::from_str(&format!("{{\"document_id\":\"{id}\"{extra}}}")).expect("parse")
+    };
+    assert_eq!(parse("").folder_id, None);
+    assert_eq!(parse(",\"folder_id\":null").folder_id, Some(None));
+    let folder = systemprompt_identifiers::DocumentFolderId::generate();
+    assert_eq!(
+        parse(&format!(",\"folder_id\":\"{folder}\"")).folder_id,
+        Some(Some(folder))
+    );
+}
+
+#[tokio::test]
+async fn update_moves_a_document_back_to_the_root() {
+    let h = harness().await;
+    let owner = person("mcp-root");
+    let ctx = ctx_for(Some(&owner));
+    let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
+    let folder = h
+        .tools
+        .service()
+        .create_folder(
+            &owner,
+            systemprompt_files::documents::service::NewFolderRequest {
+                parent: None,
+                name: format!("f-{}", uuid::Uuid::new_v4().simple()),
+            },
+            ctx.trace_id(),
+        )
+        .await
+        .expect("folder")
+        .id;
+    let update = |folder_id| UpdateInput {
+        document_id: document.clone(),
+        name: None,
+        folder_id,
+    };
+    let (moved, _) = UpdateHandler { tools: &h.tools }
+        .handle(update(Some(Some(folder.clone()))), &ctx, &exec())
+        .await
+        .expect("into folder");
+    assert_eq!(moved.document.folder_id, Some(folder));
+    let (home, _) = UpdateHandler { tools: &h.tools }
+        .handle(update(Some(None)), &ctx, &exec())
+        .await
+        .expect("to the root");
+    assert_eq!(home.document.folder_id, None);
+}

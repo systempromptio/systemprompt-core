@@ -249,6 +249,15 @@ pub struct UpdateInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub name: Option<String>,
-    #[serde(default)]
-    pub folder_id: Option<DocumentFolderId>,
+    #[serde(default, deserialize_with = "present")]
+    #[schemars(description = "null = root")]
+    pub folder_id: Option<Option<DocumentFolderId>>,
+}
+
+fn present<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
 }

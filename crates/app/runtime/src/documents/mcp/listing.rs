@@ -113,7 +113,7 @@ fn slim(property: &mut JsonValue, defs: &Map<String, JsonValue>) {
             map.extend(inner);
         }
     }
-    if let Some(JsonValue::Array(types)) = map.get("type") {
+    if let Some(JsonValue::Array(types)) = map.get("type").filter(|_| !map.contains_key("description")) {
         let concrete: Vec<JsonValue> = types.iter().filter(|t| *t != "null").cloned().collect();
         if let [single] = concrete.as_slice() {
             map.insert("type".to_owned(), single.clone());

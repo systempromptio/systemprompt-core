@@ -426,3 +426,62 @@ async fn revoke_all_removes_every_grant() {
         .expect_err("access is gone");
     assert!(matches!(refused, DocumentsError::Forbidden { .. }), "{refused:?}");
 }
+
+#[tokio::test]
+async fn repeated_copies_and_restores_take_the_next_free_name() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("names-owner");
+    let parent = folder(&h, &owner).await;
+    let name = unique("report");
+    let make = || {
+        let mut request = create("blank-text", Some(&parent));
+        request.name = name.clone();
+        request
+    };
+    let source = h
+        .service
+        .create_from_template(&owner, make(), &trace())
+        .await
+        .expect("source")
+        .0;
+    let copy = || CopyRequest {
+        source: source.id.clone(),
+        name: None,
+        folder: None,
+        author: api_author(),
+    };
+    let first = h.service.copy(&owner, copy(), &trace()).await.expect("copy").0;
+    let second = h.service.copy(&owner, copy(), &trace()).await.expect("copy again").0;
+    assert_eq!(first.name, format!("{name} (copy).txt"));
+    assert_eq!(second.name, format!("{name} (copy 2).txt"));
+
+    let trashed_twin = h
+        .service
+        .create_from_template(&owner, make(), &trace())
+        .await;
+    assert!(trashed_twin.is_err(), "the name is taken while the source is live");
+    h.service.trash(&owner, &source.id, &trace()).await.expect("trash source");
+    let twin = h
+        .service
+        .create_from_template(&owner, make(), &trace())
+        .await
+        .expect("twin takes the name")
+        .0;
+    h.service.trash(&owner, &twin.id, &trace()).await.expect("trash twin");
+    h.service
+        .create_from_template(&owner, make(), &trace())
+        .await
+        .expect("a live document takes the name");
+    let first_back = h
+        .service
+        .restore_document(&owner, &source.id, &trace())
+        .await
+        .expect("restore source");
+    let second_back = h
+        .service
+        .restore_document(&owner, &twin.id, &trace())
+        .await
+        .expect("restore twin");
+    assert_eq!(first_back.name, format!("{name} (restored).txt"));
+    assert_eq!(second_back.name, format!("{name} (restored 2).txt"));
+}

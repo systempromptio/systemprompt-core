@@ -30,7 +30,7 @@ impl McpToolHandler for TrashHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Move a document to the trash. Guide topic: lifecycle."
+        "Trash a document. Guide topic: lifecycle."
     }
 
     async fn handle(
@@ -116,7 +116,7 @@ impl McpToolHandler for CopyHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Copy a document's head into a new document you own."
+        "Copy a document's head into a new one you own."
     }
 
     async fn handle(
@@ -166,7 +166,7 @@ impl McpToolHandler for UpdateHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Rename a document or move it to another folder."
+        "Rename or move a document."
     }
 
     async fn handle(
@@ -184,7 +184,7 @@ impl McpToolHandler for UpdateHandler<'_> {
                 &input.document_id,
                 UpdateRequest {
                     name: input.name,
-                    folder: input.folder_id.map(Some),
+                    folder: input.folder_id,
                 },
                 ctx.trace_id(),
             )
@@ -215,7 +215,7 @@ impl McpToolHandler for AccessHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Who can access a document: owner, grants, inherited grants, your level."
+        "Owner, grants, inherited grants and your access level."
     }
 
     fn read_only(&self) -> bool {
