@@ -1,0 +1,9 @@
+id: blank-markdown
+format: markdown
+name: Branded memo
+description: Memo with author line
+file: files/memo.md
+priority: 200
+placeholders:
+  - { key: title, label: Title, default: Untitled }
+  - { key: author, label: Author }

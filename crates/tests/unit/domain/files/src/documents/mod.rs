@@ -6,6 +6,7 @@ mod codecs_text;
 mod codecs_xlsx;
 mod docx_fixture;
 mod registry;
+mod templates;
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{DocumentCodec, EditOp, NodeKind, Projection};

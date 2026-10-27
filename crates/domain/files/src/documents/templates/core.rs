@@ -1,0 +1,116 @@
+//! The blank templates core ships.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
+
+use systemprompt_identifiers::DocumentTemplateId;
+use systemprompt_provider_contracts::documents::{
+    DocumentFormat, DocumentTemplate, DocumentTemplateProvider, TemplatePlaceholder, TemplateSource,
+};
+use systemprompt_provider_contracts::register_document_template_provider;
+
+pub const CORE_TEMPLATE_PRIORITY: u32 = 100;
+
+const BLANK_TEXT: &[u8] = b"\n";
+const BLANK_MARKDOWN: &[u8] = b"# {{title}}\n\n";
+const BLANK_HTML: &[u8] = b"<!doctype html><html><head><meta charset=\"utf-8\"><title>{{title}}</title></head><body><h1>{{title}}</h1><p></p></body></html>";
+
+/// Publishes the core blank document templates at priority 100.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CoreTemplateProvider;
+
+impl DocumentTemplateProvider for CoreTemplateProvider {
+    fn provider_id(&self) -> &'static str {
+        "core"
+    }
+
+    fn templates(&self) -> Vec<DocumentTemplate> {
+        vec![
+            blank(
+                "blank-text",
+                DocumentFormat::Text,
+                "Blank text file",
+                BLANK_TEXT,
+                false,
+            ),
+            blank(
+                "blank-markdown",
+                DocumentFormat::Markdown,
+                "Blank Markdown document",
+                BLANK_MARKDOWN,
+                true,
+            ),
+            blank(
+                "blank-html",
+                DocumentFormat::Html,
+                "Blank HTML document",
+                BLANK_HTML,
+                true,
+            ),
+        ]
+    }
+
+    fn priority(&self) -> u32 {
+        CORE_TEMPLATE_PRIORITY
+    }
+}
+
+fn factory() -> Arc<dyn DocumentTemplateProvider> {
+    Arc::new(CoreTemplateProvider)
+}
+
+register_document_template_provider!(factory);
+
+fn blank(
+    id: &str,
+    format: DocumentFormat,
+    name: &str,
+    bytes: &'static [u8],
+    titled: bool,
+) -> DocumentTemplate {
+    let placeholders = if titled {
+        vec![TemplatePlaceholder {
+            key: "title".to_owned(),
+            label: "Title".to_owned(),
+            default: Some("Untitled".to_owned()),
+        }]
+    } else {
+        Vec::new()
+    };
+    DocumentTemplate {
+        id: DocumentTemplateId::new(id),
+        format,
+        name: name.to_owned(),
+        description: format!("An empty {} document", format.as_str()),
+        source: TemplateSource::Embedded(bytes),
+        placeholders,
+    }
+}
+
+/// A core template whose bytes are produced by a function instead of being
+/// embedded, for formats whose blank is a generated archive.
+#[derive(Debug, Clone)]
+pub struct GeneratedBlank {
+    pub template: DocumentTemplate,
+    pub generate: fn() -> Vec<u8>,
+}
+
+#[must_use]
+pub fn generated_blank(
+    id: &str,
+    format: DocumentFormat,
+    name: &str,
+    generate: fn() -> Vec<u8>,
+) -> GeneratedBlank {
+    GeneratedBlank {
+        template: blank(id, format, name, &[], false),
+        generate,
+    }
+}
+
+#[must_use]
+pub fn office_blanks() -> Vec<GeneratedBlank> {
+    Vec::new()
+}
