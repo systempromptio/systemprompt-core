@@ -21,6 +21,7 @@ mod listing;
 mod locks;
 mod node_ids;
 mod presence;
+mod proposals;
 mod purge;
 mod revisions;
 mod rows;
@@ -43,6 +44,7 @@ pub use grants::DocumentGrantRepository;
 pub use locks::DocumentLockRepository;
 pub use node_ids::DocumentNodeIdRepository;
 pub use presence::DocumentPresenceRepository;
+pub use proposals::DocumentProposalRepository;
 pub use revisions::DocumentRevisionRepository;
 pub use text_index::DocumentTextIndexRepository;
 pub use write_acks::DocumentWriteAckRepository;
@@ -62,6 +64,7 @@ pub struct DocumentRepositories {
     pub node_ids: Arc<DocumentNodeIdRepository>,
     pub write_acks: Arc<DocumentWriteAckRepository>,
     pub comments: Arc<DocumentCommentRepository>,
+    pub proposals: Arc<DocumentProposalRepository>,
 }
 
 impl DocumentRepositories {
@@ -80,6 +83,7 @@ impl DocumentRepositories {
             node_ids: Arc::new(DocumentNodeIdRepository::new(db)),
             write_acks: Arc::new(DocumentWriteAckRepository::new(db)),
             comments: Arc::new(DocumentCommentRepository::new(db)),
+            proposals: Arc::new(DocumentProposalRepository::new(db)),
         }
     }
 }

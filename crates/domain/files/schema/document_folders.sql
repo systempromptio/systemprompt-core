@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS document_folders (
     created_by VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMPTZ,
+    agent_edit_policy TEXT NOT NULL DEFAULT 'direct' CHECK (agent_edit_policy IN ('direct', 'propose'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_document_folders_parent_name

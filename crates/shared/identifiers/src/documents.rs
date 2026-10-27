@@ -1,6 +1,7 @@
 //! Shared document store identifiers.
 //!
-//! Documents, folders, revisions, edit sessions and comments are UUID-backed.
+//! Documents, folders, revisions, edit sessions, comments and proposals
+//! are UUID-backed.
 //! [`ContentHash`] is a lowercase hex SHA-256 digest: the blob address a
 //! revision, a drive manifest entry and a bridge commit all carry, so it is
 //! checked to exactly 64 lowercase hex characters. The digest itself is
@@ -23,6 +24,7 @@ crate::define_id!(DocumentFolderId, uuid);
 crate::define_id!(DocumentRevisionId, uuid);
 crate::define_id!(DocumentEditSessionId, uuid);
 crate::define_id!(DocumentCommentId, uuid);
+crate::define_id!(DocumentProposalId, uuid);
 crate::define_id!(ContentHash, checked, validate_content_hash);
 crate::define_id!(DocumentNodeId, checked, |value| {
     crate::macros::validate_non_empty("DocumentNodeId", value)

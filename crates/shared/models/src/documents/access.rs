@@ -150,3 +150,47 @@ wire_enum!(RevisionOriginKind, "revision origin kind", {
     EditSession => "edit_session",
     Api => "api",
 });
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProposalStatus {
+    Open,
+    Accepted,
+    Rejected,
+    Superseded,
+}
+
+wire_enum!(ProposalStatus, "proposal status", {
+    Open => "open",
+    Accepted => "accepted",
+    Rejected => "rejected",
+    Superseded => "superseded",
+});
+
+/// How an agent's edit under a folder lands: straight onto the head, or as
+/// a proposal a reviewer accepts. A folder inherits `propose` from the
+/// nearest ancestor that sets it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentEditPolicy {
+    #[default]
+    Direct,
+    Propose,
+}
+
+wire_enum!(AgentEditPolicy, "agent edit policy", {
+    Direct => "direct",
+    Propose => "propose",
+});
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EditMode {
+    Land,
+    Propose,
+}
+
+wire_enum!(EditMode, "edit mode", {
+    Land => "land",
+    Propose => "propose",
+});

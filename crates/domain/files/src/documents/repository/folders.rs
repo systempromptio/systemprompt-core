@@ -3,12 +3,49 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentFolderId, UserId};
+use systemprompt_models::documents::AgentEditPolicy;
 
 use super::Pools;
-use super::rows::RepoResult;
+use super::rows::{RepoResult, parse};
 use crate::documents::models::{DocumentFolder, NewFolder};
+
+struct FolderRow {
+    id: DocumentFolderId,
+    parent_id: Option<DocumentFolderId>,
+    name: String,
+    ancestor_ids: Vec<DocumentFolderId>,
+    owner_user_id: UserId,
+    created_by: UserId,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+    deleted_at: Option<DateTime<Utc>>,
+    agent_edit_policy: String,
+}
+
+impl TryFrom<FolderRow> for DocumentFolder {
+    type Error = systemprompt_traits::RepositoryError;
+
+    fn try_from(row: FolderRow) -> RepoResult<Self> {
+        Ok(Self {
+            agent_edit_policy: parse(
+                "document_folders.agent_edit_policy",
+                &row.agent_edit_policy,
+            )?,
+            id: row.id,
+            parent_id: row.parent_id,
+            name: row.name,
+            ancestor_ids: row.ancestor_ids,
+            owner_user_id: row.owner_user_id,
+            created_by: row.created_by,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            deleted_at: row.deleted_at,
+        })
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct DocumentFolderRepository {
@@ -24,7 +61,7 @@ impl DocumentFolderRepository {
 
     pub async fn insert(&self, request: NewFolder) -> RepoResult<DocumentFolder> {
         let row = sqlx::query_as!(
-            DocumentFolder,
+            FolderRow,
             r#"INSERT INTO document_folders (parent_id, name, ancestor_ids, owner_user_id, created_by)
                SELECT $1::text::uuid, $2,
                       COALESCE((SELECT p.ancestor_ids || p.id FROM document_folders p
@@ -40,7 +77,7 @@ impl DocumentFolderRepository {
                          ancestor_ids::text[] AS "ancestor_ids!: Vec<DocumentFolderId>",
                          owner_user_id AS "owner_user_id: UserId",
                          created_by AS "created_by: UserId",
-                         created_at, updated_at, deleted_at"#,
+                         created_at, updated_at, deleted_at, agent_edit_policy"#,
             request.parent_id.as_ref().map(DocumentFolderId::as_str),
             request.name,
             request.owner_user_id.as_str(),
@@ -56,44 +93,90 @@ impl DocumentFolderRepository {
                     .as_ref()
                     .map_or("<root>", DocumentFolderId::as_str),
             )
-        })
+        })?
+        .try_into()
     }
 
     pub async fn find(&self, id: &DocumentFolderId) -> RepoResult<Option<DocumentFolder>> {
-        Ok(sqlx::query_as!(
-            DocumentFolder,
+        sqlx::query_as!(
+            FolderRow,
             r#"SELECT id::text AS "id!: DocumentFolderId",
                       parent_id::text AS "parent_id: DocumentFolderId",
                       name,
                       ancestor_ids::text[] AS "ancestor_ids!: Vec<DocumentFolderId>",
                       owner_user_id AS "owner_user_id: UserId",
                       created_by AS "created_by: UserId",
-                      created_at, updated_at, deleted_at
+                      created_at, updated_at, deleted_at, agent_edit_policy
                FROM document_folders WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
             id.as_str()
         )
         .fetch_optional(&*self.pools.read)
-        .await?)
+        .await?
+        .map(DocumentFolder::try_from)
+        .transpose()
     }
 
     pub async fn list_children(
         &self,
         parent: Option<&DocumentFolderId>,
     ) -> RepoResult<Vec<DocumentFolder>> {
-        Ok(sqlx::query_as!(
-DocumentFolder,
+        sqlx::query_as!(
+            FolderRow,
 r#"SELECT id::text AS "id!: DocumentFolderId",
                       parent_id::text AS "parent_id: DocumentFolderId",
                       name,
                       ancestor_ids::text[] AS "ancestor_ids!: Vec<DocumentFolderId>",
                       owner_user_id AS "owner_user_id: UserId",
                       created_by AS "created_by: UserId",
-                      created_at, updated_at, deleted_at
+                      created_at, updated_at, deleted_at, agent_edit_policy
                FROM document_folders WHERE parent_id IS NOT DISTINCT FROM $1::text::uuid AND deleted_at IS NULL ORDER BY name, id"#,
             parent.map(DocumentFolderId::as_str)
         )
         .fetch_all(&*self.pools.read)
-        .await?)
+        .await?
+        .into_iter()
+        .map(DocumentFolder::try_from)
+        .collect()
+    }
+
+    pub async fn set_agent_edit_policy(
+        &self,
+        id: &DocumentFolderId,
+        policy: AgentEditPolicy,
+    ) -> RepoResult<bool> {
+        let result = sqlx::query!(
+            "UPDATE document_folders SET agent_edit_policy = $2, updated_at = now()
+             WHERE id = $1::text::uuid AND deleted_at IS NULL",
+            id.as_str(),
+            policy.as_str(),
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    pub async fn effective_agent_edit_policy(
+        &self,
+        id: &DocumentFolderId,
+    ) -> RepoResult<AgentEditPolicy> {
+        let proposes = sqlx::query_scalar!(
+            r#"SELECT EXISTS (
+                   SELECT 1 FROM document_folders f
+                   JOIN document_folders a
+                     ON a.id = f.id OR a.id = ANY(f.ancestor_ids)
+                   WHERE f.id = $1::text::uuid
+                     AND a.deleted_at IS NULL
+                     AND a.agent_edit_policy = 'propose'
+               ) AS "proposes!""#,
+            id.as_str(),
+        )
+        .fetch_one(&*self.pools.read)
+        .await?;
+        Ok(if proposes {
+            AgentEditPolicy::Propose
+        } else {
+            AgentEditPolicy::Direct
+        })
     }
 
     pub async fn rename(&self, id: &DocumentFolderId, name: &str) -> RepoResult<bool> {

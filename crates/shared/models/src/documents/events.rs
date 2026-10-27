@@ -10,10 +10,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
     ContentHash, DocumentCommentId, DocumentEditSessionId, DocumentId, DocumentNodeId,
-    DocumentRevisionId, DriveDeviceId, UserId,
+    DocumentProposalId, DocumentRevisionId, DriveDeviceId, UserId,
 };
 
-use super::access::{AccessLevel, ActorKind, RevisionOriginKind};
+use super::access::{AccessLevel, ActorKind, ProposalStatus, RevisionOriginKind};
 use super::drive::{PresenceSource, PresenceState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -36,10 +36,18 @@ pub enum DocumentEventName {
     Shared,
     #[serde(rename = "document.ownership_transferred")]
     OwnershipTransferred,
+    #[serde(rename = "document.proposal.opened")]
+    ProposalOpened,
+    #[serde(rename = "document.proposal.accepted")]
+    ProposalAccepted,
+    #[serde(rename = "document.proposal.rejected")]
+    ProposalRejected,
+    #[serde(rename = "document.proposal.superseded")]
+    ProposalSuperseded,
 }
 
 impl DocumentEventName {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 13] = [
         Self::RevisionCreated,
         Self::Presence,
         Self::Lock,
@@ -49,6 +57,10 @@ impl DocumentEventName {
         Self::CommentResolved,
         Self::Shared,
         Self::OwnershipTransferred,
+        Self::ProposalOpened,
+        Self::ProposalAccepted,
+        Self::ProposalRejected,
+        Self::ProposalSuperseded,
     ];
 
     #[must_use]
@@ -63,6 +75,10 @@ impl DocumentEventName {
             Self::CommentResolved => DocumentCommentResolvedEvent::NAME,
             Self::Shared => DocumentSharedEvent::NAME,
             Self::OwnershipTransferred => DocumentOwnershipTransferredEvent::NAME,
+            Self::ProposalOpened => DocumentProposalEvent::OPENED,
+            Self::ProposalAccepted => DocumentProposalEvent::ACCEPTED,
+            Self::ProposalRejected => DocumentProposalEvent::REJECTED,
+            Self::ProposalSuperseded => DocumentProposalEvent::SUPERSEDED,
         }
     }
 
@@ -198,4 +214,39 @@ pub struct DocumentOwnershipTransferredEvent {
 
 impl DocumentOwnershipTransferredEvent {
     pub const NAME: &'static str = "document.ownership_transferred";
+}
+
+/// The payload of every `document.proposal.*` event; the event name says
+/// which transition the proposal made and `status` repeats it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocumentProposalEvent {
+    pub document_id: DocumentId,
+    pub proposal_id: DocumentProposalId,
+    pub status: ProposalStatus,
+    pub proposer_id: UserId,
+    pub base_revision_id: DocumentRevisionId,
+    pub proposed_revision_id: DocumentRevisionId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewer_id: Option<UserId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landed_revision_id: Option<DocumentRevisionId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+impl DocumentProposalEvent {
+    pub const OPENED: &'static str = "document.proposal.opened";
+    pub const ACCEPTED: &'static str = "document.proposal.accepted";
+    pub const REJECTED: &'static str = "document.proposal.rejected";
+    pub const SUPERSEDED: &'static str = "document.proposal.superseded";
+
+    #[must_use]
+    pub const fn name_of(status: ProposalStatus) -> &'static str {
+        match status {
+            ProposalStatus::Open => Self::OPENED,
+            ProposalStatus::Accepted => Self::ACCEPTED,
+            ProposalStatus::Rejected => Self::REJECTED,
+            ProposalStatus::Superseded => Self::SUPERSEDED,
+        }
+    }
 }

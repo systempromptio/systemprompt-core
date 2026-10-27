@@ -17,7 +17,8 @@ pub mod events;
 pub mod uri;
 
 pub use access::{
-    AccessLevel, ActorKind, DocumentAction, RevisionOriginKind, UnknownDocumentValue,
+    AccessLevel, ActorKind, AgentEditPolicy, DocumentAction, EditMode, ProposalStatus,
+    RevisionOriginKind, UnknownDocumentValue,
 };
 pub use drive::{
     DriveChange, DriveChangeKind, DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveEntry,
@@ -26,7 +27,7 @@ pub use drive::{
 pub use events::{
     DocumentCollabUpdateEvent, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent,
     DocumentConflictEvent, DocumentEventName, DocumentLockEvent, DocumentOwnershipTransferredEvent,
-    DocumentPresenceEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
 };
 pub use systemprompt_provider_contracts::documents::{
     CellValue, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,

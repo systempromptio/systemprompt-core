@@ -14,6 +14,7 @@ mod folder;
 mod grant;
 mod lock;
 mod node_id;
+mod proposal;
 mod revision;
 mod session;
 
@@ -29,5 +30,6 @@ pub use lock::{
     DocumentLock, DocumentPresenceRow, LockHolderKind, LockOutcome, LockRequest, PresenceUpsert,
 };
 pub use node_id::{NodeIdEntry, StoredWriteAck};
+pub use proposal::{DocumentProposal, NewProposal, ProposalReview};
 pub use revision::{DocumentBlob, DocumentRevision, NewRevision, RevisionAttribution};
 pub use session::{DocumentEditSession, DocumentTextIndexRow, EditSessionOpen};

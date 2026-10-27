@@ -97,6 +97,17 @@ const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/document_comments.sql"),
         &["id", "document_id", "node_id", "author_user_id", "body"],
     ),
+    (
+        "document_proposals",
+        include_str!("../schema/document_proposals.sql"),
+        &[
+            "id",
+            "document_id",
+            "base_revision_id",
+            "proposed_revision_id",
+            "status",
+        ],
+    ),
 ];
 
 const WEB_ASSETS: &[(&str, &str, AssetType)] = &[

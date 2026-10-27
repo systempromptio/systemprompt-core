@@ -5,6 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{DocumentFolderId, UserId};
+use systemprompt_models::documents::AgentEditPolicy;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentFolder {
@@ -17,6 +18,7 @@ pub struct DocumentFolder {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
+    pub agent_edit_policy: AgentEditPolicy,
 }
 
 #[derive(Debug, Clone)]
