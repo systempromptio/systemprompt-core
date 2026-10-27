@@ -27,6 +27,7 @@
 
 ### Added
 
+- **CLI:** `core services validate` reports an `agents_md` finding that warns when the tree's `OpenCode` rules render to more than the 24,000 characters `OpenCode` reads from `AGENTS.md`; the bridge warns on sync too. The renderer moved to `systemprompt_models::bridge::opencode::agents_md`, so both measure the text the bridge writes.
 - **Files:** `DocumentService` and `DocumentAccessService` — folders registered as authz entities, subject-keyed grants resolved with the registered subject dimensions and the authz hook (fail closed), template-based creation and import, hash-anchored edit commits with a compare-and-swap head, three-way merges for text formats and conflict reporting for Office formats, locks, presence, sharing, search and the bridge Drive feed, with document events on the AgUi stream.
 - **Files:** OpenDocument `DocumentCodec`s for `.odt`, `.ods` and `.odp` (feature `office`) with the same hash-anchored projections, part-level edits, HTML preview, templates and blank documents as the OOXML codecs.
 - **Files:** a content-addressed `BlobStore` over `FileStorage` for document revisions, with a daily unreferenced-blob garbage collector, a presence sweep job and `files.documents` configuration (upload limit, GC grace, presence TTL).

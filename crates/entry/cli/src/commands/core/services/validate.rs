@@ -11,6 +11,8 @@ use serde::Serialize;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_marketplace::CatalogContent;
+use systemprompt_models::bridge::manifest::RuleEntry;
+use systemprompt_models::bridge::opencode::agents_md::{self, AGENTS_MD_BUDGET_CHARS};
 
 use super::staging::{StagedBundle, compose_staged, stage_archive, stage_tree};
 use super::versions::detect_drift;
@@ -144,10 +146,29 @@ fn load_findings(root: &Path) -> Vec<Finding> {
                     content.rules.len()
                 ),
             ));
+            findings.push(agents_md_finding(content.rules));
         },
         Err(err) => findings.push(Finding::fail("catalog", err.to_string())),
     }
     findings
+}
+
+/// Measures the `AGENTS.md` block a user would receive if every
+/// `OpenCode`-targeted rule in the tree reached them.
+fn agents_md_finding(rules: &[RuleEntry]) -> Finding {
+    match agents_md::over_budget(rules) {
+        Some(chars) => Finding::warn(
+            "agents_md",
+            format!(
+                "the OpenCode rules render to {chars} characters of AGENTS.md, over the \
+                 {AGENTS_MD_BUDGET_CHARS} OpenCode reads; rules past it never reach the model"
+            ),
+        ),
+        None => Finding::pass(
+            "agents_md",
+            format!("the OpenCode rules fit AGENTS.md's {AGENTS_MD_BUDGET_CHARS} characters"),
+        ),
+    }
 }
 
 fn drift_finding(drift: &[super::versions::VersionDrift]) -> Finding {
