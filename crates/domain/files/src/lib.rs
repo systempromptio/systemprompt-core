@@ -18,6 +18,7 @@
 //! | Feature | Default | Effect |
 //! |---------|---------|--------|
 //! | `office` | off | The `.docx`, `.xlsx` and `.pptx` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec)s in `documents::codecs::{docx,xlsx,pptx}`, built on `zip`, `quick-xml`, `ammonia` and `umya-spreadsheet`. |
+//! | `collab` | off | Live co-editing of HTML and Markdown documents in `documents::collab`, built on the `loro` CRDT. |
 //!
 //! ## Layering
 //!

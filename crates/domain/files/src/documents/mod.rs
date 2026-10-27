@@ -15,6 +15,9 @@
 //! format. [`templates`] holds the [`TemplateRegistry`] that merges template
 //! providers with the services catalog, and the core blank templates.
 //!
+//! With the `collab` feature, `collab` co-edits HTML and Markdown documents
+//! live over a Loro CRDT.
+//!
 //! [`TemplateRegistry`]: templates::TemplateRegistry
 //! [`DocumentCodec`]: systemprompt_provider_contracts::documents::DocumentCodec
 //! [`CodecRegistry`]: codecs::CodecRegistry
@@ -25,6 +28,8 @@
 pub mod access;
 pub mod blob_store;
 pub mod codecs;
+#[cfg(feature = "collab")]
+pub mod collab;
 pub mod error;
 pub mod events;
 pub mod jobs;
