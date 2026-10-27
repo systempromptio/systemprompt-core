@@ -7,7 +7,8 @@
 //! logged and recorded as the status's `last_error`; `synced_at` moves only
 //! when a whole cycle succeeded. A server with the document store disabled is
 //! not a failure: the status turns `enabled = false` with no error and the
-//! loop re-checks at its normal cadence.
+//! loop re-checks at its normal cadence. The status turns `enabled = true`
+//! only once the server has answered a manifest or change-feed request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -49,6 +50,7 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
         state.save(&state_path)?;
     }
     let pull = pull(cycle, &mut state).await?;
+    mark_server_enabled(handle, cycle.root);
     let upload = upload(cycle, &mut state).await?;
     let pending_uploads = local_changes(cycle.root, &state)?.len();
     let report = CycleReport {
@@ -268,12 +270,16 @@ pub async fn ensure_enabled(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResu
         }
         std::fs::create_dir_all(dir).map_err(|e| DriveError::io("create Drive folder", dir, e))?;
         tracing::info!(root = %dir.display(), documents = manifest.entries.len(), "drive folder created");
+        mark_server_enabled(handle, cycle.root);
     }
+    Ok(true)
+}
+
+fn mark_server_enabled(handle: &DriveHandle, root: &DriveRoot) {
     handle.update(|status| {
         status.enabled = true;
-        status.root = Some(dir.to_path_buf());
+        status.root = Some(root.dir().to_path_buf());
     });
-    Ok(true)
 }
 
 pub fn mark_server_disabled(handle: &DriveHandle) {

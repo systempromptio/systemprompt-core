@@ -10,7 +10,6 @@ async fn manifest_answers(server: &MockServer, status: u16) {
     Mock::given(method("GET"))
         .and(path(ApiPaths::BRIDGE_DRIVE_MANIFEST))
         .respond_with(ResponseTemplate::new(status))
-        .expect(1)
         .mount(server)
         .await;
 }
@@ -36,6 +35,37 @@ async fn a_404_manifest_marks_drive_disabled_without_an_error() {
     assert!(!status.enabled);
     assert_eq!(status.last_error, None);
     assert!(!fx.root.dir().exists(), "no folder is created");
+
+    let generation = *handle.subscribe().borrow();
+    for _ in 0..2 {
+        assert!(
+            !ensure_enabled(fx.cycle(), &handle)
+                .await
+                .expect("still disabled")
+        );
+    }
+    assert_eq!(
+        *handle.subscribe().borrow(),
+        generation,
+        "a disabled server bumps the status only on the first observation"
+    );
+}
+
+#[tokio::test]
+async fn an_existing_folder_does_not_mark_drive_enabled_before_the_server_answers() {
+    let server = MockServer::start().await;
+    let fx = Fixture::new(&server.uri());
+    let handle = DriveHandle::new();
+    let generation = *handle.subscribe().borrow();
+
+    assert!(
+        ensure_enabled(fx.cycle(), &handle)
+            .await
+            .expect("folder exists")
+    );
+
+    assert!(!handle.status().enabled);
+    assert_eq!(*handle.subscribe().borrow(), generation);
 }
 
 #[tokio::test]
