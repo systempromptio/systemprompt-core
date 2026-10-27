@@ -12,9 +12,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod access;
 mod caller;
 #[cfg(feature = "collab")]
 mod collab;
+mod comments;
 mod commits;
 mod content;
 mod download;
@@ -23,7 +25,10 @@ mod error;
 mod folders;
 mod headers;
 mod history;
+mod read;
 mod items;
+mod lifecycle;
+mod listing;
 mod sharing;
 mod views;
 
@@ -31,7 +36,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{get, post, put};
+use axum::routing::{delete, get, post, put};
 use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::{CollabService, CollabTuning};
@@ -122,7 +127,7 @@ const fn with_collab(router: Router<DocumentsState>) -> Router<DocumentsState> {
 pub fn router(state: DocumentsState) -> Router {
     let limit = state.max_body_bytes();
     with_collab(Router::new())
-        .route("/", get(items::list).post(items::create))
+        .route("/", get(listing::list).post(items::create))
         .route(
             "/{id}",
             get(items::get)
@@ -135,6 +140,21 @@ pub fn router(state: DocumentsState) -> Router {
             get(content::read).head(content::read).put(commits::write),
         )
         .route("/{id}/edits", post(commits::edits))
+        .route("/{id}/read", get(read::read))
+        .route(
+            "/{id}/comments",
+            get(comments::list).post(comments::create),
+        )
+        .route(
+            "/{id}/comments/{comment_id}/resolve",
+            post(comments::resolve),
+        )
+        .route("/{id}/access", get(access::access))
+        .route("/{id}/transfer", post(access::transfer))
+        .route("/{id}/grants/all", delete(access::revoke_all))
+        .route("/{id}/restore", post(lifecycle::restore))
+        .route("/{id}/copy", post(lifecycle::copy))
+        .route("/subject-kinds", get(access::subject_kinds))
         .route("/{id}/revisions", get(history::revisions))
         .route("/{id}/projection", get(history::projection))
         .route("/{id}/preview", get(history::preview))

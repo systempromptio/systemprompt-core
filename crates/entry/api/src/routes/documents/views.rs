@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use systemprompt_files::documents::models::{
     Document, DocumentFolder, DocumentGrant, DocumentLock, DocumentPresenceRow, DocumentRevision,
-    GrantTarget,
+    GrantTarget, ListedDocument,
 };
 use systemprompt_files::documents::service::{DocumentView, Listing};
 use systemprompt_identifiers::{
@@ -127,9 +127,27 @@ impl From<DocumentFolder> for FolderJson {
 }
 
 #[derive(Debug, Serialize)]
+pub(super) struct ListedJson {
+    #[serde(flatten)]
+    document: DocumentJson,
+    size_bytes: Option<i64>,
+    my_access: AccessLevel,
+}
+
+impl From<ListedDocument> for ListedJson {
+    fn from(l: ListedDocument) -> Self {
+        Self {
+            document: l.document.into(),
+            size_bytes: l.size_bytes,
+            my_access: l.my_access,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub(super) struct ListingJson {
     folders: Vec<FolderJson>,
-    documents: Vec<DocumentJson>,
+    documents: Vec<ListedJson>,
     next_cursor: Option<String>,
 }
 
@@ -152,6 +170,8 @@ pub(super) struct GrantJson {
     folder_id: Option<DocumentFolderId>,
     subject_kind: String,
     subject_value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    display_name: Option<String>,
     access_level: AccessLevel,
     granted_by: UserId,
     valid_until: Option<DateTime<Utc>>,
@@ -170,6 +190,7 @@ impl From<DocumentGrant> for GrantJson {
             folder_id,
             subject_kind: g.subject_kind,
             subject_value: g.subject_value,
+            display_name: g.subject_display,
             access_level: g.access_level,
             granted_by: g.granted_by,
             valid_until: g.valid_until,

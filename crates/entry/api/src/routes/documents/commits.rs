@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_files::documents::revision::CommitBody;
-use systemprompt_files::documents::service::{CommitOutcome, CommitRequest};
-use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId};
+use systemprompt_files::documents::service::{CommentPolicy, CommitOutcome, CommitRequest};
+use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentOpId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::EditOp;
@@ -101,6 +101,7 @@ pub(super) async fn write(
         author: api_author(req_ctx, headers),
         message: query.message,
         lock_holder_id: None,
+        comments: CommentPolicy::detach(),
     };
     idempotent(&state, &who, request, query.op_id).await
 }
@@ -114,6 +115,10 @@ pub(super) struct EditsBody {
     message: Option<String>,
     #[serde(default)]
     op_id: Option<DocumentOpId>,
+    #[serde(default)]
+    answering: Option<DocumentCommentId>,
+    #[serde(default)]
+    allow_detach: bool,
 }
 
 pub(super) async fn edits(
@@ -135,6 +140,10 @@ pub(super) async fn edits(
         author: api_author(&req_ctx, &headers),
         message: body.message,
         lock_holder_id: None,
+        comments: CommentPolicy {
+            allow_detach: body.allow_detach,
+            answering: body.answering,
+        },
     };
     idempotent(&state, &who, request, body.op_id).await
 }

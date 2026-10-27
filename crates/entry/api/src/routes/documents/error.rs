@@ -15,8 +15,11 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_identifiers::error::IdValidationError;
-use systemprompt_identifiers::{ContentHash, DocumentNodeId, DocumentRevisionId};
-use systemprompt_models::api::ApiError;
+use systemprompt_identifiers::{
+    ContentHash, DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId,
+};
+use systemprompt_models::api::{ApiError, ErrorCode};
+use systemprompt_runtime::documents::mcp::RefusalCode;
 use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_traits::AuthProviderError;
 
@@ -130,6 +133,21 @@ pub(crate) fn conflict_response(
     )
 }
 
+#[derive(Debug, Serialize)]
+struct AnchorsDetail<'a> {
+    comments: &'a [DocumentCommentId],
+}
+
+#[derive(Debug, Serialize)]
+struct ForbiddenDetail<'a> {
+    owner: &'a UserId,
+}
+
+#[derive(Debug, Serialize)]
+struct TrashedDetail {
+    trashed: bool,
+}
+
 impl IntoResponse for DocumentsHttpError {
     fn into_response(self) -> Response {
         match self {
@@ -162,6 +180,19 @@ fn service_response(error: DocumentsError) -> Response {
                 },
             );
         },
+        DocumentsError::AnchorsAffected { comments } => {
+            let api = ApiError::conflict(message).with_error_key("anchors_affected");
+            return with_detail(&api, AnchorsDetail { comments });
+        },
+        DocumentsError::Forbidden {
+            owner: Some(owner), ..
+        } => {
+            return with_detail(&ApiError::forbidden(message), ForbiddenDetail { owner });
+        },
+        DocumentsError::Trashed { .. } => {
+            let api = ApiError::not_found(message).with_error_key("trashed");
+            return with_detail(&api, TrashedDetail { trashed: true });
+        },
         _ => {},
     }
     ApiHttpError::from(api_error(error, message)).into_response()
@@ -170,7 +201,9 @@ fn service_response(error: DocumentsError) -> Response {
 fn api_error(error: DocumentsError, message: String) -> ApiError {
     match error {
         DocumentsError::Forbidden { .. } => ApiError::forbidden(message),
-        DocumentsError::NotFound { .. } => ApiError::not_found(message),
+        DocumentsError::NotFound { .. } | DocumentsError::CommentNotFound { .. } => {
+            ApiError::not_found(message)
+        },
         DocumentsError::TooLarge { .. } => ApiError::payload_too_large(message),
         DocumentsError::LockHeld { .. } => ApiError::locked(message).with_error_key("lock_held"),
         DocumentsError::IntegrityMismatch { .. } => {
@@ -188,6 +221,7 @@ fn api_error(error: DocumentsError, message: String) -> ApiError {
         | DocumentsError::UnknownFormat { .. }
         | DocumentsError::UnsupportedFormat { .. }
         | DocumentsError::UnknownSubjectKind { .. }
+        | DocumentsError::InvalidComment { .. }
         | DocumentsError::InvalidMove { .. } => ApiError::bad_request(message),
         DocumentsError::UnsupportedOp { .. } => {
             ApiError::bad_request(message).with_error_key("edit_rejected")
@@ -208,4 +242,18 @@ fn codec_error(source: CodecError) -> ApiError {
         },
         other => ApiError::internal("document codec failed", DocumentsError::Codec(other)),
     }
+}
+
+pub(super) fn tool_failure(code: Option<RefusalCode>, message: String) -> DocumentsHttpError {
+    let error = match code {
+        Some(RefusalCode::NotFound) => ApiError::not_found(message),
+        Some(RefusalCode::Forbidden) => ApiError::forbidden(message),
+        Some(RefusalCode::Locked) => ApiError::locked(message),
+        Some(RefusalCode::StaleBase | RefusalCode::GuardMismatch | RefusalCode::AnchorsAffected) => {
+            ApiError::conflict(message)
+        },
+        Some(other) => ApiError::bad_request(message).with_error_key(other.as_str()),
+        None => ApiError::new(ErrorCode::InternalError, message),
+    };
+    ApiHttpError::from(error).into()
 }

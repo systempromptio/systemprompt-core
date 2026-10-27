@@ -17,7 +17,8 @@ use systemprompt_models::api::ApiError;
 use super::DocumentsState;
 use super::caller::caller;
 use super::error::DocumentsResult;
-use super::items::{FolderTarget, ListQuery, folder_target};
+use super::items::{FolderTarget, folder_target};
+use super::listing::ListQuery;
 use super::views::FolderJson;
 
 fn folder(raw: &str) -> DocumentsResult<DocumentFolderId> {
@@ -29,7 +30,7 @@ pub(super) async fn list(
     req_ctx: Extension<RequestContext>,
     query: Query<ListQuery>,
 ) -> DocumentsResult<Response> {
-    Ok(super::items::list(state, req_ctx, query)
+    Ok(super::listing::list(state, req_ctx, query)
         .await?
         .into_response())
 }

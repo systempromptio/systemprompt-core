@@ -1,4 +1,4 @@
-//! Document listing, creation, metadata, rename/move and delete.
+//! Document creation, metadata, rename/move and trash.
 //!
 //! `POST /` takes JSON to create from a template, or `multipart/form-data`
 //! to import an uploaded file (parts `file`, optional `name`, `folder_id`,
@@ -7,14 +7,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::extract::{FromRequest, Multipart, Path, Query, Request, State};
+use axum::extract::{FromRequest, Multipart, Path, Request, State};
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Deserializer};
 use systemprompt_files::documents::models::ListCursor;
 use systemprompt_files::documents::service::{
-    Author, CreateRequest, ImportRequest, ListFolderRequest,
+    Author, CreateRequest, ImportRequest, UpdateRequest,
 };
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId};
 use systemprompt_models::RequestContext;
@@ -26,10 +26,7 @@ use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::error::DocumentsResult;
 use super::headers::etag;
-use super::views::{CreatedJson, DocumentDetail, ListingJson};
-
-const DEFAULT_PAGE: i64 = 50;
-const MAX_PAGE: i64 = 200;
+use super::views::{CreatedJson, DocumentDetail};
 
 pub(super) fn document_id(raw: &str) -> DocumentsResult<DocumentId> {
     Ok(DocumentId::try_new(raw)?)
@@ -81,31 +78,6 @@ where
 {
     Ok(Option::<DocumentFolderId>::deserialize(deserializer)?
         .map_or(FolderTarget::Root, FolderTarget::Folder))
-}
-
-#[derive(Debug, Deserialize)]
-pub(super) struct ListQuery {
-    folder: Option<String>,
-    cursor: Option<String>,
-    limit: Option<i64>,
-}
-
-pub(super) async fn list(
-    State(state): State<DocumentsState>,
-    Extension(req_ctx): Extension<RequestContext>,
-    Query(query): Query<ListQuery>,
-) -> DocumentsResult<Json<ListingJson>> {
-    let who = caller(&state, &req_ctx).await?;
-    let request = ListFolderRequest {
-        folder: folder_id(query.folder.as_deref())?,
-        cursor: cursor(query.cursor.as_deref())?,
-        limit: query.limit.unwrap_or(DEFAULT_PAGE).clamp(1, MAX_PAGE),
-    };
-    let listing = state
-        .service
-        .list_folder(&who.user, request, &who.trace)
-        .await?;
-    Ok(Json(listing.into()))
 }
 
 #[derive(Debug, Deserialize)]
@@ -234,28 +206,24 @@ pub(super) async fn update(
     if body.name.is_none() && body.folder_id.is_keep() {
         return Err(ApiError::bad_request("give a new `name`, a `folder_id`, or both").into());
     }
-    let moved = if body.folder_id.is_keep() {
+    let folder = if body.folder_id.is_keep() {
         None
     } else {
-        Some(
-            state
-                .service
-                .move_to(&who.user, &id, body.folder_id.folder(), &who.trace)
-                .await?,
+        Some(body.folder_id.folder().cloned())
+    };
+    let document = state
+        .service
+        .update(
+            &who.user,
+            &id,
+            UpdateRequest {
+                name: body.name,
+                folder,
+            },
+            &who.trace,
         )
-    };
-    let renamed = match body.name {
-        Some(name) => Some(
-            state
-                .service
-                .rename(&who.user, &id, &name, &who.trace)
-                .await?,
-        ),
-        None => None,
-    };
-    let document = renamed.or(moved);
-    let detail = document.map(super::views::DocumentJson::from);
-    Ok(Json(detail).into_response())
+        .await?;
+    Ok(Json(super::views::DocumentJson::from(document)).into_response())
 }
 
 pub(super) async fn delete(
@@ -265,6 +233,6 @@ pub(super) async fn delete(
 ) -> DocumentsResult<StatusCode> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    state.service.delete(&who.user, &id, &who.trace).await?;
+    state.service.trash(&who.user, &id, &who.trace).await?;
     Ok(StatusCode::NO_CONTENT)
 }
