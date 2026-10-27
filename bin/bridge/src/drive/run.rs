@@ -27,7 +27,7 @@ use super::scan::local_changes;
 use super::state::DriveState;
 use super::status::DriveHandle;
 use super::upload::{UploadReport, upload};
-use super::{Cycle, DriveClient, DriveRoot, watcher};
+use super::{Cycle, DriveClient, DriveRoot, shares, watcher};
 use crate::config::SharedRuntimeConfig;
 use crate::proxy::drive_signal::{DriveSignal, DriveSignalReceiver};
 use crate::proxy::token_cache::TokenCache;
@@ -46,11 +46,14 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
     let _serialised = handle.cycle.lock().await;
     let state_path = cycle.root.state_path();
     let mut state = DriveState::load(&state_path)?;
-    if prune_resolved(cycle.root, &mut state) {
+    if prune_resolved(cycle.root, &mut state) | shares::record(&mut state, handle.take_shares()) {
         state.save(&state_path)?;
     }
     let pull = pull(cycle, &mut state).await?;
-    mark_server_enabled(handle, cycle.root);
+    if shares::prune_synced(&mut state) {
+        state.save(&state_path)?;
+    }
+    handle.mark_enabled(cycle.root);
     let upload = upload(cycle, &mut state).await?;
     if super::proposals::refresh(cycle, &mut state).await {
         state.save(&state_path)?;
@@ -66,6 +69,7 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
         status.pending_uploads = report.pending_uploads;
         status.conflicts.clone_from(&state.conflicts);
         status.proposals.clone_from(&state.proposals);
+        status.shares.clone_from(&state.shares);
         status.last_error = None;
     });
     Ok(report)
@@ -206,7 +210,7 @@ impl Runner<'_> {
             Ok(()) => {},
             Err(DriveError::ServerDisabled { endpoint }) => {
                 tracing::debug!(endpoint, "drive disabled on the server");
-                mark_server_disabled(self.handle);
+                self.handle.mark_disabled();
             },
             Err(error) => {
                 if let DriveError::Unauthorized { endpoint } = &error {
@@ -268,7 +272,7 @@ pub async fn ensure_enabled(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResu
         let manifest = match cycle.client.manifest(cycle.bearer).await {
             Ok(manifest) => manifest,
             Err(DriveError::ServerDisabled { .. }) => {
-                mark_server_disabled(handle);
+                handle.mark_disabled();
                 return Ok(false);
             },
             Err(error) => return Err(error),
@@ -278,21 +282,7 @@ pub async fn ensure_enabled(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResu
         }
         std::fs::create_dir_all(dir).map_err(|e| DriveError::io("create Drive folder", dir, e))?;
         tracing::info!(root = %dir.display(), documents = manifest.entries.len(), "drive folder created");
-        mark_server_enabled(handle, cycle.root);
+        handle.mark_enabled(cycle.root);
     }
     Ok(true)
-}
-
-fn mark_server_enabled(handle: &DriveHandle, root: &DriveRoot) {
-    handle.update(|status| {
-        status.enabled = true;
-        status.root = Some(root.dir().to_path_buf());
-    });
-}
-
-pub fn mark_server_disabled(handle: &DriveHandle) {
-    handle.update(|status| {
-        status.enabled = false;
-        status.last_error = None;
-    });
 }

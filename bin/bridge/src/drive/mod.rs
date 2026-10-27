@@ -33,6 +33,7 @@ pub mod pull;
 pub mod root;
 pub mod run;
 pub mod scan;
+pub mod shares;
 pub mod state;
 pub mod status;
 pub mod upload;

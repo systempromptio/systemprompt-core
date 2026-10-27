@@ -23,6 +23,55 @@ pub fn write_verified(path: &Path, bytes: &[u8], expected: &ContentHash) -> Driv
         .map_err(|e| DriveError::io("verified write", path, e))
 }
 
+/// Whether a guarded write landed or found the local file changed since it
+/// was hashed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GuardedWrite {
+    Written,
+    LocalChanged,
+}
+
+pub fn write_unless_changed(
+    path: &Path,
+    bytes: &[u8],
+    expected: &ContentHash,
+    hashed_local: Option<&ContentHash>,
+) -> DriveResult<GuardedWrite> {
+    hash::verify(expected, bytes)?;
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent).map_err(|e| DriveError::io("create folder", parent, e))?;
+    let mut staged = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|e| DriveError::io("stage verified write", parent, e))?;
+    std::io::Write::write_all(&mut staged, bytes)
+        .and_then(|()| staged.as_file().sync_all())
+        .map_err(|e| DriveError::io("stage verified write", path, e))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        staged
+            .as_file()
+            .set_permissions(std::fs::Permissions::from_mode(0o644))
+            .map_err(|e| DriveError::io("stage verified write", path, e))?;
+    }
+    let current = if path.exists() {
+        Some(hash::hash_file(path)?.0)
+    } else {
+        None
+    };
+    if current.as_ref() != hashed_local {
+        return Ok(GuardedWrite::LocalChanged);
+    }
+    staged
+        .persist(path)
+        .map_err(|e| DriveError::io("verified write", path, e.error))?;
+    crate::fsutil::verify_contents(path, bytes)
+        .map_err(|e| DriveError::io("verified write", path, e))?;
+    Ok(GuardedWrite::Written)
+}
+
 pub fn synced_entry(
     path: &Path,
     document_id: Option<DocumentId>,

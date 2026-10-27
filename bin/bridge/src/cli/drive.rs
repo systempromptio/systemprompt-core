@@ -50,6 +50,22 @@ fn print_status(root: &DriveRoot) -> ExitCode {
     }
     stdio::print_line(&format!("  pending uploads: {}", status.pending_uploads));
     stdio::print_line(&format!("  conflicts: {}", status.conflicts.len()));
+    stdio::print_line(&format!(
+        "  shares received since the last sync: {}",
+        status.shares.len()
+    ));
+    for share in &status.shares {
+        stdio::print_line(&format!(
+            "    {}  from {}  ({}, {})",
+            share
+                .document_name
+                .as_deref()
+                .unwrap_or(share.document_id.as_str()),
+            share.shared_by.as_ref().map_or("someone", |by| by.as_str()),
+            share.level.as_deref().unwrap_or("access"),
+            share.received_at,
+        ));
+    }
     stdio::print_line(&format!("  open proposals: {}", status.proposals.len()));
     for proposal in &status.proposals {
         stdio::print_line(&format!(

@@ -19,6 +19,7 @@ use systemprompt_identifiers::{
 };
 
 use super::error::{DriveError, DriveResult};
+use super::shares::ReceivedShare;
 
 /// The synced form of one file, keyed in [`DriveState::entries`] by its
 /// `/`-separated path relative to the Drive folder.
@@ -65,6 +66,8 @@ pub struct DriveState {
     pub conflicts: Vec<ConflictNotice>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub proposals: Vec<OpenProposal>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shares: Vec<ReceivedShare>,
 }
 
 impl DriveState {

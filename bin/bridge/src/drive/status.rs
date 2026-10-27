@@ -21,6 +21,7 @@ use super::conflict::prune_resolved;
 use super::error::DriveResult;
 use super::root::DriveRoot;
 use super::scan::local_changes;
+use super::shares::{ReceivedShare, received};
 pub use super::state::ConflictNotice;
 use super::state::{DriveState, OpenProposal};
 use crate::proxy::drive_signal::DocumentNotice;
@@ -53,6 +54,7 @@ pub struct DriveStatus {
     pub conflicts: Vec<ConflictNotice>,
     pub editors: Vec<EditorPresence>,
     pub proposals: Vec<OpenProposal>,
+    pub shares: Vec<ReceivedShare>,
     pub notices: Vec<QueuedNotice>,
     pub last_error: Option<String>,
 }
@@ -71,6 +73,7 @@ impl DriveStatus {
             pending_uploads: local_changes(root, &state)?.len(),
             conflicts: state.conflicts,
             proposals: state.proposals,
+            shares: state.shares,
             editors: Vec::new(),
             notices: Vec::new(),
             last_error: None,
@@ -95,6 +98,7 @@ pub struct DriveHandle {
     status: ArcSwap<DriveStatus>,
     wake: Notify,
     touched: Mutex<BTreeSet<PathBuf>>,
+    shares: Mutex<Vec<ReceivedShare>>,
     generation: watch::Sender<u64>,
     pub(crate) cycle: tokio::sync::Mutex<()>,
 }
@@ -105,6 +109,7 @@ impl Default for DriveHandle {
             status: ArcSwap::from_pointee(DriveStatus::default()),
             wake: Notify::new(),
             touched: Mutex::new(BTreeSet::new()),
+            shares: Mutex::new(Vec::new()),
             generation: watch::Sender::new(0),
             cycle: tokio::sync::Mutex::new(()),
         }
@@ -153,7 +158,29 @@ impl DriveHandle {
         std::mem::take(&mut *self.touched.lock())
     }
 
+    #[must_use]
+    pub fn take_shares(&self) -> Vec<ReceivedShare> {
+        std::mem::take(&mut *self.shares.lock())
+    }
+
+    pub fn mark_enabled(&self, root: &DriveRoot) {
+        self.update(|status| {
+            status.enabled = true;
+            status.root = Some(root.dir().to_path_buf());
+        });
+    }
+
+    pub fn mark_disabled(&self) {
+        self.update(|status| {
+            status.enabled = false;
+            status.last_error = None;
+        });
+    }
+
     pub fn push_notice(&self, notice: DocumentNotice) {
+        if let Some(share) = received(&notice, Utc::now()) {
+            self.shares.lock().push(share);
+        }
         self.update(|status| {
             let seq = status.notices.last().map_or(1, |last| last.seq + 1);
             status.notices.push(QueuedNotice { seq, notice });
