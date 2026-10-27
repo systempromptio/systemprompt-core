@@ -71,10 +71,10 @@ impl ModelAdmission<'_> {
         matches!(self.hook.probe(request).await, AuthzDecision::Allow)
     }
 
-    pub async fn retain(&self, models: Vec<String>) -> Vec<String> {
+    pub async fn retain(&self, models: Vec<ModelId>) -> Vec<ModelId> {
         let mut admitted = Vec::with_capacity(models.len());
         for model in models {
-            if self.admits(&model).await {
+            if self.admits(model.as_str()).await {
                 admitted.push(model);
             }
         }

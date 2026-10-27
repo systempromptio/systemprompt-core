@@ -23,6 +23,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use systemprompt_identifiers::ModelId;
+
 use systemprompt_models::bridge::profile::{
     AdvertisedLimits, BridgeProfileResponse, ProviderHealth,
 };
@@ -165,12 +167,12 @@ pub fn build(
         .advertised_models(None)
         .filter(|model| is_model_servable(catalog, model.id.as_str(), facts))
         .collect();
-    let model_limits: BTreeMap<String, AdvertisedLimits> = servable
+    let model_limits: BTreeMap<ModelId, AdvertisedLimits> = servable
         .iter()
         .filter(|model| model.limits.context_window > 0)
         .map(|model| {
             (
-                model.id.as_str().to_owned(),
+                model.id.clone(),
                 AdvertisedLimits {
                     context_window: model.limits.context_window,
                     max_output_tokens: model.limits.max_output_tokens,
@@ -178,19 +180,19 @@ pub fn build(
             )
         })
         .collect();
-    let model_names: BTreeMap<String, String> = servable
+    let model_names: BTreeMap<ModelId, String> = servable
         .iter()
         .filter_map(|model| {
             model
                 .display_name
                 .as_ref()
-                .map(|name| (model.id.as_str().to_owned(), name.clone()))
+                .map(|name| (model.id.clone(), name.clone()))
         })
         .collect();
     BridgeProfileResponse {
         inference_gateway_base_url,
         auth_scheme,
-        models: servable.iter().map(|m| m.id.as_str().to_owned()).collect(),
+        models: servable.iter().map(|m| m.id.clone()).collect(),
         default_model: presented_default_model(catalog),
         organization_uuid,
         model_limits,

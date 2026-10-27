@@ -5,6 +5,7 @@ use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::claude_desktop::plist_value_texts;
 use systemprompt_bridge::integration::claude_desktop::reg_profile::{desired, profile_entries};
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::bridge::profile::AdvertisedLimits;
 
 const API_KEY: &str = "inferenceGatewayApiKey";
@@ -12,7 +13,7 @@ const API_KEY: &str = "inferenceGatewayApiKey";
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         model_limits: [(
-            "claude-opus-4-7".to_owned(),
+            ModelId::new("claude-opus-4-7"),
             AdvertisedLimits {
                 context_window: 1_000_000,
                 max_output_tokens: 64_000,

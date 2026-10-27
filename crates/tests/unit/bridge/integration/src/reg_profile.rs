@@ -7,13 +7,14 @@ use systemprompt_bridge::integration::claude_desktop::reg_profile::{
     profile_entries, render_reg, with_context_variants,
 };
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::bridge::profile::AdvertisedLimits;
 
 const ORG_UUID: &str = "6f1d2c3a-4b5e-4f60-8a71-9b0c1d2e3f40";
 
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
-        model_limits: [("claude-opus-4-7".to_owned(), limit(1_000_000))]
+        model_limits: [(ModelId::new("claude-opus-4-7"), limit(1_000_000))]
             .into_iter()
             .collect(),
         model_names: Default::default(),
@@ -298,8 +299,8 @@ fn million_context_models_are_listed_only_as_the_1m_variant() {
         "claude-haiku-4-5".to_string(),
     ];
     let limits = [
-        ("claude-sonnet-5".to_string(), limit(1_000_000)),
-        ("claude-haiku-4-5".to_string(), limit(200_000)),
+        (ModelId::new("claude-sonnet-5"), limit(1_000_000)),
+        (ModelId::new("claude-haiku-4-5"), limit(200_000)),
     ]
     .into_iter()
     .collect();
@@ -315,7 +316,7 @@ fn an_existing_1m_variant_absorbs_the_bare_id() {
         "claude-sonnet-5".to_string(),
         "claude-sonnet-5[1m]".to_string(),
     ];
-    let limits = [("claude-sonnet-5".to_string(), limit(1_000_000))]
+    let limits = [(ModelId::new("claude-sonnet-5"), limit(1_000_000))]
         .into_iter()
         .collect();
     assert_eq!(
@@ -328,7 +329,7 @@ fn an_existing_1m_variant_absorbs_the_bare_id() {
 fn the_registry_profile_lists_the_1m_variant() {
     let mut probe = inputs();
     probe.models = vec!["claude-opus-5-5".to_string()];
-    probe.model_limits = [("claude-opus-5-5".to_string(), limit(1_000_000))]
+    probe.model_limits = [(ModelId::new("claude-opus-5-5"), limit(1_000_000))]
         .into_iter()
         .collect();
     let owned: Vec<(String, String)> = profile_entries(&probe)

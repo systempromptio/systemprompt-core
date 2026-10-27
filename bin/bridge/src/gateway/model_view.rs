@@ -10,6 +10,7 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::providers::{ClientFamily, LONG_CONTEXT_WINDOW, with_context_variant};
 
@@ -102,14 +103,14 @@ pub fn catalog_models(providers: &[ProviderHealth]) -> Vec<CatalogGroup> {
 #[must_use]
 pub fn with_context_variants(
     models: &[String],
-    limits: &BTreeMap<String, systemprompt_models::bridge::profile::AdvertisedLimits>,
+    limits: &BTreeMap<ModelId, systemprompt_models::bridge::profile::AdvertisedLimits>,
 ) -> Vec<String> {
     let mut out = Vec::with_capacity(models.len());
     for id in models {
         let base = systemprompt_models::providers::without_context_variant(id);
         let is_million = limits
-            .get(base)
-            .or_else(|| limits.get(id))
+            .get(&ModelId::new(base))
+            .or_else(|| limits.get(&ModelId::new(id.as_str())))
             .is_some_and(|limit| limit.context_window >= LONG_CONTEXT_WINDOW);
         if !is_million {
             continue;

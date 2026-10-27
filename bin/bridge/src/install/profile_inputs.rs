@@ -11,6 +11,7 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::bridge::host::HostKind;
 
 use crate::gateway::types::BridgeProfile;
@@ -29,8 +30,8 @@ pub struct ProfileGenInputs {
     pub gateway_base_url: String,
     pub host_token: HostToken,
     pub models: Vec<String>,
-    pub model_limits: BTreeMap<String, systemprompt_models::bridge::profile::AdvertisedLimits>,
-    pub model_names: BTreeMap<String, String>,
+    pub model_limits: BTreeMap<ModelId, systemprompt_models::bridge::profile::AdvertisedLimits>,
+    pub model_names: BTreeMap<ModelId, String>,
     pub default_model: Option<String>,
     pub organization_uuid: Option<String>,
     pub headers: BTreeMap<String, String>,
