@@ -25,6 +25,7 @@ mod builder;
 mod context;
 mod context_traits;
 mod database_context;
+pub mod documents;
 mod error;
 pub mod managed;
 pub mod schema_currency;

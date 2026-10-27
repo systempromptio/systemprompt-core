@@ -116,6 +116,7 @@ pub struct Subsystems {
     pub spawner: Arc<systemprompt_loader::subprocess::Spawner>,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
     pub connector_tokens: Arc<TokenCache>,
+    pub documents: Arc<crate::documents::DocumentsRuntime>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the

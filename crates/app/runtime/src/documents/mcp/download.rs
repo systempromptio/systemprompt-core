@@ -1,0 +1,68 @@
+//! Short-lived download URLs for `documents_download_url`.
+//!
+//! The URL carries a user JWT minted by the deployment's
+//! [`TokenAuthority`] for the caller, with the audience
+//! [`DOWNLOAD_AUDIENCE`], a ten-minute lifetime and a `purpose` naming the
+//! one document revision it opens (`document_download:<document>@<revision>`).
+//! The content route verifies it with
+//! `verify_bearer(token, &[JwtAudience::Resource(DOWNLOAD_AUDIENCE)])`,
+//! checks the purpose against the requested path and then authorizes the
+//! read as the token's subject.
+//!
+//! [`TokenAuthority`]: systemprompt_models::auth::TokenAuthority
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use chrono::{DateTime, Duration, Utc};
+use rmcp::ErrorData as McpError;
+use systemprompt_identifiers::{AccessTokenId, DocumentId, DocumentRevisionId, SessionId};
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenAuthority, UserJwtRequest};
+use systemprompt_models::modules::ApiPaths;
+
+pub const DOWNLOAD_AUDIENCE: &str = "documents.download";
+pub const DOWNLOAD_TOKEN_QUERY: &str = "access_token";
+pub const DOWNLOAD_TTL: Duration = Duration::minutes(10);
+
+#[must_use]
+pub fn download_purpose(document: &DocumentId, revision: &DocumentRevisionId) -> String {
+    format!("document_download:{document}@{revision}")
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DownloadTarget<'a> {
+    pub base_url: &'a str,
+    pub user: &'a AuthenticatedUser,
+    pub session_id: &'a SessionId,
+    pub document: &'a DocumentId,
+    pub revision: &'a DocumentRevisionId,
+}
+
+pub fn signed_download_url(
+    authority: &dyn TokenAuthority,
+    target: DownloadTarget<'_>,
+) -> Result<(String, DateTime<Utc>), McpError> {
+    let request = UserJwtRequest {
+        user: target.user.clone(),
+        session_id: target.session_id.clone(),
+        jti: AccessTokenId::generate(),
+        permissions: target.user.permissions().to_vec(),
+        audience: vec![JwtAudience::Resource(DOWNLOAD_AUDIENCE.to_owned())],
+        ttl: DOWNLOAD_TTL,
+        client_id: None,
+        purpose: Some(download_purpose(target.document, target.revision)),
+        plugin_id: None,
+    };
+    let token = authority.mint_user_jwt(&request).map_err(|error| {
+        tracing::error!(error = %error, "document download token was not minted");
+        McpError::internal_error("the download link could not be signed", None)
+    })?;
+    let url = format!(
+        "{base}{path}/{document}/content?revision={revision}&{DOWNLOAD_TOKEN_QUERY}={token}",
+        base = target.base_url.trim_end_matches('/'),
+        path = ApiPaths::DOCUMENTS,
+        document = target.document,
+        revision = target.revision,
+    );
+    Ok((url, Utc::now() + DOWNLOAD_TTL))
+}

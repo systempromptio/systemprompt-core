@@ -105,6 +105,7 @@ impl std::fmt::Debug for Subsystems {
             .field("spawner", &"Spawner")
             .field("publish_guard", &"Mutex<PublishGuard>")
             .field("connector_tokens", &"TokenCache")
+            .field("documents", &self.documents)
             .finish()
     }
 }

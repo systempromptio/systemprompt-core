@@ -42,6 +42,12 @@ pub async fn run_server(
 
     let scheduler_handle =
         start_role_phases(&ctx, plan, events.as_ref(), early.scheduler_health()).await?;
+    let registered = ctx
+        .documents()
+        .reconcile_folder_entities()
+        .await
+        .context("document folder entities")?;
+    tracing::debug!(registered, "document folder entities reconciled");
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);

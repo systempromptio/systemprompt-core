@@ -375,6 +375,7 @@ fn fixture_app_context_assembled_on(
         systemprompt_storage::build_file_storage(systemprompt_storage::FileStorageBackend::Local {
             root: app_paths.storage().root().to_path_buf(),
         });
+    let documents = crate::documents::fixture_documents_runtime(pool, &file_storage, &authz_hook);
     let instance_id = config.instance_id.clone();
     let config = Arc::new(config);
     let fixture_boot = &bootstrap.boot;
@@ -482,6 +483,7 @@ fn fixture_app_context_assembled_on(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),
             connector_tokens: Arc::default(),
+            documents,
         },
     );
 
