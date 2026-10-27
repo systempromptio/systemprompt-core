@@ -9,7 +9,7 @@ use axum::{Extension, Router};
 use serde_json::{Value, json};
 use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::ContextId;
+use systemprompt_identifiers::{ContextId, headers};
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -234,7 +234,7 @@ async fn an_x_context_id_header_lands_on_the_revision() -> Result<()> {
         .method(Method::POST)
         .uri(format!("/{id}/edits"))
         .header(header::CONTENT_TYPE, "application/json")
-        .header("x-context-id", context.as_str())
+        .header(headers::CONTEXT_ID, context.as_str())
         .body(Body::from(
             json!({
                 "base_revision": head,
