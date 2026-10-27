@@ -1,10 +1,12 @@
 use std::time::Duration;
 
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::models::{GrantTarget, LockHolderKind, LockOutcome};
+use systemprompt_files::documents::models::{
+    GrantTarget, ListScope, ListSort, LockHolderKind, LockOutcome,
+};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    AcquireLockRequest, CommitOutcome, CommitRequest, HistoryPage, ImportRequest,
+    AcquireLockRequest, CommentPolicy, CommitOutcome, CommitRequest, HistoryPage, ImportRequest,
     ListFolderRequest, NewFolderRequest, ShareRequest,
 };
 use systemprompt_governance::authz::EntityKind;
@@ -25,6 +27,7 @@ fn commit_bytes(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>
         author: api_author(),
         message: None,
         lock_holder_id: None,
+        comments: CommentPolicy::default(),
     }
 }
 
@@ -340,7 +343,10 @@ async fn a_group_folder_grant_reaches_members_only() {
         .list_folder(
             &sales,
             ListFolderRequest {
+                scope: ListScope::Folder,
                 folder: Some(folder.id.clone()),
+                query: None,
+                sort: ListSort::Updated,
                 cursor: None,
                 limit: 50,
             },
@@ -348,7 +354,7 @@ async fn a_group_folder_grant_reaches_members_only() {
         )
         .await
         .expect("sales member lists the folder");
-    assert!(listing.documents.iter().any(|d| d.id == document.id));
+    assert!(listing.documents.iter().any(|d| d.document.id == document.id));
 
     let refused = h
         .service

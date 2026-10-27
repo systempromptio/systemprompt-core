@@ -3,8 +3,8 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, ActorKind, ContentAs, EditOp, NodeTarget};
 use systemprompt_runtime::documents::mcp::{
     EditHandler, EditInput, ExportAs, ExportFormat, ExportHandler, ExportInput, HistoryHandler,
-    HistoryInput, ListHandler, ListInput, ReadHandler, ReadInput, ReadView, ShareHandler,
-    ShareInput,
+    HistoryInput, ListHandler, ListInput, ListScopeInput, ListSortInput, ReadHandler, ReadInput,
+    ReadView, ShareHandler, ShareInput,
 };
 
 use crate::documents_mcp_support::{
@@ -41,6 +41,8 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
                 document_id: document,
                 base_revision: Some(revision),
                 op_id: None,
+                answering: None,
+                allow_detach: false,
                 ops: vec![EditOp::ReplaceText {
                     node: NodeTarget::Id(DocumentNodeId::new(node)),
                     expected_hash: Some("deadbeef".to_owned()),
@@ -78,6 +80,8 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
                 document_id: document.clone(),
                 base_revision: Some(revision.clone()),
                 op_id: None,
+                answering: None,
+                allow_detach: false,
                 ops: vec![EditOp::ReplaceText {
                     node: NodeTarget::Id(DocumentNodeId::new(node)),
                     expected_hash: Some(hash.to_owned()),
@@ -131,6 +135,8 @@ async fn str_replace_reports_the_match_count() {
         document_id: document.clone(),
         base_revision: Some(revision.clone()),
         op_id: None,
+        answering: None,
+        allow_detach: false,
         ops: vec![EditOp::StrReplace {
             old_str: old.to_owned(),
             new_str: "omega".to_owned(),
@@ -178,6 +184,8 @@ async fn stale_base_names_the_head_revision() {
         document_id: document.clone(),
         base_revision: Some(base.clone()),
         op_id: None,
+        answering: None,
+        allow_detach: false,
         ops: vec![EditOp::SetText {
             text: text.to_owned(),
         }],
@@ -237,10 +245,12 @@ async fn forbidden_names_the_needed_and_held_level() {
             ShareInput {
                 document_id: Some(document.clone()),
                 folder_id: None,
-                subject_kind: "user".to_owned(),
-                subject_value: stranger.id.as_str().to_owned(),
-                level: AccessLevel::View,
+                subject_kind: Some("user".to_owned()),
+                subject_value: Some(stranger.id.as_str().to_owned()),
+                level: Some(AccessLevel::View),
                 valid_until: None,
+                transfer_to: None,
+                revoke_all: false,
             },
             &ctx_for(Some(&owner)),
             &exec(),
@@ -259,6 +269,8 @@ async fn a_call_without_an_authenticated_user_is_refused() {
     let error = ListHandler { tools: &h.tools }
         .handle(
             ListInput {
+                scope: ListScopeInput::Folder,
+                sort: ListSortInput::Updated,
                 folder_id: None,
                 query: None,
                 cursor: None,
@@ -286,6 +298,8 @@ async fn list_shows_the_owners_root_document() {
     let (listed, _) = ListHandler { tools: &h.tools }
         .handle(
             ListInput {
+                scope: ListScopeInput::Folder,
+                sort: ListSortInput::Updated,
                 folder_id: None,
                 query: Some("notes-".to_owned()),
                 cursor: None,

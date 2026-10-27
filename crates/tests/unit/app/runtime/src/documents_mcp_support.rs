@@ -101,6 +101,8 @@ pub(crate) async fn create_text(
                 document_id: created.document_id.clone(),
                 base_revision: Some(created.revision_id),
                 op_id: None,
+                answering: None,
+                allow_detach: false,
                 ops: vec![EditOp::SetText {
                     text: text.to_owned(),
                 }],

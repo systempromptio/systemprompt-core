@@ -59,6 +59,8 @@ async fn replace_line(
                 document_id: document.clone(),
                 base_revision: None,
                 op_id,
+                answering: None,
+                allow_detach: false,
                 ops: vec![EditOp::ReplaceText {
                     node: NodeTarget::Id(DocumentNodeId::new(node)),
                     expected_hash: Some(hash.to_owned()),
@@ -120,6 +122,8 @@ async fn a_repeated_op_id_replays_the_first_ack() {
                 document_id: document.clone(),
                 base_revision: None,
                 op_id: Some(op_id),
+                answering: None,
+                allow_detach: false,
                 ops: vec![EditOp::StrReplace {
                     old_str: "never applied".to_owned(),
                     new_str: "x".to_owned(),

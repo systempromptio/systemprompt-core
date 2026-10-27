@@ -159,10 +159,13 @@ fn every_codec_names_its_insert_kinds() {
     };
     assert_eq!(
         kinds(DocumentFormat::Docx),
-        &["heading", "paragraph", "list_item"]
+        &["heading", "paragraph", "list_item", "pending"]
     );
-    assert_eq!(kinds(DocumentFormat::Pptx), &["paragraph", "list_item"]);
-    assert_eq!(kinds(DocumentFormat::Xlsx), &["row"]);
+    assert_eq!(
+        kinds(DocumentFormat::Pptx),
+        &["paragraph", "list_item", "pending"]
+    );
+    assert_eq!(kinds(DocumentFormat::Xlsx), &["row", "pending"]);
     assert!(kinds(DocumentFormat::Ods).is_empty());
 }
 

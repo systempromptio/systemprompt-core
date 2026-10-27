@@ -12,6 +12,12 @@ mod documents_blob_store;
 #[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
+mod documents_comments;
+#[cfg(test)]
+mod documents_lifecycle;
+#[cfg(test)]
+mod documents_listing;
+#[cfg(test)]
 mod documents_repository;
 #[cfg(test)]
 mod documents_service;

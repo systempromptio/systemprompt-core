@@ -7,7 +7,7 @@ use systemprompt_files::documents::codecs::docx::DocxCodec;
 use systemprompt_files::documents::models::RevisionAttribution;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    Author, CommitOutcome, CommitRequest, HistoryPage, RevisionOrigin,
+    Author, CommentPolicy, CommitOutcome, CommitRequest, HistoryPage, RevisionOrigin,
 };
 use systemprompt_identifiers::{
     ContextId, DocumentId, DocumentNodeId, DocumentRevisionId, SessionId, TaskId, TraceId,
@@ -86,6 +86,7 @@ fn ops_on(
         author: api_author(),
         message: None,
         lock_holder_id: None,
+        comments: CommentPolicy::default(),
     }
 }
 
@@ -278,6 +279,7 @@ fn upload(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>) -> C
         },
         message: None,
         lock_holder_id: None,
+        comments: CommentPolicy::default(),
     }
 }
 
