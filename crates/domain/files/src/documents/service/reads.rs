@@ -1,5 +1,8 @@
 //! Reading documents: revisions, bytes, projections, previews and search.
 //!
+//! A projection is returned id-addressed: every node carries its stable id,
+//! with the codec path in its `path` attribute.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -141,10 +144,24 @@ impl DocumentService {
         revision: Option<&DocumentRevisionId>,
         trace: &TraceId,
     ) -> Result<(DocumentRevision, Projection), DocumentsError> {
-        let (document, revision, bytes) = self.read(who, document, revision, trace).await?;
-        let codec = self.codec(document.format)?;
-        let projection = blocking(move || Ok(codec.project(&bytes)?)).await?;
-        Ok((revision, projection))
+        let document = self
+            .authorized_document(who, document, DocumentAction::View, trace)
+            .await?;
+        let revision = self.resolve_revision(&document, revision).await?;
+        let projected = self.projected(&document, &revision).await?;
+        Ok((revision, projected.ids))
+    }
+
+    pub async fn revision_size(
+        &self,
+        revision: &DocumentRevision,
+    ) -> Result<Option<i64>, DocumentsError> {
+        Ok(self
+            .repos
+            .blobs
+            .find(&revision.content_sha256)
+            .await?
+            .map(|blob| blob.size_bytes))
     }
 
     pub async fn preview_html(

@@ -101,7 +101,7 @@ fn insert_after(
     node: &DocumentNodeId,
     kind: NodeKind,
     text: &str,
-) -> Result<(), CodecError> {
+) -> Result<usize, CodecError> {
     let slides = projection::load(package)?;
     let (slide, paras, at) = locate(&slides, node, "insert_after")?;
     let para = &paras[at];
@@ -111,14 +111,14 @@ fn insert_after(
     };
     let xml = paragraph_xml(para, ppr.as_deref(), text);
     edit_slide(package, slide, (para.end, para.end, xml));
-    Ok(())
+    Ok(1)
 }
 
 fn insert_markdown(
     package: &mut Package<'_>,
     node: Option<&DocumentNodeId>,
     markdown: &str,
-) -> Result<(), CodecError> {
+) -> Result<usize, CodecError> {
     let slides = projection::load(package)?;
     let last = || {
         slides.iter().enumerate().rev().find_map(|(s, slide)| {
@@ -145,8 +145,9 @@ fn insert_markdown(
     let (slide, paras, at) = locate(&slides, &node, "insert_after")?;
     let para = &paras[at];
     let xml = markdown_xml(para, markdown)?;
+    let inserted = xml.matches("<a:p>").count();
     edit_slide(package, slide, (para.end, para.end, xml));
-    Ok(())
+    Ok(inserted)
 }
 
 fn delete(package: &mut Package<'_>, node: &DocumentNodeId) -> Result<bool, CodecError> {
@@ -195,16 +196,30 @@ fn str_replace(package: &mut Package<'_>, old: &str, new: &str) -> Result<(), Co
     }
 }
 
-pub(super) fn apply_one(package: &mut Package<'_>, op: &EditOp) -> Result<bool, CodecError> {
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct Applied {
+    pub removed: bool,
+    pub inserted: usize,
+}
+
+pub(super) fn apply_one(package: &mut Package<'_>, op: &EditOp) -> Result<Applied, CodecError> {
     match op {
-        EditOp::Delete { node, .. } => delete(package, node.resolved()?),
-        other => apply_edit(package, other).map(|()| false),
+        EditOp::Delete { node, .. } => delete(package, node.resolved()?).map(|removed| Applied {
+            removed,
+            inserted: 0,
+        }),
+        other => apply_edit(package, other).map(|inserted| Applied {
+            removed: false,
+            inserted,
+        }),
     }
 }
 
-fn apply_edit(package: &mut Package<'_>, op: &EditOp) -> Result<(), CodecError> {
+fn apply_edit(package: &mut Package<'_>, op: &EditOp) -> Result<usize, CodecError> {
     match op {
-        EditOp::ReplaceText { node, text, .. } => replace_text(package, node.resolved()?, text),
+        EditOp::ReplaceText { node, text, .. } => {
+            replace_text(package, node.resolved()?, text).map(|()| 0)
+        },
         EditOp::InsertAfter {
             node,
             kind,
@@ -215,7 +230,9 @@ fn apply_edit(package: &mut Package<'_>, op: &EditOp) -> Result<(), CodecError> 
             insert_markdown(package, Some(node.resolved()?), text)
         },
         EditOp::AppendMarkdown { markdown } => insert_markdown(package, None, markdown),
-        EditOp::StrReplace { old_str, new_str } => str_replace(package, old_str, new_str),
+        EditOp::StrReplace { old_str, new_str } => {
+            str_replace(package, old_str, new_str).map(|()| 0)
+        },
         EditOp::InsertSlide {
             after,
             layout,
@@ -235,12 +252,14 @@ fn apply_edit(package: &mut Package<'_>, op: &EditOp) -> Result<(), CodecError> 
                 title: title.as_deref(),
                 body,
             };
-            slides::insert_slide(package, &new)
+            slides::insert_slide(package, &new).map(|()| 0)
         },
         EditOp::Delete { .. }
         | EditOp::SetCells { .. }
         | EditOp::SetHtml { .. }
-        | EditOp::SetText { .. } => Err(CodecError::UnsupportedOp {
+        | EditOp::SetText { .. }
+        | EditOp::Restore { .. }
+        | EditOp::InsertFromRevision { .. } => Err(CodecError::UnsupportedOp {
             op: op.name(),
             format: DocumentFormat::Pptx,
         }),

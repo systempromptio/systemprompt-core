@@ -163,7 +163,9 @@ impl<'d> Batch<'d> {
             EditOp::SetCells { .. }
             | EditOp::InsertSlide { .. }
             | EditOp::SetHtml { .. }
-            | EditOp::SetText { .. } => {
+            | EditOp::SetText { .. }
+            | EditOp::Restore { .. }
+            | EditOp::InsertFromRevision { .. } => {
                 return Err(CodecError::UnsupportedOp {
                     op: op.name(),
                     format: DocumentFormat::Docx,

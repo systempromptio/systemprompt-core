@@ -1,4 +1,5 @@
-//! The document presence sweep job: deletes expired presence rows.
+//! The document presence sweep job: deletes expired presence rows and write
+//! acknowledgements older than the replay window.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,9 +11,10 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
-use crate::documents::repository::DocumentPresenceRepository;
+use crate::documents::repository::{DocumentPresenceRepository, DocumentWriteAckRepository};
 
 const BATCH: i64 = 1000;
+const ACK_RETENTION_DAYS: i32 = 7;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DocumentPresenceSweepJob;
@@ -24,7 +26,7 @@ impl Job for DocumentPresenceSweepJob {
     }
 
     fn description(&self) -> &'static str {
-        "Removes expired document presence rows"
+        "Removes expired document presence rows and write acknowledgements"
     }
 
     fn schedule(&self) -> &'static str {
@@ -44,11 +46,17 @@ impl Job for DocumentPresenceSweepJob {
             return Ok(JobResult::success().with_message("document store disabled"));
         }
         let started = std::time::Instant::now();
-        let presence = DocumentPresenceRepository::new(ctx.get::<DbPool>()?);
+        let db = ctx.get::<DbPool>()?;
+        let presence = DocumentPresenceRepository::new(db);
         let swept = presence
             .sweep_expired(BATCH)
             .await
             .map_err(|error| ProviderError::Internal(Box::new(error)))?;
+        let acks = DocumentWriteAckRepository::new(db)
+            .sweep_older_than(ACK_RETENTION_DAYS, BATCH)
+            .await
+            .map_err(|error| ProviderError::Internal(Box::new(error)))?;
+        let swept = swept + acks;
         let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
         tracing::debug!(swept, duration_ms, "Document presence sweep completed");
         Ok(JobResult::success()

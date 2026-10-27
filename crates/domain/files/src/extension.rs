@@ -1,8 +1,8 @@
 //! Extension registration for the files domain.
 //!
-//! Registers the `files`, `content_files` and document store schemas with the
-//! platform extension framework and declares dependencies on the `users` and
-//! `content` extensions.
+//! Registers the `files`, `content_files` and document store schemas, and the
+//! `report_document_revisions` view, with the platform extension framework,
+//! and declares dependencies on the `users` and `content` extensions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -82,6 +82,16 @@ const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/document_text_index.sql"),
         &["document_id", "revision_id", "body"],
     ),
+    (
+        "document_node_ids",
+        include_str!("../schema/document_node_ids.sql"),
+        &["document_id", "revision_id", "node_id", "path", "hash8"],
+    ),
+    (
+        "document_write_acks",
+        include_str!("../schema/document_write_acks.sql"),
+        &["document_id", "op_id", "revision_id", "ack"],
+    ),
 ];
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -113,6 +123,9 @@ impl Extension for FilesExtension {
             SchemaDefinition::new(*table, *sql)
                 .with_required_columns(columns.iter().map(|c| (*c).into()).collect())
         }))
+        .chain(std::iter::once(SchemaDefinition::sql_only(include_str!(
+            "../schema/report_document_revisions.sql"
+        ))))
         .collect()
     }
 

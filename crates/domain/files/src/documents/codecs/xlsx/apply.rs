@@ -78,7 +78,11 @@ fn apply_one(
             insert_markdown(workbook, Some(node.resolved()?), text, shifts)
         },
         EditOp::AppendMarkdown { markdown } => insert_markdown(workbook, None, markdown, shifts),
-        EditOp::InsertSlide { .. } | EditOp::SetHtml { .. } | EditOp::SetText { .. } => {
+        EditOp::InsertSlide { .. }
+        | EditOp::SetHtml { .. }
+        | EditOp::SetText { .. }
+        | EditOp::Restore { .. }
+        | EditOp::InsertFromRevision { .. } => {
             Err(CodecError::UnsupportedOp {
                 op: op.name(),
                 format: DocumentFormat::Xlsx,

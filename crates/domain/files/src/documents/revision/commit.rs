@@ -1,13 +1,16 @@
 //! [`CommitPlan`]: how a commit lands, decided from the head, the base the
-//! caller edited and the document format.
+//! caller read and the body.
 //!
-//! - The base is the head: bytes are stored as given, ops are applied to the
-//!   head's bytes.
-//! - The base is stale (or absent while a head exists): Office formats
-//!   conflict, because their archives cannot be merged line by line; text
-//!   formats (html, markdown, text) merge three ways, with ops first applied to
-//!   the base's bytes. A stale commit without a base has nothing to merge from
-//!   and conflicts.
+//! - Ops always apply to the head ([`CommitPlan::ApplyOnHead`]), whatever
+//!   their base: each anchored op names a node by stable id and quotes that
+//!   node's hash, so a commit is refused only when a node it touches changed
+//!   at the head. The base only says which revision the ids and hashes were
+//!   read from.
+//! - Bytes whose base is the head are stored as given. Bytes on a stale base
+//!   merge three ways for text formats (html, markdown, text); for Office
+//!   formats they are diffed against their base into ops that then apply to
+//!   the head ([`CommitPlan::DiffOnHead`]). Bytes without a base on a
+//!   document that has a head have nothing to merge from and conflict.
 //! - The document has no head yet: bytes become the first revision; ops have
 //!   nothing to anchor to.
 //!
@@ -26,9 +29,9 @@ pub enum CommitBody {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommitPlan {
     Store,
-    Apply,
+    ApplyOnHead,
     MergeBytes,
-    MergeOps,
+    DiffOnHead,
     Conflict,
     NoHead,
 }
@@ -47,23 +50,27 @@ impl CommitPlan {
                 CommitBody::Ops(_) => Self::NoHead,
             };
         };
-        if base == Some(head) {
-            return match body {
-                CommitBody::Bytes(_) => Self::Store,
-                CommitBody::Ops(_) => Self::Apply,
-            };
+        if matches!(body, CommitBody::Ops(_)) {
+            return Self::ApplyOnHead;
         }
-        if base.is_none() || !format.supports_three_way_merge() {
-            return Self::Conflict;
-        }
-        match body {
-            CommitBody::Bytes(_) => Self::MergeBytes,
-            CommitBody::Ops(_) => Self::MergeOps,
+        match base {
+            Some(base) if base == head => Self::Store,
+            None => Self::Conflict,
+            Some(_) if format.supports_three_way_merge() => Self::MergeBytes,
+            Some(_) => Self::DiffOnHead,
         }
     }
 
     #[must_use]
-    pub const fn merges(self) -> bool {
-        matches!(self, Self::MergeBytes | Self::MergeOps)
+    pub fn merges(
+        self,
+        head: Option<&DocumentRevisionId>,
+        base: Option<&DocumentRevisionId>,
+    ) -> bool {
+        match self {
+            Self::MergeBytes | Self::DiffOnHead => true,
+            Self::ApplyOnHead => base.is_some_and(|base| Some(base) != head),
+            Self::Store | Self::Conflict | Self::NoHead => false,
+        }
     }
 }

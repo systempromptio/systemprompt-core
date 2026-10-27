@@ -5,6 +5,9 @@
 //! removes expired presence rows; [`DocumentCollabUpdateSweepJob`] deletes the
 //! update log of closed edit sessions. All are cluster-scoped and registered
 //! with `submit_job!`, as the files domain registers its other jobs. Each run
+//! removes expired presence rows and write acknowledgements past their
+//! seven-day replay window. Both are cluster-scoped and registered with
+//! `submit_job!`, as the files domain registers its other jobs. Each run
 //! builds its repositories from the job context's `DbPool` and takes file
 //! storage from the context's `ExtensionContext`.
 //!

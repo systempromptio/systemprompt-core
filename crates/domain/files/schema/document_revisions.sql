@@ -9,6 +9,11 @@ CREATE TABLE IF NOT EXISTS document_revisions (
     origin_id TEXT,
     message TEXT,
     edit_ops JSONB,
+    session_id VARCHAR(255),
+    context_id VARCHAR(255),
+    trace_id VARCHAR(255),
+    task_id VARCHAR(255),
+    on_behalf_of VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -18,3 +23,5 @@ CREATE INDEX IF NOT EXISTS idx_document_revisions_created
     ON document_revisions (created_at, id);
 CREATE INDEX IF NOT EXISTS idx_document_revisions_content_sha256
     ON document_revisions (content_sha256);
+CREATE INDEX IF NOT EXISTS idx_document_revisions_context_created
+    ON document_revisions (context_id, created_at);

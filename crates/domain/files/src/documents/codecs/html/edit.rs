@@ -237,7 +237,11 @@ pub(super) fn apply_ops(
                 set_body(html, projection.body, markup)?;
                 rewritten = true;
             },
-            EditOp::SetCells { .. } | EditOp::InsertSlide { .. } | EditOp::SetText { .. } => {
+            EditOp::SetCells { .. }
+            | EditOp::InsertSlide { .. }
+            | EditOp::SetText { .. }
+            | EditOp::Restore { .. }
+            | EditOp::InsertFromRevision { .. } => {
                 return Err(unsupported(op));
             },
         }

@@ -198,6 +198,7 @@ impl DocumentService {
                 origin_id: author.origin.id(),
                 message: content.message.clone(),
                 edit_ops: content.ops.clone(),
+                attribution: author.attribution.clone(),
             })
             .await?;
         if !self

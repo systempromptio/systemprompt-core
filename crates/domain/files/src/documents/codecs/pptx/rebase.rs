@@ -3,7 +3,8 @@
 //! Every target in a batch names a slide or paragraph as the deck stood
 //! before the batch. Inserts and removals shift the positions after them,
 //! so each op's node id is moved by the structural edits that came before
-//! it, and a second insert after the same node lands after the first.
+//! it, and a second insert after the same node lands after the first. A
+//! Markdown insert shifts by every paragraph it wrote.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -116,15 +117,20 @@ impl DeckShifts {
         };
         let anchor = matches!(op, EditOp::InsertAfter { .. } | EditOp::InsertSlide { .. });
         let current = self.rebase(node, anchor)?;
-        let removed = apply_one(package, &with_node(op, current.clone()))?;
+        let applied = apply_one(package, &with_node(op, current.clone()))?;
         match (op, target(node)?, target(&current)?) {
             (
                 EditOp::InsertAfter { .. },
                 Target::Paragraph { slide, shape, para },
                 Target::Paragraph { para: at, .. },
             ) => {
-                self.para_shift((slide, shape), Shift::Insert(at + 1));
-                self.para_tails.insert((slide, shape, para), at + 1);
+                for offset in 1..=applied.inserted {
+                    self.para_shift((slide, shape), Shift::Insert(at + offset));
+                }
+                if applied.inserted > 0 {
+                    self.para_tails
+                        .insert((slide, shape, para), at + applied.inserted);
+                }
             },
             (EditOp::InsertSlide { .. }, Target::Slide(slide), Target::Slide(at)) => {
                 self.slide_shift(Shift::Insert(at + 1));
@@ -137,7 +143,7 @@ impl DeckShifts {
                 EditOp::Delete { .. },
                 Target::Paragraph { slide, shape, .. },
                 Target::Paragraph { para: at, .. },
-            ) if removed => {
+            ) if applied.removed => {
                 self.para_shift((slide, shape), Shift::Remove(at));
             },
             _ => {},

@@ -7,9 +7,11 @@
 //! computed in `systemprompt_provider_contracts::documents::content_hash`,
 //! keeping this crate free of hashing dependencies.
 //!
-//! [`DocumentNodeId`] is the stable anchor a codec mints for one node of a
-//! document projection; [`DocumentTemplateId`] names a registered template;
-//! [`DriveDeviceId`] names the bridge device that committed a revision.
+//! [`DocumentNodeId`] is the stable anchor of one node of a document
+//! projection, minted once and carried across revisions;
+//! [`DocumentOpId`] is the caller-chosen key that makes a write idempotent;
+//! [`DocumentTemplateId`] names a registered template; [`DriveDeviceId`]
+//! names the bridge device that committed a revision.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,6 +25,9 @@ crate::define_id!(DocumentEditSessionId, uuid);
 crate::define_id!(ContentHash, checked, validate_content_hash);
 crate::define_id!(DocumentNodeId, checked, |value| {
     crate::macros::validate_non_empty("DocumentNodeId", value)
+});
+crate::define_id!(DocumentOpId, checked, |value| {
+    crate::macros::validate_non_empty("DocumentOpId", value)
 });
 crate::define_id!(DocumentTemplateId, checked, |value| {
     crate::macros::validate_non_empty("DocumentTemplateId", value)

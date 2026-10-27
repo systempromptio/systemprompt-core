@@ -12,6 +12,10 @@
 //! `as: markdown`, as Markdown that each codec lowers into native blocks;
 //! `append_markdown` adds lowered blocks at the end of the document body.
 //!
+//! `restore` and `insert_from_revision` name an earlier revision; the
+//! document service expands them (into the revision's bytes, or an
+//! `insert_after` of the named node's text) before a codec sees the batch.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,7 +23,7 @@ use std::num::NonZeroUsize;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::DocumentNodeId;
+use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 
 use super::codec::CodecError;
 use super::projection::NodeKind;
@@ -92,6 +96,9 @@ impl EditOp {
             Self::ReplaceText { node, .. }
             | Self::InsertAfter { node, .. }
             | Self::Delete { node, .. } => node.resolved().map(|_| ()),
+            Self::Restore { .. } | Self::InsertFromRevision { .. } => Err(CodecError::Malformed {
+                detail: "a revision op reached the codec unexpanded",
+            }),
             _ => Ok(()),
         }
     }
@@ -170,6 +177,14 @@ pub enum EditOp {
     SetText {
         text: String,
     },
+    Restore {
+        revision_id: DocumentRevisionId,
+    },
+    InsertFromRevision {
+        revision_id: DocumentRevisionId,
+        node: DocumentNodeId,
+        after: NodeTarget,
+    },
 }
 
 impl EditOp {
@@ -185,6 +200,8 @@ impl EditOp {
             Self::SetHtml { .. } => "set_html",
             Self::SetText { .. } => "set_text",
             Self::AppendMarkdown { .. } => "append_markdown",
+            Self::Restore { .. } => "restore",
+            Self::InsertFromRevision { .. } => "insert_from_revision",
         }
     }
 
@@ -194,12 +211,14 @@ impl EditOp {
             Self::ReplaceText { node, .. }
             | Self::InsertAfter { node, .. }
             | Self::Delete { node, .. } => node.id(),
+            Self::InsertFromRevision { after, .. } => after.id(),
             Self::InsertSlide { after, .. } => after.as_ref(),
             Self::SetCells { .. }
             | Self::StrReplace { .. }
             | Self::SetHtml { .. }
             | Self::SetText { .. }
-            | Self::AppendMarkdown { .. } => None,
+            | Self::AppendMarkdown { .. }
+            | Self::Restore { .. } => None,
         }
     }
 }

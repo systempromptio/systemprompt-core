@@ -5,12 +5,14 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId, UserId};
+use systemprompt_identifiers::{
+    ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::documents::EditOp;
 
 use super::Pools;
 use super::rows::{RepoResult, parse};
-use crate::documents::models::{DocumentRevision, ListCursor, NewRevision};
+use crate::documents::models::{DocumentRevision, ListCursor, NewRevision, RevisionAttribution};
 
 #[derive(Debug, Clone)]
 pub struct DocumentRevisionRepository {
@@ -29,6 +31,11 @@ struct RevisionRow {
     message: Option<String>,
     // JSON: the JSONB edit_ops column, decoded into EditOp values on read.
     edit_ops: Option<serde_json::Value>,
+    session_id: Option<SessionId>,
+    context_id: Option<ContextId>,
+    trace_id: Option<TraceId>,
+    task_id: Option<TaskId>,
+    on_behalf_of: Option<UserId>,
     created_at: DateTime<Utc>,
 }
 
@@ -51,6 +58,13 @@ impl TryFrom<RevisionRow> for DocumentRevision {
             origin_id: row.origin_id,
             message: row.message,
             edit_ops,
+            attribution: RevisionAttribution {
+                session_id: row.session_id,
+                context_id: row.context_id,
+                trace_id: row.trace_id,
+                task_id: row.task_id,
+                on_behalf_of: row.on_behalf_of,
+            },
             created_at: row.created_at,
         })
     }
@@ -73,18 +87,27 @@ impl DocumentRevisionRepository {
             .as_ref()
             .map(serde_json::to_value)
             .transpose()?;
+        let attribution = &request.attribution;
         let row = sqlx::query_as!(
             RevisionRow,
             r#"INSERT INTO document_revisions
                    (document_id, parent_revision_id, content_sha256, author_user_id,
-                    actor_kind, origin_kind, origin_id, message, edit_ops)
-               VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7, $8, $9)
+                    actor_kind, origin_kind, origin_id, message, edit_ops,
+                    session_id, context_id, trace_id, task_id, on_behalf_of)
+               VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7, $8, $9,
+                       $10, $11, $12, $13, $14)
                RETURNING id::text AS "id!: DocumentRevisionId",
                          document_id::text AS "document_id!: DocumentId",
                          parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
                          content_sha256 AS "content_sha256: ContentHash",
                          author_user_id AS "author_user_id: UserId",
-                         actor_kind, origin_kind, origin_id, message, edit_ops, created_at"#,
+                         actor_kind, origin_kind, origin_id, message, edit_ops,
+                         session_id AS "session_id: SessionId",
+                         context_id AS "context_id: ContextId",
+                         trace_id AS "trace_id: TraceId",
+                         task_id AS "task_id: TaskId",
+                         on_behalf_of AS "on_behalf_of: UserId",
+                         created_at"#,
             request.document_id.as_str(),
             request
                 .parent_revision_id
@@ -97,6 +120,11 @@ impl DocumentRevisionRepository {
             request.origin_id,
             request.message,
             edit_ops,
+            attribution.session_id.as_ref().map(SessionId::as_str),
+            attribution.context_id.as_ref().map(ContextId::as_str),
+            attribution.trace_id.as_ref().map(TraceId::as_str),
+            attribution.task_id.as_ref().map(TaskId::as_str),
+            attribution.on_behalf_of.as_ref().map(UserId::as_str),
         )
         .fetch_one(&*self.pools.write)
         .await?;
@@ -111,7 +139,13 @@ impl DocumentRevisionRepository {
                       parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
                       content_sha256 AS "content_sha256: ContentHash",
                       author_user_id AS "author_user_id: UserId",
-                      actor_kind, origin_kind, origin_id, message, edit_ops, created_at
+                      actor_kind, origin_kind, origin_id, message, edit_ops,
+                      session_id AS "session_id: SessionId",
+                      context_id AS "context_id: ContextId",
+                      trace_id AS "trace_id: TraceId",
+                      task_id AS "task_id: TaskId",
+                      on_behalf_of AS "on_behalf_of: UserId",
+                      created_at
                FROM document_revisions WHERE id = $1::text::uuid"#,
             id.as_str()
         )
@@ -129,7 +163,13 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
                       content_sha256 AS "content_sha256: ContentHash",
                       author_user_id AS "author_user_id: UserId",
-                      actor_kind, origin_kind, origin_id, message, edit_ops, created_at
+                      actor_kind, origin_kind, origin_id, message, edit_ops,
+                      session_id AS "session_id: SessionId",
+                      context_id AS "context_id: ContextId",
+                      trace_id AS "trace_id: TraceId",
+                      task_id AS "task_id: TaskId",
+                      on_behalf_of AS "on_behalf_of: UserId",
+                      created_at
                FROM document_revisions WHERE id = (SELECT head_revision_id FROM documents WHERE id = $1::text::uuid)"#,
             document_id.as_str()
         )
@@ -152,7 +192,13 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
                       content_sha256 AS "content_sha256: ContentHash",
                       author_user_id AS "author_user_id: UserId",
-                      actor_kind, origin_kind, origin_id, message, edit_ops, created_at
+                      actor_kind, origin_kind, origin_id, message, edit_ops,
+                      session_id AS "session_id: SessionId",
+                      context_id AS "context_id: ContextId",
+                      trace_id AS "trace_id: TraceId",
+                      task_id AS "task_id: TaskId",
+                      on_behalf_of AS "on_behalf_of: UserId",
+                      created_at
                FROM document_revisions WHERE document_id = $1::text::uuid
                AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3::uuid))
              ORDER BY created_at DESC, id DESC
@@ -179,7 +225,13 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
                       content_sha256 AS "content_sha256: ContentHash",
                       author_user_id AS "author_user_id: UserId",
-                      actor_kind, origin_kind, origin_id, message, edit_ops, created_at
+                      actor_kind, origin_kind, origin_id, message, edit_ops,
+                      session_id AS "session_id: SessionId",
+                      context_id AS "context_id: ContextId",
+                      trace_id AS "trace_id: TraceId",
+                      task_id AS "task_id: TaskId",
+                      on_behalf_of AS "on_behalf_of: UserId",
+                      created_at
                FROM document_revisions WHERE ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))
              ORDER BY created_at, id
              LIMIT $3"#,
@@ -204,7 +256,13 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
                       content_sha256 AS "content_sha256: ContentHash",
                       author_user_id AS "author_user_id: UserId",
-                      actor_kind, origin_kind, origin_id, message, edit_ops, created_at
+                      actor_kind, origin_kind, origin_id, message, edit_ops,
+                      session_id AS "session_id: SessionId",
+                      context_id AS "context_id: ContextId",
+                      trace_id AS "trace_id: TraceId",
+                      task_id AS "task_id: TaskId",
+                      on_behalf_of AS "on_behalf_of: UserId",
+                      created_at
                FROM document_revisions WHERE content_sha256 = $1
              ORDER BY created_at DESC, id DESC
              LIMIT $2"#,

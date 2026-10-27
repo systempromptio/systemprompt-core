@@ -38,7 +38,8 @@ pub enum DocumentsError {
     },
     #[error(
         "node {node} changed since it was read (expected hash {expected}, now {actual}); its \
-         current text is \"{current_text}\". Use hash {actual} if your edit still applies"
+         current text is \"{current_text}\". The head edit wins: re-aim your change at this \
+         text with hash {actual}, and never resend your old text over it"
     )]
     StaleAnchor {
         node: DocumentNodeId,
@@ -47,7 +48,8 @@ pub enum DocumentsError {
         current_text: String,
     },
     #[error(
-        "node {node} does not exist in this revision; read the outline again for current node ids"
+        "node {node} does not exist at the head revision (deleted, or not an id of this \
+         document); read the outline again for current node ids"
     )]
     UnknownNode { node: DocumentNodeId },
     #[error(

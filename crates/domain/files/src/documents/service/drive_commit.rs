@@ -14,6 +14,7 @@ use systemprompt_models::documents::{
 use super::support::validate_name;
 use super::{Author, CommitOutcome, CommitRequest, DocumentService, ImportRequest, RevisionOrigin};
 use crate::documents::error::DocumentsError;
+use crate::documents::models::RevisionAttribution;
 use crate::documents::revision::CommitBody;
 
 impl DocumentService {
@@ -34,6 +35,7 @@ impl DocumentService {
         let author = Author {
             actor_kind: ActorKind::Bridge,
             origin: RevisionOrigin::BridgeDevice(meta.device_id.clone()),
+            attribution: RevisionAttribution::default(),
         };
         let document_id = if let Some(id) = meta.document_id {
             id

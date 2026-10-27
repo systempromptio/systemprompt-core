@@ -160,7 +160,11 @@ impl LineDoc {
                 }
                 Ok(())
             },
-            EditOp::SetCells { .. } | EditOp::InsertSlide { .. } | EditOp::SetHtml { .. } => {
+            EditOp::SetCells { .. }
+            | EditOp::InsertSlide { .. }
+            | EditOp::SetHtml { .. }
+            | EditOp::Restore { .. }
+            | EditOp::InsertFromRevision { .. } => {
                 Err(CodecError::UnsupportedOp {
                     op: op.name(),
                     format,

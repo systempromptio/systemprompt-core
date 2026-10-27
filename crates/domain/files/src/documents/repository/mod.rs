@@ -17,11 +17,13 @@ mod folder_contents;
 mod folders;
 mod grants;
 mod locks;
+mod node_ids;
 mod presence;
 mod purge;
 mod revisions;
 mod rows;
 mod text_index;
+mod write_acks;
 
 use std::sync::Arc;
 
@@ -35,9 +37,11 @@ pub use edit_sessions::DocumentEditSessionRepository;
 pub use folders::DocumentFolderRepository;
 pub use grants::DocumentGrantRepository;
 pub use locks::DocumentLockRepository;
+pub use node_ids::DocumentNodeIdRepository;
 pub use presence::DocumentPresenceRepository;
 pub use revisions::DocumentRevisionRepository;
 pub use text_index::DocumentTextIndexRepository;
+pub use write_acks::DocumentWriteAckRepository;
 
 #[derive(Debug, Clone)]
 pub struct DocumentRepositories {
@@ -51,6 +55,8 @@ pub struct DocumentRepositories {
     pub edit_sessions: Arc<DocumentEditSessionRepository>,
     pub text_index: Arc<DocumentTextIndexRepository>,
     pub collab: Arc<DocumentCollabRepository>,
+    pub node_ids: Arc<DocumentNodeIdRepository>,
+    pub write_acks: Arc<DocumentWriteAckRepository>,
 }
 
 impl DocumentRepositories {
@@ -66,6 +72,8 @@ impl DocumentRepositories {
             edit_sessions: Arc::new(DocumentEditSessionRepository::new(db)),
             text_index: Arc::new(DocumentTextIndexRepository::new(db)),
             collab: Arc::new(DocumentCollabRepository::new(db)),
+            node_ids: Arc::new(DocumentNodeIdRepository::new(db)),
+            write_acks: Arc::new(DocumentWriteAckRepository::new(db)),
         }
     }
 }

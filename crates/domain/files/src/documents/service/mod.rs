@@ -15,7 +15,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod acks;
+mod apply;
+mod byte_diff;
 mod commit;
+mod commit_build;
 mod documents;
 mod drive;
 mod drive_blob;
@@ -24,6 +28,7 @@ mod folders;
 mod grants;
 mod listing;
 mod locks;
+mod node_ids;
 mod publish;
 mod reads;
 mod support;

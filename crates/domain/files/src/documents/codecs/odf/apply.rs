@@ -134,7 +134,9 @@ impl<'d> FlowBatch<'d> {
             EditOp::SetCells { .. }
             | EditOp::InsertSlide { .. }
             | EditOp::SetHtml { .. }
-            | EditOp::SetText { .. } => return Err(self.unsupported(op)),
+            | EditOp::SetText { .. }
+            | EditOp::Restore { .. }
+            | EditOp::InsertFromRevision { .. } => return Err(self.unsupported(op)),
         }
         Ok(())
     }

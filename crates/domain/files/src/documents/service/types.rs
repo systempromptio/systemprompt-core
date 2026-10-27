@@ -17,6 +17,7 @@ use systemprompt_traits::ByteRange;
 
 use crate::documents::models::{
     Document, DocumentFolder, DocumentRevision, DocumentSearchHit, ListCursor, LockHolderKind,
+    RevisionAttribution,
 };
 use crate::documents::revision::CommitBody;
 
@@ -65,6 +66,7 @@ impl RevisionOrigin {
 pub struct Author {
     pub actor_kind: ActorKind,
     pub origin: RevisionOrigin,
+    pub attribution: RevisionAttribution,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
