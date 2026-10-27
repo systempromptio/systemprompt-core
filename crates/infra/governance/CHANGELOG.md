@@ -2,6 +2,10 @@
 
 ## [0.74.0] - 2026-10-27
 
+### Breaking
+
+- `EntityKind` gains `Document` and `Folder`, and `EntityRef` gains `Document` and `Folder`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+
 ### Added
 
 - `document` and `folder` access-control entity kinds (`EntityKind::Document`, `EntityKind::Folder`, `EntityRef::Document`, `EntityRef::Folder`), and `AuthzContext::document_access` with `document_action`, `document_access_document` and `document_access_folder`.

@@ -7,6 +7,7 @@
 - **Breaking:** `OpenCodeMarketplaceConfig::theme` becomes `themes: Vec<_>` plus `default_theme` and `theme_mode`; YAML's single `theme:` form is still read. Migrate by reading `themes` and `default_theme_ref()`.
 - **Breaking:** `ServicesBundleManifest::content_hash` and `BundleSourceState::content_hash` are `ContentHash`, and `ServicesBundleManifest::compute_content_hash` returns it. The serialised form is unchanged.
 - **Breaking:** `BridgeProfileResponse` gains `model_names`, and its `models` and `model_limits` are keyed by `ModelId`. The wire form is unchanged.
+- `ExternalAgentConfig` gains `default_enabled: bool`. YAML without the key is unchanged; migrate struct literals by passing `default_enabled: true`.
 
 ### Added
 

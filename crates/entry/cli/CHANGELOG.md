@@ -2,6 +2,10 @@
 
 ## [0.74.0] - 2026-10-27
 
+### Breaking
+
+- `admin config planes`' `ApplyArgs` gains `dry_run: bool`. Migrate struct literals by passing `dry_run: false`.
+
 ### Added
 
 - `admin config planes apply --dry-run` reports what an apply would change without writing or auditing.

@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Breaking:** `ModelAdmission::retain` takes and returns `Vec<ModelId>`, and `routes::gateway::messages::session_binding::is_client_owned` is removed. Migrate by building model ids with `ModelId::new`.
+- `bridge_release::ReleaseError` gains `NoCompatibleRelease`, returned when no published bridge release is supported by this server. Migrate by adding an arm (or a wildcard) to exhaustive matches.
 
 ### Added
 

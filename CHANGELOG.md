@@ -15,6 +15,11 @@
 - **Breaking:** **Models:** `bridge::opencode::Lockdown` gains `allowed_plugins`, emitted as `allow integration.use plugin:<path>` after `deny plugin:*`. Migrate struct literals by passing `allowed_plugins: &[]`.
 - **Breaking:** **Models, Manifest:** `bridge::opencode::ModelEntry` gains `name: Option<String>`, written as the model's display name in `OpenCode`. `BridgeProfileResponse` gains `model_names: BTreeMap<ModelId, String>`, filled from the catalog's `display_name`, and its `models` and `model_limits` are keyed by `ModelId` instead of `String`. The wire form is unchanged. Migrate struct literals by adding `name: None` and `model_names: BTreeMap::new()`, and build model ids with `ModelId::new`.
 - **Breaking:** **API:** `ModelAdmission::retain` takes and returns `Vec<ModelId>`, and `routes::gateway::messages::session_binding::is_client_owned` is removed: a JWT's differing `x-session-id` is recorded, not checked for ownership. Migrate by building model ids with `ModelId::new`.
+- **Breaking:** **Governance:** `EntityKind` gains `Document` and `Folder`, and `EntityRef` gains `Document` and `Folder`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+- **Breaking:** **Files:** `FilesConfigYaml` gains `documents: DocumentsConfig`. YAML without the key is unchanged; migrate struct literals by adding `documents: DocumentsConfig::default()`.
+- **Breaking:** **Manifest:** `ExternalAgentConfig` gains `default_enabled: bool`. YAML without the key is unchanged; migrate struct literals by passing `default_enabled: true`.
+- **Breaking:** **CLI:** `admin config planes`' `ApplyArgs` gains `dry_run: bool`. Migrate struct literals by passing `dry_run: false`.
+- **Breaking:** **API:** `bridge_release::ReleaseError` gains `NoCompatibleRelease`, returned when no published bridge release is supported by this server. Migrate by adding an arm (or a wildcard) to exhaustive matches.
 
 ### Changed
 

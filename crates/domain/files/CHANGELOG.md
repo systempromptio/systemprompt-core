@@ -2,6 +2,10 @@
 
 ## [0.74.0] - 2026-10-27
 
+### Breaking
+
+- `FilesConfigYaml` gains `documents: DocumentsConfig`. YAML without the key is unchanged; migrate struct literals by adding `documents: DocumentsConfig::default()`.
+
 ### Added
 
 - A shared document store: folders with materialised ancestors, content-addressed blobs over `FileStorage`, documents with a compare-and-swap head revision, revisions with request attribution and stable node ids, subject-keyed grants, locks, presence, edit sessions, comments, proposals, write acknowledgements and a text index, each behind a repository in `DocumentRepositories` (migrations `003`–`010`).
