@@ -16,7 +16,7 @@ impl DocumentRepository {
     ) -> RepoResult<Vec<DocumentId>> {
         Ok(sqlx::query_scalar!(
             r#"SELECT id::text AS "id!: DocumentId" FROM documents
-               WHERE folder_id = $1::text::uuid AND trashed_at IS NULL
+               WHERE folder_id = $1::text::uuid AND deleted_at IS NULL
                ORDER BY id LIMIT $2"#,
             folder.as_str(),
             limit.max(1),

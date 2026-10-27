@@ -162,7 +162,7 @@ async fn the_purge_deletes_documents_trashed_past_retention() {
             .is_some(),
         "a document inside retention is kept"
     );
-    sqlx::query("UPDATE documents SET trashed_at = now() - interval '31 days' WHERE id = $1::uuid")
+    sqlx::query("UPDATE documents SET deleted_at = now() - interval '31 days' WHERE id = $1::uuid")
         .bind(id.as_str())
         .execute(&*db.write_pool())
         .await

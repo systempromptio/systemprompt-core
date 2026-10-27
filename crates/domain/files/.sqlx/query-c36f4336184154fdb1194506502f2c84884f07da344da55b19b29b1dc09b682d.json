@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT d.id::text AS \"id!: DocumentId\",\n                      d.folder_id::text AS \"folder_id: DocumentFolderId\",\n                      d.name, d.format, d.mime_type,\n                      d.head_revision_id::text AS \"head_revision_id: DocumentRevisionId\",\n                      d.template_id AS \"template_id: DocumentTemplateId\",\n                      d.owner_user_id AS \"owner_user_id: UserId\",\n                      d.created_by AS \"created_by: UserId\",\n                      d.created_at, d.updated_at, d.trashed_at,\n                      d.trashed_by AS \"trashed_by: UserId\"\n               FROM documents d LEFT JOIN document_folders f ON f.id = d.folder_id\n               WHERE d.trashed_at IS NULL\n                 AND ($1::text IS NULL OR d.folder_id = $1::text::uuid)\n                 AND ($2::text IS NULL OR d.name ILIKE $2)\n                 AND ($3::timestamptz IS NULL OR (d.updated_at, d.id) < ($3, $4::uuid))\n                 AND (d.owner_user_id = $5 OR EXISTS (\n                     SELECT 1 FROM document_grants g\n                     WHERE (g.document_id = d.id OR g.folder_id = ANY(f.ancestor_ids || f.id))\n                       AND (g.subject_kind, g.subject_value) IN (\n                           SELECT * FROM UNNEST($6::text[], $7::text[]))\n                       AND (g.valid_until IS NULL OR g.valid_until > now())))\n               ORDER BY d.updated_at DESC, d.id DESC\n               LIMIT $8",
+  "query": "SELECT d.id::text AS \"id!: DocumentId\",\n                      d.folder_id::text AS \"folder_id: DocumentFolderId\",\n                      d.name, d.format, d.mime_type,\n                      d.head_revision_id::text AS \"head_revision_id: DocumentRevisionId\",\n                      d.template_id AS \"template_id: DocumentTemplateId\",\n                      d.owner_user_id AS \"owner_user_id: UserId\",\n                      d.created_by AS \"created_by: UserId\",\n                      d.created_at, d.updated_at, d.deleted_at AS trashed_at,\n                      d.trashed_by AS \"trashed_by: UserId\"\n               FROM documents d WHERE d.id = $1::text::uuid",
   "describe": {
     "columns": [
       {
@@ -116,7 +116,7 @@
         "origin": {
           "Table": {
             "table": "documents",
-            "name": "trashed_at"
+            "name": "deleted_at"
           }
         }
       },
@@ -134,14 +134,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Text",
-        "Timestamptz",
-        "Uuid",
-        "Text",
-        "TextArray",
-        "TextArray",
-        "Int8"
+        "Text"
       ]
     },
     "nullable": [
@@ -160,5 +153,5 @@
       true
     ]
   },
-  "hash": "086e0e1755dd710b7a5790f52666d3a8edf7ae7010aab04056d0738fc34d099b"
+  "hash": "c36f4336184154fdb1194506502f2c84884f07da344da55b19b29b1dc09b682d"
 }

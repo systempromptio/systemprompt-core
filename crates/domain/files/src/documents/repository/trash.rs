@@ -24,7 +24,7 @@ impl DocumentRepository {
                       d.template_id AS "template_id: DocumentTemplateId",
                       d.owner_user_id AS "owner_user_id: UserId",
                       d.created_by AS "created_by: UserId",
-                      d.created_at, d.updated_at, d.trashed_at,
+                      d.created_at, d.updated_at, d.deleted_at AS trashed_at,
                       d.trashed_by AS "trashed_by: UserId"
                FROM documents d WHERE d.id = $1::text::uuid"#,
             id.as_str()
@@ -37,8 +37,8 @@ impl DocumentRepository {
 
     pub async fn trash(&self, id: &DocumentId, by: &UserId) -> RepoResult<bool> {
         let result = sqlx::query!(
-            "UPDATE documents SET trashed_at = now(), trashed_by = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND trashed_at IS NULL",
+            "UPDATE documents SET deleted_at = now(), trashed_by = $2, updated_at = now()
+             WHERE id = $1::text::uuid AND deleted_at IS NULL",
             id.as_str(),
             by.as_str(),
         )
@@ -49,8 +49,8 @@ impl DocumentRepository {
 
     pub async fn restore(&self, id: &DocumentId) -> RepoResult<bool> {
         let result = sqlx::query!(
-            "UPDATE documents SET trashed_at = NULL, trashed_by = NULL, updated_at = now()
-             WHERE id = $1::text::uuid AND trashed_at IS NOT NULL",
+            "UPDATE documents SET deleted_at = NULL, trashed_by = NULL, updated_at = now()
+             WHERE id = $1::text::uuid AND deleted_at IS NOT NULL",
             id.as_str(),
         )
         .execute(&*self.pools.write)
@@ -61,8 +61,8 @@ impl DocumentRepository {
     pub async fn purge_trashed_before(&self, cutoff: DateTime<Utc>, limit: i64) -> RepoResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM documents WHERE id IN (
-                 SELECT id FROM documents WHERE trashed_at IS NOT NULL AND trashed_at < $1
-                 ORDER BY trashed_at LIMIT $2)",
+                 SELECT id FROM documents WHERE deleted_at IS NOT NULL AND deleted_at < $1
+                 ORDER BY deleted_at LIMIT $2)",
             cutoff,
             limit,
         )
@@ -84,7 +84,7 @@ impl DocumentRepository {
     pub async fn set_owner(&self, id: &DocumentId, owner: &UserId) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE documents SET owner_user_id = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND trashed_at IS NULL",
+             WHERE id = $1::text::uuid AND deleted_at IS NULL",
             id.as_str(),
             owner.as_str(),
         )

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id::text AS \"id!: DocumentId\" FROM documents\n               WHERE folder_id = $1::text::uuid AND trashed_at IS NULL\n               ORDER BY id LIMIT $2",
+  "query": "SELECT id::text AS \"id!: DocumentId\" FROM documents\n               WHERE folder_id = $1::text::uuid AND deleted_at IS NULL\n               ORDER BY id LIMIT $2",
   "describe": {
     "columns": [
       {
@@ -20,5 +20,5 @@
       null
     ]
   },
-  "hash": "f32305492724c9cb583e5ea303cd12a3d6c7f23c04fc414c0c47fc94cdf319a1"
+  "hash": "2d2c46cc999152d4ad3bd80dfeb2c990b688dbba63fd2f283a0e7f9f70260fd3"
 }

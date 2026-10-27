@@ -180,7 +180,7 @@ impl DocumentProposalRepository {
                       p.created_at, p.updated_at
                FROM document_proposals p
                JOIN documents d ON d.id = p.document_id
-               WHERE p.status = 'open' AND d.trashed_at IS NULL
+               WHERE p.status = 'open' AND d.deleted_at IS NULL
                  AND (d.owner_user_id = $1 OR p.proposer_user_id = $1)
                ORDER BY p.created_at DESC, p.id DESC
                LIMIT $2"#,

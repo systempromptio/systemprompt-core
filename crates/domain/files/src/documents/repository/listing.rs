@@ -161,7 +161,7 @@ impl DocumentRepository {
                               (SELECT MAX(p.updated_at) FROM document_presence p
                                WHERE p.document_id = d.id AND p.user_id = $1)) AS touched_at
                    FROM documents d
-                   WHERE d.trashed_at IS NULL
+                   WHERE d.deleted_at IS NULL
                      AND ($4 <> 'folder' OR d.folder_id IS NOT DISTINCT FROM $5::text::uuid)
                      AND ($4 <> 'mine' OR d.owner_user_id = $1)
                      AND ($4 <> 'shared' OR d.owner_user_id <> $1)
@@ -174,7 +174,7 @@ impl DocumentRepository {
                       d.template_id AS "template_id: DocumentTemplateId",
                       d.owner_user_id AS "owner_user_id: UserId",
                       d.created_by AS "created_by: UserId",
-                      d.created_at, d.updated_at, d.trashed_at,
+                      d.created_at, d.updated_at, d.deleted_at AS trashed_at,
                       d.trashed_by AS "trashed_by: UserId",
                       b.size_bytes AS "size_bytes?",
                       (ARRAY['view','comment','edit','share','own'])[a.rank] AS my_access,

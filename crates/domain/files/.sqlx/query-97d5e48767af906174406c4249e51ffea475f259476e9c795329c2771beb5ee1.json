@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT p.id::text AS \"id!: DocumentProposalId\",\n                      p.document_id::text AS \"document_id!: DocumentId\",\n                      p.base_revision_id::text AS \"base_revision_id!: DocumentRevisionId\",\n                      p.proposed_revision_id::text AS \"proposed_revision_id!: DocumentRevisionId\",\n                      p.proposer_user_id AS \"proposer_user_id: UserId\",\n                      p.actor_kind, p.origin_kind, p.origin_id, p.status, p.message,\n                      p.reviewer_user_id AS \"reviewer_user_id: UserId\",\n                      p.reviewed_at, p.note,\n                      p.landed_revision_id::text AS \"landed_revision_id: DocumentRevisionId\",\n                      p.created_at, p.updated_at\n               FROM document_proposals p\n               JOIN documents d ON d.id = p.document_id\n               WHERE p.status = 'open' AND d.trashed_at IS NULL\n                 AND (d.owner_user_id = $1 OR p.proposer_user_id = $1)\n               ORDER BY p.created_at DESC, p.id DESC\n               LIMIT $2",
+  "query": "SELECT p.id::text AS \"id!: DocumentProposalId\",\n                      p.document_id::text AS \"document_id!: DocumentId\",\n                      p.base_revision_id::text AS \"base_revision_id!: DocumentRevisionId\",\n                      p.proposed_revision_id::text AS \"proposed_revision_id!: DocumentRevisionId\",\n                      p.proposer_user_id AS \"proposer_user_id: UserId\",\n                      p.actor_kind, p.origin_kind, p.origin_id, p.status, p.message,\n                      p.reviewer_user_id AS \"reviewer_user_id: UserId\",\n                      p.reviewed_at, p.note,\n                      p.landed_revision_id::text AS \"landed_revision_id: DocumentRevisionId\",\n                      p.created_at, p.updated_at\n               FROM document_proposals p\n               JOIN documents d ON d.id = p.document_id\n               WHERE p.status = 'open' AND d.deleted_at IS NULL\n                 AND (d.owner_user_id = $1 OR p.proposer_user_id = $1)\n               ORDER BY p.created_at DESC, p.id DESC\n               LIMIT $2",
   "describe": {
     "columns": [
       {
@@ -180,5 +180,5 @@
       false
     ]
   },
-  "hash": "4f0de6cc0d839555ded2593854daacc199a6f47e416ced37fae29d3ff4b51eaf"
+  "hash": "97d5e48767af906174406c4249e51ffea475f259476e9c795329c2771beb5ee1"
 }

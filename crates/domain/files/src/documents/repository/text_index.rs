@@ -60,7 +60,7 @@ impl DocumentTextIndexRepository {
                       ts_headline('simple', t.plain_text, q) AS "snippet!"
                FROM document_text_index t
                CROSS JOIN plainto_tsquery('simple', $1) AS q
-               JOIN documents d ON d.id = t.document_id AND d.trashed_at IS NULL
+               JOIN documents d ON d.id = t.document_id AND d.deleted_at IS NULL
                LEFT JOIN document_folders f ON f.id = d.folder_id
                WHERE t.body @@ q
                  AND (d.owner_user_id = $2 OR EXISTS (
