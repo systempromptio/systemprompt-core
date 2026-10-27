@@ -178,6 +178,15 @@ pub fn build(
             )
         })
         .collect();
+    let model_names: BTreeMap<String, String> = servable
+        .iter()
+        .filter_map(|model| {
+            model
+                .display_name
+                .as_ref()
+                .map(|name| (model.id.as_str().to_owned(), name.clone()))
+        })
+        .collect();
     BridgeProfileResponse {
         inference_gateway_base_url,
         auth_scheme,
@@ -185,6 +194,7 @@ pub fn build(
         default_model: presented_default_model(catalog),
         organization_uuid,
         model_limits,
+        model_names,
         providers: provider_health(catalog, facts),
     }
 }

@@ -307,6 +307,7 @@ fn generating_a_profile_carries_the_v2_provider_block_and_its_token() {
         OPENCODE_CLI_HOST
             .generate_profile(&ProfileGenInputs {
                 model_limits: Default::default(),
+                model_names: Default::default(),
                 gateway_base_url: "http://127.0.0.1:48217/".to_owned(),
                 host_token: HostToken::new("loopback-secret-value"),
                 models: vec!["claude-sonnet-5".to_owned(), "gpt-4.1".to_owned()],

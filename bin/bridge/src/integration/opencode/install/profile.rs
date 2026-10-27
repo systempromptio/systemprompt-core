@@ -43,6 +43,7 @@ pub(in crate::integration::opencode) fn render(inputs: &ProfileGenInputs) -> Ope
                 model.clone(),
                 ModelEntry {
                     model: model.clone(),
+                    name: inputs.model_names.get(model).cloned(),
                     limit,
                 },
             )

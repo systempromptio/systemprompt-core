@@ -51,6 +51,7 @@ pub fn build(
                 ModelEntry {
                     model: alias.clone(),
                     limit: None,
+                    name: None,
                 },
             )
         })
@@ -76,6 +77,7 @@ pub fn build(
             denied_tools: &denied,
             allowed_mcp: &mcp_names,
         }));
+            allowed_plugins: &[],
     if let Some(alias) = &request.model {
         config = config.with_model(PROVIDER_ID, alias);
     }

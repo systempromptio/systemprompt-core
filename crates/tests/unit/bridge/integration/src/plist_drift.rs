@@ -20,6 +20,7 @@ fn inputs() -> ProfileGenInputs {
         )]
         .into_iter()
         .collect(),
+        model_names: Default::default(),
         gateway_base_url: "https://gateway.example.com".to_string(),
         host_token: HostToken::new("sp-secret-key"),
         models: vec![

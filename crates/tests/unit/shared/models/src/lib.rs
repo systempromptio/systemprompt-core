@@ -153,6 +153,8 @@ mod mime;
 mod routing;
 
 #[cfg(test)]
+mod bridge_opencode_lockdown;
+#[cfg(test)]
 mod marketplace;
 #[cfg(test)]
 mod marketplace_opencode_themes;

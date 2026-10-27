@@ -30,6 +30,7 @@ pub struct ProfileGenInputs {
     pub host_token: HostToken,
     pub models: Vec<String>,
     pub model_limits: BTreeMap<String, systemprompt_models::bridge::profile::AdvertisedLimits>,
+    pub model_names: BTreeMap<String, String>,
     pub default_model: Option<String>,
     pub organization_uuid: Option<String>,
     pub headers: BTreeMap<String, String>,
@@ -124,27 +125,30 @@ impl ProfileFacts {
                 clients.tags().join(","),
             );
         }
-        let (models, model_limits, default_model, gateway_org) = self.profile.as_ref().map_or_else(
-            || (Vec::new(), BTreeMap::new(), None, None),
-            |profile| {
-                let models = crate::gateway::model_view::host_model_view(
-                    &profile.providers,
-                    &clients.families,
-                )
-                .compatible_models;
-                (
-                    models,
-                    profile.model_limits.clone(),
-                    profile.default_model.clone(),
-                    profile.organization_uuid.clone(),
-                )
-            },
-        );
+        let (models, model_limits, model_names, default_model, gateway_org) =
+            self.profile.as_ref().map_or_else(
+                || (Vec::new(), BTreeMap::new(), BTreeMap::new(), None, None),
+                |profile| {
+                    let models = crate::gateway::model_view::host_model_view(
+                        &profile.providers,
+                        &clients.families,
+                    )
+                    .compatible_models;
+                    (
+                        models,
+                        profile.model_limits.clone(),
+                        profile.model_names.clone(),
+                        profile.default_model.clone(),
+                        profile.organization_uuid.clone(),
+                    )
+                },
+            );
         ProfileGenInputs {
             gateway_base_url: self.gateway_base_url.clone(),
             host_token: crate::proxy::scoped_token::host_token(&self.secret, host),
             models,
             model_limits,
+            model_names,
             default_model,
             organization_uuid: gateway_org,
             headers,

@@ -33,6 +33,8 @@ pub struct BridgeProfileResponse {
     // from an older server, so it defaults to empty.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub model_limits: BTreeMap<String, AdvertisedLimits>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub model_names: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
