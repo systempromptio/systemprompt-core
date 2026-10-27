@@ -25,6 +25,8 @@ mod contracts_misc;
 #[cfg(test)]
 mod dependencies;
 #[cfg(test)]
+mod documents;
+#[cfg(test)]
 mod extender;
 #[cfg(test)]
 mod job;

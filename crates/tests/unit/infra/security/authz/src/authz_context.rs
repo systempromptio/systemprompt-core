@@ -131,3 +131,32 @@ fn authz_request_serde_roundtrip() {
     assert_eq!(back.user_id.as_str(), "u1");
     assert!(back.context.is_none());
 }
+
+#[test]
+fn document_access_context_round_trips() {
+    use systemprompt_identifiers::{DocumentFolderId, DocumentId};
+    use systemprompt_models::documents::DocumentAction;
+
+    let document_id = DocumentId::generate();
+    let folder_id = DocumentFolderId::generate();
+    let ctx =
+        AuthzContext::document_access(DocumentAction::Edit, Some(&document_id), Some(&folder_id));
+    assert_eq!(ctx.kind.as_ref(), AuthzContext::DOCUMENT_ACCESS_KIND);
+    assert_eq!(ctx.document_action(), Some(DocumentAction::Edit));
+    assert_eq!(ctx.document_access_document(), Some(document_id));
+    assert_eq!(ctx.document_access_folder(), Some(folder_id));
+
+    let json = serde_json::to_string(&ctx).expect("ser");
+    let back: AuthzContext = serde_json::from_str(&json).expect("de");
+    assert_eq!(back, ctx);
+}
+
+#[test]
+fn document_access_omits_absent_targets() {
+    use systemprompt_models::documents::DocumentAction;
+
+    let ctx = AuthzContext::document_access(DocumentAction::Create, None, None);
+    assert_eq!(ctx.payload, json!({ "action": "create" }));
+    assert!(ctx.document_access_document().is_none());
+    assert!(AuthzContext::none().document_action().is_none());
+}

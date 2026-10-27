@@ -51,6 +51,7 @@ mod component;
 pub mod config_plane;
 mod content_data;
 mod dependencies;
+pub mod documents;
 mod error;
 mod extender;
 mod frame_options;

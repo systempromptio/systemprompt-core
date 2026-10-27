@@ -14,6 +14,11 @@
 
 ### Added
 
+- **Identifiers:** `DocumentId`, `DocumentFolderId`, `DocumentRevisionId`, `DocumentEditSessionId`, `ContentHash`, `DocumentNodeId`, `DocumentTemplateId` and `DriveDeviceId`.
+- **Models:** `documents` module with access levels and actions, the bridge drive sync protocol, document event payloads and the `document://` URI, re-exporting the format, projection and edit-op types.
+- **Provider contracts:** `documents::DocumentCodec` and `documents::DocumentTemplateProvider` seams, registered with `register_document_codec!` and `register_document_template_provider!` and discovered highest priority first.
+- **Governance:** `AuthzContext::document_access` mints the `document.access` context, read back with `document_action`, `document_access_document` and `document_access_folder`.
+- **Models:** `ApiPaths` gains the documents, document-folders and bridge drive paths, plus `bridge_drive_blob`.
 - **Marketplace:** `core marketplace import` reports a skill directory without `SKILL.md`, a cited `references/…` path the imported skill does not carry, and a `../` path out of the skill directory; `--strict` refuses each.
 
 ### Fixed

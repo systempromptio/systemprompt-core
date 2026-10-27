@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AgentName, ClientId, PluginId, TenantId};
+use systemprompt_identifiers::{AgentName, ClientId, ContentHash, PluginId, TenantId};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ApiPaths;
@@ -101,6 +101,14 @@ impl ApiPaths {
     pub const BRIDGE_DEVICE: &'static str = "/v1/bridge/device";
     pub const BRIDGE_HEARTBEAT: &'static str = "/v1/bridge/heartbeat";
     pub const BRIDGE_STREAM: &'static str = "/v1/bridge/stream";
+    pub const BRIDGE_DRIVE_MANIFEST: &'static str = "/v1/bridge/drive/manifest";
+    pub const BRIDGE_DRIVE_CHANGES: &'static str = "/v1/bridge/drive/changes";
+    pub const BRIDGE_DRIVE_BLOB: &'static str = "/v1/bridge/drive/blob";
+    pub const BRIDGE_DRIVE_BLOB_ROUTE: &'static str = "/v1/bridge/drive/blob/{sha256}";
+    pub const BRIDGE_DRIVE_COMMIT: &'static str = "/v1/bridge/drive/commit";
+    pub const BRIDGE_DRIVE_PRESENCE: &'static str = "/v1/bridge/drive/presence";
+    pub const DOCUMENTS: &'static str = "/api/v1/documents";
+    pub const DOCUMENT_FOLDERS: &'static str = "/api/v1/document-folders";
     pub const BRIDGE_AUTH_PAT: &'static str = "/v1/auth/bridge/pat";
     pub const BRIDGE_AUTH_SESSION: &'static str = "/v1/auth/bridge/session";
     pub const BRIDGE_AUTH_SESSION_PAT: &'static str = "/v1/auth/bridge/session-pat";
@@ -167,6 +175,10 @@ impl ApiPaths {
             Self::BRIDGE_PLUGINS,
             plugin_id.as_str()
         )
+    }
+
+    pub fn bridge_drive_blob(sha256: &ContentHash) -> String {
+        format!("{}/{}", Self::BRIDGE_DRIVE_BLOB, sha256.as_str())
     }
 
     pub fn bridge_plugin_archive(plugin_id: &PluginId, sha256: &str) -> String {
