@@ -169,16 +169,16 @@ HTML and Markdown documents can be edited by several people at once. The documen
 
 | Route | Body | Response |
 |---|---|---|
-| `POST /api/v1/documents/{id}/collab/join` | `{"mode": "edit" \| "view"}` | `{session_id, snapshot_b64, vv, head_revision}` |
+| `POST /api/v1/documents/{id}/collab/join` | `{"mode": "edit" \| "view"}` | `{session_id, snapshot_b64, vv, seq, head_revision}` |
 | `POST /api/v1/documents/{id}/collab/updates` | `{session_id, vv?, update_b64}` | `{seq, vv, missing_b64?}` |
-| `POST /api/v1/documents/{id}/collab/leave` | `{session_id}` | `{closed, checkpoint_revision}` |
+| `POST /api/v1/documents/{id}/collab/leave` | `{session_id}` | `{closed, checkpoint, checkpoint_revision, head_revision?, proposal_id?}` |
 | `POST /api/v1/documents/{id}/collab/cursor` | `{session_id, cursor}` | `204` |
 
 Binary values are standard base64: `snapshot_b64` is a Loro snapshot, `update_b64` a Loro update, `vv` a Loro version vector. `edit` needs edit access and `view` view access. Updates are accepted only from a user who joined in edit mode (`403` otherwise). An update for a session that is no longer open answers `409`, and the client joins again. When the posted `vv` lacks changes the server holds, `missing_b64` carries them.
 
-A document has at most one open edit session. Every accepted update is logged with a sequence number and sent as a `document.collab.update` event (`document_id`, `edit_session_id`, `seq`, `update_b64`, `author_id`) on the AG-UI stream of each user present on the document; there is no separate stream. Joins and cursor moves send `document.presence`, with `cursor` when one was posted.
+A document has at most one open edit session. Every accepted update is logged with a sequence number and sent as a `document.collab.update` event (`document_id`, `edit_session_id`, `seq`, `update_b64`, `author_id`) on the AG-UI stream of each user present on the document; there is no separate stream. Sequence numbers are per session, consecutive and assigned in commit order, starting after the `seq` returned by join; a client that receives an event whose `seq` skips one joins again and imports the new snapshot. An update is logged before any replica applies it, so a refused or failed update changes nothing. Joins and cursor moves send `document.presence`, with `cursor` when one was posted.
 
-The server stores a snapshot 30 seconds after the first unsaved update or after 200 updates, and commits the body as a revision with origin `edit_session` after 2 minutes of activity and when the last editor leaves, which also closes the session. For HTML the revision keeps the document around `<body>` from the revision the checkpoint is based on. A checkpoint that the revision engine merges with writes made outside the session puts the merged body back into the live text.
+The server stores a snapshot 30 seconds after the first unsaved update or after 200 updates, and commits the body as a revision with origin `edit_session` after 2 minutes of activity and when the last editor leaves, which also closes the session. Checkpoints are attributed to the session's last editor; a viewer leaving never commits. `checkpoint` on leave is `unchanged`, `committed` (with `checkpoint_revision`) or `conflict` (with `head_revision`). On `conflict` the live body is kept as a proposal by the last editor (`proposal_id`) and the session stays open. Moving a document to the trash commits its live body the same way, closes its edit session and clears its locks and presence. For HTML the revision keeps the document around `<body>` from the revision the checkpoint is based on. A checkpoint that the revision engine merges with writes made outside the session puts the merged body back into the live text.
 
 ### Extension pages
 

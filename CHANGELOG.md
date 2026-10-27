@@ -12,10 +12,17 @@
 - **Breaking:** **Runtime:** `RefusalCode` gains `UnknownSubject` (`unknown_subject`) and `Refusal` gains `existing_level`. Migrate by adding an arm (or a wildcard) to exhaustive matches and `existing_level: None` to struct literals.
 - **Breaking:** **Files:** `own` is no longer a grantable level: `share` refuses it with `invalid_params`, and a stored `own` grant confers `share`. Migrate by transferring ownership instead.
 
+- **Breaking:** **Files:** `collab::Left::checkpoint` is a `Checkpoint` (`Unchanged`, `Committed`, `Conflict { head, proposal }`) instead of `Option<DocumentRevisionId>`, and the leave route answers `{closed, checkpoint, checkpoint_revision, head_revision?, proposal_id?}`. Migrate by matching on `Checkpoint` or calling `Checkpoint::revision`.
+- **Breaking:** **Files:** `DocumentCollabRepository::append` returns `Option<i64>` (`None` for a closed session) and `set_snapshot` takes a `SnapshotMark`. Migrate by handling `None` and passing the snapshot's hash, sequence number and version vector.
+- **Breaking:** **Runtime:** `DocumentsRuntimeParts` gains `background_tasks`; with the new `collab` feature the runtime builds the one `CollabService` and starts its timer. Migrate by passing the context's `BackgroundTasks` and reading the service from `DocumentsRuntime::collab`.
+
 ### Added
 
 - **Users:** `UserRepository::list_active_ids_with_role`.
 - **Files:** `DocumentGrant::is_expired`, and grant listings and access read-backs carry `expired: true` for a grant past its `valid_until`.
+
+- **Files:** `DocumentService::propose_body` proposes a whole body on a base revision.
+- **Files:** `collab::Joined::seq` and the join route's `seq` give the sequence number a client resumes from.
 
 ### Fixed
 
@@ -27,6 +34,13 @@
 - **Files:** The presence sweep job deletes expired grants.
 - **Files:** `document.shared` is emitted once per recipient user, with role subjects resolved to their active members, and never to the sharer.
 - **Bridge:** A share notification is shown only to its recipient and names the document and the sharer.
+
+- **Files:** Live-edit sequence numbers are assigned per session in commit order, so a replica catching up never skips an update and a snapshot prunes only updates it covers.
+- **Files:** A live update is logged before any replica applies it, so a refused or failed update leaves the cache unchanged.
+- **Files:** Leaving a session whose checkpoint conflicts with the head keeps the session open and keeps the live body as a proposal by the last editor; checkpoints run as the last editor and a leaving viewer never commits.
+- **Files:** Trashing a document commits its live body, closes its edit session and clears its locks and presence.
+- **Files:** The web editor advances its sent version only after the server accepts an update, retries transient failures, diffs at code-point boundaries and rejoins on a sequence gap; `postEdits` takes a caller-supplied `opId` so a retry is idempotent.
+
 
 ## [0.74.0] - 2026-10-27
 
