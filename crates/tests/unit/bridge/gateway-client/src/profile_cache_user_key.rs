@@ -16,7 +16,7 @@ use systemprompt_bridge::auth::profile_cache::load_for;
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::profile_fetch::{AgedBearer, is_unauthorized};
 use systemprompt_bridge::ids::BearerToken;
-use systemprompt_identifiers::{UserId, ValidatedUrl};
+use systemprompt_identifiers::{ModelId, UserId, ValidatedUrl};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -97,8 +97,8 @@ fn two_users_of_one_gateway_get_separate_entries() {
         let bob = load_for(gateway.as_str(), &user("user-bob"))
             .unwrap()
             .unwrap();
-        assert_eq!(alice.models, vec!["alice-model".to_owned()]);
-        assert_eq!(bob.models, vec!["bob-model".to_owned()]);
+        assert_eq!(alice.models, vec![ModelId::new("alice-model")]);
+        assert_eq!(bob.models, vec![ModelId::new("bob-model")]);
         assert!(
             load_for(gateway.as_str(), &user("user-carol"))
                 .unwrap()
@@ -154,7 +154,7 @@ fn stale_bearer_401_remints_once_then_succeeds() {
             let profile = fetch_as_user(&client, stale(STALE), counting_remint(&calls))
                 .await
                 .unwrap();
-            assert_eq!(profile.models, vec!["m".to_owned()]);
+            assert_eq!(profile.models, vec![ModelId::new("m")]);
         });
         assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert!(
