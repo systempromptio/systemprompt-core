@@ -14,7 +14,11 @@ mod proposals;
 #[cfg(test)]
 mod pull;
 #[cfg(test)]
+mod pull_paths;
+#[cfg(test)]
 mod scan;
+#[cfg(test)]
+mod shares;
 #[cfg(test)]
 mod state;
 #[cfg(test)]
