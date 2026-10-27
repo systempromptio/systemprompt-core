@@ -230,6 +230,10 @@ libc = "0.2"
 
 # Utilities
 inventory = "0.3"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+ammonia = "4"
+scraper = { version = "0.29", default-features = false, features = ["deterministic"] }
+ego-tree = "0.11"
 pg_query = "6.2"
 tempfile = "3.27"
 walkdir = "2.5"

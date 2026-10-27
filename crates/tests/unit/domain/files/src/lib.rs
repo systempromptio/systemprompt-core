@@ -34,3 +34,6 @@ mod services;
 
 #[cfg(test)]
 mod error;
+
+#[cfg(test)]
+mod documents;
