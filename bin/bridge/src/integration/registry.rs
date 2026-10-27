@@ -37,7 +37,7 @@ impl std::fmt::Debug for HostAppRegistration {
 
 inventory::collect!(HostAppRegistration);
 
-/// Removes a host from the registry by `id()`.
+/// Removes a host from the registry by `id()`, Claude Code included.
 ///
 /// Shadowing can only replace a host; a white-label crate whose install must
 /// not offer one at all suppresses it instead, and every surface — onboarding
@@ -109,6 +109,14 @@ pub fn host_apps() -> &'static [&'static dyn HostApp] {
     REGISTRY.hosts.as_slice()
 }
 
+/// Whether a white-label build suppressed `id` with
+/// [`suppress_host_app!`](crate::suppress_host_app). Suppression reaches
+/// sync-only agents and host syncs as well as host apps.
+#[must_use]
+pub fn is_suppressed(id: HostKind) -> bool {
+    REGISTRY.suppressed.contains(&id)
+}
+
 #[must_use]
 pub fn find_host_by_id(id: HostKind) -> Option<&'static dyn HostApp> {
     REGISTRY.hosts.iter().copied().find(|h| h.id() == id)
@@ -147,7 +155,7 @@ pub fn resolve_host(id: HostKind) -> ResolvedHost {
     if let Some(agent) = super::sync_only::sync_only_agent(id) {
         return ResolvedHost::SyncOnly(agent);
     }
-    if REGISTRY.suppressed.contains(&id) {
+    if is_suppressed(id) {
         return ResolvedHost::Suppressed;
     }
     ResolvedHost::Unknown

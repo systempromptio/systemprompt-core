@@ -139,11 +139,7 @@ pub fn resolve(selection: &Selection) -> Result<Vec<Target>, SelectionError> {
 
 fn known() -> String {
     let mut ids: Vec<&str> = super::host_apps().iter().map(|h| h.id().as_str()).collect();
-    ids.extend(
-        super::sync_only::SYNC_ONLY_AGENTS
-            .iter()
-            .map(|a| a.id.as_str()),
-    );
+    ids.extend(super::sync_only::sync_only_agents().map(|a| a.id.as_str()));
     ids.sort_unstable();
     ids.join(", ")
 }
@@ -157,15 +153,11 @@ pub async fn enrol_hosts(
     let targets = resolve(selection)?;
     let env = ProbeEnv::for_bridge(bridge);
     let not_enabled = |id: HostKind| enabled.as_ref().is_some_and(|hosts| !hosts.contains(&id));
-    // Why: `--host claude-code` has always enrolled regardless of the
-    // instance's enabled hosts; only the implicit `all` selection respects it.
-    let claude_code_gated =
-        matches!(selection, Selection::All) && not_enabled(HostKind::ClaudeCode);
     let mut reports = Vec::with_capacity(targets.len());
     for target in targets {
         reports.push(match target {
             Target::SyncOnly(agent) if agent.id == HostKind::ClaudeCode => {
-                if claude_code_gated {
+                if not_enabled(HostKind::ClaudeCode) {
                     claude_code::not_enabled_report()
                 } else {
                     claude_code::enrol_report(bridge)

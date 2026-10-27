@@ -35,11 +35,11 @@ pub use crate::proxy_probe::{ProxyHealth, ProxyProbeState};
 pub use agent_health::{
     AgentAction, AgentFleetSummary, AgentFleets, AgentReason, AgentState, AgentSurface,
     AgentVerdict, FleetHeadline, FleetState, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
-    SyncOnlyAgent, sync_only_agent, verdict,
+    SyncOnlyAgent, sync_only_agent, sync_only_agents, verdict,
 };
 pub use host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
     ProfileGenInputs, ProfileProbe, ProfileState, StaleReason,
 };
-pub use registry::{ResolvedHost, find_host_by_id, host_apps, resolve_host};
+pub use registry::{ResolvedHost, find_host_by_id, host_apps, is_suppressed, resolve_host};
 pub use systemprompt_models::bridge::host::HostKind;

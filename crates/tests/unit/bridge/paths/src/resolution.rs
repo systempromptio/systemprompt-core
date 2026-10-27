@@ -1,6 +1,6 @@
 use systemprompt_bridge::config::paths::{
-    bridge_metadata_dir, bridge_staging_dir, bridge_working_dir, cowork3p_sessions_root,
-    org_plugins_system, org_plugins_user,
+    bridge_metadata_dir, bridge_staging_dir, bridge_working_dir, claude_cli_home,
+    claude_cli_settings_path, cowork3p_sessions_root, org_plugins_system, org_plugins_user,
 };
 
 fn ends_with(path: &std::path::Path, suffix: &str) -> bool {
@@ -80,5 +80,38 @@ fn org_plugins_system_is_constant_on_linux() {
     assert!(
         ends_with(&p, "Claude/org-plugins"),
         "unexpected system org-plugins dir: {p:?}"
+    );
+}
+
+#[test]
+fn claude_cli_home_follows_claude_config_dir_like_claude_code_does() {
+    temp_env::with_vars(
+        [
+            ("HOME", Some("/tmp/sp-home")),
+            ("CLAUDE_CONFIG_DIR", Some("/tmp/sp-claude")),
+        ],
+        || {
+            assert_eq!(
+                claude_cli_home().as_deref(),
+                Some(std::path::Path::new("/tmp/sp-claude"))
+            );
+            assert_eq!(
+                claude_cli_settings_path().as_deref(),
+                Some(std::path::Path::new("/tmp/sp-claude/settings.json"))
+            );
+        },
+    );
+}
+
+#[test]
+fn claude_cli_home_is_dot_claude_without_an_override() {
+    temp_env::with_vars(
+        [("HOME", Some("/tmp/sp-home")), ("CLAUDE_CONFIG_DIR", None)],
+        || {
+            assert_eq!(
+                claude_cli_home().as_deref(),
+                Some(std::path::Path::new("/tmp/sp-home/.claude"))
+            );
+        },
     );
 }

@@ -148,9 +148,12 @@ pub fn bridge_metadata_dir() -> Option<PathBuf> {
     bridge_working_dir().map(|p| p.join("metadata"))
 }
 
+/// Claude Code's config directory: `CLAUDE_CONFIG_DIR` when set, as Claude
+/// Code itself resolves it, else `~/.claude`.
 #[must_use]
 pub fn claude_cli_home() -> Option<PathBuf> {
-    crate::basedirs::home_dir().map(|h| h.join(".claude"))
+    super::claude_config_dir_override()
+        .or_else(|| crate::basedirs::home_dir().map(|h| h.join(".claude")))
 }
 
 #[must_use]

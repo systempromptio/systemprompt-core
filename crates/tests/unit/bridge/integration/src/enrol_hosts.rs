@@ -8,6 +8,7 @@ use std::fs;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::integration::enrol::{Outcome, Selection, SelectionError, enrol_hosts};
 use systemprompt_bridge::integration::reapply::ModelProtocolOverrides;
+use systemprompt_models::bridge::host::HostKind;
 use tempfile::TempDir;
 #[cfg(not(target_os = "macos"))]
 use wiremock::matchers::{method, path};
@@ -398,4 +399,28 @@ fn enrolling_codex_through_the_public_host_workflow_writes_a_usable_managed_prov
             .and_then(|v| v.to_str().ok()),
         Some("Bearer h.eyJzdWIiOiAidXNlci1hbGljZSJ9.s")
     );
+}
+
+#[test]
+fn naming_claude_code_does_not_bypass_an_instance_that_disables_it() {
+    let rt = runtime();
+    in_sandbox(|| {
+        let ctx = context();
+        let reports = rt
+            .block_on(enrol_hosts(
+                &ctx,
+                &Selection::Ids(vec![HostKind::ClaudeCode]),
+                &ModelProtocolOverrides::new(),
+                Some(vec![HostKind::OpenCode]),
+            ))
+            .expect("a disabled named host is a valid request");
+
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].host_id, HostKind::ClaudeCode);
+        assert!(
+            matches!(reports[0].outcome, Outcome::NotEnabled),
+            "Claude Code's settings must not be written: {:?}",
+            reports[0].outcome
+        );
+    });
 }

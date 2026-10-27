@@ -177,6 +177,7 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
     let mut seen: std::collections::BTreeSet<std::any::TypeId> = std::collections::BTreeSet::new();
     let mut v: Vec<&'static dyn HostSync> = regs
         .into_iter()
+        .filter(|r| !crate::integration::is_suppressed(r.emitter.host_id()))
         .filter(|r| seen.insert(r.emitter.type_id()))
         .map(|r| r.emitter)
         .collect();

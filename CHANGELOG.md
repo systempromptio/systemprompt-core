@@ -9,6 +9,10 @@
 
 ### Changed
 
+- **Bridge:** `suppress_host_app!` reaches Claude Code and every host sync: a suppressed host is not offered as a sync-only agent, never enrolled, and its settings are never written, not even to clear them.
+- **Bridge:** `--host claude-code` respects the instance's enabled hosts like every other host.
+- **Bridge:** Claude Code's settings, plugins and install probe follow `CLAUDE_CONFIG_DIR` when it is set, as Claude Code does.
+- **Bridge:** a sync rewrites Claude Code's `modelPicker` and its sidecar only when the rows change.
 - **Gateway:** a bridge or OAuth JWT whose `x-session-id` differs from its `session_id` claim is no longer refused: the request lands on the claim's session and the header is recorded as `client_session_id`, as it already was for an API key. `OpenCode` 2's own session ids pass through the bridge proxy unchanged.
 - **Bridge:** first use syncs before it touches any host and then enrols or offers a profile only to the hosts the delivered manifest enables; with no manifest, no host is set up.
 - **Bridge:** a sync seeds Claude Code's default model and model picker only when the manifest enables Claude Code.
