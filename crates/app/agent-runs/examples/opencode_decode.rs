@@ -10,6 +10,9 @@
 //! ```text
 //! cargo run -p systemprompt-agent-runs --example opencode_decode < run.jsonl
 //! ```
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, Write};

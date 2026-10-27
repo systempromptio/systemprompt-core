@@ -25,9 +25,20 @@ use super::version::{ClientProbeError, ClientRun, run_client};
 
 const DEADLINE: Duration = Duration::from_secs(20);
 
-/// A policy as `(effect, action, resource)`, compared verbatim so an action
-/// the bridge does not model still round-trips.
-pub type PolicyKey = (String, String, String);
+/// A policy compared verbatim, so an action the bridge does not model still
+/// round-trips and a malformed written entry never matches a loaded one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolicyKey {
+    pub effect: String,
+    pub action: String,
+    pub resource: String,
+}
+
+impl std::fmt::Display for PolicyKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} {}", self.effect, self.action, self.resource)
+    }
+}
 
 /// One written document the client must have loaded.
 #[derive(Debug, Clone)]
@@ -45,7 +56,7 @@ pub enum Loss {
     Policy {
         source: PathBuf,
         index: usize,
-        policy: String,
+        policy: PolicyKey,
     },
 }
 
@@ -96,6 +107,8 @@ pub fn probe_round_trip() -> RoundTrip {
 }
 
 #[must_use]
+// JSON: the config `opencode debug config` reports is host-owned with an open
+// schema.
 pub fn compare(written: &[WrittenConfig], loaded: &Value) -> RoundTrip {
     let loaded_policies = loaded_policies(loaded);
     let provider_loaded = loaded
@@ -117,7 +130,7 @@ pub fn compare(written: &[WrittenConfig], loaded: &Value) -> RoundTrip {
                 None => lost.push(Loss::Policy {
                     source: doc.source.clone(),
                     index,
-                    policy: describe(policy),
+                    policy: policy.clone(),
                 }),
             }
         }
@@ -130,6 +143,7 @@ pub fn compare(written: &[WrittenConfig], loaded: &Value) -> RoundTrip {
 }
 
 #[must_use]
+// JSON: a written `opencode.json` is host-owned with an open schema.
 pub fn written_config(source: &Path, document: &Value) -> WrittenConfig {
     WrittenConfig {
         source: source.to_path_buf(),
@@ -171,9 +185,14 @@ fn policy_key(item: &Value) -> PolicyKey {
             .unwrap_or_default()
             .to_owned()
     };
-    (field("effect"), field("action"), field("resource"))
+    PolicyKey {
+        effect: field("effect"),
+        action: field("action"),
+        resource: field("resource"),
+    }
 }
 
+// JSON: the loaded config is host-owned with an open schema.
 fn loaded_policies(loaded: &Value) -> Vec<PolicyKey> {
     loaded
         .get("policies")
@@ -182,9 +201,6 @@ fn loaded_policies(loaded: &Value) -> Vec<PolicyKey> {
         .unwrap_or_default()
 }
 
-fn describe((effect, action, resource): &PolicyKey) -> String {
-    format!("{effect} {action} {resource}")
-}
 
 fn json_body(text: &str) -> &str {
     text.find('{').map_or(text, |start| &text[start..])

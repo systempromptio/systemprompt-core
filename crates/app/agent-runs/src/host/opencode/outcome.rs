@@ -10,9 +10,11 @@
 //! anything else is the host's. Tokens and turns are summed over every
 //! `step_finish`. `OpenCode` closes no step for a text-only answer or for the
 //! final text after tool calls, so assistant activity after the last
-//! `step_finish` counts as one more turn; its tokens are taken from the
-//! gateway's record of the run session when the run row is finished. Cost is
-//! the gateway's to attribute and stays 0 here.
+//! `step_finish` counts as one more turn. That step reports no tokens, so the
+//! host's token sum can fall short; the gateway's settled totals for the run
+//! (`user_sessions.total_tokens_used` and `total_ai_cost_microdollars` of the
+//! run's `gateway_session_id`, to which its PAT is bound) are authoritative.
+//! Cost is the gateway's to attribute and stays 0 here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
