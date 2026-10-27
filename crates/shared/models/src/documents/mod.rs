@@ -28,7 +28,7 @@ pub use events::{
     DocumentPresenceEvent, DocumentRevisionCreatedEvent,
 };
 pub use systemprompt_provider_contracts::documents::{
-    CellValue, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode, UnknownDocumentFormat,
-    content_hash, hash8,
+    CellValue, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,
+    QuoteTarget, UnknownDocumentFormat, content_hash, hash8,
 };
 pub use uri::{DocumentUri, DocumentUriError};

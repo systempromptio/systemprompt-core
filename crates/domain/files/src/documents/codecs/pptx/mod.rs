@@ -27,6 +27,7 @@ mod blank;
 mod layout;
 mod nodes;
 mod package;
+mod paragraph;
 mod projection;
 mod rebase;
 mod slides;
@@ -218,7 +219,7 @@ fn instantiate_slide(slide: &Slide, params: &TemplateParams) -> Result<Option<St
             edits.push((
                 p.start,
                 p.end,
-                apply::paragraph_xml(&para, para.ppr.as_deref(), &text),
+                paragraph::paragraph_xml(&para, para.ppr.as_deref(), &text),
             ));
             continue;
         }

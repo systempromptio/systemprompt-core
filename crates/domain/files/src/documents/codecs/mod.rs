@@ -19,6 +19,14 @@
 //! projection, so an anchored op after it in the same batch is rejected as
 //! malformed; submit it in a new batch against a fresh projection.
 //!
+//! Markdown content (`as: markdown` on `insert_after`, and
+//! `append_markdown`) is parsed once into the format-neutral blocks of
+//! `markdown_lowering`; each codec writes those blocks as its own markup.
+//! Codecs apply resolved batches only: quote targets and Markdown
+//! `replace_text` ops are resolved by
+//! [`resolve_targets`](systemprompt_provider_contracts::documents::resolve_targets)
+//! first.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -26,6 +34,7 @@ pub mod anchors;
 mod html;
 mod lines;
 mod markdown;
+mod markdown_lowering;
 mod placeholders;
 mod registry;
 mod text;

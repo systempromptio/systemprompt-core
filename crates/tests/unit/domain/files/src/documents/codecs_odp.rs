@@ -1,5 +1,7 @@
 use systemprompt_files::documents::codecs::odf::{OdpCodec, blank_odp};
-use systemprompt_provider_contracts::documents::{CodecError, DocumentCodec, EditOp, NodeKind};
+use systemprompt_provider_contracts::documents::{
+    CodecError, ContentAs, DocumentCodec, EditOp, NodeKind, NodeTarget,
+};
 
 use super::docx_fixture::part;
 use super::odf_fixture::{
@@ -67,9 +69,10 @@ fn replace_text_touches_only_content_xml() {
     let bytes = deck();
     let base = OdpCodec.project(&bytes).expect("project");
     let op = EditOp::ReplaceText {
-        node: id("slide[1]/shape[0]/p[0]"),
-        expected_hash: hash_of(&base, "slide[1]/shape[0]/p[0]"),
+        node: NodeTarget::Id(id("slide[1]/shape[0]/p[0]")),
+        expected_hash: Some(hash_of(&base, "slide[1]/shape[0]/p[0]")),
         text: "Hello".into(),
+        content_as: ContentAs::Text,
     };
     let out = OdpCodec.apply(&bytes, &base, &[op]).expect("apply");
     assert_only_content_changed(&bytes, &out);
@@ -82,8 +85,8 @@ fn replace_text_touches_only_content_xml() {
         &bytes,
         &base,
         &[EditOp::Delete {
-            node: id("slide[2]"),
-            expected_hash: "00000000".into(),
+            node: NodeTarget::Id(id("slide[2]")),
+            expected_hash: Some("00000000".into()),
         }],
     );
     assert!(matches!(stale, Err(CodecError::StaleAnchor { .. })));
@@ -140,8 +143,8 @@ fn insert_slide_rejects_an_unknown_master_and_delete_removes_a_slide() {
         &OdpCodec,
         &bytes,
         &[EditOp::Delete {
-            node: id("slide[1]"),
-            expected_hash: hash_of(&base, "slide[1]"),
+            node: NodeTarget::Id(id("slide[1]")),
+            expected_hash: Some(hash_of(&base, "slide[1]")),
         }],
     );
     assert_eq!(slide_names(&out), vec!["second"]);

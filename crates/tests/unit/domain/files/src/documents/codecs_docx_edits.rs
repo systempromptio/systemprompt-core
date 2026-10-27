@@ -1,5 +1,7 @@
 use systemprompt_files::documents::codecs::docx::{DocxCodec, blank_docx};
-use systemprompt_provider_contracts::documents::{CodecError, DocumentCodec, EditOp, NodeKind};
+use systemprompt_provider_contracts::documents::{
+    CodecError, ContentAs, DocumentCodec, EditOp, NodeKind, NodeTarget,
+};
 
 use super::docx_fixture::{apply, fixture, hash_of, node_id, part, project, text_of};
 
@@ -22,9 +24,10 @@ fn stale_hash_reports_current_text() {
             &bytes,
             &project(&bytes),
             &[EditOp::ReplaceText {
-                node: node_id("pid:2B3C4D5E"),
-                expected_hash: "00000000".to_owned(),
+                node: NodeTarget::Id(node_id("pid:2B3C4D5E")),
+                expected_hash: Some("00000000".to_owned()),
                 text: "x".to_owned(),
+                content_as: ContentAs::Text,
             }],
         )
         .expect_err("stale");
@@ -48,9 +51,10 @@ fn para_ids_stay_stable_across_an_insert() {
     let edited = apply(
         &bytes,
         &[EditOp::InsertAfter {
-            node: node_id("pid:1A2B3C4D"),
+            node: NodeTarget::Id(node_id("pid:1A2B3C4D")),
             kind: NodeKind::Paragraph,
             text: "Inserted".to_owned(),
+            content_as: ContentAs::Text,
         }],
     );
     let after = project(&edited);
@@ -74,14 +78,16 @@ fn insert_heading_uses_the_heading_style() {
         &bytes,
         &[
             EditOp::InsertAfter {
-                node: node_id("pid:2B3C4D5E"),
+                node: NodeTarget::Id(node_id("pid:2B3C4D5E")),
                 kind: NodeKind::Heading { level: 2 },
                 text: "Outlook".to_owned(),
+                content_as: ContentAs::Text,
             },
             EditOp::InsertAfter {
-                node: node_id("pid:3C4D5E6F"),
+                node: NodeTarget::Id(node_id("pid:3C4D5E6F")),
                 kind: NodeKind::ListItem,
                 text: "Second point".to_owned(),
+                content_as: ContentAs::Text,
             },
         ],
     );
@@ -101,19 +107,22 @@ fn batch_ids_resolve_against_the_base_revision() {
         &bytes,
         &[
             EditOp::InsertAfter {
-                node: node_id("body/p[0]"),
+                node: NodeTarget::Id(node_id("body/p[0]")),
                 kind: NodeKind::Paragraph,
                 text: "one".to_owned(),
+                content_as: ContentAs::Text,
             },
             EditOp::InsertAfter {
-                node: node_id("body/p[0]"),
+                node: NodeTarget::Id(node_id("body/p[0]")),
                 kind: NodeKind::Paragraph,
                 text: "two".to_owned(),
+                content_as: ContentAs::Text,
             },
             EditOp::ReplaceText {
-                node: node_id("body/p[0]"),
-                expected_hash: empty,
+                node: NodeTarget::Id(node_id("body/p[0]")),
+                expected_hash: Some(empty),
                 text: "zero".to_owned(),
+                content_as: ContentAs::Text,
             },
         ],
     );
@@ -131,9 +140,10 @@ fn conflicting_ops_on_one_node_fail_the_batch() {
     let base = project(&bytes);
     let hash = hash_of(&base, "pid:1A2B3C4D");
     let op = EditOp::ReplaceText {
-        node: node_id("pid:1A2B3C4D"),
-        expected_hash: hash,
+        node: NodeTarget::Id(node_id("pid:1A2B3C4D")),
+        expected_hash: Some(hash),
         text: "x".to_owned(),
+        content_as: ContentAs::Text,
     };
     let err = DocxCodec
         .apply(&bytes, &base, &[op.clone(), op])
@@ -149,12 +159,12 @@ fn delete_keeps_a_paragraph_in_every_cell() {
         &bytes,
         &[
             EditOp::Delete {
-                node: node_id("pid:5E6F7081"),
-                expected_hash: hash_of(&base, "pid:5E6F7081"),
+                node: NodeTarget::Id(node_id("pid:5E6F7081")),
+                expected_hash: Some(hash_of(&base, "pid:5E6F7081")),
             },
             EditOp::Delete {
-                node: node_id("pid:3C4D5E6F"),
-                expected_hash: hash_of(&base, "pid:3C4D5E6F"),
+                node: NodeTarget::Id(node_id("pid:3C4D5E6F")),
+                expected_hash: Some(hash_of(&base, "pid:3C4D5E6F")),
             },
         ],
     );
@@ -208,8 +218,8 @@ fn unsupported_ops_and_unknown_nodes() {
             &bytes,
             &base,
             &[EditOp::Delete {
-                node: node_id("pid:FFFFFFFF"),
-                expected_hash: "00000000".to_owned(),
+                node: NodeTarget::Id(node_id("pid:FFFFFFFF")),
+                expected_hash: Some("00000000".to_owned()),
             }],
         )
         .expect_err("unknown");

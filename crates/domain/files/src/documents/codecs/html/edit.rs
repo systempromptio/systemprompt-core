@@ -9,7 +9,9 @@ use ego_tree::NodeId;
 use scraper::node::Text;
 use scraper::{ElementRef, Html, Node, StrTendril};
 use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_provider_contracts::documents::{CodecError, DocumentFormat, EditOp, NodeKind};
+use systemprompt_provider_contracts::documents::{
+    CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, required_hash,
+};
 
 use super::super::anchors::{str_replace_once, verify_anchor};
 use super::super::text::escape_html;
@@ -113,11 +115,23 @@ fn insert_after(
     op: &EditOp,
     tails: &mut HashMap<NodeId, NodeId>,
 ) -> Result<(), CodecError> {
-    let EditOp::InsertAfter { node, kind, text } = op else {
+    let EditOp::InsertAfter {
+        node,
+        kind,
+        text,
+        content_as,
+    } = op
+    else {
         return Err(unsupported(op));
     };
-    let tag = insert_tag(*kind).ok_or_else(|| unsupported(op))?;
-    let markup = format!("<{tag}>{}</{tag}>", escape_html(text));
+    let node = node.resolved()?;
+    let markup = match content_as {
+        ContentAs::Markdown => markdown_markup(text),
+        ContentAs::Text => {
+            let tag = insert_tag(*kind).ok_or_else(|| unsupported(op))?;
+            format!("<{tag}>{}</{tag}>", escape_html(text))
+        },
+    };
     let anchor = if node.as_str() == "body" {
         None
     } else {
@@ -143,11 +157,33 @@ fn insert_after(
     Ok(())
 }
 
+fn markdown_markup(markdown: &str) -> String {
+    let mut rendered = String::new();
+    pulldown_cmark::html::push_html(
+        &mut rendered,
+        pulldown_cmark::Parser::new_ext(
+            markdown,
+            pulldown_cmark::Options::ENABLE_TABLES | pulldown_cmark::Options::ENABLE_STRIKETHROUGH,
+        ),
+    );
+    ammonia::clean(&rendered)
+}
+
+fn append_markdown(html: &mut Html, body: NodeId, markdown: &str) -> Result<(), CodecError> {
+    let nodes = parse_into(html, &markdown_markup(markdown))?;
+    let mut target = html.tree.get_mut(body).ok_or(DETACHED)?;
+    for id in nodes {
+        target.append_id(id);
+    }
+    Ok(())
+}
+
 pub(super) fn apply_ops(
     html: &mut Html,
     projection: &HtmlProjection,
     ops: &[EditOp],
 ) -> Result<(), CodecError> {
+    ops.iter().try_for_each(EditOp::check_resolved)?;
     let mut rewritten = false;
     let mut tails = HashMap::new();
     for op in ops {
@@ -161,7 +197,9 @@ pub(super) fn apply_ops(
                 node,
                 expected_hash,
                 text,
+                ..
             } => {
+                let node = node.resolved()?;
                 let located = locate(html, projection, node)?;
                 if matches!(
                     located.kind,
@@ -169,7 +207,7 @@ pub(super) fn apply_ops(
                 ) {
                     return Err(unsupported(op));
                 }
-                verify(html, node, located, expected_hash)?;
+                verify(html, node, located, required_hash(expected_hash.as_ref())?)?;
                 clear_children(html, located.tree_id)?;
                 let mut target = html.tree.get_mut(located.tree_id).ok_or(DETACHED)?;
                 target.append(Node::Text(Text {
@@ -180,8 +218,9 @@ pub(super) fn apply_ops(
                 node,
                 expected_hash,
             } => {
+                let node = node.resolved()?;
                 let located = locate(html, projection, node)?;
-                verify(html, node, located, expected_hash)?;
+                verify(html, node, located, required_hash(expected_hash.as_ref())?)?;
                 html.tree.get_mut(located.tree_id).ok_or(DETACHED)?.detach();
             },
             EditOp::InsertAfter { .. } => insert_after(html, projection, op, &mut tails)?,
@@ -190,6 +229,9 @@ pub(super) fn apply_ops(
                     str_replace_once(&body_inner(html, projection.body)?, old_str, new_str)?;
                 set_body(html, projection.body, &replaced)?;
                 rewritten = true;
+            },
+            EditOp::AppendMarkdown { markdown } => {
+                append_markdown(html, projection.body, markdown)?;
             },
             EditOp::SetHtml { html: markup } => {
                 set_body(html, projection.body, markup)?;

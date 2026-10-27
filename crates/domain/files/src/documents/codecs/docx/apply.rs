@@ -15,16 +15,16 @@ use std::collections::{BTreeSet, HashMap};
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentFormat, EditOp, NodeKind, hash8,
+    CodecError, ContentAs, DocumentFormat, EditOp, hash8, required_hash,
 };
 
 use super::markup::{self, Splice};
+use super::parts;
 use super::parts::malformed;
-use super::projection::{heading_level, table_text};
+use super::projection::table_text;
 use super::scan::{self, Block, Cell, Doc, Para, Table};
-use super::{parts, styles};
 
-enum Located<'d> {
+pub(super) enum Located<'d> {
     Para(&'d Para, Option<&'d Cell>),
     Table(&'d Table),
 }
@@ -54,11 +54,11 @@ fn verify(node: &DocumentNodeId, text: &str, expected: &str) -> Result<(), Codec
     })
 }
 
-struct Batch<'d> {
-    bytes: &'d [u8],
-    doc: &'d Doc<'d>,
+pub(super) struct Batch<'d> {
+    pub(super) bytes: &'d [u8],
+    pub(super) doc: &'d Doc<'d>,
     splices: Vec<Splice>,
-    para_ids: BTreeSet<String>,
+    pub(super) para_ids: BTreeSet<String>,
     cell_paras: HashMap<&'d str, usize>,
 }
 
@@ -66,6 +66,7 @@ pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError>
     if ops.is_empty() {
         return Ok(bytes.to_vec());
     }
+    ops.iter().try_for_each(EditOp::check_resolved)?;
     let xml = parts::read_document(bytes)?;
     let doc = scan::parse(&xml)?;
     let mut batch = Batch {
@@ -88,7 +89,7 @@ pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError>
 }
 
 impl<'d> Batch<'d> {
-    fn find(&self, node: &DocumentNodeId) -> Result<Located<'d>, CodecError> {
+    pub(super) fn find(&self, node: &DocumentNodeId) -> Result<Located<'d>, CodecError> {
         locate(&self.doc.blocks, None, node.as_str())
             .ok_or_else(|| CodecError::UnknownNode { node: node.clone() })
     }
@@ -102,7 +103,7 @@ impl<'d> Batch<'d> {
         }
     }
 
-    fn push(&mut self, order: usize, range: std::ops::Range<usize>, text: String) {
+    pub(super) fn push(&mut self, order: usize, range: std::ops::Range<usize>, text: String) {
         self.splices.push(Splice { range, text, order });
     }
 
@@ -113,9 +114,11 @@ impl<'d> Batch<'d> {
                 node,
                 expected_hash,
                 text,
+                ..
             } => {
+                let node = node.resolved()?;
                 let para = self.paragraph(node)?;
-                verify(node, &para.text(), expected_hash)?;
+                verify(node, &para.text(), required_hash(expected_hash.as_ref())?)?;
                 self.push(
                     order,
                     para.range.clone(),
@@ -131,13 +134,32 @@ impl<'d> Batch<'d> {
                     markup::replace_paragraph(src, para, &text),
                 );
             },
-            EditOp::InsertAfter { node, kind, text } => {
-                self.insert_after(order, node, *kind, text)?;
+            EditOp::InsertAfter {
+                node,
+                kind,
+                text,
+                content_as,
+            } => match content_as {
+                ContentAs::Text => self.insert_after(order, node.resolved()?, *kind, text)?,
+                ContentAs::Markdown => {
+                    let at = self.insert_at(node.resolved()?)?;
+                    let xml = self.markdown_xml(text)?;
+                    self.push(order, at..at, xml);
+                },
+            },
+            EditOp::AppendMarkdown { markdown } => {
+                let at = self.body_end()?;
+                let xml = self.markdown_xml(markdown)?;
+                self.push(order, at..at, xml);
             },
             EditOp::Delete {
                 node,
                 expected_hash,
-            } => self.delete(order, node, expected_hash)?,
+            } => self.delete(
+                order,
+                node.resolved()?,
+                required_hash(expected_hash.as_ref())?,
+            )?,
             EditOp::SetCells { .. }
             | EditOp::InsertSlide { .. }
             | EditOp::SetHtml { .. }
@@ -205,73 +227,5 @@ impl<'d> Batch<'d> {
             },
         }
         Ok(())
-    }
-
-    fn insert_after(
-        &mut self,
-        order: usize,
-        node: &DocumentNodeId,
-        kind: NodeKind,
-        text: &str,
-    ) -> Result<(), CodecError> {
-        let (at, anchor) = match self.find(node)? {
-            Located::Para(para, _) => (para.range.end, Some(para)),
-            Located::Table(table) => (table.range.end, None),
-        };
-        let props = self.insert_props(anchor, kind)?;
-        let open = if self.doc.uses_para_ids() {
-            format!("<w:p w14:paraId=\"{}\">", self.fresh_para_id())
-        } else {
-            "<w:p>".to_owned()
-        };
-        let paragraph = format!("{open}{props}{}</w:p>", markup::run(None, text));
-        self.push(order, at..at, paragraph);
-        Ok(())
-    }
-
-    fn insert_props(&self, anchor: Option<&Para>, kind: NodeKind) -> Result<String, CodecError> {
-        let src = self.doc.src;
-        let props = anchor.and_then(|para| para.ppr.as_ref());
-        match kind {
-            NodeKind::Heading { level } => {
-                if let Some(style) = styles::heading_style(self.bytes, level)? {
-                    return Ok(format!("<w:pPr><w:pStyle w:val=\"{style}\"/></w:pPr>"));
-                }
-                tracing::warn!(
-                    level,
-                    "docx has no heading style for level; copying anchor paragraph properties"
-                );
-                Ok(props.map_or_else(String::new, |p| src[p.range.clone()].to_owned()))
-            },
-            NodeKind::ListItem => {
-                Ok(props.map_or_else(String::new, |p| src[p.range.clone()].to_owned()))
-            },
-            NodeKind::Paragraph => Ok(props.map_or_else(String::new, |p| {
-                let heading = p.style.as_deref().and_then(heading_level).is_some();
-                let cut: Vec<_> = p
-                    .num_range
-                    .iter()
-                    .chain(p.style_range.iter().filter(|_| heading))
-                    .cloned()
-                    .collect();
-                markup::ppr_without(src, &p.range, &cut)
-            })),
-            _ => Err(CodecError::UnsupportedOp {
-                op: "insert_after",
-                format: DocumentFormat::Docx,
-            }),
-        }
-    }
-
-    fn fresh_para_id(&mut self) -> String {
-        loop {
-            // Why: Word requires w14:paraId values below 0x80000000.
-            let [a, b, c, d, ..] = *uuid::Uuid::new_v4().as_bytes();
-            let value = u32::from_be_bytes([a, b, c, d]) & 0x7FFF_FFFF;
-            let id = format!("{value:08X}");
-            if value != 0 && self.para_ids.insert(id.clone()) {
-                return id;
-            }
-        }
     }
 }

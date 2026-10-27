@@ -196,8 +196,10 @@ impl McpToolHandler for EditHandler<'_> {
 
     fn description(&self) -> &'static str {
         "Apply ops (replace_text, insert_after, delete, str_replace, set_cells, insert_slide, \
-         set_text, set_html) as one revision against base_revision; returns the written lines. \
-         See documents_guide topic editing."
+         set_text, set_html, append_markdown) as one revision against base_revision; returns the \
+         written lines. Anchored ops name node by id with expected_hash, or target: {find, nth?, \
+         within?} by quoted text. replace_text and insert_after take as: \"markdown\" for native \
+         headings, lists, tables and emphasis. See documents_guide topic editing."
     }
 
     async fn handle(

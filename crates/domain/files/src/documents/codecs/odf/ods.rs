@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
     CellValue, CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, TemplateParams,
+    required_hash,
 };
 
 use super::package::{malformed, verify};
@@ -62,7 +63,10 @@ fn stage<'s>(
             node,
             expected_hash,
             text,
+            ..
         } => {
+            let node = node.resolved()?;
+            let expected_hash = required_hash(expected_hash.as_ref())?;
             let (name, col, row) = parse_cell_id(node.as_str())
                 .ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
             let target = find(&name)?;
@@ -133,6 +137,7 @@ impl DocumentCodec for OdsCodec {
         ops: &[EditOp],
     ) -> Result<Vec<u8>, CodecError> {
         check_base(bytes, base)?;
+        ops.iter().try_for_each(EditOp::check_resolved)?;
         if ops.is_empty() {
             return Ok(bytes.to_vec());
         }

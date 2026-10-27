@@ -34,15 +34,17 @@ mod codec;
 mod edit_op;
 mod format;
 mod projection;
+mod target;
 mod template;
 
 pub use codec::{
     CodecError, DocumentCodec, DocumentCodecRegistration, TemplateParams, codec_for,
     registered_codecs,
 };
-pub use edit_op::{CellValue, EditOp};
+pub use edit_op::{CellValue, ContentAs, EditOp, NodeTarget, QuoteTarget, required_hash};
 pub use format::{DocumentFormat, UnknownDocumentFormat};
 pub use projection::{NodeKind, Projection, ProjectionNode, content_hash, hash8};
+pub use target::{ClosestBlock, READ_ONLY_ATTR, ResolvedBatch, TargetError, resolve_targets};
 pub use template::{
     DocumentTemplate, DocumentTemplateProvider, DocumentTemplateProviderRegistration,
     TemplatePlaceholder, TemplateSource, registered_template_providers,

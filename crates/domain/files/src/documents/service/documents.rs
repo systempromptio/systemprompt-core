@@ -59,7 +59,7 @@ impl DocumentService {
                         .ok_or(DocumentsError::UnsupportedFormat {
                             format: made.format,
                         })?;
-                made.bytes = apply_with(codec.as_ref(), made.format, &made.bytes, &ops)?;
+                made.bytes = apply_with(codec.as_ref(), made.format, &made.bytes, ops)?;
             }
             Ok(made)
         })

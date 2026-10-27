@@ -4,6 +4,8 @@
 
 ### Breaking
 
+- **Breaking:** **Provider contracts, Models:** `EditOp::ReplaceText`, `InsertAfter` and `Delete` address their node with `NodeTarget` (an id, or a `QuoteTarget` matched by text) instead of a `DocumentNodeId`, `expected_hash` becomes `Option<String>`, `ReplaceText` and `InsertAfter` gain `content_as: ContentAs` (`as` on the wire), and `EditOp` gains `AppendMarkdown`. The wire form of existing ops is unchanged. Migrate by wrapping ids in `NodeTarget::Id`, hashes in `Some`, passing `content_as: ContentAs::Text`, and adding an `AppendMarkdown` arm to exhaustive matches; codecs apply only batches passed through `resolve_targets`.
+- **Breaking:** **Files:** `DocumentsError` gains `FindNone`. Migrate by adding an arm (or a wildcard) to exhaustive matches.
 - **Breaking:** **Runtime:** `Subsystems` gains `documents: Arc<DocumentsRuntime>`. Migrate code that builds `Subsystems` by hand (`AppContext::from_parts`) by passing `DocumentsRuntime::new(DocumentsRuntimeParts { .. })`.
 - **Breaking:** **OAuth:** `EnabledHostPrefs::any_enabled_row` becomes `unknown_enabled_row`, and `admits` and `BridgeHostPrefsRepository::set_enabled` take `&InstanceHosts` instead of a host slice. Migrate by passing `ServicesConfig::instance_hosts()`.
 - **Breaking:** **Marketplace:** `ImportWarning` gains `RulesMissOpenCode`, a strict error raised when a marketplace configures `opencode:` and a rule's `hosts` reach no `OpenCode` host. Migrate by adding an arm (or a wildcard) to exhaustive matches.
@@ -37,6 +39,8 @@
 
 ### Added
 
+- **Documents:** `replace_text`, `delete` and `insert_after` accept `target: {find, nth?, within?}` in place of a node id and hash. The quote matches the innermost block containing it in the document as read before the call, and a quote with no match is refused with the closest block's id, hash and text.
+- **Documents:** `insert_after` and `replace_text` accept `as: markdown`, and `append_markdown` adds Markdown at the end of the body. Each codec writes headings, paragraphs, lists, tables, bold, italic, code and links in its own markup, and writes a block it cannot represent as a plain paragraph.
 - **Analytics:** the `report_*` read contract gains `report_ai_request_attributions` (a request's scope dimensions and values), `report_ai_request_tool_calls` (the tool calls a request's model emitted, without arguments or results) and `report_governance_decisions`. Each hides a deleted user's rows, as the rest of the contract does. An extension can roll up by any attribution dimension without reading the source tables. The analytics extension now depends on `authz`, which owns `governance_decisions`.
 - **Bridge:** `doctor` checks that `OpenCode` kept the config it was given. It runs `opencode debug config` and fails, naming the file and entry, when the gateway provider or any written policy is missing from the loaded config or out of order. `OpenCode` drops a malformed policy without a message.
 - **Agent runs:** the `opencode_decode` example replays a captured `opencode run --format json` stream from stdin through the core decoder and outcome classifier, and prints the events and outcome as JSON.

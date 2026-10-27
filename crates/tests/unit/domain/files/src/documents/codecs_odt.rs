@@ -1,6 +1,6 @@
 use systemprompt_files::documents::codecs::odf::{OdtCodec, blank_odt};
 use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentCodec, EditOp, NodeKind, TemplateParams, hash8,
+    CodecError, ContentAs, DocumentCodec, EditOp, NodeKind, NodeTarget, TemplateParams, hash8,
 };
 
 use super::docx_fixture::part;
@@ -63,9 +63,10 @@ fn replace_text_changes_only_that_paragraph_in_content_xml() {
     let bytes = doc();
     let base = OdtCodec.project(&bytes).expect("project");
     let op = EditOp::ReplaceText {
-        node: id("body/p[1]"),
-        expected_hash: hash_of(&base, "body/p[1]"),
+        node: NodeTarget::Id(id("body/p[1]")),
+        expected_hash: Some(hash_of(&base, "body/p[1]")),
         text: "Rewritten  twice".into(),
+        content_as: ContentAs::Text,
     };
     let out = OdtCodec.apply(&bytes, &base, &[op]).expect("apply");
     assert_only_content_changed(&bytes, &out);
@@ -93,9 +94,10 @@ fn stale_anchor_names_node_hashes_and_text() {
     let base = OdtCodec.project(&bytes).expect("project");
     let actual = hash_of(&base, "xid:para-x");
     let op = EditOp::ReplaceText {
-        node: id("xid:para-x"),
-        expected_hash: "deadbeef".into(),
+        node: NodeTarget::Id(id("xid:para-x")),
+        expected_hash: Some("deadbeef".into()),
         text: "x".into(),
+        content_as: ContentAs::Text,
     };
     let err = OdtCodec.apply(&bytes, &base, &[op]).expect_err("stale");
     assert!(matches!(err, CodecError::StaleAnchor { .. }));
@@ -116,18 +118,20 @@ fn insert_and_delete_shift_ids_on_reprojection() {
     let base = OdtCodec.project(&bytes).expect("project");
     let ops = [
         EditOp::InsertAfter {
-            node: id("body/p[0]"),
+            node: NodeTarget::Id(id("body/p[0]")),
             kind: NodeKind::Paragraph,
             text: "Inserted".into(),
+            content_as: ContentAs::Text,
         },
         EditOp::Delete {
-            node: id("body/p[3]"),
-            expected_hash: hash_of(&base, "body/p[3]"),
+            node: NodeTarget::Id(id("body/p[3]")),
+            expected_hash: Some(hash_of(&base, "body/p[3]")),
         },
         EditOp::InsertAfter {
-            node: id("body/p[4]"),
+            node: NodeTarget::Id(id("body/p[4]")),
             kind: NodeKind::ListItem,
             text: "Third point".into(),
+            content_as: ContentAs::Text,
         },
     ];
     let out = apply(&OdtCodec, &bytes, &ops);

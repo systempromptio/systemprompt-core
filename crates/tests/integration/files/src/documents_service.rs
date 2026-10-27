@@ -10,7 +10,7 @@ use systemprompt_files::documents::service::{
 use systemprompt_governance::authz::EntityKind;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditOp};
+use systemprompt_models::documents::{AccessLevel, ContentAs, DocumentFormat, EditOp, NodeTarget};
 
 use crate::documents_service_fixture::{
     GroupSource, Harness, allow, api_author, create, deny, harness, harness_on, person, trace,
@@ -35,9 +35,10 @@ fn replace_title(
 ) -> CommitRequest {
     CommitRequest {
         body: CommitBody::Ops(vec![EditOp::ReplaceText {
-            node: DocumentNodeId::new("line[1]"),
-            expected_hash,
+            node: NodeTarget::Id(DocumentNodeId::new("line[1]")),
+            expected_hash: Some(expected_hash),
             text: "# Quarterly plan".to_owned(),
+            content_as: ContentAs::Text,
         }]),
         ..commit_bytes(document, base, Vec::new())
     }

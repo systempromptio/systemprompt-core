@@ -58,6 +58,7 @@ impl DocumentCodec for OdpCodec {
         let (mut package, content) = read(bytes)?;
         let deck = deck::read(&content)?;
         let containers = deck.containers();
+        ops.iter().try_for_each(EditOp::check_resolved)?;
         let mut batch = FlowBatch::new(DocumentFormat::Odp, &deck.paras, &containers);
         for (order, op) in ops.iter().enumerate() {
             if let EditOp::InsertSlide {

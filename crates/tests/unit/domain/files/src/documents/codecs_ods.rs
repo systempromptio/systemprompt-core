@@ -1,5 +1,7 @@
 use systemprompt_files::documents::codecs::odf::{OdsCodec, blank_ods};
-use systemprompt_provider_contracts::documents::{CellValue, CodecError, DocumentCodec, EditOp};
+use systemprompt_provider_contracts::documents::{
+    CellValue, CodecError, ContentAs, DocumentCodec, EditOp, NodeTarget,
+};
 
 use super::docx_fixture::part;
 use super::odf_fixture::{
@@ -104,16 +106,18 @@ fn replace_text_on_a_cell_checks_its_hash() {
         &bytes,
         &base,
         &[EditOp::ReplaceText {
-            node: id("sheet[Data]/A1"),
-            expected_hash: "00000000".into(),
+            node: NodeTarget::Id(id("sheet[Data]/A1")),
+            expected_hash: Some("00000000".into()),
             text: "x".into(),
+            content_as: ContentAs::Text,
         }],
     );
     assert!(matches!(stale, Err(CodecError::StaleAnchor { .. })));
     let op = EditOp::ReplaceText {
-        node: id("sheet[Data]/A1"),
-        expected_hash: hash_of(&base, "sheet[Data]/A1"),
+        node: NodeTarget::Id(id("sheet[Data]/A1")),
+        expected_hash: Some(hash_of(&base, "sheet[Data]/A1")),
         text: "Label".into(),
+        content_as: ContentAs::Text,
     };
     let out = OdsCodec.apply(&bytes, &base, &[op]).expect("apply");
     let next = OdsCodec.project(&out).expect("reproject");
@@ -123,8 +127,8 @@ fn replace_text_on_a_cell_checks_its_hash() {
         &bytes,
         &base,
         &[EditOp::Delete {
-            node: id("sheet[Data]/A1"),
-            expected_hash: hash_of(&base, "sheet[Data]/A1"),
+            node: NodeTarget::Id(id("sheet[Data]/A1")),
+            expected_hash: Some(hash_of(&base, "sheet[Data]/A1")),
         }],
     );
     assert!(matches!(delete, Err(CodecError::UnsupportedOp { .. })));

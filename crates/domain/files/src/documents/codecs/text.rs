@@ -51,6 +51,7 @@ pub(crate) fn apply_lines(
     ops: &[EditOp],
 ) -> Result<Vec<u8>, CodecError> {
     ensure_base(bytes, base)?;
+    ops.iter().try_for_each(EditOp::check_resolved)?;
     let mut doc = LineDoc::parse(decode_utf8(bytes, base.format.as_str())?);
     for op in ops {
         doc.apply(op, base.format, current)?;

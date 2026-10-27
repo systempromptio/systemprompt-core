@@ -19,6 +19,7 @@
 mod apply;
 mod blank;
 mod cells;
+mod insert;
 mod projection;
 mod rebase;
 mod workbook;

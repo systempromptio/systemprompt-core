@@ -7,7 +7,8 @@
 //! headings `h[N]`, paragraphs `p[N]` and list items `li[N]`, each with its
 //! rendered text and a `lines` attribute naming the source lines it spans.
 //! Rendered block text drops Markdown syntax, so it cannot be written back
-//! to the source byte-exactly; outline nodes are read-only and an anchored
+//! to the source byte-exactly; outline nodes are read-only (the outline root
+//! carries `read_only=true`, so quote targets skip it) and an anchored
 //! op on one fails with `UnsupportedOp`. Edit the lines a block's `lines`
 //! attribute names instead.
 //!
@@ -24,7 +25,7 @@ use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode,
-    TemplateParams, content_hash, hash8,
+    READ_ONLY_ATTR, TemplateParams, content_hash, hash8,
 };
 use systemprompt_provider_contracts::register_document_codec;
 
@@ -128,7 +129,7 @@ fn outline(source: &str) -> ProjectionNode {
         text: None,
         hash8: hash8(source),
         children: blocks.into_iter().map(|(_, node)| node).collect(),
-        attrs: BTreeMap::new(),
+        attrs: BTreeMap::from([(READ_ONLY_ATTR.to_owned(), "true".to_owned())]),
     }
 }
 

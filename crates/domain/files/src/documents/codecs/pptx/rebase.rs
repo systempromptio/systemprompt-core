@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentFormat, EditOp, Projection, content_hash,
+    CodecError, DocumentFormat, EditOp, NodeTarget, Projection, content_hash, required_hash,
 };
 
 use super::apply::{Target, apply_one, target};
@@ -151,15 +151,27 @@ fn with_node(op: &EditOp, node: DocumentNodeId) -> EditOp {
         EditOp::ReplaceText {
             expected_hash,
             text,
+            content_as,
             ..
         } => EditOp::ReplaceText {
-            node,
+            node: NodeTarget::Id(node),
             expected_hash,
             text,
+            content_as,
         },
-        EditOp::InsertAfter { kind, text, .. } => EditOp::InsertAfter { node, kind, text },
+        EditOp::InsertAfter {
+            kind,
+            text,
+            content_as,
+            ..
+        } => EditOp::InsertAfter {
+            node: NodeTarget::Id(node),
+            kind,
+            text,
+            content_as,
+        },
         EditOp::Delete { expected_hash, .. } => EditOp::Delete {
-            node,
+            node: NodeTarget::Id(node),
             expected_hash,
         },
         EditOp::InsertSlide {
@@ -188,9 +200,12 @@ fn verify(current: &Projection, ops: &[EditOp]) -> Result<(), CodecError> {
             | EditOp::Delete {
                 node,
                 expected_hash,
-            } => (node, Some(expected_hash)),
-            EditOp::InsertAfter { node, .. }
-            | EditOp::InsertSlide {
+            } => (
+                node.resolved()?,
+                Some(required_hash(expected_hash.as_ref())?),
+            ),
+            EditOp::InsertAfter { node, .. } => (node.resolved()?, None),
+            EditOp::InsertSlide {
                 after: Some(node), ..
             } => (node, None),
             _ => continue,
@@ -198,10 +213,10 @@ fn verify(current: &Projection, ops: &[EditOp]) -> Result<(), CodecError> {
         let found = current
             .find(node)
             .ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
-        if let Some(expected) = expected.filter(|expected| **expected != found.hash8) {
+        if let Some(expected) = expected.filter(|expected| *expected != found.hash8) {
             return Err(CodecError::StaleAnchor {
                 node: node.clone(),
-                expected: expected.clone(),
+                expected: expected.to_owned(),
                 actual: found.hash8.clone(),
                 current_text: found.text.clone().unwrap_or_default(),
             });
@@ -217,6 +232,7 @@ pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError>
         root: nodes::nodes(&projection::load(&mut package)?),
         content_sha256: content_hash(bytes),
     };
+    ops.iter().try_for_each(EditOp::check_resolved)?;
     verify(&current, ops)?;
     let mut shifts = DeckShifts::default();
     for op in ops {

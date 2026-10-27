@@ -1,6 +1,6 @@
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_mcp::McpToolHandler;
-use systemprompt_models::documents::{AccessLevel, ActorKind, EditOp};
+use systemprompt_models::documents::{AccessLevel, ActorKind, ContentAs, EditOp, NodeTarget};
 use systemprompt_runtime::documents::mcp::{
     EditHandler, EditInput, ExportAs, ExportFormat, ExportHandler, ExportInput, HistoryHandler,
     HistoryInput, ListHandler, ListInput, ReadHandler, ReadInput, ReadView, ShareHandler,
@@ -40,9 +40,10 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
                 document_id: document,
                 base_revision: revision,
                 ops: vec![EditOp::ReplaceText {
-                    node: DocumentNodeId::new(node),
-                    expected_hash: "deadbeef".to_owned(),
+                    node: NodeTarget::Id(DocumentNodeId::new(node)),
+                    expected_hash: Some("deadbeef".to_owned()),
                     text: "gamma".to_owned(),
+                    content_as: ContentAs::Text,
                 }],
                 message: None,
                 verbose: false,
@@ -75,9 +76,10 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
                 document_id: document.clone(),
                 base_revision: revision.clone(),
                 ops: vec![EditOp::ReplaceText {
-                    node: DocumentNodeId::new(node),
-                    expected_hash: hash.to_owned(),
+                    node: NodeTarget::Id(DocumentNodeId::new(node)),
+                    expected_hash: Some(hash.to_owned()),
                     text: "gamma".to_owned(),
+                    content_as: ContentAs::Text,
                 }],
                 message: Some("rename".to_owned()),
                 verbose: false,
@@ -358,14 +360,16 @@ async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
                 params: Default::default(),
                 ops: vec![
                     EditOp::InsertAfter {
-                        node: DocumentNodeId::new("body/h1[1]"),
+                        node: NodeTarget::Id(DocumentNodeId::new("body/h1[1]")),
                         kind: NodeKind::Paragraph,
                         text: "first".to_owned(),
+                        content_as: ContentAs::Text,
                     },
                     EditOp::InsertAfter {
-                        node: DocumentNodeId::new("body/h1[1]"),
+                        node: NodeTarget::Id(DocumentNodeId::new("body/h1[1]")),
                         kind: NodeKind::Paragraph,
                         text: "second".to_owned(),
+                        content_as: ContentAs::Text,
                     },
                 ],
                 message: Some("draft".to_owned()),

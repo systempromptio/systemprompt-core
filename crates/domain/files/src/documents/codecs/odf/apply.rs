@@ -12,8 +12,11 @@
 use std::ops::Range;
 
 use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_provider_contracts::documents::{CodecError, DocumentFormat, EditOp, NodeKind};
+use systemprompt_provider_contracts::documents::{
+    CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, required_hash,
+};
 
+use super::markdown::markdown_markup;
 use super::package::{Splice, malformed, verify};
 use super::projection::{Para, emptied, fresh, replaced};
 
@@ -30,6 +33,7 @@ pub(super) struct FlowBatch<'d> {
     pub paras: &'d [Para],
     pub containers: &'d [Container],
     pub splices: Vec<Splice>,
+    pub body_end: Option<usize>,
 }
 
 enum Target<'d> {
@@ -48,6 +52,7 @@ impl<'d> FlowBatch<'d> {
             paras,
             containers,
             splices: Vec::new(),
+            body_end: None,
         }
     }
 
@@ -83,11 +88,17 @@ impl<'d> FlowBatch<'d> {
                 node,
                 expected_hash,
                 text,
+                ..
             } => {
+                let node = node.resolved()?;
                 let Target::Para(para) = self.find(node)? else {
                     return Err(malformed("replace_text needs a paragraph node"));
                 };
-                verify(node.as_str(), &para.text, expected_hash)?;
+                verify(
+                    node.as_str(),
+                    &para.text,
+                    required_hash(expected_hash.as_ref())?,
+                )?;
                 self.push(order, para.range.clone(), replaced(para, text));
             },
             EditOp::StrReplace { old_str, new_str } => {
@@ -95,11 +106,31 @@ impl<'d> FlowBatch<'d> {
                 let text = para.text.replacen(old_str.as_str(), new_str, 1);
                 self.push(order, para.range.clone(), replaced(para, &text));
             },
+            EditOp::InsertAfter {
+                node,
+                text,
+                content_as: ContentAs::Markdown,
+                ..
+            } => {
+                let at = self.markdown_at(node.resolved()?, op)?;
+                self.push(order, at..at, markdown_markup(self.format, text));
+            },
             EditOp::InsertAfter { .. } => self.insert_after(order, op)?,
+            EditOp::AppendMarkdown { markdown } => {
+                let at = self
+                    .body_end
+                    .or_else(|| self.paras.last().map(|para| para.range.end))
+                    .ok_or_else(|| self.unsupported(op))?;
+                self.push(order, at..at, markdown_markup(self.format, markdown));
+            },
             EditOp::Delete {
                 node,
                 expected_hash,
-            } => self.delete(order, node, expected_hash)?,
+            } => self.delete(
+                order,
+                node.resolved()?,
+                required_hash(expected_hash.as_ref())?,
+            )?,
             EditOp::SetCells { .. }
             | EditOp::InsertSlide { .. }
             | EditOp::SetHtml { .. }
@@ -157,10 +188,27 @@ impl<'d> FlowBatch<'d> {
         Ok(())
     }
 
+    fn markdown_at(&self, node: &DocumentNodeId, op: &EditOp) -> Result<usize, CodecError> {
+        match self.find(node)? {
+            Target::Para(para) => Ok(para
+                .list_item
+                .as_ref()
+                .map_or(para.range.end, |item| item.end)),
+            Target::Container(container) if container.accepts_insert_after => {
+                Ok(container.range.end)
+            },
+            Target::Container(_) => Err(self.unsupported(op)),
+        }
+    }
+
     fn insert_after(&mut self, order: usize, op: &EditOp) -> Result<(), CodecError> {
-        let EditOp::InsertAfter { node, kind, text } = op else {
+        let EditOp::InsertAfter {
+            node, kind, text, ..
+        } = op
+        else {
             return Err(self.unsupported(op));
         };
+        let node = node.resolved()?;
         let kind = *kind;
         let (at, anchor) = match self.find(node)? {
             Target::Para(para) => {

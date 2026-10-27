@@ -3,7 +3,8 @@ use std::collections::BTreeMap;
 use systemprompt_files::documents::codecs::xlsx::{XlsxCodec, blank_xlsx};
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CellValue, CodecError, DocumentCodec, EditOp, NodeKind, Projection, TemplateParams, hash8,
+    CellValue, CodecError, ContentAs, DocumentCodec, EditOp, NodeKind, NodeTarget, Projection,
+    TemplateParams, hash8,
 };
 
 fn fixture() -> Vec<u8> {
@@ -177,9 +178,10 @@ fn insert_after_adds_a_row() {
     let out = apply(
         &fixture(),
         vec![EditOp::InsertAfter {
-            node: node("sheet[Sheet1]/row[2]"),
+            node: NodeTarget::Id(node("sheet[Sheet1]/row[2]")),
             kind: NodeKind::Row,
             text: "kiwis\t9".to_owned(),
+            content_as: ContentAs::Text,
         }],
     )
     .expect("insert");

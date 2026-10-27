@@ -4,6 +4,7 @@ mod codecs_docx;
 mod codecs_docx_edits;
 mod codecs_html;
 mod codecs_markdown;
+mod codecs_markdown_content;
 mod codecs_odp;
 mod codecs_ods;
 mod codecs_odt;
@@ -16,10 +17,13 @@ mod docx_fixture;
 mod odf_fixture;
 mod pptx_fixture;
 mod registry;
+mod targets;
 mod templates;
 
 use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_provider_contracts::documents::{DocumentCodec, EditOp, NodeKind, Projection};
+use systemprompt_provider_contracts::documents::{
+    ContentAs, DocumentCodec, EditOp, NodeKind, NodeTarget, Projection,
+};
 
 pub(crate) const SAMPLE_TXT: &[u8] = include_bytes!("../../fixtures/documents/sample.txt");
 pub(crate) const CRLF_TXT: &[u8] = include_bytes!("../../fixtures/documents/crlf.txt");
@@ -39,24 +43,26 @@ pub(crate) fn hash_of(projection: &Projection, node: &str) -> String {
 
 pub(crate) fn replace(node: &str, expected_hash: String, text: &str) -> EditOp {
     EditOp::ReplaceText {
-        node: id(node),
-        expected_hash,
+        node: NodeTarget::Id(id(node)),
+        expected_hash: Some(expected_hash),
         text: text.to_owned(),
+        content_as: ContentAs::Text,
     }
 }
 
 pub(crate) fn insert_after(node: &str, kind: NodeKind, text: &str) -> EditOp {
     EditOp::InsertAfter {
-        node: id(node),
+        node: NodeTarget::Id(id(node)),
         kind,
         text: text.to_owned(),
+        content_as: ContentAs::Text,
     }
 }
 
 pub(crate) fn delete(node: &str, expected_hash: String) -> EditOp {
     EditOp::Delete {
-        node: id(node),
-        expected_hash,
+        node: NodeTarget::Id(id(node)),
+        expected_hash: Some(expected_hash),
     }
 }
 

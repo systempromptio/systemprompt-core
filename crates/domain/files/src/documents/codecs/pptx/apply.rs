@@ -10,14 +10,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use quick_xml::escape::escape;
 use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_provider_contracts::documents::{CodecError, DocumentFormat, EditOp, NodeKind};
+use systemprompt_provider_contracts::documents::{
+    CodecError, ContentAs, DocumentFormat, EditOp, NodeKind,
+};
 
 use super::layout::NewSlide;
+use super::paragraph::{markdown_xml, paragraph_xml, without_bullets};
 use super::projection::{self, Content, Paragraph, Slide};
 use super::slides;
-use crate::documents::codecs::xml_tree::{parse_xml, splice};
+use crate::documents::codecs::xml_tree::splice;
 use crate::documents::codecs::zip_package::Package;
 
 pub(super) enum Target {
@@ -57,7 +59,7 @@ pub(super) fn target(node: &DocumentNodeId) -> Result<Target, CodecError> {
     })
 }
 
-fn locate<'s>(
+pub(super) fn locate<'s>(
     slides: &'s [Slide],
     node: &DocumentNodeId,
     op: &'static str,
@@ -77,62 +79,7 @@ fn locate<'s>(
     }
 }
 
-pub(super) fn paragraph_xml(para: &Paragraph, ppr: Option<&str>, text: &str) -> String {
-    let mut out = String::from("<a:p>");
-    out.push_str(ppr.unwrap_or_default());
-    if text.is_empty() {
-        out.push_str(para.end_rpr.as_deref().unwrap_or("<a:endParaRPr/>"));
-        out.push_str("</a:p>");
-        return out;
-    }
-    let rpr = para.rpr.as_deref().unwrap_or_default();
-    for (line, segment) in text.split('\n').enumerate() {
-        if line > 0 {
-            out.push_str(&if rpr.is_empty() {
-                "<a:br/>".to_owned()
-            } else {
-                format!("<a:br>{rpr}</a:br>")
-            });
-        }
-        if !segment.is_empty() {
-            out.push_str(&format!("<a:r>{rpr}<a:t>{}</a:t></a:r>", escape(segment)));
-        }
-    }
-    out.push_str(para.end_rpr.as_deref().unwrap_or_default());
-    out.push_str("</a:p>");
-    out
-}
-
-fn without_bullets(ppr: Option<&str>) -> Result<String, CodecError> {
-    let Some(raw) = ppr else {
-        return Ok("<a:pPr><a:buNone/></a:pPr>".to_owned());
-    };
-    let root = parse_xml("a:pPr", raw)?;
-    if root.inner_start == root.end {
-        let open = raw.trim_end().trim_end_matches("/>");
-        return Ok(format!("{open}><a:buNone/></a:pPr>"));
-    }
-    let bullets = ["a:buNone", "a:buChar", "a:buAutoNum", "a:buBlip"];
-    let mut edits: Vec<(usize, usize, String)> = root
-        .children
-        .iter()
-        .filter(|child| bullets.contains(&child.name.as_str()))
-        .map(|child| (child.start, child.end, String::new()))
-        .collect();
-    let at = edits.first().map_or_else(
-        || {
-            root.children
-                .iter()
-                .find(|child| matches!(child.name.as_str(), "a:tabLst" | "a:defRPr" | "a:extLst"))
-                .map_or(root.inner_end, |child| child.start)
-        },
-        |edit| edit.0,
-    );
-    edits.push((at, at, "<a:buNone/>".to_owned()));
-    Ok(splice(raw, edits))
-}
-
-fn edit_slide(package: &mut Package<'_>, slide: &Slide, edit: (usize, usize, String)) {
+pub(super) fn edit_slide(package: &mut Package<'_>, slide: &Slide, edit: (usize, usize, String)) {
     package.write(&slide.part, splice(&slide.xml, vec![edit]));
 }
 
@@ -163,6 +110,41 @@ fn insert_after(
         _ => Some(without_bullets(para.ppr.as_deref())?),
     };
     let xml = paragraph_xml(para, ppr.as_deref(), text);
+    edit_slide(package, slide, (para.end, para.end, xml));
+    Ok(())
+}
+
+fn insert_markdown(
+    package: &mut Package<'_>,
+    node: Option<&DocumentNodeId>,
+    markdown: &str,
+) -> Result<(), CodecError> {
+    let slides = projection::load(package)?;
+    let last = || {
+        slides.iter().enumerate().rev().find_map(|(s, slide)| {
+            slide
+                .shapes
+                .iter()
+                .enumerate()
+                .rev()
+                .find_map(|(h, shape)| match &shape.content {
+                    Content::Text(paras) if !paras.is_empty() => Some(DocumentNodeId::new(
+                        format!("slide[{}]/shape[{h}]/p[{}]", s + 1, paras.len() - 1),
+                    )),
+                    _ => None,
+                })
+        })
+    };
+    let node = match node {
+        Some(node) => node.clone(),
+        None => last().ok_or(CodecError::UnsupportedOp {
+            op: "append_markdown",
+            format: DocumentFormat::Pptx,
+        })?,
+    };
+    let (slide, paras, at) = locate(&slides, &node, "insert_after")?;
+    let para = &paras[at];
+    let xml = markdown_xml(para, markdown)?;
     edit_slide(package, slide, (para.end, para.end, xml));
     Ok(())
 }
@@ -215,15 +197,24 @@ fn str_replace(package: &mut Package<'_>, old: &str, new: &str) -> Result<(), Co
 
 pub(super) fn apply_one(package: &mut Package<'_>, op: &EditOp) -> Result<bool, CodecError> {
     match op {
-        EditOp::Delete { node, .. } => delete(package, node),
+        EditOp::Delete { node, .. } => delete(package, node.resolved()?),
         other => apply_edit(package, other).map(|()| false),
     }
 }
 
 fn apply_edit(package: &mut Package<'_>, op: &EditOp) -> Result<(), CodecError> {
     match op {
-        EditOp::ReplaceText { node, text, .. } => replace_text(package, node, text),
-        EditOp::InsertAfter { node, kind, text } => insert_after(package, node, *kind, text),
+        EditOp::ReplaceText { node, text, .. } => replace_text(package, node.resolved()?, text),
+        EditOp::InsertAfter {
+            node,
+            kind,
+            text,
+            content_as: ContentAs::Text,
+        } => insert_after(package, node.resolved()?, *kind, text),
+        EditOp::InsertAfter { node, text, .. } => {
+            insert_markdown(package, Some(node.resolved()?), text)
+        },
+        EditOp::AppendMarkdown { markdown } => insert_markdown(package, None, markdown),
         EditOp::StrReplace { old_str, new_str } => str_replace(package, old_str, new_str),
         EditOp::InsertSlide {
             after,

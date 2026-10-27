@@ -42,3 +42,9 @@ pub(super) fn heading_style(bytes: &[u8], level: u8) -> Result<Option<String>, C
         }
     }
 }
+
+pub(super) fn has_style(bytes: &[u8], id: &str) -> Result<bool, CodecError> {
+    let wanted = format!("w:styleId=\"{id}\"");
+    Ok(parts::read_part(bytes, STYLES)?
+        .is_some_and(|raw| String::from_utf8_lossy(&raw).contains(&wanted)))
+}

@@ -1,22 +1,26 @@
 use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_models::documents::{CellValue, EditOp, NodeKind};
+use systemprompt_models::documents::{
+    CellValue, ContentAs, EditOp, NodeKind, NodeTarget, QuoteTarget,
+};
 
 fn all_ops() -> Vec<EditOp> {
     let node = DocumentNodeId::new("p1");
     vec![
         EditOp::ReplaceText {
-            node: node.clone(),
-            expected_hash: "abcd1234".into(),
+            node: NodeTarget::Id(node.clone()),
+            expected_hash: Some("abcd1234".into()),
             text: "new".into(),
+            content_as: ContentAs::Text,
         },
         EditOp::InsertAfter {
-            node: node.clone(),
+            node: NodeTarget::Id(node.clone()),
             kind: NodeKind::Heading { level: 2 },
             text: "h".into(),
+            content_as: ContentAs::Text,
         },
         EditOp::Delete {
-            node: node.clone(),
-            expected_hash: "abcd1234".into(),
+            node: NodeTarget::Id(node.clone()),
+            expected_hash: Some("abcd1234".into()),
         },
         EditOp::SetCells {
             sheet: "Sheet1".into(),
@@ -43,6 +47,9 @@ fn all_ops() -> Vec<EditOp> {
             html: "<p>x</p>".into(),
         },
         EditOp::SetText { text: "x".into() },
+        EditOp::AppendMarkdown {
+            markdown: "# x".into(),
+        },
     ]
 }
 
@@ -57,6 +64,7 @@ fn every_op_round_trips_with_its_tag() {
         "str_replace",
         "set_html",
         "set_text",
+        "append_markdown",
     ];
     for (op, tag) in all_ops().into_iter().zip(tags) {
         let json = serde_json::to_value(&op).expect("serialize");
@@ -86,4 +94,86 @@ fn touches_reports_anchor_node() {
     assert_eq!(ops[4].touches().map(DocumentNodeId::as_str), Some("p1"));
     assert!(ops[5].touches().is_none());
     assert!(ops[3].touches().is_none());
+}
+
+#[test]
+fn quote_target_and_markdown_content_parse_from_the_wire() {
+    let op: EditOp = serde_json::from_value(serde_json::json!({
+        "op": "insert_after",
+        "target": {"find": "Revenue grew", "nth": 2, "within": "body/tbl[0]"},
+        "text": "**bold**",
+        "as": "markdown"
+    }))
+    .expect("deserialize");
+    let EditOp::InsertAfter {
+        node,
+        kind,
+        content_as,
+        ..
+    } = &op
+    else {
+        panic!("expected insert_after, got {op:?}");
+    };
+    assert_eq!(
+        node,
+        &NodeTarget::Find(QuoteTarget {
+            find: "Revenue grew".into(),
+            nth: std::num::NonZeroUsize::new(2),
+            within: Some(DocumentNodeId::new("body/tbl[0]")),
+        })
+    );
+    assert_eq!(*kind, NodeKind::Paragraph);
+    assert_eq!(*content_as, ContentAs::Markdown);
+    assert!(op.touches().is_none());
+}
+
+#[test]
+fn quote_targets_need_no_expected_hash() {
+    let op: EditOp = serde_json::from_value(serde_json::json!({
+        "op": "delete",
+        "target": {"find": "obsolete"}
+    }))
+    .expect("deserialize");
+    assert!(matches!(
+        op,
+        EditOp::Delete {
+            node: NodeTarget::Find(_),
+            expected_hash: None,
+        }
+    ));
+}
+
+#[test]
+fn text_content_is_the_default_and_omitted_on_the_wire() {
+    let op: EditOp = serde_json::from_value(serde_json::json!({
+        "op": "replace_text",
+        "node": "p1",
+        "expected_hash": "abcd1234",
+        "text": "x"
+    }))
+    .expect("deserialize");
+    let json = serde_json::to_value(&op).expect("serialize");
+    assert!(json.get("as").is_none());
+    assert_eq!(json["node"], "p1");
+}
+
+#[test]
+fn unresolved_ops_are_refused_by_check_resolved() {
+    let quoted = EditOp::Delete {
+        node: NodeTarget::Find(QuoteTarget {
+            find: "x".into(),
+            nth: None,
+            within: None,
+        }),
+        expected_hash: None,
+    };
+    assert!(quoted.check_resolved().is_err());
+    let markdown_replace = EditOp::ReplaceText {
+        node: NodeTarget::Id(DocumentNodeId::new("p1")),
+        expected_hash: Some("abcd1234".into()),
+        text: "# x".into(),
+        content_as: ContentAs::Markdown,
+    };
+    assert!(markdown_replace.check_resolved().is_err());
+    assert!(all_ops().iter().all(|op| op.check_resolved().is_ok()));
 }

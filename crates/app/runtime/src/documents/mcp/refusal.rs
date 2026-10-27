@@ -109,7 +109,13 @@ impl Refusal {
 
     #[must_use]
     pub fn into_error(self, message: impl Into<String>) -> McpError {
-        let data = serde_json::to_value(&self).ok();
+        let data = match serde_json::to_value(&self) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                tracing::warn!(error = %error, code = self.code.as_str(), "refusal detail was not serialised");
+                None
+            },
+        };
         McpError::invalid_params(message.into(), data)
     }
 }

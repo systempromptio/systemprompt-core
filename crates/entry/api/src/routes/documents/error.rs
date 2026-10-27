@@ -182,6 +182,7 @@ fn api_error(error: DocumentsError, message: String) -> ApiError {
         DocumentsError::FolderNotEmpty { .. } => {
             ApiError::conflict(message).with_error_key("folder_not_empty")
         },
+        DocumentsError::FindNone { .. } => ApiError::conflict(message).with_error_key("find_none"),
         DocumentsError::InvalidName { .. }
         | DocumentsError::InvalidCursor { .. }
         | DocumentsError::UnknownFormat { .. }

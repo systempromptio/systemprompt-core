@@ -3,7 +3,8 @@
 //!
 //! Order: authorize `edit`, refuse when another holder has the lock, load
 //! the head, plan, build the new bytes (store, apply ops, or merge three
-//! ways), write the blob and the revision, then move the head by
+//! ways; quote targets in ops resolve against the bytes the ops apply to,
+//! before any op runs), write the blob and the revision, then move the head by
 //! compare-and-swap. Index and event failures after the swap are returned as
 //! [`CommitWarning`]s; the commit stands.
 //!
@@ -201,7 +202,7 @@ impl DocumentService {
         ops: Vec<EditOp>,
     ) -> Result<Vec<u8>, DocumentsError> {
         let codec = self.codec(format)?;
-        blocking(move || apply_with(codec.as_ref(), format, &bytes, &ops)).await
+        blocking(move || apply_with(codec.as_ref(), format, &bytes, ops)).await
     }
 
     async fn merge(&self, state: &CommitState<'_>, ours: Vec<u8>) -> Result<Built, DocumentsError> {

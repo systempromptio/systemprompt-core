@@ -9,7 +9,9 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{DocumentFolderId, UserId};
 use systemprompt_models::documents::DocumentFormat;
-use systemprompt_provider_contracts::documents::{CodecError, DocumentCodec, EditOp};
+use systemprompt_provider_contracts::documents::{
+    CodecError, DocumentCodec, EditOp, resolve_targets,
+};
 
 use super::DocumentService;
 use crate::documents::error::DocumentsError;
@@ -61,11 +63,12 @@ pub(super) fn apply_with(
     codec: &dyn DocumentCodec,
     format: DocumentFormat,
     bytes: &[u8],
-    ops: &[EditOp],
+    ops: Vec<EditOp>,
 ) -> Result<Vec<u8>, DocumentsError> {
     let projection = codec.project(bytes)?;
+    let resolved = resolve_targets(&projection, ops)?;
     codec
-        .apply(bytes, &projection, ops)
+        .apply(bytes, &projection, &resolved.ops)
         .map_err(|error| match error {
             CodecError::UnsupportedOp { op, format: _ } => DocumentsError::UnsupportedOp {
                 op,

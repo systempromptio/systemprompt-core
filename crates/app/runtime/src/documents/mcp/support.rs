@@ -70,6 +70,20 @@ pub fn tool_error(error: DocumentsError) -> McpError {
             current_text: Some(current_text),
             ..Refusal::new(RefusalCode::GuardMismatch)
         },
+        DocumentsError::FindNone { closest, .. } => {
+            let closest = closest.map(|block| (block.node, block.hash, block.text));
+            let (node, hash, current_text) = match closest {
+                Some((node, hash, text)) => (Some(node), Some(hash), Some(text)),
+                None => (None, None, None),
+            };
+            Refusal {
+                matches: Some(0),
+                node,
+                hash,
+                current_text,
+                ..Refusal::new(RefusalCode::FindNone)
+            }
+        },
         DocumentsError::UnsupportedOp { accepted_kinds, .. } => Refusal {
             accepted_kinds: Some(accepted_kinds.iter().map(|k| (*k).to_owned()).collect()),
             ..Refusal::new(RefusalCode::UnsupportedOp)

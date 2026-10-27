@@ -17,7 +17,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::authz::SubjectSourceError;
 use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat};
-use systemprompt_provider_contracts::documents::CodecError;
+use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError, TargetError};
 use systemprompt_traits::RepositoryError;
 
 use super::blob_store::BlobStoreError;
@@ -50,6 +50,15 @@ pub enum DocumentsError {
         "node {node} does not exist in this revision; read the outline again for current node ids"
     )]
     UnknownNode { node: DocumentNodeId },
+    #[error(
+        "no block contains \"{find}\"{}. Quote text exactly as it appears in a read, or target \
+         the node by id",
+        closest_label(.closest.as_ref())
+    )]
+    FindNone {
+        find: String,
+        closest: Option<ClosestBlock>,
+    },
     #[error(
         "forbidden: {action} needs {needed} access and you hold {}{}",
         held_label(.held.as_ref()),
@@ -172,6 +181,18 @@ impl From<CodecError> for DocumentsError {
     }
 }
 
+impl From<TargetError> for DocumentsError {
+    fn from(error: TargetError) -> Self {
+        match error {
+            TargetError::FindNone { find, closest } => Self::FindNone { find, closest },
+            TargetError::UnknownNode { node } => Self::UnknownNode { node },
+            TargetError::MissingHash { .. } => Self::Codec(CodecError::Malformed {
+                detail: "expected_hash is required when node names a node id",
+            }),
+        }
+    }
+}
+
 impl From<SubjectSourceError> for DocumentsError {
     fn from(error: SubjectSourceError) -> Self {
         Self::Authz(AuthzFailure::Subjects(error))
@@ -206,6 +227,15 @@ fn kinds_label(op: &str, kinds: &[&str]) -> String {
         ("insert_after", kinds) => format!("; insert_after accepts kind {}", kinds.join(", ")),
         _ => String::new(),
     }
+}
+
+fn closest_label(closest: Option<&ClosestBlock>) -> String {
+    closest.map_or_else(String::new, |block| {
+        format!(
+            "; the closest block is {} (hash {}): \"{}\"",
+            block.node, block.hash, block.text
+        )
+    })
 }
 
 fn held_label(held: Option<&AccessLevel>) -> String {

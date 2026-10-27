@@ -2,7 +2,7 @@ use systemprompt_files::documents::codecs::HtmlCodec;
 use systemprompt_files::documents::codecs::docx::DocxCodec;
 use systemprompt_files::documents::codecs::pptx::PptxCodec;
 use systemprompt_files::documents::codecs::xlsx::XlsxCodec;
-use systemprompt_provider_contracts::documents::{DocumentCodec, EditOp, NodeKind, Projection};
+use systemprompt_provider_contracts::documents::{DocumentCodec, EditOp, NodeKind, NodeTarget, Projection};
 
 use super::{SAMPLE_HTML, hash_of, id, insert_after, replace};
 
@@ -94,8 +94,8 @@ fn pptx_a_removed_slide_does_not_shift_later_targets() {
         &deck,
         &[
             EditOp::Delete {
-                node: id("slide[1]"),
-                expected_hash: hash_of(&base, "slide[1]"),
+                node: NodeTarget::Id(id("slide[1]")),
+                expected_hash: Some(hash_of(&base, "slide[1]")),
             },
             replace(
                 "slide[2]/shape[1]/p[1]",

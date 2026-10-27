@@ -6,10 +6,12 @@
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode, hash8,
+    CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode, hash8,
+    required_hash,
 };
 
 use super::anchors::{str_replace_once, verify_anchor};
+use super::markdown_lowering::{lower, plain_lines};
 
 pub(crate) const BODY_ID: &str = "body";
 
@@ -96,6 +98,26 @@ impl LineDoc {
             .collect()
     }
 
+    fn inserted(
+        text: &str,
+        content_as: ContentAs,
+        format: DocumentFormat,
+        lead: bool,
+    ) -> Vec<String> {
+        match (content_as, format) {
+            (ContentAs::Text, _) => Self::split_inserted(text),
+            (ContentAs::Markdown, DocumentFormat::Markdown) => {
+                let body = Self::split_inserted(text.trim_matches('\n'));
+                if lead {
+                    std::iter::once(String::new()).chain(body).collect()
+                } else {
+                    body
+                }
+            },
+            (ContentAs::Markdown, _) => plain_lines(&lower(text)),
+        }
+    }
+
     fn rewrite(&mut self, text: &str) {
         let keep_trailing = self.trailing;
         *self = Self::parse(&self.normalise(text));
@@ -117,16 +139,55 @@ impl LineDoc {
             });
         }
         match op {
+            EditOp::ReplaceText { .. } | EditOp::Delete { .. } | EditOp::InsertAfter { .. } => {
+                self.apply_anchored(op, format, current)
+            },
+            EditOp::StrReplace { old_str, new_str } => {
+                let replaced = str_replace_once(&self.render(), old_str, &self.normalise(new_str))?;
+                self.rewrite(&replaced);
+                Ok(())
+            },
+            EditOp::SetText { text } => {
+                self.rewrite(text);
+                Ok(())
+            },
+            EditOp::AppendMarkdown { markdown } => {
+                let lead = !self.render().is_empty();
+                let lines = Self::inserted(markdown, ContentAs::Markdown, format, lead);
+                match self.slots.last_mut() {
+                    Some(slot) => slot.after.extend(lines),
+                    None => self.head.extend(lines),
+                }
+                Ok(())
+            },
+            EditOp::SetCells { .. } | EditOp::InsertSlide { .. } | EditOp::SetHtml { .. } => {
+                Err(CodecError::UnsupportedOp {
+                    op: op.name(),
+                    format,
+                })
+            },
+        }
+    }
+
+    fn apply_anchored(
+        &mut self,
+        op: &EditOp,
+        format: DocumentFormat,
+        current: &Projection,
+    ) -> Result<(), CodecError> {
+        match op {
             EditOp::ReplaceText {
                 node,
                 expected_hash,
                 text,
+                ..
             } => {
+                let node = node.resolved()?;
                 let mut lines = Self::split_inserted(text).into_iter();
                 let slot = self.anchored_slot(
                     line_index(node, op, format, current)?,
                     node,
-                    expected_hash,
+                    required_hash(expected_hash.as_ref())?,
                 )?;
                 slot.text = Some(lines.next().unwrap_or_default());
                 let rest: Vec<String> = lines.collect();
@@ -137,16 +198,23 @@ impl LineDoc {
                 node,
                 expected_hash,
             } => {
+                let node = node.resolved()?;
                 let slot = self.anchored_slot(
                     line_index(node, op, format, current)?,
                     node,
-                    expected_hash,
+                    required_hash(expected_hash.as_ref())?,
                 )?;
                 slot.text = None;
                 Ok(())
             },
-            EditOp::InsertAfter { node, text, .. } => {
-                let lines = Self::split_inserted(text);
+            EditOp::InsertAfter {
+                node,
+                text,
+                content_as,
+                ..
+            } => {
+                let node = node.resolved()?;
+                let lines = Self::inserted(text, *content_as, format, node.as_str() != BODY_ID);
                 if node.as_str() == BODY_ID {
                     self.head.extend(lines);
                     return Ok(());
@@ -159,21 +227,9 @@ impl LineDoc {
                 slot.after.extend(lines);
                 Ok(())
             },
-            EditOp::StrReplace { old_str, new_str } => {
-                let replaced = str_replace_once(&self.render(), old_str, &self.normalise(new_str))?;
-                self.rewrite(&replaced);
-                Ok(())
-            },
-            EditOp::SetText { text } => {
-                self.rewrite(text);
-                Ok(())
-            },
-            EditOp::SetCells { .. } | EditOp::InsertSlide { .. } | EditOp::SetHtml { .. } => {
-                Err(CodecError::UnsupportedOp {
-                    op: op.name(),
-                    format,
-                })
-            },
+            _ => Err(CodecError::Malformed {
+                detail: "apply_anchored takes replace_text, delete or insert_after",
+            }),
         }
     }
 

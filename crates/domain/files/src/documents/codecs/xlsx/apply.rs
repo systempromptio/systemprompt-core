@@ -6,11 +6,12 @@
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CellValue, CodecError, DocumentFormat, EditOp, hash8,
+    CellValue, CodecError, ContentAs, DocumentFormat, EditOp, hash8, required_hash,
 };
 use umya_spreadsheet::{Workbook, Worksheet};
 
 use super::cells::{auto_parse, clear_row, write_cell, write_row};
+use super::insert::{insert_after, insert_markdown};
 use super::rebase::RowShifts;
 use super::workbook::{
     CellRange, Target, cell_display, load, node_id, parse_node, save, sheet_error, sheet_id,
@@ -18,6 +19,7 @@ use super::workbook::{
 };
 
 pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError> {
+    ops.iter().try_for_each(EditOp::check_resolved)?;
     let mut workbook = load(bytes)?;
     let mut shifts = RowShifts::default();
     for op in ops {
@@ -48,13 +50,34 @@ fn apply_one(
             node,
             expected_hash,
             text,
-        } => replace_text(workbook, node, expected_hash, text, shifts),
+            ..
+        } => replace_text(
+            workbook,
+            node.resolved()?,
+            required_hash(expected_hash.as_ref())?,
+            text,
+            shifts,
+        ),
         EditOp::Delete {
             node,
             expected_hash,
-        } => delete(workbook, node, expected_hash, shifts),
+        } => delete(
+            workbook,
+            node.resolved()?,
+            required_hash(expected_hash.as_ref())?,
+            shifts,
+        ),
         EditOp::StrReplace { old_str, new_str } => str_replace(workbook, old_str, new_str),
-        EditOp::InsertAfter { node, text, .. } => insert_after(workbook, node, text, shifts),
+        EditOp::InsertAfter {
+            node,
+            text,
+            content_as: ContentAs::Text,
+            ..
+        } => insert_after(workbook, node.resolved()?, text, shifts),
+        EditOp::InsertAfter { node, text, .. } => {
+            insert_markdown(workbook, Some(node.resolved()?), text, shifts)
+        },
+        EditOp::AppendMarkdown { markdown } => insert_markdown(workbook, None, markdown, shifts),
         EditOp::InsertSlide { .. } | EditOp::SetHtml { .. } | EditOp::SetText { .. } => {
             Err(CodecError::UnsupportedOp {
                 op: op.name(),
@@ -70,7 +93,7 @@ fn sheet_mut<'a>(workbook: &'a mut Workbook, name: &str) -> Result<&'a mut Works
         .map_err(sheet_error(node_id(sheet_id(name))))
 }
 
-fn resolve<'a>(
+pub(super) fn resolve<'a>(
     workbook: &'a mut Workbook,
     node: &DocumentNodeId,
     shifts: &RowShifts,
@@ -186,29 +209,6 @@ fn delete(
             });
         },
     }
-    Ok(())
-}
-
-fn insert_after(
-    workbook: &mut Workbook,
-    node: &DocumentNodeId,
-    text: &str,
-    shifts: &mut RowShifts,
-) -> Result<(), CodecError> {
-    let (name, original) =
-        parse_node(node).ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
-    let (sheet, target) = resolve(workbook, node, shifts)?;
-    let (Target::Row(_) | Target::Cell(..), Target::Row(anchor) | Target::Cell(_, anchor)) =
-        (target, original)
-    else {
-        let row = sheet.highest_row() + 1;
-        write_row(sheet, row, text);
-        return Ok(());
-    };
-    let at = shifts.anchor(&name, anchor) + 1;
-    sheet.insert_new_row(at, 1);
-    write_row(sheet, at, text);
-    shifts.inserted(&name, anchor, at);
     Ok(())
 }
 

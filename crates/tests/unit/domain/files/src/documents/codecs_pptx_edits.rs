@@ -1,5 +1,7 @@
 use systemprompt_files::documents::codecs::pptx::{PptxCodec, blank_pptx};
-use systemprompt_provider_contracts::documents::{CodecError, DocumentCodec, EditOp, NodeKind};
+use systemprompt_provider_contracts::documents::{
+    CodecError, ContentAs, DocumentCodec, EditOp, NodeKind, NodeTarget,
+};
 
 use super::pptx_fixture::{
     apply, entries, hash_of, node, part, project, raw_entries, two_slide_deck,
@@ -10,9 +12,10 @@ fn replace(bytes: &[u8], id: &str, text: &str) -> Vec<u8> {
     apply(
         bytes,
         &[EditOp::ReplaceText {
-            node: node(id),
-            expected_hash,
+            node: NodeTarget::Id(node(id)),
+            expected_hash: Some(expected_hash),
             text: text.to_owned(),
+            content_as: ContentAs::Text,
         }],
     )
 }
@@ -78,9 +81,10 @@ fn stale_hash_reports_the_current_text() {
             &deck,
             &project(&deck),
             &[EditOp::ReplaceText {
-                node: node("slide[2]/shape[1]/p[0]"),
-                expected_hash: "00000000".to_owned(),
+                node: NodeTarget::Id(node("slide[2]/shape[1]/p[0]")),
+                expected_hash: Some("00000000".to_owned()),
                 text: "x".to_owned(),
+                content_as: ContentAs::Text,
             }],
         )
         .expect_err("stale");
@@ -96,9 +100,10 @@ fn insert_after_as_paragraph_switches_bullets_off() {
     let edited = apply(
         &deck,
         &[EditOp::InsertAfter {
-            node: node("slide[2]/shape[1]/p[0]"),
+            node: NodeTarget::Id(node("slide[2]/shape[1]/p[0]")),
             kind: NodeKind::Paragraph,
             text: "Note".to_owned(),
+            content_as: ContentAs::Text,
         }],
     );
     let projection = project(&edited);
@@ -121,9 +126,10 @@ fn insert_after_as_list_item_keeps_the_paragraph_properties() {
     let edited = apply(
         &two_slide_deck(),
         &[EditOp::InsertAfter {
-            node: node("slide[2]/shape[1]/p[1]"),
+            node: NodeTarget::Id(node("slide[2]/shape[1]/p[1]")),
             kind: NodeKind::ListItem,
             text: "Training".to_owned(),
+            content_as: ContentAs::Text,
         }],
     );
     assert!(part(&edited, "ppt/slides/slide1.xml").contains(
@@ -138,8 +144,8 @@ fn deleting_the_last_paragraph_keeps_an_empty_one() {
     let edited = apply(
         &deck,
         &[EditOp::Delete {
-            node: node("slide[1]/shape[0]/p[0]"),
-            expected_hash,
+            node: NodeTarget::Id(node("slide[1]/shape[0]/p[0]")),
+            expected_hash: Some(expected_hash),
         }],
     );
     let projection = project(&edited);
@@ -159,8 +165,8 @@ fn delete_slide_removes_it_from_the_order() {
     let edited = apply(
         &deck,
         &[EditOp::Delete {
-            node: node("slide[1]"),
-            expected_hash,
+            node: NodeTarget::Id(node("slide[1]")),
+            expected_hash: Some(expected_hash),
         }],
     );
     let projection = project(&edited);

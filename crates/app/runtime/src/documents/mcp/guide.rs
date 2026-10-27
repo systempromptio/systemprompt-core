@@ -26,7 +26,12 @@ Edit: documents_edit {document_id, base_revision: <read revision_id>, ops, messa
 replace_text {node, expected_hash, text}; delete {node, expected_hash}; insert_after {node, \
 kind: {type: heading, level} | {type: paragraph} | {type: list_item} | {type: row} | {type: \
 text}, text}; str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, \
-range, values}; insert_slide {after, layout, title, body}; set_text {text}; set_html {html}.
+range, values}; insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; \
+append_markdown {markdown} (adds Markdown at the end).
+Target: an anchored op names node by id with expected_hash, or target: {find: \"quoted text\", \
+nth?, within?: node} to hit the block containing the quote; no match refuses find_none with \
+the closest block. Content: replace_text and insert_after take as: \"markdown\" to write \
+headings, lists, tables, bold, italic and links as native formatting.
 Batch: every target resolves against the document as it stood before the call; ops apply in \
 order, so two insert_after on one node land in op order; all ops apply or none.
 Ack: an edit or create returns `written`, the lines it changed or created; anchor the next \
@@ -67,8 +72,10 @@ const fn refusal_text(code: RefusalCode) -> &'static str {
              state now. Re-aim at current_text with hash as expected_hash, or drop the edit."
         },
         RefusalCode::FindNone => {
-            "find_none: old_str matched `matches` places, not one. Quote it exactly as read and \
-             widen it until it is unique."
+            "find_none: old_str or a target find matched `matches` places, not one. Quote it \
+             exactly as read and widen it until it is unique. For a target find that matched \
+             nothing, node, hash and current_text name the closest block: re-aim at it or \
+             quote its current_text."
         },
         RefusalCode::UnsupportedOp => {
             "unsupported_op: this format does not take the op or node kind; accepted_kinds lists \

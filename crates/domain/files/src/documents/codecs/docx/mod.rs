@@ -26,7 +26,9 @@
 mod apply;
 mod blank;
 mod inline;
+mod insert;
 mod instantiate;
+mod markdown;
 mod markup;
 mod parts;
 mod preview;

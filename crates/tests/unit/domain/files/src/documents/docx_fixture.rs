@@ -2,7 +2,9 @@ use std::io::{Cursor, Read, Write};
 
 use systemprompt_files::documents::codecs::docx::{DocxCodec, blank_docx};
 use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_provider_contracts::documents::{DocumentCodec, EditOp, Projection};
+use systemprompt_provider_contracts::documents::{
+    ContentAs, DocumentCodec, EditOp, NodeTarget, Projection,
+};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
@@ -110,9 +112,10 @@ pub fn replace(bytes: &[u8], id: &str, text: &str) -> Vec<u8> {
     apply(
         bytes,
         &[EditOp::ReplaceText {
-            node: node_id(id),
-            expected_hash: hash_of(&projection, id),
+            node: NodeTarget::Id(node_id(id)),
+            expected_hash: Some(hash_of(&projection, id)),
             text: text.to_owned(),
+            content_as: ContentAs::Text,
         }],
     )
 }

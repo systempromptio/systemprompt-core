@@ -38,7 +38,9 @@ impl DocumentCodec for OdtCodec {
         let (package, content) = read(bytes)?;
         let doc = text::read(&content)?;
         let containers = doc.containers();
+        ops.iter().try_for_each(EditOp::check_resolved)?;
         let mut batch = FlowBatch::new(DocumentFormat::Odt, &doc.paras, &containers);
+        batch.body_end = content.xml.rfind("</office:text>");
         for (order, op) in ops.iter().enumerate() {
             batch.op(order, op)?;
         }
