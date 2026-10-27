@@ -9,6 +9,7 @@
 
 ### Changed
 
+- **Gateway:** a bridge or OAuth JWT whose `x-session-id` differs from its `session_id` claim is no longer refused: the request lands on the claim's session and the header is recorded as `client_session_id`, as it already was for an API key. `OpenCode` 2's own session ids pass through the bridge proxy unchanged.
 - **Bridge:** first use syncs before it touches any host and then enrols or offers a profile only to the hosts the delivered manifest enables; with no manifest, no host is set up.
 - **Bridge:** a sync seeds Claude Code's default model and model picker only when the manifest enables Claude Code.
 - **Bridge:** a sync removes a Claude Code `managed-mcp.json` or strips the `allowedMcpServers`, `allowManagedMcpServersOnly` and `allowAllClaudeAiMcps` keys only when every server they name is the bridge's own loopback MCP endpoint; a policy anyone else deployed is left in place, logged, and reported by `doctor`.

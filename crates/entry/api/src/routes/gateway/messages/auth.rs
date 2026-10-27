@@ -11,9 +11,10 @@
 //!
 //! Session ids are bound to the credential (see [`super::session_binding`]): a
 //! JWT carries its session in the claim, and an API key gets a session minted
-//! and bound to it. A client's own `x-session-id` that the gateway did not
-//! issue is recorded as the audit row's `client_session_id` and never
-//! rejected.
+//! and bound to it. An `x-session-id` that differs from the bound session is
+//! recorded as the audit row's `client_session_id` and never rejected: the
+//! session always comes from the credential, so a client-sent id is audit
+//! data, never an authorization input.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,7 +34,7 @@ use systemprompt_security::JwtUserContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits, ApiKeyService};
 
 use super::error::RejectionError;
-use super::session_binding::{SessionRequest, bind_api_key_session, is_client_owned};
+use super::session_binding::{SessionRequest, bind_api_key_session};
 use crate::services::middleware::JwtContextExtractor;
 
 /// What an API key narrows its user's principal to.
@@ -225,25 +226,10 @@ async fn authenticate_jwt(
         .await
         .map_err(rejection_for_token)?;
 
-    let mut client_session = None;
-    if let Some(header) = inputs.header_session
-        && header.as_str() != claims.session_id.as_str()
-    {
-        if is_client_owned(inputs.ctx, header, &claims.user_id).await? {
-            client_session = ClientSessionId::try_new(header.as_str().to_owned()).ok();
-            return Ok(jwt_principal(claims, user.roles, client_session));
-        }
-        tracing::warn!(
-            header_session = %header.as_str(),
-            claim_session = %claims.session_id.as_str(),
-            user_id = %claims.user_id,
-            "X-Session-ID header does not match the bearer JWT session_id; rejecting"
-        );
-        return Err(RejectionError::client(
-            StatusCode::UNAUTHORIZED,
-            "X-Session-ID does not match authenticated session",
-        ));
-    }
+    let client_session = inputs
+        .header_session
+        .filter(|header| header.as_str() != claims.session_id.as_str())
+        .and_then(|header| ClientSessionId::try_new(header.as_str().to_owned()).ok());
 
     Ok(jwt_principal(claims, user.roles, client_session))
 }
