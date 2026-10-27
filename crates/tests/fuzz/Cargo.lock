@@ -3621,6 +3621,7 @@ dependencies = [
 name = "systemprompt-config"
 version = "0.73.0"
 dependencies = [
+ "async-trait",
  "base64 0.23.1",
  "chrono",
  "hex",
@@ -3681,6 +3682,7 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
@@ -3984,6 +3986,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-traits",
  "systemprompt-wire",
  "thiserror 2.0.21",
  "tokio",

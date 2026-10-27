@@ -51,6 +51,14 @@ pub struct Config {
     pub cowork: Option<CoworkConfig>,
     #[serde(default)]
     pub opencode: Option<OpenCodeConfig>,
+    #[serde(default)]
+    pub drive: Option<DriveConfig>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub struct DriveConfig {
+    #[serde(default)]
+    pub enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

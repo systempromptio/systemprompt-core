@@ -67,6 +67,7 @@ pub struct ProxyDeps {
     pub http: reqwest::Client,
     pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
     pub update_gate: crate::update::automatic::UpdateGate,
+    pub drive_signals: super::drive_signal::DriveSignals,
 }
 
 impl std::fmt::Debug for ProxyDeps {

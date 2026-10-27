@@ -1,0 +1,21 @@
+[package]
+name = "systemprompt-bridge-drive-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Tests for the systemprompt-bridge Drive sync module"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+reqwest = { workspace = true }
+systemprompt-bridge = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }

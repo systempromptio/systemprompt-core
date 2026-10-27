@@ -76,6 +76,7 @@ members = [
     "unit/bridge/manifest",
     "unit/bridge/update",
     "unit/bridge/gateway-client",
+    "unit/bridge/drive",
     "unit/bridge/mcp-probe",
     "unit/bridge/paths",
     "unit/bridge/install",

@@ -145,6 +145,11 @@ impl ProxyHandle {
     }
 
     #[must_use]
+    pub const fn token_cache(&self) -> Option<&Arc<TokenCache>> {
+        self.token_cache.as_ref()
+    }
+
+    #[must_use]
     pub const fn session_id(&self) -> Option<&SessionId> {
         self.session_id.as_ref()
     }

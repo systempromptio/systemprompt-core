@@ -7,3 +7,4 @@ systemprompt-bridge-install-tests
 systemprompt-bridge-fsutil-tests
 systemprompt-bridge-gui-tests
 systemprompt-bridge-verdicts-tests
+systemprompt-bridge-drive-tests

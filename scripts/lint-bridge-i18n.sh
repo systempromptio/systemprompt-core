@@ -46,6 +46,8 @@ gateway-state-:wire/codes.rs:GatewayCode
 identity-:wire/codes.rs:IdentityCode
 agents-status-cloud-:wire/codes.rs:IdentityCode
 overall-:wire/codes.rs:OverallCode
+drive-status-:wire/drive.rs:DriveCode
+tray-drive-:wire/drive.rs:DriveCode
 agents-status-token-:wire/codes.rs:TokenCode
 setup-health-label-:wire/codes.rs:HealthCode
 proxy-state-:proxy_probe/mod.rs:ProxyProbeState

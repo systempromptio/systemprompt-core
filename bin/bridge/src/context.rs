@@ -45,6 +45,7 @@ pub struct BridgeContext {
     pub update_gate: crate::update::automatic::UpdateGate,
     pub elevation_attempted: AtomicBool,
     pub startup_faults: Vec<StartupFault>,
+    pub drive: Arc<crate::drive::DriveHandle>,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -102,6 +103,7 @@ impl BridgeContext {
             },
         };
         let update_gate = crate::update::automatic::UpdateGate::default();
+        let (drive_signals, drive_receiver) = crate::proxy::drive_signal::DriveSignals::channel();
         let deps = ProxyDeps {
             install_id,
             mcp_registry: Arc::clone(&mcp_registry),
@@ -109,13 +111,18 @@ impl BridgeContext {
             http: http.clone(),
             plugin_tokens: Arc::clone(&plugin_tokens),
             update_gate: update_gate.clone(),
+            drive_signals,
         };
         let proxy = match mode {
             ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps, &mut faults),
             ProxyMode::Attach => ProxyHandle::attach(deps, &mut faults),
         };
+        let tasks = crate::tasks::TaskOwner::new(runtime.handle(), activity.clone());
+        let drive = crate::drive::DriveHandle::new();
+        spawn_drive(&tasks, &proxy, &drive, &http, drive_receiver);
         Ok(Arc::new(Self {
-            tasks: crate::tasks::TaskOwner::new(runtime.handle(), activity.clone()),
+            tasks,
+            drive,
             runtime,
             install_id_durable,
             proxy,
@@ -175,6 +182,51 @@ impl BridgeContext {
     pub fn spawn(&self, fut: impl Future<Output = ()> + Send + 'static) {
         self.tasks.spawn(fut);
     }
+}
+
+fn spawn_drive(
+    tasks: &crate::tasks::TaskOwner,
+    proxy: &ProxyHandle,
+    drive: &Arc<crate::drive::DriveHandle>,
+    http: &reqwest::Client,
+    signals: crate::proxy::drive_signal::DriveSignalReceiver,
+) {
+    let Some(token_cache) = proxy.token_cache() else {
+        return;
+    };
+    let disabled = match crate::config::load() {
+        Ok(cfg) => cfg.drive.and_then(|drive| drive.enabled) == Some(false),
+        Err(error) => {
+            tracing::warn!(%error, "drive sync reads no config; it runs with the defaults");
+            false
+        },
+    };
+    let Some(root) = crate::drive::DriveRoot::resolve() else {
+        tracing::info!("drive sync off: this brand has no workspace folder");
+        return;
+    };
+    if disabled {
+        tracing::info!("drive sync off: disabled in the bridge config");
+        return;
+    }
+    let device_id =
+        match systemprompt_identifiers::DriveDeviceId::try_new(proxy.install_id().as_str()) {
+            Ok(id) => id,
+            Err(error) => {
+                tracing::warn!(%error, "drive sync off: the install id is not a device id");
+                return;
+            },
+        };
+    tasks.spawn(crate::drive::run::run_loop(crate::drive::run::DriveDeps {
+        handle: Arc::clone(drive),
+        root,
+        runtime_config: Arc::clone(proxy.runtime_config()),
+        token_cache: Arc::clone(token_cache),
+        http: http.clone(),
+        device_id,
+        host_name: crate::sysproc::host_name().unwrap_or_else(|| "this device".to_owned()),
+        signals,
+    }));
 }
 
 // Why: Tokio runtime drop panics inside an async task; the final owner may be

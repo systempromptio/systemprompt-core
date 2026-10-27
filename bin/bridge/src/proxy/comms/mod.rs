@@ -30,8 +30,10 @@ pub use inbox::{
 };
 
 use crate::config::SharedRuntimeConfig;
+use crate::proxy::drive_signal::{DriveSignal, DriveSignals};
 use crate::proxy::token_cache::TokenCache;
 use systemprompt_models::ApiPaths;
+use systemprompt_models::documents::{DocumentPresenceEvent, DocumentRevisionCreatedEvent};
 
 const AUTH_THRESHOLD_SECS: u64 = 300;
 const RETRY_MIN: Duration = Duration::from_secs(1);
@@ -42,8 +44,9 @@ const EVENT_NAME: &str = "comms.message";
 struct AgUiEnvelope {
     #[serde(default)]
     name: Option<String>,
+    // JSON: the value's shape is chosen by `name`; each arm decodes its own type.
     #[serde(default)]
-    value: Option<CommsAnnouncement>,
+    value: Option<Box<serde_json::value::RawValue>>,
 }
 
 #[derive(Debug, Clone, Deserialize, serde::Serialize)]
@@ -58,26 +61,55 @@ pub(super) struct CommsAnnouncement {
     preview: String,
 }
 
-fn handle_frame(data: &str) {
+fn handle_frame(data: &str, drive: &DriveSignals) {
     let Ok(envelope) = serde_json::from_str::<AgUiEnvelope>(data) else {
         return;
     };
-    if envelope.name.as_deref() != Some(EVENT_NAME) {
+    let (Some(name), Some(value)) = (envelope.name.as_deref(), envelope.value) else {
         return;
+    };
+    match name {
+        EVENT_NAME => {
+            if let Some(announcement) = decode(&value) {
+                deliver_announcement(&announcement);
+            }
+        },
+        DocumentRevisionCreatedEvent::NAME => {
+            if let Some(event) = decode(&value) {
+                drive.send(DriveSignal::RevisionCreated(Box::new(event)));
+            }
+        },
+        DocumentPresenceEvent::NAME => {
+            if let Some(event) = decode(&value) {
+                drive.send(DriveSignal::Presence(Box::new(event)));
+            }
+        },
+        _ => {},
     }
-    if let Some(announcement) = envelope.value {
-        tracing::debug!(
+}
+
+fn decode<T: serde::de::DeserializeOwned>(value: &serde_json::value::RawValue) -> Option<T> {
+    match serde_json::from_str(value.get()) {
+        Ok(decoded) => Some(decoded),
+        Err(error) => {
+            tracing::warn!(%error, "bridge stream frame did not decode; it is skipped");
+            None
+        },
+    }
+}
+
+fn deliver_announcement(announcement: &CommsAnnouncement) {
+    tracing::debug!(
+        message_id = %announcement.message_id,
+        class = %announcement.delivery_class,
+        "comms announcement received"
+    );
+    if let Err(e) = append(announcement) {
+        tracing::warn!(
             message_id = %announcement.message_id,
-            class = %announcement.delivery_class,
-            "comms announcement received"
+            error = %e,
+            "comms announcement dropped: it could not be written to the inbox"
         );
-        if let Err(e) = append(&announcement) {
-            tracing::warn!(
-                message_id = %announcement.message_id,
-                error = %e,
-                "comms announcement dropped: it could not be written to the inbox"
-            );
-        }
     }
 }
 
@@ -85,6 +117,7 @@ pub async fn run_loop(
     runtime_config: SharedRuntimeConfig,
     token_cache: Arc<TokenCache>,
     client: reqwest::Client,
+    drive: DriveSignals,
 ) {
     let mut backoff = RETRY_MIN;
     loop {
@@ -92,7 +125,7 @@ pub async fn run_loop(
         let mut generation = token_cache.generation();
         generation.mark_unchanged();
         let outcome = tokio::select! {
-            outcome = subscribe_once(cfg.gateway_base.as_ref(), token_cache.as_ref(), &client) => outcome,
+            outcome = subscribe_once(cfg.gateway_base.as_ref(), token_cache.as_ref(), &client, &drive) => outcome,
             // Why: the stream belongs to the gateway it was opened against; a
             // swap means that gateway is no longer this bridge's, however
             // healthy the connection still is.
@@ -135,6 +168,7 @@ async fn subscribe_once(
     gateway_base: &ValidatedUrl,
     token_cache: &TokenCache,
     client: &reqwest::Client,
+    drive: &DriveSignals,
 ) -> Result<(), CommsError> {
     let token = token_cache.current(AUTH_THRESHOLD_SECS).await?;
 
@@ -170,7 +204,7 @@ async fn subscribe_once(
             buffer.drain(..idx + 2);
             for line in frame.lines() {
                 if let Some(data) = line.strip_prefix("data: ") {
-                    handle_frame(data);
+                    handle_frame(data, drive);
                 }
             }
         }

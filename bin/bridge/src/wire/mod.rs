@@ -8,6 +8,7 @@
 
 pub mod catalog;
 pub mod codes;
+pub mod drive;
 pub mod external_url;
 pub mod first_run;
 pub mod hosts;

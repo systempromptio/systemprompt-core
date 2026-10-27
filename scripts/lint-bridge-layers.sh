@@ -23,6 +23,7 @@ auth
 validate update
 proxy_probe feedback
 proxy
+drive
 context
 host_sync
 install

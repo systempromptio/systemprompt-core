@@ -20,6 +20,7 @@ pub(super) struct MenuParts {
     pub(super) bindings: HashMap<MenuId, UiEvent>,
     pub(super) identity_item: MenuItem,
     pub(super) last_sync_item: MenuItem,
+    pub(super) drive_item: MenuItem,
     pub(super) sync_item: MenuItem,
     pub(super) update_item: MenuItem,
     pub(super) autostart_item: CheckMenuItem,
@@ -34,6 +35,7 @@ pub(super) fn build_menu(
 
     let identity_item = MenuItem::new(text::format_identity(initial), false, None);
     let last_sync_item = MenuItem::new(text::format_last_sync(initial), false, None);
+    let drive_item = MenuItem::new(i18n::t("tray-drive-off"), false, None);
     let sync_item = MenuItem::new(i18n::t("tray-sync-now"), true, None);
     let validate_item = MenuItem::new(i18n::t("tray-validate"), true, None);
     let (update_label, update_enabled, update_event) = update_menu(&initial.update);
@@ -53,6 +55,7 @@ pub(super) fn build_menu(
 
     menu.append(&identity_item)?;
     menu.append(&last_sync_item)?;
+    menu.append(&drive_item)?;
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&sync_item)?;
     menu.append(&validate_item)?;
@@ -98,6 +101,7 @@ pub(super) fn build_menu(
         bindings,
         identity_item,
         last_sync_item,
+        drive_item,
         sync_item,
         update_item,
         autostart_item,

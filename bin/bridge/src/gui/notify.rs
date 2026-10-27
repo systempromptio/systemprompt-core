@@ -15,6 +15,8 @@ pub enum Signal {
     GatewayUnreachable,
     McpAuthBroken,
     SessionExpiring,
+    DriveConflict,
+    DriveEditor,
 }
 
 impl GuiApp {

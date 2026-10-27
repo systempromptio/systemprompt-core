@@ -141,6 +141,7 @@ pub fn start_with_listener(
 
     let tasks = Arc::new(crate::tasks::TaskOwner::new(rt, ctx.deps.activity.clone()));
     let update_gate = ctx.deps.update_gate.clone();
+    let drive_signals = ctx.deps.drive_signals.clone();
     tasks.spawn(run_listener(
         listener,
         ctx,
@@ -159,6 +160,7 @@ pub fn start_with_listener(
         runtime_config,
         token_cache,
         stream_client,
+        drive_signals,
     ));
 
     Ok(ServedProxy {

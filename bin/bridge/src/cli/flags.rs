@@ -63,7 +63,7 @@ pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
             switches: &["--check", "--yes", "-y"],
             ..NONE
         },
-        "__apply-policy-task" | "oauth-client" => CommandFlags {
+        "__apply-policy-task" | "oauth-client" | "drive" => CommandFlags {
             positionals: 1,
             ..NONE
         },

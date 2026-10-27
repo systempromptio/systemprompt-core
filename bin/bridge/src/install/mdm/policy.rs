@@ -195,6 +195,10 @@ pub fn workspace_folders() -> serde_json::Value {
         folders.push(
             serde_json::json!({ "path": format!("~/{workspace}"), "isDefaultSelected": true }),
         );
+        folders.push(serde_json::json!({
+            "path": format!("~/{workspace}/{}", crate::config::paths::DRIVE_SUBDIR),
+            "isDefaultSelected": false,
+        }));
     }
     folders.push(serde_json::json!({ "path": "~", "isDefaultSelected": false }));
     serde_json::Value::Array(folders)

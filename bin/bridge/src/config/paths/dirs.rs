@@ -75,6 +75,20 @@ pub fn workspace_dir() -> Option<PathBuf> {
     Some(home.join(name))
 }
 
+pub const DRIVE_SUBDIR: &str = "Drive";
+
+pub const DRIVE_STATE_FILE: &str = ".drive-state.json";
+
+#[must_use]
+pub fn drive_dir() -> Option<PathBuf> {
+    workspace_dir().map(|w| w.join(DRIVE_SUBDIR))
+}
+
+#[must_use]
+pub fn drive_state_path() -> Option<PathBuf> {
+    drive_dir().map(|d| d.join(DRIVE_STATE_FILE))
+}
+
 #[must_use]
 pub fn workspace_artifacts_dir() -> Option<PathBuf> {
     workspace_dir().map(|w| w.join(WORKSPACE_ARTIFACTS_SUBDIR))

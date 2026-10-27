@@ -14,7 +14,11 @@ pub(super) fn authenticate_hook_track(
     request_headers: &http::HeaderMap,
     buffered_body: &[u8],
     upstream_headers: &mut http::HeaderMap,
+    drive_signals: &crate::proxy::drive_signal::DriveSignals,
 ) -> ForwardResult<()> {
+    if let Some(path) = crate::proxy::drive_signal::touched_by_hook(buffered_body) {
+        drive_signals.send(crate::proxy::drive_signal::DriveSignal::Touched(path));
+    }
     let host = request_headers
         .get(crate::headers::HOST)
         .and_then(|value| value.to_str().ok());
