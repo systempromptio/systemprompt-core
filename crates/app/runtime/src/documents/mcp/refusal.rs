@@ -33,11 +33,12 @@ pub enum RefusalCode {
     NotFound,
     Locked,
     AnchorsAffected,
+    ProposalConflict,
     InvalidParams,
 }
 
 impl RefusalCode {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::StaleBase,
         Self::GuardMismatch,
         Self::FindNone,
@@ -48,6 +49,7 @@ impl RefusalCode {
         Self::NotFound,
         Self::Locked,
         Self::AnchorsAffected,
+        Self::ProposalConflict,
         Self::InvalidParams,
     ];
 
@@ -64,6 +66,7 @@ impl RefusalCode {
             Self::NotFound => "not_found",
             Self::Locked => "locked",
             Self::AnchorsAffected => "anchors_affected",
+            Self::ProposalConflict => "proposal_conflict",
             Self::InvalidParams => "invalid_params",
         }
     }

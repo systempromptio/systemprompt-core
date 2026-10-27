@@ -12,14 +12,15 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentRevisionId, SessionId, TaskId,
-    TraceId, UserId,
+    ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentProposalId, DocumentRevisionId,
+    SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_mcp::McpOutputSchema;
 
 use super::records::GrantItem;
 use systemprompt_models::documents::{
     AccessLevel, ActorKind, DocumentFormat, DocumentUri, PresenceSource, PresenceState,
+    ProposalStatus,
 };
 
 macro_rules! documents_output_impl {
@@ -147,6 +148,8 @@ pub struct EditOutput {
     pub merged: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub replayed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proposal_id: Option<DocumentProposalId>,
     pub written: Vec<String>,
 }
 documents_output_impl!(EditOutput, "documents_edit");
@@ -220,3 +223,33 @@ pub struct GuideOutput {
     pub topics: Vec<String>,
 }
 documents_output_impl!(GuideOutput, "documents_guide");
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct ProposalItem {
+    pub proposal_id: DocumentProposalId,
+    pub status: ProposalStatus,
+    pub proposer: UserId,
+    pub actor_kind: ActorKind,
+    pub base_revision_id: DocumentRevisionId,
+    pub proposed_revision_id: DocumentRevisionId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct ProposalsOutput {
+    pub proposals: Vec<ProposalItem>,
+}
+documents_output_impl!(ProposalsOutput, "documents_proposals");
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct ReviewOutput {
+    pub proposal_id: DocumentProposalId,
+    pub status: ProposalStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revision_id: Option<DocumentRevisionId>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub rebased: bool,
+}
+documents_output_impl!(ReviewOutput, "documents_review");

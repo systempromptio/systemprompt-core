@@ -9,45 +9,48 @@
 //! is refused as `stale_base`. An `op_id` makes the call idempotent: a
 //! repeat returns the stored acknowledgement with `replayed`. Every write
 //! answers with the lines it wrote, diffed against the parent revision, so
-//! the next edit anchors on the ack.
+//! the next edit anchors on the ack. An edit whose mode resolves to
+//! `propose` is written as a proposal instead (see `proposals`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    CommentPolicy, CommitOutcome, CommitRequest, CreateRequest,
+    CommentPolicy, CommitOutcome, CommitRequest, CreateRequest, EditModeRequest,
 };
 use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{DocumentUri, EditOp};
+use systemprompt_models::documents::{ActorKind, DocumentUri, EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsMcpTools;
 use super::inputs::{CreateInput, EditInput};
 use super::lines::written_lines;
+use super::acks::{remember, replay};
 use super::outputs::{CreateOutput, EditOutput};
+use super::proposals::propose_ops;
 use super::support::{agent_author, caller, stale_base, tool_error};
 
-struct EditCall<'a> {
-    tools: &'a DocumentsMcpTools,
-    who: &'a AuthenticatedUser,
-    ctx: &'a RequestContext,
-    exec_id: &'a McpExecutionId,
-    document: DocumentId,
-    base: Option<DocumentRevisionId>,
-    ops: Vec<EditOp>,
-    op_id: Option<DocumentOpId>,
-    message: Option<String>,
-    comments: CommentPolicy,
-    verbose: bool,
+pub(super) struct EditCall<'a> {
+    pub(super) tools: &'a DocumentsMcpTools,
+    pub(super) who: &'a AuthenticatedUser,
+    pub(super) ctx: &'a RequestContext,
+    pub(super) exec_id: &'a McpExecutionId,
+    pub(super) document: DocumentId,
+    pub(super) base: Option<DocumentRevisionId>,
+    pub(super) ops: Vec<EditOp>,
+    pub(super) mode: Option<EditMode>,
+    pub(super) op_id: Option<DocumentOpId>,
+    pub(super) message: Option<String>,
+    pub(super) comments: CommentPolicy,
+    pub(super) verbose: bool,
 }
 
-async fn written(
+pub(super) async fn written(
     call: &EditCall<'_>,
     parent: Option<&DocumentRevisionId>,
     revision: &DocumentRevisionId,
@@ -71,59 +74,26 @@ async fn written(
     Ok(written_lines(base.as_ref(), &head))
 }
 
-async fn replay(call: &EditCall<'_>) -> Result<Option<(EditOutput, String)>, McpError> {
-    let Some(op_id) = call.op_id.as_ref() else {
-        return Ok(None);
-    };
-    let Some(stored) = call
-        .tools
-        .service()
-        .find_write_ack(call.who, &call.document, op_id, call.ctx.trace_id())
-        .await
-        .map_err(tool_error)?
-    else {
-        return Ok(None);
-    };
-    let mut output: EditOutput = serde_json::from_value(stored.ack).map_err(|error| {
-        tracing::error!(error = %error, op_id = %op_id, "Stored write ack does not decode");
-        McpError::internal_error("the stored acknowledgement could not be read", None)
-    })?;
-    output.replayed = true;
-    let summary = format!(
-        "revision {}: op {op_id} already applied",
-        output.revision_id
-    );
-    Ok(Some((output, summary)))
-}
-
-async fn remember(call: &EditCall<'_>, output: &EditOutput) {
-    let Some(op_id) = call.op_id.as_ref() else {
-        return;
-    };
-    let ack = match serde_json::to_value(output) {
-        Ok(ack) => ack,
-        Err(error) => {
-            tracing::warn!(error = %error, op_id = %op_id, "Write ack not stored");
-            return;
-        },
-    };
-    let stored = StoredWriteAck {
-        revision_id: output.revision_id.clone(),
-        ack,
-    };
-    if let Err(error) = call
-        .tools
-        .service()
-        .record_write_ack(&call.document, op_id, &stored)
-        .await
-    {
-        tracing::warn!(error = %error, op_id = %op_id, "Write ack not stored");
-    }
-}
-
 async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
     if let Some(replayed) = replay(&call).await? {
         return Ok(replayed);
+    }
+    let mode = call
+        .tools
+        .service()
+        .edit_mode(
+            call.who,
+            EditModeRequest {
+                document: &call.document,
+                requested: call.mode,
+                actor: ActorKind::Agent,
+            },
+            call.ctx.trace_id(),
+        )
+        .await
+        .map_err(tool_error)?;
+    if mode == EditMode::Propose {
+        return propose_ops(call).await;
     }
     let applied = call.ops.len();
     let outcome = call
@@ -166,6 +136,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
         applied,
         merged,
         replayed: false,
+        proposal_id: None,
         written,
     };
     remember(&call, &output).await;
@@ -258,7 +229,8 @@ impl McpToolHandler for EditHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Apply ops as one revision on the head; returns the written lines. Guide topic: editing."
+        "Apply ops as one revision on the head, or as a proposal with mode: propose; returns \
+         the written lines. Guide topic: editing."
     }
 
     async fn handle(
@@ -276,6 +248,7 @@ impl McpToolHandler for EditHandler<'_> {
             document: input.document_id,
             base: input.base_revision,
             ops: input.ops,
+            mode: input.mode,
             op_id: input.op_id,
             message: input.message,
             comments: CommentPolicy {

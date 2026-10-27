@@ -14,7 +14,8 @@ use systemprompt_identifiers::{
     ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, DocumentFormat, PresenceSource, PresenceState, RevisionOriginKind,
+    AccessLevel, ActorKind, AgentEditPolicy, DocumentFormat, PresenceSource, PresenceState,
+    RevisionOriginKind,
 };
 use uuid::Uuid;
 
@@ -109,6 +110,7 @@ pub(super) struct FolderJson {
     parent_id: Option<DocumentFolderId>,
     name: String,
     owner_user_id: UserId,
+    agent_edit_policy: AgentEditPolicy,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -120,6 +122,7 @@ impl From<DocumentFolder> for FolderJson {
             parent_id: f.parent_id,
             name: f.name,
             owner_user_id: f.owner_user_id,
+            agent_edit_policy: f.agent_edit_policy,
             created_at: f.created_at,
             updated_at: f.updated_at,
         }

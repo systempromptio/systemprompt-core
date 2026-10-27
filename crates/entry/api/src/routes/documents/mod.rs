@@ -29,6 +29,7 @@ mod items;
 mod lifecycle;
 mod listing;
 mod read;
+mod proposals;
 mod sharing;
 mod views;
 
@@ -153,6 +154,10 @@ pub fn router(state: DocumentsState) -> Router {
         .route("/{id}/copy", post(lifecycle::copy))
         .route("/subject-kinds", get(access::subject_kinds))
         .route("/{id}/revisions", get(history::revisions))
+        .route("/{id}/proposals", get(proposals::list))
+        .route("/{id}/proposals/{pid}", get(proposals::get))
+        .route("/{id}/proposals/{pid}/accept", post(proposals::accept))
+        .route("/{id}/proposals/{pid}/reject", post(proposals::reject))
         .route("/{id}/projection", get(history::projection))
         .route("/{id}/preview", get(history::preview))
         .route(

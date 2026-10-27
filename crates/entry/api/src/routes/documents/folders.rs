@@ -1,5 +1,5 @@
-//! `/api/v1/document-folders`: listing, creating, renaming, moving and
-//! deleting folders.
+//! `/api/v1/document-folders`: listing, creating, renaming, moving,
+//! setting the agent edit policy of, and deleting folders.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +13,7 @@ use systemprompt_files::documents::service::NewFolderRequest;
 use systemprompt_identifiers::DocumentFolderId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::documents::AgentEditPolicy;
 
 use super::DocumentsState;
 use super::caller::caller;
@@ -65,6 +66,8 @@ pub(super) struct UpdateBody {
     name: Option<String>,
     #[serde(default, deserialize_with = "folder_target")]
     parent_id: FolderTarget,
+    #[serde(default)]
+    agent_edit_policy: Option<AgentEditPolicy>,
 }
 
 pub(super) async fn update(
@@ -75,8 +78,11 @@ pub(super) async fn update(
 ) -> DocumentsResult<Json<Option<FolderJson>>> {
     let who = caller(&state, &req_ctx).await?;
     let id = folder(&id)?;
-    if body.name.is_none() && body.parent_id.is_keep() {
-        return Err(ApiError::bad_request("give a new `name`, a `parent_id`, or both").into());
+    if body.name.is_none() && body.parent_id.is_keep() && body.agent_edit_policy.is_none() {
+        return Err(ApiError::bad_request(
+            "give a new `name`, a `parent_id` or an `agent_edit_policy`",
+        )
+        .into());
     }
     let moved = if body.parent_id.is_keep() {
         None
@@ -97,7 +103,16 @@ pub(super) async fn update(
         ),
         None => None,
     };
-    let updated = renamed.or(moved);
+    let governed = match body.agent_edit_policy {
+        Some(policy) => Some(
+            state
+                .service
+                .set_folder_agent_edit_policy(&who.user, &id, policy, &who.trace)
+                .await?,
+        ),
+        None => None,
+    };
+    let updated = governed.or(renamed).or(moved);
     Ok(Json(updated.map(FolderJson::from)))
 }
 

@@ -20,8 +20,9 @@ use systemprompt_mcp::McpToolHandler;
 
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
-    ExportHandler, GuideHandler, HistoryHandler, ListHandler, ReadHandler, RestoreHandler,
-    SearchHandler, ShareHandler, TrashHandler, UpdateHandler, preview_tool_meta,
+    ExportHandler, GuideHandler, HistoryHandler, ListHandler, ProposalsHandler, ReadHandler,
+    RestoreHandler, ReviewHandler, SearchHandler, ShareHandler, TrashHandler, UpdateHandler,
+    preview_tool_meta,
 };
 
 const OP_NAMES: [&str; 8] = [
@@ -176,6 +177,8 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
         compact(EditHandler { tools }.tool_definition(server), false),
         compact(CommentHandler { tools }.tool_definition(server), false),
         compact(HistoryHandler { tools }.tool_definition(server), false),
+        compact(ProposalsHandler { tools }.tool_definition(server), false),
+        compact(ReviewHandler { tools }.tool_definition(server), false),
         compact(ShareHandler { tools }.tool_definition(server), false),
         compact(AccessHandler { tools }.tool_definition(server), false),
         compact(CopyHandler { tools }.tool_definition(server), false),

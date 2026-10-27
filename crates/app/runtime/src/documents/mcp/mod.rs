@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod acks;
 mod browse;
 mod comment;
 mod download;
@@ -26,6 +27,7 @@ mod lines;
 mod listing;
 mod outputs;
 mod preview;
+mod proposals;
 mod read;
 mod read_meta;
 mod records;
@@ -59,7 +61,8 @@ pub use guide::GuideHandler;
 pub use inputs::{
     CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput, ExportAs,
     ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput, ListSortInput,
-    NodeRange, QuoteAnchor, ReadInput, ReadView, SearchInput, ShareInput, UpdateInput,
+    NodeRange, ProposalsInput, QuoteAnchor, ReadInput, ReadView, ReviewAction, ReviewInput,
+    SearchInput, ShareInput, UpdateInput,
 };
 pub use lifecycle::{AccessHandler, CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
 pub use lines::{
@@ -68,13 +71,14 @@ pub use lines::{
 };
 pub use outputs::{
     CreateOutput, DocumentItem, DocumentMeta, EditOutput, EditingNow, ExportOutput, FolderItem,
-    GuideOutput, HistoryOutput, ListOutput, ReadOutput, RevisionAttributionItem, RevisionItem,
-    SearchHit, SearchOutput, ShareOutput,
+    GuideOutput, HistoryOutput, ListOutput, ProposalItem, ProposalsOutput, ReadOutput,
+    ReviewOutput, RevisionAttributionItem, RevisionItem, SearchHit, SearchOutput, ShareOutput,
 };
 pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
     preview_template, preview_tool_meta, read_preview_resource,
 };
+pub use proposals::{ProposalsHandler, ReviewHandler};
 pub use read::{ReadHandler, read_view};
 pub use records::{
     AccessOutput, CommentAnchorItem, CommentItem, CommentOutput, DocumentAck, GrantItem,
@@ -82,12 +86,12 @@ pub use records::{
 pub use refusal::{Refusal, RefusalCode, refusal, refusal_code, refusal_result};
 pub use share::ShareHandler;
 pub use support::tool_error;
-pub use views::{change_lines, node_lines, outline, search_lines};
+pub use views::{change_lines, node_lines, outline, proposal_lines, search_lines};
 pub use write::{CreateHandler, EditHandler};
 
 use crate::AppContext;
 
-pub const TOOL_NAMES: [&str; 15] = [
+pub const TOOL_NAMES: [&str; 17] = [
     "documents_list",
     "documents_search",
     "documents_create",
@@ -95,6 +99,8 @@ pub const TOOL_NAMES: [&str; 15] = [
     "documents_edit",
     "documents_comment",
     "documents_history",
+    "documents_proposals",
+    "documents_review",
     "documents_share",
     "documents_access",
     "documents_copy",
@@ -114,7 +120,9 @@ changed refuses. Pass op_id so a retry is safe.
 3. Anchor the next edit on the ack; resume later with view changes since your last revision.
 4. On guard_mismatch or stale_base the head edit wins: re-aim from the returned current text, \
 never resend your old text.
-5. Do not re-read between your own writes. Details: documents_guide.";
+5. Do not re-read between your own writes. Details: documents_guide.
+6. An edit may land as a proposal (proposal_id in the ack); a reviewer accepts it with \
+documents_review.";
 
 /// Why [`DocumentsMcpTools::from_context`] refused to build the tools.
 #[derive(Debug, thiserror::Error)]
@@ -144,7 +152,7 @@ pub struct DocumentsToolCall<'a> {
     pub client: &'a ClientProfile,
 }
 
-/// The fifteen document tools and the preview resource of one MCP server.
+/// The seventeen document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
@@ -236,6 +244,8 @@ impl DocumentsMcpTools {
             "documents_edit" => run(call, &EditHandler { tools: self }).await,
             "documents_comment" => run(call, &CommentHandler { tools: self }).await,
             "documents_history" => run(call, &HistoryHandler { tools: self }).await,
+            "documents_proposals" => run(call, &ProposalsHandler { tools: self }).await,
+            "documents_review" => run(call, &ReviewHandler { tools: self }).await,
             "documents_share" => run(call, &ShareHandler { tools: self }).await,
             "documents_access" => run(call, &AccessHandler { tools: self }).await,
             "documents_copy" => run(call, &CopyHandler { tools: self }).await,

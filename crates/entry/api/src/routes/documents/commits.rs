@@ -17,11 +17,13 @@ use serde::{Deserialize, Serialize};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_files::documents::revision::CommitBody;
-use systemprompt_files::documents::service::{CommentPolicy, CommitOutcome, CommitRequest};
+use systemprompt_files::documents::service::{
+    CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ProposeRequest,
+};
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentOpId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::documents::EditOp;
+use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
 
 use super::DocumentsState;
 use super::caller::{Caller, api_author, caller};
@@ -29,6 +31,7 @@ use super::content::request_context;
 use super::error::{DocumentsResult, conflict_response};
 use super::headers::{base_revision, etag};
 use super::items::document_id;
+use super::proposals::proposed_response;
 use super::views::RevisionJson;
 
 #[derive(Debug, Serialize)]
@@ -112,6 +115,8 @@ pub(super) struct EditsBody {
     base_revision: Option<DocumentRevisionId>,
     ops: Vec<EditOp>,
     #[serde(default)]
+    mode: Option<EditMode>,
+    #[serde(default)]
     message: Option<String>,
     #[serde(default)]
     op_id: Option<DocumentOpId>,
@@ -132,6 +137,32 @@ pub(super) async fn edits(
     let id = document_id(&id)?;
     if body.ops.is_empty() {
         return Err(ApiError::bad_request("ops must name at least one edit").into());
+    }
+    let mode = state
+        .service
+        .edit_mode(
+            &who.user,
+            EditModeRequest {
+                document: &id,
+                requested: body.mode,
+                actor: ActorKind::User,
+            },
+            &who.trace,
+        )
+        .await?;
+    if mode == EditMode::Propose {
+        let request = ProposeRequest {
+            document_id: id,
+            base_revision: body.base_revision,
+            ops: body.ops,
+            author: api_author(&req_ctx, &headers),
+            message: body.message,
+        };
+        let proposed = state
+            .service
+            .propose(&who.user, request, &who.trace)
+            .await?;
+        return Ok(proposed_response(proposed));
     }
     let request = CommitRequest {
         document_id: id,

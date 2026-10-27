@@ -52,12 +52,21 @@ impl DocumentService {
             .await?)
     }
 
-    pub async fn proposal_view(
+    pub async fn proposal(
         &self,
         who: &AuthenticatedUser,
         proposal: &DocumentProposalId,
         trace: &TraceId,
-    ) -> Result<ProposalView, DocumentsError> {
+    ) -> Result<DocumentProposal, DocumentsError> {
+        Ok(self.visible_proposal(who, proposal, trace).await?.1)
+    }
+
+    async fn visible_proposal(
+        &self,
+        who: &AuthenticatedUser,
+        proposal: &DocumentProposalId,
+        trace: &TraceId,
+    ) -> Result<(Document, DocumentProposal), DocumentsError> {
         let proposal = self
             .repos
             .proposals
@@ -67,6 +76,16 @@ impl DocumentService {
         let document = self
             .authorized_document(who, &proposal.document_id, DocumentAction::View, trace)
             .await?;
+        Ok((document, proposal))
+    }
+
+    pub async fn proposal_view(
+        &self,
+        who: &AuthenticatedUser,
+        proposal: &DocumentProposalId,
+        trace: &TraceId,
+    ) -> Result<ProposalView, DocumentsError> {
+        let (document, proposal) = self.visible_proposal(who, proposal, trace).await?;
         let base = self
             .resolve_revision(&document, Some(&proposal.base_revision_id))
             .await?;

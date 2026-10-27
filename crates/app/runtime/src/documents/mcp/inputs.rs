@@ -10,9 +10,11 @@ use serde::Deserialize;
 use systemprompt_files::documents::service::FolderMove;
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
-    DocumentRevisionId, DocumentTemplateId, UserId,
+    DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
-use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditOp};
+use systemprompt_models::documents::{
+    AccessLevel, DocumentFormat, EditMode, EditOp, ProposalStatus,
+};
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ListInput {
@@ -123,6 +125,8 @@ pub struct EditInput {
     #[serde(default)]
     pub base_revision: Option<DocumentRevisionId>,
     pub ops: Vec<EditOp>,
+    #[serde(default)]
+    pub mode: Option<EditMode>,
     #[serde(default)]
     pub op_id: Option<DocumentOpId>,
     #[serde(default)]
@@ -260,4 +264,26 @@ where
     D: serde::Deserializer<'de>,
 {
     Option::<DocumentFolderId>::deserialize(deserializer).map(FolderMove::from_present)
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ProposalsInput {
+    pub document_id: DocumentId,
+    #[serde(default)]
+    pub status: Option<ProposalStatus>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewAction {
+    Accept,
+    Reject,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ReviewInput {
+    pub proposal_id: DocumentProposalId,
+    pub action: ReviewAction,
+    #[serde(default)]
+    pub note: Option<String>,
 }

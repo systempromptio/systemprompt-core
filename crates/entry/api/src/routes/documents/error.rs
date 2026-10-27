@@ -216,6 +216,12 @@ fn api_error(error: DocumentsError, message: String) -> ApiError {
             ApiError::conflict(message).with_error_key("folder_not_empty")
         },
         DocumentsError::FindNone { .. } => ApiError::conflict(message).with_error_key("find_none"),
+        DocumentsError::ProposalConflict { .. } => {
+            ApiError::conflict(message).with_error_key("proposal_conflict")
+        },
+        DocumentsError::ProposalClosed { .. } => {
+            ApiError::conflict(message).with_error_key("proposal_closed")
+        },
         DocumentsError::InvalidName { .. }
         | DocumentsError::InvalidCursor { .. }
         | DocumentsError::UnknownFormat { .. }

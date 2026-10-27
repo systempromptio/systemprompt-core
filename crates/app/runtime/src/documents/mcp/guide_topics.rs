@@ -89,6 +89,18 @@ folder_id?, query?, sort: name | updated | recent, limit, cursor}: shared is wha
 shared with you, recent is what you last edited, commented on or opened; each item carries \
 size_bytes and my_access.";
 
+pub(super) const PROPOSALS: &str = "\
+An edit lands on the head, or is written as a proposal: a revision off the head that a \
+reviewer accepts or rejects. documents_edit mode: propose always proposes; mode: land needs \
+edit access. Without mode, a caller holding comment but not edit access proposes, and an \
+agent proposes in a folder whose agent edit policy (or an ancestor's) is propose. The ack \
+carries proposal_id; revision_id is the proposed revision and written its lines against the \
+base. A newer proposal of yours on the same document supersedes your open one. \
+documents_proposals {document_id, status?} lists them; documents_review {proposal_id, action: \
+accept | reject, note?} needs edit access. Accept makes the proposed revision the head when \
+the head is still its base; otherwise its ops apply again on the head, and a node changed in \
+between refuses as proposal_conflict.";
+
 pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
     match code {
         RefusalCode::StaleBase => {
@@ -133,6 +145,11 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
             "anchors_affected: the edit removes a node or quoted text that the listed comments \
              are anchored to. Re-aim the edit, or resend it with allow_detach: true to detach \
              them; a detached comment keeps its node."
+        },
+        RefusalCode::ProposalConflict => {
+            "proposal_conflict: the head moved and a node the proposal touches changed; node \
+             and current_text are its state at head_revision. Reject the proposal, or propose \
+             again on head_revision."
         },
         RefusalCode::InvalidParams => {
             "invalid_params: the call is malformed; fix the named field and resend."

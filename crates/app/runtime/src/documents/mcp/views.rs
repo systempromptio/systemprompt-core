@@ -14,7 +14,7 @@
 use std::collections::HashMap;
 
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::nodes::{ChangeItem, NodeChanges};
+use systemprompt_files::documents::nodes::{ChangeItem, NodeChanges, changes};
 use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 
@@ -121,4 +121,9 @@ pub fn change_lines(head: &Projection, changes: &NodeChanges<'_>) -> Vec<String>
         })
         .chain(changes.gone.iter().map(|id| format!("gone {id}")))
         .collect()
+}
+
+#[must_use]
+pub fn proposal_lines(base: &Projection, proposed: &Projection) -> Vec<String> {
+    change_lines(proposed, &changes(base, proposed, shows))
 }

@@ -100,6 +100,17 @@ pub fn tool_error(error: DocumentsError) -> McpError {
             Refusal::new(RefusalCode::UnsupportedFormat)
         },
         DocumentsError::Template { .. } => Refusal::new(RefusalCode::TemplateFailed),
+        DocumentsError::ProposalConflict {
+            head,
+            node,
+            current_text,
+            ..
+        } => Refusal {
+            head_revision: Some(head),
+            node,
+            current_text,
+            ..Refusal::new(RefusalCode::ProposalConflict)
+        },
         DocumentsError::Codec(codec) => return codec_error(&codec),
         DocumentsError::TooLarge { .. }
         | DocumentsError::IntegrityMismatch { .. }
@@ -108,6 +119,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::FolderNotEmpty { .. }
         | DocumentsError::InvalidMove { .. }
         | DocumentsError::InvalidCursor { .. }
+        | DocumentsError::ProposalClosed { .. }
         | DocumentsError::InvalidComment { .. } => Refusal::new(RefusalCode::InvalidParams),
         DocumentsError::Blob(_)
         | DocumentsError::Repository(_)

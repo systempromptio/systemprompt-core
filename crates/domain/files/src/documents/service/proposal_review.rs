@@ -16,7 +16,7 @@ use systemprompt_identifiers::{DocumentProposalId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, ProposalStatus};
 
-use super::{Author, CommitOutcome, CommitRequest, DocumentService};
+use super::{Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentProposal, DocumentRevision, ProposalReview};
 use crate::documents::revision::CommitBody;
@@ -194,6 +194,7 @@ impl DocumentService {
                     author,
                     message: proposal.message.clone(),
                     lock_holder_id: None,
+                    comments: CommentPolicy::default(),
                 },
                 trace,
             )

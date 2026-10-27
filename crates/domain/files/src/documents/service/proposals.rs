@@ -75,6 +75,7 @@ impl DocumentService {
                 needed: AccessLevel::Edit,
                 held: Some(granted.level),
                 policy: None,
+                owner: granted.document.map(|document| document.owner_user_id),
             }),
             Some(mode) => Ok(mode),
             None if !can_land => Ok(EditMode::Propose),
@@ -123,7 +124,7 @@ impl DocumentService {
             apply_on_head(codec.as_ref(), format, &bytes, &projected, applied_ops)
         })
         .await?;
-        let revision = self
+        let (revision, _) = self
             .store_revision(
                 who,
                 &document,

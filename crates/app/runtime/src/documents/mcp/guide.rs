@@ -14,7 +14,9 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::guide_topics::{COMMENTS, EDITING, LIFECYCLE, SHARING, SHEETS, SLIDES, refusal_text};
+use super::guide_topics::{
+    COMMENTS, EDITING, LIFECYCLE, PROPOSALS, SHARING, SHEETS, SLIDES, refusal_text,
+};
 use super::inputs::GuideInput;
 use super::outputs::GuideOutput;
 use super::refusal::RefusalCode;
@@ -43,6 +45,7 @@ fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
         "sharing" => SHARING.to_owned(),
         "comments" => COMMENTS.to_owned(),
         "lifecycle" => LIFECYCLE.to_owned(),
+        "proposals" => PROPOSALS.to_owned(),
         other => RefusalCode::ALL
             .iter()
             .find(|code| other.strip_prefix("refusal.") == Some(code.as_str()))
@@ -50,7 +53,7 @@ fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
                 || {
                     format!(
                         "unknown topic; topics are editing, formats, sheets, slides, sharing, \
-                         comments, lifecycle and refusal.<code> for {}",
+                         comments, lifecycle, proposals and refusal.<code> for {}",
                         RefusalCode::ALL.map(RefusalCode::as_str).join(", ")
                     )
                 },
@@ -75,7 +78,7 @@ impl McpToolHandler for GuideHandler<'_> {
 
     fn description(&self) -> &'static str {
         "Detail by topic: editing, formats, sheets, slides, sharing, comments, lifecycle, \
-         refusal.<code>."
+         proposals, refusal.<code>."
     }
 
     fn read_only(&self) -> bool {
