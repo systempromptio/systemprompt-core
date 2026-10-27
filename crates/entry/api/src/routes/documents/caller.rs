@@ -56,8 +56,6 @@ pub(crate) fn authenticated(user: AuthUser) -> AuthenticatedUser {
     AuthenticatedUser::new_with_roles(user.id, user.name, user.email, vec![permission], user.roles)
 }
 
-const CONTEXT_HEADER: &str = "x-context-id";
-
 pub(super) fn api_author(ctx: &RequestContext, headers: &HeaderMap) -> Author {
     let present = |value: &str| !value.is_empty();
     Author {
@@ -66,7 +64,7 @@ pub(super) fn api_author(ctx: &RequestContext, headers: &HeaderMap) -> Author {
         attribution: RevisionAttribution {
             session_id: Some(ctx.session_id().clone()).filter(|id| present(id.as_str())),
             context_id: headers
-                .get(CONTEXT_HEADER)
+                .get(systemprompt_identifiers::headers::CONTEXT_ID)
                 .and_then(|value| value.to_str().ok())
                 .and_then(context_id),
             trace_id: Some(ctx.trace_id().clone()).filter(|id| present(id.as_str())),
