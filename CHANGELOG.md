@@ -22,6 +22,7 @@
 - **Models:** `documents` module with access levels and actions, the bridge drive sync protocol, document event payloads and the `document://` URI, re-exporting the format, projection and edit-op types.
 - **Provider contracts:** `documents::DocumentCodec` and `documents::DocumentTemplateProvider` seams, registered with `register_document_codec!` and `register_document_template_provider!` and discovered highest priority first.
 - **Governance:** `document` and `folder` join the access-control entity kinds (`EntityKind::Document`, `EntityKind::Folder`, `EntityRef::Document`, `EntityRef::Folder`); the `access_control_entities` and `access_control_rules` checks now admit every entity kind the code defines.
+- **Files:** document store tables — folders with materialised ancestors, content-addressed blobs, documents with a compare-and-swap head revision, revisions, subject-keyed grants, locks, presence, edit sessions and a text index — with their repositories.
 - **Governance:** `AuthzContext::document_access` mints the `document.access` context, read back with `document_action`, `document_access_document` and `document_access_folder`.
 - **Files:** a `.docx` `DocumentCodec` (feature `office`) that projects paragraphs, headings, lists and tables to hash-anchored nodes, applies edits by rewriting only `word/document.xml`, renders an HTML preview and instantiates templates; `files-office` facade feature.
 - **Models:** `ApiPaths` gains the documents, document-folders and bridge drive paths, plus `bridge_drive_blob`.

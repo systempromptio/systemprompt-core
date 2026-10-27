@@ -1,0 +1,132 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_grants\n                   (document_id, folder_id, subject_kind, subject_value, access_level, granted_by, valid_until)\n               VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7)\n               ON CONFLICT (document_id, folder_id, subject_kind, subject_value) DO UPDATE\n                   SET access_level = EXCLUDED.access_level,\n                       valid_until = EXCLUDED.valid_until,\n                       granted_by = EXCLUDED.granted_by,\n                       updated_at = now()\n               RETURNING id, document_id::text AS \"document_id: DocumentId\",\n                         folder_id::text AS \"folder_id: DocumentFolderId\",\n                         subject_kind, subject_value, access_level,\n                         granted_by AS \"granted_by: UserId\",\n                         valid_until, created_at, updated_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "document_grants",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "folder_id: DocumentFolderId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "subject_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grants",
+            "name": "subject_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "subject_value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grants",
+            "name": "subject_value"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "access_level",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grants",
+            "name": "access_level"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "granted_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_grants",
+            "name": "granted_by"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "valid_until",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_grants",
+            "name": "valid_until"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_grants",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_grants",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Varchar",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "90bbb8c4e19f55a426422af7b8c5ad83dac17bd8675997237f589681a064dba2"
+}

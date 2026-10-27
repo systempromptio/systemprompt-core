@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT string_agg(a.name, '/' ORDER BY u.ord) AS \"path\"\n               FROM document_folders f\n               CROSS JOIN LATERAL unnest(f.ancestor_ids || f.id) WITH ORDINALITY AS u(folder_id, ord)\n               JOIN document_folders a ON a.id = u.folder_id\n               WHERE f.id = $1::text::uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "path",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "545103c1c2b9b2f49646b261cb4855f440b2ba306a4a7ebfc1e0b8ef9b0d15ba"
+}

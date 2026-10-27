@@ -1,0 +1,93 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_edit_sessions (document_id, base_revision_id)\n               VALUES ($1::text::uuid, $2::text::uuid)\n               RETURNING id::text AS \"id!: DocumentEditSessionId\",\n                      document_id::text AS \"document_id!: DocumentId\",\n                      base_revision_id::text AS \"base_revision_id: DocumentRevisionId\",\n                      snapshot_sha256 AS \"snapshot_sha256: ContentHash\",\n                      checkpoint_revision_id::text AS \"checkpoint_revision_id: DocumentRevisionId\",\n                      opened_at, updated_at, closed_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentEditSessionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "base_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "snapshot_sha256: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "snapshot_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "checkpoint_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "opened_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "opened_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      true,
+      null,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "91d4eeef796acf95bf6890cc871e6f8d7200bd05b50bfd42ed6a41f8001fa11a"
+}

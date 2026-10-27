@@ -1,0 +1,133 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: DocumentRevisionId\",\n                      document_id::text AS \"document_id!: DocumentId\",\n                      parent_revision_id::text AS \"parent_revision_id: DocumentRevisionId\",\n                      content_sha256 AS \"content_sha256: ContentHash\",\n                      author_user_id AS \"author_user_id: UserId\",\n                      actor_kind, origin_kind, origin_id, message, edit_ops, created_at\n               FROM document_revisions WHERE id = (SELECT head_revision_id FROM documents WHERE id = $1::text::uuid)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "parent_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "content_sha256: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "author_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "author_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "actor_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "actor_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "origin_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "origin_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "origin_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "origin_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "message"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "edit_ops",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "edit_ops"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "4595e7fd0fbc2d75468e5dff82639cb1da2c32867c84abfe760e3c519eafc9f9"
+}

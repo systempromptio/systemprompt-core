@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_folders SET name = $2, updated_at = now()\n             WHERE id = $1::text::uuid AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f8f2f3a6f5364f290374b9dad2a4793ab8163de7c491de5a8b298e71ea70ec1d"
+}

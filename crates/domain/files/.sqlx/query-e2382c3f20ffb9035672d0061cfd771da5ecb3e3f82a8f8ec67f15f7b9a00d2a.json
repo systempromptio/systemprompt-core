@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_blobs (content_sha256, size_bytes, storage_id)\n             VALUES ($1, $2, $3)\n             ON CONFLICT (content_sha256) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e2382c3f20ffb9035672d0061cfd771da5ecb3e3f82a8f8ec67f15f7b9a00d2a"
+}

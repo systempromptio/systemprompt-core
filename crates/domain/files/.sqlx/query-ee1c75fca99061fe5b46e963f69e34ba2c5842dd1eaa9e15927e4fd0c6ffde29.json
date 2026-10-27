@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_edit_sessions SET checkpoint_revision_id = $2::text::uuid, updated_at = now()\n             WHERE id = $1::text::uuid AND closed_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ee1c75fca99061fe5b46e963f69e34ba2c5842dd1eaa9e15927e4fd0c6ffde29"
+}

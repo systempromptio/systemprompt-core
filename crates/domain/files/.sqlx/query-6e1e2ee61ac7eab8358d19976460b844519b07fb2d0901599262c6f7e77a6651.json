@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ancestor_ids::text[] AS \"ancestor_ids!: Vec<DocumentFolderId>\"\n               FROM document_folders WHERE id = $1::text::uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ancestor_ids!: Vec<DocumentFolderId>",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6e1e2ee61ac7eab8358d19976460b844519b07fb2d0901599262c6f7e77a6651"
+}

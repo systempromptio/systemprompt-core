@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT user_id AS \"user_id!: UserId\"\n               FROM document_presence\n               WHERE document_id = $1::text::uuid AND expires_at > now()\n               ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id!: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_presence",
+            "name": "user_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6e20a44ad8e8dd037ba6ef89b4f2ce827aef91b697ca192466bbb42d1af4109f"
+}

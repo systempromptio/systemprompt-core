@@ -1,10 +1,11 @@
-//! Document handling for the shared document store.
+//! Shared document store: folders, documents, content-addressed revisions,
+//! subject-keyed grants, locks, presence, edit sessions, codecs and templates.
 //!
-//! [`codecs`] holds the core [`DocumentCodec`] implementations for the text
-//! formats and the [`CodecRegistry`] a composition root builds once to pick
-//! the codec for each format.
-//!
-//! [`templates`] holds the [`TemplateRegistry`] that merges template
+//! [`models`] holds the row and request types; [`repository`] holds one
+//! repository per table, built once into [`repository::DocumentRepositories`].
+//! [`codecs`] holds the core [`DocumentCodec`] implementations and the
+//! [`CodecRegistry`] a composition root builds once to pick the codec for each
+//! format. [`templates`] holds the [`TemplateRegistry`] that merges template
 //! providers with the services catalog, and the core blank templates.
 //!
 //! [`TemplateRegistry`]: templates::TemplateRegistry
@@ -15,4 +16,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod codecs;
+pub mod models;
+pub mod repository;
 pub mod templates;

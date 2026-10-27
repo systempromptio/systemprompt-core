@@ -8988,6 +8988,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-manifest",
+ "systemprompt-models",
  "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
