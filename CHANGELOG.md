@@ -4,11 +4,14 @@
 
 ### Breaking
 
+- **Breaking:** **Models, Manifest:** `ManifestOpenCode::theme` and `OpenCodeMarketplaceConfig::theme` become `themes: Vec<_>` plus `default_theme` and `theme_mode`. On the wire and in YAML the single `theme:` form is still read as the only theme and the default. Migrate code by reading `themes` and `default_theme_ref()`.
 - **Breaking:** **Marketplace:** `ImportWarning` gains `MissingSkillManifest`, `MissingReference` and `SiblingSkillPath`. Migrate by adding arms (or a wildcard) to exhaustive matches.
 - **Breaking:** **Manifest, Loader:** a services bundle's content hash is a typed `ContentHash`: `ServicesBundleManifest::content_hash`, `BundleSourceState::content_hash`, `BundleMember::content_hash` and `BundleProvenance::content_hash` change type, `ServicesBundleManifest::compute_content_hash` returns `ContentHash`, `BundleCache::bundle_dir` takes `&ContentHash`, and `owning_bundle_hashes` maps to `ContentHash`. The serialised form is unchanged. Migrate by building values with `ContentHash::try_new` and reading them with `as_str`.
 
 ### Changed
 
+- **Bridge:** the default `OpenCode` theme is selected in V2's `cli.json` (`theme.name`, and `theme.mode` when the marketplace sets one) unless the user has chosen a theme, and only after its file is projected. The top-level `theme` key that earlier bridges wrote into `opencode.json` is removed when it names a marketplace theme. `theme` is no longer allowed in `cli_defaults`.
+- **Bridge:** every theme a marketplace declares is projected, so users can switch between them, and `hosts/opencode/desktop-themes/<name>.json` is projected to `desktop-themes/` for a declared theme.
 - **Bridge:** `suppress_host_app!` reaches Claude Code and every host sync: a suppressed host is not offered as a sync-only agent, never enrolled, and its settings are never written, not even to clear them.
 - **Bridge:** `--host claude-code` respects the instance's enabled hosts like every other host.
 - **Bridge:** Claude Code's settings, plugins and install probe follow `CLAUDE_CONFIG_DIR` when it is set, as Claude Code does.

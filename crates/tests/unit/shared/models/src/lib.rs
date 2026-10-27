@@ -154,6 +154,8 @@ mod routing;
 
 #[cfg(test)]
 mod marketplace;
+#[cfg(test)]
+mod marketplace_opencode_themes;
 
 
 #[cfg(test)]

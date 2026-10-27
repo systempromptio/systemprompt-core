@@ -29,7 +29,7 @@ mod content;
 mod owned;
 mod plugin_js;
 
-use config_json::{apply_cli_defaults, write_mcp_servers};
+use config_json::{apply_cli_defaults, select_default_theme, write_mcp_servers};
 pub use content::{agents_block, as_subagent, splice_block};
 pub(super) use plugin_js::remove_hook_plugin;
 use plugin_js::write_hook_plugin;
@@ -89,7 +89,8 @@ impl HostSync for OpenCodeSync {
             .map(str::to_owned)
             .collect();
         owned::sync(&root, &files)?;
-        apply_cli_defaults(ctx.manifest, &themes)?;
+        apply_cli_defaults(ctx.manifest)?;
+        select_default_theme(ctx.manifest, &themes)?;
         Ok(report)
     }
 

@@ -25,6 +25,8 @@ mod opencode_harness_content;
 #[cfg(test)]
 mod opencode_managed_resources;
 #[cfg(test)]
+mod opencode_themes;
+#[cfg(test)]
 mod plugin_archive;
 #[cfg(test)]
 mod plugin_stamp;

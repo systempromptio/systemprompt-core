@@ -8,8 +8,9 @@
 //!   `mode: subagent`; the first plugin (by id) to ship a name wins.
 //! - A plugin bundle's `hosts/opencode/plugins/*.{js,ts}` becomes
 //!   `plugins/<plugin>-<file>`.
-//! - A marketplace's `opencode.theme` is copied from the bundle that ships
-//!   `hosts/opencode/themes/<name>.json` with the pinned digest.
+//! - Each of a marketplace's `opencode.themes` is copied from the bundle that
+//!   ships `hosts/opencode/themes/<name>.json` with the pinned digest, and its
+//!   `hosts/opencode/desktop-themes/<name>.json` beside it when present.
 //!
 //! Every bundle file is checked against its manifest digest before it is
 //! projected; a file that does not match is not written.
@@ -31,6 +32,9 @@ const BLOCK_END: &str = "<!-- systemprompt:end -->";
 const AGENTS_FILE: &str = "AGENTS.md";
 const BUNDLE_PLUGINS: &str = "hosts/opencode/plugins/";
 const BUNDLE_THEMES: &str = "hosts/opencode/themes/";
+// Why: OpenCode Desktop has its own theme format and does not load external
+// themes yet; the files are projected so a kit need not change once it does.
+const BUNDLE_DESKTOP_THEMES: &str = "hosts/opencode/desktop-themes/";
 
 pub(super) fn rule_targets_opencode(rule: &RuleEntry) -> bool {
     rule.hosts.iter().any(|h| {
@@ -156,7 +160,8 @@ pub(super) fn bundle_files(
     let themes: BTreeMap<&str, &str> = manifest
         .marketplaces
         .iter()
-        .filter_map(|m| m.opencode.as_ref()?.theme.as_ref())
+        .filter_map(|m| m.opencode.as_ref())
+        .flat_map(|o| &o.themes)
         .map(|t| (t.name.as_str(), t.sha.as_str()))
         .collect();
     for plugin in plugins {
@@ -214,6 +219,14 @@ fn target_for(
         && has_extension(name, &["js", "ts"])
     {
         return Some(format!("plugins/{}-{name}", plugin.id.as_str()));
+    }
+    if let Some(name) = path
+        .strip_prefix(BUNDLE_DESKTOP_THEMES)
+        .and_then(|rest| rest.strip_suffix(".json"))
+    {
+        return themes
+            .contains_key(name)
+            .then(|| format!("desktop-themes/{name}.json"));
     }
     let name = path.strip_prefix(BUNDLE_THEMES)?.strip_suffix(".json")?;
     (themes.get(name) == Some(&file.sha256.as_str())).then(|| format!("themes/{name}.json"))
