@@ -2,6 +2,10 @@
 
 ## [0.74.0] - 2026-10-26
 
+### Breaking
+
+- **Breaking:** **Marketplace:** `ImportWarning` gains `MissingSkillManifest`, `MissingReference` and `SiblingSkillPath`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+
 ### Changed
 
 - **Bridge:** first use syncs before it touches any host and then enrols or offers a profile only to the hosts the delivered manifest enables; with no manifest, no host is set up.
