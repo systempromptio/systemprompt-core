@@ -1,0 +1,102 @@
+/*
+ * The only module that talks HTTP. Every route the document components use
+ * has one helper here; a refusal is thrown as a DocumentsApiError carrying the
+ * server's stable `code` (the envelope's `error_key`, else its `code`) so a
+ * component can branch on it instead of parsing a message.
+ */
+const DOCUMENTS = "/api/v1/documents";
+const FOLDERS = "/api/v1/document-folders";
+
+export class DocumentsApiError extends Error {
+  constructor(status, body) {
+    super(body?.message ?? `request failed (${status})`);
+    this.status = status;
+    this.code = body?.error_key ?? body?.code ?? String(status);
+    this.body = body;
+  }
+}
+
+const query = (params) => {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params ?? {})) {
+    if (value != null && value !== "") { search.set(key, String(value)); }
+  }
+  const text = search.toString();
+  return text ? `?${text}` : "";
+};
+
+const readBody = async (res) => {
+  if (res.status === 204) { return null; }
+  const type = res.headers.get("content-type") ?? "";
+  if (type.includes("json")) { return res.json(); }
+  return res.text();
+};
+
+const request = async (method, url, body) => {
+  const init = { method, credentials: "same-origin", headers: { accept: "application/json" } };
+  if (body !== undefined) {
+    init.headers["content-type"] = "application/json";
+    init.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, init);
+  const payload = await readBody(res);
+  if (!res.ok) { throw new DocumentsApiError(res.status, typeof payload === "object" ? payload : { message: payload }); }
+  return payload;
+};
+
+const doc = (id, tail = "") => `${DOCUMENTS}/${encodeURIComponent(id)}${tail}`;
+
+export const opId = () => crypto.randomUUID();
+
+export const listDocuments = (params) => request("GET", `${DOCUMENTS}/${query(params)}`);
+export const getDocument = (id) => request("GET", doc(id));
+export const listFolders = (params) => request("GET", `${FOLDERS}/${query(params)}`);
+export const previewUrl = (id, revision) => doc(id, `/preview${query({ revision })}`);
+
+export const getProjection = (id, params) => request("GET", doc(id, `/projection${query(params)}`));
+export const listRevisions = (id, params) => request("GET", doc(id, `/revisions${query(params)}`));
+
+export const postEdits = (id, { baseRevision, ops, message }) =>
+  request("POST", doc(id, "/edits"), { base_revision: baseRevision, ops, message, op_id: opId() });
+
+export const restoreRevision = (id, revisionId) =>
+  postEdits(id, { ops: [{ op: "restore", revision_id: revisionId }], message: "restore" });
+
+export const listGrants = (id) => request("GET", doc(id, "/grants"));
+export const shareDocument = (id, { subjectKind, subjectValue, level, validUntil }) =>
+  request("POST", doc(id, "/grants"), {
+    subject_kind: subjectKind,
+    subject_value: subjectValue,
+    level,
+    valid_until: validUntil || undefined,
+  });
+export const revokeGrant = (id, grantId) => request("DELETE", doc(id, `/grants${query({ grant_id: grantId })}`));
+
+export const getPresence = (id) => request("GET", doc(id, "/presence"));
+export const touchPresence = (id, state) => request("PUT", doc(id, "/presence"), { state });
+
+export const collabJoin = (id, mode) => request("POST", doc(id, "/collab/join"), { mode });
+export const collabUpdate = (id, { sessionId, vv, updateB64 }) =>
+  request("POST", doc(id, "/collab/updates"), { session_id: sessionId, vv, update_b64: updateB64 });
+export const collabLeave = (id, sessionId) => request("POST", doc(id, "/collab/leave"), { session_id: sessionId });
+export const collabLeaveOnUnload = (id, sessionId) => fetch(doc(id, "/collab/leave"), {
+  method: "POST",
+  credentials: "same-origin",
+  keepalive: true,
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ session_id: sessionId }),
+});
+export const collabCursor = (id, sessionId, cursor) =>
+  request("POST", doc(id, "/collab/cursor"), { session_id: sessionId, cursor });
+
+export const listProposals = (id) => request("GET", doc(id, "/proposals"));
+export const decideProposal = (id, proposalId, decision, note) =>
+  request("POST", doc(id, `/proposals/${encodeURIComponent(proposalId)}/${decision}`), { note });
+
+export const listComments = (id) => request("GET", doc(id, "/comments"));
+export const postComment = (id, { anchor, body, answering }) =>
+  request("POST", doc(id, "/comments"), { anchor, body, answering });
+export const resolveComment = (id, commentId) =>
+  request("POST", doc(id, `/comments/${encodeURIComponent(commentId)}/resolve`));
+
+export const STREAM_URL = "/api/v1/stream/agui";
