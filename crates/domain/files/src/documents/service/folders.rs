@@ -187,7 +187,8 @@ impl DocumentService {
                 return Ok(());
             }
             for id in ids {
-                self.access
+                let granted = self
+                    .access
                     .authorize(
                         who,
                         AccessTarget::Document(id.clone()),
@@ -195,7 +196,11 @@ impl DocumentService {
                         trace,
                     )
                     .await?;
-                self.repos.documents.trash(&id, &who.id).await?;
+                let document = granted
+                    .document
+                    .ok_or_else(|| DocumentsError::not_found("document", &id))?;
+                let from = self.document_path(&document).await?;
+                self.repos.documents.trash(&id, &who.id, &from).await?;
             }
         }
     }

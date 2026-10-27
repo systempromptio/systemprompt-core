@@ -29,6 +29,7 @@ mod documents;
 mod drive;
 mod drive_blob;
 mod drive_commit;
+mod drive_feed;
 mod folders;
 mod grants;
 mod lifecycle;
@@ -48,7 +49,8 @@ mod types;
 use std::sync::Arc;
 
 pub use comments::{CommentRequest, ResolveCommentRequest};
-pub use drive::{CHANGE_LAG, parse_drive_cursor};
+pub use drive::parse_drive_cursor;
+pub use drive_feed::CHANGE_LAG;
 pub use grants::ShareRequest;
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
 pub use ownership::{DocumentAccess, TransferRequest};

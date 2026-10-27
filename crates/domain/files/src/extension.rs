@@ -109,6 +109,11 @@ const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
             "status",
         ],
     ),
+    (
+        "document_path_changes",
+        include_str!("../schema/document_path_changes.sql"),
+        &["id", "document_id", "from_path", "to_path", "changed_at"],
+    ),
 ];
 
 const WEB_ASSETS: &[(&str, &str, AssetType)] = &[

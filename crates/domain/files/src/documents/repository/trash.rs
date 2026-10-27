@@ -35,29 +35,6 @@ impl DocumentRepository {
         .transpose()
     }
 
-    pub async fn trash(&self, id: &DocumentId, by: &UserId) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE documents SET deleted_at = now(), trashed_by = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
-            by.as_str(),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
-    pub async fn restore(&self, id: &DocumentId) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE documents SET deleted_at = NULL, trashed_by = NULL, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NOT NULL",
-            id.as_str(),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
     pub async fn purge_trashed_before(&self, cutoff: DateTime<Utc>, limit: i64) -> RepoResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM documents WHERE id IN (

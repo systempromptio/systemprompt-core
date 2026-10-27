@@ -20,7 +20,7 @@ use systemprompt_models::documents::DocumentAction;
 use systemprompt_traits::{ConstraintKind, RepositoryError};
 
 use super::documents::NewContent;
-use super::support::document_name;
+use super::support::{document_name, join_path};
 use super::{Author, DocumentService};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
@@ -89,7 +89,8 @@ impl DocumentService {
         self.reject_open_for_document(&trashed, Some(TRASHED_NOTE.to_owned()))
             .await?;
         self.close_live_state(who, &trashed, trace).await?;
-        if !self.repos.documents.trash(document, &who.id).await? {
+        let from = self.document_path(&trashed).await?;
+        if !self.repos.documents.trash(document, &who.id, &from).await? {
             return Err(DocumentsError::not_found("document", document));
         }
         Ok(())
@@ -161,7 +162,8 @@ impl DocumentService {
             if name != current.name {
                 self.repos.documents.rename_any(document, &name).await?;
             }
-            match self.repos.documents.restore(document).await {
+            let to = join_path(self.folder_path(folder.as_ref()).await?.as_deref(), &name);
+            match self.repos.documents.restore(document, &to).await {
                 Ok(true) => return self.load_document(document).await,
                 Ok(false) => return Err(DocumentsError::not_found("trashed document", document)),
                 Err(error) if attempt == 1 && is_name_taken(&error) => {},

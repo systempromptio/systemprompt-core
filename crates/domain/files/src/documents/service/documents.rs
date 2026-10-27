@@ -13,11 +13,12 @@ use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId,
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 
-use super::support::{apply_with, blocking, document_name, format_of_name};
+use super::support::{apply_with, blocking, document_name, format_of_name, join_path};
 use super::{Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewDocument, NewRevision};
+use crate::documents::repository::PathMove;
 
 pub(super) struct NewContent {
     pub(super) folder: Option<DocumentFolderId>,
@@ -256,7 +257,14 @@ impl DocumentService {
             .authorized_document(who, document, DocumentAction::Edit, trace)
             .await?;
         let name = document_name(name, current.format)?;
-        if !self.repos.documents.rename(document, &name).await? {
+        let folder = self.folder_path(current.folder_id.as_ref()).await?;
+        let from = join_path(folder.as_deref(), &current.name);
+        let to = join_path(folder.as_deref(), &name);
+        let paths = PathMove {
+            from: &from,
+            to: &to,
+        };
+        if !self.repos.documents.rename(document, &name, paths).await? {
             return Err(DocumentsError::not_found("document", document));
         }
         self.load_document(document).await
@@ -269,10 +277,22 @@ impl DocumentService {
         folder: Option<&DocumentFolderId>,
         trace: &TraceId,
     ) -> Result<Document, DocumentsError> {
-        self.authorized_document(who, document, DocumentAction::Own, trace)
+        let current = self
+            .authorized_document(who, document, DocumentAction::Own, trace)
             .await?;
         self.authorize_create(who, folder, trace).await?;
-        if !self.repos.documents.move_to(document, folder).await? {
+        let from = self.document_path(&current).await?;
+        let to = join_path(self.folder_path(folder).await?.as_deref(), &current.name);
+        let paths = PathMove {
+            from: &from,
+            to: &to,
+        };
+        if !self
+            .repos
+            .documents
+            .move_to(document, folder, paths)
+            .await?
+        {
             return Err(DocumentsError::not_found("document", document));
         }
         self.load_document(document).await
