@@ -147,6 +147,36 @@ A document has at most one open edit session. Every accepted update is logged wi
 
 The server stores a snapshot 30 seconds after the first unsaved update or after 200 updates, and commits the body as a revision with origin `edit_session` after 2 minutes of activity and when the last editor leaves, which also closes the session. For HTML the revision keeps the document around `<body>` from the revision the checkpoint is based on. A checkpoint that the revision engine merges with writes made outside the session puts the merged body back into the live text.
 
+## Web components
+
+The files extension ships native ES module Web Components for browsing, previewing and editing documents. The generator's asset job copies them into the web distribution:
+
+| Path | Content |
+|---|---|
+| `assets/documents/js/documents.js` | Entry module; importing it defines every component |
+| `assets/documents/js/*.js` | One module per component, plus the HTTP client, the event stream and helpers |
+| `assets/documents/css/documents.css`, `documents-panels.css` | Styles built on the install's `--sp-` design tokens |
+| `assets/documents/wasm/loro.wasm`, `loro.js` | Vendored `loro-crdt` 1.17.1 (MIT), the version of the server's `loro` crate |
+
+| Element | Attributes | Uses |
+|---|---|---|
+| `sp-document-browser` | `scope` (`mine`, `shared`, `recent`) | `GET /documents` (folder navigation, scope and name filter); dispatches `sp-document-open` with `{id, format, name}` |
+| `sp-document-preview` | `document-id`, `revision` | `GET /{id}/preview` in a sandboxed frame without scripts, `PUT /{id}/presence` |
+| `sp-presence-bar` | `document-id` | `GET /{id}/presence`, `document.presence` events |
+| `sp-document-editor` | `document-id`, `readonly` | the collab routes above, `document.collab.update`, `document.presence` and `document.revision.created` (`origin_kind = edit_session` is shown as a checkpoint) |
+| `sp-sheet-grid` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `set_cells` |
+| `sp-slide-text` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `replace_text` by node id and hash |
+| `sp-share-dialog` | `document-id` | `GET`, `POST` and `DELETE /{id}/grants`; transfer shares at level `own` |
+| `sp-history` | `document-id` | `GET /{id}/revisions`, a `restore` op on `POST /{id}/edits`, and a node-by-node diff of two outline projections |
+| `sp-comments` | `document-id`, `anchor-node` | `/{id}/comments`; hidden when the install answers `404` |
+| `sp-proposal-list` | `document-id` | `/{id}/proposals`; hidden when the install answers `404` |
+
+Every edit carries a fresh `op_id`, so a retried request replays its first acknowledgement. A refusal is shown with its error key. All components on a page share one AG-UI stream (`/api/v1/stream/agui`), because each user may hold at most ten streams.
+
+The editor compiles WebAssembly. Core sends no `Content-Security-Policy`; an install that sets one must allow `'wasm-unsafe-eval'` in `script-src`.
+
+The asset sources resolve inside the `systemprompt-files` crate, so they are declared optional: a build that compiles core copies them, and a runtime without the crate's sources keeps the copies already in its web distribution.
+
 ## Bridge Drive sync
 
 The bridge keeps `~/<workspace>/Drive` in step with the store. It talks to five endpoints under `/v1/bridge/drive/`, authenticated like the bridge heartbeat.

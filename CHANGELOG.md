@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** **Extension:** `AssetType` gains `Wasm`. Migrate by adding an arm (or a wildcard) to exhaustive matches.
 - **Breaking:** **Provider contracts, Models:** `EditOp::ReplaceText`, `InsertAfter` and `Delete` address their node with `NodeTarget` (an id, or a `QuoteTarget` matched by text) instead of a `DocumentNodeId`, `expected_hash` becomes `Option<String>`, `ReplaceText` and `InsertAfter` gain `content_as: ContentAs` (`as` on the wire), and `EditOp` gains `AppendMarkdown`. The wire form of existing ops is unchanged. Migrate by wrapping ids in `NodeTarget::Id`, hashes in `Some`, passing `content_as: ContentAs::Text`, and adding an `AppendMarkdown` arm to exhaustive matches; codecs apply only batches passed through `resolve_targets`.
 - **Breaking:** **Files:** `DocumentsError` gains `FindNone`. Migrate by adding an arm (or a wildcard) to exhaustive matches.
 - **Breaking:** **Files:** `DocumentRepositories` gains `collab: Arc<DocumentCollabRepository>`. Migrate struct literals by building it with `DocumentRepositories::new`.
@@ -50,6 +51,8 @@
 
 ### Added
 
+- **Files:** Web Components for the document store: `sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-document-editor` (live HTML and Markdown co-editing over the collab routes), `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-history`, `sp-comments` and `sp-proposal-list`. `FilesExtension::required_assets` ships them to `assets/documents/{js,css,wasm}` with `loro-crdt` 1.17.1 vendored as WebAssembly.
+- **Extension:** `AssetDefinition::wasm`; `AssetType::mime_type` names the media type of the single-type families (`application/wasm` for `Wasm`).
 - **Documents:** live co-editing of HTML and Markdown documents over a Loro CRDT behind the `collab` feature (`files-collab` on the facade, in `full`): `CollabService` and `POST /api/v1/documents/{id}/collab/{join,updates,leave,cursor}`. Updates reach present users as `document.collab.update` events on their AG-UI stream; sessions are snapshotted every 30 seconds or 200 updates and committed as `edit_session` revisions every 2 minutes and when the last editor leaves.
 - **Documents:** the `document_collab_update_sweep` job deletes the update log of closed edit sessions.
 - **Files:** `document_node_ids` stores each revision's stable node ids, `document_write_acks` stores write acknowledgements by op id for seven days (swept by the presence sweep job), and `document_revisions` gains nullable `session_id`, `context_id`, `trace_id`, `task_id` and `on_behalf_of` with an index on `(context_id, created_at)`.
