@@ -206,18 +206,16 @@ async fn commit(
     Ok((status, Json(outcome)).into_response())
 }
 
-async fn read_commit(mut form: Multipart) -> Result<(DriveCommitMeta, Vec<u8>), ApiError> {
+async fn read_commit(mut form: Multipart) -> DocumentsResult<(DriveCommitMeta, Vec<u8>)> {
     let mut meta = None;
     let mut blob = None;
     while let Some(field) = form
         .next_field()
         .await
-        .map_err(|source| ApiError::bad_request("invalid multipart body").with_source(source))?
+        ?
     {
         let part = field.name().unwrap_or_default().to_owned();
-        let bytes = field.bytes().await.map_err(|source| {
-            ApiError::bad_request("invalid multipart part").with_source(source)
-        })?;
+        let bytes = field.bytes().await?;
         match part.as_str() {
             "meta" => {
                 meta = Some(serde_json::from_slice::<DriveCommitMeta>(&bytes).map_err(

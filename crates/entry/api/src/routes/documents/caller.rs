@@ -7,11 +7,11 @@
 
 use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, Permission};
 use systemprompt_traits::{AuthUser, UserProvider};
 
 use super::DocumentsState;
+use super::error::DocumentsResult;
 use crate::error::ApiHttpError;
 
 pub(crate) struct Caller {
@@ -22,7 +22,7 @@ pub(crate) struct Caller {
 pub(super) async fn caller(
     state: &DocumentsState,
     req_ctx: &RequestContext,
-) -> Result<Caller, ApiHttpError> {
+) -> DocumentsResult<Caller> {
     let user = load(state.users.as_ref(), req_ctx.user_id()).await?;
     Ok(Caller {
         user,
@@ -33,14 +33,11 @@ pub(super) async fn caller(
 pub(super) async fn load(
     users: &dyn UserProvider,
     id: &UserId,
-) -> Result<AuthenticatedUser, ApiHttpError> {
-    let found = users
-        .find_by_id(id)
-        .await
-        .map_err(|source| ApiError::internal("document caller lookup failed", source))?;
+) -> DocumentsResult<AuthenticatedUser> {
+    let found = users.find_by_id(id).await?;
     match found {
         Some(user) if user.is_active => Ok(authenticated(user)),
-        _ => Err(ApiHttpError::unauthorized("account is not active")),
+        _ => Err(ApiHttpError::unauthorized("account is not active").into()),
     }
 }
 

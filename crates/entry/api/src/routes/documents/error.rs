@@ -9,6 +9,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
+use axum::extract::multipart::{MultipartError, MultipartRejection};
+use axum::extract::rejection::JsonRejection;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use systemprompt_files::documents::DocumentsError;
@@ -16,6 +18,7 @@ use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{ContentHash, DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::api::ApiError;
 use systemprompt_provider_contracts::documents::CodecError;
+use systemprompt_traits::AuthProviderError;
 
 use crate::error::ApiHttpError;
 
@@ -40,6 +43,30 @@ impl From<ApiHttpError> for DocumentsHttpError {
 impl From<ApiError> for DocumentsHttpError {
     fn from(error: ApiError) -> Self {
         Self::Api(Box::new(ApiHttpError::from(error)))
+    }
+}
+
+impl From<MultipartError> for DocumentsHttpError {
+    fn from(error: MultipartError) -> Self {
+        Self::from(ApiError::bad_request("invalid multipart body").with_source(error))
+    }
+}
+
+impl From<MultipartRejection> for DocumentsHttpError {
+    fn from(error: MultipartRejection) -> Self {
+        Self::from(ApiError::bad_request("invalid multipart body").with_source(error))
+    }
+}
+
+impl From<JsonRejection> for DocumentsHttpError {
+    fn from(error: JsonRejection) -> Self {
+        Self::from(ApiError::bad_request("invalid request body").with_source(error))
+    }
+}
+
+impl From<AuthProviderError> for DocumentsHttpError {
+    fn from(error: AuthProviderError) -> Self {
+        Self::from(ApiError::internal("document caller lookup failed", error))
     }
 }
 

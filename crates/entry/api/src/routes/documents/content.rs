@@ -9,43 +9,32 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::body::{Body, Bytes};
+use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
-use axum::response::{Html, IntoResponse, Response};
-use axum::{Extension, Json};
-use serde::{Deserialize, Serialize};
+use axum::response::{IntoResponse, Response};
+use serde::Deserialize;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::blob_store::BlobStoreError;
-use systemprompt_files::documents::revision::CommitBody;
-use systemprompt_files::documents::service::{
-    CommitOutcome, CommitRequest, HistoryPage, StreamRequest,
-};
+use systemprompt_files::documents::service::StreamRequest;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
-use systemprompt_models::documents::{EditOp, Projection};
 use systemprompt_traits::{FileStorageError, StoredFileRead};
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
-use super::error::{DocumentsHttpError, DocumentsResult, conflict_response};
-use super::headers::{base_revision, content_disposition, etag, if_range_holds, none_match, range};
-use super::items::{api_author, cursor, document_id};
-use super::views::RevisionJson;
+use super::error::DocumentsResult;
+use super::headers::{content_disposition, etag, if_range_holds, none_match, range};
+use super::items::document_id;
 use crate::error::ApiHttpError;
-
-const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
-const DEFAULT_HISTORY: i64 = 50;
-const MAX_HISTORY: i64 = 500;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct RevisionQuery {
-    revision: Option<String>,
+    pub(super) revision: Option<String>,
 }
 
-fn revision_id(raw: Option<&str>) -> DocumentsResult<Option<DocumentRevisionId>> {
+pub(super) fn revision_id(raw: Option<&str>) -> DocumentsResult<Option<DocumentRevisionId>> {
     Ok(raw.map(DocumentRevisionId::try_new).transpose()?)
 }
 
@@ -211,227 +200,4 @@ fn range_not_satisfiable(size: u64) -> Response {
         ],
     )
         .into_response()
-}
-
-#[derive(Debug, Serialize)]
-pub(super) struct CommittedJson {
-    revision: RevisionJson,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    merged_from: Option<DocumentRevisionId>,
-}
-
-pub(super) fn outcome_response(outcome: CommitOutcome, document: &DocumentId) -> Response {
-    match outcome {
-        CommitOutcome::Committed { revision, .. } => {
-            let tag = etag(&revision.content_sha256);
-            let mut response = Json(CommittedJson {
-                revision: revision.into(),
-                merged_from: None,
-            })
-            .into_response();
-            if let Ok(value) = HeaderValue::from_str(&tag) {
-                response.headers_mut().insert(header::ETAG, value);
-            }
-            response
-        },
-        CommitOutcome::Merged {
-            revision,
-            merged_from,
-            ..
-        } => Json(CommittedJson {
-            revision: revision.into(),
-            merged_from: Some(merged_from),
-        })
-        .into_response(),
-        CommitOutcome::Conflict { head, base } => {
-            let error = DocumentsError::Conflict {
-                document_id: document.clone(),
-                head: head.id.clone(),
-                base: base.clone(),
-            };
-            conflict_response(
-                error.to_string(),
-                &head.id,
-                Some(&head.content_sha256),
-                base.as_ref(),
-            )
-        },
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub(super) struct WriteQuery {
-    message: Option<String>,
-}
-
-pub(super) async fn write(
-    State(state): State<DocumentsState>,
-    Path(id): Path<String>,
-    Query(query): Query<WriteQuery>,
-    parts: Parts,
-    body: Bytes,
-) -> DocumentsResult<Response> {
-    let who = caller(&state, request_context(&parts)?).await?;
-    let headers = &parts.headers;
-    let id = document_id(&id)?;
-    let request = CommitRequest {
-        document_id: id.clone(),
-        base_revision: base_revision(headers)?,
-        body: CommitBody::Bytes(body.to_vec()),
-        author: api_author(),
-        message: query.message,
-        lock_holder_id: None,
-    };
-    let outcome = state.service.commit(&who.user, request, &who.trace).await?;
-    Ok(outcome_response(outcome, &id))
-}
-
-#[derive(Debug, Deserialize)]
-pub(super) struct EditsBody {
-    base_revision: DocumentRevisionId,
-    ops: Vec<EditOp>,
-    #[serde(default)]
-    message: Option<String>,
-}
-
-pub(super) async fn edits(
-    State(state): State<DocumentsState>,
-    Extension(req_ctx): Extension<RequestContext>,
-    Path(id): Path<String>,
-    Json(body): Json<EditsBody>,
-) -> DocumentsResult<Response> {
-    let who = caller(&state, &req_ctx).await?;
-    let id = document_id(&id)?;
-    if body.ops.is_empty() {
-        return Err(ApiError::bad_request("ops must name at least one edit").into());
-    }
-    let request = CommitRequest {
-        document_id: id.clone(),
-        base_revision: Some(body.base_revision),
-        body: CommitBody::Ops(body.ops),
-        author: api_author(),
-        message: body.message,
-        lock_holder_id: None,
-    };
-    let outcome = state.service.commit(&who.user, request, &who.trace).await?;
-    Ok(outcome_response(outcome, &id))
-}
-
-#[derive(Debug, Deserialize)]
-pub(super) struct HistoryQuery {
-    limit: Option<i64>,
-    before: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub(super) struct HistoryJson {
-    revisions: Vec<RevisionJson>,
-}
-
-pub(super) async fn revisions(
-    State(state): State<DocumentsState>,
-    Extension(req_ctx): Extension<RequestContext>,
-    Path(id): Path<String>,
-    Query(query): Query<HistoryQuery>,
-) -> DocumentsResult<Json<HistoryJson>> {
-    let who = caller(&state, &req_ctx).await?;
-    let id = document_id(&id)?;
-    let page = HistoryPage {
-        limit: query.limit.unwrap_or(DEFAULT_HISTORY).clamp(1, MAX_HISTORY),
-        before: cursor(query.before.as_deref())?,
-    };
-    let revisions = state
-        .service
-        .history(&who.user, &id, page, &who.trace)
-        .await?;
-    Ok(Json(HistoryJson {
-        revisions: revisions.into_iter().map(Into::into).collect(),
-    }))
-}
-
-#[derive(Debug, Clone, Copy, Default, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(super) enum ProjectionView {
-    #[default]
-    Outline,
-    Text,
-}
-
-#[derive(Debug, Deserialize)]
-pub(super) struct ProjectionQuery {
-    #[serde(default)]
-    view: ProjectionView,
-    revision: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub(super) enum ProjectionJson {
-    Outline {
-        revision_id: DocumentRevisionId,
-        projection: Projection,
-    },
-    Text {
-        revision_id: DocumentRevisionId,
-        text: String,
-    },
-}
-
-pub(super) async fn projection(
-    State(state): State<DocumentsState>,
-    Extension(req_ctx): Extension<RequestContext>,
-    Path(id): Path<String>,
-    Query(query): Query<ProjectionQuery>,
-) -> DocumentsResult<Json<ProjectionJson>> {
-    let who = caller(&state, &req_ctx).await?;
-    let id = document_id(&id)?;
-    let revision = revision_id(query.revision.as_deref())?;
-    let body = match query.view {
-        ProjectionView::Outline => {
-            let (revision, projection) = state
-                .service
-                .project(&who.user, &id, revision.as_ref(), &who.trace)
-                .await?;
-            ProjectionJson::Outline {
-                revision_id: revision.id,
-                projection,
-            }
-        },
-        ProjectionView::Text => {
-            let (revision, text) = state
-                .service
-                .plain_text(&who.user, &id, revision.as_ref(), &who.trace)
-                .await?;
-            ProjectionJson::Text {
-                revision_id: revision.id,
-                text,
-            }
-        },
-    };
-    Ok(Json(body))
-}
-
-pub(super) async fn preview(
-    State(state): State<DocumentsState>,
-    Extension(req_ctx): Extension<RequestContext>,
-    Path(id): Path<String>,
-    Query(query): Query<RevisionQuery>,
-) -> Result<Response, DocumentsHttpError> {
-    let who = caller(&state, &req_ctx).await?;
-    let id = document_id(&id)?;
-    let revision = revision_id(query.revision.as_deref())?;
-    let (revision, html) = state
-        .service
-        .preview_html(&who.user, &id, revision.as_ref(), &who.trace)
-        .await?;
-    let mut response = Html(html).into_response();
-    let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_SECURITY_POLICY,
-        HeaderValue::from_static(PREVIEW_CSP),
-    );
-    if let Ok(value) = HeaderValue::from_str(&etag(&revision.content_sha256)) {
-        headers.insert(header::ETAG, value);
-    }
-    Ok(response)
 }

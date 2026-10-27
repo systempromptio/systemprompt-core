@@ -11,12 +11,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod caller;
+mod commits;
 mod content;
 mod download;
 pub mod drive;
 mod error;
 mod folders;
 mod headers;
+mod history;
 mod items;
 mod sharing;
 mod views;
@@ -96,12 +98,12 @@ pub fn router(state: DocumentsState) -> Router {
         )
         .route(
             "/{id}/content",
-            get(content::read).head(content::read).put(content::write),
+            get(content::read).head(content::read).put(commits::write),
         )
-        .route("/{id}/edits", post(content::edits))
-        .route("/{id}/revisions", get(content::revisions))
-        .route("/{id}/projection", get(content::projection))
-        .route("/{id}/preview", get(content::preview))
+        .route("/{id}/edits", post(commits::edits))
+        .route("/{id}/revisions", get(history::revisions))
+        .route("/{id}/projection", get(history::projection))
+        .route("/{id}/preview", get(history::preview))
         .route(
             "/{id}/grants",
             get(sharing::list_grants)

@@ -139,15 +139,13 @@ pub(super) async fn create(
     let (document, revision) = if multipart {
         let form = Multipart::from_request(request, &state)
             .await
-            .map_err(|source| {
-                ApiError::bad_request("invalid multipart body").with_source(source)
-            })?;
+            ?;
         let import = read_import(form).await?;
         state.service.import(&who.user, import, &who.trace).await?
     } else {
         let Json(body) = Json::<CreateBody>::from_request(request, &state)
             .await
-            .map_err(|source| ApiError::bad_request("invalid request body").with_source(source))?;
+            ?;
         let create = CreateRequest {
             template_id: DocumentTemplateId::try_new(&body.template_id).map_err(ApiError::from)?,
             folder: body.folder_id,
@@ -175,13 +173,11 @@ async fn read_import(mut form: Multipart) -> DocumentsResult<ImportRequest> {
     while let Some(field) = form
         .next_field()
         .await
-        .map_err(|source| ApiError::bad_request("invalid multipart body").with_source(source))?
+        ?
     {
         let part = field.name().unwrap_or_default().to_owned();
         let file_name = field.file_name().map(str::to_owned);
-        let bytes = field.bytes().await.map_err(|source| {
-            ApiError::bad_request("invalid multipart part").with_source(source)
-        })?;
+        let bytes = field.bytes().await?;
         let text = || String::from_utf8_lossy(&bytes).trim().to_owned();
         match part.as_str() {
             "file" => file = Some((file_name, bytes.to_vec())),
