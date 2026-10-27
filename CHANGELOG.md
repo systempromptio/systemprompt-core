@@ -37,6 +37,7 @@
 
 ### Added
 
+- **Analytics:** the `report_*` read contract gains `report_ai_request_attributions` (a request's scope dimensions and values), `report_ai_request_tool_calls` (the tool calls a request's model emitted, without arguments or results) and `report_governance_decisions`. Each hides a deleted user's rows, as the rest of the contract does. An extension can roll up by any attribution dimension without reading the source tables. The analytics extension now depends on `authz`, which owns `governance_decisions`.
 - **Bridge:** `doctor` checks that `OpenCode` kept the config it was given. It runs `opencode debug config` and fails, naming the file and entry, when the gateway provider or any written policy is missing from the loaded config or out of order. `OpenCode` drops a malformed policy without a message.
 - **Agent runs:** the `opencode_decode` example replays a captured `opencode run --format json` stream from stdin through the core decoder and outcome classifier, and prints the events and outcome as JSON.
 - **CLI, Scheduler:** `admin config planes apply --dry-run` runs the apply and rolls it back, reporting what it would change (`ConfigReconcileService::preview_apply`). Nothing is written or audited.
