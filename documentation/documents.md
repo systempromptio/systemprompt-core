@@ -221,7 +221,7 @@ The bridge keeps `~/<workspace>/Drive` in step with the store. It talks to six e
 | Endpoint | Purpose |
 |---|---|
 | `GET manifest` | Every document the user can view, with head revision and hash. |
-| `GET changes?since=` | Revisions created since a keyset cursor. |
+| `GET changes?since=` | Revisions, trashes, restores, renames and moves since a keyset cursor, in one ordered stream. |
 | `GET blob/{sha256}` | Bytes by hash. The bridge verifies the hash before it writes. |
 | `POST commit` | Multipart metadata and bytes with `If-Match` set to the base revision. Returns the new revision, the merged revision and its hash when the upload landed on a newer head, or a conflict naming the head. |
 | `PUT presence` | Editing beacons. |
@@ -233,10 +233,12 @@ Behaviour:
 - A pull loop polls the change feed every 20 seconds, or sooner when a `document.revision.created` event arrives on the bridge stream. Remote bytes are hash-verified and written atomically.
 - A merged upload is recorded against the uploaded bytes, and the next pull writes the merged content.
 - A conflicting local edit is renamed to `<name> (conflict from <host>).<ext>` and the head is pulled, so neither version is lost.
-- A document deleted remotely moves into `Drive/.trash/<timestamp>/`. A local deletion is not propagated.
+- A document trashed remotely, alone or with its folder, moves into `Drive/.trash/<timestamp>/`. A restored document is pulled again at the path it returned to. A local deletion is not propagated.
+- A document renamed or moved to another folder remotely is moved to its new path, with its sync state. A folder rename or move reaches the device when it next reconciles against the manifest.
+- The local file is hashed again just before a downloaded head replaces it. An edit made while the blob was downloading is kept as a conflict sibling.
 - Presence is reported from file activity and from agent tool calls that touch a path inside the Drive folder.
-- A `document.proposal.opened` event on the bridge stream raises a desktop notification, and so does a `document.shared` event whose `recipient_user_id` is the signed-in user; it names the document and the sharer.
-- Each sync refreshes the open proposals, which `bridge drive status` lists.
+- A `document.proposal.opened` event on the bridge stream raises a desktop notification, and so does a `document.shared` event whose `recipient_user_id` is the device user, naming the document and the sharer.
+- Each sync refreshes the open proposals, which `bridge drive status` lists with the documents shared with the user that the folder has not synced yet.
 - Status shows in the tray, the GUI and `bridge drive status|sync|conflicts`. The `[drive] enabled` setting turns the loop off.
 
 ## Configuration

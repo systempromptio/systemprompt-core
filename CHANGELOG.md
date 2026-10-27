@@ -15,6 +15,9 @@
 - **Breaking:** **Files:** `collab::Left::checkpoint` is a `Checkpoint` (`Unchanged`, `Committed`, `Conflict { head, proposal }`) instead of `Option<DocumentRevisionId>`, and the leave route answers `{closed, checkpoint, checkpoint_revision, head_revision?, proposal_id?}`. Migrate by matching on `Checkpoint` or calling `Checkpoint::revision`.
 - **Breaking:** **Files:** `DocumentCollabRepository::append` returns `Option<i64>` (`None` for a closed session) and `set_snapshot` takes a `SnapshotMark`. Migrate by handling `None` and passing the snapshot's hash, sequence number and version vector.
 - **Breaking:** **Runtime:** `DocumentsRuntimeParts` gains `background_tasks`; with the new `collab` feature the runtime builds the one `CollabService` and starts its timer. Migrate by passing the context's `BackgroundTasks` and reading the service from `DocumentsRuntime::collab`.
+- **Breaking:** **Files:** `DocumentRepository::rename`, `move_to`, `trash` and `restore` take the document's path before and after the change (`PathMove`, or the single path a trash leaves or a restore returns to) and record it in `document_path_changes`. Migrate by passing the paths; `DocumentService` callers are unchanged.
+- **Breaking:** **Files:** the drive change feed (`GET /v1/bridge/drive/changes`) reports `deleted` when a document is trashed, `created` with the head revision when it is restored, and `renamed { from }` when it is renamed or moved. Clients that matched only `created` and `updated` must handle both kinds.
+
 
 ### Added
 
@@ -23,6 +26,9 @@
 
 - **Files:** `DocumentService::propose_body` proposes a whole body on a base revision.
 - **Files:** `collab::Joined::seq` and the join route's `seq` give the sequence number a client resumes from.
+- **Files:** migration `013_document_path_history` adds `document_path_changes`, the path history the drive change feed merges with revisions under one `(timestamp, id)` cursor.
+- **Bridge:** `bridge drive status` lists the documents shared with the user that the Drive folder has not synced yet, recorded in `.drive-state.json` from `document.shared` notices.
+
 
 ### Fixed
 
@@ -40,6 +46,10 @@
 - **Files:** Leaving a session whose checkpoint conflicts with the head keeps the session open and keeps the live body as a proposal by the last editor; checkpoints run as the last editor and a leaving viewer never commits.
 - **Files:** Trashing a document commits its live body, closes its edit session and clears its locks and presence.
 - **Files:** The web editor advances its sent version only after the server accepts an update, retries transient failures, diffs at code-point boundaries and rejoins on a sequence gap; `postEdits` takes a caller-supplied `opId` so a retry is idempotent.
+- **Files:** the drive change feed skips the revisions of a trashed document instead of failing the page.
+- **Bridge:** a Drive pull hashes the local file again just before the downloaded head replaces it, and keeps a local edit made during the download as a conflict sibling.
+- **Bridge:** a `created` or `updated` change for a document the Drive folder holds at another path moves the file before writing the new head.
+
 
 
 ## [0.74.0] - 2026-10-27
