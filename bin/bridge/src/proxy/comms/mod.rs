@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use futures_util::StreamExt;
 use serde::Deserialize;
-use systemprompt_identifiers::ValidatedUrl;
+use systemprompt_identifiers::{UserId, ValidatedUrl};
 
 mod inbox;
 
@@ -61,7 +61,7 @@ pub(super) struct CommsAnnouncement {
     preview: String,
 }
 
-fn handle_frame(data: &str, drive: &DriveSignals) {
+fn handle_frame(data: &str, drive: &DriveSignals, viewer: Option<&UserId>) {
     let Ok(envelope) = serde_json::from_str::<AgUiEnvelope>(data) else {
         return;
     };
@@ -85,7 +85,7 @@ fn handle_frame(data: &str, drive: &DriveSignals) {
             }
         },
         other => {
-            if let Some(notice) = notice_for(other, value.get()) {
+            if let Some(notice) = notice_for(other, value.get(), viewer) {
                 drive.send(DriveSignal::Notice(Box::new(notice)));
             }
         },
@@ -197,6 +197,7 @@ async fn subscribe_once(
         return Err(CommsError::Status { status, rejection });
     }
 
+    let viewer = crate::auth::jwt::decode_unverified(token.token.expose()).and_then(|identity| identity.user_id);
     tracing::info!("comms stream open");
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
@@ -208,7 +209,7 @@ async fn subscribe_once(
             buffer.drain(..idx + 2);
             for line in frame.lines() {
                 if let Some(data) = line.strip_prefix("data: ") {
-                    handle_frame(data, drive);
+                    handle_frame(data, drive, viewer.as_ref());
                 }
             }
         }
