@@ -107,3 +107,52 @@ async fn conflict_keeps_local_edit_as_sibling_and_writes_the_verified_head() {
     assert_eq!(saved.entries["docs/brief.docx"].revision_id, head);
     assert_eq!(saved.conflicts.len(), 1);
 }
+
+#[tokio::test]
+async fn a_merged_commit_is_recorded_and_the_next_pull_brings_the_merge_down() {
+    let server = MockServer::start().await;
+    let fx = Fixture::new(&server.uri());
+    let doc = DocumentId::generate();
+    let base = DocumentRevisionId::generate();
+    let merged = DocumentRevisionId::generate();
+    fx.write("docs/brief.docx", b"base");
+    fx.synced("docs/brief.docx", &doc, &base);
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    fx.write("docs/brief.docx", b"mine");
+    let combined: &[u8] = b"mine and theirs, merged on the server";
+
+    Mock::given(method("POST"))
+        .and(path(ApiPaths::BRIDGE_DRIVE_COMMIT))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "status": "merged",
+            "revision_id": merged.as_str(),
+            "content_sha256": content_hash(combined).as_str(),
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(ApiPaths::bridge_drive_blob(&content_hash(combined))))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(combined.to_vec()))
+        .mount(&server)
+        .await;
+
+    let mut state = fx.state();
+    let report = upload(fx.cycle(), &mut state).await.expect("upload");
+    assert_eq!(report.merged, 1);
+    assert!(report.conflicts.is_empty());
+    let entry = &fx.state().entries["docs/brief.docx"];
+    assert_eq!(entry.revision_id, merged);
+    assert_eq!(entry.sha256, content_hash(b"mine"));
+
+    let manifest: systemprompt_models::documents::DriveManifest = serde_json::from_value(
+        manifest_json(&[(&doc, "docs/brief.docx", &merged, combined)]),
+    )
+    .expect("manifest");
+    let mut state = fx.state();
+    let pulled = systemprompt_bridge::drive::pull::reconcile(fx.cycle(), &mut state, manifest)
+        .await
+        .expect("pull");
+    assert!(pulled.conflicts.is_empty());
+    assert_eq!(fx.read("docs/brief.docx"), combined);
+}

@@ -45,6 +45,8 @@ mod documents_mcp_refusals;
 #[cfg(test)]
 mod documents_mcp_schema;
 #[cfg(test)]
+mod documents_mcp_shared;
+#[cfg(test)]
 mod documents_mcp_sizes;
 #[cfg(test)]
 mod documents_mcp_support;

@@ -14,6 +14,7 @@ mod codecs_text;
 mod codecs_xlsx;
 mod collab_model;
 mod commit_plan;
+mod node_ids;
 mod docx_fixture;
 mod odf_fixture;
 mod pptx_fixture;

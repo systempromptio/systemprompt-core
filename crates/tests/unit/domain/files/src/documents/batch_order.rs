@@ -3,7 +3,7 @@ use systemprompt_files::documents::codecs::docx::DocxCodec;
 use systemprompt_files::documents::codecs::pptx::PptxCodec;
 use systemprompt_files::documents::codecs::xlsx::XlsxCodec;
 use systemprompt_provider_contracts::documents::{
-    DocumentCodec, EditOp, NodeKind, NodeTarget, Projection,
+    ContentAs, DocumentCodec, EditOp, NodeKind, NodeTarget, Projection,
 };
 
 use super::{SAMPLE_HTML, hash_of, id, insert_after, replace};
@@ -164,4 +164,36 @@ fn every_codec_names_its_insert_kinds() {
     assert_eq!(kinds(DocumentFormat::Pptx), &["paragraph", "list_item"]);
     assert_eq!(kinds(DocumentFormat::Xlsx), &["row"]);
     assert!(kinds(DocumentFormat::Ods).is_empty());
+}
+
+#[test]
+fn pptx_a_markdown_insert_shifts_later_targets_by_every_paragraph() {
+    let deck = super::pptx_fixture::two_slide_deck();
+    let base = PptxCodec.project(&deck).expect("project");
+    let texts = run(
+        &PptxCodec,
+        &deck,
+        &[
+            EditOp::InsertAfter {
+                node: NodeTarget::Id(id("slide[2]/shape[1]/p[0]")),
+                kind: NodeKind::Paragraph,
+                text: "first\n\nsecond".to_owned(),
+                content_as: ContentAs::Markdown,
+            },
+            insert_after("slide[2]/shape[1]/p[0]", NodeKind::Paragraph, "third"),
+            replace(
+                "slide[2]/shape[1]/p[1]",
+                hash_of(&base, "slide[2]/shape[1]/p[1]"),
+                "after",
+            ),
+        ],
+    );
+    let anchor = base
+        .find(&id("slide[2]/shape[1]/p[0]"))
+        .and_then(|node| node.text.clone())
+        .expect("anchor");
+    follows(
+        &texts,
+        &[anchor.as_str(), "first", "second", "third", "after"],
+    );
 }

@@ -60,6 +60,10 @@ fn drive_types_round_trip() {
         head_content_sha256: sha.clone(),
         base_revision_id: None,
     });
+    round_trip(&DriveCommitResponse::Merged {
+        revision_id: revision.clone(),
+        content_sha256: sha.clone(),
+    });
     round_trip(&PresenceBeacon {
         document_id,
         state: PresenceState::Editing,
