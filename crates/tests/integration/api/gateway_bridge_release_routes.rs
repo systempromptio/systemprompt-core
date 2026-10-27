@@ -311,7 +311,7 @@ async fn a_download_streams_the_asset_bytes_under_its_published_filename() -> an
         .respond_with(
             ResponseTemplate::new(200).set_body_json(serde_json::json!([release(
                 &base,
-                "bridge-v9.9.9",
+                "bridge-v0.32.0",
                 false,
                 false
             )])),
@@ -361,7 +361,7 @@ async fn a_download_whose_asset_fetch_fails_upstream_is_a_bad_gateway() -> anyho
         .respond_with(
             ResponseTemplate::new(200).set_body_json(serde_json::json!([release(
                 &base,
-                "bridge-v9.9.9",
+                "bridge-v0.32.0",
                 false,
                 false
             )])),

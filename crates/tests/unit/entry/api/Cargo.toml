@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+semver = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
 jsonschema = { workspace = true }
 systemprompt-api = { workspace = true }

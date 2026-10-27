@@ -79,21 +79,56 @@ struct Upstream<'a> {
 
 /// Router-scoped state for the release feed: one HTTP client and the
 /// per-platform resolution caches both endpoints read.
-#[derive(Debug, Default)]
+///
+/// The feed only offers releases this server supports: the newest release
+/// whose major.minor is no higher than the server's own version, so a bridge
+/// published ahead of a deployment is not handed to its clients.
+#[derive(Debug)]
 pub struct ReleaseFeed {
     http: reqwest::Client,
     assets: Cache<ResolvedAsset>,
     digests: Cache<String>,
     ttl: Option<Duration>,
+    ceiling: semver::Version,
+}
+
+impl Default for ReleaseFeed {
+    fn default() -> Self {
+        Self::with_ceiling(semver::Version::new(
+            pkg_component(env!("CARGO_PKG_VERSION_MAJOR")),
+            pkg_component(env!("CARGO_PKG_VERSION_MINOR")),
+            pkg_component(env!("CARGO_PKG_VERSION_PATCH")),
+        ))
+    }
+}
+
+fn pkg_component(digits: &str) -> u64 {
+    digits.parse().unwrap_or(0)
 }
 
 impl ReleaseFeed {
+    #[must_use]
+    pub fn with_ceiling(ceiling: semver::Version) -> Self {
+        Self {
+            http: reqwest::Client::default(),
+            assets: Cache::default(),
+            digests: Cache::default(),
+            ttl: None,
+            ceiling,
+        }
+    }
+
     #[must_use]
     pub fn with_ttl(ttl: Duration) -> Self {
         Self {
             ttl: Some(ttl),
             ..Self::default()
         }
+    }
+
+    #[must_use]
+    pub const fn ceiling(&self) -> &semver::Version {
+        &self.ceiling
     }
 
     pub async fn resolve(
@@ -233,7 +268,7 @@ impl ReleaseFeed {
                     platform: platform.to_owned(),
                 })?;
 
-        let release = resolve_release(&self.http, spec, secrets).await?;
+        let release = resolve_release(&self.http, spec, secrets, &self.ceiling).await?;
         let asset = release
             .assets
             .iter()

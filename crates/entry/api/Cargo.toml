@@ -35,6 +35,7 @@ tower-http = { workspace = true, features = ["normalize-path"] }
 tower_governor = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true }
+semver = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true }
 
