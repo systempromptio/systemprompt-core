@@ -40,6 +40,9 @@ fn input(view: ReadView) -> ReadInput {
         sheet: None,
         cells: None,
         revision_id: None,
+        since_revision: None,
+        node_id: None,
+        text: None,
         verbose: false,
     }
 }

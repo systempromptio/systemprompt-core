@@ -7,6 +7,7 @@ use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::codecs::CodecRegistry;
 use systemprompt_files::documents::repository::DocumentRepositories;
+use systemprompt_files::documents::models::RevisionAttribution;
 use systemprompt_files::documents::service::{Author, CreateRequest, RevisionOrigin};
 use systemprompt_files::documents::templates::TemplateRegistry;
 use systemprompt_files::documents::{
@@ -165,6 +166,7 @@ pub(crate) fn api_author() -> Author {
     Author {
         actor_kind: ActorKind::User,
         origin: RevisionOrigin::Api,
+        attribution: RevisionAttribution::default(),
     }
 }
 

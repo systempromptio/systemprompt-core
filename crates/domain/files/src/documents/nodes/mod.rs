@@ -10,7 +10,8 @@
 //! A new revision inherits ids from its parent by [`carry_forward`]: blocks
 //! with the same kind and hash are aligned by a longest common subsequence,
 //! changed blocks between two aligned blocks keep their ids positionally, and
-//! whatever is left is minted (inserted) or retired (deleted).
+//! whatever is left is minted (inserted) or retired (deleted). Ids a commit
+//! deleted by op are retired up front.
 //! [`with_ids`] turns a codec projection into the projection the tool surface
 //! sees, keeping the codec path in the [`PATH_ATTR`] attribute; [`changes`]
 //! diffs two such projections for incremental reads, and [`derive_ops`]

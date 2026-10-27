@@ -22,7 +22,8 @@ async fn read_returns_hashlines_and_terse_ids() {
     assert!(read.uri.is_none());
     assert!(read.content_sha256.is_none());
     let (node, hash) = line_for(&read, "beta");
-    assert!(node.starts_with("line["), "node {node}");
+    assert!(!node.starts_with("line["), "node {node}");
+    assert!(node.contains('.'), "node {node}");
     assert_eq!(hash, systemprompt_models::documents::hash8("beta"));
 }
 
@@ -38,7 +39,8 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
         .handle(
             EditInput {
                 document_id: document,
-                base_revision: revision,
+                base_revision: Some(revision),
+                op_id: None,
                 ops: vec![EditOp::ReplaceText {
                     node: NodeTarget::Id(DocumentNodeId::new(node)),
                     expected_hash: Some("deadbeef".to_owned()),
@@ -74,7 +76,8 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
         .handle(
             EditInput {
                 document_id: document.clone(),
-                base_revision: revision.clone(),
+                base_revision: Some(revision.clone()),
+                op_id: None,
                 ops: vec![EditOp::ReplaceText {
                     node: NodeTarget::Id(DocumentNodeId::new(node)),
                     expected_hash: Some(hash.to_owned()),
@@ -126,7 +129,8 @@ async fn str_replace_reports_the_match_count() {
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta\nalpha").await;
     let replace = |old: &str| EditInput {
         document_id: document.clone(),
-        base_revision: revision.clone(),
+        base_revision: Some(revision.clone()),
+        op_id: None,
         ops: vec![EditOp::StrReplace {
             old_str: old.to_owned(),
             new_str: "omega".to_owned(),
@@ -172,7 +176,8 @@ async fn stale_base_names_the_head_revision() {
     let (document, base) = create_text(&h.tools, &ctx, "alpha\nbeta").await;
     let set = |text: &str| EditInput {
         document_id: document.clone(),
-        base_revision: base.clone(),
+        base_revision: Some(base.clone()),
+        op_id: None,
         ops: vec![EditOp::SetText {
             text: text.to_owned(),
         }],
@@ -214,6 +219,9 @@ async fn forbidden_names_the_needed_and_held_level() {
         sheet: None,
         cells: None,
         revision_id: None,
+        since_revision: None,
+        node_id: None,
+        text: None,
         verbose: false,
     };
     let error = ReadHandler { tools: &h.tools }

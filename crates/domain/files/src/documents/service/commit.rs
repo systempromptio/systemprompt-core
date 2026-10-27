@@ -2,7 +2,9 @@
 //! [`CommitPlan`].
 //!
 //! Order: authorize `edit`, refuse when another holder has the lock, load
-//! the head, expand revision ops (`restore`, `insert_from_revision`), plan,
+//! the head, refuse a whole-document op (`set_text`, `set_html`, `restore`)
+//! whose base is not the head, since it touches every node, expand revision
+//! ops (`restore`, `insert_from_revision`), plan,
 //! build the new bytes (store, apply ops to the head under node guards,
 //! merge text three ways, or diff an Office upload into ops on the head),
 //! write the blob and the revision, record the revision's stable node ids,
@@ -12,18 +14,30 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashSet;
+
 use systemprompt_identifiers::{DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, EditOp};
 
+use super::apply::AppliedOps;
 use super::{CommitOutcome, CommitRequest, CommitWarning, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewRevision};
 use crate::documents::revision::{CommitBody, CommitPlan};
 
 pub(super) enum Built {
-    Bytes(Vec<u8>),
+    Applied(AppliedOps),
     Conflict,
+}
+
+impl Built {
+    pub(super) fn stored(bytes: Vec<u8>) -> Self {
+        Self::Applied(AppliedOps {
+            bytes,
+            retired: HashSet::new(),
+        })
+    }
 }
 
 pub(super) struct Landing<'a> {
@@ -64,7 +78,7 @@ impl DocumentService {
             CommitBody::Bytes(_) => None,
         };
         let (built, previous) = self.build(plan, &landing, body).await?;
-        let Built::Bytes(bytes) = built else {
+        let Built::Applied(AppliedOps { bytes, retired }) = built else {
             return self
                 .conflict(who, &document, head, base, &request.author)
                 .await;
@@ -90,7 +104,7 @@ impl DocumentService {
             })
             .await?;
         let next = self.project_paths(document.format, bytes.clone()).await?;
-        self.record_ids(&document, &revision, previous.as_ref(), &next)
+        self.record_ids(&document, &revision, previous.as_ref(), &next, &retired)
             .await?;
         if !self
             .repos
@@ -113,13 +127,19 @@ impl DocumentService {
         let CommitBody::Ops(ops) = body else {
             return Ok(Some(body));
         };
+        let at_head = landing
+            .head
+            .is_some_and(|head| landing.base == Some(&head.id));
+        let whole_document = ops.iter().any(|op| {
+            matches!(
+                op,
+                EditOp::SetText { .. } | EditOp::SetHtml { .. } | EditOp::Restore { .. }
+            )
+        });
+        if whole_document && landing.head.is_some() && !at_head {
+            return Ok(None);
+        }
         if let [EditOp::Restore { revision_id }] = ops.as_slice() {
-            let at_head = landing
-                .head
-                .is_some_and(|head| landing.base == Some(&head.id));
-            if !at_head {
-                return Ok(None);
-            }
             let restored = self
                 .resolve_revision(landing.document, Some(revision_id))
                 .await?;

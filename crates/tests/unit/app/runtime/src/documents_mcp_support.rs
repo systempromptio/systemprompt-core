@@ -99,7 +99,8 @@ pub(crate) async fn create_text(
         .handle(
             EditInput {
                 document_id: created.document_id.clone(),
-                base_revision: created.revision_id,
+                base_revision: Some(created.revision_id),
+                op_id: None,
                 ops: vec![EditOp::SetText {
                     text: text.to_owned(),
                 }],
@@ -128,6 +129,9 @@ pub(crate) async fn read_text(
                 sheet: None,
                 cells: None,
                 revision_id: None,
+                since_revision: None,
+                node_id: None,
+                text: None,
                 verbose: false,
             },
             ctx,

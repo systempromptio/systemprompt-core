@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
 use systemprompt_files::documents::blob_store::{BlobStore, BlobStoreError, storage_id_for};
-use systemprompt_files::documents::models::{NewDocument, NewRevision};
+use systemprompt_files::documents::models::{NewDocument, NewRevision, RevisionAttribution};
 use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_identifiers::{ContentHash, UserId};
 use systemprompt_models::documents::{ActorKind, DocumentFormat, RevisionOriginKind};
@@ -87,6 +87,7 @@ impl Harness {
                 origin_id: None,
                 message: None,
                 edit_ops: None,
+                attribution: RevisionAttribution::default(),
             })
             .await
             .expect("insert revision");

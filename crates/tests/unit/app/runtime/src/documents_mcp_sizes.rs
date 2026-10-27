@@ -19,6 +19,7 @@ fn a_one_op_edit_result_stays_under_400_bytes() {
         parent_revision_id: None,
         applied: 1,
         merged: false,
+        replayed: false,
         written: vec![format!(
             "body/p[3]:{}| Revenue grew 12% in the quarter.",
             hash8("Revenue grew 12% in the quarter.")
@@ -41,6 +42,7 @@ fn a_three_revision_history_stays_under_800_bytes() {
             actor_kind: ActorKind::Agent,
             message: (n > 0).then(|| "tighten the summary".to_owned()),
             content_sha256: None,
+            attribution: None,
             created_at: Utc::now(),
         })
         .collect();

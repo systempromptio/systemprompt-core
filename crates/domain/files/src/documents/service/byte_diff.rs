@@ -7,11 +7,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashSet;
+
 use systemprompt_identifiers::DocumentRevisionId;
 use systemprompt_models::documents::{NodeKind, Projection};
 
 use super::DocumentService;
-use super::apply::apply_on_head;
+use super::apply::{AppliedOps, apply_on_head};
 use super::node_ids::Projected;
 use super::support::blocking;
 use crate::documents::error::DocumentsError;
@@ -53,7 +55,7 @@ impl DocumentService {
         document: &Document,
         base: Option<&DocumentRevisionId>,
         input: DiffInput,
-    ) -> Result<Option<Vec<u8>>, DocumentsError> {
+    ) -> Result<Option<AppliedOps>, DocumentsError> {
         let base_revision = self.resolve_revision(document, base).await?;
         let base = self.projected(document, &base_revision).await?;
         let base_bytes = self.revision_bytes(&base_revision).await?;
@@ -62,7 +64,7 @@ impl DocumentService {
         blocking(move || {
             let uploaded = codec.project(&input.uploaded)?;
             let mut minter = NodeIdMinter::new(UPLOAD_WRITER.to_owned(), 0);
-            let entries = carry_forward(&base.ids, &uploaded, &mut minter);
+            let entries = carry_forward(&base.ids, &uploaded, &HashSet::new(), &mut minter);
             let carried = with_ids(uploaded.clone(), &entries);
             let Some(ops) = derive_ops(&base.ids, &carried) else {
                 return Ok(None);
@@ -76,7 +78,7 @@ impl DocumentService {
                 return Ok(None);
             }
             match apply_on_head(codec.as_ref(), format, &input.head_bytes, &input.head, ops) {
-                Ok(bytes) => Ok(Some(bytes)),
+                Ok(applied) => Ok(Some(applied)),
                 Err(error) if inexpressible(&error) => Ok(None),
                 Err(error) => Err(error),
             }

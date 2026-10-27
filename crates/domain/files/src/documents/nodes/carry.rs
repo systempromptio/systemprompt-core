@@ -1,9 +1,14 @@
-//! Carrying node ids from one revision's projection to the next.
+//! Carrying node ids from one revision's projection to the next. Ids the
+//! commit deleted are retired before alignment, so a block inserted where a
+//! deleted one stood is minted rather than inheriting its id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashSet;
 use std::mem::discriminant;
+
+use systemprompt_identifiers::DocumentNodeId;
 
 use systemprompt_models::documents::{Projection, ProjectionNode};
 
@@ -30,9 +35,14 @@ pub fn mint_all(next: &Projection, minter: &mut NodeIdMinter) -> Vec<NodeIdEntry
 pub fn carry_forward(
     previous: &Projection,
     next: &Projection,
+    retired: &HashSet<DocumentNodeId>,
     minter: &mut NodeIdMinter,
 ) -> Vec<NodeIdEntry> {
-    let old: Vec<&ProjectionNode> = flatten(previous).into_iter().map(|f| f.node).collect();
+    let old: Vec<&ProjectionNode> = flatten(previous)
+        .into_iter()
+        .map(|f| f.node)
+        .filter(|node| !retired.contains(&node.id))
+        .collect();
     let new: Vec<&ProjectionNode> = flatten(next).into_iter().map(|f| f.node).collect();
     let mut matched: Vec<Option<usize>> = vec![None; new.len()];
     let anchors = align(&old, &new);

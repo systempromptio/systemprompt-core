@@ -31,11 +31,12 @@ fn commit_bytes(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>
 fn replace_title(
     document: &DocumentId,
     base: &DocumentRevisionId,
+    node: &DocumentNodeId,
     expected_hash: String,
 ) -> CommitRequest {
     CommitRequest {
         body: CommitBody::Ops(vec![EditOp::ReplaceText {
-            node: NodeTarget::Id(DocumentNodeId::new("line[1]")),
+            node: NodeTarget::Id(node.clone()),
             expected_hash: Some(expected_hash),
             text: "# Quarterly plan".to_owned(),
             content_as: ContentAs::Text,
@@ -101,26 +102,27 @@ async fn ops_commit_checks_anchors_then_moves_the_head() {
         .expect("create from template");
     assert!(document.name.ends_with(".md"));
 
-    let stale = h
-        .service
-        .commit(
-            &owner,
-            replace_title(&document.id, &first.id, "00000000".to_owned()),
-            &trace(),
-        )
-        .await
-        .expect_err("a wrong hash is refused");
     let (_, projection) = h
         .service
         .project(&owner, &document.id, None, &trace())
         .await
         .expect("project");
     let node = projection
-        .find(&DocumentNodeId::new("line[1]"))
+        .nodes()
+        .find(|node| node.attrs.get("path").map(String::as_str) == Some("line[1]"))
         .expect("title line");
+    let stale = h
+        .service
+        .commit(
+            &owner,
+            replace_title(&document.id, &first.id, &node.id, "00000000".to_owned()),
+            &trace(),
+        )
+        .await
+        .expect_err("a wrong hash is refused");
     let message = stale.to_string();
     assert!(matches!(stale, DocumentsError::StaleAnchor { .. }));
-    assert!(message.contains("line[1]"), "{message}");
+    assert!(message.contains(node.id.as_str()), "{message}");
     assert!(message.contains("00000000"), "{message}");
     assert!(message.contains(&node.hash8), "{message}");
     assert!(message.contains("# Untitled"), "{message}");
@@ -129,7 +131,7 @@ async fn ops_commit_checks_anchors_then_moves_the_head() {
         .service
         .commit(
             &owner,
-            replace_title(&document.id, &first.id, node.hash8.clone()),
+            replace_title(&document.id, &first.id, &node.id, node.hash8.clone()),
             &trace(),
         )
         .await

@@ -19,41 +19,56 @@ fn ops() -> CommitBody {
 }
 
 #[test]
-fn base_at_head_stores_bytes_and_applies_ops() {
-    let head = rev();
-    for format in [DocumentFormat::Docx, DocumentFormat::Markdown] {
-        assert_eq!(
-            CommitPlan::decide(Some(&head), Some(&head), format, &bytes()),
-            CommitPlan::Store
-        );
-        assert_eq!(
-            CommitPlan::decide(Some(&head), Some(&head), format, &ops()),
-            CommitPlan::Apply
-        );
+fn ops_apply_on_the_head_whatever_their_base() {
+    let (head, base) = (rev(), rev());
+    for format in [
+        DocumentFormat::Docx,
+        DocumentFormat::Xlsx,
+        DocumentFormat::Pptx,
+        DocumentFormat::Markdown,
+    ] {
+        for read_from in [Some(&head), Some(&base), None] {
+            let plan = CommitPlan::decide(Some(&head), read_from, format, &ops());
+            assert_eq!(plan, CommitPlan::ApplyOnHead);
+        }
     }
 }
 
 #[test]
-fn stale_office_commits_conflict() {
+fn ops_merge_only_when_the_head_moved_past_their_base() {
+    let (head, base) = (rev(), rev());
+    let plan = CommitPlan::ApplyOnHead;
+    assert!(plan.merges(Some(&head), Some(&base)));
+    assert!(!plan.merges(Some(&head), Some(&head)));
+    assert!(!plan.merges(Some(&head), None));
+}
+
+#[test]
+fn bytes_at_the_head_are_stored() {
+    let head = rev();
+    for format in [DocumentFormat::Docx, DocumentFormat::Markdown] {
+        let plan = CommitPlan::decide(Some(&head), Some(&head), format, &bytes());
+        assert_eq!(plan, CommitPlan::Store);
+        assert!(!plan.merges(Some(&head), Some(&head)));
+    }
+}
+
+#[test]
+fn stale_office_bytes_diff_onto_the_head() {
     let (head, base) = (rev(), rev());
     for format in [
         DocumentFormat::Docx,
         DocumentFormat::Xlsx,
         DocumentFormat::Pptx,
     ] {
-        assert_eq!(
-            CommitPlan::decide(Some(&head), Some(&base), format, &bytes()),
-            CommitPlan::Conflict
-        );
-        assert_eq!(
-            CommitPlan::decide(Some(&head), Some(&base), format, &ops()),
-            CommitPlan::Conflict
-        );
+        let plan = CommitPlan::decide(Some(&head), Some(&base), format, &bytes());
+        assert_eq!(plan, CommitPlan::DiffOnHead);
+        assert!(plan.merges(Some(&head), Some(&base)));
     }
 }
 
 #[test]
-fn stale_text_commits_merge() {
+fn stale_text_bytes_merge_three_ways() {
     let (head, base) = (rev(), rev());
     for format in [
         DocumentFormat::Html,
@@ -62,22 +77,16 @@ fn stale_text_commits_merge() {
     ] {
         let plan = CommitPlan::decide(Some(&head), Some(&base), format, &bytes());
         assert_eq!(plan, CommitPlan::MergeBytes);
-        assert!(plan.merges());
-        assert_eq!(
-            CommitPlan::decide(Some(&head), Some(&base), format, &ops()),
-            CommitPlan::MergeOps
-        );
+        assert!(plan.merges(Some(&head), Some(&base)));
     }
 }
 
 #[test]
-fn a_missing_base_against_a_head_conflicts() {
+fn bytes_without_a_base_against_a_head_conflict() {
     let head = rev();
-    assert_eq!(
-        CommitPlan::decide(Some(&head), None, DocumentFormat::Markdown, &bytes()),
-        CommitPlan::Conflict
-    );
-    assert!(!CommitPlan::Conflict.merges());
+    let plan = CommitPlan::decide(Some(&head), None, DocumentFormat::Markdown, &bytes());
+    assert_eq!(plan, CommitPlan::Conflict);
+    assert!(!plan.merges(Some(&head), None));
 }
 
 #[test]

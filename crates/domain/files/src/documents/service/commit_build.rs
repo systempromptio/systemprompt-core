@@ -36,12 +36,12 @@ impl DocumentService {
         let missing_head = || DocumentsError::not_found("head revision of document", &document.id);
         let built = match (plan, body) {
             (CommitPlan::NoHead, _) => return Err(missing_head()),
-            (CommitPlan::Store, CommitBody::Bytes(bytes)) => Built::Bytes(bytes),
+            (CommitPlan::Store, CommitBody::Bytes(bytes)) => Built::stored(bytes),
             (CommitPlan::ApplyOnHead, CommitBody::Ops(ops)) => {
                 let (head, bytes) = head.ok_or_else(missing_head)?;
                 let codec = self.codec(document.format)?;
                 let format = document.format;
-                Built::Bytes(
+                Built::Applied(
                     blocking(move || apply_on_head(codec.as_ref(), format, &bytes, &head, ops))
                         .await?,
                 )
@@ -58,7 +58,7 @@ impl DocumentService {
                     uploaded,
                 };
                 match self.diff_onto_head(document, landing.base, input).await? {
-                    Some(bytes) => Built::Bytes(bytes),
+                    Some(applied) => Built::Applied(applied),
                     None => Built::Conflict,
                 }
             },
@@ -78,7 +78,7 @@ impl DocumentService {
             .await?;
         let base_bytes = self.revision_bytes(&base).await?;
         Ok(match three_way_bytes(&base_bytes, ours, head_bytes) {
-            MergeOutcome::Clean(merged) => Built::Bytes(merged.into_bytes()),
+            MergeOutcome::Clean(merged) => Built::stored(merged.into_bytes()),
             MergeOutcome::Conflicted => Built::Conflict,
         })
     }

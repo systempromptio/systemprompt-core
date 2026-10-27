@@ -10,6 +10,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashSet;
+
+use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::{DocumentFormat, Projection};
 
 use super::DocumentService;
@@ -80,7 +83,7 @@ impl DocumentService {
         let writer = writer_tag(revision.id.as_str());
         let mut minter = self.minter(document, writer).await?;
         let entries = match self.parent_ids(document, revision).await? {
-            Some(parent) => carry_forward(&parent, paths, &mut minter),
+            Some(parent) => carry_forward(&parent, paths, &HashSet::new(), &mut minter),
             None => mint_all(paths, &mut minter),
         };
         self.repos
@@ -125,10 +128,11 @@ impl DocumentService {
         revision: &DocumentRevision,
         previous: Option<&Projection>,
         next: &Projection,
+        retired: &HashSet<DocumentNodeId>,
     ) -> Result<(), DocumentsError> {
         let mut minter = self.minter(document, writer_tag(&writer_key(revision))).await?;
         let entries = match previous {
-            Some(previous) => carry_forward(previous, next, &mut minter),
+            Some(previous) => carry_forward(previous, next, retired, &mut minter),
             None => mint_all(next, &mut minter),
         };
         self.repos

@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::{DocumentFormat, EditOp, Projection};
@@ -20,17 +20,31 @@ use super::node_ids::Projected;
 use crate::documents::error::DocumentsError;
 use crate::documents::nodes::{path_of, to_paths};
 
+#[derive(Debug, Clone)]
+pub(super) struct AppliedOps {
+    pub bytes: Vec<u8>,
+    pub retired: HashSet<DocumentNodeId>,
+}
+
 pub(super) fn apply_on_head(
     codec: &dyn DocumentCodec,
     format: DocumentFormat,
     bytes: &[u8],
     head: &Projected,
     ops: Vec<EditOp>,
-) -> Result<Vec<u8>, DocumentsError> {
+) -> Result<AppliedOps, DocumentsError> {
     let resolved = resolve_targets(&head.ids, ops)?;
     guard(&head.ids, &resolved.ops)?;
+    let retired = resolved
+        .ops
+        .iter()
+        .filter_map(|op| match op {
+            EditOp::Delete { node, .. } => node.id().cloned(),
+            _ => None,
+        })
+        .collect();
     let ops = to_paths(resolved.ops, &head.ids);
-    codec
+    let bytes = codec
         .apply(bytes, &head.paths, &ops)
         .map_err(|error| match error {
             CodecError::UnsupportedOp { op, format: _ } => DocumentsError::UnsupportedOp {
@@ -39,7 +53,8 @@ pub(super) fn apply_on_head(
                 accepted_kinds: codec.insert_kinds(format),
             },
             other => relabel(DocumentsError::from(other), &head.ids),
-        })
+        })?;
+    Ok(AppliedOps { bytes, retired })
 }
 
 pub(super) fn guard(ids: &Projection, ops: &[EditOp]) -> Result<(), DocumentsError> {

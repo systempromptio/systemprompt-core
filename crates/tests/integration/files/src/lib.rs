@@ -20,6 +20,10 @@ mod documents_service_drive;
 #[cfg(test)]
 mod documents_service_fixture;
 #[cfg(test)]
+mod documents_shared_editing;
+#[cfg(test)]
+mod documents_write_acks;
+#[cfg(test)]
 mod file_ingestion;
 #[cfg(test)]
 mod repository;
