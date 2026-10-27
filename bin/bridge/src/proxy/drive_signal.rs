@@ -7,12 +7,20 @@
 //! the Drive loop also polls, so a signal dropped on a full channel delays a
 //! cycle and loses nothing.
 //!
+//! A `document.shared` or `document.proposal.opened` frame becomes a
+//! [`DocumentNotice`] the desktop shows as a toast; [`notice_for`] is that
+//! mapping, kept free of any windowing code so every platform shares it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 
-use systemprompt_models::documents::{DocumentPresenceEvent, DocumentRevisionCreatedEvent};
+use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{DocumentId, DocumentProposalId, UserId};
+use systemprompt_models::documents::{
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent,
+};
 use tokio::sync::mpsc;
 
 const CAPACITY: usize = 256;
@@ -22,6 +30,69 @@ pub enum DriveSignal {
     Touched(PathBuf),
     RevisionCreated(Box<DocumentRevisionCreatedEvent>),
     Presence(Box<DocumentPresenceEvent>),
+    Notice(Box<DocumentNotice>),
+}
+
+pub const DOCUMENT_SHARED: &str = "document.shared";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NoticeKind {
+    Shared,
+    ProposalOpened,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct DocumentNotice {
+    pub kind: NoticeKind,
+    pub document_id: DocumentId,
+    pub from: UserId,
+    pub proposal_id: Option<DocumentProposalId>,
+    pub detail: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SharedFrame {
+    document_id: DocumentId,
+    by: UserId,
+    level: String,
+}
+
+#[must_use]
+pub fn notice_for(name: &str, value: &str) -> Option<DocumentNotice> {
+    match name {
+        DOCUMENT_SHARED => {
+            let shared: SharedFrame = decode_frame(name, value)?;
+            Some(DocumentNotice {
+                kind: NoticeKind::Shared,
+                document_id: shared.document_id,
+                from: shared.by,
+                proposal_id: None,
+                detail: Some(shared.level),
+            })
+        },
+        DocumentProposalEvent::OPENED => {
+            let opened: DocumentProposalEvent = decode_frame(name, value)?;
+            Some(DocumentNotice {
+                kind: NoticeKind::ProposalOpened,
+                document_id: opened.document_id,
+                from: opened.proposer_id,
+                proposal_id: Some(opened.proposal_id),
+                detail: opened.message,
+            })
+        },
+        _ => None,
+    }
+}
+
+fn decode_frame<T: serde::de::DeserializeOwned>(name: &str, value: &str) -> Option<T> {
+    match serde_json::from_str(value) {
+        Ok(decoded) => Some(decoded),
+        Err(error) => {
+            tracing::warn!(%error, event = name, "document notice frame did not decode; it is skipped");
+            None
+        },
+    }
 }
 
 #[derive(Debug, Clone)]

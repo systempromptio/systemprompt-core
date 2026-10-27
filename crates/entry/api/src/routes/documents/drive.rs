@@ -1,5 +1,5 @@
 //! The bridge Drive feed under `/v1/bridge/drive/`: manifest, change feed,
-//! blob download, commit and presence.
+//! blob download, commit, presence and open proposals.
 //!
 //! Every route takes the bridge bearer the heartbeat takes and answers 401
 //! when it is missing or rejected. Blobs are resolved through the document
@@ -29,7 +29,8 @@ use systemprompt_models::ApiPaths;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, PresenceBeacon,
+    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposal,
+    DriveProposals, PresenceBeacon,
 };
 
 use super::caller::authenticated;
@@ -83,6 +84,10 @@ pub fn router(state: DriveState) -> Router {
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_PRESENCE),
             put(presence),
+        )
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_PROPOSALS),
+            get(proposals),
         )
         .layer(DefaultBodyLimit::max(limit))
         .with_state(state)
@@ -240,4 +245,25 @@ async fn presence(
     let trace = TraceId::generate();
     state.service.touch_presence(&who, beacon, &trace).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn proposals(
+    State(state): State<DriveState>,
+    headers: HeaderMap,
+) -> DocumentsResult<Json<DriveProposals>> {
+    let who = device_user(&state, &headers).await?;
+    let proposals = state.service.open_proposals_for(&who).await?;
+    Ok(Json(DriveProposals {
+        proposals: proposals
+            .into_iter()
+            .map(|p| DriveProposal {
+                proposal_id: p.id,
+                document_id: p.document_id,
+                proposer_id: p.proposer_user_id,
+                actor_kind: p.actor_kind,
+                message: p.message,
+                created_at: p.created_at,
+            })
+            .collect(),
+    }))
 }

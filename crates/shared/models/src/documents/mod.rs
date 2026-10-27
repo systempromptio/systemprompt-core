@@ -22,7 +22,7 @@ pub use access::{
 };
 pub use drive::{
     DriveChange, DriveChangeKind, DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveEntry,
-    DriveManifest, PresenceBeacon, PresenceSource, PresenceState,
+    DriveManifest, DriveProposal, DriveProposals, PresenceBeacon, PresenceSource, PresenceState,
 };
 pub use events::{
     DocumentCollabUpdateEvent, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent,

@@ -107,6 +107,7 @@ impl ApiPaths {
     pub const BRIDGE_DRIVE_BLOB_ROUTE: &'static str = "/v1/bridge/drive/blob/{sha256}";
     pub const BRIDGE_DRIVE_COMMIT: &'static str = "/v1/bridge/drive/commit";
     pub const BRIDGE_DRIVE_PRESENCE: &'static str = "/v1/bridge/drive/presence";
+    pub const BRIDGE_DRIVE_PROPOSALS: &'static str = "/v1/bridge/drive/proposals";
     pub const DOCUMENTS: &'static str = "/api/v1/documents";
     pub const DOCUMENT_FOLDERS: &'static str = "/api/v1/document-folders";
     pub const BRIDGE_AUTH_PAT: &'static str = "/v1/auth/bridge/pat";

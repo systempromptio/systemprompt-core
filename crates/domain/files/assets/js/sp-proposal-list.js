@@ -1,11 +1,13 @@
 import { DocumentsElement } from "./documents-element.js";
-import { decideProposal, listProposals } from "./documents-api.js";
+import { decideProposal, getProposal, listProposals } from "./documents-api.js";
 import { attr, errorText, escapeHtml, formatTime } from "./documents-html.js";
 
 export class SpProposalList extends DocumentsElement {
   onConnect() {
     this.proposals = [];
+    this.changes = new Map();
     this.on("action:decide", (el) => this.decide(el));
+    this.on("action:changes", (el) => this.toggleChanges(el.dataset.id));
     this.onDocumentEvent((name) => { if (name.startsWith("document.proposal") || name === "document.revision.created") { this.load(); } });
     this.load();
   }
@@ -24,6 +26,22 @@ export class SpProposalList extends DocumentsElement {
     this.invalidate();
   }
 
+  async toggleChanges(id) {
+    if (this.changes.has(id)) {
+      this.changes.delete(id);
+      this.invalidate();
+      return;
+    }
+    try {
+      const { lines } = await getProposal(this.documentId, id);
+      this.changes.set(id, lines);
+      this.error = null;
+    } catch (err) {
+      this.error = err;
+    }
+    this.invalidate();
+  }
+
   async decide(el) {
     const { id, decision } = el.dataset;
     const note = this.querySelector(`[data-note="${CSS.escape(id)}"]`)?.value ?? "";
@@ -37,16 +55,26 @@ export class SpProposalList extends DocumentsElement {
   }
 
   renderActions(proposal) {
-    if (proposal.status !== "open" && proposal.status !== "pending") { return ""; }
+    if (proposal.status !== "open") { return ""; }
     return `<input class="sp-proposal-list__note" aria-label="Note"${attr("data-note", proposal.id)}>
       <button type="button" class="sp-proposal-list__button" data-action="decide" data-decision="accept"${attr("data-id", proposal.id)}>Accept</button>
       <button type="button" class="sp-proposal-list__button" data-action="decide" data-decision="reject"${attr("data-id", proposal.id)}>Reject</button>`;
+  }
+
+  renderChanges(proposal) {
+    const lines = this.changes.get(proposal.id);
+    const label = lines ? "Hide changes" : "Show changes";
+    const toggle = `<button type="button" class="sp-proposal-list__button" data-action="changes"${attr("data-id", proposal.id)} aria-expanded="${lines ? "true" : "false"}">${label}</button>`;
+    if (!lines) { return toggle; }
+    const body = lines.map((line) => `<li class="sp-proposal-list__line">${escapeHtml(line)}</li>`).join("") || `<li class="sp-proposal-list__line">No changed blocks</li>`;
+    return `${toggle}<ol class="sp-proposal-list__changes">${body}</ol>`;
   }
 
   renderProposal(proposal) {
     return `<li class="sp-proposal-list__item sp-proposal-list__item--${escapeHtml(proposal.status)}"${attr("data-key", proposal.id)}>
       <p class="sp-proposal-list__message">${escapeHtml(proposal.message ?? "(no message)")}</p>
       <p class="sp-proposal-list__meta">${escapeHtml(proposal.proposer ?? "")} · ${escapeHtml(formatTime(proposal.created_at))} · ${escapeHtml(proposal.status)}</p>
+      ${this.renderChanges(proposal)}
       ${this.renderActions(proposal)}</li>`;
   }
 

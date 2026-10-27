@@ -15,7 +15,8 @@ use reqwest::multipart::{Form, Part};
 use systemprompt_identifiers::{ContentHash, ValidatedUrl};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::documents::{
-    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, PresenceBeacon,
+    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposals,
+    PresenceBeacon,
 };
 
 use super::error::{DriveError, DriveResult};
@@ -126,6 +127,15 @@ impl DriveClient {
             return decode(endpoint, response).await;
         }
         decode(endpoint, accept(endpoint, response).await?).await
+    }
+
+    pub async fn proposals(&self, bearer: &BearerToken) -> DriveResult<DriveProposals> {
+        let endpoint = ApiPaths::BRIDGE_DRIVE_PROPOSALS;
+        let request = self
+            .http
+            .get(self.url(endpoint))
+            .bearer_auth(bearer.expose());
+        decode(endpoint, accept(endpoint, send(endpoint, request).await?).await?).await
     }
 
     pub async fn presence(&self, bearer: &BearerToken, beacon: &PresenceBeacon) -> DriveResult<()> {

@@ -93,7 +93,8 @@ export const collabLeaveOnUnload = (id, sessionId) => fetch(doc(id, "/collab/lea
 export const collabCursor = (id, sessionId, cursor) =>
   request("POST", doc(id, "/collab/cursor"), { session_id: sessionId, cursor });
 
-export const listProposals = (id) => request("GET", doc(id, "/proposals"));
+export const listProposals = (id, status) => request("GET", doc(id, `/proposals${query({ status })}`));
+export const getProposal = (id, proposalId) => request("GET", doc(id, `/proposals/${encodeURIComponent(proposalId)}`));
 export const decideProposal = (id, proposalId, decision, note) =>
   request("POST", doc(id, `/proposals/${encodeURIComponent(proposalId)}/${decision}`), { note });
 

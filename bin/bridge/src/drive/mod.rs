@@ -15,6 +15,9 @@
 //! advances only after the operation it describes succeeded, so an error
 //! leaves the next cycle to retry the same work. Editing presence is sent as
 //! throttled beacons when a watched file changes or an agent hook touches one.
+//! Each cycle also refreshes the open proposals on the user's documents, and
+//! a `document.shared` or `document.proposal.opened` frame is queued as a
+//! notice for the desktop.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,7 +26,9 @@ pub mod client;
 pub mod conflict;
 pub mod error;
 pub mod hash;
+pub mod notice;
 pub mod presence;
+pub mod proposals;
 pub mod pull;
 pub mod root;
 pub mod run;
@@ -37,7 +42,7 @@ pub mod write;
 pub use client::DriveClient;
 pub use error::DriveError;
 pub use root::DriveRoot;
-pub use state::{DriveEntryState, DriveState};
+pub use state::{DriveEntryState, DriveState, OpenProposal};
 pub use status::{ConflictNotice, DriveHandle, DriveStatus, EditorPresence};
 
 use systemprompt_identifiers::DriveDeviceId;

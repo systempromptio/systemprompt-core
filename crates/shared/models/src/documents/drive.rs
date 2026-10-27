@@ -8,7 +8,8 @@
 //! onto the head when it can be ([`DriveCommitResponse::Merged`] names the
 //! merged revision and its content, which the device then pulls) and is
 //! otherwise answered with [`DriveCommitResponse::Conflict`] and never
-//! applied.
+//! applied. [`DriveProposals`] lists the open proposals on the user's
+//! documents and the user's own open proposals.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,8 +17,12 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId, DriveDeviceId};
+use systemprompt_identifiers::{
+    ContentHash, DocumentId, DocumentProposalId, DocumentRevisionId, DriveDeviceId, UserId,
+};
 use systemprompt_provider_contracts::documents::DocumentFormat;
+
+use super::access::ActorKind;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DriveEntry {
@@ -119,4 +124,20 @@ pub struct PresenceBeacon {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     // JSON: editor cursor position; the shape belongs to the client's editor.
     pub cursor: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DriveProposal {
+    pub proposal_id: DocumentProposalId,
+    pub document_id: DocumentId,
+    pub proposer_id: UserId,
+    pub actor_kind: ActorKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DriveProposals {
+    pub proposals: Vec<DriveProposal>,
 }

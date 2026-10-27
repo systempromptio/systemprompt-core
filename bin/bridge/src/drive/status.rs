@@ -1,5 +1,6 @@
 //! The Drive status the tray, the GUI and the CLI read, and the handle the
-//! sync loop is driven through.
+//! sync loop is driven through. Notices are numbered so a reader shows each
+//! one once: it remembers the last `seq` it showed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,9 +22,17 @@ use super::error::DriveResult;
 use super::root::DriveRoot;
 use super::scan::local_changes;
 pub use super::state::ConflictNotice;
-use super::state::DriveState;
+use super::state::{DriveState, OpenProposal};
+use crate::proxy::drive_signal::DocumentNotice;
 
 pub const EDITOR_TTL: Duration = Duration::seconds(90);
+const NOTICES_KEPT: usize = 20;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct QueuedNotice {
+    pub seq: u64,
+    pub notice: DocumentNotice,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EditorPresence {
@@ -43,6 +52,8 @@ pub struct DriveStatus {
     pub pending_uploads: usize,
     pub conflicts: Vec<ConflictNotice>,
     pub editors: Vec<EditorPresence>,
+    pub proposals: Vec<OpenProposal>,
+    pub notices: Vec<QueuedNotice>,
     pub last_error: Option<String>,
 }
 
@@ -59,7 +70,9 @@ impl DriveStatus {
             synced_at: None,
             pending_uploads: local_changes(root, &state)?.len(),
             conflicts: state.conflicts,
+            proposals: state.proposals,
             editors: Vec::new(),
+            notices: Vec::new(),
             last_error: None,
         })
     }
@@ -138,6 +151,15 @@ impl DriveHandle {
     #[must_use]
     pub fn take_touched(&self) -> BTreeSet<PathBuf> {
         std::mem::take(&mut *self.touched.lock())
+    }
+
+    pub fn push_notice(&self, notice: DocumentNotice) {
+        self.update(|status| {
+            let seq = status.notices.last().map_or(1, |last| last.seq + 1);
+            status.notices.push(QueuedNotice { seq, notice });
+            let excess = status.notices.len().saturating_sub(NOTICES_KEPT);
+            status.notices.drain(..excess);
+        });
     }
 
     pub fn observe_presence(&self, event: &DocumentPresenceEvent, path: Option<String>) {

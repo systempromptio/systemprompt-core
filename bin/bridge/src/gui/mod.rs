@@ -162,6 +162,7 @@ pub(crate) struct GuiApp {
     pub(crate) active_signals: HashSet<notify::Signal>,
     pub(crate) unattended_repairs: HashSet<systemprompt_models::bridge::host::HostKind>,
     pub(crate) drive_watch: tokio::sync::watch::Receiver<u64>,
+    pub(crate) drive_notice_seq: u64,
 }
 
 impl GuiApp {
@@ -185,6 +186,7 @@ impl GuiApp {
             active_signals: HashSet::new(),
             unattended_repairs: HashSet::new(),
             drive_watch,
+            drive_notice_seq: 0,
         }
     }
 

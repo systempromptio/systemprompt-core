@@ -52,6 +52,9 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
     let pull = pull(cycle, &mut state).await?;
     mark_server_enabled(handle, cycle.root);
     let upload = upload(cycle, &mut state).await?;
+    if super::proposals::refresh(cycle, &mut state).await {
+        state.save(&state_path)?;
+    }
     let pending_uploads = local_changes(cycle.root, &state)?.len();
     let report = CycleReport {
         pull,
@@ -62,6 +65,7 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
         status.synced_at = Some(Utc::now());
         status.pending_uploads = report.pending_uploads;
         status.conflicts.clone_from(&state.conflicts);
+        status.proposals.clone_from(&state.proposals);
         status.last_error = None;
     });
     Ok(report)
@@ -174,6 +178,10 @@ impl Runner<'_> {
             },
             DriveSignal::RevisionCreated(event) => {
                 tracing::debug!(document_id = %event.document_id, "drive revision announced");
+                true
+            },
+            DriveSignal::Notice(notice) => {
+                self.handle.push_notice(*notice);
                 true
             },
             DriveSignal::Presence(event) => {

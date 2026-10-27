@@ -50,6 +50,19 @@ fn print_status(root: &DriveRoot) -> ExitCode {
     }
     stdio::print_line(&format!("  pending uploads: {}", status.pending_uploads));
     stdio::print_line(&format!("  conflicts: {}", status.conflicts.len()));
+    stdio::print_line(&format!("  open proposals: {}", status.proposals.len()));
+    for proposal in &status.proposals {
+        stdio::print_line(&format!(
+            "    {}  {}  by {}{}",
+            proposal.proposal_id,
+            proposal.path.as_deref().unwrap_or(proposal.document_id.as_str()),
+            proposal.proposer_id,
+            proposal
+                .message
+                .as_deref()
+                .map_or_else(String::new, |message| format!(": {message}")),
+        ));
+    }
     ExitCode::SUCCESS
 }
 

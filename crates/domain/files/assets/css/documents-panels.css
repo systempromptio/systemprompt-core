@@ -62,7 +62,8 @@
 .sp-comments__threads,
 .sp-comments__messages,
 .sp-history__revisions,
-.sp-history__lines {
+.sp-history__lines,
+.sp-proposal-list__changes {
   display: grid;
   gap: var(--sp-space-1);
   margin: 0;
@@ -129,7 +130,8 @@
   font-size: var(--sp-text-xs);
 }
 
-.sp-history__line {
+.sp-history__line,
+.sp-proposal-list__line {
   padding-inline-start: var(--sp-space-2);
   border-inline-start: var(--sp-space-0-5) solid var(--sp-line);
 }
@@ -148,4 +150,10 @@
 :is(.sp-share-dialog, .sp-proposal-list, .sp-comments, .sp-history) :focus-visible {
   outline: var(--sp-focus-width) solid var(--sp-focus);
   outline-offset: var(--sp-focus-offset);
+}
+
+.sp-proposal-list__changes {
+  flex-basis: 100%;
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-text-xs);
 }

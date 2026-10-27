@@ -1,5 +1,5 @@
 //! What the Drive folder last agreed with the gateway on, persisted at
-//! `<Drive>/.drive-state.json`.
+//! `<Drive>/.drive-state.json`, with the open proposals last fetched.
 //!
 //! A missing file is a first run. A file that does not decode is never
 //! silently replaced: it is renamed aside to `.drive-state.json.corrupt-<ts>`
@@ -14,7 +14,9 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::{
+    ContentHash, DocumentId, DocumentProposalId, DocumentRevisionId, UserId,
+};
 
 use super::error::{DriveError, DriveResult};
 
@@ -41,6 +43,18 @@ pub struct ConflictNotice {
     pub detected_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OpenProposal {
+    pub proposal_id: DocumentProposalId,
+    pub document_id: DocumentId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    pub proposer_id: UserId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DriveState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -49,6 +63,8 @@ pub struct DriveState {
     pub entries: BTreeMap<String, DriveEntryState>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub conflicts: Vec<ConflictNotice>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub proposals: Vec<OpenProposal>,
 }
 
 impl DriveState {

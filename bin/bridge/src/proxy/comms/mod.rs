@@ -30,7 +30,7 @@ pub use inbox::{
 };
 
 use crate::config::SharedRuntimeConfig;
-use crate::proxy::drive_signal::{DriveSignal, DriveSignals};
+use crate::proxy::drive_signal::{DriveSignal, DriveSignals, notice_for};
 use crate::proxy::token_cache::TokenCache;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::documents::{DocumentPresenceEvent, DocumentRevisionCreatedEvent};
@@ -84,7 +84,11 @@ fn handle_frame(data: &str, drive: &DriveSignals) {
                 drive.send(DriveSignal::Presence(Box::new(event)));
             }
         },
-        _ => {},
+        other => {
+            if let Some(notice) = notice_for(other, value.get()) {
+                drive.send(DriveSignal::Notice(Box::new(notice)));
+            }
+        },
     }
 }
 
