@@ -29,6 +29,14 @@ pub struct ApplyRequest {
     pub update: Vec<u8>,
 }
 
+#[derive(Debug)]
+pub struct CursorRequest {
+    pub document: DocumentId,
+    pub session: DocumentEditSessionId,
+    // JSON: editor cursor position; the shape belongs to the client's editor.
+    pub cursor: serde_json::Value,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Applied {
     pub seq: i64,

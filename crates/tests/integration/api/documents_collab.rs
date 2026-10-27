@@ -42,7 +42,10 @@ async fn post(
     let resp = app.oneshot(req).await?;
     let status = resp.status();
     let bytes = to_bytes(resp.into_body(), 16 * 1024 * 1024).await?;
-    Ok((status, serde_json::from_slice(&bytes).unwrap_or(Value::Null)))
+    Ok((
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    ))
 }
 
 async fn create_html(state: &DocumentsState, owner: &AuthedFixture) -> Result<String> {
@@ -64,7 +67,10 @@ fn update_from(joined: &Value, text: &str) -> Result<(String, String)> {
     body.insert(body.len_unicode(), text)?;
     doc.commit();
     let update = doc.export(ExportMode::updates(&before))?;
-    Ok((STANDARD.encode(update), STANDARD.encode(doc.oplog_vv().encode())))
+    Ok((
+        STANDARD.encode(update),
+        STANDARD.encode(doc.oplog_vv().encode()),
+    ))
 }
 
 #[tokio::test]
@@ -73,7 +79,13 @@ async fn the_collab_routes_join_apply_cursor_and_leave() -> Result<()> {
     let owner = seed_bridge_credential(&pool, "collab-routes").await?;
     let id = create_html(&state, &owner).await?;
 
-    let (status, joined) = post(&state, &owner, &format!("/{id}/collab/join"), &json!({"mode": "edit"})).await?;
+    let (status, joined) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/join"),
+        &json!({"mode": "edit"}),
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK, "{joined}");
     let session = joined["session_id"].as_str().expect("session").to_owned();
     assert!(joined["vv"].is_string());
@@ -100,7 +112,13 @@ async fn the_collab_routes_join_apply_cursor_and_leave() -> Result<()> {
     .await?;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
-    let (status, left) = post(&state, &owner, &format!("/{id}/collab/leave"), &json!({"session_id": session})).await?;
+    let (status, left) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/leave"),
+        &json!({"session_id": session}),
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK, "{left}");
     assert_eq!(left["closed"], json!(true));
     assert!(left["checkpoint_revision"].is_string());
@@ -112,7 +130,13 @@ async fn a_view_join_cannot_post_updates_and_bad_base64_is_rejected() -> Result<
     let (pool, _ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "collab-view").await?;
     let id = create_html(&state, &owner).await?;
-    let (_, joined) = post(&state, &owner, &format!("/{id}/collab/join"), &json!({"mode": "view"})).await?;
+    let (_, joined) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/join"),
+        &json!({"mode": "view"}),
+    )
+    .await?;
     let session = joined["session_id"].as_str().expect("session").to_owned();
     let (update, _) = update_from(&joined, "<p>x</p>")?;
 
@@ -143,10 +167,22 @@ async fn a_stranger_cannot_join_and_a_closed_session_is_a_conflict() -> Result<(
     let stranger = seed_bridge_credential(&pool, "collab-stranger").await?;
     let id = create_html(&state, &owner).await?;
 
-    let (status, _) = post(&state, &stranger, &format!("/{id}/collab/join"), &json!({"mode": "view"})).await?;
+    let (status, _) = post(
+        &state,
+        &stranger,
+        &format!("/{id}/collab/join"),
+        &json!({"mode": "view"}),
+    )
+    .await?;
     assert_eq!(status, StatusCode::FORBIDDEN);
 
-    let (_, joined) = post(&state, &owner, &format!("/{id}/collab/join"), &json!({"mode": "edit"})).await?;
+    let (_, joined) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/join"),
+        &json!({"mode": "edit"}),
+    )
+    .await?;
     let (update, _) = update_from(&joined, "<p>late</p>")?;
     let stale = Uuid::new_v4().to_string();
     let (status, body) = post(

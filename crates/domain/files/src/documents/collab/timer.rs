@@ -44,20 +44,16 @@ impl CollabService {
             && entry
                 .snapshot_due_from
                 .is_some_and(|from| now.duration_since(from) >= self.tuning.snapshot_after);
-        if snapshot_due {
-            if let Err(error) = self.snapshot(&mut entry).await {
-                tracing::warn!(session_id = %session, error = %error, "Edit session snapshot failed");
-            }
+        if snapshot_due && let Err(error) = self.snapshot(&mut entry).await {
+            tracing::warn!(session_id = %session, error = %error, "Edit session snapshot failed");
         }
         let checkpoint_due = entry
             .checkpoint_due_from
             .is_some_and(|from| now.duration_since(from) >= self.tuning.checkpoint_after);
-        if checkpoint_due {
-            if let Some(editor) = entry.last_editor.clone() {
-                let trace = TraceId::system();
-                if let Err(error) = self.checkpoint(&mut entry, &editor, &trace).await {
-                    tracing::warn!(session_id = %session, error = %error, "Edit session checkpoint failed");
-                }
+        if checkpoint_due && let Some(editor) = entry.last_editor.clone() {
+            let trace = TraceId::system();
+            if let Err(error) = self.checkpoint(&mut entry, &editor, &trace).await {
+                tracing::warn!(session_id = %session, error = %error, "Edit session checkpoint failed");
             }
         }
         entry.unsnapshotted == 0

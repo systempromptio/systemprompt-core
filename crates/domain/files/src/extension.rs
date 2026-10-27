@@ -75,7 +75,7 @@ const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
     (
         "document_collab_updates",
         include_str!("../schema/document_collab_updates.sql"),
-        &["session_id", "seq", "update"],
+        &["session_id", "seq", "payload"],
     ),
     (
         "document_text_index",

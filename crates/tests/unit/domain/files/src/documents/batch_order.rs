@@ -2,7 +2,9 @@ use systemprompt_files::documents::codecs::HtmlCodec;
 use systemprompt_files::documents::codecs::docx::DocxCodec;
 use systemprompt_files::documents::codecs::pptx::PptxCodec;
 use systemprompt_files::documents::codecs::xlsx::XlsxCodec;
-use systemprompt_provider_contracts::documents::{DocumentCodec, EditOp, NodeKind, NodeTarget, Projection};
+use systemprompt_provider_contracts::documents::{
+    DocumentCodec, EditOp, NodeKind, NodeTarget, Projection,
+};
 
 use super::{SAMPLE_HTML, hash_of, id, insert_after, replace};
 

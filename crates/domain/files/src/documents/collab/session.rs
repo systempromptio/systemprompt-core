@@ -14,7 +14,14 @@ use systemprompt_models::documents::{
 };
 
 use super::model::is_collab_format;
-use super::{CollabError, CollabService, JoinMode, Joined, Left};
+use super::{CollabError, CollabService, CursorRequest, JoinMode, Joined, Left};
+
+struct Announcement<'a> {
+    state: PresenceState,
+    session: &'a DocumentEditSessionId,
+    // JSON: editor cursor position; the shape belongs to the client's editor.
+    cursor: Option<serde_json::Value>,
+}
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentEditSession, EditSessionOpen, PresenceUpsert};
@@ -54,8 +61,16 @@ impl CollabService {
             JoinMode::View => PresenceState::Viewing,
         };
         self.mark_present(who, &document, state, None).await?;
-        self.announce(who, &document, state, &session.id, None)
-            .await;
+        self.announce(
+            who,
+            &document,
+            Announcement {
+                state,
+                session: &session.id,
+                cursor: None,
+            },
+        )
+        .await;
         Ok(joined)
     }
 
@@ -70,7 +85,10 @@ impl CollabService {
             .authorized(who, document, DocumentAction::View, trace)
             .await?;
         let repos = self.documents.repositories();
-        repos.collab.remove_web_presence(&document.id, &who.id).await?;
+        repos
+            .collab
+            .remove_web_presence(&document.id, &who.id)
+            .await?;
         let open = repos.edit_sessions.find_open(&document.id).await?;
         let Some(open) = open.filter(|open| open.id == *session) else {
             return Ok(Left {
@@ -96,16 +114,18 @@ impl CollabService {
     pub async fn cursor(
         &self,
         who: &AuthenticatedUser,
-        document: &DocumentId,
-        session: &DocumentEditSessionId,
-        // JSON: editor cursor position; the shape belongs to the client's editor.
-        cursor: serde_json::Value,
+        request: CursorRequest,
         trace: &TraceId,
     ) -> Result<(), CollabError> {
+        let CursorRequest {
+            document,
+            session,
+            cursor,
+        } = request;
         let document = self
-            .authorized(who, document, DocumentAction::View, trace)
+            .authorized(who, &document, DocumentAction::View, trace)
             .await?;
-        self.open_matching(&document.id, session).await?;
+        self.open_matching(&document.id, &session).await?;
         let repos = self.documents.repositories();
         if !repos
             .collab
@@ -121,8 +141,16 @@ impl CollabService {
         } else {
             PresenceState::Viewing
         };
-        self.announce(who, &document, state, session, Some(cursor))
-            .await;
+        self.announce(
+            who,
+            &document,
+            Announcement {
+                state,
+                session: &session,
+                cursor: Some(cursor),
+            },
+        )
+        .await;
         Ok(())
     }
 
@@ -168,10 +196,11 @@ impl CollabService {
             .await?
         {
             EditSessionOpen::Opened(session) => Ok(session),
-            EditSessionOpen::AlreadyOpen => sessions
-                .find_open(&document.id)
-                .await?
-                .ok_or_else(|| DocumentsError::not_found("edit session of document", &document.id).into()),
+            EditSessionOpen::AlreadyOpen => {
+                sessions.find_open(&document.id).await?.ok_or_else(|| {
+                    DocumentsError::not_found("edit session of document", &document.id).into()
+                })
+            },
         }
     }
 
@@ -205,10 +234,11 @@ impl CollabService {
         &self,
         who: &AuthenticatedUser,
         document: &Document,
-        state: PresenceState,
-        session: &DocumentEditSessionId,
-        // JSON: editor cursor position; the shape belongs to the client's editor.
-        cursor: Option<serde_json::Value>,
+        Announcement {
+            state,
+            session,
+            cursor,
+        }: Announcement<'_>,
     ) {
         let others: Vec<UserId> = self
             .recipients(document)

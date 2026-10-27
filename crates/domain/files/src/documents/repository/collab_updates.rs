@@ -42,7 +42,7 @@ impl DocumentCollabRepository {
         author: &UserId,
     ) -> RepoResult<i64> {
         Ok(sqlx::query_scalar!(
-            "INSERT INTO document_collab_updates (session_id, update, author_user_id)
+            "INSERT INTO document_collab_updates (session_id, payload, author_user_id)
              VALUES ($1::text::uuid, $2, $3)
              RETURNING seq",
             session.as_str(),
@@ -60,7 +60,7 @@ impl DocumentCollabRepository {
     ) -> RepoResult<Vec<CollabUpdateRow>> {
         Ok(sqlx::query_as!(
             CollabUpdateRow,
-            r#"SELECT seq, update, author_user_id AS "author_user_id: UserId"
+            r#"SELECT seq, payload AS "update", author_user_id AS "author_user_id: UserId"
                FROM document_collab_updates
                WHERE session_id = $1::text::uuid AND seq > $2
                ORDER BY seq"#,

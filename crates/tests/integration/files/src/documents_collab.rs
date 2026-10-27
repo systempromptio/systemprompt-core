@@ -13,7 +13,9 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::RevisionOriginKind;
 use tokio::sync::mpsc;
 
-use crate::documents_service_fixture::{GroupSource, Harness, allow, create, harness, person, trace};
+use crate::documents_service_fixture::{
+    GroupSource, Harness, allow, create, harness, person, trace,
+};
 
 struct Collab {
     h: Harness,
@@ -52,7 +54,8 @@ fn edit(doc: &LoroDoc, text: &str) -> Vec<u8> {
     let body = doc.get_text(BODY_CONTAINER);
     body.insert(body.len_unicode(), text).expect("insert");
     doc.commit();
-    doc.export(ExportMode::updates(&before)).expect("export update")
+    doc.export(ExportMode::updates(&before))
+        .expect("export update")
 }
 
 fn request(document: &DocumentId, joined: &Joined, doc: &LoroDoc, update: Vec<u8>) -> ApplyRequest {
@@ -80,14 +83,13 @@ async fn join_opens_one_session_and_a_second_join_reuses_it() {
         .await
         .expect("second join");
     assert_eq!(first.session_id, second.session_id);
-    let open = c
-        .h
-        .repos
-        .edit_sessions
-        .find_open(&document)
-        .await
-        .expect("find open")
-        .expect("open session");
+    let open =
+        c.h.repos
+            .edit_sessions
+            .find_open(&document)
+            .await
+            .expect("find open")
+            .expect("open session");
     assert_eq!(open.id, first.session_id);
     assert!(first.head_revision.is_some());
     assert!(!first.snapshot.is_empty());
@@ -115,18 +117,21 @@ async fn apply_logs_the_update_and_broadcasts_it_to_present_users() {
     let update = edit(&doc, "<p>Live</p>");
     let applied = c
         .collab
-        .apply(&owner, request(&document, &joined, &doc, update.clone()), &trace())
+        .apply(
+            &owner,
+            request(&document, &joined, &doc, update.clone()),
+            &trace(),
+        )
         .await
         .expect("apply");
     assert!(applied.seq > 0);
     assert!(applied.missing.is_none());
-    let rows = c
-        .h
-        .repos
-        .collab
-        .list_after(&joined.session_id, 0)
-        .await
-        .expect("rows");
+    let rows =
+        c.h.repos
+            .collab
+            .list_after(&joined.session_id, 0)
+            .await
+            .expect("rows");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].seq, applied.seq);
     assert_eq!(rows[0].update, update);
@@ -138,7 +143,10 @@ async fn apply_logs_the_update_and_broadcasts_it_to_present_users() {
             saw_update = true;
         }
     }
-    assert!(saw_update, "the owner's stream must carry document.collab.update");
+    assert!(
+        saw_update,
+        "the owner's stream must carry document.collab.update"
+    );
 }
 
 #[tokio::test]
@@ -187,22 +195,20 @@ async fn two_hundred_updates_store_a_snapshot_and_prune_the_log() {
             .await
             .expect("apply");
     }
-    let open = c
-        .h
-        .repos
-        .edit_sessions
-        .find_open(&document)
-        .await
-        .expect("find")
-        .expect("open");
+    let open =
+        c.h.repos
+            .edit_sessions
+            .find_open(&document)
+            .await
+            .expect("find")
+            .expect("open");
     assert!(open.snapshot_sha256.is_some());
-    let left = c
-        .h
-        .repos
-        .collab
-        .list_after(&joined.session_id, 0)
-        .await
-        .expect("rows");
+    let left =
+        c.h.repos
+            .collab
+            .list_after(&joined.session_id, 0)
+            .await
+            .expect("rows");
     assert!(left.is_empty(), "the snapshot covers every logged update");
 }
 
@@ -229,16 +235,18 @@ async fn the_last_editor_leaving_commits_an_edit_session_revision_and_closes() {
         .expect("leave");
     assert!(left.closed);
     let revision_id = left.checkpoint.expect("checkpoint revision");
-    let revision = c
-        .h
-        .repos
-        .revisions
-        .find(&revision_id)
-        .await
-        .expect("find")
-        .expect("revision");
+    let revision =
+        c.h.repos
+            .revisions
+            .find(&revision_id)
+            .await
+            .expect("find")
+            .expect("revision");
     assert_eq!(revision.origin_kind, RevisionOriginKind::EditSession);
-    assert_eq!(revision.origin_id.as_deref(), Some(joined.session_id.as_str()));
+    assert_eq!(
+        revision.origin_id.as_deref(),
+        Some(joined.session_id.as_str())
+    );
     let (_, bytes) = c
         .documents
         .read_bytes(&owner, &document, None, &trace())
@@ -272,7 +280,9 @@ async fn office_documents_cannot_be_joined() {
         .await;
     assert!(matches!(
         refused,
-        Err(CollabError::Documents(DocumentsError::UnsupportedFormat { .. }))
+        Err(CollabError::Documents(
+            DocumentsError::UnsupportedFormat { .. }
+        ))
     ));
 }
 

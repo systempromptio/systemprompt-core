@@ -15,6 +15,7 @@ use systemprompt_identifiers::{DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, DocumentAction};
 
+use super::apply::update_event;
 use super::entry::{CollabEntry, utf8};
 use super::model::{BODY_CONTAINER, body_of, body_text, materialise};
 use super::{CollabError, CollabService};
@@ -127,8 +128,11 @@ impl CollabService {
         let document = self
             .authorized(who, &entry.session.document_id, DocumentAction::View, trace)
             .await?;
-        self.broadcast(&document, &entry.session.id, seq, &update, &who.id)
-            .await;
+        self.broadcast(
+            &document,
+            update_event(&document, &entry.session.id, seq, &update, &who.id),
+        )
+        .await;
         Ok(())
     }
 }

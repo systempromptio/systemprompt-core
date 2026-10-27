@@ -2,9 +2,9 @@
 //!
 //! Each event is an AG-UI `CUSTOM` event named by the payload's `NAME`
 //! (`document.revision.created`, `document.presence`, `document.lock`,
-//! `document.conflict`, `document.collab.update`) and routed to each recipient through the
-//! [`EventRouter`], which also relays it to other replicas. Clients filter
-//! the stream on the `document.` prefix.
+//! `document.conflict`, `document.collab.update`) and routed to each recipient
+//! through the [`EventRouter`], which also relays it to other replicas. Clients
+//! filter the stream on the `document.` prefix.
 //!
 //! Every `emit` reports a relay failure as [`DocumentsError::Events`] after
 //! logging it; local delivery has already happened by then. Callers that

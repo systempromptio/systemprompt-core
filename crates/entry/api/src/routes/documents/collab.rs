@@ -15,7 +15,7 @@ use axum::{Extension, Json};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
-use systemprompt_files::documents::collab::{ApplyRequest, CollabError, JoinMode};
+use systemprompt_files::documents::collab::{ApplyRequest, CollabError, CursorRequest, JoinMode};
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
@@ -47,7 +47,7 @@ pub(super) struct JoinedJson {
 
 #[derive(Debug, Deserialize)]
 pub(super) struct UpdateBody {
-    session_id: String,
+    session_id: DocumentEditSessionId,
     vv: Option<String>,
     update_b64: String,
 }
@@ -62,7 +62,7 @@ pub(super) struct AppliedJson {
 
 #[derive(Debug, Deserialize)]
 pub(super) struct LeaveBody {
-    session_id: String,
+    session_id: DocumentEditSessionId,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,7 +73,7 @@ pub(super) struct LeftJson {
 
 #[derive(Debug, Deserialize)]
 pub(super) struct CursorBody {
-    session_id: String,
+    session_id: DocumentEditSessionId,
     // JSON: editor cursor position; the shape belongs to the client's editor.
     cursor: serde_json::Value,
 }
@@ -110,7 +110,7 @@ pub(super) async fn updates(
     let who = caller(&state, &req_ctx).await?;
     let request = ApplyRequest {
         document_id: document_id(&id)?,
-        session_id: DocumentEditSessionId::try_new(body.session_id)?,
+        session_id: body.session_id,
         version: body.vv.as_deref().map(decode).transpose()?,
         update: decode(&body.update_b64)?,
     };
@@ -131,12 +131,7 @@ pub(super) async fn leave(
     let who = caller(&state, &req_ctx).await?;
     let left = state
         .collab
-        .leave(
-            &who.user,
-            &document_id(&id)?,
-            &DocumentEditSessionId::try_new(body.session_id)?,
-            &who.trace,
-        )
+        .leave(&who.user, &document_id(&id)?, &body.session_id, &who.trace)
         .await?;
     Ok(Json(LeftJson {
         closed: left.closed,
@@ -155,9 +150,11 @@ pub(super) async fn cursor(
         .collab
         .cursor(
             &who.user,
-            &document_id(&id)?,
-            &DocumentEditSessionId::try_new(body.session_id)?,
-            body.cursor,
+            CursorRequest {
+                document: document_id(&id)?,
+                session: body.session_id,
+                cursor: body.cursor,
+            },
             &who.trace,
         )
         .await?;

@@ -42,7 +42,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use systemprompt_identifiers::DocumentId;
 
 pub use error::CollabError;
-pub use types::{Applied, ApplyRequest, CollabTuning, JoinMode, Joined, Left};
+pub use types::{Applied, ApplyRequest, CollabTuning, CursorRequest, JoinMode, Joined, Left};
 
 use self::entry::SharedEntry;
 use super::service::DocumentService;

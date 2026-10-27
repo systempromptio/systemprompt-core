@@ -61,8 +61,11 @@ impl CollabService {
             self.snapshot(&mut entry).await?;
         }
         drop(entry);
-        self.broadcast(&document, &session.id, seq, &request.update, &who.id)
-            .await;
+        self.broadcast(
+            &document,
+            update_event(&document, &session.id, seq, &request.update, &who.id),
+        )
+        .await;
         Ok(Applied {
             seq,
             version,
@@ -86,29 +89,31 @@ impl CollabService {
         Ok(seq)
     }
 
-    pub(super) async fn broadcast(
-        &self,
-        document: &Document,
-        session: &DocumentEditSessionId,
-        seq: i64,
-        update: &[u8],
-        author: &UserId,
-    ) {
-        let event = DocumentCollabUpdateEvent {
-            document_id: document.id.clone(),
-            edit_session_id: session.clone(),
-            seq,
-            update_b64: STANDARD.encode(update),
-            author_id: author.clone(),
-        };
+    pub(super) async fn broadcast(&self, document: &Document, event: DocumentCollabUpdateEvent) {
         let to = self.recipients(document).await;
         if let Err(error) = self.documents.events().collab_update(&to, &event).await {
             tracing::warn!(
                 document_id = %document.id,
-                seq,
+                seq = event.seq,
                 error = %error,
                 "Collab update event not delivered"
             );
         }
+    }
+}
+
+pub(super) fn update_event(
+    document: &Document,
+    session: &DocumentEditSessionId,
+    seq: i64,
+    update: &[u8],
+    author: &UserId,
+) -> DocumentCollabUpdateEvent {
+    DocumentCollabUpdateEvent {
+        document_id: document.id.clone(),
+        edit_session_id: session.clone(),
+        seq,
+        update_b64: STANDARD.encode(update),
+        author_id: author.clone(),
     }
 }

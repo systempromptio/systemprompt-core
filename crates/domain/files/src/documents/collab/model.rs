@@ -7,10 +7,11 @@
 //! the same container with `loro-crdt`.
 //!
 //! [`seed`] writes the initial body with peer id [`SEED_PEER`] and timestamps
-//! off, then moves to a random peer id, so every replica that seeds from the same revision produces the same
-//! operations and can import any client's updates without a shared snapshot.
-//! [`materialise`] turns the live body back into document bytes, keeping the
-//! HTML around `<body>` from the revision the session is based on.
+//! off, then moves to a random peer id, so every replica that seeds from the
+//! same revision produces the same operations and can import any client's
+//! updates without a shared snapshot. [`materialise`] turns the live body back
+//! into document bytes, keeping the HTML around `<body>` from the revision the
+//! session is based on.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

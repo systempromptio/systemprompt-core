@@ -19,7 +19,9 @@ fn two_seeds_of_one_body_accept_each_others_updates() {
     let a = seed("hello").expect("seed a");
     let b = seed("hello").expect("seed b");
     let before = a.oplog_vv();
-    a.get_text(BODY_CONTAINER).insert(5, " world").expect("insert");
+    a.get_text(BODY_CONTAINER)
+        .insert(5, " world")
+        .expect("insert");
     a.commit();
     let update = a.export(ExportMode::updates(&before)).expect("update");
     let status = b.import(&update).expect("import");
@@ -35,7 +37,10 @@ fn a_joined_replica_and_the_server_converge_on_concurrent_edits() {
     let bob = replica_of(&server);
     let joined_vv = server.oplog_vv();
 
-    alice.get_text(BODY_CONTAINER).insert(0, "A").expect("alice");
+    alice
+        .get_text(BODY_CONTAINER)
+        .insert(0, "A")
+        .expect("alice");
     alice.commit();
     bob.get_text(BODY_CONTAINER).insert(3, "B").expect("bob");
     bob.commit();
@@ -58,10 +63,15 @@ fn version_vectors_round_trip_and_report_what_a_client_lacks() {
     let client = replica_of(&server);
     let client_vv = VersionVector::decode(&client.oplog_vv().encode()).expect("decode");
     assert!(client_vv.includes_vv(&server.oplog_vv()));
-    server.get_text(BODY_CONTAINER).insert(1, "y").expect("insert");
+    server
+        .get_text(BODY_CONTAINER)
+        .insert(1, "y")
+        .expect("insert");
     server.commit();
     assert!(!client_vv.includes_vv(&server.oplog_vv()));
-    let missing = server.export(ExportMode::updates(&client_vv)).expect("missing");
+    let missing = server
+        .export(ExportMode::updates(&client_vv))
+        .expect("missing");
     client.import(&missing).expect("import missing");
     assert_eq!(body_text(&client), "xy");
 }
@@ -90,7 +100,10 @@ fn html_materialises_inside_the_base_document() {
 fn html_without_body_is_edited_whole() {
     let fragment = "<p>bare</p>";
     assert_eq!(body_of(DocumentFormat::Html, fragment), fragment);
-    assert_eq!(materialise(DocumentFormat::Html, fragment, "<p>new</p>"), "<p>new</p>");
+    assert_eq!(
+        materialise(DocumentFormat::Html, fragment, "<p>new</p>"),
+        "<p>new</p>"
+    );
 }
 
 #[test]
@@ -103,7 +116,10 @@ fn bodyguard_tag_is_not_mistaken_for_body() {
 fn markdown_is_edited_whole() {
     let md = "# Plan\n\n- one\n";
     assert_eq!(body_of(DocumentFormat::Markdown, md), md);
-    assert_eq!(materialise(DocumentFormat::Markdown, md, "# New\n"), "# New\n");
+    assert_eq!(
+        materialise(DocumentFormat::Markdown, md, "# New\n"),
+        "# New\n"
+    );
 }
 
 #[test]
