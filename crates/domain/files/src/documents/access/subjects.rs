@@ -31,6 +31,20 @@ impl DocumentAccessService {
     }
 
     #[must_use]
+    pub fn subject_kinds(&self) -> Vec<String> {
+        [USER_KIND, ROLE_KIND]
+            .into_iter()
+            .map(str::to_owned)
+            .chain(
+                self.subjects
+                    .dimensions()
+                    .iter()
+                    .map(|dimension| dimension.rule_type.as_str().to_owned()),
+            )
+            .collect()
+    }
+
+    #[must_use]
     pub fn is_known_subject_kind(&self, kind: &str) -> bool {
         kind == USER_KIND
             || kind == ROLE_KIND
