@@ -68,6 +68,12 @@ pub struct ApplyArgs {
         help = "Apply only this entity key (repeatable); the plane must support a scoped apply"
     )]
     pub entities: Vec<String>,
+
+    #[arg(
+        long,
+        help = "Run the apply and roll it back, reporting what it would change"
+    )]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -235,6 +241,18 @@ async fn apply(service: &ConfigReconcileService, args: &ApplyArgs) -> Result<Com
     } else {
         EntityScope::Entities(&args.entities)
     };
+    if args.dry_run {
+        let preview = service
+            .preview_apply(&args.plane, args.mode.into(), &change, scope)
+            .await?;
+        return Ok(CommandOutput::card_value(
+            format!(
+                "(dry run) {} would change {} entities; nothing written",
+                preview.plane, preview.changes
+            ),
+            &preview,
+        ));
+    }
     let applied = service
         .apply(&args.plane, args.mode.into(), &change, scope)
         .await?;

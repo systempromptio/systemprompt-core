@@ -28,6 +28,7 @@
 
 ### Added
 
+- **CLI, Scheduler:** `admin config planes apply --dry-run` runs the apply and rolls it back, reporting what it would change (`ConfigReconcileService::preview_apply`). Nothing is written or audited.
 - **Manifest, Gateway:** `external_agents.<host>.default_enabled: false` makes an enabled host opt-in. It reaches only users with an explicit enabled row, for example a farm's service account, and never counts towards "no rows means every host". Read it with `ServicesConfig::instance_hosts()` (`InstanceHosts`).
 - **CLI:** `core services validate` reports an `agents_md` finding that warns when the tree's `OpenCode` rules render to more than the 24,000 characters `OpenCode` reads from `AGENTS.md`; the bridge warns on sync too. The renderer moved to `systemprompt_models::bridge::opencode::agents_md`, so both measure the text the bridge writes.
 - **Files:** `DocumentService` and `DocumentAccessService` — folders registered as authz entities, subject-keyed grants resolved with the registered subject dimensions and the authz hook (fail closed), template-based creation and import, hash-anchored edit commits with a compare-and-swap head, three-way merges for text formats and conflict reporting for Office formats, locks, presence, sharing, search and the bridge Drive feed, with document events on the AgUi stream.

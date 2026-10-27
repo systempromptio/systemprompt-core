@@ -337,3 +337,34 @@ async fn an_extension_plane_depending_on_an_unregistered_plane_fails_assembly() 
         ConfigPlaneError::UnknownDependency { ref dependency, .. } if dependency == "no_such_plane"
     ));
 }
+
+#[tokio::test]
+async fn a_preview_apply_reports_the_changes_and_writes_nothing() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let plane = DbPlane::new(unique_plane_name("e2e_preview"), &new_log());
+    plane.write_declaration(root.path(), &[("a", "1"), ("b", "2")]);
+    let name = plane.name;
+    let h = harness(root.path(), vec![Arc::new(plane)], &[name]).await;
+    seed_rows(&h.pool, name, &[("a", "live")]).await;
+    let change = ChangeRequest {
+        actor: ChangeActor::Cli,
+        reason: "preview",
+    };
+
+    let preview = h
+        .service
+        .preview_apply(name, ApplyMode::Overwrite, &change, EntityScope::All)
+        .await
+        .expect("preview");
+
+    assert_eq!((preview.changes, preview.remaining_drift), (2, 0));
+    assert_eq!(stored_rows(&h.pool, name).await, snapshot(&[("a", "live")]));
+    assert!(
+        h.service
+            .repository()
+            .list_changes(name, 10)
+            .await
+            .expect("audit")
+            .is_empty()
+    );
+}

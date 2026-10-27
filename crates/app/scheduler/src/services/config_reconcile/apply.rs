@@ -28,6 +28,12 @@ pub(super) struct Observed<'a> {
 }
 
 #[derive(Clone, Copy)]
+enum Finish {
+    Commit,
+    Rollback,
+}
+
+#[derive(Clone, Copy)]
 pub(super) struct Planned<'a> {
     pub(super) mode: ApplyMode,
     pub(super) change: &'a ChangeRequest<'a>,
@@ -85,6 +91,37 @@ impl ConfigReconcileService {
         change: &ChangeRequest<'_>,
         scope: EntityScope<'_>,
     ) -> SchedulerResult<AppliedPlane> {
+        let planned = Planned {
+            mode,
+            change,
+            scope,
+        };
+        self.apply_locked(name, planned, Finish::Commit).await
+    }
+
+    /// Runs the apply and rolls it back: the result reports what
+    /// [`Self::apply`] would change, and nothing is written or audited.
+    pub async fn preview_apply(
+        &self,
+        name: &str,
+        mode: ApplyMode,
+        change: &ChangeRequest<'_>,
+        scope: EntityScope<'_>,
+    ) -> SchedulerResult<AppliedPlane> {
+        let planned = Planned {
+            mode,
+            change,
+            scope,
+        };
+        self.apply_locked(name, planned, Finish::Rollback).await
+    }
+
+    async fn apply_locked(
+        &self,
+        name: &str,
+        planned: Planned<'_>,
+        finish: Finish,
+    ) -> SchedulerResult<AppliedPlane> {
         let guard = self
             .repository
             .acquire_reconcile_lock(super::RECONCILE_LOCK_WAIT)
@@ -92,16 +129,7 @@ impl ConfigReconcileService {
             .ok_or(SchedulerError::ReconcileLockTimeout {
                 waited_secs: super::RECONCILE_LOCK_WAIT.as_secs(),
             })?;
-        let applied = self
-            .apply_unlocked(
-                name,
-                Planned {
-                    mode,
-                    change,
-                    scope,
-                },
-            )
-            .await;
+        let applied = self.apply_unlocked(name, planned, finish).await;
         guard.release().await;
         applied
     }
@@ -110,6 +138,7 @@ impl ConfigReconcileService {
         &self,
         name: &str,
         planned: Planned<'_>,
+        finish: Finish,
     ) -> SchedulerResult<AppliedPlane> {
         let plane = self.planes.find(name)?;
         let declared = plane
@@ -130,7 +159,10 @@ impl ConfigReconcileService {
         let applied = self
             .apply_recorded(plane.as_ref(), &mut tx, observed, planned)
             .await?;
-        tx.commit().await?;
+        match finish {
+            Finish::Commit => tx.commit().await?,
+            Finish::Rollback => tx.rollback().await?,
+        }
         Ok(applied)
     }
 
