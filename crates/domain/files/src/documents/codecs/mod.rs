@@ -37,3 +37,6 @@ pub use text::TextCodec;
 
 #[cfg(feature = "office")]
 pub mod docx;
+
+#[cfg(feature = "office")]
+pub mod xlsx;

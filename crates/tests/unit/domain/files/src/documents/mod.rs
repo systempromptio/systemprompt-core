@@ -3,6 +3,7 @@ mod codecs_docx_edits;
 mod codecs_html;
 mod codecs_markdown;
 mod codecs_text;
+mod codecs_xlsx;
 mod docx_fixture;
 mod registry;
 

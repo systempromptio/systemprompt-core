@@ -54,9 +54,10 @@ scraper = { workspace = true }
 ego-tree = { workspace = true }
 zip = { workspace = true, optional = true }
 quick-xml = { workspace = true, optional = true }
+umya-spreadsheet = { workspace = true, optional = true }
 
 [features]
-office = ["dep:zip", "dep:quick-xml"]
+office = ["dep:zip", "dep:quick-xml", "dep:umya-spreadsheet"]
 
 [package.metadata.cargo-machete]
 # inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)

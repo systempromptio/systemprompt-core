@@ -17,7 +17,7 @@
 //!
 //! | Feature | Default | Effect |
 //! |---------|---------|--------|
-//! | `office` | off | The `.docx` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec) in `documents::codecs::docx`, built on `zip`, `quick-xml` and `ammonia`. |
+//! | `office` | off | The `.docx` and `.xlsx` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec)s in `documents::codecs::{docx,xlsx}`, built on `zip`, `quick-xml`, `ammonia` and `umya-spreadsheet`. |
 //!
 //! ## Layering
 //!

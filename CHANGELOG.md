@@ -15,6 +15,7 @@
 ### Added
 
 - **Files:** core `DocumentCodec` implementations for HTML, Markdown and plain text with hash-anchored line and block projections, and the `CodecRegistry` that picks the highest-priority codec per format.
+- **Files:** an `.xlsx` `DocumentCodec` (feature `office`) that projects sheets, rows and cells to hash-anchored nodes, applies `SetCells` and text edits in place while keeping styles and formulas, renders an HTML preview and instantiates templates.
 - **Identifiers:** `DocumentId`, `DocumentFolderId`, `DocumentRevisionId`, `DocumentEditSessionId`, `ContentHash`, `DocumentNodeId`, `DocumentTemplateId` and `DriveDeviceId`.
 - **Models:** `documents` module with access levels and actions, the bridge drive sync protocol, document event payloads and the `document://` URI, re-exporting the format, projection and edit-op types.
 - **Provider contracts:** `documents::DocumentCodec` and `documents::DocumentTemplateProvider` seams, registered with `register_document_codec!` and `register_document_template_provider!` and discovered highest priority first.
