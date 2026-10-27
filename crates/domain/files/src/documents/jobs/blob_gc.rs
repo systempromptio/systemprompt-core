@@ -1,3 +1,9 @@
+//! The document blob garbage-collection job: removes blobs no revision or
+//! edit-session snapshot references once their grace period has passed.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use std::sync::Arc;
 
 use async_trait::async_trait;

@@ -110,7 +110,7 @@ impl DocumentService {
             user_id: who.id.clone(),
             state: beacon.state,
             source_kind: beacon.source_kind,
-            source_id: beacon.source_id,
+            source_ref: beacon.source_ref,
         };
         if let Err(error) = self.events.presence(&others, &event).await {
             tracing::warn!(
