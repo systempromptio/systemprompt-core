@@ -17,7 +17,7 @@ use serde::Deserialize;
 use systemprompt_identifiers::MarketplaceRuleId;
 use systemprompt_manifest::services::frontmatter::split_frontmatter;
 use systemprompt_manifest::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, HostProduct};
 
 use crate::error::MarketplaceError;
 
@@ -33,14 +33,17 @@ struct RuleFrontmatter {
     hosts: Vec<String>,
 }
 
+/// Imports every `rules/*.md`, appending each name to `imported`, and returns
+/// the names whose `hosts` reach no `OpenCode` packaging.
 pub(super) fn import_rules_dir(
     rules_dir: &Path,
     seen: &mut BTreeSet<String>,
     sink: &Sink,
     imported: &mut Vec<String>,
-) -> Result<(), MarketplaceError> {
+) -> Result<Vec<String>, MarketplaceError> {
+    let mut without_opencode = Vec::new();
     if !rules_dir.is_dir() {
-        return Ok(());
+        return Ok(without_opencode);
     }
 
     let read =
@@ -63,14 +66,17 @@ pub(super) fn import_rules_dir(
                 message: format!("rule '{name}' is defined more than once in the tree"),
             });
         }
-        import_rule(&name, &path, sink)?;
+        if !import_rule(&name, &path, sink)? {
+            without_opencode.push(name.clone());
+        }
         imported.push(name);
     }
 
-    Ok(())
+    Ok(without_opencode)
 }
 
-fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<(), MarketplaceError> {
+/// Writes the rule and reports whether its `hosts` reach `OpenCode`.
+fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<bool, MarketplaceError> {
     let raw =
         std::fs::read_to_string(path).map_err(|e| MarketplaceError::import(path, "read", e))?;
 
@@ -80,7 +86,7 @@ fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<(), MarketplaceEr
         None => RuleFrontmatter::default(),
     };
 
-    if let Err(unknown) = HostKind::parse_list(&front.hosts) {
+    if let Err(unknown) = HostKind::validate_targets(&front.hosts) {
         return Err(MarketplaceError::import(
             path,
             "rule frontmatter `hosts`",
@@ -105,5 +111,6 @@ fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<(), MarketplaceEr
 
     let rel = Path::new("rules").join(name);
     sink.copy_file(path, &rel.join(DEFAULT_RULE_CONTENT_FILE))?;
-    sink.write_yaml(&rel.join("config.yaml"), &doc)
+    sink.write_yaml(&rel.join("config.yaml"), &doc)?;
+    Ok(HostProduct::OpenCode.targeted_by(&doc.hosts))
 }

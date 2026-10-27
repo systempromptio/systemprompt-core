@@ -37,6 +37,7 @@ pub(super) struct PluginImport {
     pub id: PluginId,
     pub skills: Vec<String>,
     pub rules: Vec<String>,
+    pub rules_without_opencode: Vec<String>,
     pub hooks: Vec<String>,
     pub warnings: Vec<ImportWarning>,
 }
@@ -108,7 +109,8 @@ pub(super) fn import_plugin(
     }
 
     let mut rules = Vec::new();
-    import_rules_dir(&dir.join("rules"), scope.seen_rules, sink, &mut rules)?;
+    let rules_without_opencode =
+        import_rules_dir(&dir.join("rules"), scope.seen_rules, sink, &mut rules)?;
 
     let imported_hooks = hooks::import_plugin_hooks(&id, dir, sink)?;
     warnings.extend(imported_hooks.warnings);
@@ -141,6 +143,7 @@ pub(super) fn import_plugin(
         id,
         skills,
         rules,
+        rules_without_opencode,
         hooks: imported_hooks.ids,
         warnings,
     })

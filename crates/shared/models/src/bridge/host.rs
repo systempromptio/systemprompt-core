@@ -115,9 +115,34 @@ impl HostKind {
     pub fn parse_list<S: AsRef<str>>(hosts: &[S]) -> Result<Vec<Self>, UnknownHostKind> {
         hosts.iter().map(|host| host.as_ref().parse()).collect()
     }
+
+    /// Checks a skill's or rule's `hosts:` list, whose entries are host ids
+    /// or [`COWORK_TARGET`].
+    pub fn validate_targets<S: AsRef<str>>(hosts: &[S]) -> Result<(), UnknownHostKind> {
+        hosts
+            .iter()
+            .map(|host| host.as_ref())
+            .filter(|host| *host != COWORK_TARGET)
+            .try_for_each(|host| host.parse::<Self>().map(drop))
+    }
 }
 
+/// The `hosts:` entry that targets Cowork. Cowork is not a [`HostKind`]: it
+/// receives the Claude Desktop plugin bundle.
+pub const COWORK_TARGET: &str = "cowork";
+
 impl HostProduct {
+    /// Whether a `hosts:` list names any packaging of this product. An empty
+    /// list names none.
+    #[must_use]
+    pub fn targeted_by<S: AsRef<str>>(self, hosts: &[S]) -> bool {
+        hosts.iter().any(|host| {
+            host.as_ref()
+                .parse::<HostKind>()
+                .is_ok_and(|kind| kind.product() == self)
+        })
+    }
+
     pub fn hosts(self) -> impl Iterator<Item = HostKind> {
         HostKind::ALL
             .into_iter()

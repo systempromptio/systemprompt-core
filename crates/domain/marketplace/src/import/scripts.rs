@@ -75,5 +75,5 @@ pub(super) fn copy_host_files(
     let rel = Path::new("plugins")
         .join(plugin_id.as_str())
         .join(PLUGIN_HOSTS_DIR);
-    sink.copy_tree(&hosts, &rel)
+    sink.copy_plugin_subtree(dir, &hosts, &rel)
 }

@@ -28,6 +28,7 @@ pub enum ImportWarning {
     MissingSkillManifest { plugin: String, dir: String },
     MissingReference { skill: String, path: String },
     SiblingSkillPath { skill: String, path: String },
+    RulesMissOpenCode { rules: Vec<String> },
 }
 
 impl ImportWarning {
@@ -45,6 +46,7 @@ impl ImportWarning {
                 | Self::MissingSkillManifest { .. }
                 | Self::MissingReference { .. }
                 | Self::SiblingSkillPath { .. }
+                | Self::RulesMissOpenCode { .. }
         )
     }
 }
@@ -120,6 +122,11 @@ impl fmt::Display for ImportWarning {
                 f,
                 "skill '{skill}' cites {path} outside its own directory; skill directories are \
                  renamed on composition, so the path cannot resolve on a client"
+            ),
+            Self::RulesMissOpenCode { rules } => write!(
+                f,
+                "the marketplace configures OpenCode but rules ({}) name no OpenCode host in                  `hosts`, so they never reach AGENTS.md",
+                rules.join(", ")
             ),
         }
     }

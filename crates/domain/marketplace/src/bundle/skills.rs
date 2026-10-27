@@ -25,7 +25,7 @@ use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
 use systemprompt_manifest::services::PluginConfig;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{COWORK_TARGET, HostKind};
 use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough_frontmatter;
 use systemprompt_models::plugin::ComponentSource;
@@ -47,7 +47,7 @@ const BINARY_EXTS: &[&str] = &[
 ];
 
 const BUNDLE_HOSTS: &[&str] = &[
-    "cowork",
+    COWORK_TARGET,
     HostKind::ClaudeDesktop.as_str(),
     HostKind::ClaudeCode.as_str(),
 ];
