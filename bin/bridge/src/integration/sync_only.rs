@@ -29,8 +29,6 @@ pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[SyncOnlyAgent {
     icon: HostKind::ClaudeCode.as_str(),
 }];
 
-/// The sync-only agents this build offers: [`SYNC_ONLY_AGENTS`] less any a
-/// white-label crate suppressed.
 pub fn sync_only_agents() -> impl Iterator<Item = &'static SyncOnlyAgent> {
     SYNC_ONLY_AGENTS
         .iter()

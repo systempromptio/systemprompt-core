@@ -16,7 +16,6 @@ use crate::error::MarketplaceError;
 
 const THEMES_DIR: &str = "hosts/opencode/themes";
 
-/// The declared themes not yet matched by a scanned plugin.
 pub(super) struct ThemePins<'a> {
     unmatched: Vec<&'a str>,
     config: Option<&'a OpenCodeMarketplaceConfig>,
@@ -30,8 +29,6 @@ impl<'a> ThemePins<'a> {
         Self { unmatched, config }
     }
 
-    /// Matches the themes `plugin_dir` ships at their pinned digest. A file
-    /// with another digest is not a match: another plugin may still ship it.
     pub(super) fn scan(&mut self, plugin_dir: &Path) -> Result<(), MarketplaceError> {
         let Some(config) = self.config else {
             return Ok(());

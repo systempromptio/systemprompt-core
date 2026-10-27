@@ -20,8 +20,6 @@ impl ServicesConfig {
             .map(|(_, agent)| agent)
     }
 
-    /// The hosts this instance serves. A host with no `external_agents` entry
-    /// is served.
     #[must_use]
     pub fn instance_enabled_hosts(&self) -> Vec<HostKind> {
         HostKind::ALL

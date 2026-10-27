@@ -33,8 +33,6 @@ struct RuleFrontmatter {
     hosts: Vec<String>,
 }
 
-/// Imports every `rules/*.md`, appending each name to `imported`, and returns
-/// the names whose `hosts` reach no `OpenCode` packaging.
 pub(super) fn import_rules_dir(
     rules_dir: &Path,
     seen: &mut BTreeSet<String>,
@@ -75,7 +73,6 @@ pub(super) fn import_rules_dir(
     Ok(without_opencode)
 }
 
-/// Writes the rule and reports whether its `hosts` reach `OpenCode`.
 fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<bool, MarketplaceError> {
     let raw =
         std::fs::read_to_string(path).map_err(|e| MarketplaceError::import(path, "read", e))?;

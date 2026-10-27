@@ -99,8 +99,6 @@ impl ConfigReconcileService {
         self.apply_locked(name, planned, Finish::Commit).await
     }
 
-    /// Runs the apply and rolls it back: the result reports what
-    /// [`Self::apply`] would change, and nothing is written or audited.
     pub async fn preview_apply(
         &self,
         name: &str,

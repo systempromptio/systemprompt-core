@@ -109,12 +109,18 @@ pub fn host_apps() -> &'static [&'static dyn HostApp] {
     REGISTRY.hosts.as_slice()
 }
 
-/// Whether a white-label build suppressed `id` with
-/// [`suppress_host_app!`](crate::suppress_host_app). Suppression reaches
-/// sync-only agents and host syncs as well as host apps.
 #[must_use]
 pub fn is_suppressed(id: HostKind) -> bool {
     REGISTRY.suppressed.contains(&id)
+}
+
+// Why: host_sync sits below integration, so the suppression filter over its
+// registry lives here; sync dispatches through this, never the raw registry.
+pub fn host_syncs() -> impl Iterator<Item = &'static dyn crate::host_sync::HostSync> {
+    crate::host_sync::registry()
+        .iter()
+        .copied()
+        .filter(|emitter| !is_suppressed(emitter.host_id()))
 }
 
 #[must_use]

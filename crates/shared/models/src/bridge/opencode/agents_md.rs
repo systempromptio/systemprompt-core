@@ -42,8 +42,6 @@ pub fn agents_block(rules: &[RuleEntry]) -> Option<String> {
     Some(block)
 }
 
-/// The block's length in characters when it exceeds
-/// [`AGENTS_MD_BUDGET_CHARS`].
 #[must_use]
 pub fn over_budget(rules: &[RuleEntry]) -> Option<usize> {
     agents_block(rules)

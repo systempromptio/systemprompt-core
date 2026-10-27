@@ -88,8 +88,6 @@ impl Sink {
         self.copy_filtered(src, src, rel, Some(&self.dev_files))
     }
 
-    /// Copies `src`, a directory inside `plugin_dir`, leaving out development
-    /// files matched relative to the plugin, as the bundle builder does.
     pub(super) fn copy_plugin_subtree(
         &self,
         plugin_dir: &Path,

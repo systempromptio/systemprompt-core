@@ -148,12 +148,13 @@ async fn emit_to_hosts(
         mcp_registry: &registry,
         start_menu: &bridge.start_menu,
     };
-    let emitters = host_sync::registry();
-    let hosts = hosts::emit_hosts(emitters, &ctx, bridge).await;
+    let emitters: Vec<&'static dyn host_sync::HostSync> =
+        crate::integration::host_syncs().collect();
+    let hosts = hosts::emit_hosts(&emitters, &ctx, bridge).await;
     report.host_warnings.extend(hosts.warnings);
     report.host_failures.extend(hosts.failures);
     let evidence_warnings = evidence::capture(
-        emitters,
+        &emitters,
         &manifest_for_write,
         &ctx,
         &hosts.skipped_absent,

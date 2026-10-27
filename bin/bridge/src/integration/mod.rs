@@ -41,5 +41,7 @@ pub use host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
     ProfileGenInputs, ProfileProbe, ProfileState, StaleReason,
 };
-pub use registry::{ResolvedHost, find_host_by_id, host_apps, is_suppressed, resolve_host};
+pub use registry::{
+    ResolvedHost, find_host_by_id, host_apps, host_syncs, is_suppressed, resolve_host,
+};
 pub use systemprompt_models::bridge::host::HostKind;

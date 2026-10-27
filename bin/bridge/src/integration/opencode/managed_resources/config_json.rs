@@ -137,10 +137,6 @@ fn strip_v1_theme(manifest: &SignedManifest, root: &mut Map<String, Value>) {
     }
 }
 
-/// Selects the first marketplace's default theme in `cli.json`, where
-/// `OpenCode` V2 reads it, unless the user has chosen a theme. Only a theme
-/// whose file was projected is selected: the TUI falls back silently to its own
-/// default when the named theme is missing.
 pub(super) fn select_default_theme(
     manifest: &SignedManifest,
     projected_themes: &[String],
@@ -176,7 +172,6 @@ pub(super) fn select_default_theme(
     write_json(&path, &Value::Object(value))
 }
 
-/// `OpenCode` V2 `cli.json` `theme`.
 #[derive(Serialize)]
 struct CliTheme<'a> {
     name: &'a str,

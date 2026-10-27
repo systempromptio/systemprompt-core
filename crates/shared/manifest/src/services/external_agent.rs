@@ -33,8 +33,6 @@ pub struct ExternalAgentConfig {
     pub display_name: String,
     pub kind: ExternalAgentKind,
     pub enabled: bool,
-    /// Whether the host reaches a user who has not chosen. `false` makes an
-    /// enabled host opt-in: it reaches only users who turn it on.
     #[serde(default = "default_enabled")]
     pub default_enabled: bool,
     #[serde(default)]

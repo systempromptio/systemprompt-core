@@ -42,7 +42,6 @@ pub struct EnabledHostPrefs {
 }
 
 impl EnabledHostPrefs {
-    /// Whether the user chose which default hosts they receive.
     #[must_use]
     pub fn chose_default_hosts(&self, instance: &InstanceHosts) -> bool {
         self.unknown_enabled_row || self.hosts.iter().any(|host| !instance.is_opt_in(*host))

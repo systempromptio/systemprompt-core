@@ -117,8 +117,6 @@ impl HostKind {
         hosts.iter().map(|host| host.as_ref().parse()).collect()
     }
 
-    /// Checks a skill's or rule's `hosts:` list, whose entries are host ids
-    /// or [`COWORK_TARGET`].
     pub fn validate_targets<S: AsRef<str>>(hosts: &[S]) -> Result<(), UnknownHostKind> {
         hosts
             .iter()
@@ -142,7 +140,6 @@ impl InstanceHosts {
         self.opt_in.contains(&host)
     }
 
-    /// The enabled hosts a user receives without choosing.
     pub fn by_default(&self) -> impl Iterator<Item = HostKind> + '_ {
         self.enabled
             .iter()
@@ -151,13 +148,11 @@ impl InstanceHosts {
     }
 }
 
-/// The `hosts:` entry that targets Cowork. Cowork is not a [`HostKind`]: it
-/// receives the Claude Desktop plugin bundle.
+// Why: Cowork is not a HostKind; it receives the Claude Desktop plugin bundle,
+// so a `hosts:` list may name it beside the host ids.
 pub const COWORK_TARGET: &str = "cowork";
 
 impl HostProduct {
-    /// Whether a `hosts:` list names any packaging of this product. An empty
-    /// list names none.
     #[must_use]
     pub fn targeted_by<S: AsRef<str>>(self, hosts: &[S]) -> bool {
         hosts.iter().any(|host| {

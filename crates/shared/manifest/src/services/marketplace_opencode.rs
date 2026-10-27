@@ -57,6 +57,7 @@ struct OpenCodeMarketplaceWire {
     #[serde(default)]
     theme_mode: Option<ThemeMode>,
     #[serde(default)]
+    // JSON: client defaults are foreign `opencode.json` keys, passed through
     cli_defaults: serde_json::Map<String, serde_json::Value>,
 }
 

@@ -37,7 +37,6 @@ pub struct ManifestOpenCode {
 }
 
 impl ManifestOpenCode {
-    /// The default theme's ref, when it names one of [`Self::themes`].
     #[must_use]
     pub fn default_theme_ref(&self) -> Option<&ThemeRef> {
         let name = self.default_theme.as_deref()?;
@@ -75,6 +74,7 @@ struct ManifestOpenCodeWire {
     #[serde(default)]
     theme_mode: Option<ThemeMode>,
     #[serde(default)]
+    // JSON: client defaults are foreign `opencode.json` keys, passed through
     cli_defaults: serde_json::Map<String, serde_json::Value>,
 }
 

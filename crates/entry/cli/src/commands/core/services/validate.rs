@@ -153,8 +153,6 @@ fn load_findings(root: &Path) -> Vec<Finding> {
     findings
 }
 
-/// Measures the `AGENTS.md` block a user would receive if every
-/// `OpenCode`-targeted rule in the tree reached them.
 fn agents_md_finding(rules: &[RuleEntry]) -> Finding {
     match agents_md::over_budget(rules) {
         Some(chars) => Finding::warn(

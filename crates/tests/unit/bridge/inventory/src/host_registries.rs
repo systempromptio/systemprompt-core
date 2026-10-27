@@ -66,7 +66,7 @@ fn host_apps_are_sorted_by_id() {
 #[test]
 fn host_sync_registry_contains_builtins() {
     let ids: Vec<HostKind> = host_sync::registry().iter().map(|s| s.host_id()).collect();
-    for expected in HostKind::ALL.into_iter().filter(|h| *h != SUPPRESSED) {
+    for expected in HostKind::ALL {
         assert!(
             host_sync::registry()
                 .iter()
@@ -241,8 +241,7 @@ fn suppressed_host_is_not_unknown() {
 #[test]
 fn a_suppressed_host_has_no_host_sync_to_apply_or_clear() {
     assert!(
-        systemprompt_bridge::host_sync::registry()
-            .iter()
+        systemprompt_bridge::integration::host_syncs()
             .all(|emitter| emitter.host_id() != SUPPRESSED),
         "a suppressed host's settings must never be written, not even to clear them"
     );
