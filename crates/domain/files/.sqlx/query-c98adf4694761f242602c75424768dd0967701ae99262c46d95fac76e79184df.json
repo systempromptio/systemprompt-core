@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_write_acks\n             WHERE (document_id, op_id) IN (\n                 SELECT document_id, op_id FROM document_write_acks\n                 WHERE created_at < now() - make_interval(days => $1)\n                 LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c98adf4694761f242602c75424768dd0967701ae99262c46d95fac76e79184df"
+}

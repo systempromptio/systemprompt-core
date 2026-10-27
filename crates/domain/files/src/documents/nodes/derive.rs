@@ -50,42 +50,39 @@ pub fn derive_ops(base: &Projection, uploaded: &Projection) -> Option<Vec<EditOp
     let mut anchors: HashMap<&DocumentNodeId, DocumentNodeId> = HashMap::new();
     for (index, flat) in up_flat.iter().enumerate() {
         let node = flat.node;
-        match base_nodes.get(&node.id) {
-            Some(before) => {
-                if before.children.is_empty() != node.children.is_empty() {
-                    return None;
-                }
-                if !node.children.is_empty() || before.hash8 == node.hash8 {
-                    continue;
-                }
-                if before.kind != node.kind || !editable(node.kind) {
-                    return None;
-                }
-                ops.push(EditOp::ReplaceText {
-                    node: NodeTarget::Id(node.id.clone()),
-                    expected_hash: Some(before.hash8.clone()),
-                    text: text(node),
-                    content_as: ContentAs::Text,
-                });
-            },
-            None => {
-                if !node.children.is_empty() || !editable(node.kind) {
-                    return None;
-                }
-                let sibling = previous_sibling(&up_flat, index)?;
-                let anchor = if base_nodes.contains_key(&sibling.id) {
-                    sibling.id.clone()
-                } else {
-                    anchors.get(&sibling.id)?.clone()
-                };
-                anchors.insert(&node.id, anchor.clone());
-                ops.push(EditOp::InsertAfter {
-                    node: NodeTarget::Id(anchor),
-                    kind: node.kind,
-                    text: text(node),
-                    content_as: ContentAs::Text,
-                });
-            },
+        if let Some(before) = base_nodes.get(&node.id) {
+            if before.children.is_empty() != node.children.is_empty() {
+                return None;
+            }
+            if !node.children.is_empty() || before.hash8 == node.hash8 {
+                continue;
+            }
+            if before.kind != node.kind || !editable(node.kind) {
+                return None;
+            }
+            ops.push(EditOp::ReplaceText {
+                node: NodeTarget::Id(node.id.clone()),
+                expected_hash: Some(before.hash8.clone()),
+                text: text(node),
+                content_as: ContentAs::Text,
+            });
+        } else {
+            if !node.children.is_empty() || !editable(node.kind) {
+                return None;
+            }
+            let sibling = previous_sibling(&up_flat, index)?;
+            let anchor = if base_nodes.contains_key(&sibling.id) {
+                sibling.id.clone()
+            } else {
+                anchors.get(&sibling.id)?.clone()
+            };
+            anchors.insert(&node.id, anchor.clone());
+            ops.push(EditOp::InsertAfter {
+                node: NodeTarget::Id(anchor),
+                kind: node.kind,
+                text: text(node),
+                content_as: ContentAs::Text,
+            });
         }
     }
     for flat in &base_flat {

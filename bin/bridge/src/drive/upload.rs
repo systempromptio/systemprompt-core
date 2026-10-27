@@ -5,8 +5,8 @@
 //! revision becomes the file's state entry. A merged revision (the server
 //! landed the edit on a newer head) is recorded against the uploaded bytes,
 //! so the next pull replaces the file with the merged content; a conflict
-//! hands the file to [`super::conflict`]. A file that changed again while it was uploading is
-//! left for the next cycle rather than recorded as synced.
+//! hands the file to [`super::conflict`]. A file that changed again while it
+//! was uploading is left for the next cycle rather than recorded as synced.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

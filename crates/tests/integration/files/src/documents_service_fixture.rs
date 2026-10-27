@@ -6,8 +6,8 @@ use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::codecs::CodecRegistry;
-use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_files::documents::models::RevisionAttribution;
+use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_files::documents::service::{Author, CreateRequest, RevisionOrigin};
 use systemprompt_files::documents::templates::TemplateRegistry;
 use systemprompt_files::documents::{

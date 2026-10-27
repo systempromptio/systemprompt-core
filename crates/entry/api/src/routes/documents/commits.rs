@@ -15,20 +15,19 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommitOutcome, CommitRequest};
-use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::EditOp;
 
 use super::DocumentsState;
-use super::caller::{Caller, caller};
+use super::caller::{Caller, api_author, caller};
 use super::content::request_context;
 use super::error::{DocumentsResult, conflict_response};
 use super::headers::{base_revision, etag};
-use super::caller::api_author;
 use super::items::document_id;
 use super::views::RevisionJson;
 
@@ -193,7 +192,11 @@ async fn remember(
         revision_id: revision.id.clone(),
         ack,
     };
-    if let Err(error) = state.service.record_write_ack(document, op_id, &stored).await {
+    if let Err(error) = state
+        .service
+        .record_write_ack(document, op_id, &stored)
+        .await
+    {
         tracing::warn!(error = %error, op_id = %op_id, "Write ack not stored");
     }
 }

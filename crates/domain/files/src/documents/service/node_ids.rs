@@ -21,6 +21,12 @@ use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NodeIdEntry};
 use crate::documents::nodes::{NodeIdMinter, carry_forward, mint_all, with_ids, writer_tag};
 
+pub(super) struct IdSources<'a> {
+    pub(super) previous: Option<&'a Projection>,
+    pub(super) next: &'a Projection,
+    pub(super) retired: &'a HashSet<DocumentNodeId>,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct Projected {
     pub paths: Projection,
@@ -118,7 +124,11 @@ impl DocumentService {
         document: &Document,
         writer: String,
     ) -> Result<NodeIdMinter, DocumentsError> {
-        let last = self.repos.node_ids.max_counter(&document.id, &writer).await?;
+        let last = self
+            .repos
+            .node_ids
+            .max_counter(&document.id, &writer)
+            .await?;
         Ok(NodeIdMinter::new(writer, u64::try_from(last).unwrap_or(0)))
     }
 
@@ -126,11 +136,15 @@ impl DocumentService {
         &self,
         document: &Document,
         revision: &DocumentRevision,
-        previous: Option<&Projection>,
-        next: &Projection,
-        retired: &HashSet<DocumentNodeId>,
+        IdSources {
+            previous,
+            next,
+            retired,
+        }: IdSources<'_>,
     ) -> Result<(), DocumentsError> {
-        let mut minter = self.minter(document, writer_tag(&writer_key(revision))).await?;
+        let mut minter = self
+            .minter(document, writer_tag(&writer_key(revision)))
+            .await?;
         let entries = match previous {
             Some(previous) => carry_forward(previous, next, retired, &mut minter),
             None => mint_all(next, &mut minter),

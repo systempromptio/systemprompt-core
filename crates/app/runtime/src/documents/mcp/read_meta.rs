@@ -25,9 +25,9 @@ pub(super) async fn meta(
         .get(who, &input.document_id, trace)
         .await
         .map_err(tool_error)?;
-    let head = view.head.ok_or_else(|| {
-        McpError::invalid_params("the document has no revision yet", None)
-    })?;
+    let head = view
+        .head
+        .ok_or_else(|| McpError::invalid_params("the document has no revision yet", None))?;
     let size_bytes = service.revision_size(&head).await.map_err(tool_error)?;
     let editing: Vec<EditingNow> = service
         .presence(who, &input.document_id, trace)

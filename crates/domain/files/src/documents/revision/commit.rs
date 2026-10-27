@@ -1,16 +1,15 @@
 //! [`CommitPlan`]: how a commit lands, decided from the head, the base the
 //! caller read and the body.
 //!
-//! - Ops always apply to the head ([`CommitPlan::ApplyOnHead`]), whatever
-//!   their base: each anchored op names a node by stable id and quotes that
-//!   node's hash, so a commit is refused only when a node it touches changed
-//!   at the head. The base only says which revision the ids and hashes were
-//!   read from.
+//! - Ops always apply to the head ([`CommitPlan::ApplyOnHead`]), whatever their
+//!   base: each anchored op names a node by stable id and quotes that node's
+//!   hash, so a commit is refused only when a node it touches changed at the
+//!   head. The base only says which revision the ids and hashes were read from.
 //! - Bytes whose base is the head are stored as given. Bytes on a stale base
 //!   merge three ways for text formats (html, markdown, text); for Office
-//!   formats they are diffed against their base into ops that then apply to
-//!   the head ([`CommitPlan::DiffOnHead`]). Bytes without a base on a
-//!   document that has a head have nothing to merge from and conflict.
+//!   formats they are diffed against their base into ops that then apply to the
+//!   head ([`CommitPlan::DiffOnHead`]). Bytes without a base on a document that
+//!   has a head have nothing to merge from and conflict.
 //! - The document has no head yet: bytes become the first revision; ops have
 //!   nothing to anchor to.
 //!

@@ -32,10 +32,10 @@ pub fn mint_all(next: &Projection, minter: &mut NodeIdMinter) -> Vec<NodeIdEntry
 }
 
 #[must_use]
-pub fn carry_forward(
+pub fn carry_forward<S: std::hash::BuildHasher>(
     previous: &Projection,
     next: &Projection,
-    retired: &HashSet<DocumentNodeId>,
+    retired: &HashSet<DocumentNodeId, S>,
     minter: &mut NodeIdMinter,
 ) -> Vec<NodeIdEntry> {
     let old: Vec<&ProjectionNode> = flatten(previous)
@@ -48,7 +48,10 @@ pub fn carry_forward(
     let anchors = align(&old, &new);
     let mut old_from = 0;
     let mut new_from = 0;
-    for &(o, n) in anchors.iter().chain(std::iter::once(&(old.len(), new.len()))) {
+    for &(o, n) in anchors
+        .iter()
+        .chain(std::iter::once(&(old.len(), new.len())))
+    {
         pair_gap(&old, &new, (old_from, o), (new_from, n), &mut matched);
         if n < new.len() {
             matched[n] = Some(o);

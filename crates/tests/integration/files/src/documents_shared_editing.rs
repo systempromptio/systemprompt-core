@@ -126,9 +126,13 @@ async fn ids_survive_an_insert_above_and_a_delete() {
         node: NodeTarget::Id(beta.id.clone()),
         expected_hash: Some(beta.hash8.clone()),
     };
-    let outcome = commit(&h, &owner, ops_on(&document, Some(&first), vec![inserted, delete]))
-        .await
-        .expect("insert and delete");
+    let outcome = commit(
+        &h,
+        &owner,
+        ops_on(&document, Some(&first), vec![inserted, delete]),
+    )
+    .await
+    .expect("insert and delete");
     let (second, merged) = landed(outcome);
     assert!(!merged);
     let after = ids(&h, &owner, &document, &second).await;
@@ -143,10 +147,17 @@ async fn ids_survive_an_insert_above_and_a_delete() {
         "the inserted block took the deleted block's position, not its id"
     );
 
-    let refused = commit(&h, &owner, ops_on(&document, Some(&first), vec![replace(&beta, "x")]))
-        .await
-        .expect_err("a retired id is refused");
-    assert!(matches!(refused, DocumentsError::UnknownNode { .. }), "{refused}");
+    let refused = commit(
+        &h,
+        &owner,
+        ops_on(&document, Some(&first), vec![replace(&beta, "x")]),
+    )
+    .await
+    .expect_err("a retired id is refused");
+    assert!(
+        matches!(refused, DocumentsError::UnknownNode { .. }),
+        "{refused}"
+    );
 }
 
 #[tokio::test]
@@ -159,7 +170,11 @@ async fn edits_to_different_blocks_on_a_stale_base_merge() {
         commit(
             &h,
             &owner,
-            ops_on(&document, Some(&first), vec![replace(block(&base, "alpha"), "ALPHA")]),
+            ops_on(
+                &document,
+                Some(&first),
+                vec![replace(block(&base, "alpha"), "ALPHA")],
+            ),
         )
         .await
         .expect("first edit"),
@@ -167,7 +182,11 @@ async fn edits_to_different_blocks_on_a_stale_base_merge() {
     let outcome = commit(
         &h,
         &owner,
-        ops_on(&document, Some(&first), vec![replace(block(&base, "gamma"), "GAMMA")]),
+        ops_on(
+            &document,
+            Some(&first),
+            vec![replace(block(&base, "gamma"), "GAMMA")],
+        ),
     )
     .await
     .expect("second edit on the stale base");
@@ -272,7 +291,11 @@ async fn a_stale_office_upload_merges_onto_an_agent_edit() {
     commit(
         &h,
         &owner,
-        ops_on(&document, Some(&first), vec![replace(block(&base, "alpha"), "by agent")]),
+        ops_on(
+            &document,
+            Some(&first),
+            vec![replace(block(&base, "alpha"), "by agent")],
+        ),
     )
     .await
     .expect("agent edit");
@@ -299,7 +322,11 @@ async fn a_stale_upload_the_diff_cannot_express_conflicts() {
     commit(
         &h,
         &owner,
-        ops_on(&document, Some(&first), vec![replace(block(&base, "alpha"), "agent")]),
+        ops_on(
+            &document,
+            Some(&first),
+            vec![replace(block(&base, "alpha"), "agent")],
+        ),
     )
     .await
     .expect("agent edit");
@@ -312,7 +339,10 @@ async fn a_stale_upload_the_diff_cannot_express_conflicts() {
     let outcome = commit(&h, &owner, upload(&document, &first, uploaded))
         .await
         .expect("stale upload");
-    assert!(matches!(outcome, CommitOutcome::Conflict { .. }), "{outcome:?}");
+    assert!(
+        matches!(outcome, CommitOutcome::Conflict { .. }),
+        "{outcome:?}"
+    );
 }
 
 #[tokio::test]
@@ -344,9 +374,13 @@ async fn restore_and_insert_from_revision_bring_back_history() {
         after: NodeTarget::Id(block(&base, "alpha").id.clone()),
     };
     let (third, _) = landed(
-        commit(&h, &owner, ops_on(&document, Some(&second), vec![copy_back]))
-            .await
-            .expect("insert from revision"),
+        commit(
+            &h,
+            &owner,
+            ops_on(&document, Some(&second), vec![copy_back]),
+        )
+        .await
+        .expect("insert from revision"),
     );
     let restored_text = texts(&ids(&h, &owner, &document, &third).await);
     assert_eq!(restored_text, vec!["alpha", "beta", "gamma"]);
@@ -380,7 +414,11 @@ async fn revisions_carry_attribution_into_history_and_the_report_view() {
         on_behalf_of: Some(owner.id.clone()),
     };
     let base = ids(&h, &owner, &document, &first).await;
-    let mut request = ops_on(&document, Some(&first), vec![replace(block(&base, "beta"), "b")]);
+    let mut request = ops_on(
+        &document,
+        Some(&first),
+        vec![replace(block(&base, "beta"), "b")],
+    );
     request.author = Author {
         actor_kind: ActorKind::Agent,
         origin: RevisionOrigin::Api,

@@ -96,7 +96,7 @@ pub fn search_lines(projection: &Projection, text: Option<&str>) -> Result<Vec<S
             .is_some_and(|text| text.to_lowercase().contains(&needle))
     };
     Ok(structured(projection, |node| {
-        contains(node) && !node.children.iter().any(|child| contains(child))
+        contains(node) && !node.children.iter().any(&contains)
     }))
 }
 

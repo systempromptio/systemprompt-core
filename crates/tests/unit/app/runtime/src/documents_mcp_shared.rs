@@ -81,8 +81,7 @@ async fn changes_since_a_revision_return_only_what_changed() {
     let h = harness().await;
     let owner = person("since");
     let ctx = ctx_for(Some(&owner));
-    let (document, first) =
-        create_text(&h.tools, &ctx, "alpha\nbeta\ngamma\ndelta").await;
+    let (document, first) = create_text(&h.tools, &ctx, "alpha\nbeta\ngamma\ndelta").await;
     let before = read_text(&h.tools, &ctx, &document).await;
     let (beta_id, _) = line_for(&before, "beta");
     replace_line(&h.tools, &ctx, &document, "beta", "BETA", None).await;
@@ -97,7 +96,12 @@ async fn changes_since_a_revision_return_only_what_changed() {
         "{:?}",
         changed.lines
     );
-    assert!(changed.lines.iter().any(|line| line.starts_with("gap blocks=")));
+    assert!(
+        changed
+            .lines
+            .iter()
+            .any(|line| line.starts_with("gap blocks="))
+    );
     assert!(!changed.lines.iter().any(|line| line.ends_with("| alpha")));
 }
 

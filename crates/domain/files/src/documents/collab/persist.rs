@@ -19,6 +19,7 @@ use super::apply::update_event;
 use super::entry::{CollabEntry, utf8};
 use super::model::{BODY_CONTAINER, body_of, body_text, materialise};
 use super::{CollabError, CollabService};
+use crate::documents::models::RevisionAttribution;
 use crate::documents::revision::CommitBody;
 use crate::documents::service::{Author, CommitOutcome, CommitRequest, RevisionOrigin};
 
@@ -73,6 +74,10 @@ impl CollabService {
                     author: Author {
                         actor_kind: ActorKind::User,
                         origin: RevisionOrigin::EditSession(entry.session.id.clone()),
+                        attribution: RevisionAttribution {
+                            trace_id: Some(trace.clone()),
+                            ..RevisionAttribution::default()
+                        },
                     },
                     message: Some(CHECKPOINT_MESSAGE.to_owned()),
                     lock_holder_id: None,

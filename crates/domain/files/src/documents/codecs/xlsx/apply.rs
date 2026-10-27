@@ -82,12 +82,10 @@ fn apply_one(
         | EditOp::SetHtml { .. }
         | EditOp::SetText { .. }
         | EditOp::Restore { .. }
-        | EditOp::InsertFromRevision { .. } => {
-            Err(CodecError::UnsupportedOp {
-                op: op.name(),
-                format: DocumentFormat::Xlsx,
-            })
-        },
+        | EditOp::InsertFromRevision { .. } => Err(CodecError::UnsupportedOp {
+            op: op.name(),
+            format: DocumentFormat::Xlsx,
+        }),
     }
 }
 

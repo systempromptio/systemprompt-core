@@ -99,7 +99,7 @@ fn relabel(error: DocumentsError, ids: &Projection) -> DocumentsError {
     let id = |node: DocumentNodeId| {
         by_path
             .get(node.as_str())
-            .map_or(node.clone(), |id| (*id).clone())
+            .map_or_else(|| node.clone(), |id| (*id).clone())
     };
     match error {
         DocumentsError::StaleAnchor {

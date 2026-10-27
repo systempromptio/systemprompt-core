@@ -61,8 +61,8 @@ pub use lines::{
 };
 pub use outputs::{
     CreateOutput, DocumentItem, DocumentMeta, EditOutput, EditingNow, ExportOutput, FolderItem,
-    GuideOutput, HistoryOutput, ListOutput, ReadOutput, RevisionAttributionItem, RevisionItem, SearchHit, SearchOutput,
-    ShareOutput,
+    GuideOutput, HistoryOutput, ListOutput, ReadOutput, RevisionAttributionItem, RevisionItem,
+    SearchHit, SearchOutput, ShareOutput,
 };
 pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,

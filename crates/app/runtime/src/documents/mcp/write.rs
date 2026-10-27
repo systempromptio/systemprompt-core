@@ -15,9 +15,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
+use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommitOutcome, CommitRequest, CreateRequest};
-use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -86,7 +86,10 @@ async fn replay(call: &EditCall<'_>) -> Result<Option<(EditOutput, String)>, Mcp
         McpError::internal_error("the stored acknowledgement could not be read", None)
     })?;
     output.replayed = true;
-    let summary = format!("revision {}: op {op_id} already applied", output.revision_id);
+    let summary = format!(
+        "revision {}: op {op_id} already applied",
+        output.revision_id
+    );
     Ok(Some((output, summary)))
 }
 

@@ -16,12 +16,14 @@
 
 use std::collections::HashSet;
 
-use systemprompt_identifiers::{DocumentRevisionId, TraceId};
+use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{DocumentAction, EditOp};
+use systemprompt_models::documents::{DocumentAction, EditOp, Projection};
 
 use super::apply::AppliedOps;
-use super::{CommitOutcome, CommitRequest, CommitWarning, DocumentService};
+use super::commit_build::Conflicted;
+use super::node_ids::IdSources;
+use super::{Author, CommitOutcome, CommitRequest, CommitWarning, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewRevision};
 use crate::documents::revision::{CommitBody, CommitPlan};
@@ -65,46 +67,39 @@ impl DocumentService {
             head: head.as_ref(),
             base: base.as_ref(),
         };
-        let Some(body) = self.expand(&landing, request.body).await? else {
+        let applied = match self.expand(&landing, request.body).await? {
+            Some(body) => self.apply_body(&landing, body).await?,
+            None => None,
+        };
+        let Some((AppliedOps { bytes, retired }, previous, merged, edit_ops)) = applied else {
             return self
-                .conflict(who, &document, head, base, &request.author)
+                .conflict(
+                    who,
+                    &document,
+                    Conflicted {
+                        head,
+                        base,
+                        author: &request.author,
+                    },
+                )
                 .await;
         };
-        let head_id = head.as_ref().map(|h| &h.id);
-        let plan = CommitPlan::decide(head_id, base.as_ref(), document.format, &body);
-        let merged = plan.merges(head_id, base.as_ref());
-        let edit_ops = match &body {
-            CommitBody::Ops(ops) => Some(ops.clone()),
-            CommitBody::Bytes(_) => None,
-        };
-        let (built, previous) = self.build(plan, &landing, body).await?;
-        let Built::Applied(AppliedOps { bytes, retired }) = built else {
-            return self
-                .conflict(who, &document, head, base, &request.author)
-                .await;
-        };
-        self.check_size(bytes.len())?;
-        let blob = self.blobs.put(&bytes).await?;
         let parent = head.as_ref().map(|h| h.id.clone());
         let author = request.author;
         let revision = self
-            .repos
-            .revisions
-            .insert(NewRevision {
-                document_id: document.id.clone(),
-                parent_revision_id: parent.clone(),
-                content_sha256: blob.hash,
-                author_user_id: who.id.clone(),
-                actor_kind: author.actor_kind,
-                origin_kind: author.origin.kind(),
-                origin_id: author.origin.id(),
-                message: request.message,
-                edit_ops,
-                attribution: author.attribution.clone(),
-            })
-            .await?;
-        let next = self.project_paths(document.format, bytes.clone()).await?;
-        self.record_ids(&document, &revision, previous.as_ref(), &next, &retired)
+            .store_revision(
+                who,
+                &document,
+                Landed {
+                    bytes: &bytes,
+                    retired,
+                    previous,
+                    parent: parent.clone(),
+                    edit_ops,
+                    message: request.message,
+                    author: &author,
+                },
+            )
             .await?;
         if !self
             .repos
@@ -113,7 +108,17 @@ impl DocumentService {
             .await?
         {
             let head = self.repos.revisions.head(&document.id).await?;
-            return self.conflict(who, &document, head, base, &author).await;
+            return self
+                .conflict(
+                    who,
+                    &document,
+                    Conflicted {
+                        head,
+                        base,
+                        author: &author,
+                    },
+                )
+                .await;
         }
         let merged_from = parent.filter(|_| merged);
         Ok(self.finish(&document, revision, bytes, merged_from).await)
@@ -193,5 +198,79 @@ impl DocumentService {
             },
             _ => Ok(()),
         }
+    }
+}
+
+struct Landed<'a> {
+    bytes: &'a [u8],
+    retired: HashSet<DocumentNodeId>,
+    previous: Option<Projection>,
+    parent: Option<DocumentRevisionId>,
+    edit_ops: Option<Vec<EditOp>>,
+    message: Option<String>,
+    author: &'a Author,
+}
+
+type Applied = (AppliedOps, Option<Projection>, bool, Option<Vec<EditOp>>);
+
+impl DocumentService {
+    async fn apply_body(
+        &self,
+        landing: &Landing<'_>,
+        body: CommitBody,
+    ) -> Result<Option<Applied>, DocumentsError> {
+        let head_id = landing.head.map(|h| &h.id);
+        let plan = CommitPlan::decide(head_id, landing.base, landing.document.format, &body);
+        let merged = plan.merges(head_id, landing.base);
+        let edit_ops = match &body {
+            CommitBody::Ops(ops) => Some(ops.clone()),
+            CommitBody::Bytes(_) => None,
+        };
+        let (built, previous) = self.build(plan, landing, body).await?;
+        Ok(match built {
+            Built::Applied(applied) => Some((applied, previous, merged, edit_ops)),
+            Built::Conflict => None,
+        })
+    }
+
+    async fn store_revision(
+        &self,
+        who: &AuthenticatedUser,
+        document: &Document,
+        landed: Landed<'_>,
+    ) -> Result<DocumentRevision, DocumentsError> {
+        self.check_size(landed.bytes.len())?;
+        let blob = self.blobs.put(landed.bytes).await?;
+        let author = landed.author;
+        let revision = self
+            .repos
+            .revisions
+            .insert(NewRevision {
+                document_id: document.id.clone(),
+                parent_revision_id: landed.parent,
+                content_sha256: blob.hash,
+                author_user_id: who.id.clone(),
+                actor_kind: author.actor_kind,
+                origin_kind: author.origin.kind(),
+                origin_id: author.origin.id(),
+                message: landed.message,
+                edit_ops: landed.edit_ops,
+                attribution: author.attribution.clone(),
+            })
+            .await?;
+        let next = self
+            .project_paths(document.format, landed.bytes.to_vec())
+            .await?;
+        self.record_ids(
+            document,
+            &revision,
+            IdSources {
+                previous: landed.previous.as_ref(),
+                next: &next,
+                retired: &landed.retired,
+            },
+        )
+        .await?;
+        Ok(revision)
     }
 }

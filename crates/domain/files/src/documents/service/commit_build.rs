@@ -6,9 +6,7 @@
 
 use systemprompt_identifiers::DocumentRevisionId;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{
-    ContentAs, DocumentConflictEvent, EditOp, Projection,
-};
+use systemprompt_models::documents::{ContentAs, DocumentConflictEvent, EditOp, Projection};
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::apply::apply_on_head;
@@ -19,6 +17,12 @@ use super::{Author, CommitOutcome, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 use crate::documents::revision::{CommitBody, CommitPlan, MergeOutcome, three_way_bytes};
+
+pub(super) struct Conflicted<'a> {
+    pub(super) head: Option<DocumentRevision>,
+    pub(super) base: Option<DocumentRevisionId>,
+    pub(super) author: &'a Author,
+}
 
 impl DocumentService {
     pub(super) async fn build(
@@ -57,10 +61,9 @@ impl DocumentService {
                     head_bytes,
                     uploaded,
                 };
-                match self.diff_onto_head(document, landing.base, input).await? {
-                    Some(applied) => Built::Applied(applied),
-                    None => Built::Conflict,
-                }
+                self.diff_onto_head(document, landing.base, input)
+                    .await?
+                    .map_or(Built::Conflict, Built::Applied)
             },
             _ => Built::Conflict,
         };
@@ -118,9 +121,7 @@ impl DocumentService {
         &self,
         who: &AuthenticatedUser,
         document: &Document,
-        head: Option<DocumentRevision>,
-        base: Option<DocumentRevisionId>,
-        author: &Author,
+        Conflicted { head, base, author }: Conflicted<'_>,
     ) -> Result<CommitOutcome, DocumentsError> {
         let head = head
             .ok_or_else(|| DocumentsError::not_found("head revision of document", &document.id))?;

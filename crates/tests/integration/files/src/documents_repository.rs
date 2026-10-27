@@ -3,7 +3,8 @@ use std::time::Duration;
 use chrono::Utc;
 use systemprompt_files::documents::models::{
     DocumentFolder, EditSessionOpen, GrantTarget, LockHolderKind, LockOutcome, LockRequest,
-    NewDocument, NewFolder, NewGrant, NewRevision, RevisionAttribution, PresenceUpsert, SubjectPairs, VisibleListing,
+    NewDocument, NewFolder, NewGrant, NewRevision, PresenceUpsert, RevisionAttribution,
+    SubjectPairs, VisibleListing,
 };
 use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_identifiers::{

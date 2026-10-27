@@ -21,8 +21,8 @@ use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 use systemprompt_files::documents::nodes::path_of;
 
 use super::inputs::{NodeRange, ReadInput, ReadView};
-use super::views::{node_lines, outline, search_lines};
 use super::refusal::{Refusal, RefusalCode};
+use super::views::{node_lines, outline, search_lines};
 
 pub const MAX_LINES: usize = 2000;
 pub const MAX_WRITTEN: usize = 100;

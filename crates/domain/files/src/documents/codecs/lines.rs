@@ -164,12 +164,10 @@ impl LineDoc {
             | EditOp::InsertSlide { .. }
             | EditOp::SetHtml { .. }
             | EditOp::Restore { .. }
-            | EditOp::InsertFromRevision { .. } => {
-                Err(CodecError::UnsupportedOp {
-                    op: op.name(),
-                    format,
-                })
-            },
+            | EditOp::InsertFromRevision { .. } => Err(CodecError::UnsupportedOp {
+                op: op.name(),
+                format,
+            }),
         }
     }
 

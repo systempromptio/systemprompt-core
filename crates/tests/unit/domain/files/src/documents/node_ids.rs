@@ -92,7 +92,10 @@ fn writer_tags_are_short_base36_and_stable() {
     assert_eq!(tag, writer_tag("session-1"));
     assert_ne!(tag, writer_tag("session-2"));
     assert!(tag.len() <= 8 && !tag.is_empty(), "{tag}");
-    assert!(tag.chars().all(|c| c.is_ascii_digit() || c.is_ascii_lowercase()));
+    assert!(
+        tag.chars()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_lowercase())
+    );
     let mut minter = NodeIdMinter::new(tag.clone(), 41);
     assert_eq!(minter.mint().as_str(), format!("{tag}.42"));
 }
@@ -294,7 +297,12 @@ fn derive_ops_expresses_leaf_edits_and_refuses_containers() {
 
     let with_table = doc(vec![body(vec![
         para("a.1", "one"),
-        node("~upload.1", NodeKind::Table, "x", vec![para("~upload.2", "x")]),
+        node(
+            "~upload.1",
+            NodeKind::Table,
+            "x",
+            vec![para("~upload.2", "x")],
+        ),
     ])]);
     assert!(derive_ops(&base, &with_table).is_none());
     assert!(derive_ops(&base, &base).is_none(), "no change is not an op");
