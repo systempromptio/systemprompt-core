@@ -154,19 +154,23 @@ fn load_findings(root: &Path) -> Vec<Finding> {
 }
 
 fn agents_md_finding(rules: &[RuleEntry]) -> Finding {
-    match agents_md::over_budget(rules) {
-        Some(chars) => Finding::warn(
-            "agents_md",
-            format!(
-                "the OpenCode rules render to {chars} characters of AGENTS.md, over the \
-                 {AGENTS_MD_BUDGET_CHARS} OpenCode reads; rules past it never reach the model"
-            ),
-        ),
-        None => Finding::pass(
-            "agents_md",
-            format!("the OpenCode rules fit AGENTS.md's {AGENTS_MD_BUDGET_CHARS} characters"),
-        ),
-    }
+    agents_md::over_budget(rules).map_or_else(
+        || {
+            Finding::pass(
+                "agents_md",
+                format!("the OpenCode rules fit AGENTS.md's {AGENTS_MD_BUDGET_CHARS} characters"),
+            )
+        },
+        |chars| {
+            Finding::warn(
+                "agents_md",
+                format!(
+                    "the OpenCode rules render to {chars} characters of AGENTS.md, over the \
+                     {AGENTS_MD_BUDGET_CHARS} OpenCode reads; rules past it never reach the model"
+                ),
+            )
+        },
+    )
 }
 
 fn drift_finding(drift: &[super::versions::VersionDrift]) -> Finding {

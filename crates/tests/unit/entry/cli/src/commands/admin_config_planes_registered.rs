@@ -233,6 +233,7 @@ async fn apply_writes_the_declaration_and_a_scoped_apply_touches_only_its_entiti
             reason: " cli scoped ".to_owned(),
             mode: ModeArg::Overwrite,
             entities: vec!["a".to_owned()],
+            dry_run: false,
         }),
         &h.ctx,
     )
@@ -252,6 +253,7 @@ async fn apply_writes_the_declaration_and_a_scoped_apply_touches_only_its_entiti
             reason: "cli full".to_owned(),
             mode: ModeArg::InsertOnly,
             entities: Vec::new(),
+            dry_run: false,
         }),
         &h.ctx,
     )
@@ -269,6 +271,7 @@ async fn seed_if_empty_leaves_a_populated_plane_alone() {
             reason: "seed".to_owned(),
             mode: ModeArg::SeedIfEmpty,
             entities: Vec::new(),
+            dry_run: false,
         }),
         &h.ctx,
     )
