@@ -122,7 +122,7 @@ impl HostKind {
     pub fn validate_targets<S: AsRef<str>>(hosts: &[S]) -> Result<(), UnknownHostKind> {
         hosts
             .iter()
-            .map(|host| host.as_ref())
+            .map(S::as_ref)
             .filter(|host| *host != COWORK_TARGET)
             .try_for_each(|host| host.parse::<Self>().map(drop))
     }

@@ -1,6 +1,8 @@
-//! The bridge-owned block of `OpenCode`'s `AGENTS.md`: the rules whose `hosts`
-//! name an `OpenCode` packaging, ordered by id. The bridge writes it and
-//! `services validate` measures it, so both see the same text.
+//! The bridge-owned block of `OpenCode`'s `AGENTS.md`.
+//!
+//! The block holds the rules whose `hosts` name an `OpenCode` packaging,
+//! ordered by id. The bridge writes it and `services validate` measures it,
+//! so both see the same text.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

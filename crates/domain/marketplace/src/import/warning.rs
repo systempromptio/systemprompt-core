@@ -51,9 +51,43 @@ impl ImportWarning {
     }
 }
 
+impl ImportWarning {
+    fn fmt_skill_or_rule(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnattachedRootRules { rules } => write!(
+                f,
+                "repository-root rules ({}) belong to no plugin; a rule only reaches a host \
+                 through a plugin that lists it, so move them under a plugin's rules/ directory",
+                rules.join(", ")
+            ),
+            Self::MissingReference { skill, path } => write!(
+                f,
+                "skill '{skill}' cites {path}, which the imported skill does not carry (missing, \
+                 or excluded as a dev file)"
+            ),
+            Self::SiblingSkillPath { skill, path } => write!(
+                f,
+                "skill '{skill}' cites {path} outside its own directory; skill directories are \
+                 renamed on composition, so the path cannot resolve on a client"
+            ),
+            Self::RulesMissOpenCode { rules } => write!(
+                f,
+                "the marketplace configures OpenCode but rules ({}) name no OpenCode host in \
+                 `hosts`, so they never reach AGENTS.md",
+                rules.join(", ")
+            ),
+            _ => Ok(()),
+        }
+    }
+}
+
 impl fmt::Display for ImportWarning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnattachedRootRules { .. }
+            | Self::MissingReference { .. }
+            | Self::SiblingSkillPath { .. }
+            | Self::RulesMissOpenCode { .. } => self.fmt_skill_or_rule(f),
             Self::NoMarketplaceManifest => write!(
                 f,
                 ".claude-plugin/marketplace.json is missing; only the base tree was imported"
@@ -96,12 +130,6 @@ impl fmt::Display for ImportWarning {
             Self::NoSkills { plugin } => {
                 write!(f, "plugin '{plugin}' ships no skills")
             },
-            Self::UnattachedRootRules { rules } => write!(
-                f,
-                "repository-root rules ({}) belong to no plugin; a rule only reaches a host \
-                 through a plugin that lists it, so move them under a plugin's rules/ directory",
-                rules.join(", ")
-            ),
             Self::NodePackageWithoutLockfile { plugin } => write!(
                 f,
                 "plugin '{plugin}' ships package.json without a package-lock.json, \
@@ -112,21 +140,6 @@ impl fmt::Display for ImportWarning {
                 f,
                 "plugin '{plugin}' has a skills/{dir}/ directory without a SKILL.md, so nothing \
                  in it was imported"
-            ),
-            Self::MissingReference { skill, path } => write!(
-                f,
-                "skill '{skill}' cites {path}, which the imported skill does not carry (missing, \
-                 or excluded as a dev file)"
-            ),
-            Self::SiblingSkillPath { skill, path } => write!(
-                f,
-                "skill '{skill}' cites {path} outside its own directory; skill directories are \
-                 renamed on composition, so the path cannot resolve on a client"
-            ),
-            Self::RulesMissOpenCode { rules } => write!(
-                f,
-                "the marketplace configures OpenCode but rules ({}) name no OpenCode host in                  `hosts`, so they never reach AGENTS.md",
-                rules.join(", ")
             ),
         }
     }
