@@ -37,6 +37,7 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [concepts/gateway.md](concepts/gateway.md) — the provider-facing proxy and its controls.
 - [concepts/extensions.md](concepts/extensions.md) — the compile-time extension model.
 - [concepts/config-authority.md](concepts/config-authority.md) — declared configuration files projected into the database: authority, audit, the writer token, the export runbook.
+- [documents.md](documents.md) — the shared document store: versioned Office, OpenDocument and text documents, grants, MCP tools, HTTP API and bridge Drive sync.
 
 ### Guides (how-to)
 - [guides/configure.md](guides/configure.md) — write and manage a profile.
