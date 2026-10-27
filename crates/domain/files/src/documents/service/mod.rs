@@ -12,6 +12,10 @@
 //! document's history as a branch off the old head, keeping its blob
 //! referenced; nothing is rolled back and no head ever points at it.
 //!
+//! An edit can instead be proposed: written as a revision off the head
+//! chain and landed only when a reviewer accepts it (see `proposals` and
+//! `proposal_review`).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -32,6 +36,9 @@ mod listing;
 mod locks;
 mod node_ids;
 mod ownership;
+mod proposal_reads;
+mod proposal_review;
+mod proposals;
 mod publish;
 mod reads;
 mod support;
@@ -44,6 +51,9 @@ pub use drive::{CHANGE_LAG, parse_drive_cursor};
 pub use grants::ShareRequest;
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
 pub use ownership::DocumentAccess;
+pub use proposal_reads::ProposalView;
+pub use proposal_review::{Accepted, ReviewRequest};
+pub use proposals::{EditModeRequest, ProposeRequest, Proposed};
 pub use types::{
     AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning,
     CreateRequest, DocumentView, HistoryPage, ImportRequest, ListFolderRequest, Listing,

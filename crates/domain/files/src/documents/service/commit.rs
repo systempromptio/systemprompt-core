@@ -167,7 +167,7 @@ impl DocumentService {
         Ok(Some(CommitBody::Ops(expanded)))
     }
 
-    async fn finish(
+    pub(super) async fn finish(
         &self,
         document: &Document,
         revision: DocumentRevision,
@@ -209,14 +209,14 @@ impl DocumentService {
     }
 }
 
-struct Landed<'a> {
-    bytes: &'a [u8],
-    retired: HashSet<DocumentNodeId>,
-    previous: Option<Projection>,
-    parent: Option<DocumentRevisionId>,
-    edit_ops: Option<Vec<EditOp>>,
-    message: Option<String>,
-    author: &'a Author,
+pub(super) struct Landed<'a> {
+    pub(super) bytes: &'a [u8],
+    pub(super) retired: HashSet<DocumentNodeId>,
+    pub(super) previous: Option<Projection>,
+    pub(super) parent: Option<DocumentRevisionId>,
+    pub(super) edit_ops: Option<Vec<EditOp>>,
+    pub(super) message: Option<String>,
+    pub(super) author: &'a Author,
 }
 
 type Applied = (AppliedOps, Option<Projection>, bool, Option<Vec<EditOp>>);
@@ -241,7 +241,7 @@ impl DocumentService {
         })
     }
 
-    async fn store_revision(
+    pub(super) async fn store_revision(
         &self,
         who: &AuthenticatedUser,
         document: &Document,

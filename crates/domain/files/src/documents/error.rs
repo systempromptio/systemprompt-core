@@ -13,10 +13,12 @@ use systemprompt_events::RelayError;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::{
     ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
-    DocumentRevisionId, DocumentTemplateId, UserId,
+    DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::authz::SubjectSourceError;
-use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat};
+use systemprompt_models::documents::{
+    AccessLevel, DocumentAction, DocumentFormat, ProposalStatus,
+};
 use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError, TargetError};
 use systemprompt_traits::RepositoryError;
 
@@ -141,6 +143,22 @@ pub enum DocumentsError {
         cursor: String,
         #[source]
         source: ListCursorError,
+    },
+    #[error(
+        "proposal {proposal_id} no longer applies at head revision {head}{}. Reject it, or \
+         propose the change again on revision {head}",
+        conflict_label(.node.as_ref(), .current_text.as_deref())
+    )]
+    ProposalConflict {
+        proposal_id: DocumentProposalId,
+        head: DocumentRevisionId,
+        node: Option<DocumentNodeId>,
+        current_text: Option<String>,
+    },
+    #[error("proposal {proposal_id} is already {status}; only an open proposal can be reviewed")]
+    ProposalClosed {
+        proposal_id: DocumentProposalId,
+        status: ProposalStatus,
     },
     #[error("document codec failed")]
     Codec(#[source] CodecError),
@@ -279,4 +297,14 @@ fn comment_list(comments: &[DocumentCommentId]) -> String {
         .map(DocumentCommentId::as_str)
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+fn conflict_label(node: Option<&DocumentNodeId>, current_text: Option<&str>) -> String {
+    match (node, current_text) {
+        (Some(node), Some(text)) => {
+            format!(": node {node} changed since the proposal; its current text is \"{text}\"")
+        },
+        (Some(node), None) => format!(": node {node} no longer exists"),
+        _ => String::new(),
+    }
 }

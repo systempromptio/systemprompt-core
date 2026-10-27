@@ -4,9 +4,9 @@
 //! (`document.revision.created`, `document.presence`, `document.lock`,
 //! `document.conflict`, `document.collab.update`, `document.comment.created`,
 //! `document.comment.resolved`, `document.shared`,
-//! `document.ownership_transferred`) and routed to each recipient
-//! through the [`EventRouter`], which also relays it to other replicas. Clients
-//! filter the stream on the `document.` prefix.
+//! `document.ownership_transferred`, `document.proposal.*`) and routed to each
+//! recipient through the [`EventRouter`], which also relays it to other
+//! replicas. Clients filter the stream on the `document.` prefix.
 //!
 //! Every `emit` reports a relay failure as [`DocumentsError::Events`] after
 //! logging it; local delivery has already happened by then. Callers that
@@ -25,7 +25,8 @@ use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPa
 use systemprompt_models::documents::{
     DocumentCollabUpdateEvent, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent,
     DocumentConflictEvent, DocumentLockEvent, DocumentOwnershipTransferredEvent,
-    DocumentPresenceEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent,
+    DocumentSharedEvent,
 };
 
 use super::error::{DocumentsError, EventFailure};
@@ -114,6 +115,15 @@ impl DocumentEvents {
         event: &DocumentOwnershipTransferredEvent,
     ) -> Result<(), DocumentsError> {
         self.emit(DocumentOwnershipTransferredEvent::NAME, to, event)
+            .await
+    }
+
+    pub async fn proposal(
+        &self,
+        to: &[UserId],
+        event: &DocumentProposalEvent,
+    ) -> Result<(), DocumentsError> {
+        self.emit(DocumentProposalEvent::name_of(event.status), to, event)
             .await
     }
 
