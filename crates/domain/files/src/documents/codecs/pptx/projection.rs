@@ -6,9 +6,10 @@
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::layout::{layout_name, layout_part};
-use super::package::{Package, relationships};
+use super::package::relationships;
 use super::slides::slide_refs;
-use super::xml::{Element, parse_xml};
+use crate::documents::codecs::xml_tree::{Element, parse_xml};
+use crate::documents::codecs::zip_package::Package;
 
 #[derive(Debug, Clone)]
 pub(super) struct Paragraph {

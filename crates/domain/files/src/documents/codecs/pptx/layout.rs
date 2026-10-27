@@ -7,9 +7,10 @@
 use quick_xml::escape::escape;
 use systemprompt_provider_contracts::documents::CodecError;
 
-use super::package::{Package, relationships};
+use super::package::relationships;
 use super::slides::SlideRef;
-use super::xml::{Element, parse_xml, splice};
+use crate::documents::codecs::xml_tree::{Element, parse_xml, splice};
+use crate::documents::codecs::zip_package::Package;
 
 pub(super) fn layout_part(
     package: &mut Package<'_>,

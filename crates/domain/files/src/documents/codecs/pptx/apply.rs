@@ -17,10 +17,10 @@ use systemprompt_provider_contracts::documents::{
 };
 
 use super::layout::NewSlide;
-use super::package::Package;
 use super::projection::{self, Content, Paragraph, Slide};
-use super::xml::{parse_xml, splice};
 use super::{nodes, slides};
+use crate::documents::codecs::xml_tree::{parse_xml, splice};
+use crate::documents::codecs::zip_package::Package;
 
 enum Target {
     Slide(usize),

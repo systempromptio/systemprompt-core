@@ -30,6 +30,11 @@ mod placeholders;
 mod registry;
 mod text;
 
+#[cfg(feature = "office")]
+mod xml_tree;
+#[cfg(feature = "office")]
+mod zip_package;
+
 pub use html::HtmlCodec;
 pub use markdown::MarkdownCodec;
 pub use registry::CodecRegistry;
@@ -43,3 +48,6 @@ pub mod xlsx;
 
 #[cfg(feature = "office")]
 pub mod pptx;
+
+#[cfg(feature = "office")]
+pub mod odf;

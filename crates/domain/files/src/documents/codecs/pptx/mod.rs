@@ -29,7 +29,6 @@ mod nodes;
 mod package;
 mod projection;
 mod slides;
-mod xml;
 
 use std::sync::Arc;
 
@@ -41,9 +40,9 @@ use systemprompt_provider_contracts::register_document_codec;
 
 pub use blank::blank_pptx;
 
-use package::Package;
+use crate::documents::codecs::xml_tree::{Element, parse_xml};
+use crate::documents::codecs::zip_package::Package;
 use projection::{Content, Slide};
-use xml::{Element, parse_xml};
 
 /// The `.pptx` [`DocumentCodec`]; registered at priority 100.
 #[derive(Debug, Clone, Copy, Default)]
@@ -226,7 +225,7 @@ fn instantiate_slide(slide: &Slide, params: &TemplateParams) -> Result<Option<St
             }
         }
     }
-    Ok((!edits.is_empty()).then(|| xml::splice(&slide.xml, edits)))
+    Ok((!edits.is_empty()).then(|| crate::documents::codecs::xml_tree::splice(&slide.xml, edits)))
 }
 
 fn instantiate(template: &[u8], params: &TemplateParams) -> Result<Vec<u8>, CodecError> {

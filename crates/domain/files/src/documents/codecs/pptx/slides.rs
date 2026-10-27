@@ -14,8 +14,9 @@ use quick_xml::escape::escape;
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::layout::{NewSlide, slide_xml, source_layout};
-use super::package::{Package, relationships, rels_part};
-use super::xml::{Element, parse_xml, splice};
+use super::package::{relationships, rels_part};
+use crate::documents::codecs::xml_tree::{Element, parse_xml, splice};
+use crate::documents::codecs::zip_package::Package;
 
 pub(super) const PRESENTATION: &str = "ppt/presentation.xml";
 pub(super) const PRESENTATION_RELS: &str = "ppt/_rels/presentation.xml.rels";

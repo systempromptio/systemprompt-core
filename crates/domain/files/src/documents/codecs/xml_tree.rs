@@ -1,5 +1,5 @@
-//! A span-indexed XML element tree read with `quick-xml`, and byte-range
-//! splicing over the part text it was read from.
+//! A span-indexed XML element tree, shared by the office codecs, read with
+//! `quick-xml`, and byte-range splicing over the part text it was read from.
 //!
 //! Each element records the byte offsets of its tags: `start..end` covers
 //! the whole element and `inner_start..inner_end` its content (empty for a
@@ -14,10 +14,10 @@ use quick_xml::events::{BytesStart, Event};
 use quick_xml::{Reader, XmlVersion};
 use systemprompt_provider_contracts::documents::CodecError;
 
-use super::package::parse_error;
+use super::zip_package::parse_error;
 
 #[derive(Debug, Clone)]
-pub(super) struct Element {
+pub(crate) struct Element {
     pub name: String,
     pub attrs: Vec<(String, String)>,
     pub start: usize,
@@ -28,22 +28,22 @@ pub(super) struct Element {
 }
 
 impl Element {
-    pub(super) fn attr(&self, name: &str) -> Option<&str> {
+    pub(crate) fn attr(&self, name: &str) -> Option<&str> {
         self.attrs
             .iter()
             .find(|(key, _)| key == name)
             .map(|(_, value)| value.as_str())
     }
 
-    pub(super) fn child(&self, name: &str) -> Option<&Self> {
+    pub(crate) fn child(&self, name: &str) -> Option<&Self> {
         self.children.iter().find(|child| child.name == name)
     }
 
-    pub(super) fn children_named<'s>(&'s self, name: &'s str) -> impl Iterator<Item = &'s Self> {
+    pub(crate) fn children_named<'s>(&'s self, name: &'s str) -> impl Iterator<Item = &'s Self> {
         self.children.iter().filter(move |child| child.name == name)
     }
 
-    pub(super) fn find(&self, name: &str) -> Option<&Self> {
+    pub(crate) fn find(&self, name: &str) -> Option<&Self> {
         self.children.iter().find_map(|child| {
             (child.name == name)
                 .then_some(child)
@@ -51,11 +51,11 @@ impl Element {
         })
     }
 
-    pub(super) fn raw<'x>(&self, xml: &'x str) -> &'x str {
+    pub(crate) fn raw<'x>(&self, xml: &'x str) -> &'x str {
         &xml[self.start..self.end]
     }
 
-    pub(super) fn text(&self, part: &str, xml: &str) -> Result<String, CodecError> {
+    pub(crate) fn text(&self, part: &str, xml: &str) -> Result<String, CodecError> {
         unescape(&xml[self.inner_start..self.inner_end])
             .map(std::borrow::Cow::into_owned)
             .map_err(|source| parse_error(part, source))
@@ -101,7 +101,7 @@ fn attach(stack: &mut [Element], root: &mut Option<Element>, element: Element) {
     }
 }
 
-pub(super) fn parse_xml(part: &str, xml: &str) -> Result<Element, CodecError> {
+pub(crate) fn parse_xml(part: &str, xml: &str) -> Result<Element, CodecError> {
     let mut reader = Reader::from_str(xml);
     let mut stack: Vec<Element> = Vec::new();
     let mut root = None;
@@ -134,7 +134,7 @@ pub(super) fn parse_xml(part: &str, xml: &str) -> Result<Element, CodecError> {
     })
 }
 
-pub(super) fn splice(xml: &str, mut edits: Vec<(usize, usize, String)>) -> String {
+pub(crate) fn splice(xml: &str, mut edits: Vec<(usize, usize, String)>) -> String {
     edits.sort_by(|left, right| right.0.cmp(&left.0));
     let mut out = xml.to_owned();
     for (start, end, replacement) in edits {
