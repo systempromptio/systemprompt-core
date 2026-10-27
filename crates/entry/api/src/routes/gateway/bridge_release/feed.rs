@@ -9,14 +9,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use systemprompt_manifest::Secrets;
 use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 
 use super::CACHE_TTL;
+use super::cache::Cache;
 use super::error::ReleaseError;
 use super::github::{asset_digest, resolve_release, sums_url};
 
@@ -41,34 +41,6 @@ pub struct ResolvedAsset {
     pub name: String,
     pub url: String,
     sums_url: Option<String>,
-}
-
-#[derive(Debug)]
-struct Cache<T>(tokio::sync::RwLock<HashMap<String, (Instant, T)>>);
-
-impl<T> Default for Cache<T> {
-    fn default() -> Self {
-        Self(tokio::sync::RwLock::new(HashMap::new()))
-    }
-}
-
-impl<T: Clone + Send + Sync> Cache<T> {
-    async fn fresh(&self, key: &str, ttl: Duration) -> Option<T> {
-        let held = self.0.read().await;
-        held.get(key)
-            .filter(|(at, _)| at.elapsed() < ttl)
-            .map(|(_, value)| value.clone())
-    }
-
-    async fn stale(&self, key: &str) -> Option<T> {
-        let held = self.0.read().await;
-        held.get(key).map(|(_, value)| value.clone())
-    }
-
-    async fn store(&self, key: &str, value: T) {
-        let mut held = self.0.write().await;
-        held.insert(key.to_owned(), (Instant::now(), value));
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

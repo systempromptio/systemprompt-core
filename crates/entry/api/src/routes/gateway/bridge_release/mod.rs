@@ -32,6 +32,7 @@ use systemprompt_models::ApiPaths;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 use systemprompt_runtime::AppContext;
 
+mod cache;
 mod error;
 mod feed;
 mod github;
