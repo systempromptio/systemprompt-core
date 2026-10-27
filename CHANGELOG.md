@@ -13,6 +13,9 @@
 
 ### Changed
 
+- **MCP:** a tool result for a client that negotiates structured content but not the MCP Apps UI extension carries the output as JSON in its text block, after the summary, as the MCP specification asks. Hosts that show the model only `content`, such as `OpenCode`, previously saw just the one-line summary.
+- **Manifest, Gateway:** `prompt_caching` defaults to on. A provider or model that does not state it gets automatic prompt caching on Anthropic-wire endpoints; set `prompt_caching: false` to opt out. `ModelCapabilities::default()` returns it on.
+- **Governance:** the authz webhook retries once, after 150 ms, when the connection itself fails. A non-success status, a decode failure or a timeout is still denied at once, and a second connect failure is denied as before.
 - **Marketplace:** import accepts `cowork` in a skill's or rule's `hosts`, as the bundle builder already did (`HostKind::validate_targets`, `COWORK_TARGET`).
 - **Marketplace:** import copies a plugin's `hosts/` tree without its development files, as the bundle builder does.
 - **Marketplace:** import refuses a marketplace whose `opencode:` themes no plugin ships under `hosts/opencode/themes/<name>.json` at the pinned sha256, instead of the bridge skipping the theme on the user's machine.

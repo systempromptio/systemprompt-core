@@ -255,6 +255,53 @@ fn capabilities_start_from_the_provider_and_apply_model_overrides() {
     assert!(!model.capabilities.vision, "overridden by the model");
 }
 
+fn caching_catalog(provider_yaml: &str, model_override: Option<bool>) -> bool {
+    let provider: systemprompt_manifest::services::catalog::ProviderConfig =
+        serde_yaml::from_str(provider_yaml).expect("provider parses");
+    let mut entry = claude_model(200_000);
+    if let Some(value) = model_override {
+        entry.capabilities.insert(
+            systemprompt_manifest::services::catalog::Capability::PromptCaching,
+            value,
+        );
+    }
+    let catalog = CatalogFixture::new()
+        .credential("k", systemprompt_catalog_fixtures::platform("k"))
+        .provider("p", provider)
+        .endpoint(
+            "p",
+            "api",
+            systemprompt_manifest::services::catalog::EndpointConfig::new(
+                WireProtocol::Anthropic,
+                "https://api.anthropic.com/v1",
+            ),
+        )
+        .model("m", entry)
+        .deploy("m", ["p/api"])
+        .build();
+    catalog
+        .model("m")
+        .expect("declared")
+        .capabilities
+        .prompt_caching
+}
+
+#[test]
+fn prompt_caching_is_on_unless_explicitly_disabled() {
+    let bare = "credential: k\nendpoints: {}\n";
+    let listed = "credential: k\ncapabilities: { vision: true, tools: true }\nendpoints: {}\n";
+    let off = "credential: k\ncapabilities: { prompt_caching: false }\nendpoints: {}\n";
+
+    assert!(caching_catalog(bare, None), "no capabilities block");
+    assert!(
+        caching_catalog(listed, None),
+        "capabilities block without the flag"
+    );
+    assert!(!caching_catalog(off, None), "provider opt-out");
+    assert!(!caching_catalog(bare, Some(false)), "model opt-out");
+    assert!(caching_catalog(off, Some(true)), "model re-enables");
+}
+
 #[test]
 fn a_request_no_declared_route_matches_has_no_route() {
     let catalog = one_platform_provider().build();

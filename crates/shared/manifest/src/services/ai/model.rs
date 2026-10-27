@@ -17,7 +17,7 @@ use systemprompt_wire::ModelLimits;
     reason = "model capability matrix: each bool is an independent provider feature flag, not \
               state"
 )]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ModelCapabilities {
     #[serde(default)]
     pub vision: bool,
@@ -52,8 +52,31 @@ pub struct ModelCapabilities {
     #[serde(default)]
     pub reasoning: bool,
 
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub prompt_caching: bool,
+}
+
+const fn default_true() -> bool {
+    true
+}
+
+impl Default for ModelCapabilities {
+    fn default() -> Self {
+        Self {
+            vision: false,
+            audio_input: false,
+            video_input: false,
+            image_generation: false,
+            audio_generation: false,
+            streaming: false,
+            tools: false,
+            structured_output: false,
+            system_prompts: false,
+            image_resolution_config: false,
+            reasoning: false,
+            prompt_caching: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
