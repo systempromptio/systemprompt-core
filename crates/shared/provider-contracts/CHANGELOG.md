@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Added
+
+- `documents::DocumentCodec` and `documents::DocumentTemplateProvider` seams, registered with `register_document_codec!` and `register_document_template_provider!` and discovered highest priority first; the format, projection and edit-op types (`EditOp`, `NodeTarget`, `ContentAs`, `NodeKind`), `resolve_targets`, and `DocumentCodec::insert_kinds`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

@@ -44,6 +44,7 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [guides/deploy-production.md](guides/deploy-production.md) — HA, backup, DR, key rotation, air-gap.
 - [guides/operate.md](guides/operate.md) — health, metrics, logging, troubleshooting, upgrades.
 - [guides/upgrading-0.73.md](guides/upgrading-0.73.md) — upgrade a deployment from 0.72 to 0.73.
+- [guides/upgrading-0.74.md](guides/upgrading-0.74.md) — upgrade a deployment from 0.73 to 0.74.
 - [guides/database-connections.md](guides/database-connections.md) — connection budgeting, per-role pool sizing, PgBouncer.
 - [guides/authoring-extensions.md](guides/authoring-extensions.md) — build an extension.
 - [guides/marketplace-authoring.md](guides/marketplace-authoring.md) — author a marketplace in Claude Code format and import it.

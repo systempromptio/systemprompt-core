@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- **Breaking:** `ManifestOpenCode::theme` becomes `themes` plus `default_theme` and `theme_mode` (`ThemeMode`); the wire's single `theme:` form is still read.
+- **Breaking:** `ErrorCode` gains `PayloadTooLarge` (413) and `Locked` (423), built with `ApiError::payload_too_large` and `ApiError::locked`.
+- **Breaking:** `bridge::opencode::Lockdown` gains `allowed_plugins`, and `bridge::opencode::ModelEntry` gains `name: Option<String>`. Migrate struct literals by passing `allowed_plugins: &[]` and `name: None`.
+
+### Added
+
+- The `documents` module: access levels and actions, the bridge Drive sync protocol, document event payloads (including comment, share, ownership, collab and proposal events) and the `document://` URI; `ApiPaths` gains the documents, document-folders and bridge Drive paths.
+- `bridge::opencode::agents_md`, the `AGENTS.md` renderer shared by the bridge and `core services validate`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

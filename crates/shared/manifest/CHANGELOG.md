@@ -1,10 +1,21 @@
 # Changelog
 
-## [Unreleased]
+## [0.74.0] - 2026-10-27
 
-### Fixed
+### Breaking
 
-- `BUNDLE_ALLOWED_DIRS` includes `documents/`, so a composed services root keeps the document template catalog and its files. Without it every catalog template was missing at runtime and `create_from_template` failed with `document template failed`.
+- **Breaking:** `OpenCodeMarketplaceConfig::theme` becomes `themes: Vec<_>` plus `default_theme` and `theme_mode`; YAML's single `theme:` form is still read. Migrate by reading `themes` and `default_theme_ref()`.
+- **Breaking:** `ServicesBundleManifest::content_hash` and `BundleSourceState::content_hash` are `ContentHash`, and `ServicesBundleManifest::compute_content_hash` returns it. The serialised form is unchanged.
+- **Breaking:** `BridgeProfileResponse` gains `model_names`, and its `models` and `model_limits` are keyed by `ModelId`. The wire form is unchanged.
+
+### Added
+
+- `external_agents.<host>.default_enabled` and `ServicesConfig::instance_hosts()` (`InstanceHosts`).
+- `BUNDLE_ALLOWED_DIRS` includes `documents/` so a composed services root keeps the document template catalog.
+
+### Changed
+
+- `prompt_caching` defaults to on; set `prompt_caching: false` to opt out. `ModelCapabilities::default()` returns it on.
 
 ## [0.73.0] - 2026-10-25
 
@@ -88,7 +99,7 @@
 
 - `BUNDLE_ALLOWED_DIRS` includes `workflows/`, so a composed services root keeps every bundle's workflow definitions.
 
-## [0.66.0] - Unreleased
+## [0.66.0] - 2026-10-13
 
 ### Added
 

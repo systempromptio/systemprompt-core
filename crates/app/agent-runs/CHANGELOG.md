@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Changed
+
+- A run's PAT is bound to the run's gateway session when its credentials are issued, so every gateway request the run makes lands on that session whatever `x-session-id` the harness sends.
+- An `OpenCode` run counts assistant activity after its last `step_finish` as a turn, so a text-only run or a final answer after tool calls is counted. The run's authoritative tokens and cost are the gateway's settled counters on its session.
+- The `OpenCode` config writes each model's display name and the lockdown's allowed plugins.
+
+### Added
+
+- The `opencode_decode` example replays a captured `opencode run --format json` stream from stdin through the decoder and outcome classifier and prints the events and outcome as JSON.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

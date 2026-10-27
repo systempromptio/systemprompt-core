@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Added
+
+- `ConfigReconcileService::preview_apply` runs a plane apply and rolls it back, reporting what it would change. Nothing is written or audited.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

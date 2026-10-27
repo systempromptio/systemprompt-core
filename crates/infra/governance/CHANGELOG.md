@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Added
+
+- `document` and `folder` access-control entity kinds (`EntityKind::Document`, `EntityKind::Folder`, `EntityRef::Document`, `EntityRef::Folder`), and `AuthzContext::document_access` with `document_action`, `document_access_document` and `document_access_folder`.
+
+### Changed
+
+- The `access_control_entities` and `access_control_rules` checks admit every entity kind the code defines.
+- The authz webhook retries once, after 150 ms, when the connection itself fails; any other failure is denied at once.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking
