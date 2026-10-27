@@ -16,6 +16,9 @@ use systemprompt_provider_contracts::documents::CodecError;
 use super::apply::Batch;
 use super::{markup, styles};
 use crate::documents::codecs::markdown_lowering::{Block, Span, lower};
+use crate::documents::codecs::pending::text_marker;
+
+const PENDING_RPR: &str = "<w:rPr><w:i/><w:highlight w:val=\"yellow\"/></w:rPr>";
 
 const BORDERS: &str = "<w:tblBorders><w:top w:val=\"single\" w:sz=\"4\" w:space=\"0\" \
     w:color=\"auto\"/><w:left w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/><w:bottom \
@@ -95,7 +98,13 @@ impl Batch<'_> {
                 self.new_paragraph("", &span_runs(&span))
             },
             Block::Table(rows) => self.table_xml(rows),
+            Block::Pending(intent) => self.pending_paragraph(intent),
         })
+    }
+
+    pub(super) fn pending_paragraph(&mut self, intent: &str) -> String {
+        let run = markup::run(Some(PENDING_RPR), &text_marker(intent));
+        self.new_paragraph("", &run)
     }
 
     fn table_xml(&mut self, rows: &[Vec<Vec<Span>>]) -> String {

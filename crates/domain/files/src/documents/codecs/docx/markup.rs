@@ -9,6 +9,8 @@ use std::ops::Range;
 use quick_xml::escape::escape;
 use systemprompt_provider_contracts::documents::CodecError;
 
+use crate::documents::codecs::pending::intent_of_line;
+
 use super::parts::malformed;
 use super::scan::Para;
 
@@ -79,7 +81,11 @@ pub(super) fn run(rpr: Option<&str>, text: &str) -> String {
 }
 
 pub(super) fn replace_paragraph(src: &str, para: &Para, text: &str) -> String {
-    let rpr = para.first_rpr.clone().map(|range| &src[range]);
+    let rpr = para
+        .first_rpr
+        .clone()
+        .map(|range| &src[range])
+        .filter(|_| intent_of_line(&para.text()).is_none());
     let mut out = para.open_tag.clone();
     if let Some(props) = &para.ppr {
         out.push_str(&src[props.range.clone()]);

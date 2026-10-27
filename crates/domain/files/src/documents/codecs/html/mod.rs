@@ -111,7 +111,7 @@ fn collect_text(node: NodeRef<'_, Node>, out: &mut String) {
 
 impl DocumentCodec for HtmlCodec {
     fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
-        &["heading", "paragraph", "list_item"]
+        &["heading", "paragraph", "list_item", "pending"]
     }
 
     fn formats(&self) -> &'static [DocumentFormat] {

@@ -76,7 +76,7 @@ pub(crate) fn escape_html(text: &str) -> String {
 
 impl DocumentCodec for TextCodec {
     fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
-        &["text"]
+        &["text", "pending"]
     }
 
     fn formats(&self) -> &'static [DocumentFormat] {

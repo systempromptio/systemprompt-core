@@ -9,6 +9,7 @@ use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{NodeKind, ProjectionNode, hash8};
 
 use super::projection::{Content, Shape, Slide};
+use crate::documents::codecs::pending::intent_of_line;
 
 fn node(
     id: String,
@@ -51,6 +52,11 @@ fn paragraph_nodes(
             );
             if bullet {
                 para.attrs.insert("bullet".to_owned(), "true".to_owned());
+            }
+            if let Some(intent) = para.text.as_deref().and_then(intent_of_line) {
+                let intent = intent.to_owned();
+                para.kind = NodeKind::Pending;
+                para.text = Some(intent);
             }
             para
         })

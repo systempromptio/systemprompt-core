@@ -12,7 +12,7 @@ use super::{OdtCodec, check_base, finish, instantiate, projection, read, text};
 
 impl DocumentCodec for OdtCodec {
     fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
-        &["heading", "paragraph", "list_item"]
+        &["heading", "paragraph", "list_item", "pending"]
     }
 
     fn formats(&self) -> &'static [DocumentFormat] {

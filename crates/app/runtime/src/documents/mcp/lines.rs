@@ -66,6 +66,7 @@ pub fn structured_line(node: &ProjectionNode, slide: usize) -> String {
             format!("{} {text}", "#".repeat(usize::from(level.clamp(1, 6))))
         },
         NodeKind::ListItem => format!("- {text}"),
+        NodeKind::Pending => format!("[pending] {text}"),
         NodeKind::Cell => format!("| {text}"),
         NodeKind::Slide if text.is_empty() => format!("## slide {slide}"),
         NodeKind::Slide => format!("## slide {slide}: {text}"),
@@ -123,7 +124,11 @@ pub fn written_lines(base: Option<&Projection>, head: &Projection) -> Vec<String
 pub(super) const fn is_outline(kind: NodeKind) -> bool {
     matches!(
         kind,
-        NodeKind::Heading { .. } | NodeKind::Slide | NodeKind::Sheet | NodeKind::Table
+        NodeKind::Heading { .. }
+            | NodeKind::Slide
+            | NodeKind::Sheet
+            | NodeKind::Table
+            | NodeKind::Pending
     )
 }
 

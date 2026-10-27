@@ -48,7 +48,7 @@ impl XlsxCodec {
 
 impl DocumentCodec for XlsxCodec {
     fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
-        &["row"]
+        &["row", "pending"]
     }
 
     fn formats(&self) -> &'static [DocumentFormat] {

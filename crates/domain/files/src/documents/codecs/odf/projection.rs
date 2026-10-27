@@ -13,6 +13,7 @@ use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{CodecError, NodeKind, ProjectionNode, hash8};
 
 use super::package::{attr_escaped, inline_text, open_tag, text_markup};
+use crate::documents::codecs::pending::{intent_of_line, text_marker};
 use crate::documents::codecs::xml_tree::Element;
 
 #[derive(Debug, Clone)]
@@ -147,11 +148,15 @@ pub(super) fn para_node(para: &Para) -> ProjectionNode {
     if let Some(style) = &para.style {
         attrs.insert("style".to_owned(), style.clone());
     }
+    let (kind, text) = intent_of_line(&para.text).map_or_else(
+        || (para.kind, para.text.clone()),
+        |intent| (NodeKind::Pending, intent.to_owned()),
+    );
     ProjectionNode {
         id: DocumentNodeId::new(para.id.clone()),
-        kind: para.kind,
+        kind,
         hash8: hash8(&para.text),
-        text: Some(para.text.clone()),
+        text: Some(text),
         children: Vec::new(),
         attrs,
     }
@@ -223,6 +228,10 @@ pub(super) fn fresh(kind: NodeKind, anchor: Option<&Para>, text: &str) -> Option
             "<text:h text:outline-level=\"{}\">{}</text:h>",
             level.clamp(1, 9),
             text_markup(text)
+        )),
+        NodeKind::Pending => Some(format!(
+            "<text:p>{}</text:p>",
+            text_markup(&text_marker(text))
         )),
         _ => None,
     }

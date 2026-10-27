@@ -25,6 +25,11 @@ impl Batch<'_> {
             Located::Para(para, _) => (para.range.end, Some(para)),
             Located::Table(table) => (table.range.end, None),
         };
+        if kind == NodeKind::Pending {
+            let paragraph = self.pending_paragraph(text);
+            self.push(order, at..at, paragraph);
+            return Ok(());
+        }
         let props = self.insert_props(anchor, kind)?;
         let open = self.open_para();
         let paragraph = format!("{open}{props}{}</w:p>", markup::run(None, text));

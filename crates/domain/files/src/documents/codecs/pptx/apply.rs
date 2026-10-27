@@ -15,6 +15,8 @@ use systemprompt_provider_contracts::documents::{
     CodecError, ContentAs, DocumentFormat, EditOp, NodeKind,
 };
 
+use crate::documents::codecs::pending::text_marker;
+
 use super::layout::NewSlide;
 use super::paragraph::{markdown_xml, paragraph_xml, without_bullets};
 use super::projection::{self, Content, Paragraph, Slide};
@@ -109,7 +111,11 @@ fn insert_after(
         NodeKind::ListItem => para.ppr.clone(),
         _ => Some(without_bullets(para.ppr.as_deref())?),
     };
-    let xml = paragraph_xml(para, ppr.as_deref(), text);
+    let xml = if kind == NodeKind::Pending {
+        paragraph_xml(para, ppr.as_deref(), &text_marker(text))
+    } else {
+        paragraph_xml(para, ppr.as_deref(), text)
+    };
     edit_slide(package, slide, (para.end, para.end, xml));
     Ok(1)
 }

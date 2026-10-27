@@ -35,6 +35,7 @@ mod html;
 mod lines;
 mod markdown;
 mod markdown_lowering;
+mod pending;
 mod placeholders;
 mod registry;
 mod text;

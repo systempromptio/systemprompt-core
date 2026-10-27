@@ -51,7 +51,7 @@ pub struct DocxCodec;
 
 impl DocumentCodec for DocxCodec {
     fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
-        &["heading", "paragraph", "list_item"]
+        &["heading", "paragraph", "list_item", "pending"]
     }
 
     fn formats(&self) -> &'static [DocumentFormat] {

@@ -31,6 +31,7 @@ pub enum NodeKind {
     Html,
     Markdown,
     Text,
+    Pending,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

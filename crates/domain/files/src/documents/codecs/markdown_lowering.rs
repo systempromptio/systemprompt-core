@@ -6,7 +6,8 @@
 //! for ordered lists, their number; inline formatting is flattened into
 //! [`Span`]s carrying bold, italic, code and link flags. Block quotes
 //! contribute their paragraphs, images their alt text and raw HTML its
-//! source text; rules are dropped. A codec that cannot represent a block
+//! source text; rules are dropped. A `<!-- pending: intent -->` line is a
+//! [`Block::Pending`] placeholder. A codec that cannot represent a block
 //! natively writes [`Block::plain`] as a paragraph, so Markdown is never
 //! refused.
 //!
@@ -14,6 +15,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
+
+use super::pending::{intent_of_line, text_marker};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Span {
@@ -38,6 +41,7 @@ pub(crate) enum Block {
     },
     Table(Vec<Vec<Vec<Span>>>),
     Code(String),
+    Pending(String),
 }
 
 #[derive(Default)]
@@ -55,6 +59,26 @@ struct Builder {
 }
 
 pub(crate) fn lower(markdown: &str) -> Vec<Block> {
+    let mut blocks = Vec::new();
+    let mut chunk = String::new();
+    for line in markdown.lines() {
+        match intent_of_line(line) {
+            Some(intent) => {
+                blocks.extend(lower_chunk(&chunk));
+                chunk.clear();
+                blocks.push(Block::Pending(intent.to_owned()));
+            },
+            None => {
+                chunk.push_str(line);
+                chunk.push('\n');
+            },
+        }
+    }
+    blocks.extend(lower_chunk(&chunk));
+    blocks
+}
+
+fn lower_chunk(markdown: &str) -> Vec<Block> {
     let mut builder = Builder::default();
     for event in Parser::new_ext(
         markdown,
@@ -224,6 +248,7 @@ impl Block {
                 .collect::<Vec<_>>()
                 .join("\n"),
             Self::Code(code) => code.clone(),
+            Self::Pending(intent) => text_marker(intent),
         }
     }
 }

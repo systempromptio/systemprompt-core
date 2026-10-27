@@ -57,7 +57,8 @@ pub fn derive_ops(base: &Projection, uploaded: &Projection) -> Option<Vec<EditOp
             if !node.children.is_empty() || before.hash8 == node.hash8 {
                 continue;
             }
-            if before.kind != node.kind || !editable(node.kind) {
+            let filled = before.kind == NodeKind::Pending;
+            if (before.kind != node.kind && !filled) || !editable(node.kind) {
                 return None;
             }
             ops.push(EditOp::ReplaceText {

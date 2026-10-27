@@ -154,6 +154,14 @@ pub(super) fn markdown_xml(anchor: &Paragraph, markdown: &str) -> Result<String,
                 };
                 push(&plain, span_runs(&span, false));
             },
+            Block::Pending(_) => {
+                let span = Span {
+                    text: block.plain(),
+                    italic: true,
+                    ..Span::default()
+                };
+                push(&plain, span_runs(&span, false));
+            },
         }
     }
     Ok(out)

@@ -106,6 +106,9 @@ pub(super) fn markdown_markup(format: DocumentFormat, markdown: &str) -> String 
             Block::Code(code) => {
                 out.push_str(&format!("<text:p>{}</text:p>", text_markup(code)));
             },
+            Block::Pending(_) => {
+                out.push_str(&format!("<text:p>{}</text:p>", text_markup(&block.plain())));
+            },
         }
     }
     if in_list {

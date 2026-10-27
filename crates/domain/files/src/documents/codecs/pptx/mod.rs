@@ -52,7 +52,7 @@ pub struct PptxCodec;
 
 impl DocumentCodec for PptxCodec {
     fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
-        &["paragraph", "list_item"]
+        &["paragraph", "list_item", "pending"]
     }
 
     fn formats(&self) -> &'static [DocumentFormat] {

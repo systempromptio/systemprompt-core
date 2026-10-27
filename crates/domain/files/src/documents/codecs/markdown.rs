@@ -135,7 +135,7 @@ fn outline(source: &str) -> ProjectionNode {
 
 impl DocumentCodec for MarkdownCodec {
     fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
-        &["text"]
+        &["text", "pending"]
     }
 
     fn formats(&self) -> &'static [DocumentFormat] {

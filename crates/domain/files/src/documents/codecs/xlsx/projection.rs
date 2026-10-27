@@ -11,6 +11,8 @@ use systemprompt_provider_contracts::documents::{
 };
 use umya_spreadsheet::{Cell, Worksheet};
 
+use crate::documents::codecs::pending::intent_of_line;
+
 use super::workbook::{
     CellRange, a1, cell_display, cell_type, display, load, node_id, row_text, rows, sheet_error,
     sheet_id,
@@ -129,10 +131,15 @@ fn cell_node(prefix: &str, col: u32, row: u32, cell: &Cell) -> ProjectionNode {
     if cell.is_formula() {
         attrs.insert("formula".to_owned(), cell.formula().to_owned());
     }
+    let hash = hash8(&text);
+    let (kind, text) = match intent_of_line(&text) {
+        Some(intent) => (NodeKind::Pending, intent.to_owned()),
+        None => (NodeKind::Cell, text),
+    };
     ProjectionNode {
         id: node_id(format!("{prefix}/{}", a1(col, row))),
-        kind: NodeKind::Cell,
-        hash8: hash8(&text),
+        kind,
+        hash8: hash,
         text: Some(text),
         children: Vec::new(),
         attrs,

@@ -11,6 +11,8 @@ use systemprompt_provider_contracts::documents::{
     DocumentFormat, NodeKind, Projection, ProjectionNode, content_hash, hash8,
 };
 
+use crate::documents::codecs::pending::intent_of_line;
+
 use super::scan::{Block, Cell, Doc, Para, Table};
 
 pub(super) fn project(bytes: &[u8], doc: &Doc<'_>) -> Projection {
@@ -79,10 +81,15 @@ fn para_node(para: &Para) -> ProjectionNode {
             attrs: BTreeMap::from([("rel_id".to_owned(), rel_id.clone())]),
         })
         .collect();
+    let hash = hash8(&text);
+    let (kind, text) = match intent_of_line(&text) {
+        Some(intent) => (NodeKind::Pending, intent.to_owned()),
+        None => (para_kind(para), text),
+    };
     ProjectionNode {
         id: DocumentNodeId::new(para.id.clone()),
-        kind: para_kind(para),
-        hash8: hash8(&text),
+        kind,
+        hash8: hash,
         text: Some(text),
         children,
         attrs,

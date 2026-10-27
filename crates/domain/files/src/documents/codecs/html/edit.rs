@@ -15,7 +15,8 @@ use systemprompt_provider_contracts::documents::{
 
 use super::super::anchors::{str_replace_once, verify_anchor};
 use super::super::text::escape_html;
-use super::tree::{HtmlProjection, Located, anchor_node, node_text};
+use super::super::pending::intent_of_line;
+use super::tree::{HtmlProjection, Located, PENDING_ATTR, anchor_node, node_text};
 
 const DETACHED: CodecError = CodecError::Malformed {
     detail: "an edited node is no longer part of the document",
@@ -127,6 +128,7 @@ fn insert_after(
     let node = node.resolved()?;
     let markup = match content_as {
         ContentAs::Markdown => markdown_markup(text),
+        ContentAs::Text if *kind == NodeKind::Pending => pending_markup(text),
         ContentAs::Text => {
             let tag = insert_tag(*kind).ok_or_else(|| unsupported(op))?;
             format!("<{tag}>{}</{tag}>", escape_html(text))
@@ -157,7 +159,7 @@ fn insert_after(
     Ok(())
 }
 
-fn markdown_markup(markdown: &str) -> String {
+fn markdown_chunk(markdown: &str) -> String {
     let mut rendered = String::new();
     pulldown_cmark::html::push_html(
         &mut rendered,
@@ -167,6 +169,37 @@ fn markdown_markup(markdown: &str) -> String {
         ),
     );
     ammonia::clean(&rendered)
+}
+
+fn pending_markup(intent: &str) -> String {
+    let intent = escape_html(intent);
+    format!("<p {PENDING_ATTR}=\"{intent}\"><em>{intent}</em></p>")
+}
+
+fn markdown_markup(markdown: &str) -> String {
+    let mut out = String::new();
+    let mut chunk = String::new();
+    for line in markdown.lines() {
+        if let Some(intent) = intent_of_line(line) {
+            out.push_str(&markdown_chunk(&chunk));
+            chunk.clear();
+            out.push_str(&pending_markup(intent));
+        } else {
+            chunk.push_str(line);
+            chunk.push('\n');
+        }
+    }
+    out.push_str(&markdown_chunk(&chunk));
+    out
+}
+
+fn fill_pending(html: &mut Html, pending: NodeId) -> Result<NodeId, CodecError> {
+    let nodes = parse_into(html, "<p></p>")?;
+    let filled = *nodes.first().ok_or(DETACHED)?;
+    let mut at = html.tree.get_mut(pending).ok_or(DETACHED)?;
+    at.insert_id_after(filled);
+    at.detach();
+    Ok(filled)
 }
 
 fn append_markdown(html: &mut Html, body: NodeId, markdown: &str) -> Result<(), CodecError> {
@@ -208,8 +241,13 @@ pub(super) fn apply_ops(
                     return Err(unsupported(op));
                 }
                 verify(html, node, located, required_hash(expected_hash.as_ref())?)?;
-                clear_children(html, located.tree_id)?;
-                let mut target = html.tree.get_mut(located.tree_id).ok_or(DETACHED)?;
+                let target_id = if located.kind == NodeKind::Pending {
+                    fill_pending(html, located.tree_id)?
+                } else {
+                    clear_children(html, located.tree_id)?;
+                    located.tree_id
+                };
+                let mut target = html.tree.get_mut(target_id).ok_or(DETACHED)?;
                 target.append(Node::Text(Text {
                     text: StrTendril::from_slice(text),
                 }));

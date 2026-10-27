@@ -12,6 +12,7 @@ use systemprompt_provider_contracts::documents::{
 
 use super::anchors::{str_replace_once, verify_anchor};
 use super::markdown_lowering::{lower, plain_lines};
+use super::pending::{intent_of_line, line_marker};
 
 pub(crate) const BODY_ID: &str = "body";
 
@@ -211,12 +212,16 @@ impl LineDoc {
             },
             EditOp::InsertAfter {
                 node,
+                kind,
                 text,
                 content_as,
-                ..
             } => {
                 let node = node.resolved()?;
-                let lines = Self::inserted(text, *content_as, format, node.as_str() != BODY_ID);
+                let lines = if *kind == NodeKind::Pending {
+                    vec![line_marker(format, text)]
+                } else {
+                    Self::inserted(text, *content_as, format, node.as_str() != BODY_ID)
+                };
                 if node.as_str() == BODY_ID {
                     self.head.extend(lines);
                     return Ok(());
@@ -255,10 +260,12 @@ impl LineDoc {
 }
 
 pub(crate) fn line_node(number: usize, text: &str) -> ProjectionNode {
+    let (kind, shown) = intent_of_line(text)
+        .map_or((NodeKind::Text, text), |intent| (NodeKind::Pending, intent));
     ProjectionNode {
         id: DocumentNodeId::new(format!("line[{number}]")),
-        kind: NodeKind::Text,
-        text: Some(text.to_owned()),
+        kind,
+        text: Some(shown.to_owned()),
         hash8: hash8(text),
         children: Vec::new(),
         attrs: std::collections::BTreeMap::new(),

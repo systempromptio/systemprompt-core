@@ -24,6 +24,8 @@ pub(super) struct HtmlProjection {
     pub body: NodeId,
 }
 
+pub(super) const PENDING_ATTR: &str = "data-pending";
+
 const SKIPPED: &[&str] = &["script", "style", "template", "noscript"];
 
 fn block_kind(tag: &str) -> Option<NodeKind> {
@@ -102,6 +104,11 @@ impl<'a> Walk<'a> {
             let Some(kind) = block_kind(tag) else {
                 self.children(child, out);
                 continue;
+            };
+            let kind = if element.attr(PENDING_ATTR).is_some() {
+                NodeKind::Pending
+            } else {
+                kind
             };
             let counter = self.counters.entry(tag).or_insert(0);
             *counter += 1;

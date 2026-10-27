@@ -6,9 +6,11 @@
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CellValue, CodecError, ContentAs, DocumentFormat, EditOp, hash8, required_hash,
+    CellValue, CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, hash8, required_hash,
 };
 use umya_spreadsheet::{Workbook, Worksheet};
+
+use crate::documents::codecs::pending::text_marker;
 
 use super::cells::{auto_parse, clear_row, write_cell, write_row};
 use super::insert::{insert_after, insert_markdown};
@@ -68,6 +70,12 @@ fn apply_one(
             shifts,
         ),
         EditOp::StrReplace { old_str, new_str } => str_replace(workbook, old_str, new_str),
+        EditOp::InsertAfter {
+            node,
+            kind: NodeKind::Pending,
+            text,
+            ..
+        } => insert_after(workbook, node.resolved()?, &text_marker(text), shifts),
         EditOp::InsertAfter {
             node,
             text,
