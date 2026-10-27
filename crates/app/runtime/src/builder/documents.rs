@@ -34,13 +34,13 @@ pub(super) fn build_documents(
     let catalog = load_catalog(&services_root.path)?;
     let subjects: Arc<dyn SubjectAttributeSource> = Arc::new(inputs.subjects.clone());
     Ok(Arc::new(DocumentsRuntime::new(DocumentsRuntimeParts {
-        database: inputs.database.clone(),
+        database: Arc::clone(inputs.database),
         file_storage: Arc::clone(inputs.file_storage),
         access_entities: Arc::new(AccessControlRepository::new(inputs.database)),
         authz_hook: Arc::clone(inputs.authz_hook),
         subjects,
         event_router: inputs.event_router.clone(),
         catalog,
-        config: inputs.files_config.documents_config().clone(),
+        config: *inputs.files_config.documents_config(),
     })))
 }

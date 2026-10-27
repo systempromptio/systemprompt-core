@@ -79,7 +79,8 @@ impl McpToolHandler for ListHandler<'_> {
             .cursor
             .as_deref()
             .map(|raw| {
-                raw.parse::<ListCursor>().map_err(|_| {
+                raw.parse::<ListCursor>().map_err(|error| {
+                    tracing::debug!(error = %error, cursor = raw, "list cursor rejected");
                     McpError::invalid_params(
                         format!("cursor \"{raw}\" is not valid; list again without a cursor"),
                         None,

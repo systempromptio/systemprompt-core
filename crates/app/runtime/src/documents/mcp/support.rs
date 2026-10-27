@@ -47,7 +47,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
     match error {
         DocumentsError::Forbidden { .. } => McpError::invalid_request(error.to_string(), None),
         DocumentsError::NotFound { .. } => McpError::resource_not_found(error.to_string(), None),
-        DocumentsError::Codec(codec) => codec_error(codec),
+        DocumentsError::Codec(codec) => codec_error(&codec),
         DocumentsError::Conflict { .. }
         | DocumentsError::StaleAnchor { .. }
         | DocumentsError::UnknownNode { .. }
@@ -77,7 +77,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
     }
 }
 
-fn codec_error(error: CodecError) -> McpError {
+fn codec_error(error: &CodecError) -> McpError {
     match error {
         CodecError::NoMatch => McpError::invalid_params(
             "old_str matches 0 places; read the document text and quote old_str exactly as it \

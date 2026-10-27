@@ -74,7 +74,6 @@ fn reread_hint(ops: &[EditOp], revision: &DocumentRevisionId) -> Option<String> 
 
 async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
     let applied = call.ops.len();
-    let changed: Vec<DocumentNodeId> = call.ops.iter().filter_map(touched).collect();
     let ops = call.ops.clone();
     let outcome = call
         .tools
@@ -105,8 +104,9 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     Ok((
         EditOutput {
             uri: at.clone(),
-            changed_nodes: changed
-                .into_iter()
+            changed_nodes: ops
+                .iter()
+                .filter_map(touched)
                 .map(|node| at.clone().at_node(node))
                 .collect(),
             reread_hint: reread_hint(&ops, &revision.id),

@@ -102,10 +102,10 @@ fn cell_lines(
             if sheet.is_some_and(|wanted| wanted != name) {
                 return None;
             }
-            if let Some(bounds) = bounds {
-                if !within(parse_cell(cell)?, bounds) {
-                    return None;
-                }
+            if let Some(bounds) = bounds
+                && !within(parse_cell(cell)?, bounds)
+            {
+                return None;
             }
             Some(format!(
                 "{name}!{cell}:{}| {}",
@@ -148,7 +148,7 @@ pub fn parse_cell(cell: &str) -> Option<Cell> {
     let column = letters
         .to_ascii_uppercase()
         .bytes()
-        .try_fold(0_u32, |acc, b| {
+        .try_fold(0u32, |acc, b| {
             acc.checked_mul(26)?.checked_add(u32::from(b - b'A') + 1)
         })?;
     let row = digits.parse::<u32>().ok()?;
