@@ -88,9 +88,42 @@ impl DocumentService {
             .await?;
         self.reject_open_for_document(&trashed, Some(TRASHED_NOTE.to_owned()))
             .await?;
+        self.close_live_state(who, &trashed, trace).await?;
         if !self.repos.documents.trash(document, &who.id).await? {
             return Err(DocumentsError::not_found("document", document));
         }
+        Ok(())
+    }
+
+    #[cfg(feature = "collab")]
+    async fn close_live_state(
+        &self,
+        who: &AuthenticatedUser,
+        document: &Document,
+        trace: &TraceId,
+    ) -> Result<(), DocumentsError> {
+        if let Some(collab) = self.collab() {
+            collab
+                .close_for_trash(who, document, trace)
+                .await
+                .map_err(|source| DocumentsError::LiveSession(Box::new(source)))?;
+        }
+        self.release_live_state(document).await
+    }
+
+    #[cfg(not(feature = "collab"))]
+    async fn close_live_state(
+        &self,
+        _who: &AuthenticatedUser,
+        document: &Document,
+        _trace: &TraceId,
+    ) -> Result<(), DocumentsError> {
+        self.release_live_state(document).await
+    }
+
+    async fn release_live_state(&self, document: &Document) -> Result<(), DocumentsError> {
+        self.repos.locks.release_all(&document.id).await?;
+        self.repos.presence.clear(&document.id).await?;
         Ok(())
     }
 

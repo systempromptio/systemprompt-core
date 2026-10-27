@@ -132,6 +132,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::Events { .. }
         | DocumentsError::Worker(_)
         | DocumentsError::Directory(_) => return internal_failure(&error),
+        | DocumentsError::LiveSession(_) => return internal_failure(&error),
     };
     refusal.into_error(message)
 }

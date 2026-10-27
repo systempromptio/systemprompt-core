@@ -36,6 +36,7 @@ mod listing;
 mod locks;
 mod node_ids;
 mod ownership;
+mod proposal_body;
 mod proposal_reads;
 mod proposal_review;
 mod proposals;
@@ -51,6 +52,8 @@ pub use drive::{CHANGE_LAG, parse_drive_cursor};
 pub use grants::ShareRequest;
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
 pub use ownership::{DocumentAccess, TransferRequest};
+pub use ownership::DocumentAccess;
+pub use proposal_body::ProposeBodyRequest;
 pub use proposal_reads::ProposalView;
 pub use proposal_review::{Accepted, ReviewRequest};
 pub use proposals::{EditModeRequest, ProposeRequest, Proposed};
@@ -79,6 +82,8 @@ pub struct DocumentService {
     access: Arc<DocumentAccessService>,
     events: Arc<DocumentEvents>,
     config: DocumentsConfig,
+    #[cfg(feature = "collab")]
+    collab: Arc<std::sync::OnceLock<std::sync::Weak<super::collab::CollabService>>>,
 }
 
 /// The collaborators a [`DocumentService`] is built from.
@@ -104,7 +109,21 @@ impl DocumentService {
             access: parts.access,
             events: parts.events,
             config: parts.config,
+            #[cfg(feature = "collab")]
+            collab: Arc::default(),
         }
+    }
+
+    #[cfg(feature = "collab")]
+    pub fn attach_collab(&self, collab: &Arc<super::collab::CollabService>) {
+        if self.collab.set(Arc::downgrade(collab)).is_err() {
+            tracing::warn!("A live co-editing service is already attached to the document service");
+        }
+    }
+
+    #[cfg(feature = "collab")]
+    pub(super) fn collab(&self) -> Option<Arc<super::collab::CollabService>> {
+        self.collab.get().and_then(std::sync::Weak::upgrade)
     }
 
     #[must_use]

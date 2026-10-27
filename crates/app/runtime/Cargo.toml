@@ -22,6 +22,7 @@ workspace = true
 [features]
 default = []
 geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
+collab = ["systemprompt-files/collab"]
 
 [dependencies]
 tokio = { workspace = true }

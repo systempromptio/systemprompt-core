@@ -89,7 +89,7 @@ files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
 
 # Live co-editing of HTML and Markdown documents (Loro CRDT) and its HTTP
 # routes. `full` implies it.
-files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-api?/collab"]
+files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-runtime?/collab", "systemprompt-api?/collab"]
 
 # Full functionality including all domain modules and CLI
 full = [

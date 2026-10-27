@@ -110,6 +110,16 @@ impl DocumentPresenceRepository {
         .await?)
     }
 
+    pub async fn clear(&self, document_id: &DocumentId) -> RepoResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM document_presence WHERE document_id = $1::text::uuid",
+            document_id.as_str(),
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     pub async fn sweep_expired(&self, limit: i64) -> RepoResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM document_presence

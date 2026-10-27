@@ -15,8 +15,10 @@ use axum::{Extension, Json};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
-use systemprompt_files::documents::collab::{ApplyRequest, CollabError, CursorRequest, JoinMode};
-use systemprompt_identifiers::{DocumentEditSessionId, DocumentRevisionId};
+use systemprompt_files::documents::collab::{
+    ApplyRequest, Checkpoint, CollabError, CursorRequest, JoinMode, Left,
+};
+use systemprompt_identifiers::{DocumentEditSessionId, DocumentProposalId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
@@ -42,6 +44,7 @@ pub(super) struct JoinedJson {
     session_id: DocumentEditSessionId,
     snapshot_b64: String,
     vv: String,
+    seq: i64,
     head_revision: Option<DocumentRevisionId>,
 }
 
@@ -65,10 +68,44 @@ pub(super) struct LeaveBody {
     session_id: DocumentEditSessionId,
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum CheckpointKind {
+    Unchanged,
+    Committed,
+    Conflict,
+}
+
 #[derive(Debug, Serialize)]
 pub(super) struct LeftJson {
     closed: bool,
+    checkpoint: CheckpointKind,
     checkpoint_revision: Option<DocumentRevisionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    head_revision: Option<DocumentRevisionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proposal_id: Option<DocumentProposalId>,
+}
+
+impl From<Left> for LeftJson {
+    fn from(left: Left) -> Self {
+        let (checkpoint, checkpoint_revision, head_revision, proposal_id) = match left.checkpoint {
+            Checkpoint::Unchanged => (CheckpointKind::Unchanged, None, None, None),
+            Checkpoint::Committed(revision) => {
+                (CheckpointKind::Committed, Some(revision), None, None)
+            },
+            Checkpoint::Conflict { head, proposal } => {
+                (CheckpointKind::Conflict, None, Some(head), proposal)
+            },
+        };
+        Self {
+            closed: left.closed,
+            checkpoint,
+            checkpoint_revision,
+            head_revision,
+            proposal_id,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -97,6 +134,7 @@ pub(super) async fn join(
         session_id: joined.session_id,
         snapshot_b64: STANDARD.encode(joined.snapshot),
         vv: STANDARD.encode(joined.version),
+        seq: joined.seq,
         head_revision: joined.head_revision,
     }))
 }
@@ -133,10 +171,7 @@ pub(super) async fn leave(
         .collab
         .leave(&who.user, &document_id(&id)?, &body.session_id, &who.trace)
         .await?;
-    Ok(Json(LeftJson {
-        closed: left.closed,
-        checkpoint_revision: left.checkpoint,
-    }))
+    Ok(Json(LeftJson::from(left)))
 }
 
 pub(super) async fn cursor(

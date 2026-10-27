@@ -40,7 +40,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::routing::{delete, get, post, put};
 use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
-use systemprompt_files::documents::collab::{CollabService, CollabTuning};
+use systemprompt_files::documents::collab::CollabService;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, UserProvider};
@@ -106,12 +106,7 @@ pub fn document_service(ctx: &AppContext) -> Arc<DocumentService> {
 
 #[cfg(feature = "collab")]
 fn collab_service(ctx: &AppContext) -> Arc<CollabService> {
-    let service = Arc::new(CollabService::new(
-        document_service(ctx),
-        CollabTuning::default(),
-    ));
-    service.start(ctx.background_tasks());
-    service
+    Arc::clone(ctx.documents().collab())
 }
 
 #[cfg(feature = "collab")]

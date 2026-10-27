@@ -191,6 +191,8 @@ pub enum DocumentsError {
         #[source]
         source: TemplateError,
     },
+    #[error("the document's live edit session could not be closed")]
+    LiveSession(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("document blob storage failed")]
     Blob(#[from] BlobStoreError),
     #[error("document store query failed")]

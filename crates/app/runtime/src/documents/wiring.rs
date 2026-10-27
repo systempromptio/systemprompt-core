@@ -18,7 +18,10 @@ use systemprompt_files::documents::{
 };
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::SubjectAttributeSource;
-use systemprompt_traits::FileStorage;
+use systemprompt_traits::{BackgroundTasks, FileStorage};
+
+#[cfg(feature = "collab")]
+use systemprompt_files::documents::collab::{CollabService, CollabTuning};
 
 /// The handles a [`DocumentsRuntime`] is assembled from.
 #[derive(Clone)]
@@ -32,6 +35,7 @@ pub struct DocumentsRuntimeParts {
     pub event_router: EventRouter,
     pub catalog: Vec<CatalogTemplate>,
     pub config: DocumentsConfig,
+    pub background_tasks: BackgroundTasks,
 }
 
 impl std::fmt::Debug for DocumentsRuntimeParts {
@@ -43,12 +47,17 @@ impl std::fmt::Debug for DocumentsRuntimeParts {
     }
 }
 
-/// The document store as one runtime handle: the repositories bundle and
-/// the [`DocumentService`] built over it.
+/// The document store as one runtime handle.
+///
+/// It holds the repositories bundle, the [`DocumentService`] built over it
+/// and, with the `collab` feature, the process's one live co-editing
+/// service, whose timer runs on the runtime's background tasks.
 #[derive(Debug, Clone)]
 pub struct DocumentsRuntime {
     repositories: Arc<DocumentRepositories>,
     service: Arc<DocumentService>,
+    #[cfg(feature = "collab")]
+    collab: Arc<CollabService>,
 }
 
 impl DocumentsRuntime {
@@ -64,6 +73,7 @@ impl DocumentsRuntime {
             event_router,
             catalog,
             config,
+            background_tasks,
         } = parts;
         let repositories = Arc::new(DocumentRepositories::new(&database));
         let access = Arc::new(DocumentAccessService::new(
@@ -90,10 +100,30 @@ impl DocumentsRuntime {
             events: Arc::new(DocumentEvents::new(Arc::new(event_router))),
             config,
         }));
+        #[cfg(feature = "collab")]
+        let collab = {
+            let collab = Arc::new(CollabService::new(
+                Arc::clone(&service),
+                CollabTuning::default(),
+            ));
+            service.attach_collab(&collab);
+            collab.start(&background_tasks);
+            collab
+        };
+        #[cfg(not(feature = "collab"))]
+        drop(background_tasks);
         Self {
             repositories,
             service,
+            #[cfg(feature = "collab")]
+            collab,
         }
+    }
+
+    #[cfg(feature = "collab")]
+    #[must_use]
+    pub const fn collab(&self) -> &Arc<CollabService> {
+        &self.collab
     }
 
     #[must_use]

@@ -1,11 +1,15 @@
-//! Applying a client's Loro update: import, log, broadcast.
+//! Applying a client's Loro update: validate, log, import, broadcast.
+//!
+//! An update enters a replica's cache only from the log, after the
+//! transaction that numbered it has committed, so a failed append leaves
+//! the cache as it was.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use loro::{ExportMode, VersionVector};
+use loro::{ExportMode, LoroDoc, VersionVector};
 use systemprompt_identifiers::{DocumentEditSessionId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCollabUpdateEvent};
@@ -48,9 +52,7 @@ impl CollabService {
             },
             _ => None,
         };
-        entry
-            .doc
-            .import(&request.update)
+        LoroDoc::decode_import_blob_meta(&request.update, true)
             .map_err(CollabError::InvalidUpdate)?;
         let seq = self
             .log_update(&mut entry, &request.update, &who.id)
@@ -84,7 +86,11 @@ impl CollabService {
             .repositories()
             .collab
             .append(&entry.session.id, update, author)
-            .await?;
+            .await?
+            .ok_or_else(|| CollabError::SessionClosed {
+                document_id: entry.session.document_id.clone(),
+                session_id: entry.session.id.clone(),
+            })?;
         self.catch_up(entry).await?;
         Ok(seq)
     }

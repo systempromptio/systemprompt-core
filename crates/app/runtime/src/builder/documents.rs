@@ -12,7 +12,7 @@ use systemprompt_files::documents::templates::load_catalog;
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_loader::BootContext;
 use systemprompt_models::authz::{SubjectAttributeSource, SubjectSourceHandle};
-use systemprompt_traits::FileStorage;
+use systemprompt_traits::{BackgroundTasks, FileStorage};
 
 use systemprompt_users::UserRepository;
 
@@ -27,6 +27,7 @@ pub(super) struct DocumentsInputs<'a> {
     pub(super) subjects: &'a SubjectSourceHandle,
     pub(super) event_router: &'a EventRouter,
     pub(super) files_config: &'a FilesConfig,
+    pub(super) background_tasks: &'a BackgroundTasks,
 }
 
 pub(super) fn build_documents(
@@ -47,5 +48,6 @@ pub(super) fn build_documents(
         event_router: inputs.event_router.clone(),
         catalog,
         config: *inputs.files_config.documents_config(),
+        background_tasks: inputs.background_tasks.clone(),
     })))
 }

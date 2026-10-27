@@ -13,7 +13,7 @@ use systemprompt_models::documents::{
 };
 
 use super::model::is_collab_format;
-use super::{CollabError, CollabService, CursorRequest, JoinMode, Joined, Left};
+use super::{Checkpoint, CollabError, CollabService, CursorRequest, JoinMode, Joined, Left};
 
 struct Announcement<'a> {
     state: PresenceState,
@@ -52,6 +52,7 @@ impl CollabService {
             session_id: session.id.clone(),
             snapshot: entry.doc.export(ExportMode::Snapshot)?,
             version: entry.doc.oplog_vv().encode(),
+            seq: entry.last_seq,
             head_revision: document.head_revision_id.clone(),
         };
         drop(entry);
@@ -84,26 +85,38 @@ impl CollabService {
             .authorized(who, document, DocumentAction::View, trace)
             .await?;
         let repos = self.documents.repositories();
+        let was_editing = repos.collab.is_editing(&document.id, &who.id).await?;
         repos
             .collab
             .remove_web_presence(&document.id, &who.id)
             .await?;
+        let stays_open = Left {
+            closed: false,
+            checkpoint: Checkpoint::Unchanged,
+        };
         let open = repos.edit_sessions.find_open(&document.id).await?;
         let Some(open) = open.filter(|open| open.id == *session) else {
-            return Ok(Left {
-                closed: false,
-                checkpoint: None,
-            });
+            return Ok(stays_open);
         };
         if repos.collab.count_editors(&document.id).await? > 0 {
-            return Ok(Left {
-                closed: false,
-                checkpoint: None,
-            });
+            return Ok(stays_open);
         }
         let entry = self.entry(&document, &open).await?;
         let mut entry = entry.lock().await;
-        let checkpoint = self.checkpoint(&mut entry, who, trace).await?;
+        let editor = entry
+            .last_editor
+            .clone()
+            .or_else(|| was_editing.then(|| who.clone()));
+        let Some(editor) = editor else {
+            return Ok(stays_open);
+        };
+        let checkpoint = self.settle(&mut entry, &editor, trace).await?;
+        if matches!(checkpoint, Checkpoint::Conflict { .. }) {
+            return Ok(Left {
+                closed: false,
+                checkpoint,
+            });
+        }
         let closed = repos.edit_sessions.close(&open.id).await?;
         drop(entry);
         self.cache_remove(&document.id);

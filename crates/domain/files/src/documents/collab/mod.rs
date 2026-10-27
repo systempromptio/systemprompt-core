@@ -34,6 +34,7 @@ pub mod model;
 mod persist;
 mod session;
 mod timer;
+mod trash;
 mod types;
 
 use std::collections::HashMap;
@@ -42,7 +43,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use systemprompt_identifiers::DocumentId;
 
 pub use error::CollabError;
-pub use types::{Applied, ApplyRequest, CollabTuning, CursorRequest, JoinMode, Joined, Left};
+pub use types::{
+    Applied, ApplyRequest, Checkpoint, CollabTuning, CursorRequest, JoinMode, Joined, Left,
+};
 
 use self::entry::SharedEntry;
 use super::service::DocumentService;

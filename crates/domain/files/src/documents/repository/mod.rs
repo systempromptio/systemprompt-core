@@ -35,7 +35,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
 pub use blobs::DocumentBlobRepository;
-pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository};
+pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository, SnapshotMark};
 pub use comments::DocumentCommentRepository;
 pub use documents::DocumentRepository;
 pub use edit_sessions::DocumentEditSessionRepository;
