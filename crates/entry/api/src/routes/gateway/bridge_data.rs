@@ -50,8 +50,7 @@ pub async fn set_host_enabled(
     instance: &InstanceHosts,
 ) -> OauthResult<HostPrefWrite> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    repo.set_enabled(user_id, host, enabled, instance)
-        .await
+    repo.set_enabled(user_id, host, enabled, instance).await
 }
 
 pub async fn load_host_model_protocols(

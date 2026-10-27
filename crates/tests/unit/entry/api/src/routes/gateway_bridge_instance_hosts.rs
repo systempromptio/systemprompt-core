@@ -83,7 +83,9 @@ fn a_default_off_catalog_entry_is_enabled_but_opt_in() {
     let mut services = ServicesConfig::default();
     let (id, mut agent) = catalog_entry("claude_code", true);
     agent.default_enabled = false;
-    services.external_agents.extend([(id, agent), catalog_entry("hermes", false)]);
+    services
+        .external_agents
+        .extend([(id, agent), catalog_entry("hermes", false)]);
 
     let instance = services.instance_hosts();
     assert!(instance.enabled.contains(&HostKind::ClaudeCode));
@@ -93,7 +95,11 @@ fn a_default_off_catalog_entry_is_enabled_but_opt_in() {
         !instance.is_opt_in(HostKind::Hermes),
         "a disabled host is not offered at all"
     );
-    assert!(instance.by_default().all(|host| host != HostKind::ClaudeCode));
+    assert!(
+        instance
+            .by_default()
+            .all(|host| host != HostKind::ClaudeCode)
+    );
 }
 
 #[test]

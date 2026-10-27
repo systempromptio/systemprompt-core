@@ -198,5 +198,8 @@ fn a_rules_block_past_the_budget_reports_its_length() {
 fn rules_that_reach_no_opencode_host_do_not_count_against_the_budget() {
     use systemprompt_models::bridge::opencode::agents_md::{AGENTS_MD_BUDGET_CHARS, over_budget};
     let body = "x".repeat(AGENTS_MD_BUDGET_CHARS);
-    assert_eq!(over_budget(&[rule("a", &["cowork", "claude-code"], &body)]), None);
+    assert_eq!(
+        over_budget(&[rule("a", &["cowork", "claude-code"], &body)]),
+        None
+    );
 }

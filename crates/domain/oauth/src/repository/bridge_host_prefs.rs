@@ -135,8 +135,11 @@ impl BridgeHostPrefsRepository {
         )
         .fetch_all(&mut *tx)
         .await?;
-        let is_default_row =
-            |raw: &str| raw.parse::<HostKind>().ok().is_none_or(|h| !instance.is_opt_in(h));
+        let is_default_row = |raw: &str| {
+            raw.parse::<HostKind>()
+                .ok()
+                .is_none_or(|h| !instance.is_opt_in(h))
+        };
         let stored_defaults: Vec<&str> = stored
             .iter()
             .map(String::as_str)

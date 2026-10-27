@@ -14,7 +14,7 @@ use systemprompt_models::bridge::manifest::{ManifestOpenCode, PluginFile, ThemeM
 use crate::opencode_managed_resources::{apply, manifest_with, with_sandbox};
 
 const PLUGIN: &str = "brand";
-const THEME_BODY: &str = r#"{"theme":{"primary":"#c00"}}"#;
+const THEME_BODY: &str = r##"{"theme":{"primary":"#c00"}}"##;
 
 fn digest(bytes: &[u8]) -> Sha256Digest {
     let hex: String = Sha256::digest(bytes)
@@ -116,9 +116,16 @@ fn a_theme_the_user_chose_is_never_replaced() {
         fs::create_dir_all(dir).expect("opencode dir");
         fs::write(dir.join("cli.json"), r#"{"theme":{"name":"oc-2"}}"#).expect("cli.json");
 
-        apply(&themed_manifest(org.path(), two_themes("dark", None)), org.path()).expect("apply");
+        apply(
+            &themed_manifest(org.path(), two_themes("dark", None)),
+            org.path(),
+        )
+        .expect("apply");
 
-        assert_eq!(read_json(&dir.join("cli.json"))["theme"], json!({"name": "oc-2"}));
+        assert_eq!(
+            read_json(&dir.join("cli.json"))["theme"],
+            json!({"name": "oc-2"})
+        );
     });
 }
 
@@ -129,7 +136,11 @@ fn the_theme_key_an_older_bridge_wrote_into_opencode_json_is_removed() {
         fs::create_dir_all(sb.config.parent().expect("opencode dir")).expect("opencode dir");
         fs::write(&sb.config, r#"{"theme":"dark","autoupdate":false}"#).expect("opencode.json");
 
-        apply(&themed_manifest(org.path(), two_themes("dark", None)), org.path()).expect("apply");
+        apply(
+            &themed_manifest(org.path(), two_themes("dark", None)),
+            org.path(),
+        )
+        .expect("apply");
 
         let doc = read_json(&sb.config);
         assert!(doc.get("theme").is_none(), "{doc}");

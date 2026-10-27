@@ -58,15 +58,10 @@ pub async fn set_enabled_host(
         return Err(BridgeError::HostDisabled(body.host_id).into());
     }
 
-    let written = bridge_data::set_host_enabled(
-        &ctx,
-        &claims.user_id,
-        body.host_id,
-        body.enabled,
-        &instance,
-    )
-    .await
-    .map_err(BridgeError::from)?;
+    let written =
+        bridge_data::set_host_enabled(&ctx, &claims.user_id, body.host_id, body.enabled, &instance)
+            .await
+            .map_err(BridgeError::from)?;
     if written == HostPrefWrite::WouldDisableAll {
         return Err(BridgeError::LastHostDisabled(body.host_id).into());
     }

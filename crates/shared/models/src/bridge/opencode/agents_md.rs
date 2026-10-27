@@ -8,7 +8,8 @@
 use crate::bridge::host::HostProduct;
 use crate::bridge::manifest::RuleEntry;
 
-pub const BLOCK_BEGIN: &str = "<!-- systemprompt:begin (managed by the bridge; edits are replaced) -->";
+pub const BLOCK_BEGIN: &str =
+    "<!-- systemprompt:begin (managed by the bridge; edits are replaced) -->";
 pub const BLOCK_END: &str = "<!-- systemprompt:end -->";
 
 // Why: OpenCode stops reading AGENTS.md instructions past this many

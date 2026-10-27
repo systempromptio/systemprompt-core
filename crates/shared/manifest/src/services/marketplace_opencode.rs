@@ -97,8 +97,9 @@ fn is_file_stem(name: &str) -> bool {
 
 impl OpenCodeMarketplaceConfig {
     pub(super) fn validate(&self, key: &str) -> Result<(), ServicesValidationError> {
-        let invalid =
-            |what: String| ServicesValidationError::invalid_field(format!("Marketplace '{key}': {what}"));
+        let invalid = |what: String| {
+            ServicesValidationError::invalid_field(format!("Marketplace '{key}': {what}"))
+        };
         if let Some(version) = &self.min_client_version
             && *version < MIN_CLIENT_VERSION
         {

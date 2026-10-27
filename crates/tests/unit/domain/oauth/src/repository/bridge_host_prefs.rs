@@ -12,7 +12,11 @@ fn hosts(enabled: &[HostKind], opt_in: &[HostKind]) -> InstanceHosts {
 
 fn instance() -> InstanceHosts {
     hosts(
-        &[HostKind::ClaudeCode, HostKind::ClaudeDesktop, HostKind::OpenCode],
+        &[
+            HostKind::ClaudeCode,
+            HostKind::ClaudeDesktop,
+            HostKind::OpenCode,
+        ],
         &[],
     )
 }
@@ -307,7 +311,10 @@ async fn an_unknown_host_id_is_refused_by_the_schema_and_valid_rows_still_read()
 
 #[test]
 fn an_opt_in_host_reaches_only_a_user_who_turned_it_on() {
-    let instance = hosts(&[HostKind::ClaudeCode, HostKind::OpenCode], &[HostKind::ClaudeCode]);
+    let instance = hosts(
+        &[HostKind::ClaudeCode, HostKind::OpenCode],
+        &[HostKind::ClaudeCode],
+    );
     let untouched = EnabledHostPrefs::default();
     assert!(!untouched.admits(HostKind::ClaudeCode, &instance));
     assert!(untouched.admits(HostKind::OpenCode, &instance));
@@ -337,7 +344,11 @@ async fn enabling_an_opt_in_host_keeps_every_default_host() {
     .await
     .expect("seed user");
     let instance = hosts(
-        &[HostKind::ClaudeCode, HostKind::OpenCode, HostKind::OpenCodeCli],
+        &[
+            HostKind::ClaudeCode,
+            HostKind::OpenCode,
+            HostKind::OpenCodeCli,
+        ],
         &[HostKind::ClaudeCode],
     );
 

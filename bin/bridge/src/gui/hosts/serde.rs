@@ -246,9 +246,7 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
         .copied()
         .map(|host| build_entry(snap, host))
         .collect();
-    entries.extend(
-        sync_only_agents().map(|agent| build_sync_only_entry(snap, agent)),
-    );
+    entries.extend(sync_only_agents().map(|agent| build_sync_only_entry(snap, agent)));
     entries.retain(|e| e.enabled);
     let agent_fleet = AgentFleets::fold(
         &entries

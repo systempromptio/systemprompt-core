@@ -1,11 +1,11 @@
 //! The bridge's entries in the user's V2 `opencode.json`: `mcp.servers.<slug>`
 //! remote servers pointing at the loopback proxy, and the client defaults a
-//! marketplace declares; and the default theme in `cli.json`. Every foreign key survives, including MCP servers the
-//! user added; only server names the sidecar recorded are bridge-owned. Each
-//! entry sets `oauth: false`: the loopback bearer is the credential, and
-//! `OpenCode` otherwise answers a 401 with OAuth client registration against
-//! the proxy, which has no OAuth server. A
-//! client default is set only where the user has not set the key, and is
+//! marketplace declares; and the default theme in `cli.json`. Every foreign key
+//! survives, including MCP servers the user added; only server names the
+//! sidecar recorded are bridge-owned. Each entry sets `oauth: false`: the
+//! loopback bearer is the credential, and `OpenCode` otherwise answers a 401
+//! with OAuth client registration against the proxy, which has no OAuth server.
+//! A client default is set only where the user has not set the key, and is
 //! never removed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -95,7 +95,11 @@ fn strip_bridge_servers(recorded: &[String], root: &mut Map<String, Value>) {
 
 pub(super) fn apply_cli_defaults(manifest: &SignedManifest) -> Result<(), ApplyError> {
     let mut defaults: Map<String, Value> = Map::new();
-    for opencode in manifest.marketplaces.iter().filter_map(|m| m.opencode.as_ref()) {
+    for opencode in manifest
+        .marketplaces
+        .iter()
+        .filter_map(|m| m.opencode.as_ref())
+    {
         for (key, value) in &opencode.cli_defaults {
             defaults.entry(key.clone()).or_insert_with(|| value.clone());
         }
@@ -133,10 +137,10 @@ fn strip_v1_theme(manifest: &SignedManifest, root: &mut Map<String, Value>) {
     }
 }
 
-/// Selects the first marketplace's default theme in `cli.json`, where `OpenCode`
-/// V2 reads it, unless the user has chosen a theme. Only a theme whose file
-/// was projected is selected: the TUI falls back silently to its own default
-/// when the named theme is missing.
+/// Selects the first marketplace's default theme in `cli.json`, where
+/// `OpenCode` V2 reads it, unless the user has chosen a theme. Only a theme
+/// whose file was projected is selected: the TUI falls back silently to its own
+/// default when the named theme is missing.
 pub(super) fn select_default_theme(
     manifest: &SignedManifest,
     projected_themes: &[String],
