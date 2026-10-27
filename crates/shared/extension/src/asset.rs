@@ -19,6 +19,20 @@ pub enum AssetType {
     Image,
     Font,
     JavaScript,
+    Wasm,
+}
+
+impl AssetType {
+    #[must_use]
+    pub const fn mime_type(self) -> Option<&'static str> {
+        match self {
+            Self::Css => Some("text/css"),
+            Self::Html => Some("text/html"),
+            Self::JavaScript => Some("text/javascript"),
+            Self::Wasm => Some("application/wasm"),
+            Self::Image | Self::Font => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -105,6 +119,11 @@ impl AssetDefinition {
     #[must_use]
     pub fn js(source: impl Into<PathBuf>, destination: &'static str) -> Self {
         Self::javascript(source, destination)
+    }
+
+    #[must_use]
+    pub fn wasm(source: impl Into<PathBuf>, destination: &'static str) -> Self {
+        Self::builder(source, destination, AssetType::Wasm).build()
     }
 
     #[must_use]
