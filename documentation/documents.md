@@ -75,23 +75,29 @@ Required levels: view and read need `view`, edit and commit need `edit`, listing
 - **Locks.** A lease held by another holder (bridge, editor or agent) refuses the commit.
 - **Size.** Uploads are bounded by `maxUploadBytes`.
 
-Each commit updates the per-document search index (full-text over the extracted plain text). Revisions, presence and locks emit `document.revision.created`, `document.presence`, `document.lock` and `document.conflict` events on the AgUi stream (`/api/v1/stream/agui`), delivered to the owner and to users with presence on the document. Clients filter on the `document.` prefix.
+Each commit updates the per-document search index (full-text over the extracted plain text). Revisions, presence and locks emit `document.revision.created`, `document.presence`, `document.lock` and `document.conflict` events on the AgUi stream (`/api/v1/stream/agui`), delivered to the owner and to users with presence on the document. Comments emit `document.comment.created` and `document.comment.resolved` to the same users; a grant emits `document.shared` to them and to the user it names, and an ownership transfer emits `document.ownership_transferred` to the new owner. Clients filter on the `document.` prefix.
 
 ## MCP tools
 
-Document tools are exposed through MCP and authorise as the calling user, never as the server. There are nine tools. Read-only tools are annotated as such.
+Document tools are exposed through MCP and authorise as the calling user, never as the server. There are fifteen tools. Read-only tools are annotated as such.
 
 | Tool | Purpose |
 |---|---|
-| `documents_list` | Folders and documents in one folder, paged by cursor. |
+| `documents_list` | Documents by scope: one folder with its subfolders, documents shared with the caller, the caller's own, or the ones the caller last edited, commented on or opened. Filtered by name, sorted by name, last update or last touch, paged by cursor. Each item carries its size and the caller's access level. |
 | `documents_search` | Full-text search over the head revision of every visible document. |
 | `documents_create` | Create from a template, optionally applying edit operations in the same first revision. |
 | `documents_read` | A revision as hashlines, by outline, text, node range, one node, spreadsheet cells or search; the changes since a revision; or the document's metadata and who is in it now. |
-| `documents_edit` | Apply edit operations as one revision on the head, guarded per node, optionally idempotent by `op_id`. |
+| `documents_edit` | Apply edit operations as one revision on the head, guarded per node, optionally idempotent by `op_id`. `answering` records the revision on a comment; an edit that removes text a comment is anchored to is refused unless `allow_detach` is set. |
+| `documents_comment` | Create, list and resolve comment threads anchored to a node and, optionally, a quote inside it. |
 | `documents_history` | Revisions, newest first, with author, actor kind and message, and with `verbose` the session, context, trace, task and on-behalf-of user. |
-| `documents_share` | Grant a subject access to a document or a folder subtree. |
+| `documents_share` | Grant a subject access to a document or a folder subtree, transfer a document's ownership, or revoke every grant on it. |
+| `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders, and the caller's level. |
+| `documents_copy` | A new document owned by the caller from another document's head, with its own history. |
+| `documents_update` | Rename a document or move it to another folder. |
+| `documents_trash` | Move a document to the trash. |
+| `documents_restore_document` | Restore a trashed document. |
 | `documents_export` | A signed ten-minute download link, or the sanitised HTML preview for the document-preview app. |
-| `documents_guide` | Working detail by topic: `editing`, `formats`, `sheets`, `slides`, `sharing` and `refusal.<code>`. |
+| `documents_guide` | Working detail by topic: `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle` and `refusal.<code>`. |
 
 The server `instructions` carry the working contract: read the outline, edit by node id and hash or by quote with an `op_id`, anchor the next edit on the acknowledgement and resume later with the changes since your last revision, let the head edit win on a conflict and never resend the old text, and do not re-read between your own writes.
 
@@ -99,9 +105,15 @@ The server `instructions` carry the working contract: read the outline, edit by 
 
 **Editing.** Operations are `replace_text`, `insert_after`, `delete`, `str_replace`, `set_cells`, `insert_slide`, `set_text`, `set_html`, `append_markdown`, `restore` and `insert_from_revision`. Every target in a call resolves against the document as it stood before the call, operations apply in order, and all apply or none. Each codec reports the node kinds `insert_after` accepts for its format. Every write takes a revision message, which history shows.
 
+**Placeholders.** A `pending` block stands for content still to be written and carries its intent as text, so a document can be laid out as a skeleton and filled section by section. `insert_after` takes kind `pending`, and in Markdown content a line `<!-- pending: intent -->` is a pending block. Each format stores it natively: a highlighted run reading `[pending: intent]` in Word, a text paragraph in PowerPoint and OpenDocument, a cell in a spreadsheet, a `<p data-pending="intent">` in HTML, the comment followed by the intent in italics in Markdown, and a `[pending: intent]` line in text. A read shows it as kind `pending`; `replace_text` on it writes ordinary content in its place.
+
+**Comments.** A comment is anchored to a stable node id and, optionally, to the nth occurrence of a quote inside that node; a reply carries its parent's anchor. Edits elsewhere never move an anchor. An edit that deletes the node or the quoted words is refused with `anchors_affected`, listing the comments, unless it sets `allow_detach`; a detached comment keeps its node and drops its quote. Bridge uploads and whole-file writes detach without refusing. Commenting needs `comment` access.
+
+**Lifecycle.** A trashed document leaves listings, and reads, edits and shares refuse it as `not_found` with `trashed: true`; only a caller who could reach it learns it is trashed. Trashing and restoring need `own`. A document restored into a deleted folder lands at the root, and a name taken in the meantime gains a ` (restored)` suffix. Trashed documents are deleted, with their revisions, after the retention period. Transferring ownership needs `own`, and the previous owner keeps `edit`.
+
 **Results.** A result is a one-line summary plus structured content, sent once. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs, content hashes, each node id's positional path and the revision attribution. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read; a write landed on a moved head says `merged`, and a replayed `op_id` says `replayed`.
 
-**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` (`stale_base`, `guard_mismatch`, `find_none`, `unsupported_op`, `unsupported_format`, `template_failed`, `forbidden`, `not_found`, `locked`, `invalid_params`) and the detail the failure knows: the head revision and who wrote it, a node's current text and hash, a match count or the accepted node kinds. The text names what to do next.
+**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` (`stale_base`, `guard_mismatch`, `find_none`, `unsupported_op`, `unsupported_format`, `template_failed`, `forbidden`, `not_found`, `locked`, `anchors_affected`, `invalid_params`) and the detail the failure knows: the head revision and who wrote it, a node's current text and hash, a match count, the accepted node kinds, the owner to ask for access, the comments an edit would detach, or that a document is in the trash. The text names what to do next.
 
 **Export.** `native` as a URL works for every format, and `html` as a preview works for every format. `md` or `html` as a URL is offered only for a document already in that format, and `pdf` is refused as `unsupported_format`.
 
@@ -113,10 +125,16 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 
 | Route | Purpose |
 |---|---|
-| `GET`, `POST /api/v1/documents` | List, create from a template, or import by multipart upload. |
-| `GET`, `HEAD /api/v1/documents/{id}` | Metadata. The `ETag` is the head revision. |
+| `GET`, `POST /api/v1/documents` | List by `scope` (`folder`, `shared`, `mine`, `recent`), `folder`, `query` and `sort` (`name`, `updated`, `recent`), with each document's `size_bytes` and `my_access`; create from a template, or import by multipart upload. |
+| `GET`, `HEAD`, `PATCH`, `DELETE /api/v1/documents/{id}` | Metadata, rename and move, and trash. The `ETag` is the head revision. |
+| `POST /api/v1/documents/{id}/restore`, `/copy` | Restore from the trash; copy into a new document. |
+| `GET /api/v1/documents/{id}/read` | The `documents_read` views: `view=outline`, `text`, `changes` (`since_revision`), `node` (`node_id`), `search` (`text`) or `meta`, at `revision_id` or the head. |
+| `GET`, `POST /api/v1/documents/{id}/comments`, `POST /api/v1/documents/{id}/comments/{comment_id}/resolve` | Comment threads. |
+| `GET /api/v1/documents/{id}/access` | Owner, grants with display names, inherited grants and the caller's level. |
+| `POST /api/v1/documents/{id}/transfer`, `DELETE /api/v1/documents/{id}/grants/all` | Ownership transfer; revoke every grant. |
+| `GET /api/v1/documents/subject-kinds` | The grant subject kinds this installation accepts. |
 | `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support. Replace the bytes with `If-Match: "<revision_id>"`; a stale base merges as described above or returns `409` with the head and base. `?op_id=` makes the write idempotent. |
-| `POST /api/v1/documents/{id}/edits` | Structured edit operations, with an optional base revision and `op_id`. |
+| `POST /api/v1/documents/{id}/edits` | Structured edit operations, with an optional base revision, `op_id`, `answering` and `allow_detach`. |
 | `GET /api/v1/documents/{id}/revisions` | Revision history. |
 | `GET /api/v1/documents/{id}/projection`, `/preview` | Node projection and HTML preview. |
 | `GET`, `POST`, `DELETE /api/v1/documents/{id}/grants` | Grants. |
@@ -223,6 +241,7 @@ The store reads the `files.documents` section of `<services>/config/files.yaml`.
 | `maxUploadBytes` | 64 MiB | 1 MiB to 2 GiB | Largest accepted document body. |
 | `blobGcGraceHours` | 24 | at least 1 | Age before an unreferenced blob can be deleted. |
 | `presenceTtlSecs` | 90 | at least 1 | How long a presence beacon stays valid. |
+| `trashRetentionDays` | 30 | at least 1 | How long a trashed document is kept before it is deleted. |
 
 Config validation rejects values outside the bounds.
 
@@ -233,6 +252,7 @@ Config validation rejects values outside the bounds.
 | `document_blob_gc` | daily | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
 | Presence sweep | every 60 seconds | Removes expired presence rows and write acknowledgements older than seven days. |
 | `document_collab_update_sweep` | every 5 minutes | Deletes the update log of closed edit sessions. |
+| `document_trash_purge` | daily | Deletes documents trashed longer than the retention period, with their revisions, node ids, grants and comments; the blob GC then collects their blobs. |
 
 All run once per cluster, and return without work while the store is disabled.
 

@@ -25,6 +25,14 @@
 - **Breaking:** **Models:** `DriveCommitResponse` gains `Merged { revision_id, content_sha256 }`. Migrate by adding an arm to exhaustive matches; a client records the merged revision and pulls its content.
 - **Breaking:** **Runtime:** `EditInput::base_revision` becomes optional and `EditInput` gains `op_id`; `ReadInput` gains `since_revision`, `node_id` and `text`; `ReadView` gains `Changes`, `Node`, `Search` and `Meta`; `ReadOutput` gains `meta` and `paths`; `EditOutput` gains `replayed`; `RevisionItem` gains `attribution`. Migrate struct literals by adding the new fields.
 
+- **Breaking:** **Files:** `DocumentsError::Forbidden` gains `owner: Option<UserId>`, named in its message, and `DocumentsError` gains `Trashed`, `AnchorsAffected`, `InvalidComment` and `CommentNotFound`. Migrate struct patterns by adding `..` and exhaustive matches by adding arms.
+- **Breaking:** **Files:** `Document::deleted_at` becomes `trashed_at`, with `trashed_by`; `DocumentService::delete` becomes `trash`, and `rename` plus `move_to` are reached through `update`. Migrate by calling `trash` and `update`.
+- **Breaking:** **Files:** `CommitRequest` gains `comments: CommentPolicy`. Migrate struct literals by passing `CommentPolicy::default()` to guard comment anchors or `CommentPolicy::detach()` for whole-file uploads.
+- **Breaking:** **Files:** `ListFolderRequest` gains `scope`, `query` and `sort`, its `cursor` becomes `ListingCursor`, and `Listing::documents` holds `ListedDocument`s carrying `size_bytes` and `my_access`. Migrate by passing `ListScope::Folder`, `None` and `ListSort::Updated` and reading `listed.document`.
+- **Breaking:** **Files:** `DocumentGrant` gains `subject_display`, `DocumentRepositories` gains `comments`, and `AccessTarget` gains `Trashed`. Migrate struct literals and exhaustive matches accordingly.
+- **Breaking:** **Provider contracts, Models:** `NodeKind` gains `Pending`, and `DocumentEventName` gains `CommentCreated`, `CommentResolved`, `Shared` and `OwnershipTransferred`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+- **Breaking:** **Runtime:** `ShareInput`'s `subject_kind`, `subject_value` and `level` become optional and it gains `transfer_to` and `revoke_all`; `ShareOutput` carries `grant`, `transferred_to` or `revoked`; `ListInput` gains `scope` and `sort`; `EditInput` gains `answering` and `allow_detach`; `DocumentItem` gains `size_bytes` and `my_access`; `RefusalCode` gains `AnchorsAffected`. Migrate struct literals by adding the fields.
+
 ### Changed
 
 - **Files:** projections returned by `DocumentService::project` address nodes by stable id (`<writer>.<counter>`), kept across revisions while the block exists; the codec path is the node's `path` attribute. Edit ops name those ids.
@@ -53,6 +61,13 @@
 
 - **Files:** Web Components for the document store: `sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-document-editor` (live HTML and Markdown co-editing over the collab routes), `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-history`, `sp-comments` and `sp-proposal-list`. `FilesExtension::required_assets` ships them to `assets/documents/{js,css,wasm}` with `loro-crdt` 1.17.1 vendored as WebAssembly.
 - **Extension:** `AssetDefinition::wasm`; `AssetType::mime_type` names the media type of the single-type families (`application/wasm` for `Wasm`).
+- **Files, Runtime, API:** document comments: threads anchored to a stable node id and an optional quote, with replies, resolution, `answering` revisions and the `anchors_affected` guard; `documents_comment` and `GET`/`POST /api/v1/documents/{id}/comments`.
+- **Files, Runtime:** `pending` placeholder blocks in every codec, for laying a document out as a skeleton and filling it.
+- **Files, Runtime, API:** the document trash with `documents_trash`, `documents_restore_document`, `DELETE /api/v1/documents/{id}` and `POST /{id}/restore`, the `files.documents.trashRetentionDays` setting (default 30) and the `document_trash_purge` job.
+- **Files, Runtime, API:** `documents_copy`, `documents_update`, `documents_access`, ownership transfer and revoke-all, and `GET /{id}/access`, `POST /{id}/copy`, `POST /{id}/transfer`, `DELETE /{id}/grants/all` and `GET /api/v1/documents/subject-kinds`.
+- **API:** `GET /api/v1/documents/{id}/read` serves the `documents_read` views.
+- **Files:** scoped document listings (`folder`, `shared`, `mine`, `recent`) sorted by name, update or last touch, with the name filter, size and access level computed in SQL.
+- **Models:** `DocumentCommentCreatedEvent`, `DocumentCommentResolvedEvent`, `DocumentSharedEvent` and `DocumentOwnershipTransferredEvent`; `DocumentCommentId`.
 - **Documents:** live co-editing of HTML and Markdown documents over a Loro CRDT behind the `collab` feature (`files-collab` on the facade, in `full`): `CollabService` and `POST /api/v1/documents/{id}/collab/{join,updates,leave,cursor}`. Updates reach present users as `document.collab.update` events on their AG-UI stream; sessions are snapshotted every 30 seconds or 200 updates and committed as `edit_session` revisions every 2 minutes and when the last editor leaves.
 - **Documents:** the `document_collab_update_sweep` job deletes the update log of closed edit sessions.
 - **Files:** `document_node_ids` stores each revision's stable node ids, `document_write_acks` stores write acknowledgements by op id for seven days (swept by the presence sweep job), and `document_revisions` gains nullable `session_id`, `context_id`, `trace_id`, `task_id` and `on_behalf_of` with an index on `(context_id, created_at)`.
