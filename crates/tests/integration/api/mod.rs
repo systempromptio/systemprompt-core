@@ -181,6 +181,9 @@ mod protocol_matrix;
 
 #[cfg(test)]
 mod routes_agent_runs;
+
+#[cfg(test)]
+mod documents;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;

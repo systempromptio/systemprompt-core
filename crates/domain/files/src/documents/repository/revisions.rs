@@ -192,6 +192,30 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
         convert(rows)
     }
 
+    pub async fn with_content(
+        &self,
+        hash: &ContentHash,
+        limit: i64,
+    ) -> RepoResult<Vec<DocumentRevision>> {
+        let rows = sqlx::query_as!(
+            RevisionRow,
+            r#"SELECT id::text AS "id!: DocumentRevisionId",
+                      document_id::text AS "document_id!: DocumentId",
+                      parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
+                      content_sha256 AS "content_sha256: ContentHash",
+                      author_user_id AS "author_user_id: UserId",
+                      actor_kind, origin_kind, origin_id, message, edit_ops, created_at
+               FROM document_revisions WHERE content_sha256 = $1
+             ORDER BY created_at DESC, id DESC
+             LIMIT $2"#,
+            hash.as_str(),
+            limit.max(1),
+        )
+        .fetch_all(&*self.pools.read)
+        .await?;
+        convert(rows)
+    }
+
     pub async fn count(&self, document_id: &DocumentId) -> RepoResult<i64> {
         let count = sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM document_revisions WHERE document_id = $1::text::uuid"#,

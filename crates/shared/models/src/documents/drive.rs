@@ -83,6 +83,7 @@ pub enum DriveCommitResponse {
     },
     Conflict {
         head_revision_id: DocumentRevisionId,
+        head_content_sha256: ContentHash,
         base_revision_id: Option<DocumentRevisionId>,
     },
 }

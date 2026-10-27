@@ -29,7 +29,7 @@ async-stream = { workspace = true }
 # CLI
 
 # HTTP/Web framework
-axum = { workspace = true }
+axum = { workspace = true, features = ["multipart"] }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["normalize-path"] }
 tower_governor = { workspace = true }
@@ -87,6 +87,7 @@ systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-files = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-scheduler = { workspace = true }

@@ -369,6 +369,8 @@ fn error_code_serde_roundtrip() {
         ErrorCode::InternalError,
         ErrorCode::ValidationError,
         ErrorCode::ConflictError,
+        ErrorCode::PayloadTooLarge,
+        ErrorCode::Locked,
         ErrorCode::RateLimited,
         ErrorCode::ServiceUnavailable,
     ];

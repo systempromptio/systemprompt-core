@@ -136,6 +136,12 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             ))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
+            .merge(crate::routes::documents::drive::router(
+                crate::routes::documents::drive::DriveState::new(
+                    crate::routes::documents::document_service(ctx)?,
+                    Arc::clone(&jwt_extractor),
+                ),
+            ))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
             .merge(bridge_release::routes(ctx, &jwt_extractor))
             .merge(otel_routes(ctx, &jwt_extractor))

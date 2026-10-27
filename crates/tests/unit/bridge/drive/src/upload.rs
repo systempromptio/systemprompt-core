@@ -72,6 +72,7 @@ async fn conflict_keeps_local_edit_as_sibling_and_writes_the_verified_head() {
         .respond_with(ResponseTemplate::new(409).set_body_json(serde_json::json!({
             "status": "conflict",
             "head_revision_id": head.as_str(),
+            "head_content_sha256": content_hash(theirs).as_str(),
             "base_revision_id": base.as_str(),
         })))
         .mount(&server)

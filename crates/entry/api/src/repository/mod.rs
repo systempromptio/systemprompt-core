@@ -31,3 +31,7 @@ pub fn config_plane_state(
 ) -> Arc<systemprompt_scheduler::repository::ConfigReconcileRepository> {
     Arc::new(systemprompt_scheduler::repository::ConfigReconcileRepository::new(db))
 }
+
+pub fn access_control(db: &DbPool) -> Arc<systemprompt_governance::authz::AccessControlRepository> {
+    Arc::new(systemprompt_governance::authz::AccessControlRepository::new(db))
+}

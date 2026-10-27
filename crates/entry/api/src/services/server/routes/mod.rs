@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod agent_runs;
+mod documents;
 mod error;
 mod extension_mount;
 mod gateway;
@@ -105,6 +106,7 @@ fn build_routes(
     }
     if serves(RouteGroup::ContentAndMisc) {
         router = protocol::mount_content_and_misc(router, &mount)?;
+        router = documents::mount_documents(router, &mount)?;
     }
     if serves(RouteGroup::Managed) {
         router = managed::mount(router, &mount)?;

@@ -76,6 +76,7 @@ impl DocumentService {
             },
             CommitOutcome::Conflict { head, base } => DriveCommitResponse::Conflict {
                 head_revision_id: head.id,
+                head_content_sha256: head.content_sha256,
                 base_revision_id: base,
             },
         })

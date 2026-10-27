@@ -50,13 +50,14 @@ fn drive_types_round_trip() {
         document_id: None,
         path: "new.md".into(),
         base_revision: None,
-        content_sha256: sha,
+        content_sha256: sha.clone(),
         size_bytes: 5,
         device_id: DriveDeviceId::new("laptop"),
         message: None,
     });
     round_trip(&DriveCommitResponse::Conflict {
         head_revision_id: revision.clone(),
+        head_content_sha256: sha.clone(),
         base_revision_id: None,
     });
     round_trip(&PresenceBeacon {

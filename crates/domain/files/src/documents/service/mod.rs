@@ -18,6 +18,7 @@
 mod commit;
 mod documents;
 mod drive;
+mod drive_blob;
 mod drive_commit;
 mod folders;
 mod grants;
