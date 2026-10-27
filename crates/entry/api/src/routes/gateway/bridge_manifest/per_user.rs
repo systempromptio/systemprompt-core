@@ -7,7 +7,7 @@
 
 use systemprompt_identifiers::{ApiKeyId, ManagedResourceId, UserId};
 use systemprompt_marketplace::MarketplaceCandidate;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_runtime::AppContext;
 
@@ -60,7 +60,7 @@ pub(super) struct PerUserContext {
 pub(super) async fn load_per_user_context(
     ctx: &AppContext,
     user_id: &UserId,
-    instance_hosts: Vec<HostKind>,
+    instance_hosts: InstanceHosts,
 ) -> Result<PerUserContext, BridgeError> {
     let user = match bridge_data::load_user(ctx, user_id).await {
         Ok(u) => u,
@@ -76,8 +76,10 @@ pub(super) async fn load_per_user_context(
 
     let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
         Ok(prefs) => instance_hosts
-            .into_iter()
-            .filter(|host| prefs.admits(*host))
+            .enabled
+            .iter()
+            .copied()
+            .filter(|host| prefs.admits(*host, &instance_hosts))
             .collect(),
         Err(e) => {
             return Err(BridgeError::internal(

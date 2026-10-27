@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** **OAuth:** `EnabledHostPrefs::any_enabled_row` becomes `unknown_enabled_row`, and `admits` and `BridgeHostPrefsRepository::set_enabled` take `&InstanceHosts` instead of a host slice. Migrate by passing `ServicesConfig::instance_hosts()`.
 - **Breaking:** **Marketplace:** `ImportWarning` gains `RulesMissOpenCode`, a strict error raised when a marketplace configures `opencode:` and a rule's `hosts` reach no `OpenCode` host. Migrate by adding an arm (or a wildcard) to exhaustive matches.
 - **Breaking:** **Models, Manifest:** `ManifestOpenCode::theme` and `OpenCodeMarketplaceConfig::theme` become `themes: Vec<_>` plus `default_theme` and `theme_mode`. On the wire and in YAML the single `theme:` form is still read as the only theme and the default. Migrate code by reading `themes` and `default_theme_ref()`.
 - **Breaking:** **Marketplace:** `ImportWarning` gains `MissingSkillManifest`, `MissingReference` and `SiblingSkillPath`. Migrate by adding arms (or a wildcard) to exhaustive matches.
@@ -27,6 +28,7 @@
 
 ### Added
 
+- **Manifest, Gateway:** `external_agents.<host>.default_enabled: false` makes an enabled host opt-in. It reaches only users with an explicit enabled row, for example a farm's service account, and never counts towards "no rows means every host". Read it with `ServicesConfig::instance_hosts()` (`InstanceHosts`).
 - **CLI:** `core services validate` reports an `agents_md` finding that warns when the tree's `OpenCode` rules render to more than the 24,000 characters `OpenCode` reads from `AGENTS.md`; the bridge warns on sync too. The renderer moved to `systemprompt_models::bridge::opencode::agents_md`, so both measure the text the bridge writes.
 - **Files:** `DocumentService` and `DocumentAccessService` — folders registered as authz entities, subject-keyed grants resolved with the registered subject dimensions and the authz hook (fail closed), template-based creation and import, hash-anchored edit commits with a compare-and-swap head, three-way merges for text formats and conflict reporting for Office formats, locks, presence, sharing, search and the bridge Drive feed, with document events on the AgUi stream.
 - **Files:** OpenDocument `DocumentCodec`s for `.odt`, `.ods` and `.odp` (feature `office`) with the same hash-anchored projections, part-level edits, HTML preview, templates and blank documents as the OOXML codecs.

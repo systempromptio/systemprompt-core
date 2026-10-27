@@ -8,22 +8,40 @@
 
 use std::collections::BTreeSet;
 
-use super::{MarketplaceConfig, PluginConfig, ServicesConfig};
-use systemprompt_models::bridge::host::HostKind;
+use super::{ExternalAgentConfig, MarketplaceConfig, PluginConfig, ServicesConfig};
+use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_models::plugin::ComponentSource;
 
 impl ServicesConfig {
+    fn external_agent(&self, host: HostKind) -> Option<&ExternalAgentConfig> {
+        self.external_agents
+            .iter()
+            .find(|(id, _)| id.as_str().replace('_', "-") == host.as_str())
+            .map(|(_, agent)| agent)
+    }
+
+    /// The hosts this instance serves. A host with no `external_agents` entry
+    /// is served.
     #[must_use]
     pub fn instance_enabled_hosts(&self) -> Vec<HostKind> {
         HostKind::ALL
             .into_iter()
-            .filter(|host| {
-                self.external_agents
-                    .iter()
-                    .find(|(id, _)| id.as_str().replace('_', "-") == host.as_str())
-                    .is_none_or(|(_, agent)| agent.enabled)
-            })
+            .filter(|host| self.external_agent(*host).is_none_or(|agent| agent.enabled))
             .collect()
+    }
+
+    #[must_use]
+    pub fn instance_hosts(&self) -> InstanceHosts {
+        let enabled = self.instance_enabled_hosts();
+        let opt_in = enabled
+            .iter()
+            .copied()
+            .filter(|host| {
+                self.external_agent(*host)
+                    .is_some_and(|agent| !agent.default_enabled)
+            })
+            .collect();
+        InstanceHosts { enabled, opt_in }
     }
 
     #[must_use]

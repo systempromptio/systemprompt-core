@@ -53,8 +53,8 @@ pub async fn set_enabled_host(
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
     let services = ctx.services_config();
-    let instance_hosts = services.instance_enabled_hosts();
-    if body.enabled && !instance_hosts.contains(&body.host_id) {
+    let instance = services.instance_hosts();
+    if body.enabled && !instance.enabled.contains(&body.host_id) {
         return Err(BridgeError::HostDisabled(body.host_id).into());
     }
 
@@ -63,7 +63,7 @@ pub async fn set_enabled_host(
         &claims.user_id,
         body.host_id,
         body.enabled,
-        &instance_hosts,
+        &instance,
     )
     .await
     .map_err(BridgeError::from)?;

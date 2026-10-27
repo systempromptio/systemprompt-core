@@ -1,13 +1,21 @@
 // DB-backed bridge per-host preference tests (set_enabled + list-enabled).
 
-use systemprompt_models::bridge::host::HostKind;
-use systemprompt_oauth::repository::{BridgeHostPrefsRepository, HostPrefWrite};
+use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
+use systemprompt_oauth::repository::{BridgeHostPrefsRepository, EnabledHostPrefs, HostPrefWrite};
 
-const INSTANCE: [HostKind; 3] = [
-    HostKind::ClaudeCode,
-    HostKind::ClaudeDesktop,
-    HostKind::OpenCode,
-];
+fn hosts(enabled: &[HostKind], opt_in: &[HostKind]) -> InstanceHosts {
+    InstanceHosts {
+        enabled: enabled.to_vec(),
+        opt_in: opt_in.iter().copied().collect(),
+    }
+}
+
+fn instance() -> InstanceHosts {
+    hosts(
+        &[HostKind::ClaudeCode, HostKind::ClaudeDesktop, HostKind::OpenCode],
+        &[],
+    )
+}
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
@@ -29,10 +37,10 @@ async fn set_enabled_then_list_enabled() {
     let host_a = HostKind::ClaudeCode;
     let host_b = HostKind::CodexCli;
 
-    repo.set_enabled(&user_id, host_a, true, &INSTANCE)
+    repo.set_enabled(&user_id, host_a, true, &instance())
         .await
         .expect("enable a");
-    repo.set_enabled(&user_id, host_b, false, &INSTANCE)
+    repo.set_enabled(&user_id, host_b, false, &instance())
         .await
         .expect("disable b");
 
@@ -56,7 +64,7 @@ async fn disabling_the_last_enabled_host_is_refused() {
     .expect("seed user");
 
     let host = HostKind::Hermes;
-    repo.set_enabled(&user_id, host, true, &INSTANCE)
+    repo.set_enabled(&user_id, host, true, &instance())
         .await
         .expect("enable");
     assert!(
@@ -68,7 +76,7 @@ async fn disabling_the_last_enabled_host_is_refused() {
     );
 
     let outcome = repo
-        .set_enabled(&user_id, host, false, &INSTANCE)
+        .set_enabled(&user_id, host, false, &instance())
         .await
         .expect("disable");
     assert_eq!(outcome, HostPrefWrite::WouldDisableAll);
@@ -93,14 +101,14 @@ async fn disabling_one_host_with_no_rows_keeps_the_other_instance_hosts() {
     .expect("seed user");
 
     let outcome = repo
-        .set_enabled(&user_id, HostKind::OpenCode, false, &INSTANCE)
+        .set_enabled(&user_id, HostKind::OpenCode, false, &instance())
         .await
         .expect("disable opencode");
     assert_eq!(outcome, HostPrefWrite::Written);
     let prefs = repo.get_enabled_prefs(&user_id).await.expect("list");
-    assert!(prefs.admits(HostKind::ClaudeCode));
-    assert!(prefs.admits(HostKind::ClaudeDesktop));
-    assert!(!prefs.admits(HostKind::OpenCode));
+    assert!(prefs.admits(HostKind::ClaudeCode, &instance()));
+    assert!(prefs.admits(HostKind::ClaudeDesktop, &instance()));
+    assert!(!prefs.admits(HostKind::OpenCode, &instance()));
 }
 
 #[tokio::test]
@@ -122,7 +130,7 @@ async fn disabling_the_only_instance_host_with_no_rows_is_refused() {
             &user_id,
             HostKind::ClaudeCode,
             false,
-            &[HostKind::ClaudeCode],
+            &hosts(&[HostKind::ClaudeCode], &[]),
         )
         .await
         .expect("disable");
@@ -132,7 +140,7 @@ async fn disabling_the_only_instance_host_with_no_rows_is_refused() {
             .get_enabled_prefs(&user_id)
             .await
             .expect("list")
-            .any_enabled_row
+            .chose_default_hosts(&instance())
     );
 }
 
@@ -144,7 +152,7 @@ async fn list_enabled_empty_for_unknown_user() {
     let user_id = unique_user_id("bhp-unknown");
     let enabled = repo.get_enabled_prefs(&user_id).await.expect("list");
     assert!(enabled.hosts.is_empty());
-    assert!(!enabled.any_enabled_row);
+    assert!(!enabled.chose_default_hosts(&instance()));
 }
 
 #[tokio::test]
@@ -224,7 +232,7 @@ async fn model_protocols_do_not_perturb_enabled_state() {
             .get_enabled_prefs(&user_id)
             .await
             .expect("list")
-            .any_enabled_row,
+            .chose_default_hosts(&instance()),
         "model-filter override must not register an enable-state row"
     );
 }
@@ -277,7 +285,7 @@ async fn an_unknown_host_id_is_refused_by_the_schema_and_valid_rows_still_read()
         .await
         .expect("read after refused inserts");
     assert!(untouched.hosts.is_empty());
-    assert!(!untouched.any_enabled_row);
+    assert!(!untouched.chose_default_hosts(&instance()));
 
     sqlx::query(
         "INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled) \
@@ -292,7 +300,63 @@ async fn an_unknown_host_id_is_refused_by_the_schema_and_valid_rows_still_read()
         .get_enabled_prefs(&user_id)
         .await
         .expect("read valid rows");
-    assert!(enabled.any_enabled_row);
-    assert!(enabled.admits(HostKind::ClaudeCode));
-    assert!(!enabled.admits(HostKind::OpenCode));
+    assert!(enabled.chose_default_hosts(&instance()));
+    assert!(enabled.admits(HostKind::ClaudeCode, &instance()));
+    assert!(!enabled.admits(HostKind::OpenCode, &instance()));
+}
+
+#[test]
+fn an_opt_in_host_reaches_only_a_user_who_turned_it_on() {
+    let instance = hosts(&[HostKind::ClaudeCode, HostKind::OpenCode], &[HostKind::ClaudeCode]);
+    let untouched = EnabledHostPrefs::default();
+    assert!(!untouched.admits(HostKind::ClaudeCode, &instance));
+    assert!(untouched.admits(HostKind::OpenCode, &instance));
+
+    let opted_in = EnabledHostPrefs {
+        hosts: vec![HostKind::ClaudeCode],
+        unknown_enabled_row: false,
+    };
+    assert!(opted_in.admits(HostKind::ClaudeCode, &instance));
+    assert!(
+        opted_in.admits(HostKind::OpenCode, &instance),
+        "turning on an opt-in host is not a choice among the default hosts"
+    );
+}
+
+#[tokio::test]
+async fn enabling_an_opt_in_host_keeps_every_default_host() {
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let repo = BridgeHostPrefsRepository::new(&pool);
+    let user_id = unique_user_id("bhp-optin");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
+    let instance = hosts(
+        &[HostKind::ClaudeCode, HostKind::OpenCode, HostKind::OpenCodeCli],
+        &[HostKind::ClaudeCode],
+    );
+
+    repo.set_enabled(&user_id, HostKind::ClaudeCode, true, &instance)
+        .await
+        .expect("opt in");
+    let prefs = repo.get_enabled_prefs(&user_id).await.expect("read");
+    assert!(prefs.admits(HostKind::ClaudeCode, &instance));
+    assert!(prefs.admits(HostKind::OpenCode, &instance));
+    assert!(prefs.admits(HostKind::OpenCodeCli, &instance));
+
+    repo.set_enabled(&user_id, HostKind::OpenCode, false, &instance)
+        .await
+        .expect("disable a default host");
+    let prefs = repo.get_enabled_prefs(&user_id).await.expect("read");
+    assert!(prefs.admits(HostKind::ClaudeCode, &instance));
+    assert!(!prefs.admits(HostKind::OpenCode, &instance));
+    assert!(
+        prefs.admits(HostKind::OpenCodeCli, &instance),
+        "the other default hosts are recorded when the first is disabled"
+    );
 }

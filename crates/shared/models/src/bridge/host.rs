@@ -16,6 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
 use std::fmt;
 use std::str::FromStr;
 
@@ -124,6 +125,29 @@ impl HostKind {
             .map(|host| host.as_ref())
             .filter(|host| *host != COWORK_TARGET)
             .try_for_each(|host| host.parse::<Self>().map(drop))
+    }
+}
+
+/// The hosts an instance serves, and the opt-in subset that reaches only the
+/// users who turn it on.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct InstanceHosts {
+    pub enabled: Vec<HostKind>,
+    pub opt_in: BTreeSet<HostKind>,
+}
+
+impl InstanceHosts {
+    #[must_use]
+    pub fn is_opt_in(&self, host: HostKind) -> bool {
+        self.opt_in.contains(&host)
+    }
+
+    /// The enabled hosts a user receives without choosing.
+    pub fn by_default(&self) -> impl Iterator<Item = HostKind> + '_ {
+        self.enabled
+            .iter()
+            .copied()
+            .filter(|host| !self.is_opt_in(*host))
     }
 }
 
