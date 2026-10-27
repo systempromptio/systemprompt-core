@@ -324,6 +324,7 @@ async fn a_group_folder_grant_reaches_members_only() {
                 target: GrantTarget::Folder(folder.id.clone()),
                 subject_kind: "group".to_owned(),
                 subject_value: "sales".to_owned(),
+                subject_display: None,
                 level: AccessLevel::View,
                 valid_until: None,
             },
@@ -386,6 +387,7 @@ async fn sharing_above_the_held_level_is_forbidden() {
         target: GrantTarget::Document(document.id.clone()),
         subject_kind: "user".to_owned(),
         subject_value: subject.to_owned(),
+        subject_display: None,
         level,
         valid_until: None,
     };

@@ -66,6 +66,7 @@ impl DocumentService {
                 target: GrantTarget::Folder(folder.id.clone()),
                 subject_kind: "user".to_owned(),
                 subject_value: who.id.as_str().to_owned(),
+                subject_display: Some(who.username.clone()),
                 access_level: AccessLevel::Own,
                 granted_by: who.id.clone(),
                 valid_until: None,

@@ -300,3 +300,55 @@ async fn update_moves_a_document_back_to_the_root() {
         .expect("to the root");
     assert_eq!(home.document.folder_id, None);
 }
+
+#[tokio::test]
+async fn shared_grants_show_the_user_display_name_and_the_role_value() {
+    let h = harness().await;
+    let owner = person("mcp-display-owner");
+    let reader = person("mcp-display-reader");
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    sqlx::query(
+        "INSERT INTO users (id, name, email, display_name) VALUES ($1, $1, $2, 'Grace Reader')",
+    )
+    .bind(reader.id.as_str())
+    .bind(format!("{}@example.test", reader.id.as_str()))
+    .execute(&*pool.write_pool())
+    .await
+    .expect("user row");
+    let ctx = ctx_for(Some(&owner));
+    let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
+    for (kind, value) in [("user", reader.id.as_str()), ("role", "staff")] {
+        ShareHandler { tools: &h.tools }
+            .handle(
+                ShareInput {
+                    subject_kind: Some(kind.to_owned()),
+                    subject_value: Some(value.to_owned()),
+                    level: Some(AccessLevel::View),
+                    ..share(&document)
+                },
+                &ctx,
+                &exec(),
+            )
+            .await
+            .expect("share");
+    }
+    let (access, _) = AccessHandler { tools: &h.tools }
+        .handle(
+            DocumentInput {
+                document_id: document.clone(),
+            },
+            &ctx,
+            &exec(),
+        )
+        .await
+        .expect("access");
+    let display = |kind: &str| {
+        access
+            .grants
+            .iter()
+            .find(|grant| grant.subject_kind == kind)
+            .and_then(|grant| grant.display_name.clone())
+    };
+    assert_eq!(display("user").as_deref(), Some("Grace Reader"));
+    assert_eq!(display("role").as_deref(), Some("staff"));
+}

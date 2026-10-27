@@ -11,6 +11,8 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::execution::context::RequestContext;
 
+use crate::documents::subject_display;
+
 use super::DocumentsMcpTools;
 use super::inputs::ShareInput;
 use super::outputs::ShareOutput;
@@ -50,6 +52,12 @@ impl ShareHandler<'_> {
                 "a grant needs subject_kind, subject_value and level",
             ));
         };
+        let display = subject_display(self.tools.users(), &subject_kind, &subject_value)
+            .await
+            .map_err(|error| {
+                tracing::error!(error = %error, "grant subject was not looked up");
+                McpError::internal_error("the grant subject could not be looked up", None)
+            })?;
         let grant = self
             .tools
             .service()
@@ -59,6 +67,7 @@ impl ShareHandler<'_> {
                     target,
                     subject_kind,
                     subject_value,
+                    subject_display: Some(display),
                     level,
                     valid_until: input.valid_until,
                 },

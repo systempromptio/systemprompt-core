@@ -46,6 +46,7 @@ async fn share(
                 target,
                 subject_kind: subject.0.to_owned(),
                 subject_value: subject.1.to_owned(),
+                subject_display: None,
                 level,
                 valid_until: None,
             },

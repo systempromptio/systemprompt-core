@@ -54,6 +54,7 @@ const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
             "folder_id",
             "subject_kind",
             "subject_value",
+            "subject_display",
             "access_level",
         ],
     ),

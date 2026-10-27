@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_users::UserRepository;
 
 use systemprompt_governance::authz::{AllowAllHook, SharedAuthzHook};
 use systemprompt_identifiers::{
@@ -36,6 +37,7 @@ pub(crate) async fn harness() -> McpHarness {
     let runtime = systemprompt_test_fixtures::fixture_documents_runtime(&pool, &files, &allow());
     let tools = DocumentsMcpTools::new(DocumentsMcpConfig {
         service: Arc::clone(runtime.service()),
+        users: Arc::new(UserRepository::new(&pool)),
         tokens: systemprompt_test_fixtures::test_token_authority("documents-test"),
         server_name: McpServerId::new(SERVER),
         api_external_url: "https://docs.example.test/".to_owned(),

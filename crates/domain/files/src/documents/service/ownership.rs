@@ -87,6 +87,8 @@ impl DocumentService {
                     target: GrantTarget::Document(document.clone()),
                     subject_kind: "user".to_owned(),
                     subject_value: current.owner_user_id.as_str().to_owned(),
+                    subject_display: (who.id == current.owner_user_id)
+                        .then(|| who.username.clone()),
                     access_level: AccessLevel::Edit,
                     granted_by: who.id.clone(),
                     valid_until: None,

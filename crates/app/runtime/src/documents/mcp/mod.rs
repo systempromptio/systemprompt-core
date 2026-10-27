@@ -46,9 +46,10 @@ use rmcp::model::{
 };
 use systemprompt_files::documents::DocumentService;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_mcp::{ClientProfile, McpToolExecutor, McpToolHandler};
+use systemprompt_mcp::{ClientProfile, McpToolExecutor};
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::execution::context::RequestContext;
+use systemprompt_users::UserRepository;
 
 pub use browse::{HistoryHandler, ListHandler, SearchHandler};
 pub use comment::CommentHandler;
@@ -88,6 +89,8 @@ pub use share::ShareHandler;
 pub use support::tool_error;
 pub use views::{change_lines, node_lines, outline, proposal_lines, search_lines};
 pub use write::{CreateHandler, EditHandler};
+
+use support::run;
 
 use crate::AppContext;
 
@@ -137,6 +140,7 @@ pub enum DocumentsMcpError {
 #[derive(Clone)]
 pub struct DocumentsMcpConfig {
     pub service: Arc<DocumentService>,
+    pub users: Arc<UserRepository>,
     pub tokens: Arc<dyn TokenAuthority>,
     pub server_name: McpServerId,
     pub api_external_url: String,
@@ -155,6 +159,7 @@ pub struct DocumentsToolCall<'a> {
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
+    users: Arc<UserRepository>,
     tokens: Arc<dyn TokenAuthority>,
     server_name: McpServerId,
     api_external_url: String,
@@ -183,6 +188,7 @@ impl DocumentsMcpTools {
     pub fn new(config: DocumentsMcpConfig) -> Self {
         Self {
             service: config.service,
+            users: config.users,
             tokens: config.tokens,
             server_name: config.server_name,
             api_external_url: config.api_external_url,
@@ -198,6 +204,7 @@ impl DocumentsMcpTools {
         }
         Ok(Self::new(DocumentsMcpConfig {
             service: Arc::clone(ctx.documents().service()),
+            users: Arc::clone(ctx.user_repository()),
             tokens: ctx.token_authority(),
             server_name,
             api_external_url: ctx.config().api_external_url.clone(),
@@ -207,6 +214,11 @@ impl DocumentsMcpTools {
     #[must_use]
     pub fn service(&self) -> &DocumentService {
         &self.service
+    }
+
+    #[must_use]
+    pub fn users(&self) -> &UserRepository {
+        &self.users
     }
 
     #[must_use]
@@ -274,19 +286,5 @@ impl DocumentsMcpTools {
         request: &ReadResourceRequestParams,
     ) -> Result<ReadResourceResult, McpError> {
         read_preview_resource(request, &self.server_name)
-    }
-}
-
-async fn run<H: McpToolHandler>(
-    call: DocumentsToolCall<'_>,
-    handler: &H,
-) -> Result<CallToolResult, McpError> {
-    match call
-        .executor
-        .execute(handler, call.request, call.context, call.client)
-        .await
-    {
-        Err(error) => refusal_result(&error).ok_or(error),
-        ok => ok,
     }
 }

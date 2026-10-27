@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS document_grants (
     folder_id UUID REFERENCES document_folders(id) ON DELETE CASCADE,
     subject_kind TEXT NOT NULL CHECK (length(subject_kind) > 0),
     subject_value TEXT NOT NULL CHECK (length(subject_value) > 0),
+    subject_display TEXT,
     access_level TEXT NOT NULL CHECK (access_level IN ('view', 'comment', 'edit', 'share', 'own')),
     granted_by VARCHAR(255) NOT NULL,
     valid_until TIMESTAMPTZ,

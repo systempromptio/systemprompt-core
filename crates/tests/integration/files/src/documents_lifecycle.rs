@@ -61,6 +61,7 @@ async fn share(
                 target,
                 subject_kind: subject.0.to_owned(),
                 subject_value: subject.1.to_owned(),
+                subject_display: None,
                 level,
                 valid_until: None,
             },
@@ -307,15 +308,6 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
     let h = harness(allow(), GroupSource::new(&[])).await;
     let owner = person("access-owner");
     let reader = person("access-reader");
-    let db = test_db_pool().await;
-    sqlx::query(
-        "INSERT INTO users (id, name, email, display_name) VALUES ($1, $1, $2, 'Ada Reader')",
-    )
-    .bind(reader.id.as_str())
-    .bind(format!("{}@example.test", reader.id.as_str()))
-    .execute(&*db.write_pool())
-    .await
-    .expect("user row");
     let parent = folder(&h, &owner).await;
     let mut request = create("blank-text", Some(&parent));
     request.ops = vec![EditOp::SetText {
@@ -326,6 +318,21 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
         .create_from_template(&owner, request, &trace())
         .await
         .expect("create in folder");
+    h.service
+        .share(
+            &owner,
+            ShareRequest {
+                target: GrantTarget::Document(doc.id.clone()),
+                subject_kind: "user".to_owned(),
+                subject_value: reader.id.as_str().to_owned(),
+                subject_display: Some("Ada Reader".to_owned()),
+                level: AccessLevel::Comment,
+                valid_until: None,
+            },
+            &trace(),
+        )
+        .await
+        .expect("share with display");
     share(
         &h,
         &owner,
@@ -358,7 +365,9 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
         access
             .inherited
             .iter()
-            .any(|grant| grant.subject_kind == "role" && grant.subject_value == "staff")
+            .any(|grant| grant.subject_kind == "role"
+                && grant.subject_value == "staff"
+                && grant.subject_display.is_none())
     );
 }
 
@@ -392,6 +401,20 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
         .await
         .expect("previous owner reads");
     assert_eq!(view.my_access, AccessLevel::Edit);
+    let access = h
+        .service
+        .access_of(&owner, &id, &trace())
+        .await
+        .expect("previous owner reads access");
+    let kept = access
+        .grants
+        .iter()
+        .find(|grant| grant.subject_value == owner.id.as_str())
+        .expect("previous owner keeps a grant");
+    assert_eq!(
+        kept.subject_display.as_deref(),
+        Some(owner.username.as_str())
+    );
     let refused = h
         .service
         .transfer_ownership(&owner, &id, &owner.id, &trace())

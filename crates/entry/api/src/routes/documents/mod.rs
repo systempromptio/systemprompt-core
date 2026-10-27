@@ -44,6 +44,7 @@ use systemprompt_files::documents::collab::{CollabService, CollabTuning};
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, UserProvider};
+use systemprompt_users::UserRepository;
 
 /// Router-scoped state of the document routes: the one document service and
 /// the user provider that resolves a caller's roles.
@@ -51,6 +52,7 @@ use systemprompt_traits::{AppContext as _, UserProvider};
 pub struct DocumentsState {
     pub(crate) service: Arc<DocumentService>,
     pub(crate) users: Arc<dyn UserProvider>,
+    pub(crate) user_repository: Arc<UserRepository>,
     pub(crate) tokens: Arc<dyn TokenAuthority>,
     #[cfg(feature = "collab")]
     pub(crate) collab: Arc<CollabService>,
@@ -75,6 +77,7 @@ impl DocumentsState {
             users: ctx
                 .user_provider()
                 .ok_or(DocumentsMountError::MissingUserProvider)?,
+            user_repository: Arc::clone(ctx.user_repository()),
             tokens: ctx.token_authority(),
             #[cfg(feature = "collab")]
             collab: collab_service(ctx),

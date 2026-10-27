@@ -97,6 +97,7 @@ pub(crate) async fn grant(
                 target: GrantTarget::Document(document.clone()),
                 subject_kind: "user".to_owned(),
                 subject_value: to.id.to_string(),
+                subject_display: None,
                 level,
                 valid_until: None,
             },

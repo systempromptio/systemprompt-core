@@ -91,9 +91,13 @@ impl From<DocumentGrant> for GrantItem {
                 GrantTarget::Folder(folder) => Some(folder),
                 GrantTarget::Document(_) => None,
             },
+            display_name: Some(
+                grant
+                    .subject_display
+                    .unwrap_or_else(|| grant.subject_value.clone()),
+            ),
             subject_kind: grant.subject_kind,
             subject_value: grant.subject_value,
-            display_name: grant.subject_display,
             level: grant.access_level,
             valid_until: grant.valid_until,
             granted_by: grant.granted_by,

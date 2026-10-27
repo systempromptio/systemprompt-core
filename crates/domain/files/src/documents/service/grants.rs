@@ -24,6 +24,7 @@ pub struct ShareRequest {
     pub target: GrantTarget,
     pub subject_kind: String,
     pub subject_value: String,
+    pub subject_display: Option<String>,
     pub level: AccessLevel,
     pub valid_until: Option<DateTime<Utc>>,
 }
@@ -83,6 +84,7 @@ impl DocumentService {
                 target: request.target,
                 subject_kind: request.subject_kind,
                 subject_value: request.subject_value,
+                subject_display: request.subject_display,
                 access_level: request.level,
                 granted_by: who.id.clone(),
                 valid_until: request.valid_until,

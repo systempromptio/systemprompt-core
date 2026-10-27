@@ -187,6 +187,21 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
     )
     .await?;
     assert_eq!(status, StatusCode::CREATED);
+    sqlx::query("UPDATE users SET display_name = 'Next Reader' WHERE id = $1")
+        .bind(next.user_id.as_str())
+        .execute(&*pool.write_pool())
+        .await?;
+    let (status, shared) = send(
+        app(&state, &owner),
+        json_request(
+            Method::POST,
+            &format!("/{id}/grants"),
+            &json!({ "subject_kind": "user", "subject_value": next.user_id.as_str(), "level": "view" }),
+        ),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::CREATED, "{shared}");
+    assert_eq!(shared["display_name"], "Next Reader");
     let (status, access) = send(
         app(&state, &owner),
         empty(Method::GET, &format!("/{id}/access")),
@@ -194,7 +209,16 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
     .await?;
     assert_eq!(status, StatusCode::OK, "{access}");
     assert_eq!(access["my_access"], "own");
-    assert_eq!(access["grants"].as_array().map(Vec::len), Some(1));
+    let grants = access["grants"].as_array().expect("grants");
+    assert_eq!(grants.len(), 2);
+    let display = |kind: &str| {
+        grants
+            .iter()
+            .find(|grant| grant["subject_kind"] == kind)
+            .map(|grant| grant["display_name"].clone())
+    };
+    assert_eq!(display("user"), Some(json!("Next Reader")));
+    assert_eq!(display("role"), Some(json!("staff")));
 
     let (status, _) = send(
         app(&state, &owner),

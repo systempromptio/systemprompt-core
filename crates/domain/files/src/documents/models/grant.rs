@@ -34,6 +34,7 @@ pub struct NewGrant {
     pub target: GrantTarget,
     pub subject_kind: String,
     pub subject_value: String,
+    pub subject_display: Option<String>,
     pub access_level: AccessLevel,
     pub granted_by: UserId,
     pub valid_until: Option<DateTime<Utc>>,

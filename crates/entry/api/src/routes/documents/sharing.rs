@@ -15,7 +15,10 @@ use systemprompt_files::documents::models::{GrantTarget, LockHolderKind, LockOut
 use systemprompt_files::documents::service::{AcquireLockRequest, ShareRequest};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
+
+use crate::error::ApiHttpError;
 use systemprompt_models::documents::{AccessLevel, PresenceBeacon, PresenceSource, PresenceState};
+use systemprompt_runtime::documents::subject_display;
 use uuid::Uuid;
 
 use super::DocumentsState;
@@ -61,10 +64,18 @@ pub(super) async fn share(
     Json(body): Json<ShareBody>,
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
+    let display = subject_display(
+        &state.user_repository,
+        &body.subject_kind,
+        &body.subject_value,
+    )
+    .await
+    .map_err(ApiHttpError::from)?;
     let request = ShareRequest {
         target: GrantTarget::Document(document_id(&id)?),
         subject_kind: body.subject_kind,
         subject_value: body.subject_value,
+        subject_display: Some(display),
         level: body.level,
         valid_until: body.valid_until,
     };

@@ -89,12 +89,15 @@ impl DocumentGrantRepository {
         let row = sqlx::query_as!(
             GrantRow,
             r#"WITH g AS (INSERT INTO document_grants
-                   (document_id, folder_id, subject_kind, subject_value, access_level, granted_by, valid_until)
-               VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7)
+                   (document_id, folder_id, subject_kind, subject_value, subject_display,
+                    access_level, granted_by, valid_until)
+               VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7, $8)
                ON CONFLICT (document_id, folder_id, subject_kind, subject_value) DO UPDATE
                    SET access_level = EXCLUDED.access_level,
                        valid_until = EXCLUDED.valid_until,
                        granted_by = EXCLUDED.granted_by,
+                       subject_display = COALESCE(EXCLUDED.subject_display,
+                                                  document_grants.subject_display),
                        updated_at = now()
                RETURNING *)
                SELECT g.id AS "id!", g.document_id::text AS "document_id: DocumentId",
@@ -103,12 +106,13 @@ impl DocumentGrantRepository {
                       g.access_level AS "access_level!",
                       g.granted_by AS "granted_by!: UserId",
                       g.valid_until, g.created_at AS "created_at!", g.updated_at AS "updated_at!",
-                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display
-               FROM g LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value"#,
+                      g.subject_display
+               FROM g"#,
             document_id,
             folder_id,
             request.subject_kind,
             request.subject_value,
+            request.subject_display,
             request.access_level.as_str(),
             request.granted_by.as_str(),
             request.valid_until,
@@ -133,9 +137,8 @@ impl DocumentGrantRepository {
                       g.subject_kind, g.subject_value, g.access_level,
                       g.granted_by AS "granted_by: UserId",
                       g.valid_until, g.created_at, g.updated_at,
-                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display
+                      g.subject_display
                FROM document_grants g
-               LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value
                WHERE g.document_id = $1::text::uuid ORDER BY g.created_at, g.id"#,
             id.as_str()
         )
@@ -154,9 +157,8 @@ impl DocumentGrantRepository {
                       g.subject_kind, g.subject_value, g.access_level,
                       g.granted_by AS "granted_by: UserId",
                       g.valid_until, g.created_at, g.updated_at,
-                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display
+                      g.subject_display
                FROM document_grants g
-               LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value
                WHERE g.folder_id = $1::text::uuid ORDER BY g.created_at, g.id"#,
             id.as_str()
         )
@@ -179,9 +181,8 @@ impl DocumentGrantRepository {
                       g.subject_kind, g.subject_value, g.access_level,
                       g.granted_by AS "granted_by: UserId",
                       g.valid_until, g.created_at, g.updated_at,
-                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display
+                      g.subject_display
                FROM document_grants g
-               LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value
                WHERE g.folder_id = ANY($1::text[]::uuid[]) ORDER BY g.created_at, g.id"#,
             &folders
         )
