@@ -10,7 +10,7 @@ use serde::Deserialize;
 use systemprompt_identifiers::DocumentTemplateId;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_provider_contracts::documents::{
-    DocumentFormat, DocumentTemplate, TemplatePlaceholder, TemplateSource,
+    DocumentFormat, DocumentTemplate, TemplatePlaceholder, TemplateSource, UnknownDocumentFormat,
 };
 
 pub const CATALOG_PRIORITY: u32 = 150;
@@ -35,8 +35,12 @@ pub enum TemplateCatalogError {
         #[source]
         source: IdValidationError,
     },
-    #[error("template catalog entry {path} names unknown format `{value}`")]
-    UnknownFormat { path: PathBuf, value: String },
+    #[error("template catalog entry {path} names an unknown format")]
+    UnknownFormat {
+        path: PathBuf,
+        #[source]
+        source: UnknownDocumentFormat,
+    },
     #[error("template file {path} does not exist")]
     MissingFile { path: PathBuf },
     #[error("template id {id} is declared by both {first} and {second}")]
@@ -137,9 +141,9 @@ fn load_entry(path: &Path) -> Result<CatalogTemplate, TemplateCatalogError> {
         entry
             .format
             .parse()
-            .map_err(|_| TemplateCatalogError::UnknownFormat {
+            .map_err(|source| TemplateCatalogError::UnknownFormat {
                 path: path.to_path_buf(),
-                value: entry.format.clone(),
+                source,
             })?;
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let file = base.join(&entry.file);

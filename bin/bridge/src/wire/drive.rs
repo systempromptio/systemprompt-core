@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
+use systemprompt_identifiers::{DocumentId, UserId};
 
 use crate::drive::{ConflictNotice, DriveStatus, EditorPresence};
 use crate::verdict::{Tone, Verdict};
@@ -63,9 +64,11 @@ pub struct DriveConflictPayload {
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct DriveEditorPayload {
-    pub document_id: String,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
+    pub document_id: DocumentId,
     pub path: Option<String>,
-    pub user_id: String,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
+    pub user_id: UserId,
     pub editing: bool,
     pub seen_at_unix: i64,
 }
@@ -110,9 +113,9 @@ fn conflict(notice: &ConflictNotice) -> DriveConflictPayload {
 
 fn editor(presence: &EditorPresence) -> DriveEditorPayload {
     DriveEditorPayload {
-        document_id: presence.document_id.as_str().to_owned(),
+        document_id: presence.document_id.clone(),
         path: presence.path.clone(),
-        user_id: presence.user_id.as_str().to_owned(),
+        user_id: presence.user_id.clone(),
         editing: presence.state == systemprompt_models::documents::PresenceState::Editing,
         seen_at_unix: presence.seen_at.timestamp(),
     }

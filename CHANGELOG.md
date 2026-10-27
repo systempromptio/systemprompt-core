@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Breaking:** **Marketplace:** `ImportWarning` gains `MissingSkillManifest`, `MissingReference` and `SiblingSkillPath`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+- **Breaking:** **Manifest, Loader:** a services bundle's content hash is a typed `ContentHash`: `ServicesBundleManifest::content_hash`, `BundleSourceState::content_hash`, `BundleMember::content_hash` and `BundleProvenance::content_hash` change type, `ServicesBundleManifest::compute_content_hash` returns `ContentHash`, `BundleCache::bundle_dir` takes `&ContentHash`, and `owning_bundle_hashes` maps to `ContentHash`. The serialised form is unchanged. Migrate by building values with `ContentHash::try_new` and reading them with `as_str`.
 
 ### Changed
 

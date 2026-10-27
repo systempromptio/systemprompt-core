@@ -63,9 +63,7 @@ impl Element {
 }
 
 fn offset(position: u64) -> Result<usize, CodecError> {
-    usize::try_from(position).map_err(|_| CodecError::Malformed {
-        detail: "XML offset exceeds the address space",
-    })
+    usize::try_from(position).map_err(|source| parse_error("XML offset", source))
 }
 
 fn open(
@@ -135,7 +133,7 @@ pub(crate) fn parse_xml(part: &str, xml: &str) -> Result<Element, CodecError> {
 }
 
 pub(crate) fn splice(xml: &str, mut edits: Vec<(usize, usize, String)>) -> String {
-    edits.sort_by(|left, right| right.0.cmp(&left.0));
+    edits.sort_by_key(|edit| std::cmp::Reverse(edit.0));
     let mut out = xml.to_owned();
     for (start, end, replacement) in edits {
         out.replace_range(start..end, &replacement);

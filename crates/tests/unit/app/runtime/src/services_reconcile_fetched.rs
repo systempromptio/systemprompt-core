@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 use systemprompt_catalog_fixtures::vertex_regions;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::ContentHash;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::ServicesSource;
@@ -28,7 +29,7 @@ use systemprompt_test_fixtures::{
 use tempfile::TempDir;
 
 const SOURCE: &str = "astound";
-const CONTENT_HASH: &str = "content-hash-1";
+const CONTENT_HASH: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 const COMPOSED: &str = "composed-hash-1";
 
 struct Fixture {
@@ -130,7 +131,7 @@ fn state_with_source() -> ServicesBundleState {
         BundleSourceState {
             digest: "sha256:aaa".to_owned(),
             version: "1.0.0".to_owned(),
-            content_hash: CONTENT_HASH.to_owned(),
+            content_hash: ContentHash::new(CONTENT_HASH),
             fetched_at: Utc::now(),
         },
     );
@@ -142,7 +143,7 @@ fn state_with_source() -> ServicesBundleState {
 }
 
 fn write_manifest(cache: &BundleCache, owns: BundleOwnership) {
-    let dir = cache.bundle_dir(SOURCE, CONTENT_HASH);
+    let dir = cache.bundle_dir(SOURCE, &ContentHash::new(CONTENT_HASH));
     std::fs::create_dir_all(&dir).expect("bundle dir");
     let signed = SignedBundleManifest {
         manifest: ServicesBundleManifest {
@@ -152,7 +153,7 @@ fn write_manifest(cache: &BundleCache, owns: BundleOwnership) {
             requires_core: ">=0.0.1".to_owned(),
             source: BundleSourceInfo::default(),
             files: Vec::new(),
-            content_hash: CONTENT_HASH.to_owned(),
+            content_hash: ContentHash::new(CONTENT_HASH),
             total_size: 0,
             owns,
         },

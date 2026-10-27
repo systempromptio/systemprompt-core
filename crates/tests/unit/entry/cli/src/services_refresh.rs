@@ -12,6 +12,7 @@ use chrono::Utc;
 use systemprompt_cli::core::services::refresh::{
     RefreshOutcome, diff_states, exit_code_for, outcome_for, outcome_with_pending,
 };
+use systemprompt_identifiers::ContentHash;
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 
 fn state(entries: &[(&str, &str)]) -> ServicesBundleState {
@@ -23,7 +24,13 @@ fn state(entries: &[(&str, &str)]) -> ServicesBundleState {
                 BundleSourceState {
                     digest: (*digest).to_owned(),
                     version: "1.0.0".to_owned(),
-                    content_hash: format!("hash-{digest}"),
+                    content_hash: ContentHash::new(format!(
+                        "{:0>64.64}",
+                        digest
+                            .bytes()
+                            .map(|b| format!("{b:02x}"))
+                            .collect::<String>()
+                    )),
                     fetched_at: Utc::now(),
                 },
             )

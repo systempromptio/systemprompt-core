@@ -111,52 +111,52 @@ pub fn generated_blank(
     }
 }
 
+#[cfg(feature = "office")]
 #[must_use]
 pub fn office_blanks() -> Vec<GeneratedBlank> {
-    #[cfg(feature = "office")]
-    {
-        use crate::documents::codecs::{docx, odf, pptx, xlsx};
-        vec![
-            generated_blank(
-                "blank-docx",
-                DocumentFormat::Docx,
-                "Blank Word document",
-                docx::blank_docx,
-            ),
-            generated_blank(
-                "blank-xlsx",
-                DocumentFormat::Xlsx,
-                "Blank Excel workbook",
-                xlsx::blank_xlsx,
-            ),
-            generated_blank(
-                "blank-pptx",
-                DocumentFormat::Pptx,
-                "Blank PowerPoint presentation",
-                pptx::blank_pptx,
-            ),
-            generated_blank(
-                "blank-odt",
-                DocumentFormat::Odt,
-                "Blank OpenDocument text",
-                odf::blank_odt,
-            ),
-            generated_blank(
-                "blank-ods",
-                DocumentFormat::Ods,
-                "Blank OpenDocument spreadsheet",
-                odf::blank_ods,
-            ),
-            generated_blank(
-                "blank-odp",
-                DocumentFormat::Odp,
-                "Blank OpenDocument presentation",
-                odf::blank_odp,
-            ),
-        ]
-    }
-    #[cfg(not(feature = "office"))]
-    {
-        Vec::new()
-    }
+    use crate::documents::codecs::{docx, odf, pptx, xlsx};
+    vec![
+        generated_blank(
+            "blank-docx",
+            DocumentFormat::Docx,
+            "Blank Word document",
+            docx::blank_docx,
+        ),
+        generated_blank(
+            "blank-xlsx",
+            DocumentFormat::Xlsx,
+            "Blank Excel workbook",
+            xlsx::blank_xlsx,
+        ),
+        generated_blank(
+            "blank-pptx",
+            DocumentFormat::Pptx,
+            "Blank PowerPoint presentation",
+            pptx::blank_pptx,
+        ),
+        generated_blank(
+            "blank-odt",
+            DocumentFormat::Odt,
+            "Blank OpenDocument text",
+            odf::blank_odt,
+        ),
+        generated_blank(
+            "blank-ods",
+            DocumentFormat::Ods,
+            "Blank OpenDocument spreadsheet",
+            odf::blank_ods,
+        ),
+        generated_blank(
+            "blank-odp",
+            DocumentFormat::Odp,
+            "Blank OpenDocument presentation",
+            odf::blank_odp,
+        ),
+    ]
+}
+
+#[cfg(not(feature = "office"))]
+#[must_use]
+pub const fn office_blanks() -> Vec<GeneratedBlank> {
+    Vec::new()
 }

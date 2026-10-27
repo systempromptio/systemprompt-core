@@ -1,3 +1,9 @@
+//! The HTML codec's projection: locating the body, addressing block-level
+//! elements by tag and order, and building the node tree.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use std::collections::{BTreeMap, HashMap};
 
 use ego_tree::{NodeId, NodeRef};

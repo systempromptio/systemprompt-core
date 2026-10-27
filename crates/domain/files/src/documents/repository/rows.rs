@@ -1,3 +1,9 @@
+//! Shared row decoding for the document store repositories: typed parsing of
+//! stored enum columns.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use std::str::FromStr;
 
 use systemprompt_models::documents::{PresenceSource, PresenceState, UnknownDocumentValue};

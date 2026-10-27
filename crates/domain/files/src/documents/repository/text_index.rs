@@ -1,5 +1,8 @@
 //! [`DocumentTextIndexRepository`]: the per-head full-text index and a
 //! visibility-filtered search over it.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, UserId};

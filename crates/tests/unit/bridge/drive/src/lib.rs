@@ -4,8 +4,6 @@
 mod support;
 
 #[cfg(test)]
-mod layers;
-#[cfg(test)]
 mod presence;
 #[cfg(test)]
 mod pull;

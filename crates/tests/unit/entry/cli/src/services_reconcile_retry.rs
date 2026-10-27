@@ -17,6 +17,7 @@ use systemprompt_cli::core::services::refresh::{
     RefreshOutcome, diff_states, outcome_with_pending,
 };
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_identifiers::ContentHash;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_manifest::profile::ServicesSource;
 use systemprompt_manifest::services::bundle::{
@@ -29,7 +30,7 @@ use systemprompt_runtime::services_reconcile::pending_composed_hash;
 use systemprompt_test_fixtures::{DisposableDb, ensure_test_bootstrap};
 
 const SOURCE: &str = "retry-source";
-const CONTENT_HASH: &str = "retry-content-hash";
+const CONTENT_HASH: &str = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
 const COMPOSED_HASH: &str = "retry-composed-hash";
 
 fn pending(root: &ActiveServicesRoot, cache: &BundleCache) -> bool {
@@ -46,7 +47,7 @@ async fn a_failed_reconcile_is_retried_by_the_next_refresh() {
     let source_state = BundleSourceState {
         digest: "sha256:retry".to_owned(),
         version: "1.0.0".to_owned(),
-        content_hash: CONTENT_HASH.to_owned(),
+        content_hash: ContentHash::new(CONTENT_HASH),
         fetched_at: Utc::now(),
     };
     let state = ServicesBundleState {
@@ -67,7 +68,7 @@ async fn a_failed_reconcile_is_retried_by_the_next_refresh() {
             requires_core: ">=0.0.1".to_owned(),
             source: BundleSourceInfo::default(),
             files: Vec::new(),
-            content_hash: CONTENT_HASH.to_owned(),
+            content_hash: ContentHash::new(CONTENT_HASH),
             total_size: 0,
             owns: BundleOwnership::default(),
         },

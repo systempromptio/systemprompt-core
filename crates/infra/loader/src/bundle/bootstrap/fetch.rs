@@ -21,10 +21,11 @@ use crate::bundle::error::{BundleError, BundleResult};
 use crate::bundle::extract::{ExtractOptions, TarLayout, extract_tarball};
 use crate::bundle::source::{AnyFetcher, BundleFetcher, MAX_BUNDLE_BYTES};
 use crate::bundle::verify::{verify_bundle, verify_extracted};
+use systemprompt_identifiers::ContentHash;
 
 pub(super) struct ResolvedSource {
     pub(super) name: String,
-    pub(super) content_hash: String,
+    pub(super) content_hash: ContentHash,
     pub(super) signed: SignedBundleManifest,
     pub(super) state: BundleSourceState,
 }

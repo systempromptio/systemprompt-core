@@ -59,10 +59,7 @@ pub(super) fn stage_baked_base(
     let target = cache.bundle_dir(BASE_SOURCE_NAME, &content_hash);
     if !target.is_dir() {
         cache.prepare()?;
-        let staging = cache.bundle_dir(
-            BASE_SOURCE_NAME,
-            &format!("{content_hash}.tmp-{}", std::process::id()),
-        );
+        let staging = cache.staging_dir(BASE_SOURCE_NAME, &content_hash);
         if staging.exists() {
             fs::remove_dir_all(&staging)?;
         }

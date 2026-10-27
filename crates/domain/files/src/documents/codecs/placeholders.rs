@@ -1,3 +1,9 @@
+//! `{{key}}` placeholder substitution for template instantiation in the text
+//! formats; an unknown key is left in place.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 pub(crate) fn substitute(template: &str, params: &TemplateParams) -> String {

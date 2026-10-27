@@ -63,7 +63,7 @@ fn drive_types_round_trip() {
         document_id,
         state: PresenceState::Editing,
         source_kind: PresenceSource::Bridge,
-        source_id: "laptop".into(),
+        source_ref: "laptop".into(),
         cursor: Some(serde_json::json!({ "line": 3 })),
     });
     let committed = serde_json::to_value(DriveCommitResponse::Committed {

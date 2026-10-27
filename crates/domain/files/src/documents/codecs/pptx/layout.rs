@@ -39,7 +39,12 @@ fn find_layout(package: &mut Package<'_>, name: &str) -> Result<String, CodecErr
     let mut layouts: Vec<String> = package
         .names()?
         .into_iter()
-        .filter(|part| part.starts_with("ppt/slideLayouts/") && part.ends_with(".xml"))
+        .filter(|part| {
+            part.starts_with("ppt/slideLayouts/")
+                && std::path::Path::new(part)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("xml"))
+        })
         .filter(|part| !part.contains("/_rels/"))
         .collect();
     layouts.sort();
@@ -71,7 +76,7 @@ pub(super) fn source_layout(
     let anchor = new
         .after
         .and_then(|after| refs.get(after - 1))
-        .or(refs.first());
+        .or_else(|| refs.first());
     match anchor {
         Some(slide) => layout_part(package, &slide.part)?.ok_or(CodecError::Malformed {
             detail: "a slide has no slide layout relationship",
@@ -93,8 +98,15 @@ fn paragraph(text: &str) -> String {
 fn with_paragraphs(xml: &str, shape: &Element, paragraphs: &str) -> String {
     let raw = shape.raw(xml);
     let local = |at: usize| at - shape.start;
-    let edit = match shape.child("p:txBody") {
-        Some(body) => {
+    let edit = shape.child("p:txBody").map_or_else(
+        || {
+            (
+                local(shape.inner_end),
+                local(shape.inner_end),
+                format!("<p:txBody><a:bodyPr/><a:lstStyle/>{paragraphs}</p:txBody>"),
+            )
+        },
+        |body| {
             let paras: Vec<&Element> = body.children_named("a:p").collect();
             match (paras.first(), paras.last()) {
                 (Some(first), Some(last)) => {
@@ -107,12 +119,7 @@ fn with_paragraphs(xml: &str, shape: &Element, paragraphs: &str) -> String {
                 ),
             }
         },
-        None => (
-            local(shape.inner_end),
-            local(shape.inner_end),
-            format!("<p:txBody><a:bodyPr/><a:lstStyle/>{paragraphs}</p:txBody>"),
-        ),
-    };
+    );
     splice(raw, vec![edit])
 }
 
@@ -151,12 +158,14 @@ pub(super) fn slide_xml(layout: &str, xml: &str, new: &NewSlide<'_>) -> Result<S
         };
         shapes.push_str(&with_paragraphs(xml, shape, &paragraphs));
     }
-    let namespaces: String = root
+    let namespaces = root
         .attrs
         .iter()
         .filter(|(key, _)| key.starts_with("xmlns"))
-        .map(|(key, value)| format!(" {key}=\"{}\"", escape(value.as_str())))
-        .collect();
+        .fold(String::new(), |mut out, (key, value)| {
+            out.push_str(&format!(" {key}=\"{}\"", escape(value.as_str())));
+            out
+        });
     Ok(format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<p:sld{namespaces}><p:cSld><p:spTree>{shapes}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>"
     ))

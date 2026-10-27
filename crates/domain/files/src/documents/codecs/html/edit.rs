@@ -1,3 +1,8 @@
+//! The HTML codec's edit operations, applied to the parsed DOM.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use ego_tree::NodeId;
 use scraper::node::Text;
 use scraper::{ElementRef, Html, Node, StrTendril};

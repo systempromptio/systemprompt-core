@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use systemprompt_identifiers::ContentHash;
 
 pub const BUNDLE_MANIFEST_FILE: &str = "bundle.json";
 pub const BUNDLE_FORMAT_VERSION: u32 = 1;
@@ -121,7 +122,7 @@ pub struct ServicesBundleManifest {
     #[serde(default)]
     pub files: Vec<FileEntry>,
 
-    pub content_hash: String,
+    pub content_hash: ContentHash,
 
     #[serde(default)]
     pub total_size: u64,
@@ -132,7 +133,7 @@ pub struct ServicesBundleManifest {
 
 impl ServicesBundleManifest {
     #[must_use]
-    pub fn compute_content_hash(files: &[FileEntry]) -> String {
+    pub fn compute_content_hash(files: &[FileEntry]) -> ContentHash {
         let mut lines: Vec<String> = files
             .iter()
             .map(|f| format!("{}\0{}\n", f.path, f.sha256))
@@ -143,7 +144,7 @@ impl ServicesBundleManifest {
         for line in &lines {
             hasher.update(line.as_bytes());
         }
-        hex::encode(hasher.finalize())
+        ContentHash::new(hex::encode(hasher.finalize()))
     }
 
     #[must_use]
@@ -189,7 +190,7 @@ pub struct BundleSourceState {
 
     pub version: String,
 
-    pub content_hash: String,
+    pub content_hash: ContentHash,
 
     pub fetched_at: DateTime<Utc>,
 }

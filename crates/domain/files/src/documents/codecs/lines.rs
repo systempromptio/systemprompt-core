@@ -1,3 +1,9 @@
+//! Line-addressed documents shared by the Markdown and text codecs: one
+//! `line[N]` node per line under a `body` root, and the edits applied to them.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode, hash8,

@@ -1,5 +1,8 @@
 //! Grant rows, the grant request and the subject pairs a visibility
 //! predicate matches against.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};

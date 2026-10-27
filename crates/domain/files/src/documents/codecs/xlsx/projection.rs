@@ -12,7 +12,8 @@ use systemprompt_provider_contracts::documents::{
 use umya_spreadsheet::{Cell, Worksheet};
 
 use super::workbook::{
-    CellRange, a1, cell_display, cell_type, display, load, node_id, row_text, rows, sheet_id,
+    CellRange, a1, cell_display, cell_type, display, load, node_id, row_text, rows, sheet_error,
+    sheet_id,
 };
 
 const MAX_PROJECTED_CELLS: usize = 2_000;
@@ -42,9 +43,7 @@ pub(super) fn project_range(
     let workbook = load(bytes)?;
     let sheet = workbook
         .sheet_by_name(sheet_name)
-        .map_err(|_| CodecError::UnknownNode {
-            node: node_id(sheet_id(sheet_name)),
-        })?;
+        .map_err(sheet_error(node_id(sheet_id(sheet_name))))?;
     let range = CellRange::parse(a1_range).ok_or(CodecError::Malformed {
         detail: "range is not an A1 reference",
     })?;
@@ -63,7 +62,7 @@ pub(super) fn project_range(
 
 fn sheet_node(index: usize, sheet: &Worksheet) -> ProjectionNode {
     let prefix = sheet_id(sheet.name());
-    let mut emitted = 0_usize;
+    let mut emitted = 0usize;
     let mut truncated = false;
     let children: Vec<ProjectionNode> = rows(sheet)
         .into_iter()

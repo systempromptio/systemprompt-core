@@ -1,5 +1,8 @@
 //! [`DocumentBlobRepository`]: content-addressed blob rows and their
 //! garbage-collection candidates.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContentHash;

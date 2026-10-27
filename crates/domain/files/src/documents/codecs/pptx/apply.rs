@@ -121,12 +121,15 @@ fn without_bullets(ppr: Option<&str>) -> Result<String, CodecError> {
         .filter(|child| bullets.contains(&child.name.as_str()))
         .map(|child| (child.start, child.end, String::new()))
         .collect();
-    let at = edits.first().map(|edit| edit.0).unwrap_or_else(|| {
-        root.children
-            .iter()
-            .find(|child| matches!(child.name.as_str(), "a:tabLst" | "a:defRPr" | "a:extLst"))
-            .map_or(root.inner_end, |child| child.start)
-    });
+    let at = edits.first().map_or_else(
+        || {
+            root.children
+                .iter()
+                .find(|child| matches!(child.name.as_str(), "a:tabLst" | "a:defRPr" | "a:extLst"))
+                .map_or(root.inner_end, |child| child.start)
+        },
+        |edit| edit.0,
+    );
     edits.push((at, at, "<a:buNone/>".to_owned()));
     Ok(splice(raw, edits))
 }
@@ -223,8 +226,8 @@ fn verify(current: &Projection, ops: &[EditOp]) -> Result<(), CodecError> {
                 node,
                 expected_hash,
             } => (node, Some(expected_hash)),
-            EditOp::InsertAfter { node, .. } => (node, None),
-            EditOp::InsertSlide {
+            EditOp::InsertAfter { node, .. }
+            | EditOp::InsertSlide {
                 after: Some(node), ..
             } => (node, None),
             _ => continue,

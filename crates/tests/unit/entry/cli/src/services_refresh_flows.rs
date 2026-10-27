@@ -20,6 +20,7 @@ use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::services_profile_fixture as fx;
+use systemprompt_identifiers::ContentHash;
 
 const ETAG: &str = "sha256:cafebabe";
 
@@ -31,7 +32,9 @@ fn prime_state(profile: &Profile, digest: &str) {
         BundleSourceState {
             digest: digest.to_owned(),
             version: "1.2.3".to_owned(),
-            content_hash: "hash".to_owned(),
+            content_hash: ContentHash::new(
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            ),
             fetched_at: Utc::now(),
         },
     );

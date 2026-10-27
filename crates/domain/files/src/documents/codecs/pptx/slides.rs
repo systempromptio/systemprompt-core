@@ -127,10 +127,10 @@ pub(super) fn insert_slide(
         escape(target.as_str())
     );
 
-    let (rels_xml, rels) = relationships(package, PRESENTATION)?;
-    let rel_id = (rels.len() + 1..)
+    let (rels_xml, relationships_list) = relationships(package, PRESENTATION)?;
+    let rel_id = (1..=relationships_list.len() + 1)
         .map(|n| format!("rId{n}"))
-        .find(|id| rels.iter().all(|rel| &rel.id != id))
+        .find(|id| relationships_list.iter().all(|rel| &rel.id != id))
         .unwrap_or_default();
     let rels_root = parse_xml(PRESENTATION_RELS, &rels_xml)?;
     let relationship = format!(
@@ -182,8 +182,8 @@ pub(super) fn delete_slide(package: &mut Package<'_>, index: usize) -> Result<()
         PRESENTATION,
         splice(&presentation, vec![(slide.start, slide.end, String::new())]),
     );
-    let (rels_xml, rels) = relationships(package, PRESENTATION)?;
-    if let Some(rel) = rels.iter().find(|rel| rel.id == slide.rel_id) {
+    let (rels_xml, relationships_list) = relationships(package, PRESENTATION)?;
+    if let Some(rel) = relationships_list.iter().find(|rel| rel.id == slide.rel_id) {
         package.write(
             PRESENTATION_RELS,
             splice(&rels_xml, vec![(rel.start, rel.end, String::new())]),

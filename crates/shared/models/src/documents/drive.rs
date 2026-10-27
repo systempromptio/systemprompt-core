@@ -107,7 +107,7 @@ pub struct PresenceBeacon {
     pub document_id: DocumentId,
     pub state: PresenceState,
     pub source_kind: PresenceSource,
-    pub source_id: String,
+    pub source_ref: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     // JSON: editor cursor position; the shape belongs to the client's editor.
     pub cursor: Option<serde_json::Value>,

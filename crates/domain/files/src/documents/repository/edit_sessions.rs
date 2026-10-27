@@ -1,5 +1,8 @@
 //! [`DocumentEditSessionRepository`]: at most one open edit session per
 //! document.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{

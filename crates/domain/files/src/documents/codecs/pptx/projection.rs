@@ -207,10 +207,9 @@ fn notes(package: &mut Package<'_>, slide: &str) -> Result<Vec<String>, CodecErr
     let xml = package.require(&rel.target)?;
     let root = parse_xml(&rel.target, &xml)?;
     let mut lines = Vec::new();
-    for element in sp_tree(&root)
-        .map(|tree| tree.children_named("p:sp").collect())
-        .unwrap_or_else(Vec::new)
-    {
+    for element in sp_tree(&root).map_or_else(Vec::new, |tree| {
+        tree.children_named("p:sp").collect::<Vec<_>>()
+    }) {
         if placeholder(element).as_deref() == Some("body") {
             let paras = text_body(&rel.target, &xml, element.child("p:txBody"), false)?;
             lines.extend(paras.into_iter().map(|para| para.text));
@@ -224,13 +223,14 @@ pub(super) fn load(package: &mut Package<'_>) -> Result<Vec<Slide>, CodecError> 
     for slide in slide_refs(package)? {
         let xml = package.require(&slide.part)?;
         let root = parse_xml(&slide.part, &xml)?;
-        let shapes = sp_tree(&root)
-            .map(|tree| {
+        let shapes = sp_tree(&root).map_or_else(
+            || Ok(Vec::new()),
+            |tree| {
                 shape_elements(tree)
                     .map(|el| shape(&slide.part, &xml, el))
-                    .collect()
-            })
-            .unwrap_or_else(|| Ok(Vec::new()))?;
+                    .collect::<Result<Vec<_>, CodecError>>()
+            },
+        )?;
         let layout = match layout_part(package, &slide.part)? {
             Some(layout) => layout_name(package, &layout)?,
             None => None,

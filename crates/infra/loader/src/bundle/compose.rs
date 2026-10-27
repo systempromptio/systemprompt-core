@@ -25,11 +25,12 @@ use systemprompt_manifest::services::bundle::{
 use super::cache::{BundleCache, discard_staging};
 use super::error::{BundleError, BundleResult};
 use super::verify::require_marketplace_only;
+use systemprompt_identifiers::ContentHash;
 
 #[derive(Debug)]
 pub struct BundleMember<'a> {
     pub name: String,
-    pub content_hash: String,
+    pub content_hash: ContentHash,
     pub manifest: &'a ServicesBundleManifest,
 }
 

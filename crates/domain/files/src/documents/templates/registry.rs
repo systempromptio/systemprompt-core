@@ -44,11 +44,13 @@ pub struct InstantiatedTemplate {
     pub bytes: Vec<u8>,
 }
 
+type BlankGenerator = fn() -> Result<Vec<u8>, CodecError>;
+
 #[derive(Debug, Clone)]
 struct Entry {
     template: DocumentTemplate,
     priority: u32,
-    generate: Option<fn() -> Result<Vec<u8>, CodecError>>,
+    generate: Option<BlankGenerator>,
 }
 
 /// Every known document template, one per id.

@@ -46,12 +46,12 @@ pub fn document_for(root: &DriveRoot, state: &DriveState, path: &Path) -> Option
 }
 
 #[must_use]
-pub fn editing_beacon(document_id: DocumentId, source_id: &str) -> PresenceBeacon {
+pub fn editing_beacon(document_id: DocumentId, source_ref: &str) -> PresenceBeacon {
     PresenceBeacon {
         document_id,
         state: PresenceState::Editing,
         source_kind: PresenceSource::Bridge,
-        source_id: source_id.to_owned(),
+        source_ref: source_ref.to_owned(),
         cursor: None,
     }
 }

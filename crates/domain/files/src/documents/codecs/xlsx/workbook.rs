@@ -9,7 +9,7 @@ use std::io::Cursor;
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::CodecError;
-use umya_spreadsheet::{Cell, Workbook, Worksheet};
+use umya_spreadsheet::{Cell, Workbook, Worksheet, XlsxError};
 
 pub(super) type RowMap<'a> = BTreeMap<u32, BTreeMap<u32, &'a Cell>>;
 
@@ -31,6 +31,16 @@ pub(super) fn save(workbook: &Workbook) -> Result<Vec<u8>, CodecError> {
         }
     })?;
     Ok(out)
+}
+
+pub(super) fn sheet_error(node: DocumentNodeId) -> impl FnOnce(XlsxError) -> CodecError {
+    move |source| match source {
+        XlsxError::NotFound() => CodecError::UnknownNode { node },
+        other => CodecError::Parse {
+            part: "workbook".to_owned(),
+            source: Box::new(other),
+        },
+    }
 }
 
 pub(super) fn display(cell: &Cell) -> String {
@@ -115,7 +125,7 @@ pub(super) fn parse_a1(text: &str) -> Option<(u32, u32)> {
     {
         return None;
     }
-    let col = letters.chars().fold(0_u32, |acc, c| {
+    let col = letters.chars().fold(0u32, |acc, c| {
         acc * 26 + u32::from(c.to_ascii_uppercase() as u8 - b'A' + 1)
     });
     let row = digits.parse::<u32>().ok().filter(|row| *row > 0)?;
@@ -130,12 +140,11 @@ pub(super) struct CellRange {
 
 impl CellRange {
     pub(super) fn parse(text: &str) -> Option<Self> {
-        let (start, end) = match text.split_once(':') {
-            Some((a, b)) => (parse_a1(a)?, parse_a1(b)?),
-            None => {
-                let only = parse_a1(text)?;
-                (only, only)
-            },
+        let (start, end) = if let Some((a, b)) = text.split_once(':') {
+            (parse_a1(a)?, parse_a1(b)?)
+        } else {
+            let only = parse_a1(text)?;
+            (only, only)
         };
         Some(Self {
             start: (start.0.min(end.0), start.1.min(end.1)),

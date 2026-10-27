@@ -16,6 +16,7 @@ use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleS
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 use crate::services_profile_fixture as fx;
+use systemprompt_identifiers::ContentHash;
 
 fn install(provenance: ServicesProvenance) -> (fx::ProfileTree, CommandContext) {
     let tree = fx::write_tree(
@@ -30,7 +31,9 @@ fn install(provenance: ServicesProvenance) -> (fx::ProfileTree, CommandContext) 
         BundleSourceState {
             digest: "sha256:aaa".to_owned(),
             version: "1.2.3".to_owned(),
-            content_hash: "hash".to_owned(),
+            content_hash: ContentHash::new(
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            ),
             fetched_at: Utc::now(),
         },
     );

@@ -266,8 +266,8 @@ impl<'d> Batch<'d> {
     fn fresh_para_id(&mut self) -> String {
         loop {
             // Why: Word requires w14:paraId values below 0x80000000.
-            let value =
-                u32::try_from(uuid::Uuid::new_v4().as_u128() & 0x7FFF_FFFF).unwrap_or_default();
+            let [a, b, c, d, ..] = *uuid::Uuid::new_v4().as_bytes();
+            let value = u32::from_be_bytes([a, b, c, d]) & 0x7FFF_FFFF;
             let id = format!("{value:08X}");
             if value != 0 && self.para_ids.insert(id.clone()) {
                 return id;

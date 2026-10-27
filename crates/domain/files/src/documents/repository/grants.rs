@@ -1,5 +1,8 @@
 //! [`DocumentGrantRepository`]: subject-keyed grants on documents and
 //! folders, and the effective level a set of subject pairs holds.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;

@@ -105,7 +105,7 @@ fn duplicate_id_names_both_paths() {
 fn unknown_format_is_rejected() {
     let err = load_catalog(&fixture_root("unknown")).expect_err("unknown");
     assert!(
-        matches!(&err, TemplateCatalogError::UnknownFormat { value, .. } if value == "rtf"),
+        matches!(&err, TemplateCatalogError::UnknownFormat { source, .. } if source.value == "rtf"),
         "{err:?}"
     );
 }

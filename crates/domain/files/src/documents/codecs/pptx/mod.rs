@@ -15,7 +15,7 @@
 //! count in `docProps/app.xml`. Every other zip entry keeps its name,
 //! position and compressed bytes. A new slide is built from the placeholders
 //! of its layout: the named layout, else the layout of the slide it follows.
-//! Parts are addressed by the `p:`/`a:`/`r:` prefixes PowerPoint always
+//! Parts are addressed by the `p:`/`a:`/`r:` prefixes `PowerPoint` always
 //! writes; text inside group shapes and `mc:AlternateContent` is not
 //! projected.
 //!
@@ -189,10 +189,10 @@ fn substitute(text: &str, params: &TemplateParams, escaped: bool) -> String {
 
 fn instantiate_slide(slide: &Slide, params: &TemplateParams) -> Result<Option<String>, CodecError> {
     let root = parse_xml(&slide.part, &slide.xml)?;
-    let mut paras = Vec::new();
-    collect(&root, "a:p", &mut paras);
+    let mut paragraphs = Vec::new();
+    collect(&root, "a:p", &mut paragraphs);
     let mut edits = Vec::new();
-    for p in paras {
+    for p in paragraphs {
         let para = projection::paragraph(&slide.part, &slide.xml, p, false)?;
         let mut runs = Vec::new();
         collect(p, "a:t", &mut runs);

@@ -1,4 +1,5 @@
 use chrono::{TimeZone, Utc};
+use systemprompt_identifiers::ContentHash;
 use systemprompt_manifest::services::{
     BUNDLE_ALLOWED_DIRS, BUNDLE_FORMAT_VERSION, BUNDLE_MANIFEST_FILE, BUNDLE_MEDIA_TYPE,
     BundleOwnership, BundleSignature, BundleSourceInfo, BundleSourceState, FileEntry,
@@ -182,7 +183,9 @@ fn bundle_state_round_trips_per_source_entries() {
         BundleSourceState {
             digest: "sha256:deadbeef".to_owned(),
             version: "1.4.0".to_owned(),
-            content_hash: "abc".to_owned(),
+            content_hash: ContentHash::new(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            ),
             fetched_at: Utc.with_ymd_and_hms(2026, 9, 10, 12, 0, 0).unwrap(),
         },
     );

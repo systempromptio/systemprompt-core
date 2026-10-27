@@ -11,7 +11,8 @@ use systemprompt_provider_contracts::documents::{
 use umya_spreadsheet::{Workbook, Worksheet};
 
 use super::workbook::{
-    CellRange, Target, cell_display, load, node_id, parse_node, save, sheet_id, sheet_row_text,
+    CellRange, Target, cell_display, load, node_id, parse_node, save, sheet_error, sheet_id,
+    sheet_row_text,
 };
 
 pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError> {
@@ -53,9 +54,7 @@ fn apply_one(workbook: &mut Workbook, op: &EditOp) -> Result<(), CodecError> {
 fn sheet_mut<'a>(workbook: &'a mut Workbook, name: &str) -> Result<&'a mut Worksheet, CodecError> {
     workbook
         .sheet_by_name_mut(name)
-        .map_err(|_| CodecError::UnknownNode {
-            node: node_id(sheet_id(name)),
-        })
+        .map_err(sheet_error(node_id(sheet_id(name))))
 }
 
 fn resolve<'a>(
@@ -64,8 +63,9 @@ fn resolve<'a>(
 ) -> Result<(&'a mut Worksheet, Target), CodecError> {
     let (name, target) =
         parse_node(node).ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
-    let sheet =
-        sheet_mut(workbook, &name).map_err(|_| CodecError::UnknownNode { node: node.clone() })?;
+    let sheet = workbook
+        .sheet_by_name_mut(&name)
+        .map_err(sheet_error(node.clone()))?;
     Ok((sheet, target))
 }
 
@@ -162,7 +162,7 @@ fn auto_parse(text: &str) -> CellValue {
 }
 
 fn write_row(sheet: &mut Worksheet, row: u32, text: &str) {
-    for (col, value) in (1_u32..).zip(text.split('\t')) {
+    for (col, value) in (1u32..).zip(text.split('\t')) {
         write_cell(sheet, col, row, &auto_parse(value));
     }
 }
@@ -253,7 +253,7 @@ fn str_replace(workbook: &mut Workbook, old_str: &str, new_str: &str) -> Result<
             detail: "str_replace old_str is empty",
         });
     }
-    let mut matches = 0_usize;
+    let mut matches = 0usize;
     let mut hit = None;
     for (index, sheet) in workbook.sheet_collection().iter().enumerate() {
         for cell in sheet.cells() {

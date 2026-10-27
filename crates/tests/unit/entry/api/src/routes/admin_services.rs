@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use chrono::{TimeZone, Utc};
 use systemprompt_api::routes::admin::services::{RefreshLock, build_status};
+use systemprompt_identifiers::ContentHash;
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
@@ -13,7 +14,9 @@ fn staged_state() -> ServicesBundleState {
         BundleSourceState {
             digest: "sha256:aaa".to_owned(),
             version: "1.4.0".to_owned(),
-            content_hash: "ch-aaa".to_owned(),
+            content_hash: ContentHash::new(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            ),
             fetched_at: Utc
                 .with_ymd_and_hms(2026, 9, 10, 8, 0, 0)
                 .single()
@@ -88,7 +91,10 @@ fn a_fetched_root_reports_its_sources_and_hash() {
     assert_eq!(source.name, "astound");
     assert_eq!(source.digest, "sha256:aaa");
     assert_eq!(source.version, "1.4.0");
-    assert_eq!(source.content_hash, "ch-aaa");
+    assert_eq!(
+        source.content_hash,
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    );
 }
 
 #[test]

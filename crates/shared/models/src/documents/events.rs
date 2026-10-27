@@ -77,7 +77,7 @@ pub struct DocumentPresenceEvent {
     pub user_id: UserId,
     pub state: PresenceState,
     pub source_kind: PresenceSource,
-    pub source_id: String,
+    pub source_ref: String,
 }
 
 impl DocumentPresenceEvent {

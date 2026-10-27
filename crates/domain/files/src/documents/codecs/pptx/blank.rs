@@ -20,12 +20,14 @@ const PML: &str = "application/vnd.openxmlformats-officedocument.presentationml"
 const GROUP: &str = "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>";
 
 fn rels(entries: &[(&str, &str, &str)]) -> String {
-    let body: String = entries
+    let body = entries
         .iter()
-        .map(|(id, kind, target)| {
-            format!("<Relationship Id=\"{id}\" Type=\"{kind}\" Target=\"{target}\"/>")
-        })
-        .collect();
+        .fold(String::new(), |mut out, (id, kind, target)| {
+            out.push_str(&format!(
+                "<Relationship Id=\"{id}\" Type=\"{kind}\" Target=\"{target}\"/>"
+            ));
+            out
+        });
     format!(
         "{DECL}<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">{body}</Relationships>"
     )
@@ -74,10 +76,14 @@ fn content_types() -> String {
             "application/vnd.openxmlformats-officedocument.extended-properties+xml".to_owned(),
         ),
     ];
-    let body: String = overrides
+    let body = overrides
         .iter()
-        .map(|(part, kind)| format!("<Override PartName=\"{part}\" ContentType=\"{kind}\"/>"))
-        .collect();
+        .fold(String::new(), |mut out, (part, kind)| {
+            out.push_str(&format!(
+                "<Override PartName=\"{part}\" ContentType=\"{kind}\"/>"
+            ));
+            out
+        });
     format!(
         "{DECL}<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>{body}</Types>"
     )
@@ -157,10 +163,12 @@ fn theme() -> String {
         ("hlink", "<a:srgbClr val=\"0563C1\"/>"),
         ("folHlink", "<a:srgbClr val=\"954F72\"/>"),
     ];
-    let colours: String = colours
+    let colours = colours
         .iter()
-        .map(|(name, value)| format!("<a:{name}>{value}</a:{name}>"))
-        .collect();
+        .fold(String::new(), |mut out, (name, value)| {
+            out.push_str(&format!("<a:{name}>{value}</a:{name}>"));
+            out
+        });
     let font = |face: &str| {
         format!("<a:latin typeface=\"{face}\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/>")
     };
