@@ -1,5 +1,5 @@
 import { DocumentsElement } from "./documents-element.js";
-import { getProjection, postEdits } from "./documents-api.js";
+import { getProjection, opId, postEdits } from "./documents-api.js";
 import { attr, errorText, escapeHtml } from "./documents-html.js";
 
 const A1 = /([A-Z]+)(\d+)$/;
@@ -65,7 +65,7 @@ export class SpSheetGrid extends DocumentsElement {
     const op = { op: "set_cells", sheet: sheet.text, range: ref, values: [[parseValue(input.value)]] };
     if (input.dataset.hash) { op.expected_hash = input.dataset.hash; }
     try {
-      await postEdits(this.documentId, { baseRevision: this.revision, ops: [op], message: `set ${ref}` });
+      await postEdits(this.documentId, { baseRevision: this.revision, ops: [op], message: `set ${ref}`, opId: opId() });
       this.error = null;
     } catch (err) {
       this.error = err;

@@ -1,5 +1,5 @@
 import { DocumentsElement } from "./documents-element.js";
-import { listRevisions, readView, restoreRevision } from "./documents-api.js";
+import { listRevisions, opId, readView, restoreRevision } from "./documents-api.js";
 import { attr, errorText, escapeHtml, formatTime } from "./documents-html.js";
 
 export class SpHistory extends DocumentsElement {
@@ -29,7 +29,8 @@ export class SpHistory extends DocumentsElement {
   }
 
   restore(revisionId) {
-    return this.attempt(() => restoreRevision(this.documentId, { revisionId, headRevision: this.revisions[0]?.id }));
+    const editId = opId();
+    return this.attempt(() => restoreRevision(this.documentId, { revisionId, headRevision: this.revisions[0]?.id, opId: editId }));
   }
 
   compare(revisionId) {

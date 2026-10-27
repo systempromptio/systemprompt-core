@@ -1,5 +1,5 @@
 import { DocumentsElement } from "./documents-element.js";
-import { getProjection, postEdits } from "./documents-api.js";
+import { getProjection, opId, postEdits } from "./documents-api.js";
 import { attr, errorText, escapeHtml } from "./documents-html.js";
 
 const leaves = (node) => (node.children?.length ? node.children.flatMap(leaves) : [node]);
@@ -29,7 +29,7 @@ export class SpSlideText extends DocumentsElement {
     const { node, hash } = input.dataset;
     const op = { op: "replace_text", node, expected_hash: hash, text: input.value };
     try {
-      await postEdits(this.documentId, { baseRevision: this.revision, ops: [op], message: "edit slide text" });
+      await postEdits(this.documentId, { baseRevision: this.revision, ops: [op], message: "edit slide text", opId: opId() });
       this.error = null;
     } catch (err) {
       this.error = err;

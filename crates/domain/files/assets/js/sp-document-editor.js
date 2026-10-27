@@ -57,7 +57,7 @@ export class SpDocumentEditor extends DocumentsElement {
   }
 
   handleEvent(name, value) {
-    if (name === "document.collab.update" && this.session.importRemote(value)) { this.syncArea(); }
+    if (name === "document.collab.update") { this.receive(value); }
     if (name === "document.revision.created" && value.origin_kind === "edit_session") {
       this.checkpoint = { revision: value.revision_id, at: new Date().toISOString() };
       this.invalidate();
@@ -65,6 +65,14 @@ export class SpDocumentEditor extends DocumentsElement {
     if (name === "document.presence" && value.cursor) {
       this.cursors.set(value.user_id, value.cursor);
       this.invalidate();
+    }
+  }
+
+  async receive(update) {
+    try {
+      if (await this.session.importRemote(update)) { this.syncArea(); }
+    } catch (err) {
+      this.fail(err);
     }
   }
 
