@@ -220,7 +220,7 @@ impl DocumentGrantRepository {
         )
         .fetch_one(&*self.pools.write)
         .await?;
-        Ok(u64::try_from(swept).unwrap_or_default())
+        Ok(u64::try_from(swept.max(0)).unwrap_or(0))
     }
 
     pub async fn effective_level(

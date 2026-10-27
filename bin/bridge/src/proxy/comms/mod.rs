@@ -197,7 +197,8 @@ async fn subscribe_once(
         return Err(CommsError::Status { status, rejection });
     }
 
-    let viewer = crate::auth::jwt::decode_unverified(token.token.expose()).and_then(|identity| identity.user_id);
+    let viewer = crate::auth::jwt::decode_unverified(token.token.expose())
+        .and_then(|identity| identity.user_id);
     tracing::info!("comms stream open");
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();

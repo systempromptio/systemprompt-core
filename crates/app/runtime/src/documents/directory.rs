@@ -14,7 +14,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_files::documents::{SubjectDirectory, SubjectDirectoryError};
 use systemprompt_identifiers::UserId;
-use systemprompt_users::{UserError, UserRepository};
+use systemprompt_users::{User, UserError, UserRepository};
 
 use super::subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND};
 
@@ -39,7 +39,7 @@ fn lookup_failed(error: UserError) -> SubjectDirectoryError {
 impl SubjectDirectory for UserSubjectDirectory {
     async fn roles_of(&self, user: &UserId) -> Result<Option<Vec<String>>, SubjectDirectoryError> {
         let found = self.users.find_by_id(user).await.map_err(lookup_failed)?;
-        Ok(found.filter(|u| u.is_active()).map(|u| u.roles))
+        Ok(found.filter(User::is_active).map(|u| u.roles))
     }
 
     async fn members(
@@ -52,7 +52,11 @@ impl SubjectDirectory for UserSubjectDirectory {
             USER_SUBJECT_KIND => {
                 let id = UserId::new(value);
                 let found = self.users.find_by_id(&id).await.map_err(lookup_failed)?;
-                Ok(found.filter(|u| u.is_active()).map(|u| u.id).into_iter().collect())
+                Ok(found
+                    .filter(User::is_active)
+                    .map(|u| u.id)
+                    .into_iter()
+                    .collect())
             },
             ROLE_SUBJECT_KIND => self
                 .users

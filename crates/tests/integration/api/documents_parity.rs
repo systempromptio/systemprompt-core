@@ -348,7 +348,12 @@ async fn non_members_get_not_found_and_viewers_see_only_owner_and_self() -> Resu
     let viewer = seed_bridge_credential(&pool, "docs-guard-viewer").await?;
     let editor = seed_bridge_credential(&pool, "docs-guard-editor").await?;
     let stranger = seed_bridge_credential(&pool, "docs-guard-stranger").await?;
-    let (id, _) = create(&state, &owner, &format!("guard-{}.md", Uuid::new_v4().simple())).await?;
+    let (id, _) = create(
+        &state,
+        &owner,
+        &format!("guard-{}.md", Uuid::new_v4().simple()),
+    )
+    .await?;
     for (user, level) in [(&viewer, "view"), (&editor, "edit")] {
         let (status, body) = send(
             app(&state, &owner),
@@ -378,7 +383,10 @@ async fn non_members_get_not_found_and_viewers_see_only_owner_and_self() -> Resu
     )
     .await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{probe}");
-    assert!(!probe.to_string().contains(owner.user_id.as_str()), "{probe}");
+    assert!(
+        !probe.to_string().contains(owner.user_id.as_str()),
+        "{probe}"
+    );
 
     let (status, access) = send(
         app(&state, &viewer),
@@ -389,7 +397,10 @@ async fn non_members_get_not_found_and_viewers_see_only_owner_and_self() -> Resu
     assert_eq!(access["owner"], owner.user_id.as_str());
     assert_eq!(access["my_access"], "view");
     assert_eq!(access["grants"], json!([]));
-    assert!(!access.to_string().contains(editor.user_id.as_str()), "{access}");
+    assert!(
+        !access.to_string().contains(editor.user_id.as_str()),
+        "{access}"
+    );
 
     let (status, refused) = send(
         app(&state, &owner),

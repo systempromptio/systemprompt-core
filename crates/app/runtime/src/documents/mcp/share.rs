@@ -117,12 +117,16 @@ impl McpToolHandler for ShareHandler<'_> {
             &input.document_id,
         ) {
             (Some(to), _, Some(document)) => {
-                let to_display = active_user_display(self.tools.users(), &to)
-                    .await
-                    .map_err(|error| {
-                        tracing::error!(error = %error, "transfer recipient was not looked up");
-                        McpError::internal_error("the transfer recipient could not be looked up", None)
-                    })?;
+                let to_display =
+                    active_user_display(self.tools.users(), &to)
+                        .await
+                        .map_err(|error| {
+                            tracing::error!(error = %error, "transfer recipient was not looked up");
+                            McpError::internal_error(
+                                "the transfer recipient could not be looked up",
+                                None,
+                            )
+                        })?;
                 service
                     .transfer_ownership(
                         who,

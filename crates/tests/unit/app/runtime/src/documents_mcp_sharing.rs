@@ -2,8 +2,8 @@ use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::AccessLevel;
 use systemprompt_runtime::documents::mcp::{
-    AccessHandler, DocumentInput, ReadHandler, ReadInput, ShareHandler, ShareInput,
-    TrashHandler, refusal_result,
+    AccessHandler, DocumentInput, ReadHandler, ReadInput, ShareHandler, ShareInput, TrashHandler,
+    refusal_result,
 };
 
 use crate::documents_mcp_support::{create_text, ctx_for, exec, harness, person};
@@ -45,16 +45,30 @@ async fn own_is_not_grantable_and_a_share_holder_cannot_trash_or_revoke_all() {
     let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
     let tool = ShareHandler { tools: &h.tools };
     let refused = tool
-        .handle(grant(&document, &sharer.id, AccessLevel::Own), &ctx, &exec())
+        .handle(
+            grant(&document, &sharer.id, AccessLevel::Own),
+            &ctx,
+            &exec(),
+        )
         .await
         .expect_err("own refused");
     assert_eq!(refusal_of(&refused)["code"], "invalid_params");
-    tool.handle(grant(&document, &sharer.id, AccessLevel::Share), &ctx, &exec())
-        .await
-        .expect("owner shares");
+    tool.handle(
+        grant(&document, &sharer.id, AccessLevel::Share),
+        &ctx,
+        &exec(),
+    )
+    .await
+    .expect("owner shares");
     let sharer_ctx = ctx_for(Some(&sharer));
     let trashed = TrashHandler { tools: &h.tools }
-        .handle(DocumentInput { document_id: document.clone() }, &sharer_ctx, &exec())
+        .handle(
+            DocumentInput {
+                document_id: document.clone(),
+            },
+            &sharer_ctx,
+            &exec(),
+        )
         .await
         .expect_err("a share holder cannot trash");
     assert_eq!(refusal_of(&trashed)["code"], "forbidden");
@@ -124,12 +138,20 @@ async fn a_viewer_reads_only_the_owner_and_their_own_level() {
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
     let tool = ShareHandler { tools: &h.tools };
-    tool.handle(grant(&document, &viewer.id, AccessLevel::View), &ctx, &exec())
-        .await
-        .expect("share viewer");
-    tool.handle(grant(&document, &other.id, AccessLevel::Edit), &ctx, &exec())
-        .await
-        .expect("share other");
+    tool.handle(
+        grant(&document, &viewer.id, AccessLevel::View),
+        &ctx,
+        &exec(),
+    )
+    .await
+    .expect("share viewer");
+    tool.handle(
+        grant(&document, &other.id, AccessLevel::Edit),
+        &ctx,
+        &exec(),
+    )
+    .await
+    .expect("share other");
     let (access, _) = AccessHandler { tools: &h.tools }
         .handle(
             DocumentInput {
@@ -144,7 +166,13 @@ async fn a_viewer_reads_only_the_owner_and_their_own_level() {
     assert_eq!(access.my_access, AccessLevel::View);
     assert!(access.grants.is_empty() && access.inherited.is_empty());
     let (full, _) = AccessHandler { tools: &h.tools }
-        .handle(DocumentInput { document_id: document }, &ctx, &exec())
+        .handle(
+            DocumentInput {
+                document_id: document,
+            },
+            &ctx,
+            &exec(),
+        )
         .await
         .expect("owner reads access");
     assert_eq!(full.grants.len(), 2);

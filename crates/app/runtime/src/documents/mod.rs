@@ -12,9 +12,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod directory;
 /// MCP tool handlers over the document service.
 pub mod mcp;
-mod directory;
 mod subjects;
 mod wiring;
 

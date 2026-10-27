@@ -1,7 +1,8 @@
-//! The words of a document notice toast: which message keys it uses and
-//! the values they take. The document is named by its Drive path when this
-//! device has synced it, else by the name the event carries, else by its id;
-//! the sender by the display name the event carries, else by user id.
+//! The words of a document notice toast.
+//!
+//! The document is named by its Drive path when this device has synced it,
+//! else by the name the event carries, else by its id; the sender by the
+//! display name the event carries, else by user id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

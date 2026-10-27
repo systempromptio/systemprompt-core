@@ -14,10 +14,12 @@ use rmcp::model::CallToolResult;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::{DocumentRevision, RevisionAttribution};
 use systemprompt_files::documents::service::{Author, RevisionOrigin};
-use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId, McpExecutionId};
+use systemprompt_identifiers::{
+    DocumentId, DocumentNodeId, DocumentRevisionId, McpExecutionId, UserId,
+};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::ActorKind;
+use systemprompt_models::documents::{AccessLevel, ActorKind};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
 
@@ -65,11 +67,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         },
         DocumentsError::ShareBelowExisting {
             existing, owner, ..
-        } => Refusal {
-            owner,
-            existing_level: Some(existing),
-            ..Refusal::new(RefusalCode::Forbidden)
-        },
+        } => share_below_existing_refusal(existing, owner),
         DocumentsError::UnknownSubject { .. } => Refusal::new(RefusalCode::UnknownSubject),
         DocumentsError::NotFound { .. } | DocumentsError::CommentNotFound { .. } => {
             Refusal::new(RefusalCode::NotFound)
@@ -252,5 +250,13 @@ pub(super) async fn run<H: McpToolHandler>(
     {
         Err(error) => refusal_result(&error).ok_or(error),
         ok => ok,
+    }
+}
+
+fn share_below_existing_refusal(existing: AccessLevel, owner: Option<UserId>) -> Refusal {
+    Refusal {
+        owner,
+        existing_level: Some(existing),
+        ..Refusal::new(RefusalCode::Forbidden)
     }
 }

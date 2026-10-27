@@ -141,11 +141,7 @@ impl DocumentService {
         if !recipients.contains(&current.owner_user_id) {
             recipients.push(current.owner_user_id.clone());
         }
-        if let Err(error) = self
-            .events
-            .ownership_transferred(&recipients, &event)
-            .await
-        {
+        if let Err(error) = self.events.ownership_transferred(&recipients, &event).await {
             tracing::warn!(document_id = %document, error = %error, "Ownership transfer event not relayed");
         }
         Ok(transferred)

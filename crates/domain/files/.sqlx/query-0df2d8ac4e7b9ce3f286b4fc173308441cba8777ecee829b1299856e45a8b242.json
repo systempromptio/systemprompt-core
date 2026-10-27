@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH g AS (\n                   DELETE FROM document_grants\n                   WHERE id IN (SELECT id FROM document_grants\n                                WHERE valid_until <= now() LIMIT $1)\n                   RETURNING document_id, subject_kind, subject_value),\n               p AS (\n                   DELETE FROM document_presence p USING g\n                   WHERE g.subject_kind = 'user' AND p.document_id = g.document_id\n                     AND p.user_id = g.subject_value\n                   RETURNING 1)\n               SELECT COUNT(*) AS \"swept!\" FROM g",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "swept!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0df2d8ac4e7b9ce3f286b4fc173308441cba8777ecee829b1299856e45a8b242"
+}

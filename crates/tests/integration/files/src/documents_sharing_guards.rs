@@ -20,7 +20,8 @@ use tempfile::TempDir;
 use tokio::sync::mpsc;
 
 use crate::documents_service_fixture::{
-    GroupSource, Harness, RoleDirectory, allow, create, harness, harness_with, person, trace, unique,
+    GroupSource, Harness, RoleDirectory, allow, create, harness, harness_with, person, trace,
+    unique,
 };
 
 async fn document(h: &Harness, owner: &AuthenticatedUser) -> DocumentId {
@@ -93,12 +94,20 @@ async fn a_share_holder_cannot_lower_a_grant_above_their_level() {
     let id = document(&h, &owner).await;
     legacy_own_grant(&h, &id, &owner.id, &senior.id).await;
     h.service
-        .share(&owner, grant(&id, "user", sharer.id.as_str(), AccessLevel::Share), &trace())
+        .share(
+            &owner,
+            grant(&id, "user", sharer.id.as_str(), AccessLevel::Share),
+            &trace(),
+        )
         .await
         .expect("owner shares");
     let refused = h
         .service
-        .share(&sharer, grant(&id, "user", senior.id.as_str(), AccessLevel::View), &trace())
+        .share(
+            &sharer,
+            grant(&id, "user", senior.id.as_str(), AccessLevel::View),
+            &trace(),
+        )
         .await
         .expect_err("cannot lower a higher grant");
     assert!(
@@ -121,7 +130,11 @@ async fn an_own_grant_holder_is_not_the_owner() {
     let holder = person("own-holder");
     let id = document(&h, &owner).await;
     legacy_own_grant(&h, &id, &owner.id, &holder.id).await;
-    let view = h.service.get(&holder, &id, &trace()).await.expect("holder reads");
+    let view = h
+        .service
+        .get(&holder, &id, &trace())
+        .await
+        .expect("holder reads");
     assert_eq!(view.my_access, AccessLevel::Share);
     let transfer = h
         .service
@@ -136,19 +149,28 @@ async fn an_own_grant_holder_is_not_the_owner() {
         )
         .await
         .expect_err("holder cannot transfer");
-    assert!(matches!(transfer, DocumentsError::Forbidden { .. }), "{transfer:?}");
+    assert!(
+        matches!(transfer, DocumentsError::Forbidden { .. }),
+        "{transfer:?}"
+    );
     let revoke_all = h
         .service
         .revoke_all(&holder, &id, &trace())
         .await
         .expect_err("holder cannot revoke every grant");
-    assert!(matches!(revoke_all, DocumentsError::Forbidden { .. }), "{revoke_all:?}");
+    assert!(
+        matches!(revoke_all, DocumentsError::Forbidden { .. }),
+        "{revoke_all:?}"
+    );
     let trash = h
         .service
         .trash(&holder, &id, &trace())
         .await
         .expect_err("holder cannot trash");
-    assert!(matches!(trash, DocumentsError::Forbidden { .. }), "{trash:?}");
+    assert!(
+        matches!(trash, DocumentsError::Forbidden { .. }),
+        "{trash:?}"
+    );
 }
 
 #[tokio::test]
@@ -169,7 +191,10 @@ async fn transfer_without_a_resolved_recipient_is_refused() {
         )
         .await
         .expect_err("unknown recipient");
-    assert!(matches!(refused, DocumentsError::UnknownSubject { .. }), "{refused:?}");
+    assert!(
+        matches!(refused, DocumentsError::UnknownSubject { .. }),
+        "{refused:?}"
+    );
 }
 
 #[tokio::test]
@@ -178,8 +203,15 @@ async fn a_non_member_is_told_not_found_without_the_owner() {
     let owner = person("probe-owner");
     let stranger = person("probe-stranger");
     let id = document(&h, &owner).await;
-    let refused = h.service.get(&stranger, &id, &trace()).await.expect_err("probe");
-    assert!(matches!(refused, DocumentsError::NotFound { .. }), "{refused:?}");
+    let refused = h
+        .service
+        .get(&stranger, &id, &trace())
+        .await
+        .expect_err("probe");
+    assert!(
+        matches!(refused, DocumentsError::NotFound { .. }),
+        "{refused:?}"
+    );
     assert!(!refused.to_string().contains(owner.id.as_str()));
 }
 
@@ -191,7 +223,11 @@ async fn revoking_clears_presence_and_stops_events() {
     let id = document(&h, &owner).await;
     let shared = h
         .service
-        .share(&owner, grant(&id, "user", reader.id.as_str(), AccessLevel::View), &trace())
+        .share(
+            &owner,
+            grant(&id, "user", reader.id.as_str(), AccessLevel::View),
+            &trace(),
+        )
         .await
         .expect("share");
     h.service
@@ -208,10 +244,21 @@ async fn revoking_clears_presence_and_stops_events() {
         )
         .await
         .expect("reader present");
-    let current = h.repos.documents.find(&id).await.expect("find").expect("document");
+    let current = h
+        .repos
+        .documents
+        .find(&id)
+        .await
+        .expect("find")
+        .expect("document");
     assert!(h.service.recipients(&current).await.contains(&reader.id));
     h.service
-        .revoke(&owner, &GrantTarget::Document(id.clone()), shared.id, &trace())
+        .revoke(
+            &owner,
+            &GrantTarget::Document(id.clone()),
+            shared.id,
+            &trace(),
+        )
         .await
         .expect("revoke");
     let present = h.repos.presence.users_present(&id).await.expect("presence");
@@ -227,8 +274,16 @@ async fn expired_grants_are_flagged_and_swept() {
     let id = document(&h, &owner).await;
     let mut request = grant(&id, "user", reader.id.as_str(), AccessLevel::View);
     request.valid_until = Some(Utc::now() - chrono::Duration::minutes(1));
-    let expired = h.service.share(&owner, request, &trace()).await.expect("share");
-    let access = h.service.access_of(&owner, &id, &trace()).await.expect("access");
+    let expired = h
+        .service
+        .share(&owner, request, &trace())
+        .await
+        .expect("share");
+    let access = h
+        .service
+        .access_of(&owner, &id, &trace())
+        .await
+        .expect("access");
     let listed = access
         .grants
         .iter()
@@ -236,7 +291,11 @@ async fn expired_grants_are_flagged_and_swept() {
         .expect("expired grant still listed");
     assert!(listed.is_expired(Utc::now()));
     h.repos.grants.sweep_expired(10_000).await.expect("sweep");
-    let after = h.service.access_of(&owner, &id, &trace()).await.expect("access");
+    let after = h
+        .service
+        .access_of(&owner, &id, &trace())
+        .await
+        .expect("access");
     assert!(after.grants.iter().all(|g| g.id != expired.id));
 }
 
@@ -257,14 +316,22 @@ async fn shared_events_reach_each_recipient_and_not_the_owner_of_a_co_share() {
     .await;
     let id = document(&h, &owner).await;
     h.service
-        .share(&owner, grant(&id, "user", sharer.id.as_str(), AccessLevel::Share), &trace())
+        .share(
+            &owner,
+            grant(&id, "user", sharer.id.as_str(), AccessLevel::Share),
+            &trace(),
+        )
         .await
         .expect("owner shares");
     let mut owner_rx = listen!(h, &owner.id);
     let mut alice_rx = listen!(h, &alice.id);
     let mut bob_rx = listen!(h, &bob.id);
     h.service
-        .share(&sharer, grant(&id, "role", &role, AccessLevel::View), &trace())
+        .share(
+            &sharer,
+            grant(&id, "role", &role, AccessLevel::View),
+            &trace(),
+        )
         .await
         .expect("co-sharer shares with the role");
     let alice_seen = drain(&mut alice_rx).await;

@@ -12,8 +12,9 @@
 //!    others land in it. The action's required level must not exceed the level
 //!    held. A grant never confers `own`: the level read from grants is capped
 //!    at `share`, so `own`-gated actions (delete, trash, restore, move,
-//!    transfer, revoke every grant) belong to the owner alone. Administrators are not special-cased: they reach documents through
-//!    grants to their role like anyone else.
+//!    transfer, revoke every grant) belong to the owner alone. Administrators
+//!    are not special-cased: they reach documents through grants to their role
+//!    like anyone else.
 //! 2. **Policy.** The authz hook must allow an [`AuthzRequest`] whose entity is
 //!    the nearest folder and whose context is `document.access`. Documents and
 //!    folders at the root are checked against the root folder entity

@@ -240,8 +240,16 @@ async fn a_stranger_is_told_not_found_until_shared() {
         .handle(read(document.clone()), &ctx_for(Some(&stranger)), &exec())
         .await
         .expect_err("stranger cannot read");
-    assert!(error.message.contains("does not exist"), "{}", error.message);
-    assert!(!error.message.contains(owner.id.as_str()), "{}", error.message);
+    assert!(
+        error.message.contains("does not exist"),
+        "{}",
+        error.message
+    );
+    assert!(
+        !error.message.contains(owner.id.as_str()),
+        "{}",
+        error.message
+    );
 
     ShareHandler { tools: &h.tools }
         .handle(

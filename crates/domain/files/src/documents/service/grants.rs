@@ -186,12 +186,7 @@ impl DocumentService {
         }
         let cleared = match &grant.target {
             GrantTarget::Document(id) => self.repos.presence.delete_for_users(id, &users).await,
-            GrantTarget::Folder(id) => {
-                self.repos
-                    .presence
-                    .delete_for_users_under(id, &users)
-                    .await
-            },
+            GrantTarget::Folder(id) => self.repos.presence.delete_for_users_under(id, &users).await,
         };
         if let Err(error) = cleared {
             tracing::warn!(grant_id = %grant.id, error = %error, "Revoked users' presence was not cleared; it stays until it expires");
