@@ -1,9 +1,14 @@
 //! Sharing: grants on documents and folders.
 //!
 //! Sharing needs `share` on the target, and nobody can grant a level above
-//! the one they hold. A grant names one subject pair: `user`, `role` or a
-//! registered subject dimension; any other kind is refused rather than
-//! stored as a grant nobody can match.
+//! the one they hold, nor change a grant whose subject already holds more
+//! than they do. `own` is never granted: it stays with the owner. A grant
+//! names one subject pair: `user`, `role` or a registered subject dimension;
+//! any other kind is refused rather than stored as a grant nobody can match.
+//!
+//! Removing a grant also removes the presence rows (and so the live editing
+//! state) of the users it named, so a revoked user stops receiving the
+//! document's events.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +20,7 @@ use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use uuid::Uuid;
 
 use super::DocumentService;
+use super::ownership::USER_SUBJECT;
 use crate::documents::access::{AccessTarget, Granted};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{DocumentGrant, GrantTarget, NewGrant};
@@ -67,7 +73,25 @@ impl DocumentService {
                 kind: request.subject_kind,
             });
         }
+        if request.level == AccessLevel::Own {
+            return Err(DocumentsError::OwnNotGrantable);
+        }
         let granted = self.authorize_share(who, &request.target, trace).await?;
+        let existing = self
+            .list_grants(&request.target)
+            .await?
+            .into_iter()
+            .find(|grant| {
+                grant.subject_kind == request.subject_kind
+                    && grant.subject_value == request.subject_value
+            });
+        if let Some(existing) = existing.filter(|grant| grant.access_level > granted.level) {
+            return Err(DocumentsError::ShareBelowExisting {
+                existing: existing.access_level,
+                held: granted.level,
+                owner: owner_of(&granted),
+            });
+        }
         if request.level > granted.level {
             return Err(DocumentsError::Forbidden {
                 action: DocumentAction::Share,
@@ -91,7 +115,7 @@ impl DocumentService {
             })
             .await?;
         if let Some(document) = &granted.document {
-            self.announce_share(document, &grant).await;
+            self.announce_share(who, document, &grant).await;
         }
         Ok(grant)
     }
@@ -122,6 +146,8 @@ impl DocumentService {
         if !self.repos.grants.delete(grant_id).await? {
             return Err(DocumentsError::not_found("grant", grant_id));
         }
+        self.clear_presence(&grant, owner_of(&granted).as_ref())
+            .await;
         Ok(())
     }
 
@@ -133,6 +159,43 @@ impl DocumentService {
     ) -> Result<Vec<DocumentGrant>, DocumentsError> {
         self.authorize_share(who, target, trace).await?;
         self.list_grants(target).await
+    }
+
+    pub(super) async fn clear_presence(&self, grant: &DocumentGrant, owner: Option<&UserId>) {
+        let users = if grant.subject_kind == USER_SUBJECT {
+            vec![UserId::new(grant.subject_value.clone())]
+        } else {
+            match self
+                .access
+                .subject_members(&grant.subject_kind, &grant.subject_value)
+                .await
+            {
+                Ok(users) => users,
+                Err(error) => {
+                    tracing::warn!(grant_id = %grant.id, error = %error, "Revoked subject's users were not resolved; their presence stays until it expires");
+                    return;
+                },
+            }
+        };
+        let users: Vec<UserId> = users
+            .into_iter()
+            .filter(|user| Some(user) != owner)
+            .collect();
+        if users.is_empty() {
+            return;
+        }
+        let cleared = match &grant.target {
+            GrantTarget::Document(id) => self.repos.presence.delete_for_users(id, &users).await,
+            GrantTarget::Folder(id) => {
+                self.repos
+                    .presence
+                    .delete_for_users_under(id, &users)
+                    .await
+            },
+        };
+        if let Err(error) = cleared {
+            tracing::warn!(grant_id = %grant.id, error = %error, "Revoked users' presence was not cleared; it stays until it expires");
+        }
     }
 
     pub(super) async fn list_grants(

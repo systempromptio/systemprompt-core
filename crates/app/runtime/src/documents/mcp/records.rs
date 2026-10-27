@@ -77,6 +77,8 @@ pub struct GrantItem {
     pub level: AccessLevel,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub valid_until: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub expired: bool,
     pub granted_by: UserId,
     pub granted_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -86,6 +88,7 @@ pub struct GrantItem {
 impl From<DocumentGrant> for GrantItem {
     fn from(grant: DocumentGrant) -> Self {
         Self {
+            expired: grant.is_expired(Utc::now()),
             grant_id: grant.id.to_string(),
             folder_id: match grant.target {
                 GrantTarget::Folder(folder) => Some(folder),

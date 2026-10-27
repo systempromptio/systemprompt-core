@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeSet;
 use std::time::Duration;
 
 use loro::ExportMode;
@@ -260,21 +259,6 @@ impl CollabService {
     }
 
     pub(super) async fn recipients(&self, document: &Document) -> Vec<UserId> {
-        let mut users = BTreeSet::from([document.owner_user_id.clone()]);
-        match self
-            .documents
-            .repositories()
-            .presence
-            .users_present(&document.id)
-            .await
-        {
-            Ok(present) => users.extend(present),
-            Err(error) => tracing::warn!(
-                document_id = %document.id,
-                error = %error,
-                "Present users could not be read; the event reaches the owner only"
-            ),
-        }
-        users.into_iter().collect()
+        self.documents.recipients(document).await
     }
 }

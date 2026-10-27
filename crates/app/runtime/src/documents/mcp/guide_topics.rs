@@ -61,11 +61,13 @@ paragraph or list_item. Every id in one call names the deck as read.";
 pub(super) const SHARING: &str = "\
 documents_share {document_id | folder_id, subject_kind, subject_value, level, valid_until}. \
 subject_kind is user, role or a registered subject dimension such as group or project; level \
-is view, comment, edit, share or own. A folder grant covers its subtree. Sharing needs share \
-access. documents_share {document_id, transfer_to: user_id} makes that user the owner and \
-keeps edit for the previous owner; {document_id, revoke_all: true} removes every grant on the \
-document; both need own. documents_access {document_id} reads back the owner, each grant with \
-the subject's display name, the grants inherited from folders, and your level.";
+is view, comment, edit or share (own stays with the owner). A folder grant covers its subtree. \
+Sharing needs share access, and you cannot change a grant above your own level. \
+documents_share {document_id, transfer_to: user_id} makes that active user the owner and keeps \
+edit for the previous owner; {document_id, revoke_all: true} removes every grant on the \
+document; only the owner can do either. documents_access {document_id} reads back the owner \
+and your level and, with share, each grant (expired: true once past valid_until) and the \
+grants inherited from folders.";
 
 pub(super) const COMMENTS: &str = "\
 documents_comment {action: create, document_id, node, anchor?: {find, nth?}, body} anchors a \
@@ -133,7 +135,8 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
         },
         RefusalCode::Forbidden => {
             "forbidden: you lack the access level the action needs; the text names the level \
-             held and needed, and owner names who can share it. Ask the owner to share."
+             held and needed, and owner names who can share it. existing_level means the \
+             subject already holds more than you; leave that grant to its owner."
         },
         RefusalCode::NotFound => {
             "not_found: the document, folder, revision, comment or node does not exist or is \
@@ -153,6 +156,9 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
         },
         RefusalCode::InvalidParams => {
             "invalid_params: the call is malformed; fix the named field and resend."
+        },
+        RefusalCode::UnknownSubject => {
+            "unknown_subject: no active user or subject has that id; check the id and resend."
         },
     }
 }

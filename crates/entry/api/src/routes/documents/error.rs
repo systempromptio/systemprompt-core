@@ -19,6 +19,7 @@ use systemprompt_identifiers::{
     ContentHash, DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId,
 };
 use systemprompt_models::api::{ApiError, ErrorCode};
+use systemprompt_models::documents::AccessLevel;
 use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_runtime::documents::mcp::RefusalCode;
 use systemprompt_traits::AuthProviderError;
@@ -140,7 +141,9 @@ struct AnchorsDetail<'a> {
 
 #[derive(Debug, Serialize)]
 struct ForbiddenDetail<'a> {
-    owner: &'a UserId,
+    owner: Option<&'a UserId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    existing_level: Option<AccessLevel>,
 }
 
 #[derive(Debug, Serialize)]
@@ -187,7 +190,20 @@ fn service_response(error: DocumentsError) -> Response {
         DocumentsError::Forbidden {
             owner: Some(owner), ..
         } => {
-            return with_detail(&ApiError::forbidden(message), ForbiddenDetail { owner });
+            let detail = ForbiddenDetail {
+                owner: Some(owner),
+                existing_level: None,
+            };
+            return with_detail(&ApiError::forbidden(message), detail);
+        },
+        DocumentsError::ShareBelowExisting {
+            existing, owner, ..
+        } => {
+            let detail = ForbiddenDetail {
+                owner: owner.as_ref(),
+                existing_level: Some(*existing),
+            };
+            return with_detail(&ApiError::forbidden(message), detail);
         },
         DocumentsError::Trashed { .. } => {
             let api = ApiError::not_found(message).with_error_key("trashed");
@@ -200,7 +216,15 @@ fn service_response(error: DocumentsError) -> Response {
 
 fn api_error(error: DocumentsError, message: String) -> ApiError {
     match error {
-        DocumentsError::Forbidden { .. } => ApiError::forbidden(message),
+        DocumentsError::Forbidden { .. } | DocumentsError::ShareBelowExisting { .. } => {
+            ApiError::forbidden(message)
+        },
+        DocumentsError::UnknownSubject { .. } => {
+            ApiError::bad_request(message).with_error_key("unknown_subject")
+        },
+        DocumentsError::OwnNotGrantable => {
+            ApiError::bad_request(message).with_error_key("invalid_params")
+        },
         DocumentsError::NotFound { .. } | DocumentsError::CommentNotFound { .. } => {
             ApiError::not_found(message)
         },

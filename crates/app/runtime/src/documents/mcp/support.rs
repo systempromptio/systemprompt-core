@@ -63,6 +63,14 @@ pub fn tool_error(error: DocumentsError) -> McpError {
             owner,
             ..Refusal::new(RefusalCode::Forbidden)
         },
+        DocumentsError::ShareBelowExisting {
+            existing, owner, ..
+        } => Refusal {
+            owner,
+            existing_level: Some(existing),
+            ..Refusal::new(RefusalCode::Forbidden)
+        },
+        DocumentsError::UnknownSubject { .. } => Refusal::new(RefusalCode::UnknownSubject),
         DocumentsError::NotFound { .. } | DocumentsError::CommentNotFound { .. } => {
             Refusal::new(RefusalCode::NotFound)
         },
@@ -114,6 +122,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::IntegrityMismatch { .. }
         | DocumentsError::InvalidName { .. }
         | DocumentsError::UnknownSubjectKind { .. }
+        | DocumentsError::OwnNotGrantable
         | DocumentsError::FolderNotEmpty { .. }
         | DocumentsError::InvalidMove { .. }
         | DocumentsError::InvalidCursor { .. }
@@ -123,7 +132,8 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::Repository(_)
         | DocumentsError::Authz(_)
         | DocumentsError::Events { .. }
-        | DocumentsError::Worker(_) => return internal_failure(&error),
+        | DocumentsError::Worker(_)
+        | DocumentsError::Directory(_) => return internal_failure(&error),
     };
     refusal.into_error(message)
 }

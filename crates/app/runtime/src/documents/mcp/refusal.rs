@@ -16,7 +16,7 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock, ErrorCode};
 use serde::Serialize;
 use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId};
-use systemprompt_models::documents::ActorKind;
+use systemprompt_models::documents::{AccessLevel, ActorKind};
 
 /// The stable code of a refusal; `documents_guide` explains each as
 /// `refusal.<code>`.
@@ -35,10 +35,11 @@ pub enum RefusalCode {
     AnchorsAffected,
     ProposalConflict,
     InvalidParams,
+    UnknownSubject,
 }
 
 impl RefusalCode {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::StaleBase,
         Self::GuardMismatch,
         Self::FindNone,
@@ -51,6 +52,7 @@ impl RefusalCode {
         Self::AnchorsAffected,
         Self::ProposalConflict,
         Self::InvalidParams,
+        Self::UnknownSubject,
     ];
 
     #[must_use]
@@ -68,6 +70,7 @@ impl RefusalCode {
             Self::AnchorsAffected => "anchors_affected",
             Self::ProposalConflict => "proposal_conflict",
             Self::InvalidParams => "invalid_params",
+            Self::UnknownSubject => "unknown_subject",
         }
     }
 }
@@ -97,6 +100,8 @@ pub struct Refusal {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owner: Option<UserId>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub existing_level: Option<AccessLevel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trashed: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comments: Option<Vec<DocumentCommentId>>,
@@ -117,6 +122,7 @@ impl Refusal {
             matches: None,
             accepted_kinds: None,
             owner: None,
+            existing_level: None,
             trashed: None,
             comments: None,
         }

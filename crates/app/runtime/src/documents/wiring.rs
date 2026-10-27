@@ -14,7 +14,7 @@ use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_files::documents::templates::{CatalogTemplate, TemplateRegistry};
 use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
-    DocumentServiceParts, DocumentsError,
+    DocumentServiceParts, DocumentsError, SubjectDirectory,
 };
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::SubjectAttributeSource;
@@ -28,6 +28,7 @@ pub struct DocumentsRuntimeParts {
     pub access_entities: Arc<AccessControlRepository>,
     pub authz_hook: SharedAuthzHook,
     pub subjects: Arc<dyn SubjectAttributeSource>,
+    pub directory: Arc<dyn SubjectDirectory>,
     pub event_router: EventRouter,
     pub catalog: Vec<CatalogTemplate>,
     pub config: DocumentsConfig,
@@ -59,6 +60,7 @@ impl DocumentsRuntime {
             access_entities,
             authz_hook,
             subjects,
+            directory,
             event_router,
             catalog,
             config,
@@ -73,6 +75,7 @@ impl DocumentsRuntime {
             },
             authz_hook,
             subjects,
+            directory,
         ));
         let blobs = Arc::new(BlobStore::new(
             file_storage,

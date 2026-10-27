@@ -203,6 +203,26 @@ impl DocumentGrantRepository {
         Ok(result.rows_affected())
     }
 
+    pub async fn sweep_expired(&self, limit: i64) -> RepoResult<u64> {
+        let swept = sqlx::query_scalar!(
+            r#"WITH g AS (
+                   DELETE FROM document_grants
+                   WHERE id IN (SELECT id FROM document_grants
+                                WHERE valid_until <= now() LIMIT $1)
+                   RETURNING document_id, subject_kind, subject_value),
+               p AS (
+                   DELETE FROM document_presence p USING g
+                   WHERE g.subject_kind = 'user' AND p.document_id = g.document_id
+                     AND p.user_id = g.subject_value
+                   RETURNING 1)
+               SELECT COUNT(*) AS "swept!" FROM g"#,
+            limit.max(1),
+        )
+        .fetch_one(&*self.pools.write)
+        .await?;
+        Ok(u64::try_from(swept).unwrap_or_default())
+    }
+
     pub async fn effective_level(
         &self,
         document_id: &DocumentId,

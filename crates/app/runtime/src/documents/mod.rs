@@ -14,8 +14,10 @@
 
 /// MCP tool handlers over the document service.
 pub mod mcp;
+mod directory;
 mod subjects;
 mod wiring;
 
-pub use subjects::{USER_SUBJECT_KIND, subject_display};
+pub use directory::UserSubjectDirectory;
+pub use subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND, active_user_display, subject_display};
 pub use wiring::{DocumentsRuntime, DocumentsRuntimeParts};

@@ -11,6 +11,10 @@ use super::service::{AccessTarget, DocumentAccessService, Resolved, no_document}
 use crate::documents::error::DocumentsError;
 use crate::documents::models::SubjectPairs;
 
+pub(super) fn granted_ceiling(level: AccessLevel) -> AccessLevel {
+    level.min(AccessLevel::Share)
+}
+
 impl DocumentAccessService {
     pub(super) async fn resolve(
         &self,
@@ -35,7 +39,10 @@ impl DocumentAccessService {
                 let level = if document.owner_user_id == who.id {
                     Some(AccessLevel::Own)
                 } else {
-                    self.grants.effective_level(id, &chain, pairs).await?
+                    self.grants
+                        .effective_level(id, &chain, pairs)
+                        .await?
+                        .map(granted_ceiling)
                 };
                 match (document.trashed_at.is_some(), trashed) {
                     (true, false) if level.is_some() => {
@@ -69,6 +76,7 @@ impl DocumentAccessService {
                     self.grants
                         .effective_level(&no_document(), &chain, pairs)
                         .await?
+                        .map(granted_ceiling)
                 };
                 Ok(Resolved {
                     level,

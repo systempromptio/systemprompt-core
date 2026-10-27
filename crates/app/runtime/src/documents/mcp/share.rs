@@ -5,13 +5,13 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::GrantTarget;
-use systemprompt_files::documents::service::ShareRequest;
+use systemprompt_files::documents::service::{ShareRequest, TransferRequest};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::execution::context::RequestContext;
 
-use crate::documents::subject_display;
+use crate::documents::{active_user_display, subject_display};
 
 use super::DocumentsMcpTools;
 use super::inputs::ShareInput;
@@ -117,8 +117,22 @@ impl McpToolHandler for ShareHandler<'_> {
             &input.document_id,
         ) {
             (Some(to), _, Some(document)) => {
+                let to_display = active_user_display(self.tools.users(), &to)
+                    .await
+                    .map_err(|error| {
+                        tracing::error!(error = %error, "transfer recipient was not looked up");
+                        McpError::internal_error("the transfer recipient could not be looked up", None)
+                    })?;
                 service
-                    .transfer_ownership(who, document, &to, trace)
+                    .transfer_ownership(
+                        who,
+                        document,
+                        TransferRequest {
+                            to: to.clone(),
+                            to_display,
+                        },
+                        trace,
+                    )
                     .await
                     .map_err(tool_error)?;
                 let summary = format!("ownership transferred to {to}");

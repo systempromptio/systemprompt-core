@@ -7,7 +7,10 @@ use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
 };
 use systemprompt_models::authz::SubjectAttributeSource;
-use systemprompt_runtime::documents::{DocumentsRuntime, DocumentsRuntimeParts};
+use systemprompt_runtime::documents::{
+    DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory,
+};
+use systemprompt_users::UserRepository;
 use systemprompt_traits::FileStorage;
 
 pub fn fixture_documents_runtime(
@@ -35,6 +38,7 @@ pub fn fixture_documents_runtime_with(
         access_entities: Arc::new(AccessControlRepository::new(pool)),
         authz_hook: Arc::clone(hook),
         subjects,
+        directory: Arc::new(UserSubjectDirectory::new(Arc::new(UserRepository::new(pool)))),
         event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
         catalog: Vec::new(),
         config: DocumentsConfig::default(),

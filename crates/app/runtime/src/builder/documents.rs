@@ -14,7 +14,9 @@ use systemprompt_loader::BootContext;
 use systemprompt_models::authz::{SubjectAttributeSource, SubjectSourceHandle};
 use systemprompt_traits::FileStorage;
 
-use crate::documents::{DocumentsRuntime, DocumentsRuntimeParts};
+use systemprompt_users::UserRepository;
+
+use crate::documents::{DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory};
 use crate::error::RuntimeResult;
 
 pub(super) struct DocumentsInputs<'a> {
@@ -39,6 +41,9 @@ pub(super) fn build_documents(
         access_entities: Arc::new(AccessControlRepository::new(inputs.database)),
         authz_hook: Arc::clone(inputs.authz_hook),
         subjects,
+        directory: Arc::new(UserSubjectDirectory::new(Arc::new(UserRepository::new(
+            inputs.database,
+        )))),
         event_router: inputs.event_router.clone(),
         catalog,
         config: *inputs.files_config.documents_config(),

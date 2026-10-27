@@ -4,7 +4,7 @@ import {
 } from "./documents-api.js";
 import { attr, errorText, escapeHtml, formatTime } from "./documents-html.js";
 
-const LEVELS = ["view", "comment", "edit", "share", "own"];
+const LEVELS = ["view", "comment", "edit", "share"];
 
 export class SpShareDialog extends DocumentsElement {
   onConnect() {

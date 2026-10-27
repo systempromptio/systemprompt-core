@@ -10,7 +10,11 @@ use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::RequestContext;
+use systemprompt_files::documents::service::TransferRequest;
+use systemprompt_runtime::documents::active_user_display;
 use systemprompt_runtime::documents::mcp::{AccessOutput, GrantItem};
+
+use crate::error::ApiHttpError;
 
 use super::DocumentsState;
 use super::caller::caller;
@@ -63,9 +67,16 @@ pub(super) async fn transfer(
 ) -> DocumentsResult<Json<DocumentJson>> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
+    let to_display = active_user_display(&state.user_repository, &body.transfer_to)
+        .await
+        .map_err(ApiHttpError::from)?;
+    let request = TransferRequest {
+        to: body.transfer_to,
+        to_display,
+    };
     let document = state
         .service
-        .transfer_ownership(&who.user, &id, &body.transfer_to, &who.trace)
+        .transfer_ownership(&who.user, &id, request, &who.trace)
         .await?;
     Ok(Json(document.into()))
 }

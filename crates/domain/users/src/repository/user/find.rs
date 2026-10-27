@@ -120,6 +120,20 @@ impl UserRepository {
         Ok(rows)
     }
 
+    pub async fn list_active_ids_with_role(&self, role: &str, limit: i64) -> Result<Vec<UserId>> {
+        let active = UserStatus::Active.as_str();
+        Ok(sqlx::query_scalar!(
+            r#"SELECT id AS "id: UserId" FROM users
+               WHERE $1 = ANY(roles) AND status = $2
+               ORDER BY id LIMIT $3"#,
+            role,
+            active,
+            limit.max(1),
+        )
+        .fetch_all(&*self.pool)
+        .await?)
+    }
+
     pub async fn find_first_user(&self) -> Result<Option<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(

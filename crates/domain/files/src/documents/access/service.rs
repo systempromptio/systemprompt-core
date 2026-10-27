@@ -14,6 +14,7 @@ use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use uuid::Uuid;
 
+use super::SubjectDirectory;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder, SubjectPairs};
 use crate::documents::repository::{
@@ -82,6 +83,7 @@ pub struct DocumentAccessService {
     pub(super) access_entities: Arc<AccessControlRepository>,
     pub(super) hook: SharedAuthzHook,
     pub(super) subjects: Arc<dyn SubjectAttributeSource>,
+    pub(super) directory: Arc<dyn SubjectDirectory>,
 }
 
 impl std::fmt::Debug for DocumentAccessService {
@@ -97,6 +99,7 @@ impl DocumentAccessService {
         repositories: DocumentAccessRepositories,
         hook: SharedAuthzHook,
         subjects: Arc<dyn SubjectAttributeSource>,
+        directory: Arc<dyn SubjectDirectory>,
     ) -> Self {
         let DocumentAccessRepositories {
             grants,
@@ -111,6 +114,7 @@ impl DocumentAccessService {
             access_entities,
             hook,
             subjects,
+            directory,
         }
     }
 
@@ -204,6 +208,9 @@ impl DocumentAccessService {
             .or_else(|| resolved.folder.as_ref().map(|f| f.owner_user_id.clone()));
         let level = match resolved.level {
             Some(level) if level >= needed => level,
+            None if owner.is_some() => {
+                return Err(not_found(&resolved));
+            },
             held => {
                 return Err(DocumentsError::Forbidden {
                     action,
@@ -257,6 +264,14 @@ impl DocumentAccessService {
                 })
             },
         }
+    }
+}
+
+fn not_found(resolved: &Resolved) -> DocumentsError {
+    match (&resolved.document, &resolved.folder) {
+        (Some(document), _) => DocumentsError::not_found("document", &document.id),
+        (None, Some(folder)) => DocumentsError::not_found("folder", &folder.id),
+        (None, None) => DocumentsError::not_found("document", "root"),
     }
 }
 

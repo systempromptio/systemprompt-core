@@ -1,6 +1,9 @@
 //! Shared steps of the document service: codec lookup, blocking codec
 //! calls, name rules, blob reads, event recipients and paths.
 //!
+//! Event recipients are the owner and every present user who still holds
+//! `view` or better when the event is emitted.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -134,16 +137,40 @@ impl DocumentService {
         blocking(move || Ok(codec.plain_text(&bytes)?)).await
     }
 
-    pub(super) async fn recipients(&self, document: &Document) -> Vec<UserId> {
+    pub async fn recipients(&self, document: &Document) -> Vec<UserId> {
         let mut users = BTreeSet::new();
         users.insert(document.owner_user_id.clone());
-        match self.repos.presence.users_present(&document.id).await {
-            Ok(present) => users.extend(present),
-            Err(error) => tracing::warn!(
-                document_id = %document.id,
-                error = %error,
-                "Present users could not be read; the event reaches the owner only"
-            ),
+        let present = match self.repos.presence.users_present(&document.id).await {
+            Ok(present) => present,
+            Err(error) => {
+                tracing::warn!(
+                    document_id = %document.id,
+                    error = %error,
+                    "Present users could not be read; the event reaches the owner only"
+                );
+                Vec::new()
+            },
+        };
+        for user in present {
+            if users.contains(&user) {
+                continue;
+            }
+            match self.access.level_of(document, &user).await {
+                Ok(Some(_)) => {
+                    users.insert(user);
+                },
+                Ok(None) => tracing::debug!(
+                    document_id = %document.id,
+                    user_id = %user,
+                    "Present user no longer holds access; event withheld"
+                ),
+                Err(error) => tracing::warn!(
+                    document_id = %document.id,
+                    user_id = %user,
+                    error = %error,
+                    "Present user's access could not be read; event withheld"
+                ),
+            }
         }
         users.into_iter().collect()
     }

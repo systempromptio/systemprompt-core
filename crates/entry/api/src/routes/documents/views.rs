@@ -178,16 +178,20 @@ pub(super) struct GrantJson {
     access_level: AccessLevel,
     granted_by: UserId,
     valid_until: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    expired: bool,
     created_at: DateTime<Utc>,
 }
 
 impl From<DocumentGrant> for GrantJson {
     fn from(g: DocumentGrant) -> Self {
+        let expired = g.is_expired(Utc::now());
         let (document_id, folder_id) = match g.target {
             GrantTarget::Document(id) => (Some(id), None),
             GrantTarget::Folder(id) => (None, Some(id)),
         };
         Self {
+            expired,
             id: g.id,
             document_id,
             folder_id,

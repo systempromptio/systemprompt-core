@@ -50,7 +50,7 @@ pub use comments::{CommentRequest, ResolveCommentRequest};
 pub use drive::{CHANGE_LAG, parse_drive_cursor};
 pub use grants::ShareRequest;
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
-pub use ownership::DocumentAccess;
+pub use ownership::{DocumentAccess, TransferRequest};
 pub use proposal_reads::ProposalView;
 pub use proposal_review::{Accepted, ReviewRequest};
 pub use proposals::{EditModeRequest, ProposeRequest, Proposed};

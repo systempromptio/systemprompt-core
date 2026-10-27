@@ -29,6 +29,13 @@ pub struct DocumentGrant {
     pub subject_display: Option<String>,
 }
 
+impl DocumentGrant {
+    #[must_use]
+    pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
+        self.valid_until.is_some_and(|until| until <= now)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NewGrant {
     pub target: GrantTarget,

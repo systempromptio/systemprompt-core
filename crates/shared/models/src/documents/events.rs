@@ -195,10 +195,13 @@ impl DocumentCommentResolvedEvent {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DocumentSharedEvent {
     pub document_id: DocumentId,
+    pub document_name: String,
+    pub recipient_user_id: UserId,
     pub subject_kind: String,
     pub subject_value: String,
     pub level: AccessLevel,
     pub by: UserId,
+    pub shared_by: String,
 }
 
 impl DocumentSharedEvent {

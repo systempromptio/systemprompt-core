@@ -23,6 +23,7 @@ use systemprompt_traits::RepositoryError;
 use self::labels::{
     base_label, closest_label, comment_list, conflict_label, held_label, kinds_label, policy_label,
 };
+use super::access::SubjectDirectoryError;
 use super::blob_store::BlobStoreError;
 use super::models::{ListCursorError, LockHolderKind};
 use super::templates::TemplateError;
@@ -137,6 +138,25 @@ pub enum DocumentsError {
     InvalidName { name: String },
     #[error("subject kind \"{kind}\" is not user, role or a registered subject dimension")]
     UnknownSubjectKind { kind: String },
+    #[error(
+        "no active {kind} \"{value}\" exists; name an existing, active subject (a user id for \
+         a user)"
+    )]
+    UnknownSubject { kind: String, value: String },
+    #[error(
+        "own is not a grant level: it belongs to the owner alone. Grant share to let someone \
+         manage access, or transfer ownership"
+    )]
+    OwnNotGrantable,
+    #[error(
+        "forbidden: the subject already holds {existing} here, above your {held}; only a holder \
+         of {existing} or the owner can change that grant"
+    )]
+    ShareBelowExisting {
+        existing: AccessLevel,
+        held: AccessLevel,
+        owner: Option<UserId>,
+    },
     #[error("folder {folder_id} is not empty; delete its contents first or delete recursively")]
     FolderNotEmpty { folder_id: DocumentFolderId },
     #[error("folder {folder_id} cannot move into itself or one of its own subfolders")]
@@ -185,6 +205,8 @@ pub enum DocumentsError {
     },
     #[error("document worker task failed")]
     Worker(#[from] tokio::task::JoinError),
+    #[error("grant subjects could not be resolved to users")]
+    Directory(#[from] SubjectDirectoryError),
 }
 
 #[derive(Debug, thiserror::Error)]
