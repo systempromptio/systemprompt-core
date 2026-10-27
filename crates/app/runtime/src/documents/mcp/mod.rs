@@ -24,9 +24,11 @@ mod listing;
 mod outputs;
 mod preview;
 mod read;
+mod read_meta;
 mod refusal;
 mod share;
 mod support;
+mod views;
 mod write;
 
 use std::sync::Arc;
@@ -58,8 +60,9 @@ pub use lines::{
     written_lines,
 };
 pub use outputs::{
-    CreateOutput, DocumentItem, EditOutput, ExportOutput, FolderItem, GuideOutput, HistoryOutput,
-    ListOutput, ReadOutput, RevisionItem, SearchHit, SearchOutput, ShareOutput,
+    CreateOutput, DocumentItem, DocumentMeta, EditOutput, EditingNow, ExportOutput, FolderItem,
+    GuideOutput, HistoryOutput, ListOutput, ReadOutput, RevisionItem, SearchHit, SearchOutput,
+    ShareOutput,
 };
 pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
@@ -69,6 +72,7 @@ pub use read::ReadHandler;
 pub use refusal::{Refusal, RefusalCode, refusal, refusal_result};
 pub use share::ShareHandler;
 pub use support::tool_error;
+pub use views::{change_lines, node_lines, outline, search_lines};
 pub use write::{CreateHandler, EditHandler};
 
 use crate::AppContext;

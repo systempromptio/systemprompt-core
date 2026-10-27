@@ -11,7 +11,7 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::models::DocumentRevision;
+use systemprompt_files::documents::models::{DocumentRevision, RevisionAttribution};
 use systemprompt_files::documents::service::{Author, RevisionOrigin};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, McpExecutionId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -33,10 +33,18 @@ pub(super) fn caller(ctx: &RequestContext) -> Result<&AuthenticatedUser, McpErro
     })
 }
 
-pub(super) fn agent_author(exec_id: &McpExecutionId) -> Author {
+pub(super) fn agent_author(ctx: &RequestContext, exec_id: &McpExecutionId) -> Author {
+    let present = |value: &str| !value.is_empty();
     Author {
         actor_kind: ActorKind::Agent,
         origin: RevisionOrigin::McpExecution(exec_id.clone()),
+        attribution: RevisionAttribution {
+            session_id: Some(ctx.session_id().clone()).filter(|id| present(id.as_str())),
+            context_id: Some(ctx.context_id().clone()).filter(|id| present(id.as_str())),
+            trace_id: Some(ctx.trace_id().clone()).filter(|id| present(id.as_str())),
+            task_id: ctx.task_id().cloned(),
+            on_behalf_of: Some(ctx.user_id().clone()).filter(|id| present(id.as_str())),
+        },
     }
 }
 

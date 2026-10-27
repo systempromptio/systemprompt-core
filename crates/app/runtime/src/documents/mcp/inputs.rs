@@ -8,7 +8,8 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_identifiers::{
-    DocumentFolderId, DocumentId, DocumentNodeId, DocumentRevisionId, DocumentTemplateId,
+    DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId, DocumentRevisionId,
+    DocumentTemplateId,
 };
 use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditOp};
 
@@ -57,6 +58,10 @@ pub enum ReadView {
     Text,
     Range,
     Cells,
+    Changes,
+    Node,
+    Search,
+    Meta,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -79,14 +84,23 @@ pub struct ReadInput {
     #[serde(default)]
     pub revision_id: Option<DocumentRevisionId>,
     #[serde(default)]
+    pub since_revision: Option<DocumentRevisionId>,
+    #[serde(default)]
+    pub node_id: Option<DocumentNodeId>,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
     pub verbose: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct EditInput {
     pub document_id: DocumentId,
-    pub base_revision: DocumentRevisionId,
+    #[serde(default)]
+    pub base_revision: Option<DocumentRevisionId>,
     pub ops: Vec<EditOp>,
+    #[serde(default)]
+    pub op_id: Option<DocumentOpId>,
     #[serde(default)]
     pub message: Option<String>,
     #[serde(default)]

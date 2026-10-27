@@ -1,24 +1,54 @@
 //! Reads hand back hashlines so every later edit can quote a node id and
-//! hash it has already seen.
+//! hash it has already seen. Node ids are stable across revisions, so a
+//! `changes` read since an earlier revision is enough to resume on a
+//! document someone else edited.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
+use systemprompt_files::documents::nodes::changes;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
-use systemprompt_models::documents::DocumentUri;
+use systemprompt_models::documents::{DocumentUri, Projection};
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::inputs::ReadInput;
-use super::lines::render;
+use super::inputs::{ReadInput, ReadView};
+use super::lines::{RenderedLines, render, shows, truncate};
 use super::outputs::ReadOutput;
+use super::read_meta::meta;
 use super::support::{caller, tool_error};
+use super::views::change_lines;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ReadHandler<'a> {
     pub tools: &'a DocumentsMcpTools,
+}
+
+impl ReadHandler<'_> {
+    async fn changed(
+        &self,
+        input: &ReadInput,
+        ctx: &RequestContext,
+        head: &Projection,
+    ) -> Result<RenderedLines, McpError> {
+        let since = input.since_revision.as_ref().ok_or_else(|| {
+            McpError::invalid_params(
+                "view changes needs since_revision: the revision_id of your last read or write",
+                None,
+            )
+        })?;
+        let who = caller(ctx)?;
+        let (_, before) = self
+            .tools
+            .service()
+            .project(who, &input.document_id, Some(since), ctx.trace_id())
+            .await
+            .map_err(tool_error)?;
+        let diff = changes(&before, head, shows);
+        Ok(truncate(change_lines(head, &diff)))
+    }
 }
 
 impl McpToolHandler for ReadHandler<'_> {
@@ -30,8 +60,8 @@ impl McpToolHandler for ReadHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Read a document as `<node>:<hash>| <text>` lines; view outline first, then text, range \
-         or cells. See documents_guide topic editing."
+        "Read a document as `<node>:<hash>| <text>` lines; view outline first, then text, range, \
+         node, cells, search, changes (since_revision) or meta. See documents_guide topic editing."
     }
 
     fn read_only(&self) -> bool {
@@ -44,6 +74,9 @@ impl McpToolHandler for ReadHandler<'_> {
         ctx: &RequestContext,
         _exec_id: &McpExecutionId,
     ) -> Result<(ReadOutput, String), McpError> {
+        if input.view == ReadView::Meta {
+            return meta(self.tools, &input, ctx).await;
+        }
         let who = caller(ctx)?;
         let (revision, projection) = self
             .tools
@@ -56,7 +89,11 @@ impl McpToolHandler for ReadHandler<'_> {
             )
             .await
             .map_err(tool_error)?;
-        let rendered = render(&projection, &input, &revision.id)?;
+        let rendered = if input.view == ReadView::Changes {
+            self.changed(&input, ctx, &projection).await?
+        } else {
+            render(&projection, &input, &revision.id)?
+        };
         let summary = format!(
             "{} lines of revision {}{}",
             rendered.lines.len(),
@@ -77,6 +114,7 @@ impl McpToolHandler for ReadHandler<'_> {
                 format: projection.format,
                 lines: rendered.lines,
                 truncated: rendered.truncated,
+                meta: None,
             },
             summary,
         ))

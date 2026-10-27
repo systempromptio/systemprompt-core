@@ -1,10 +1,15 @@
 //! Writing tools: `documents_create` and `documents_edit`.
 //!
-//! Every edit is a commit against the caller's `base_revision`, authored by
-//! an agent with the MCP execution as its origin. A base that is no longer
-//! the head is refused as `stale_base` with the head's id, author and time.
-//! Every write answers with the lines it wrote, diffed against the parent
-//! revision, so the next edit anchors on the ack.
+//! Every edit is a commit applied to the head, authored by an agent with the
+//! MCP execution as its origin and the request's session, context, trace
+//! and task as its attribution. Each anchored op guards only the node it
+//! touches: a node that changed at the head is refused as `guard_mismatch`
+//! with its current text, and an edit that landed while the head moved past
+//! `base_revision` answers `merged`. A `restore` whose base is not the head
+//! is refused as `stale_base`. An `op_id` makes the call idempotent: a
+//! repeat returns the stored acknowledgement with `replayed`. Every write
+//! answers with the lines it wrote, diffed against the parent revision, so
+//! the next edit anchors on the ack.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +17,8 @@
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommitOutcome, CommitRequest, CreateRequest};
-use systemprompt_identifiers::{DocumentId, DocumentRevisionId, McpExecutionId};
+use systemprompt_files::documents::models::StoredWriteAck;
+use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentUri, EditOp};
@@ -31,8 +37,9 @@ struct EditCall<'a> {
     ctx: &'a RequestContext,
     exec_id: &'a McpExecutionId,
     document: DocumentId,
-    base: DocumentRevisionId,
+    base: Option<DocumentRevisionId>,
     ops: Vec<EditOp>,
+    op_id: Option<DocumentOpId>,
     message: Option<String>,
     verbose: bool,
 }
@@ -61,7 +68,57 @@ async fn written(
     Ok(written_lines(base.as_ref(), &head))
 }
 
+async fn replay(call: &EditCall<'_>) -> Result<Option<(EditOutput, String)>, McpError> {
+    let Some(op_id) = call.op_id.as_ref() else {
+        return Ok(None);
+    };
+    let Some(stored) = call
+        .tools
+        .service()
+        .find_write_ack(call.who, &call.document, op_id, call.ctx.trace_id())
+        .await
+        .map_err(tool_error)?
+    else {
+        return Ok(None);
+    };
+    let mut output: EditOutput = serde_json::from_value(stored.ack).map_err(|error| {
+        tracing::error!(error = %error, op_id = %op_id, "Stored write ack does not decode");
+        McpError::internal_error("the stored acknowledgement could not be read", None)
+    })?;
+    output.replayed = true;
+    let summary = format!("revision {}: op {op_id} already applied", output.revision_id);
+    Ok(Some((output, summary)))
+}
+
+async fn remember(call: &EditCall<'_>, output: &EditOutput) {
+    let Some(op_id) = call.op_id.as_ref() else {
+        return;
+    };
+    let ack = match serde_json::to_value(output) {
+        Ok(ack) => ack,
+        Err(error) => {
+            tracing::warn!(error = %error, op_id = %op_id, "Write ack not stored");
+            return;
+        },
+    };
+    let stored = StoredWriteAck {
+        revision_id: output.revision_id.clone(),
+        ack,
+    };
+    if let Err(error) = call
+        .tools
+        .service()
+        .record_write_ack(&call.document, op_id, &stored)
+        .await
+    {
+        tracing::warn!(error = %error, op_id = %op_id, "Write ack not stored");
+    }
+}
+
 async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
+    if let Some(replayed) = replay(&call).await? {
+        return Ok(replayed);
+    }
     let applied = call.ops.len();
     let outcome = call
         .tools
@@ -70,9 +127,9 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
             call.who,
             CommitRequest {
                 document_id: call.document.clone(),
-                base_revision: Some(call.base.clone()),
+                base_revision: call.base.clone(),
                 body: CommitBody::Ops(call.ops.clone()),
-                author: agent_author(call.exec_id),
+                author: agent_author(call.ctx, call.exec_id),
                 message: call.message.clone(),
                 lock_holder_id: None,
             },
@@ -94,18 +151,18 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
         written.len()
     );
     let verbose = call.verbose;
-    Ok((
-        EditOutput {
-            uri: verbose
-                .then(|| DocumentUri::new(call.document.clone()).at_revision(revision.id.clone())),
-            parent_revision_id: revision.parent_revision_id.filter(|_| verbose),
-            revision_id: revision.id,
-            applied,
-            merged,
-            written,
-        },
-        summary,
-    ))
+    let output = EditOutput {
+        uri: verbose
+            .then(|| DocumentUri::new(call.document.clone()).at_revision(revision.id.clone())),
+        parent_revision_id: revision.parent_revision_id.filter(|_| verbose),
+        revision_id: revision.id,
+        applied,
+        merged,
+        replayed: false,
+        written,
+    };
+    remember(&call, &output).await;
+    Ok((output, summary))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -148,7 +205,7 @@ impl McpToolHandler for CreateHandler<'_> {
                         values: input.params,
                     },
                     ops: input.ops,
-                    author: agent_author(exec_id),
+                    author: agent_author(ctx, exec_id),
                     message: input.message,
                 },
                 ctx.trace_id(),
@@ -196,10 +253,11 @@ impl McpToolHandler for EditHandler<'_> {
 
     fn description(&self) -> &'static str {
         "Apply ops (replace_text, insert_after, delete, str_replace, set_cells, insert_slide, \
-         set_text, set_html, append_markdown) as one revision against base_revision; returns the \
-         written lines. Anchored ops name node by id with expected_hash, or node: {find, nth?, \
-         within?} by quoted text. replace_text and insert_after take as: \"markdown\" for native \
-         headings, lists, tables and emphasis. See documents_guide topic editing."
+         set_text, set_html, append_markdown, restore, insert_from_revision) as one revision on \
+         the head; returns the written lines. Anchored ops name node by stable id with \
+         expected_hash, or node: {find, nth?, within?}; only a touched node that changed \
+         refuses (the head edit wins). op_id makes a retry safe. See documents_guide topic \
+         editing."
     }
 
     async fn handle(
@@ -217,6 +275,7 @@ impl McpToolHandler for EditHandler<'_> {
             document: input.document_id,
             base: input.base_revision,
             ops: input.ops,
+            op_id: input.op_id,
             message: input.message,
             verbose: input.verbose,
         })

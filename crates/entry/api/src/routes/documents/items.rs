@@ -14,29 +14,22 @@ use axum::{Extension, Json};
 use serde::{Deserialize, Deserializer};
 use systemprompt_files::documents::models::ListCursor;
 use systemprompt_files::documents::service::{
-    Author, CreateRequest, ImportRequest, ListFolderRequest, RevisionOrigin,
+    Author, CreateRequest, ImportRequest, ListFolderRequest,
 };
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::documents::{ActorKind, DocumentFormat};
+use systemprompt_models::documents::DocumentFormat;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsState;
-use super::caller::caller;
+use super::caller::{api_author, caller};
 use super::error::DocumentsResult;
 use super::headers::etag;
 use super::views::{CreatedJson, DocumentDetail, ListingJson};
 
 const DEFAULT_PAGE: i64 = 50;
 const MAX_PAGE: i64 = 200;
-
-pub(super) const fn api_author() -> Author {
-    Author {
-        actor_kind: ActorKind::User,
-        origin: RevisionOrigin::Api,
-    }
-}
 
 pub(super) fn document_id(raw: &str) -> DocumentsResult<DocumentId> {
     Ok(DocumentId::try_new(raw)?)
@@ -131,6 +124,7 @@ pub(super) async fn create(
     request: Request,
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
+    let author = api_author(&req_ctx, request.headers());
     let multipart = request
         .headers()
         .get(header::CONTENT_TYPE)
@@ -138,7 +132,7 @@ pub(super) async fn create(
         .is_some_and(|value| value.starts_with("multipart/form-data"));
     let (document, revision) = if multipart {
         let form = Multipart::from_request(request, &state).await?;
-        let import = read_import(form).await?;
+        let import = read_import(form, author).await?;
         state.service.import(&who.user, import, &who.trace).await?
     } else {
         let Json(body) = Json::<CreateBody>::from_request(request, &state).await?;
@@ -148,7 +142,7 @@ pub(super) async fn create(
             name: body.name,
             params: body.params,
             ops: Vec::new(),
-            author: api_author(),
+            author,
             message: None,
         };
         state
@@ -163,7 +157,7 @@ pub(super) async fn create(
     Ok((StatusCode::CREATED, Json(created)).into_response())
 }
 
-async fn read_import(mut form: Multipart) -> DocumentsResult<ImportRequest> {
+async fn read_import(mut form: Multipart, author: Author) -> DocumentsResult<ImportRequest> {
     let mut name = None;
     let mut folder = None;
     let mut format = None;
@@ -196,7 +190,7 @@ async fn read_import(mut form: Multipart) -> DocumentsResult<ImportRequest> {
         name,
         format,
         bytes,
-        author: api_author(),
+        author,
     })
 }
 

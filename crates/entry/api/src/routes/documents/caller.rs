@@ -1,13 +1,19 @@
 //! Resolving the authenticated caller into the user the document service
 //! authorizes: the account's current roles, read from the user provider so
-//! a role change applies to the next request.
+//! a role change applies to the next request; and the author a REST write
+//! records, attributed to the request's session, trace and task and to the
+//! conversation named by an `x-context-id` header.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{TraceId, UserId};
+use axum::http::HeaderMap;
+use systemprompt_files::documents::models::RevisionAttribution;
+use systemprompt_files::documents::service::{Author, RevisionOrigin};
+use systemprompt_identifiers::{ContextId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, Permission};
+use systemprompt_models::documents::ActorKind;
 use systemprompt_traits::{AuthUser, UserProvider};
 
 use super::DocumentsState;
@@ -48,4 +54,34 @@ pub(crate) fn authenticated(user: AuthUser) -> AuthenticatedUser {
         Permission::User
     };
     AuthenticatedUser::new_with_roles(user.id, user.name, user.email, vec![permission], user.roles)
+}
+
+const CONTEXT_HEADER: &str = "x-context-id";
+
+pub(super) fn api_author(ctx: &RequestContext, headers: &HeaderMap) -> Author {
+    let present = |value: &str| !value.is_empty();
+    Author {
+        actor_kind: ActorKind::User,
+        origin: RevisionOrigin::Api,
+        attribution: RevisionAttribution {
+            session_id: Some(ctx.session_id().clone()).filter(|id| present(id.as_str())),
+            context_id: headers
+                .get(CONTEXT_HEADER)
+                .and_then(|value| value.to_str().ok())
+                .and_then(context_id),
+            trace_id: Some(ctx.trace_id().clone()).filter(|id| present(id.as_str())),
+            task_id: ctx.task_id().cloned(),
+            on_behalf_of: None,
+        },
+    }
+}
+
+fn context_id(raw: &str) -> Option<ContextId> {
+    match ContextId::try_new(raw) {
+        Ok(id) => Some(id),
+        Err(error) => {
+            tracing::warn!(error = %error, "x-context-id is not a context id; revision carries none");
+            None
+        },
+    }
 }

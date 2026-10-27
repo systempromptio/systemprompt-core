@@ -10,12 +10,14 @@
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
     ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, UserId,
 };
 use systemprompt_mcp::McpOutputSchema;
-use systemprompt_models::documents::{AccessLevel, ActorKind, DocumentFormat, DocumentUri};
+use systemprompt_models::documents::{
+    AccessLevel, ActorKind, DocumentFormat, DocumentUri, PresenceSource, PresenceState,
+};
 
 macro_rules! documents_output {
     ($ty:ty, $name:literal) => {
@@ -97,19 +99,43 @@ pub struct ReadOutput {
     pub lines: Vec<String>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub truncated: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<DocumentMeta>,
 }
 documents_output!(ReadOutput, "documents_read");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct EditOutput {
+pub struct DocumentMeta {
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub folder_path: Option<String>,
+    pub access: AccessLevel,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size_bytes: Option<i64>,
+    pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub editing: Vec<EditingNow>,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct EditingNow {
+    pub user_id: UserId,
+    pub source: PresenceSource,
+    pub state: PresenceState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct EditOutput {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub uri: Option<DocumentUri>,
     pub revision_id: DocumentRevisionId,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_revision_id: Option<DocumentRevisionId>,
     pub applied: usize,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub merged: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub replayed: bool,
     pub written: Vec<String>,
 }
 documents_output!(EditOutput, "documents_edit");
