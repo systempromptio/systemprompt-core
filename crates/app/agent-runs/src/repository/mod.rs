@@ -214,7 +214,15 @@ impl AgentRunRepository {
         let finished = sqlx::query_scalar!(
             r#"
             UPDATE agent_runs
-            SET status = $2, error_class = $3, input_tokens = $4, output_tokens = $5,
+            SET status = $2, error_class = $3,
+                input_tokens = GREATEST($4, COALESCE((
+                    SELECT SUM(r.input_tokens) FROM ai_requests r
+                    WHERE r.session_id = agent_runs.gateway_session_id
+                ), 0)),
+                output_tokens = GREATEST($5, COALESCE((
+                    SELECT SUM(r.output_tokens) FROM ai_requests r
+                    WHERE r.session_id = agent_runs.gateway_session_id
+                ), 0)),
                 cost_microdollars = $6, turns = $7, duration_ms = $8,
                 structured_output = $9, exit_code = $10, error = $11, diff_summary = $12,
                 host_session_id = COALESCE($13, host_session_id),

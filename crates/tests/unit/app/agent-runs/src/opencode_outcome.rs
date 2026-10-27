@@ -7,7 +7,7 @@ use systemprompt_agent_runs::{ErrorClass, ExitInfo, HeadlessHost, RunStatus};
 use crate::opencode::{NO_ROUTE, SAMPLE, TOOL, decode, exit, request};
 
 #[test]
-fn opencode_sample_succeeds_with_tokens_from_steps() {
+fn opencode_sample_counts_the_unclosed_final_step_as_a_turn() {
     let out = OpenCodeCli::default().outcome(exit(0), &decode(SAMPLE), &request());
     assert_eq!(
         (out.status, out.error_class),
@@ -15,7 +15,7 @@ fn opencode_sample_succeeds_with_tokens_from_steps() {
     );
     assert_eq!(
         (out.input_tokens, out.output_tokens, out.turns),
-        (100, 10, 1)
+        (100, 10, 2)
     );
     assert_eq!(out.cost_microdollars, 0);
     assert_eq!(out.final_text.as_deref(), Some("DONE: final answer"));
@@ -119,4 +119,25 @@ fn opencode_errors_are_classed_by_type_never_by_message() {
         class_of("session.aborted", "upstream said 401 Unauthorized"),
         ErrorClass::HostCrashed
     );
+}
+
+#[test]
+fn opencode_text_only_run_counts_one_turn() {
+    let line = r#"{"type":"text","sessionID":"ses_1","part":{"id":"prt_1","sessionID":"ses_1","messageID":"msg_1","type":"text","text":"hi"}}"#;
+    let out = OpenCodeCli::default().outcome(exit(0), &decode(line), &request());
+    assert_eq!(
+        (out.status, out.turns, out.input_tokens),
+        (RunStatus::Succeeded, 1, 0)
+    );
+}
+
+#[test]
+fn opencode_closed_steps_add_no_extra_turn() {
+    let steps: String = SAMPLE
+        .lines()
+        .filter(|line| !line.contains(r#""type":"text""#))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    let out = OpenCodeCli::default().outcome(exit(0), &decode(&steps), &request());
+    assert_eq!(out.turns, 1);
 }

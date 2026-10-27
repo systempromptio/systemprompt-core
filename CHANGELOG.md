@@ -16,6 +16,8 @@
 
 ### Changed
 
+- **Agent runs:** a run's PAT is bound to the run's gateway session when its credentials are issued, so every gateway request the run makes lands on that session whatever `x-session-id` the harness sends. `OpenCode` 2 replaces that header with its own session id; the run's requests previously landed on a separate key-bound session.
+- **Agent runs:** an `OpenCode` run counts assistant activity after its last `step_finish` as a turn, so a text-only run, or the final answer after tool calls, is no longer missed. A finished run records the larger of the host-reported tokens and the gateway's token totals for the run session.
 - **MCP:** a tool result for a client that negotiates structured content but not the MCP Apps UI extension carries the output as JSON in its text block, after the summary, as the MCP specification asks. Hosts that show the model only `content`, such as `OpenCode`, previously saw just the one-line summary.
 - **Manifest, Gateway:** `prompt_caching` defaults to on. A provider or model that does not state it gets automatic prompt caching on Anthropic-wire endpoints; set `prompt_caching: false` to opt out. `ModelCapabilities::default()` returns it on.
 - **Governance:** the authz webhook retries once, after 150 ms, when the connection itself fails. A non-success status, a decode failure or a timeout is still denied at once, and a second connect failure is denied as before.

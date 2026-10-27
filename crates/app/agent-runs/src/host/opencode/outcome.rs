@@ -3,12 +3,16 @@
 //! `OpenCode` emits no terminal result event and its exit code is unreliable
 //! (an invalid tool call exits 0), so the outcome comes from events alone.
 //! Precedence: cancelled, timed out, an `error` event, then a stream with no
-//! `text` and no `step_finish`, then the structured output check. A
-//! An `error` event is classed by its `type` alone, never by its message: a
+//! `text` and no `step_finish`, then the structured output check. An
+//! `error` event is classed by its `type` alone, never by its message: a
 //! provider route, auth, transport or upstream failure is the connector's,
 //! a quota is the budget's, an unusable model output is the output's, and
 //! anything else is the host's. Tokens and turns are summed over every
-//! `step_finish`; cost is the gateway's to attribute and stays 0 here.
+//! `step_finish`. `OpenCode` closes no step for a text-only answer or for the
+//! final text after tool calls, so assistant activity after the last
+//! `step_finish` counts as one more turn; its tokens are taken from the
+//! gateway's record of the run session when the run row is finished. Cost is
+//! the gateway's to attribute and stays 0 here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +25,7 @@ use crate::host::ExitInfo;
 use crate::outcome::{ErrorClass, RunOutcome, RunStatus};
 use crate::request::RunRequest;
 
-const CONNECTOR_KINDS: [&str; 8] = [
+pub const CONNECTOR_KINDS: [&str; 8] = [
     "provider.no-route",
     "provider.auth",
     "provider.transport",
@@ -31,8 +35,8 @@ const CONNECTOR_KINDS: [&str; 8] = [
     "provider.error",
     "provider.unknown",
 ];
-const BUDGET_KINDS: [&str; 2] = ["provider.quota", "provider.free-limit"];
-const OUTPUT_KINDS: [&str; 1] = ["provider.invalid-output"];
+pub const BUDGET_KINDS: [&str; 2] = ["provider.quota", "provider.free-limit"];
+pub const OUTPUT_KINDS: [&str; 1] = ["provider.invalid-output"];
 
 #[must_use]
 pub fn classify(exit: ExitInfo, events: &[RunEventPayload], request: &RunRequest) -> RunOutcome {
@@ -50,17 +54,27 @@ pub fn classify(exit: ExitInfo, events: &[RunEventPayload], request: &RunRequest
         error: None,
         final_text: RunOutcome::last_assistant_text(events),
     };
+    let mut open_step = false;
     for event in events {
-        if let RunEventPayload::Result {
-            input_tokens,
-            output_tokens,
-            ..
-        } = event
-        {
-            outcome.input_tokens += input_tokens;
-            outcome.output_tokens += output_tokens;
-            outcome.turns += 1;
+        match event {
+            RunEventPayload::Result {
+                input_tokens,
+                output_tokens,
+                ..
+            } => {
+                outcome.input_tokens += input_tokens;
+                outcome.output_tokens += output_tokens;
+                outcome.turns += 1;
+                open_step = false;
+            },
+            RunEventPayload::AssistantText { .. } | RunEventPayload::ToolUse { .. } => {
+                open_step = true;
+            },
+            _ => {},
         }
+    }
+    if open_step {
+        outcome.turns += 1;
     }
     let produced = outcome.turns > 0 || outcome.final_text.is_some();
     let (status, class, error) = if exit.cancelled {

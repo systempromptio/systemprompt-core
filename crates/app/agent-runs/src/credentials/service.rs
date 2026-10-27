@@ -1,17 +1,19 @@
 //! [`RunCredentialService`]: issues and revokes one run's credentials.
 //!
-//! Issue order is PAT, gateway session, MCP token, hook token; a failure after
-//! the PAT revokes what was already issued, so a failed issue leaves nothing
-//! live. The tokens are minted by the deployment's `TokenAuthority`, whose
-//! issuer the hook token validator checks. Revoke revokes the PAT, ends the
-//! session and revokes the MCP and hook tokens' `jti`s; every step runs even
-//! when an earlier one failed, and the first failure is returned.
+//! Issue order is PAT, gateway session bound to the PAT, MCP token, hook
+//! token; a failure after the PAT revokes what was already issued, so a failed
+//! issue leaves nothing live. The tokens are minted by the deployment's
+//! `TokenAuthority`, whose issuer the hook token validator checks. Revoke
+//! revokes the PAT, ends the session and revokes the MCP and hook tokens'
+//! `jti`s; every step runs even when an earlier one failed, and the first
+//! failure is returned.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
+use systemprompt_identifiers::{ApiKeyId, SessionId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_oauth::OAuthRepository;
@@ -24,7 +26,7 @@ use systemprompt_users::{
 use super::hook_token::{HookTokenRequest, mint_hook_token, revoke_hook_token};
 use super::mcp_token::{McpTokenRequest, mint_mcp_token};
 use super::pat::{chrono_ttl, issue_pat, revoke_pat};
-use super::session::{end_session, open_session};
+use super::session::{bind_session, end_session, open_session};
 use super::{IssueRunCredentials, RunCredentials};
 use crate::error::AgentRunsResult;
 use crate::repository::RunCredentialRepositories;
@@ -78,10 +80,24 @@ impl RunCredentialService {
         }
     }
 
+    async fn open_bound_session(
+        &self,
+        req: &IssueRunCredentials,
+        api_key_id: &ApiKeyId,
+        ttl: chrono::Duration,
+    ) -> AgentRunsResult<SessionId> {
+        let session = open_session(&self.creator, &req.user_id, ttl).await?;
+        if let Err(error) = bind_session(&self.users, api_key_id, &session).await {
+            end_session(&self.sessions, &session).await?;
+            return Err(error);
+        }
+        Ok(session)
+    }
+
     pub async fn issue(&self, req: IssueRunCredentials) -> AgentRunsResult<RunCredentials> {
         let ttl = chrono_ttl(req.ttl)?;
         let (api_key_id, pat) = issue_pat(&self.keys, &req).await?;
-        let session = match open_session(&self.creator, &req.user_id, ttl).await {
+        let session = match self.open_bound_session(&req, &api_key_id, ttl).await {
             Ok(session) => session,
             Err(error) => {
                 revoke_pat(&self.keys, &api_key_id, &req.user_id).await?;
