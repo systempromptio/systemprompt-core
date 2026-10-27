@@ -61,3 +61,45 @@ impl FromStr for ListCursor {
         Ok(Self { updated_at, id })
     }
 }
+
+/// The keyset position of a scoped listing: a timestamp ordering (updated
+/// or last touched) or a name ordering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ListingCursor {
+    Time(ListCursor),
+    Name { name: String, id: Uuid },
+}
+
+const NAME_TAG: &str = "n|";
+
+impl fmt::Display for ListingCursor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Time(cursor) => cursor.fmt(f),
+            Self::Name { name, id } => {
+                let raw = format!("{NAME_TAG}{id}|{name}");
+                f.write_str(&URL_SAFE_NO_PAD.encode(raw))
+            },
+        }
+    }
+}
+
+impl FromStr for ListingCursor {
+    type Err = ListCursorError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = URL_SAFE_NO_PAD
+            .decode(s)
+            .map_err(ListCursorError::Encoding)?;
+        let raw = String::from_utf8(bytes).map_err(ListCursorError::Utf8)?;
+        let Some(rest) = raw.strip_prefix(NAME_TAG) else {
+            return ListCursor::from_str(s).map(Self::Time);
+        };
+        let (id, name) = rest.split_once('|').ok_or(ListCursorError::Shape)?;
+        let id = Uuid::parse_str(id).map_err(ListCursorError::Id)?;
+        Ok(Self::Name {
+            name: name.to_owned(),
+            id,
+        })
+    }
+}

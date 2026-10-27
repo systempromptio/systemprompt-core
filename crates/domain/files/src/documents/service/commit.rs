@@ -8,7 +8,9 @@
 //! build the new bytes (store, apply ops to the head under node guards,
 //! merge text three ways, or diff an Office upload into ops on the head),
 //! write the blob and the revision, record the revision's stable node ids,
-//! then move the head by compare-and-swap. Index and event failures after
+//! refuse when the new revision drops text a comment is anchored to (unless
+//! the request allows detaching), then move the head by compare-and-swap and
+//! settle the comments the commit detached or answered. Index and event failures after
 //! the swap are returned as [`CommitWarning`]s; the commit stands.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -86,7 +88,7 @@ impl DocumentService {
         };
         let parent = head.as_ref().map(|h| h.id.clone());
         let author = request.author;
-        let revision = self
+        let (revision, ids) = self
             .store_revision(
                 who,
                 &document,
@@ -100,6 +102,9 @@ impl DocumentService {
                     author: &author,
                 },
             )
+            .await?;
+        let detached = self
+            .affected_anchors(&document.id, &ids, &request.comments)
             .await?;
         if !self
             .repos
@@ -120,6 +125,8 @@ impl DocumentService {
                 )
                 .await;
         }
+        self.settle_comments(&document.id, &revision.id, &detached, &request.comments)
+            .await?;
         let merged_from = parent.filter(|_| merged);
         Ok(self.finish(&document, revision, bytes, merged_from).await)
     }
@@ -238,7 +245,7 @@ impl DocumentService {
         who: &AuthenticatedUser,
         document: &Document,
         landed: Landed<'_>,
-    ) -> Result<DocumentRevision, DocumentsError> {
+    ) -> Result<(DocumentRevision, Projection), DocumentsError> {
         self.check_size(landed.bytes.len())?;
         let blob = self.blobs.put(landed.bytes).await?;
         let author = landed.author;
@@ -261,16 +268,17 @@ impl DocumentService {
         let next = self
             .project_paths(document.format, landed.bytes.to_vec())
             .await?;
-        self.record_ids(
-            document,
-            &revision,
-            IdSources {
-                previous: landed.previous.as_ref(),
-                next: &next,
-                retired: &landed.retired,
-            },
-        )
-        .await?;
-        Ok(revision)
+        let ids = self
+            .record_ids(
+                document,
+                &revision,
+                IdSources {
+                    previous: landed.previous.as_ref(),
+                    next: &next,
+                    retired: &landed.retired,
+                },
+            )
+            .await?;
+        Ok((revision, ids))
     }
 }

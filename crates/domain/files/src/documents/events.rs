@@ -2,7 +2,9 @@
 //!
 //! Each event is an AG-UI `CUSTOM` event named by the payload's `NAME`
 //! (`document.revision.created`, `document.presence`, `document.lock`,
-//! `document.conflict`, `document.collab.update`) and routed to each recipient
+//! `document.conflict`, `document.collab.update`, `document.comment.created`,
+//! `document.comment.resolved`, `document.shared`,
+//! `document.ownership_transferred`) and routed to each recipient
 //! through the [`EventRouter`], which also relays it to other replicas. Clients
 //! filter the stream on the `document.` prefix.
 //!
@@ -21,8 +23,9 @@ use systemprompt_events::{EventRouter, RelayOutcome};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::documents::{
-    DocumentCollabUpdateEvent, DocumentConflictEvent, DocumentLockEvent, DocumentPresenceEvent,
-    DocumentRevisionCreatedEvent,
+    DocumentCollabUpdateEvent, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent,
+    DocumentConflictEvent, DocumentLockEvent, DocumentOwnershipTransferredEvent,
+    DocumentPresenceEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
 };
 
 use super::error::{DocumentsError, EventFailure};
@@ -77,6 +80,41 @@ impl DocumentEvents {
         event: &DocumentCollabUpdateEvent,
     ) -> Result<(), DocumentsError> {
         self.emit(DocumentCollabUpdateEvent::NAME, to, event).await
+    }
+
+    pub async fn comment_created(
+        &self,
+        to: &[UserId],
+        event: &DocumentCommentCreatedEvent,
+    ) -> Result<(), DocumentsError> {
+        self.emit(DocumentCommentCreatedEvent::NAME, to, event)
+            .await
+    }
+
+    pub async fn comment_resolved(
+        &self,
+        to: &[UserId],
+        event: &DocumentCommentResolvedEvent,
+    ) -> Result<(), DocumentsError> {
+        self.emit(DocumentCommentResolvedEvent::NAME, to, event)
+            .await
+    }
+
+    pub async fn shared(
+        &self,
+        to: &[UserId],
+        event: &DocumentSharedEvent,
+    ) -> Result<(), DocumentsError> {
+        self.emit(DocumentSharedEvent::NAME, to, event).await
+    }
+
+    pub async fn ownership_transferred(
+        &self,
+        to: &[UserId],
+        event: &DocumentOwnershipTransferredEvent,
+    ) -> Result<(), DocumentsError> {
+        self.emit(DocumentOwnershipTransferredEvent::NAME, to, event)
+            .await
     }
 
     async fn emit<T: Serialize + Sync>(

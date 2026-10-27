@@ -12,8 +12,8 @@
 use systemprompt_events::RelayError;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::{
-    ContentHash, DocumentFolderId, DocumentId, DocumentNodeId, DocumentRevisionId,
-    DocumentTemplateId,
+    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentRevisionId,
+    DocumentTemplateId, UserId,
 };
 use systemprompt_models::authz::SubjectSourceError;
 use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat};
@@ -64,13 +64,32 @@ pub enum DocumentsError {
     #[error(
         "forbidden: {action} needs {needed} access and you hold {}{}",
         held_label(.held.as_ref()),
-        policy_label(.policy.as_deref())
+        policy_label(.policy.as_deref(), .owner.as_ref())
     )]
     Forbidden {
         action: DocumentAction,
         needed: AccessLevel,
         held: Option<AccessLevel>,
         policy: Option<String>,
+        owner: Option<UserId>,
+    },
+    #[error(
+        "document {document_id} is in the trash; restore it with documents_restore_document \
+         before reading, editing or sharing it"
+    )]
+    Trashed { document_id: DocumentId },
+    #[error(
+        "this edit removes text that comments {} are anchored to; pass allow_detach: true to \
+         detach them (they keep their node) or re-aim the edit",
+        comment_list(.comments)
+    )]
+    AnchorsAffected { comments: Vec<DocumentCommentId> },
+    #[error("invalid comment: {detail}")]
+    InvalidComment { detail: &'static str },
+    #[error("comment {comment_id} does not belong to document {document_id}")]
+    CommentNotFound {
+        document_id: DocumentId,
+        comment_id: DocumentCommentId,
     },
     #[error(
         "document {document_id} is locked by {holder_kind} holder {holder_id}; wait for the lock \
@@ -244,9 +263,20 @@ fn held_label(held: Option<&AccessLevel>) -> String {
     held.map_or_else(|| "no access".to_owned(), |level| format!("{level} access"))
 }
 
-fn policy_label(policy: Option<&str>) -> String {
-    policy.map_or_else(
-        || ". Ask the owner to share it with you at that level".to_owned(),
-        |policy| format!(" but policy {policy} denied the request"),
-    )
+fn policy_label(policy: Option<&str>, owner: Option<&UserId>) -> String {
+    match (policy, owner) {
+        (Some(policy), _) => format!(" but policy {policy} denied the request"),
+        (None, Some(owner)) => {
+            format!(". Ask the owner, user {owner}, to share it with you at that level")
+        },
+        (None, None) => ". Ask the owner to share it with you at that level".to_owned(),
+    }
+}
+
+fn comment_list(comments: &[DocumentCommentId]) -> String {
+    comments
+        .iter()
+        .map(DocumentCommentId::as_str)
+        .collect::<Vec<_>>()
+        .join(", ")
 }

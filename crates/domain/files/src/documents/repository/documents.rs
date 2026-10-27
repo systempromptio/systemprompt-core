@@ -20,19 +20,20 @@ pub struct DocumentRepository {
     pub(super) pools: Pools,
 }
 
-struct DocumentRow {
-    id: DocumentId,
-    folder_id: Option<DocumentFolderId>,
-    name: String,
-    format: String,
-    mime_type: String,
-    head_revision_id: Option<DocumentRevisionId>,
-    template_id: Option<DocumentTemplateId>,
-    owner_user_id: UserId,
-    created_by: UserId,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    deleted_at: Option<DateTime<Utc>>,
+pub(super) struct DocumentRow {
+    pub(super) id: DocumentId,
+    pub(super) folder_id: Option<DocumentFolderId>,
+    pub(super) name: String,
+    pub(super) format: String,
+    pub(super) mime_type: String,
+    pub(super) head_revision_id: Option<DocumentRevisionId>,
+    pub(super) template_id: Option<DocumentTemplateId>,
+    pub(super) owner_user_id: UserId,
+    pub(super) created_by: UserId,
+    pub(super) created_at: DateTime<Utc>,
+    pub(super) updated_at: DateTime<Utc>,
+    pub(super) trashed_at: Option<DateTime<Utc>>,
+    pub(super) trashed_by: Option<UserId>,
 }
 
 impl TryFrom<DocumentRow> for Document {
@@ -51,12 +52,13 @@ impl TryFrom<DocumentRow> for Document {
             created_by: row.created_by,
             created_at: row.created_at,
             updated_at: row.updated_at,
-            deleted_at: row.deleted_at,
+            trashed_at: row.trashed_at,
+            trashed_by: row.trashed_by,
         })
     }
 }
 
-fn convert(rows: Vec<DocumentRow>) -> RepoResult<Vec<Document>> {
+pub(super) fn convert(rows: Vec<DocumentRow>) -> RepoResult<Vec<Document>> {
     rows.into_iter().map(Document::try_from).collect()
 }
 
@@ -79,7 +81,8 @@ impl DocumentRepository {
                          template_id AS "template_id: DocumentTemplateId",
                          owner_user_id AS "owner_user_id: UserId",
                          created_by AS "created_by: UserId",
-                         created_at, updated_at, deleted_at"#,
+                         created_at, updated_at, trashed_at,
+                         trashed_by AS "trashed_by: UserId""#,
             request.folder_id.as_ref().map(DocumentFolderId::as_str),
             request.name,
             request.format.as_str(),
@@ -103,8 +106,9 @@ impl DocumentRepository {
                       d.template_id AS "template_id: DocumentTemplateId",
                       d.owner_user_id AS "owner_user_id: UserId",
                       d.created_by AS "created_by: UserId",
-                      d.created_at, d.updated_at, d.deleted_at
-               FROM documents d WHERE d.id = $1::text::uuid AND d.deleted_at IS NULL"#,
+                      d.created_at, d.updated_at, d.trashed_at,
+                      d.trashed_by AS "trashed_by: UserId"
+               FROM documents d WHERE d.id = $1::text::uuid AND d.trashed_at IS NULL"#,
             id.as_str()
         )
         .fetch_optional(&*self.pools.read)
@@ -127,8 +131,9 @@ r#"SELECT d.id::text AS "id!: DocumentId",
                       d.template_id AS "template_id: DocumentTemplateId",
                       d.owner_user_id AS "owner_user_id: UserId",
                       d.created_by AS "created_by: UserId",
-                      d.created_at, d.updated_at, d.deleted_at
-               FROM documents d WHERE d.folder_id IS NOT DISTINCT FROM $1::text::uuid AND d.name = $2 AND d.deleted_at IS NULL"#,
+                      d.created_at, d.updated_at, d.trashed_at,
+                      d.trashed_by AS "trashed_by: UserId"
+               FROM documents d WHERE d.folder_id IS NOT DISTINCT FROM $1::text::uuid AND d.name = $2 AND d.trashed_at IS NULL"#,
             folder.map(DocumentFolderId::as_str),
             name
         )
@@ -162,9 +167,10 @@ r#"SELECT d.id::text AS "id!: DocumentId",
                       d.template_id AS "template_id: DocumentTemplateId",
                       d.owner_user_id AS "owner_user_id: UserId",
                       d.created_by AS "created_by: UserId",
-                      d.created_at, d.updated_at, d.deleted_at
+                      d.created_at, d.updated_at, d.trashed_at,
+                      d.trashed_by AS "trashed_by: UserId"
                FROM documents d LEFT JOIN document_folders f ON f.id = d.folder_id
-               WHERE d.deleted_at IS NULL
+               WHERE d.trashed_at IS NULL
                  AND ($1::text IS NULL OR d.folder_id = $1::text::uuid)
                  AND ($2::text IS NULL OR d.name ILIKE $2)
                  AND ($3::timestamptz IS NULL OR (d.updated_at, d.id) < ($3, $4::uuid))
@@ -200,7 +206,7 @@ r#"SELECT d.id::text AS "id!: DocumentId",
     pub async fn rename(&self, id: &DocumentId, name: &str) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE documents SET name = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
+             WHERE id = $1::text::uuid AND trashed_at IS NULL",
             id.as_str(),
             name,
         )
@@ -216,20 +222,9 @@ r#"SELECT d.id::text AS "id!: DocumentId",
     ) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE documents SET folder_id = $2::text::uuid, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
+             WHERE id = $1::text::uuid AND trashed_at IS NULL",
             id.as_str(),
             folder.map(DocumentFolderId::as_str),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
-    pub async fn soft_delete(&self, id: &DocumentId) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE documents SET deleted_at = now(), updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
         )
         .execute(&*self.pools.write)
         .await?;
@@ -246,7 +241,7 @@ r#"SELECT d.id::text AS "id!: DocumentId",
             "UPDATE documents SET head_revision_id = $3::text::uuid, updated_at = now()
              WHERE id = $1::text::uuid
                AND head_revision_id IS NOT DISTINCT FROM $2::text::uuid
-               AND deleted_at IS NULL
+               AND trashed_at IS NULL
                AND EXISTS (SELECT 1 FROM document_revisions r
                            WHERE r.id = $3::text::uuid AND r.document_id = $1::text::uuid)",
             id.as_str(),
@@ -265,7 +260,7 @@ r#"SELECT d.id::text AS "id!: DocumentId",
     ) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE documents SET template_id = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
+             WHERE id = $1::text::uuid AND trashed_at IS NULL",
             id.as_str(),
             template_id.map(DocumentTemplateId::as_str),
         )
@@ -275,7 +270,7 @@ r#"SELECT d.id::text AS "id!: DocumentId",
     }
 }
 
-fn cursor_of(document: &Document) -> RepoResult<ListCursor> {
+pub(super) fn cursor_of(document: &Document) -> RepoResult<ListCursor> {
     let id = Uuid::parse_str(document.id.as_str())
         .map_err(|source| systemprompt_traits::RepositoryError::decode("documents.id", source))?;
     Ok(ListCursor::new(document.updated_at, id))

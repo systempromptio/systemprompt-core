@@ -24,8 +24,9 @@ pub use drive::{
     DriveManifest, PresenceBeacon, PresenceSource, PresenceState,
 };
 pub use events::{
-    DocumentCollabUpdateEvent, DocumentConflictEvent, DocumentEventName, DocumentLockEvent,
-    DocumentPresenceEvent, DocumentRevisionCreatedEvent,
+    DocumentCollabUpdateEvent, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent,
+    DocumentConflictEvent, DocumentEventName, DocumentLockEvent, DocumentOwnershipTransferredEvent,
+    DocumentPresenceEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
 };
 pub use systemprompt_provider_contracts::documents::{
     CellValue, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,

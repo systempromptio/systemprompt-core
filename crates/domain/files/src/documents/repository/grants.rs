@@ -31,6 +31,7 @@ struct GrantRow {
     valid_until: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
+    subject_display: Option<String>,
 }
 
 impl TryFrom<GrantRow> for DocumentGrant {
@@ -57,6 +58,7 @@ impl TryFrom<GrantRow> for DocumentGrant {
             valid_until: row.valid_until,
             created_at: row.created_at,
             updated_at: row.updated_at,
+            subject_display: row.subject_display,
         })
     }
 }
@@ -86,7 +88,7 @@ impl DocumentGrantRepository {
         };
         let row = sqlx::query_as!(
             GrantRow,
-            r#"INSERT INTO document_grants
+            r#"WITH g AS (INSERT INTO document_grants
                    (document_id, folder_id, subject_kind, subject_value, access_level, granted_by, valid_until)
                VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7)
                ON CONFLICT (document_id, folder_id, subject_kind, subject_value) DO UPDATE
@@ -94,11 +96,15 @@ impl DocumentGrantRepository {
                        valid_until = EXCLUDED.valid_until,
                        granted_by = EXCLUDED.granted_by,
                        updated_at = now()
-               RETURNING id, document_id::text AS "document_id: DocumentId",
-                         folder_id::text AS "folder_id: DocumentFolderId",
-                         subject_kind, subject_value, access_level,
-                         granted_by AS "granted_by: UserId",
-                         valid_until, created_at, updated_at"#,
+               RETURNING *)
+               SELECT g.id AS "id!", g.document_id::text AS "document_id: DocumentId",
+                      g.folder_id::text AS "folder_id: DocumentFolderId",
+                      g.subject_kind AS "subject_kind!", g.subject_value AS "subject_value!",
+                      g.access_level AS "access_level!",
+                      g.granted_by AS "granted_by!: UserId",
+                      g.valid_until, g.created_at AS "created_at!", g.updated_at AS "updated_at!",
+                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display
+               FROM g LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value"#,
             document_id,
             folder_id,
             request.subject_kind,
@@ -122,12 +128,15 @@ impl DocumentGrantRepository {
     pub async fn list_for_document(&self, id: &DocumentId) -> RepoResult<Vec<DocumentGrant>> {
         sqlx::query_as!(
             GrantRow,
-            r#"SELECT id, document_id::text AS "document_id: DocumentId",
-                      folder_id::text AS "folder_id: DocumentFolderId",
-                      subject_kind, subject_value, access_level,
-                      granted_by AS "granted_by: UserId",
-                      valid_until, created_at, updated_at
-               FROM document_grants WHERE document_id = $1::text::uuid ORDER BY created_at, id"#,
+            r#"SELECT g.id, g.document_id::text AS "document_id: DocumentId",
+                      g.folder_id::text AS "folder_id: DocumentFolderId",
+                      g.subject_kind, g.subject_value, g.access_level,
+                      g.granted_by AS "granted_by: UserId",
+                      g.valid_until, g.created_at, g.updated_at,
+                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display
+               FROM document_grants g
+               LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value
+               WHERE g.document_id = $1::text::uuid ORDER BY g.created_at, g.id"#,
             id.as_str()
         )
         .fetch_all(&*self.pools.read)
@@ -140,12 +149,15 @@ impl DocumentGrantRepository {
     pub async fn list_for_folder(&self, id: &DocumentFolderId) -> RepoResult<Vec<DocumentGrant>> {
         sqlx::query_as!(
             GrantRow,
-            r#"SELECT id, document_id::text AS "document_id: DocumentId",
-                      folder_id::text AS "folder_id: DocumentFolderId",
-                      subject_kind, subject_value, access_level,
-                      granted_by AS "granted_by: UserId",
-                      valid_until, created_at, updated_at
-               FROM document_grants WHERE folder_id = $1::text::uuid ORDER BY created_at, id"#,
+            r#"SELECT g.id, g.document_id::text AS "document_id: DocumentId",
+                      g.folder_id::text AS "folder_id: DocumentFolderId",
+                      g.subject_kind, g.subject_value, g.access_level,
+                      g.granted_by AS "granted_by: UserId",
+                      g.valid_until, g.created_at, g.updated_at,
+                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display
+               FROM document_grants g
+               LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value
+               WHERE g.folder_id = $1::text::uuid ORDER BY g.created_at, g.id"#,
             id.as_str()
         )
         .fetch_all(&*self.pools.read)
@@ -153,6 +165,41 @@ impl DocumentGrantRepository {
         .into_iter()
         .map(DocumentGrant::try_from)
         .collect()
+    }
+
+    pub async fn list_for_folders(
+        &self,
+        folders: &[DocumentFolderId],
+    ) -> RepoResult<Vec<DocumentGrant>> {
+        let folders: Vec<String> = folders.iter().map(|id| id.as_str().to_owned()).collect();
+        sqlx::query_as!(
+            GrantRow,
+            r#"SELECT g.id, g.document_id::text AS "document_id: DocumentId",
+                      g.folder_id::text AS "folder_id: DocumentFolderId",
+                      g.subject_kind, g.subject_value, g.access_level,
+                      g.granted_by AS "granted_by: UserId",
+                      g.valid_until, g.created_at, g.updated_at,
+                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display
+               FROM document_grants g
+               LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value
+               WHERE g.folder_id = ANY($1::text[]::uuid[]) ORDER BY g.created_at, g.id"#,
+            &folders
+        )
+        .fetch_all(&*self.pools.read)
+        .await?
+        .into_iter()
+        .map(DocumentGrant::try_from)
+        .collect()
+    }
+
+    pub async fn delete_for_document(&self, id: &DocumentId) -> RepoResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM document_grants WHERE document_id = $1::text::uuid",
+            id.as_str()
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(result.rows_affected())
     }
 
     pub async fn effective_level(

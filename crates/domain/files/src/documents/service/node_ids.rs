@@ -141,7 +141,7 @@ impl DocumentService {
             next,
             retired,
         }: IdSources<'_>,
-    ) -> Result<(), DocumentsError> {
+    ) -> Result<Projection, DocumentsError> {
         let mut minter = self
             .minter(document, writer_tag(&writer_key(revision)))
             .await?;
@@ -153,6 +153,6 @@ impl DocumentService {
             .node_ids
             .insert(&document.id, &revision.id, &entries)
             .await?;
-        Ok(())
+        Ok(with_ids(next.clone(), &entries))
     }
 }

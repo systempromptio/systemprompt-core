@@ -121,6 +121,12 @@ impl DomainConfig for FilesConfigValidator {
                 "Presence time-to-live must be at least one second",
             ));
         }
+        if documents.trash_retention_days == 0 {
+            report.add_error(ValidationIssue::new(
+                "files.documents.trashRetentionDays",
+                "Trash retention must be at least one day",
+            ));
+        }
 
         Ok(report)
     }

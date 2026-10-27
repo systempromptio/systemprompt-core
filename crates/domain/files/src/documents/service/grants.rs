@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use uuid::Uuid;
@@ -28,6 +28,14 @@ pub struct ShareRequest {
     pub valid_until: Option<DateTime<Utc>>,
 }
 
+pub(super) fn owner_of(granted: &Granted) -> Option<UserId> {
+    granted
+        .document
+        .as_ref()
+        .map(|d| d.owner_user_id.clone())
+        .or_else(|| granted.folder.as_ref().map(|f| f.owner_user_id.clone()))
+}
+
 fn access_target(target: &GrantTarget) -> AccessTarget {
     match target {
         GrantTarget::Document(id) => AccessTarget::Document(id.clone()),
@@ -36,7 +44,7 @@ fn access_target(target: &GrantTarget) -> AccessTarget {
 }
 
 impl DocumentService {
-    async fn authorize_share(
+    pub(super) async fn authorize_share(
         &self,
         who: &AuthenticatedUser,
         target: &GrantTarget,
@@ -65,9 +73,10 @@ impl DocumentService {
                 needed: request.level,
                 held: Some(granted.level),
                 policy: None,
+                owner: owner_of(&granted),
             });
         }
-        Ok(self
+        let grant = self
             .repos
             .grants
             .insert(NewGrant {
@@ -78,7 +87,11 @@ impl DocumentService {
                 granted_by: who.id.clone(),
                 valid_until: request.valid_until,
             })
-            .await?)
+            .await?;
+        if let Some(document) = &granted.document {
+            self.announce_share(document, &grant).await;
+        }
+        Ok(grant)
     }
 
     pub async fn revoke(
@@ -101,6 +114,7 @@ impl DocumentService {
                 needed: grant.access_level,
                 held: Some(granted.level),
                 policy: None,
+                owner: owner_of(&granted),
             });
         }
         if !self.repos.grants.delete(grant_id).await? {
@@ -119,7 +133,7 @@ impl DocumentService {
         self.list_grants(target).await
     }
 
-    async fn list_grants(
+    pub(super) async fn list_grants(
         &self,
         target: &GrantTarget,
     ) -> Result<Vec<DocumentGrant>, DocumentsError> {

@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod comment;
 mod cursor;
 mod document;
 mod folder;
@@ -16,8 +17,12 @@ mod node_id;
 mod revision;
 mod session;
 
-pub use cursor::{ListCursor, ListCursorError};
-pub use document::{Document, DocumentSearchHit, NewDocument, VisibleListing};
+pub use comment::{CommentAnchor, DocumentComment, NewComment};
+pub use cursor::{ListCursor, ListCursorError, ListingCursor};
+pub use document::{
+    Document, DocumentSearchHit, ListScope, ListSort, ListedDocument, NewDocument, ScopedListing,
+    VisibleListing,
+};
 pub use folder::{DocumentFolder, NewFolder};
 pub use grant::{DocumentGrant, GrantTarget, NewGrant, SubjectPairs};
 pub use lock::{

@@ -12,7 +12,10 @@ use systemprompt_models::documents::{
 };
 
 use super::support::validate_name;
-use super::{Author, CommitOutcome, CommitRequest, DocumentService, ImportRequest, RevisionOrigin};
+use super::{
+    Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService, ImportRequest,
+    RevisionOrigin,
+};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::RevisionAttribution;
 use crate::documents::revision::CommitBody;
@@ -69,6 +72,7 @@ impl DocumentService {
             author,
             message: meta.message,
             lock_holder_id: Some(meta.device_id.as_str().to_owned()),
+            comments: CommentPolicy::detach(),
         };
         Ok(match self.commit(who, request, trace).await? {
             CommitOutcome::Committed { revision, .. } => DriveCommitResponse::Committed {

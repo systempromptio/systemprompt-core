@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{
-    DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId,
+    DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId,
     DriveDeviceId, McpExecutionId, SessionId,
 };
 use systemprompt_models::documents::{
@@ -16,8 +16,8 @@ use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_traits::ByteRange;
 
 use crate::documents::models::{
-    Document, DocumentFolder, DocumentRevision, DocumentSearchHit, ListCursor, LockHolderKind,
-    RevisionAttribution,
+    Document, DocumentFolder, DocumentRevision, DocumentSearchHit, ListCursor, ListScope, ListSort,
+    ListedDocument, ListingCursor, LockHolderKind, RevisionAttribution,
 };
 use crate::documents::revision::CommitBody;
 
@@ -77,8 +77,11 @@ pub struct NewFolderRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ListFolderRequest {
+    pub scope: ListScope,
     pub folder: Option<DocumentFolderId>,
-    pub cursor: Option<ListCursor>,
+    pub query: Option<String>,
+    pub sort: ListSort,
+    pub cursor: Option<ListingCursor>,
     pub limit: i64,
 }
 
@@ -105,8 +108,8 @@ pub struct AcquireLockRequest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Listing {
     pub folders: Vec<DocumentFolder>,
-    pub documents: Vec<Document>,
-    pub next_cursor: Option<ListCursor>,
+    pub documents: Vec<ListedDocument>,
+    pub next_cursor: Option<ListingCursor>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -151,6 +154,27 @@ pub struct CommitRequest {
     pub author: Author,
     pub message: Option<String>,
     pub lock_holder_id: Option<String>,
+    pub comments: CommentPolicy,
+}
+
+/// How a commit treats comment anchors. `guard` refuses a commit that drops
+/// a comment's node or quoted text with `AnchorsAffected`; `detach` lets it
+/// land and clears those quotes. `answering` records the new revision on
+/// that comment.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CommentPolicy {
+    pub allow_detach: bool,
+    pub answering: Option<DocumentCommentId>,
+}
+
+impl CommentPolicy {
+    #[must_use]
+    pub const fn detach() -> Self {
+        Self {
+            allow_detach: true,
+            answering: None,
+        }
+    }
 }
 
 /// Something that failed after a revision became the head. The commit

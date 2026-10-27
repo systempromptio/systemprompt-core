@@ -20,12 +20,12 @@ impl DocumentAccessService {
         pairs: &SubjectPairs,
     ) -> Result<Resolved, DocumentsError> {
         match target {
-            AccessTarget::Document(id) => {
+            AccessTarget::Document(id) | AccessTarget::Trashed(id) => {
+                let trashed = matches!(target, AccessTarget::Trashed(_));
                 let document = self
                     .documents
-                    .find(id)
+                    .find_including_trashed(id)
                     .await?
-                    .filter(|d| d.deleted_at.is_none())
                     .ok_or_else(|| DocumentsError::not_found("document", id))?;
                 let mut chain = Vec::new();
                 if let Some(folder) = &document.folder_id {
@@ -37,6 +37,16 @@ impl DocumentAccessService {
                 } else {
                     self.grants.effective_level(id, &chain, pairs).await?
                 };
+                match (document.trashed_at.is_some(), trashed) {
+                    (true, false) if level.is_some() => {
+                        return Err(DocumentsError::Trashed {
+                            document_id: id.clone(),
+                        });
+                    },
+                    (true, false) => return Err(DocumentsError::not_found("document", id)),
+                    (false, true) => return Err(DocumentsError::not_found("trashed document", id)),
+                    _ => {},
+                }
                 Ok(Resolved {
                     level,
                     nearest_folder: document.folder_id.clone(),

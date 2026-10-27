@@ -9,10 +9,11 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ContentHash, DocumentEditSessionId, DocumentId, DocumentRevisionId, DriveDeviceId, UserId,
+    ContentHash, DocumentCommentId, DocumentEditSessionId, DocumentId, DocumentNodeId,
+    DocumentRevisionId, DriveDeviceId, UserId,
 };
 
-use super::access::{ActorKind, RevisionOriginKind};
+use super::access::{AccessLevel, ActorKind, RevisionOriginKind};
 use super::drive::{PresenceSource, PresenceState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -27,15 +28,27 @@ pub enum DocumentEventName {
     Conflict,
     #[serde(rename = "document.collab.update")]
     CollabUpdate,
+    #[serde(rename = "document.comment.created")]
+    CommentCreated,
+    #[serde(rename = "document.comment.resolved")]
+    CommentResolved,
+    #[serde(rename = "document.shared")]
+    Shared,
+    #[serde(rename = "document.ownership_transferred")]
+    OwnershipTransferred,
 }
 
 impl DocumentEventName {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 9] = [
         Self::RevisionCreated,
         Self::Presence,
         Self::Lock,
         Self::Conflict,
         Self::CollabUpdate,
+        Self::CommentCreated,
+        Self::CommentResolved,
+        Self::Shared,
+        Self::OwnershipTransferred,
     ];
 
     #[must_use]
@@ -46,6 +59,10 @@ impl DocumentEventName {
             Self::Lock => DocumentLockEvent::NAME,
             Self::Conflict => DocumentConflictEvent::NAME,
             Self::CollabUpdate => DocumentCollabUpdateEvent::NAME,
+            Self::CommentCreated => DocumentCommentCreatedEvent::NAME,
+            Self::CommentResolved => DocumentCommentResolvedEvent::NAME,
+            Self::Shared => DocumentSharedEvent::NAME,
+            Self::OwnershipTransferred => DocumentOwnershipTransferredEvent::NAME,
         }
     }
 
@@ -127,4 +144,53 @@ pub struct DocumentCollabUpdateEvent {
 
 impl DocumentCollabUpdateEvent {
     pub const NAME: &'static str = "document.collab.update";
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocumentCommentCreatedEvent {
+    pub document_id: DocumentId,
+    pub comment_id: DocumentCommentId,
+    pub node_id: DocumentNodeId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<DocumentCommentId>,
+    pub author_id: UserId,
+}
+
+impl DocumentCommentCreatedEvent {
+    pub const NAME: &'static str = "document.comment.created";
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocumentCommentResolvedEvent {
+    pub document_id: DocumentId,
+    pub comment_id: DocumentCommentId,
+    pub resolved_by: UserId,
+}
+
+impl DocumentCommentResolvedEvent {
+    pub const NAME: &'static str = "document.comment.resolved";
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocumentSharedEvent {
+    pub document_id: DocumentId,
+    pub subject_kind: String,
+    pub subject_value: String,
+    pub level: AccessLevel,
+    pub by: UserId,
+}
+
+impl DocumentSharedEvent {
+    pub const NAME: &'static str = "document.shared";
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocumentOwnershipTransferredEvent {
+    pub document_id: DocumentId,
+    pub from: UserId,
+    pub to: UserId,
+}
+
+impl DocumentOwnershipTransferredEvent {
+    pub const NAME: &'static str = "document.ownership_transferred";
 }

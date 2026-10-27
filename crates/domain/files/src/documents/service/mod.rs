@@ -18,6 +18,7 @@
 mod acks;
 mod apply;
 mod byte_diff;
+mod comments;
 mod commit;
 mod commit_build;
 mod documents;
@@ -27,8 +28,10 @@ mod drive_commit;
 mod folders;
 mod grants;
 mod listing;
+mod lifecycle;
 mod locks;
 mod node_ids;
+mod ownership;
 mod publish;
 mod reads;
 mod support;
@@ -37,9 +40,12 @@ mod types;
 use std::sync::Arc;
 
 pub use drive::{CHANGE_LAG, parse_drive_cursor};
+pub use comments::{CommentRequest, ResolveCommentRequest};
 pub use grants::ShareRequest;
+pub use lifecycle::{CopyRequest, UpdateRequest};
+pub use ownership::DocumentAccess;
 pub use types::{
-    AcquireLockRequest, Author, CommitOutcome, CommitRequest, CommitWarning, CreateRequest,
+    AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning, CreateRequest,
     DocumentView, HistoryPage, ImportRequest, ListFolderRequest, Listing, NewFolderRequest,
     RevisionOrigin, SearchResult, StreamRequest,
 };

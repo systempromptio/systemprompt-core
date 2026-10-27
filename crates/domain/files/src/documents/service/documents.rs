@@ -19,15 +19,15 @@ use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewDocument, NewRevision};
 
-struct NewContent {
-    folder: Option<DocumentFolderId>,
-    name: String,
-    format: DocumentFormat,
-    template_id: Option<DocumentTemplateId>,
-    bytes: Vec<u8>,
-    author: Author,
-    message: Option<String>,
-    ops: Option<Vec<EditOp>>,
+pub(super) struct NewContent {
+    pub(super) folder: Option<DocumentFolderId>,
+    pub(super) name: String,
+    pub(super) format: DocumentFormat,
+    pub(super) template_id: Option<DocumentTemplateId>,
+    pub(super) bytes: Vec<u8>,
+    pub(super) author: Author,
+    pub(super) message: Option<String>,
+    pub(super) ops: Option<Vec<EditOp>>,
 }
 
 impl DocumentService {
@@ -118,7 +118,7 @@ impl DocumentService {
         .await
     }
 
-    async fn authorize_create(
+    pub(super) async fn authorize_create(
         &self,
         who: &AuthenticatedUser,
         folder: Option<&DocumentFolderId>,
@@ -135,7 +135,7 @@ impl DocumentService {
             .map(|_| ())
     }
 
-    async fn create_with_bytes(
+    pub(super) async fn create_with_bytes(
         &self,
         who: &AuthenticatedUser,
         content: NewContent,
@@ -161,7 +161,7 @@ impl DocumentService {
         {
             Ok(revision) => revision,
             Err(error) => {
-                if let Err(undo) = self.repos.documents.soft_delete(&document.id).await {
+                if let Err(undo) = self.repos.documents.hard_delete(&document.id).await {
                     tracing::error!(
                         document_id = %document.id,
                         error = %undo,
@@ -276,19 +276,5 @@ impl DocumentService {
             return Err(DocumentsError::not_found("document", document));
         }
         self.load_document(document).await
-    }
-
-    pub async fn delete(
-        &self,
-        who: &AuthenticatedUser,
-        document: &DocumentId,
-        trace: &TraceId,
-    ) -> Result<(), DocumentsError> {
-        self.authorized_document(who, document, DocumentAction::Delete, trace)
-            .await?;
-        if !self.repos.documents.soft_delete(document).await? {
-            return Err(DocumentsError::not_found("document", document));
-        }
-        Ok(())
     }
 }

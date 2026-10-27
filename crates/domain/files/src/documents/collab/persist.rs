@@ -21,7 +21,9 @@ use super::model::{BODY_CONTAINER, body_of, body_text, materialise};
 use super::{CollabError, CollabService};
 use crate::documents::models::RevisionAttribution;
 use crate::documents::revision::CommitBody;
-use crate::documents::service::{Author, CommitOutcome, CommitRequest, RevisionOrigin};
+use crate::documents::service::{
+    Author, CommentPolicy, CommitOutcome, CommitRequest, RevisionOrigin,
+};
 
 const CHECKPOINT_MESSAGE: &str = "Live edit session checkpoint";
 
@@ -81,6 +83,7 @@ impl CollabService {
                     },
                     message: Some(CHECKPOINT_MESSAGE.to_owned()),
                     lock_holder_id: None,
+                    comments: CommentPolicy::detach(),
                 },
                 trace,
             )

@@ -40,7 +40,7 @@ impl DocumentService {
             .documents
             .find(document)
             .await?
-            .filter(|d| d.deleted_at.is_none())
+            .filter(|d| d.trashed_at.is_none())
             .ok_or_else(|| DocumentsError::not_found("document", document))
     }
 
@@ -205,7 +205,7 @@ impl DocumentService {
         let mut found = Vec::with_capacity(hits.len());
         for hit in hits {
             if let Some(document) = self.repos.documents.find(&hit.document_id).await?
-                && document.deleted_at.is_none()
+                && document.trashed_at.is_none()
             {
                 found.push((document, hit));
             }

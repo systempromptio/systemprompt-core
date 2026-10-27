@@ -10,15 +10,18 @@ CREATE TABLE IF NOT EXISTS documents (
     created_by VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ
+    trashed_at TIMESTAMPTZ,
+    trashed_by VARCHAR(255)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_documents_folder_name
     ON documents (folder_id, name) NULLS NOT DISTINCT
-    WHERE deleted_at IS NULL;
+    WHERE trashed_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_documents_updated
-    ON documents (updated_at DESC, id DESC) WHERE deleted_at IS NULL;
+    ON documents (updated_at DESC, id DESC) WHERE trashed_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_documents_owner_updated
-    ON documents (owner_user_id, updated_at DESC, id DESC) WHERE deleted_at IS NULL;
+    ON documents (owner_user_id, updated_at DESC, id DESC) WHERE trashed_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_documents_folder_id
-    ON documents (folder_id) WHERE deleted_at IS NULL;
+    ON documents (folder_id) WHERE trashed_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_documents_trashed_at
+    ON documents (trashed_at) WHERE trashed_at IS NOT NULL;

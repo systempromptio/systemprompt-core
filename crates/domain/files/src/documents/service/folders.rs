@@ -194,7 +194,7 @@ impl DocumentService {
                         trace,
                     )
                     .await?;
-                self.repos.documents.soft_delete(&id).await?;
+                self.repos.documents.trash(&id, &who.id).await?;
             }
         }
     }

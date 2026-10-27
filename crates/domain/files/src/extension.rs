@@ -92,6 +92,11 @@ const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/document_write_acks.sql"),
         &["document_id", "op_id", "revision_id", "ack"],
     ),
+    (
+        "document_comments",
+        include_str!("../schema/document_comments.sql"),
+        &["id", "document_id", "node_id", "author_user_id", "body"],
+    ),
 ];
 
 const WEB_ASSETS: &[(&str, &str, AssetType)] = &[

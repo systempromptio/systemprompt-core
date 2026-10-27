@@ -23,6 +23,7 @@ use crate::documents::repository::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AccessTarget {
     Document(DocumentId),
+    Trashed(DocumentId),
     Folder(Option<DocumentFolderId>),
 }
 
@@ -196,6 +197,11 @@ impl DocumentAccessService {
         } = check;
         let resolved = self.resolve(who, target, action, &pairs).await?;
         let needed = action.required_level();
+        let owner = resolved
+            .document
+            .as_ref()
+            .map(|d| d.owner_user_id.clone())
+            .or_else(|| resolved.folder.as_ref().map(|f| f.owner_user_id.clone()));
         let level = match resolved.level {
             Some(level) if level >= needed => level,
             held => {
@@ -204,6 +210,7 @@ impl DocumentAccessService {
                     needed,
                     held,
                     policy: None,
+                    owner,
                 });
             },
         };
@@ -246,6 +253,7 @@ impl DocumentAccessService {
                     needed,
                     held: Some(level),
                     policy: Some(policy),
+                    owner,
                 })
             },
         }

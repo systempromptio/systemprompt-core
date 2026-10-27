@@ -23,6 +23,9 @@ mod purge;
 mod revisions;
 mod rows;
 mod text_index;
+mod trash;
+mod comments;
+mod listing;
 mod write_acks;
 
 use std::sync::Arc;
@@ -32,6 +35,7 @@ use systemprompt_database::DbPool;
 
 pub use blobs::DocumentBlobRepository;
 pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository};
+pub use comments::DocumentCommentRepository;
 pub use documents::DocumentRepository;
 pub use edit_sessions::DocumentEditSessionRepository;
 pub use folders::DocumentFolderRepository;
@@ -57,6 +61,7 @@ pub struct DocumentRepositories {
     pub collab: Arc<DocumentCollabRepository>,
     pub node_ids: Arc<DocumentNodeIdRepository>,
     pub write_acks: Arc<DocumentWriteAckRepository>,
+    pub comments: Arc<DocumentCommentRepository>,
 }
 
 impl DocumentRepositories {
@@ -74,6 +79,7 @@ impl DocumentRepositories {
             collab: Arc::new(DocumentCollabRepository::new(db)),
             node_ids: Arc::new(DocumentNodeIdRepository::new(db)),
             write_acks: Arc::new(DocumentWriteAckRepository::new(db)),
+            comments: Arc::new(DocumentCommentRepository::new(db)),
         }
     }
 }

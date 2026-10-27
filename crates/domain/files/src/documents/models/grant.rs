@@ -26,6 +26,7 @@ pub struct DocumentGrant {
     pub valid_until: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub subject_display: Option<String>,
 }
 
 #[derive(Debug, Clone)]
