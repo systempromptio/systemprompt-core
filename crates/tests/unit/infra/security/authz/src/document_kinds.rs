@@ -1,6 +1,6 @@
 //! `document` and `folder` as access-control entity kinds: the tags round-trip,
 //! their ids must be uuids, they have no parent chain, a closed declaration
-//! admits only a matching role band, and the catalog CHECK accepts them.
+//! admits only a matching role band, and the catalog CHECK accepts every kind.
 
 use std::str::FromStr;
 
@@ -121,4 +121,16 @@ async fn the_catalog_accepts_a_folder_rule() {
         .expect("lookup")
         .expect("folder row");
     assert_eq!(row.kind, EntityKind::Folder);
+}
+
+#[tokio::test]
+async fn the_catalog_accepts_every_entity_kind() {
+    let pool = test_db_pool().await;
+    let repo = AccessControlRepository::new(&pool);
+    for kind in EntityKind::ALL {
+        let id = uuid::Uuid::new_v4().to_string();
+        repo.upsert_entity(*kind, &id, false, "migration")
+            .await
+            .unwrap_or_else(|e| panic!("{kind} catalog row rejected: {e}"));
+    }
 }

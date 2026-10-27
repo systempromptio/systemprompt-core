@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
     entity_type TEXT NOT NULL
         CONSTRAINT access_control_rules_entity_type_check
-        CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook','slack_workspace','teams_tenant','model','provider','document','folder')),
+        CHECK (entity_type IN ('gateway_route','mcp_server','plugin','agent','marketplace','skill','hook','slack_workspace','slack_channel','teams_tenant','teams_conversation','model','provider','document','folder')),
     entity_id TEXT NOT NULL,
     -- Open vocabulary, validated at the Rust boundary by authz::RuleType (the
     -- same stance AuthzContext.kind takes). Core mints 'user' and 'role';
