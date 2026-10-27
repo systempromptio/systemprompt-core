@@ -6,21 +6,20 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_models::documents::DocumentUri;
-use systemprompt_models::execution::context::RequestContext;
+use systemprompt_files::documents::DocumentService;
+use systemprompt_identifiers::TraceId;
+use systemprompt_models::auth::AuthenticatedUser;
 
-use super::DocumentsMcpTools;
 use super::inputs::ReadInput;
 use super::outputs::{DocumentMeta, EditingNow, ReadOutput};
-use super::support::{caller, tool_error};
+use super::support::tool_error;
 
 pub(super) async fn meta(
-    tools: &DocumentsMcpTools,
+    service: &DocumentService,
+    who: &AuthenticatedUser,
     input: &ReadInput,
-    ctx: &RequestContext,
+    trace: &TraceId,
 ) -> Result<(ReadOutput, String), McpError> {
-    let who = caller(ctx)?;
-    let service = tools.service();
-    let trace = ctx.trace_id();
     let view = service
         .get(who, &input.document_id, trace)
         .await

@@ -16,11 +16,13 @@ use systemprompt_identifiers::{
     TraceId, UserId,
 };
 use systemprompt_mcp::McpOutputSchema;
+
+use super::records::GrantItem;
 use systemprompt_models::documents::{
     AccessLevel, ActorKind, DocumentFormat, DocumentUri, PresenceSource, PresenceState,
 };
 
-macro_rules! documents_output {
+macro_rules! documents_output_impl {
     ($ty:ty, $name:literal) => {
         impl McpOutputSchema for $ty {
             fn artifact_type() -> &'static str {
@@ -33,6 +35,8 @@ macro_rules! documents_output {
         }
     };
 }
+
+pub(super) use documents_output_impl as documents_output;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct FolderItem {
@@ -53,6 +57,10 @@ pub struct DocumentItem {
     pub format: DocumentFormat,
     pub head_revision_id: Option<DocumentRevisionId>,
     pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size_bytes: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub my_access: Option<AccessLevel>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -62,7 +70,7 @@ pub struct ListOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
 }
-documents_output!(ListOutput, "documents_list");
+documents_output_impl!(ListOutput, "documents_list");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct SearchHit {
@@ -77,7 +85,7 @@ pub struct SearchHit {
 pub struct SearchOutput {
     pub hits: Vec<SearchHit>,
 }
-documents_output!(SearchOutput, "documents_search");
+documents_output_impl!(SearchOutput, "documents_search");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct CreateOutput {
@@ -87,7 +95,7 @@ pub struct CreateOutput {
     pub name: String,
     pub written: Vec<String>,
 }
-documents_output!(CreateOutput, "documents_create");
+documents_output_impl!(CreateOutput, "documents_create");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ReadOutput {
@@ -105,7 +113,7 @@ pub struct ReadOutput {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
 }
-documents_output!(ReadOutput, "documents_read");
+documents_output_impl!(ReadOutput, "documents_read");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct DocumentMeta {
@@ -141,7 +149,7 @@ pub struct EditOutput {
     pub replayed: bool,
     pub written: Vec<String>,
 }
-documents_output!(EditOutput, "documents_edit");
+documents_output_impl!(EditOutput, "documents_edit");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct RevisionItem {
@@ -179,17 +187,18 @@ pub struct RevisionAttributionItem {
 pub struct HistoryOutput {
     pub revisions: Vec<RevisionItem>,
 }
-documents_output!(HistoryOutput, "documents_history");
+documents_output_impl!(HistoryOutput, "documents_history");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ShareOutput {
-    pub grant_id: String,
-    pub subject_kind: String,
-    pub subject_value: String,
-    pub level: AccessLevel,
-    pub valid_until: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grant: Option<GrantItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transferred_to: Option<UserId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revoked: Option<u64>,
 }
-documents_output!(ShareOutput, "documents_share");
+documents_output_impl!(ShareOutput, "documents_share");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ExportOutput {
@@ -204,10 +213,10 @@ pub struct ExportOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ui_resource: Option<String>,
 }
-documents_output!(ExportOutput, "documents_export");
+documents_output_impl!(ExportOutput, "documents_export");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct GuideOutput {
     pub topics: Vec<String>,
 }
-documents_output!(GuideOutput, "documents_guide");
+documents_output_impl!(GuideOutput, "documents_guide");

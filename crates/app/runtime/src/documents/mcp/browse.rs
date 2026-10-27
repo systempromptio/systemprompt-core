@@ -5,7 +5,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::models::{Document, ListCursor};
+use systemprompt_files::documents::models::{
+    Document, ListScope, ListSort, ListedDocument, ListingCursor,
+};
 use systemprompt_files::documents::service::{HistoryPage, ListFolderRequest};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
@@ -13,7 +15,7 @@ use systemprompt_models::documents::DocumentUri;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::inputs::{HistoryInput, ListInput, SearchInput};
+use super::inputs::{HistoryInput, ListInput, ListScopeInput, ListSortInput, SearchInput};
 use super::outputs::{
     DocumentItem, FolderItem, HistoryOutput, ListOutput, RevisionAttributionItem, RevisionItem,
     SearchHit, SearchOutput,
@@ -28,7 +30,7 @@ fn document_uri(document: &Document) -> DocumentUri {
     }
 }
 
-fn document_item(document: Document, verbose: bool) -> DocumentItem {
+pub(super) fn document_item(document: Document, verbose: bool) -> DocumentItem {
     DocumentItem {
         uri: verbose.then(|| document_uri(&document)),
         document_id: document.id,
@@ -37,14 +39,34 @@ fn document_item(document: Document, verbose: bool) -> DocumentItem {
         format: document.format,
         head_revision_id: document.head_revision_id,
         updated_at: document.updated_at,
+        size_bytes: None,
+        my_access: None,
     }
 }
 
-fn name_matches(name: &str, query: Option<&str>) -> bool {
-    query
-        .map(str::trim)
-        .filter(|q| !q.is_empty())
-        .is_none_or(|q| name.to_lowercase().contains(&q.to_lowercase()))
+fn listed_item(listed: ListedDocument, verbose: bool) -> DocumentItem {
+    DocumentItem {
+        size_bytes: listed.size_bytes,
+        my_access: Some(listed.my_access),
+        ..document_item(listed.document, verbose)
+    }
+}
+
+const fn scope(input: ListScopeInput) -> ListScope {
+    match input {
+        ListScopeInput::Folder => ListScope::Folder,
+        ListScopeInput::Shared => ListScope::Shared,
+        ListScopeInput::Mine => ListScope::Mine,
+        ListScopeInput::Recent => ListScope::Recent,
+    }
+}
+
+const fn sort(input: ListSortInput) -> ListSort {
+    match input {
+        ListSortInput::Name => ListSort::Name,
+        ListSortInput::Updated => ListSort::Updated,
+        ListSortInput::Recent => ListSort::Recent,
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -61,8 +83,8 @@ impl McpToolHandler for ListHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List the folders and documents you may view in one folder (the root by default); pass \
-         next_cursor back as cursor."
+        "List documents by scope (folder, shared, mine, recent) with a name query and sort; \
+         pass next_cursor back as cursor."
     }
 
     fn read_only(&self) -> bool {
@@ -80,7 +102,7 @@ impl McpToolHandler for ListHandler<'_> {
             .cursor
             .as_deref()
             .map(|raw| {
-                raw.parse::<ListCursor>().map_err(|error| {
+                raw.parse::<ListingCursor>().map_err(|error| {
                     tracing::debug!(error = %error, cursor = raw, "list cursor rejected");
                     McpError::invalid_params(
                         format!("cursor \"{raw}\" is not valid; list again without a cursor"),
@@ -95,7 +117,10 @@ impl McpToolHandler for ListHandler<'_> {
             .list_folder(
                 who,
                 ListFolderRequest {
+                    scope: scope(input.scope),
                     folder: input.folder_id,
+                    query: input.query,
+                    sort: sort(input.sort),
                     cursor,
                     limit: clamp_limit(input.limit),
                 },
@@ -103,12 +128,10 @@ impl McpToolHandler for ListHandler<'_> {
             )
             .await
             .map_err(tool_error)?;
-        let query = input.query.as_deref();
         let output = ListOutput {
             folders: listing
                 .folders
                 .into_iter()
-                .filter(|f| name_matches(&f.name, query))
                 .map(|f| FolderItem {
                     folder_id: f.id,
                     parent_id: f.parent_id,
@@ -118,8 +141,7 @@ impl McpToolHandler for ListHandler<'_> {
             items: listing
                 .documents
                 .into_iter()
-                .filter(|d| name_matches(&d.name, query))
-                .map(|d| document_item(d, input.verbose))
+                .map(|d| listed_item(d, input.verbose))
                 .collect(),
             next_cursor: listing.next_cursor.map(|c| c.to_string()),
         };

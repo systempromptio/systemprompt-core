@@ -56,8 +56,21 @@ pub(super) fn clamp_limit(limit: Option<i64>) -> i64 {
 pub fn tool_error(error: DocumentsError) -> McpError {
     let message = error.to_string();
     let refusal = match error {
-        DocumentsError::Forbidden { .. } => Refusal::new(RefusalCode::Forbidden),
-        DocumentsError::NotFound { .. } => Refusal::new(RefusalCode::NotFound),
+        DocumentsError::Forbidden { owner, .. } => Refusal {
+            owner,
+            ..Refusal::new(RefusalCode::Forbidden)
+        },
+        DocumentsError::NotFound { .. } | DocumentsError::CommentNotFound { .. } => {
+            Refusal::new(RefusalCode::NotFound)
+        },
+        DocumentsError::Trashed { .. } => Refusal {
+            trashed: Some(true),
+            ..Refusal::new(RefusalCode::NotFound)
+        },
+        DocumentsError::AnchorsAffected { comments } => Refusal {
+            comments: Some(comments),
+            ..Refusal::new(RefusalCode::AnchorsAffected)
+        },
         DocumentsError::UnknownNode { node } => Refusal {
             node: Some(node),
             ..Refusal::new(RefusalCode::NotFound)
@@ -107,7 +120,8 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::FolderNotEmpty { .. }
         | DocumentsError::InvalidMove { .. }
-        | DocumentsError::InvalidCursor { .. } => Refusal::new(RefusalCode::InvalidParams),
+        | DocumentsError::InvalidCursor { .. }
+        | DocumentsError::InvalidComment { .. } => Refusal::new(RefusalCode::InvalidParams),
         DocumentsError::Blob(_)
         | DocumentsError::Repository(_)
         | DocumentsError::Authz(_)

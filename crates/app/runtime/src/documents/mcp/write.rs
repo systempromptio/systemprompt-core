@@ -17,7 +17,9 @@
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_files::documents::revision::CommitBody;
-use systemprompt_files::documents::service::{CommitOutcome, CommitRequest, CreateRequest};
+use systemprompt_files::documents::service::{
+    CommentPolicy, CommitOutcome, CommitRequest, CreateRequest,
+};
 use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -41,6 +43,7 @@ struct EditCall<'a> {
     ops: Vec<EditOp>,
     op_id: Option<DocumentOpId>,
     message: Option<String>,
+    comments: CommentPolicy,
     verbose: bool,
 }
 
@@ -135,6 +138,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
                 author: agent_author(call.ctx, call.exec_id),
                 message: call.message.clone(),
                 lock_holder_id: None,
+                comments: call.comments.clone(),
             },
             call.ctx.trace_id(),
         )
@@ -255,12 +259,8 @@ impl McpToolHandler for EditHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Apply ops (replace_text, insert_after, delete, str_replace, set_cells, insert_slide, \
-         set_text, set_html, append_markdown, restore, insert_from_revision) as one revision on \
-         the head; returns the written lines. Anchored ops name node by stable id with \
-         expected_hash, or node: {find, nth?, within?}; only a touched node that changed \
-         refuses (the head edit wins). op_id makes a retry safe. See documents_guide topic \
-         editing."
+        "Apply ops as one revision on the head; returns the written lines. answering names the \
+         comment the edit answers. See documents_guide topic editing."
     }
 
     async fn handle(
@@ -280,6 +280,10 @@ impl McpToolHandler for EditHandler<'_> {
             ops: input.ops,
             op_id: input.op_id,
             message: input.message,
+            comments: CommentPolicy {
+                allow_detach: input.allow_detach,
+                answering: input.answering,
+            },
             verbose: input.verbose,
         })
         .await

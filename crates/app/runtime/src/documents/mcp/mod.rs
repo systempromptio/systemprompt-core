@@ -15,16 +15,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod browse;
+mod comment;
 mod download;
 mod export;
 mod guide;
+mod guide_topics;
 mod inputs;
+mod lifecycle;
 mod lines;
 mod listing;
 mod outputs;
 mod preview;
 mod read;
 mod read_meta;
+mod records;
 mod refusal;
 mod share;
 mod support;
@@ -45,15 +49,18 @@ use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::execution::context::RequestContext;
 
 pub use browse::{HistoryHandler, ListHandler, SearchHandler};
+pub use comment::CommentHandler;
 pub use download::{
     DOWNLOAD_AUDIENCE, DOWNLOAD_TOKEN_QUERY, DOWNLOAD_TTL, DownloadTarget, download_purpose,
     signed_download_url,
 };
 pub use export::ExportHandler;
 pub use guide::GuideHandler;
+pub use lifecycle::{AccessHandler, CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
 pub use inputs::{
-    CreateInput, EditInput, ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput,
-    ListInput, NodeRange, ReadInput, ReadView, SearchInput, ShareInput,
+    CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput, ExportAs,
+    ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput, ListSortInput,
+    NodeRange, QuoteAnchor, ReadInput, ReadView, SearchInput, ShareInput, UpdateInput,
 };
 pub use lines::{
     MAX_LINES, MAX_WRITTEN, RenderedLines, parse_cell, render, split_cell_id, structured_line,
@@ -68,8 +75,11 @@ pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
     preview_template, preview_tool_meta, read_preview_resource,
 };
-pub use read::ReadHandler;
-pub use refusal::{Refusal, RefusalCode, refusal, refusal_result};
+pub use read::{ReadHandler, read_view};
+pub use records::{
+    AccessOutput, CommentAnchorItem, CommentItem, CommentOutput, DocumentAck, GrantItem,
+};
+pub use refusal::{Refusal, RefusalCode, refusal, refusal_code, refusal_result};
 pub use share::ShareHandler;
 pub use support::tool_error;
 pub use views::{change_lines, node_lines, outline, search_lines};
@@ -77,14 +87,20 @@ pub use write::{CreateHandler, EditHandler};
 
 use crate::AppContext;
 
-pub const TOOL_NAMES: [&str; 9] = [
+pub const TOOL_NAMES: [&str; 15] = [
     "documents_list",
     "documents_search",
     "documents_create",
     "documents_read",
     "documents_edit",
+    "documents_comment",
     "documents_history",
     "documents_share",
+    "documents_access",
+    "documents_copy",
+    "documents_update",
+    "documents_trash",
+    "documents_restore_document",
     "documents_export",
     "documents_guide",
 ];
@@ -128,7 +144,7 @@ pub struct DocumentsToolCall<'a> {
     pub client: &'a ClientProfile,
 }
 
-/// The nine document tools and the preview resource of one MCP server.
+/// The fifteen document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
@@ -208,23 +224,7 @@ impl DocumentsMcpTools {
 
     #[must_use]
     pub fn list_tools(&self) -> Vec<Tool> {
-        let server = &self.server_name;
-        let mut export = ExportHandler { tools: self }.tool_definition(server);
-        export.meta = Some(preview_tool_meta(server));
-        vec![
-            listing::compact(ListHandler { tools: self }.tool_definition(server), false),
-            listing::compact(SearchHandler { tools: self }.tool_definition(server), false),
-            listing::compact(CreateHandler { tools: self }.tool_definition(server), false),
-            listing::compact(ReadHandler { tools: self }.tool_definition(server), false),
-            listing::compact(EditHandler { tools: self }.tool_definition(server), false),
-            listing::compact(
-                HistoryHandler { tools: self }.tool_definition(server),
-                false,
-            ),
-            listing::compact(ShareHandler { tools: self }.tool_definition(server), false),
-            listing::compact(export, true),
-            listing::compact(GuideHandler { tools: self }.tool_definition(server), false),
-        ]
+        listing::tool_list(self)
     }
 
     pub async fn call(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
@@ -234,8 +234,14 @@ impl DocumentsMcpTools {
             "documents_create" => run(call, &CreateHandler { tools: self }).await,
             "documents_read" => run(call, &ReadHandler { tools: self }).await,
             "documents_edit" => run(call, &EditHandler { tools: self }).await,
+            "documents_comment" => run(call, &CommentHandler { tools: self }).await,
             "documents_history" => run(call, &HistoryHandler { tools: self }).await,
             "documents_share" => run(call, &ShareHandler { tools: self }).await,
+            "documents_access" => run(call, &AccessHandler { tools: self }).await,
+            "documents_copy" => run(call, &CopyHandler { tools: self }).await,
+            "documents_update" => run(call, &UpdateHandler { tools: self }).await,
+            "documents_trash" => run(call, &TrashHandler { tools: self }).await,
+            "documents_restore_document" => run(call, &RestoreHandler { tools: self }).await,
             "documents_export" => run(call, &ExportHandler { tools: self }).await,
             "documents_guide" => run(call, &GuideHandler { tools: self }).await,
             other => Err(McpError::invalid_params(

@@ -15,7 +15,7 @@ use chrono::{DateTime, Utc};
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock, ErrorCode};
 use serde::Serialize;
-use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId, UserId};
+use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId};
 use systemprompt_models::documents::ActorKind;
 
 /// The stable code of a refusal; `documents_guide` explains each as
@@ -32,11 +32,12 @@ pub enum RefusalCode {
     Forbidden,
     NotFound,
     Locked,
+    AnchorsAffected,
     InvalidParams,
 }
 
 impl RefusalCode {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::StaleBase,
         Self::GuardMismatch,
         Self::FindNone,
@@ -46,6 +47,7 @@ impl RefusalCode {
         Self::Forbidden,
         Self::NotFound,
         Self::Locked,
+        Self::AnchorsAffected,
         Self::InvalidParams,
     ];
 
@@ -61,6 +63,7 @@ impl RefusalCode {
             Self::Forbidden => "forbidden",
             Self::NotFound => "not_found",
             Self::Locked => "locked",
+            Self::AnchorsAffected => "anchors_affected",
             Self::InvalidParams => "invalid_params",
         }
     }
@@ -88,6 +91,12 @@ pub struct Refusal {
     pub matches: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub accepted_kinds: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<UserId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trashed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comments: Option<Vec<DocumentCommentId>>,
 }
 
 impl Refusal {
@@ -104,6 +113,9 @@ impl Refusal {
             current_text: None,
             matches: None,
             accepted_kinds: None,
+            owner: None,
+            trashed: None,
+            comments: None,
         }
     }
 
@@ -123,6 +135,15 @@ impl Refusal {
 #[must_use]
 pub fn refusal(code: RefusalCode, message: impl Into<String>) -> McpError {
     Refusal::new(code).into_error(message)
+}
+
+#[must_use]
+pub fn refusal_code(error: &McpError) -> Option<RefusalCode> {
+    let code = error.data.as_ref()?.get("code")?.as_str()?;
+    RefusalCode::ALL
+        .into_iter()
+        .find(|candidate| candidate.as_str() == code)
+        .or_else(|| (error.code == ErrorCode::INVALID_PARAMS).then_some(RefusalCode::InvalidParams))
 }
 
 #[must_use]

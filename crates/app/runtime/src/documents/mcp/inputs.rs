@@ -8,23 +8,46 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_identifiers::{
-    DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId, DocumentRevisionId,
-    DocumentTemplateId,
+    DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
+    DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditOp};
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ListInput {
     #[serde(default)]
+    pub scope: ListScopeInput,
+    #[serde(default)]
     pub folder_id: Option<DocumentFolderId>,
     #[serde(default)]
     pub query: Option<String>,
+    #[serde(default)]
+    pub sort: ListSortInput,
     #[serde(default)]
     pub cursor: Option<String>,
     #[serde(default)]
     pub limit: Option<i64>,
     #[serde(default)]
     pub verbose: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ListScopeInput {
+    #[default]
+    Folder,
+    Shared,
+    Mine,
+    Recent,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ListSortInput {
+    Name,
+    #[default]
+    Updated,
+    Recent,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -104,6 +127,10 @@ pub struct EditInput {
     #[serde(default)]
     pub message: Option<String>,
     #[serde(default)]
+    pub answering: Option<DocumentCommentId>,
+    #[serde(default)]
+    pub allow_detach: bool,
+    #[serde(default)]
     pub verbose: bool,
 }
 
@@ -122,11 +149,18 @@ pub struct ShareInput {
     pub document_id: Option<DocumentId>,
     #[serde(default)]
     pub folder_id: Option<DocumentFolderId>,
-    pub subject_kind: String,
-    pub subject_value: String,
-    pub level: AccessLevel,
+    #[serde(default)]
+    pub subject_kind: Option<String>,
+    #[serde(default)]
+    pub subject_value: Option<String>,
+    #[serde(default)]
+    pub level: Option<AccessLevel>,
     #[serde(default)]
     pub valid_until: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub transfer_to: Option<UserId>,
+    #[serde(default)]
+    pub revoke_all: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -161,4 +195,60 @@ pub struct ExportInput {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct GuideInput {
     pub topics: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CommentAction {
+    Create,
+    List,
+    Resolve,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct QuoteAnchor {
+    pub find: String,
+    #[serde(default)]
+    pub nth: Option<i32>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct CommentInput {
+    pub action: CommentAction,
+    pub document_id: DocumentId,
+    #[serde(default)]
+    pub node: Option<DocumentNodeId>,
+    #[serde(default)]
+    pub anchor: Option<QuoteAnchor>,
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default)]
+    pub parent_id: Option<DocumentCommentId>,
+    #[serde(default)]
+    pub comment_id: Option<DocumentCommentId>,
+    #[serde(default)]
+    pub answering: Option<DocumentRevisionId>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct DocumentInput {
+    pub document_id: DocumentId,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct CopyInput {
+    pub document_id: DocumentId,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub folder_id: Option<DocumentFolderId>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct UpdateInput {
+    pub document_id: DocumentId,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub folder_id: Option<DocumentFolderId>,
 }

@@ -15,7 +15,14 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use rmcp::model::Tool;
+use systemprompt_mcp::McpToolHandler;
 use serde_json::{Map, Value as JsonValue, json};
+
+use super::{
+    AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
+    ExportHandler, GuideHandler, HistoryHandler, ListHandler, ReadHandler, RestoreHandler,
+    SearchHandler, ShareHandler, TrashHandler, UpdateHandler, preview_tool_meta,
+};
 
 const OP_NAMES: [&str; 8] = [
     "replace_text",
@@ -94,7 +101,7 @@ fn compact_input(schema: &Map<String, JsonValue>) -> Map<String, JsonValue> {
     schema
 }
 
-pub(super) fn compact(mut tool: Tool, keep_meta: bool) -> Tool {
+fn compact(mut tool: Tool, keep_meta: bool) -> Tool {
     tool.input_schema = Arc::new(compact_input(&tool.input_schema));
     tool.output_schema = None;
     if !keep_meta {
@@ -102,3 +109,35 @@ pub(super) fn compact(mut tool: Tool, keep_meta: bool) -> Tool {
     }
     tool
 }
+
+pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
+        let server = tools.server_name();
+        let mut export = ExportHandler { tools }.tool_definition(server);
+        export.meta = Some(preview_tool_meta(server));
+        vec![
+            compact(ListHandler { tools }.tool_definition(server), false),
+            compact(SearchHandler { tools }.tool_definition(server), false),
+            compact(CreateHandler { tools }.tool_definition(server), false),
+            compact(ReadHandler { tools }.tool_definition(server), false),
+            compact(EditHandler { tools }.tool_definition(server), false),
+            compact(
+                CommentHandler { tools }.tool_definition(server),
+                false,
+            ),
+            compact(
+                HistoryHandler { tools }.tool_definition(server),
+                false,
+            ),
+            compact(ShareHandler { tools }.tool_definition(server), false),
+            compact(AccessHandler { tools }.tool_definition(server), false),
+            compact(CopyHandler { tools }.tool_definition(server), false),
+            compact(UpdateHandler { tools }.tool_definition(server), false),
+            compact(TrashHandler { tools }.tool_definition(server), false),
+            compact(
+                RestoreHandler { tools }.tool_definition(server),
+                false,
+            ),
+            compact(export, true),
+            compact(GuideHandler { tools }.tool_definition(server), false),
+        ]
+    }

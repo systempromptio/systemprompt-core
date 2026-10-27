@@ -8,11 +8,14 @@ use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::service::ShareRequest;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
+use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::inputs::ShareInput;
 use super::outputs::ShareOutput;
+use super::records::GrantItem;
+use super::refusal::{RefusalCode, refusal};
 use super::support::{caller, tool_error};
 
 #[derive(Debug, Clone, Copy)]
@@ -31,27 +34,22 @@ fn share_target(input: &ShareInput) -> Result<GrantTarget, McpError> {
     }
 }
 
-impl McpToolHandler for ShareHandler<'_> {
-    type Input = ShareInput;
-    type Output = ShareOutput;
-
-    fn tool_name(&self) -> &'static str {
-        "documents_share"
-    }
-
-    fn description(&self) -> &'static str {
-        "Grant a subject access to one document or a folder subtree. See documents_guide topic \
-         sharing."
-    }
-
-    async fn handle(
+impl ShareHandler<'_> {
+    async fn grant(
         &self,
+        who: &AuthenticatedUser,
         input: ShareInput,
         ctx: &RequestContext,
-        _exec_id: &McpExecutionId,
     ) -> Result<(ShareOutput, String), McpError> {
-        let who = caller(ctx)?;
         let target = share_target(&input)?;
+        let (Some(subject_kind), Some(subject_value), Some(level)) =
+            (input.subject_kind, input.subject_value, input.level)
+        else {
+            return Err(refusal(
+                RefusalCode::InvalidParams,
+                "a grant needs subject_kind, subject_value and level",
+            ));
+        };
         let grant = self
             .tools
             .service()
@@ -59,9 +57,9 @@ impl McpToolHandler for ShareHandler<'_> {
                 who,
                 ShareRequest {
                     target,
-                    subject_kind: input.subject_kind,
-                    subject_value: input.subject_value,
-                    level: input.level,
+                    subject_kind,
+                    subject_value,
+                    level,
                     valid_until: input.valid_until,
                 },
                 ctx.trace_id(),
@@ -74,13 +72,72 @@ impl McpToolHandler for ShareHandler<'_> {
         );
         Ok((
             ShareOutput {
-                grant_id: grant.id.to_string(),
-                subject_kind: grant.subject_kind,
-                subject_value: grant.subject_value,
-                level: grant.access_level,
-                valid_until: grant.valid_until,
+                grant: Some(GrantItem::from(grant)),
+                transferred_to: None,
+                revoked: None,
             },
             summary,
         ))
+    }
+}
+
+impl McpToolHandler for ShareHandler<'_> {
+    type Input = ShareInput;
+    type Output = ShareOutput;
+
+    fn tool_name(&self) -> &'static str {
+        "documents_share"
+    }
+
+    fn description(&self) -> &'static str {
+        "Grant access to a document or folder subtree, transfer ownership or revoke all grants. \
+         See documents_guide topic sharing."
+    }
+
+    async fn handle(
+        &self,
+        input: ShareInput,
+        ctx: &RequestContext,
+        _exec_id: &McpExecutionId,
+    ) -> Result<(ShareOutput, String), McpError> {
+        let who = caller(ctx)?;
+        let service = self.tools.service();
+        let trace = ctx.trace_id();
+        match (input.transfer_to.clone(), input.revoke_all, &input.document_id) {
+            (Some(to), _, Some(document)) => {
+                service
+                    .transfer_ownership(who, document, &to, trace)
+                    .await
+                    .map_err(tool_error)?;
+                let summary = format!("ownership transferred to {to}");
+                Ok((
+                    ShareOutput {
+                        grant: None,
+                        transferred_to: Some(to),
+                        revoked: None,
+                    },
+                    summary,
+                ))
+            },
+            (None, true, Some(document)) => {
+                let revoked = service
+                    .revoke_all(who, document, trace)
+                    .await
+                    .map_err(tool_error)?;
+                Ok((
+                    ShareOutput {
+                        grant: None,
+                        transferred_to: None,
+                        revoked: Some(revoked),
+                    },
+                    format!("revoked {revoked} grants"),
+                ))
+            },
+            (Some(_), _, None) | (None, true, None) => Err(refusal(
+                RefusalCode::InvalidParams,
+                "transfer_to and revoke_all take a document_id",
+            )),
+            (None, false, _) => self.grant(who, input, ctx).await,
+        }
     }
 }
