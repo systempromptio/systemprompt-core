@@ -37,6 +37,8 @@
 
 ### Added
 
+- **Bridge:** `doctor` checks that `OpenCode` kept the config it was given. It runs `opencode debug config` and fails, naming the file and entry, when the gateway provider or any written policy is missing from the loaded config or out of order. `OpenCode` drops a malformed policy without a message.
+- **Agent runs:** the `opencode_decode` example replays a captured `opencode run --format json` stream from stdin through the core decoder and outcome classifier, and prints the events and outcome as JSON.
 - **CLI, Scheduler:** `admin config planes apply --dry-run` runs the apply and rolls it back, reporting what it would change (`ConfigReconcileService::preview_apply`). Nothing is written or audited.
 - **Manifest, Gateway:** `external_agents.<host>.default_enabled: false` makes an enabled host opt-in. It reaches only users with an explicit enabled row, for example a farm's service account, and never counts towards "no rows means every host". Read it with `ServicesConfig::instance_hosts()` (`InstanceHosts`).
 - **CLI:** `core services validate` reports an `agents_md` finding that warns when the tree's `OpenCode` rules render to more than the 24,000 characters `OpenCode` reads from `AGENTS.md`; the bridge warns on sync too. The renderer moved to `systemprompt_models::bridge::opencode::agents_md`, so both measure the text the bridge writes.

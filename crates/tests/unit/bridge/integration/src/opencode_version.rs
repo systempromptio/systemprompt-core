@@ -4,7 +4,7 @@
 use systemprompt_bridge::cli::doctor::Status;
 use systemprompt_bridge::cli::doctor::opencode::check_client_version;
 use systemprompt_bridge::integration::opencode::{
-    ClientVersion, MIN_CLIENT_VERSION, parse_version,
+    ClientProbeError, ClientVersion, MIN_CLIENT_VERSION, parse_version,
 };
 
 #[test]
@@ -34,8 +34,8 @@ fn a_client_below_the_v2_floor_fails_doctor() {
         check_client_version(&ClientVersion::Found(MIN_CLIENT_VERSION)).expect("reported");
     assert_eq!(current.status, Status::Ok);
     assert!(check_client_version(&ClientVersion::NotInstalled).is_none());
-    let unreadable =
-        check_client_version(&ClientVersion::Unreadable("timed out".into())).expect("reported");
+    let unreadable = check_client_version(&ClientVersion::Unreadable(ClientProbeError::TimedOut))
+        .expect("reported");
     assert_eq!(unreadable.status, Status::Warn);
 }
 

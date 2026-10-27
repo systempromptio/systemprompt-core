@@ -51,6 +51,8 @@ mod opencode_merge;
 #[cfg(test)]
 mod opencode_packaging;
 #[cfg(test)]
+mod opencode_roundtrip;
+#[cfg(test)]
 mod opencode_user_tier;
 #[cfg(test)]
 mod opencode_version;
