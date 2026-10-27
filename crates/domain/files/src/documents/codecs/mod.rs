@@ -34,3 +34,6 @@ pub use html::HtmlCodec;
 pub use markdown::MarkdownCodec;
 pub use registry::CodecRegistry;
 pub use text::TextCodec;
+
+#[cfg(feature = "office")]
+pub mod docx;

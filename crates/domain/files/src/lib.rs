@@ -17,7 +17,7 @@
 //!
 //! | Feature | Default | Effect |
 //! |---------|---------|--------|
-//! | _none_  | n/a     | The crate currently exposes a single feature surface; all modules are compiled unconditionally. The `[package.metadata.docs.rs] all-features = true` setting is retained so future feature additions automatically appear in published docs. |
+//! | `office` | off | The `.docx` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec) in `documents::codecs::docx`, built on `zip`, `quick-xml` and `ammonia`. |
 //!
 //! ## Layering
 //!

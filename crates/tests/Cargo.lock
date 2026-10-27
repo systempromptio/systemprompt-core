@@ -8703,6 +8703,7 @@ dependencies = [
  "hex",
  "inventory",
  "pulldown-cmark",
+ "quick-xml 0.42.0",
  "scraper",
  "serde",
  "serde_json",
@@ -8723,6 +8724,7 @@ dependencies = [
  "tracing",
  "uuid",
  "walkdir",
+ "zip",
 ]
 
 [[package]]
@@ -8769,6 +8771,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
+ "zip",
 ]
 
 [[package]]

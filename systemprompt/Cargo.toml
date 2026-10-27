@@ -84,6 +84,9 @@ teams = ["dep:systemprompt-teams"]
 # claim queue). Opt-in while the crate is being built out.
 agent-runs = ["dep:systemprompt-agent-runs"]
 
+# Office document codecs (.docx) for the files domain. `full` implies it.
+files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
+
 # Full functionality including all domain modules and CLI
 full = [
     "api",
@@ -104,6 +107,7 @@ full = [
     "systemprompt-logging/cli",
     "config",
     "dep:systemprompt-files",
+    "files-office",
     "agent-runs",
     # Infrastructure crates for extension authors
     "loader",

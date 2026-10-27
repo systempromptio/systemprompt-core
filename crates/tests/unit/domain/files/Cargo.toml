@@ -13,9 +13,9 @@ workspace = true
 [dependencies]
 reqwest = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-files = { workspace = true }
-systemprompt-identifiers = { workspace = true }
+systemprompt-files = { workspace = true, features = ["office"] }
 systemprompt-provider-contracts = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true }
@@ -32,6 +32,7 @@ sqlx = { workspace = true }
 base64 = { workspace = true }
 tempfile = { workspace = true }
 serde_yaml = { workspace = true }
+zip = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

@@ -175,6 +175,7 @@ serde_jcs = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
 semver = "1"
 uuid = { version = "1.28", features = ["v4", "serde"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 pg_query = "6.2"
 validator = { version = "0.21", features = ["derive"] }
 regex = "1.13"

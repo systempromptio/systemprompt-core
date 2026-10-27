@@ -52,6 +52,11 @@ pulldown-cmark = { workspace = true }
 ammonia = { workspace = true }
 scraper = { workspace = true }
 ego-tree = { workspace = true }
+zip = { workspace = true, optional = true }
+quick-xml = { workspace = true, optional = true }
+
+[features]
+office = ["dep:zip", "dep:quick-xml"]
 
 [package.metadata.cargo-machete]
 # inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
