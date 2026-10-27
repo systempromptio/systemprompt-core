@@ -160,3 +160,25 @@ fn proposal_conflict_carries_the_node_and_its_current_text() {
     assert_eq!(data["current_text"], "owner wins");
     assert!(text.contains("owner wins"), "{text}");
 }
+
+#[test]
+fn share_below_existing_names_the_existing_level() {
+    let (_, data) = refused(DocumentsError::ShareBelowExisting {
+        existing: systemprompt_models::documents::AccessLevel::Own,
+        held: systemprompt_models::documents::AccessLevel::Share,
+        owner: None,
+    });
+    assert_eq!(data["code"], "forbidden");
+    assert_eq!(data["existing_level"], "own");
+}
+
+#[test]
+fn unknown_subject_and_own_grants_have_their_codes() {
+    let (_, data) = refused(DocumentsError::UnknownSubject {
+        kind: "user".to_owned(),
+        value: "ghost".to_owned(),
+    });
+    assert_eq!(data["code"], "unknown_subject");
+    let (_, data) = refused(DocumentsError::OwnNotGrantable);
+    assert_eq!(data["code"], "invalid_params");
+}

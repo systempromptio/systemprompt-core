@@ -219,7 +219,7 @@ async fn stale_base_names_the_head_revision() {
 }
 
 #[tokio::test]
-async fn forbidden_names_the_needed_and_held_level() {
+async fn a_stranger_is_told_not_found_until_shared() {
     let h = harness().await;
     let owner = person("owner");
     let stranger = person("stranger");
@@ -240,9 +240,8 @@ async fn forbidden_names_the_needed_and_held_level() {
         .handle(read(document.clone()), &ctx_for(Some(&stranger)), &exec())
         .await
         .expect_err("stranger cannot read");
-    assert!(error.message.contains("forbidden"), "{}", error.message);
-    assert!(error.message.contains("view access"), "{}", error.message);
-    assert!(error.message.contains("no access"), "{}", error.message);
+    assert!(error.message.contains("does not exist"), "{}", error.message);
+    assert!(!error.message.contains(owner.id.as_str()), "{}", error.message);
 
     ShareHandler { tools: &h.tools }
         .handle(

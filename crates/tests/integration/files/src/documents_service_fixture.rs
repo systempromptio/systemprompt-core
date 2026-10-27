@@ -12,7 +12,7 @@ use systemprompt_files::documents::service::{Author, CreateRequest, RevisionOrig
 use systemprompt_files::documents::templates::TemplateRegistry;
 use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
-    DocumentServiceParts,
+    DocumentServiceParts, SubjectDirectory, SubjectDirectoryError,
 };
 use systemprompt_governance::authz::{
     AccessControlRepository, AllowAllHook, DenyAllHook, RuleType, SharedAuthzHook,
@@ -79,6 +79,51 @@ impl SubjectAttributeSource for GroupSource {
     }
 }
 
+#[derive(Default)]
+pub(crate) struct RoleDirectory {
+    roles: HashMap<String, Vec<UserId>>,
+}
+
+impl RoleDirectory {
+    pub(crate) fn with_role(mut self, role: &str, members: &[&UserId]) -> Self {
+        self.roles.insert(
+            role.to_owned(),
+            members.iter().map(|user| (*user).clone()).collect(),
+        );
+        self
+    }
+}
+
+#[async_trait]
+impl SubjectDirectory for RoleDirectory {
+    async fn roles_of(&self, user: &UserId) -> Result<Option<Vec<String>>, SubjectDirectoryError> {
+        Ok(Some(
+            self.roles
+                .iter()
+                .filter(|(_, members)| members.contains(user))
+                .map(|(role, _)| role.clone())
+                .collect(),
+        ))
+    }
+
+    async fn members(
+        &self,
+        kind: &str,
+        value: &str,
+        limit: usize,
+    ) -> Result<Vec<UserId>, SubjectDirectoryError> {
+        Ok(match kind {
+            "user" => vec![UserId::new(value)],
+            "role" => self
+                .roles
+                .get(value)
+                .map(|members| members.iter().take(limit).cloned().collect())
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        })
+    }
+}
+
 pub(crate) struct Harness {
     pub(crate) service: DocumentService,
     pub(crate) repos: Arc<DocumentRepositories>,
@@ -105,6 +150,15 @@ pub(crate) async fn harness_on(
     subjects: GroupSource,
     storage: Arc<TempDir>,
 ) -> Harness {
+    harness_with(hook, subjects, storage, RoleDirectory::default()).await
+}
+
+pub(crate) async fn harness_with(
+    hook: SharedAuthzHook,
+    subjects: GroupSource,
+    storage: Arc<TempDir>,
+    directory: RoleDirectory,
+) -> Harness {
     let db = test_db_pool().await;
     let repos = Arc::new(DocumentRepositories::new(&db));
     let access_entities = Arc::new(AccessControlRepository::new(&db));
@@ -117,6 +171,7 @@ pub(crate) async fn harness_on(
         },
         hook,
         Arc::new(subjects),
+        Arc::new(directory),
     ));
     let blobs = Arc::new(BlobStore::new(
         Arc::new(LocalFileStorage::new(storage.path().to_path_buf())),

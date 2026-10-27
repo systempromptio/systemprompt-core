@@ -261,7 +261,7 @@ async fn an_edit_with_a_stale_anchor_is_409_with_the_current_text() -> Result<()
 }
 
 #[tokio::test]
-async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_forbidden() -> Result<()> {
+async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_not_found() -> Result<()> {
     let (pool, _ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-owner").await?;
     let reader = seed_bridge_credential(&pool, "docs-reader").await?;
@@ -276,7 +276,7 @@ async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_forbidden() ->
         )
     };
 
-    assert_eq!(get(&stranger).await?.status, StatusCode::FORBIDDEN);
+    assert_eq!(get(&stranger).await?.status, StatusCode::NOT_FOUND);
 
     let share = json!({
         "subject_kind": "user",
@@ -310,7 +310,7 @@ async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_forbidden() ->
     );
 
     assert_eq!(get(&reader).await?.status, StatusCode::OK);
-    assert_eq!(get(&stranger).await?.status, StatusCode::FORBIDDEN);
+    assert_eq!(get(&stranger).await?.status, StatusCode::NOT_FOUND);
     let reader_grants = send(
         app(&state, &reader),
         request(Method::GET, &format!("/{id}/grants"))
@@ -328,7 +328,7 @@ async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_forbidden() ->
     )
     .await?;
     assert_eq!(revoked.status, StatusCode::NO_CONTENT);
-    assert_eq!(get(&reader).await?.status, StatusCode::FORBIDDEN);
+    assert_eq!(get(&reader).await?.status, StatusCode::NOT_FOUND);
     Ok(())
 }
 

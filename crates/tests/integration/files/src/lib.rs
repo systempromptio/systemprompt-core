@@ -32,6 +32,8 @@ mod documents_service_fixture;
 #[cfg(test)]
 mod documents_shared_editing;
 #[cfg(test)]
+mod documents_sharing_guards;
+#[cfg(test)]
 mod documents_write_acks;
 #[cfg(test)]
 mod file_ingestion;

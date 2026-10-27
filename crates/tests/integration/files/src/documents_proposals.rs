@@ -371,7 +371,7 @@ async fn only_share_access_sets_the_folder_policy() {
         .set_folder_agent_edit_policy(&stranger, &target, AgentEditPolicy::Propose, &trace())
         .await;
     assert!(
-        matches!(refused, Err(DocumentsError::Forbidden { .. })),
+        matches!(refused, Err(DocumentsError::NotFound { .. })),
         "{refused:?}"
     );
 }

@@ -174,7 +174,7 @@ async fn a_stranger_cannot_join_and_a_closed_session_is_a_conflict() -> Result<(
         &json!({"mode": "view"}),
     )
     .await?;
-    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(status, StatusCode::NOT_FOUND);
 
     let (_, joined) = post(
         &state,

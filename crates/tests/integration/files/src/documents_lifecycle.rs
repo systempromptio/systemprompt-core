@@ -7,7 +7,7 @@ use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitRequest, CopyRequest, FolderMove, HistoryPage, NewFolderRequest,
-    ShareRequest, UpdateRequest,
+    ShareRequest, TransferRequest, UpdateRequest,
 };
 use systemprompt_identifiers::{ConnectionId, DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -351,11 +351,18 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
     .await;
     let access = h
         .service
-        .access_of(&reader, &doc.id, &trace())
+        .access_of(&owner, &doc.id, &trace())
         .await
         .expect("access");
     assert_eq!(access.owner, owner.id);
-    assert_eq!(access.my_access, AccessLevel::Comment);
+    assert_eq!(access.my_access, AccessLevel::Own);
+    let below_share = h
+        .service
+        .access_of(&reader, &doc.id, &trace())
+        .await
+        .expect("reader access");
+    assert_eq!(below_share.my_access, AccessLevel::Comment);
+    assert!(below_share.grants.is_empty() && below_share.inherited.is_empty());
     assert_eq!(access.grants.len(), 1);
     assert_eq!(
         access.grants[0].subject_display.as_deref(),
@@ -386,7 +393,15 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
     );
     let moved = h
         .service
-        .transfer_ownership(&owner, &id, &next.id, &trace())
+        .transfer_ownership(
+            &owner,
+            &id,
+            TransferRequest {
+                to: next.id.clone(),
+                to_display: Some(next.username.clone()),
+            },
+            &trace(),
+        )
         .await
         .expect("transfer");
     assert_eq!(moved.owner_user_id, next.id);
@@ -403,9 +418,9 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
     assert_eq!(view.my_access, AccessLevel::Edit);
     let access = h
         .service
-        .access_of(&owner, &id, &trace())
+        .access_of(&next, &id, &trace())
         .await
-        .expect("previous owner reads access");
+        .expect("new owner reads access");
     let kept = access
         .grants
         .iter()
@@ -417,7 +432,15 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
     );
     let refused = h
         .service
-        .transfer_ownership(&owner, &id, &owner.id, &trace())
+        .transfer_ownership(
+            &owner,
+            &id,
+            TransferRequest {
+                to: owner.id.clone(),
+                to_display: Some(owner.username.clone()),
+            },
+            &trace(),
+        )
         .await
         .expect_err("only the owner transfers");
     assert!(
@@ -475,7 +498,7 @@ async fn revoke_all_removes_every_grant() {
         .await
         .expect_err("access is gone");
     assert!(
-        matches!(refused, DocumentsError::Forbidden { .. }),
+        matches!(refused, DocumentsError::NotFound { .. }),
         "{refused:?}"
     );
 }

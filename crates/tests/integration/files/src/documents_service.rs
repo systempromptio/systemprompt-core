@@ -368,7 +368,7 @@ async fn a_group_folder_grant_reaches_members_only() {
         .await
         .expect_err("hr member is refused");
     assert!(
-        matches!(refused, DocumentsError::Forbidden { held: None, .. }),
+        matches!(refused, DocumentsError::NotFound { .. }),
         "{refused:?}"
     );
 }
@@ -403,16 +403,9 @@ async fn sharing_above_the_held_level_is_forbidden() {
         .service
         .share(&editor, share("someone", AccessLevel::Own), &trace())
         .await
-        .expect_err("cannot grant above share");
+        .expect_err("own is never granted");
     assert!(
-        matches!(
-            refused,
-            DocumentsError::Forbidden {
-                needed: AccessLevel::Own,
-                held: Some(AccessLevel::Share),
-                ..
-            }
-        ),
+        matches!(refused, DocumentsError::OwnNotGrantable),
         "{refused:?}"
     );
     let unknown = h

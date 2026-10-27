@@ -187,6 +187,10 @@ async fn share_transfers_ownership_and_lists_show_access() {
     let owner = person("mcp-transfer");
     let next = person("mcp-next");
     let ctx = ctx_for(Some(&owner));
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    systemprompt_test_fixtures::seed_user_row(&pool, &next.id, &next.email)
+        .await
+        .expect("seed recipient");
     let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
     let (out, _) = ShareHandler { tools: &h.tools }
         .handle(
