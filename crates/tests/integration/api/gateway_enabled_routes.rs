@@ -486,7 +486,8 @@ async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()
 }
 
 #[tokio::test]
-async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result<()> {
+async fn the_responses_wire_admits_a_contradicting_session_header_like_messages()
+-> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
     let cred = seed_admin_credential(&pool, "gw-responses@example.invalid").await?;
@@ -505,12 +506,12 @@ async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result
 
     let (status, body) = body_to_string(app().await?.oneshot(req).await?).await?;
 
-    assert_eq!(
-        status.as_u16(),
-        401,
-        "a session header that contradicts the token is refused on every inference wire: {body}"
+    assert!(
+        status.as_u16() != 401 && status.as_u16() != 403,
+        "a session header that differs from the token's claim is recorded, not refused, \
+         on every inference wire: {status} {body}"
     );
-    assert!(body.contains("X-Session-ID"), "{body}");
+    assert!(!body.contains("X-Session-ID"), "{body}");
     Ok(())
 }
 
@@ -533,7 +534,8 @@ async fn a_garbage_bearer_token_is_refused_by_the_gateway() -> anyhow::Result<()
 }
 
 #[tokio::test]
-async fn a_session_bound_token_cannot_be_replayed_under_another_session() -> anyhow::Result<()> {
+async fn a_token_sent_with_another_session_header_is_not_refused_at_the_route() -> anyhow::Result<()>
+{
     boot();
     let pool = test_db_pool().await;
     let cred = seed_admin_credential(&pool, "gw-sessionbind@example.invalid").await?;
@@ -550,12 +552,12 @@ async fn a_session_bound_token_cannot_be_replayed_under_another_session() -> any
     )
     .await?;
 
-    // The token carries its own session; presenting it against a different one
-    // must be refused, or a leaked token could be replayed anywhere.
     assert!(
-        status.is_client_error(),
-        "a mismatched session binding must be refused, got {status}: {body}"
+        status.as_u16() != 401 && status.as_u16() != 403,
+        "the request lands on the token's claim session, so a differing header is \
+         recorded rather than refused: {status} {body}"
     );
+    assert!(!body.contains("X-Session-ID"), "{body}");
     Ok(())
 }
 
