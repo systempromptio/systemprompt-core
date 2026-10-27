@@ -5,10 +5,10 @@
 //! request's model alias, the request's MCP servers, and `policies` that
 //! confine the run. Tool limits are `tool.use` policies, never `permissions`,
 //! because managed and generated `permissions` are overridable by an agent
-//! definition while `policies` are not. [`PermissionMode::Plan`] denies `edit`, `write` and
-//! `shell`. The run's gateway session comes from the PAT's session binding,
-//! not from `x-session-id`: `OpenCode` 2 replaces that header with its own
-//! session id, which the gateway records as the client session.
+//! definition while `policies` are not. [`PermissionMode::Plan`] denies `edit`,
+//! `write` and `shell`. The run's gateway session comes from the PAT's session
+//! binding, not from `x-session-id`: `OpenCode` 2 replaces that header with its
+//! own session id, which the gateway records as the client session.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
