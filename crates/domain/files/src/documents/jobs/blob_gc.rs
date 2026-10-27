@@ -41,10 +41,11 @@ impl Job for DocumentBlobGcJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let started = std::time::Instant::now();
         let db_pool = ctx.get::<DbPool>()?;
-        let grace_hours = ctx
-            .get::<Arc<FilesConfig>>()?
-            .documents_config()
-            .blob_gc_grace_hours;
+        let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
+        if !documents.is_enabled() {
+            return Ok(JobResult::success().with_message("document store disabled"));
+        }
+        let grace_hours = documents.blob_gc_grace_hours;
         let storage = ctx.get::<Arc<dyn ExtensionContext>>()?.file_storage();
         let store = BlobStore::new(storage, Arc::new(DocumentBlobRepository::new(db_pool)));
 

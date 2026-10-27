@@ -48,6 +48,19 @@ fn error_fields(yaml: &str) -> Vec<String> {
 }
 
 #[test]
+fn the_store_is_disabled_by_default_and_enabled_by_the_switch() {
+    assert!(!DocumentsConfig::default().is_enabled());
+    let absent: DocumentsConfig = serde_yaml::from_str("maxUploadBytes: 2097152\n").expect("parse");
+    assert!(!absent.is_enabled());
+    let enabled: DocumentsConfig = serde_yaml::from_str("enabled: true\n").expect("parse");
+    assert!(enabled.is_enabled());
+    assert_eq!(
+        enabled.max_upload_bytes,
+        DocumentsConfig::default().max_upload_bytes
+    );
+}
+
+#[test]
 fn defaults_apply_when_section_is_absent_or_partial() {
     let config = DocumentsConfig::default();
     assert_eq!(config.max_upload_bytes, 64 * 1024 * 1024);

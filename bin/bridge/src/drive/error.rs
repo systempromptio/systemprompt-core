@@ -39,6 +39,8 @@ pub enum DriveError {
     },
     #[error("head of {path:?} is not in the gateway manifest")]
     HeadMissing { path: String },
+    #[error("gateway has the document store disabled ({endpoint} answered 404)")]
+    ServerDisabled { endpoint: &'static str },
     #[error("gateway rejected the credential at {endpoint}")]
     Unauthorized { endpoint: &'static str },
     #[error("gateway answered {status} at {endpoint}: {rejection}")]

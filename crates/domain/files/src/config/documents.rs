@@ -1,4 +1,5 @@
-//! The `files.documents` section: document store upload limit, blob
+//! The `files.documents` section: the document store's on/off switch
+//! (off by default), upload limit, blob
 //! garbage-collection grace and presence time-to-live.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -15,6 +16,8 @@ const DEFAULT_PRESENCE_TTL_SECS: u32 = 90;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentsConfig {
+    #[serde(default)]
+    pub enabled: bool,
     #[serde(default = "default_max_upload_bytes")]
     pub max_upload_bytes: u64,
     #[serde(default = "default_blob_gc_grace_hours")]
@@ -38,9 +41,17 @@ const fn default_presence_ttl_secs() -> u32 {
 impl Default for DocumentsConfig {
     fn default() -> Self {
         Self {
+            enabled: false,
             max_upload_bytes: DEFAULT_MAX_UPLOAD_BYTES,
             blob_gc_grace_hours: DEFAULT_BLOB_GC_GRACE_HOURS,
             presence_ttl_secs: DEFAULT_PRESENCE_TTL_SECS,
         }
+    }
+}
+
+impl DocumentsConfig {
+    #[must_use]
+    pub const fn is_enabled(&self) -> bool {
+        self.enabled
     }
 }

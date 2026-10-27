@@ -1,5 +1,6 @@
 //! Mounts `/api/v1/documents` and `/api/v1/document-folders` with their
-//! router-scoped state, the content rate limit and the user authz gate.
+//! router-scoped state, the content rate limit and the user authz gate, or
+//! nothing when `files.documents.enabled` is off.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,6 +20,9 @@ pub(super) fn mount_documents(
     router: Router,
     mount: &MountCtx<'_>,
 ) -> Result<Router, RouteMountError> {
+    if !mount.ctx.files_config().documents_config().is_enabled() {
+        return Ok(router);
+    }
     let state = DocumentsState::build(mount.ctx)
         .map_err(|source| RouteMountError::initialization("documents", source))?;
     let per_second = mount.ctx.config().rate_limits.content_per_second;

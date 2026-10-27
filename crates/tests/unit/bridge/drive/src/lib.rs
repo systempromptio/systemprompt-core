@@ -4,6 +4,8 @@
 mod support;
 
 #[cfg(test)]
+mod enable;
+#[cfg(test)]
 mod presence;
 #[cfg(test)]
 mod pull;

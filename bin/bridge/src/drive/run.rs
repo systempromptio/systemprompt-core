@@ -5,7 +5,9 @@
 //! watcher, a `document.revision.created` frame, an explicit "sync now" or the
 //! [`TICK`], and serialised on the handle's cycle lock. Every failure is
 //! logged and recorded as the status's `last_error`; `synced_at` moves only
-//! when a whole cycle succeeded.
+//! when a whole cycle succeeded. A server with the document store disabled is
+//! not a failure: the status turns `enabled = false` with no error and the
+//! loop re-checks at its normal cadence.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -192,6 +194,10 @@ impl Runner<'_> {
         }
         match self.try_cycle().await {
             Ok(()) => {},
+            Err(DriveError::ServerDisabled { endpoint }) => {
+                tracing::debug!(endpoint, "drive disabled on the server");
+                mark_server_disabled(self.handle);
+            },
             Err(error) => {
                 if let DriveError::Unauthorized { endpoint } = &error {
                     self.token_cache.reject_upstream(endpoint).await;
@@ -249,7 +255,14 @@ impl Runner<'_> {
 pub async fn ensure_enabled(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<bool> {
     let dir = cycle.root.dir();
     if !dir.is_dir() {
-        let manifest = cycle.client.manifest(cycle.bearer).await?;
+        let manifest = match cycle.client.manifest(cycle.bearer).await {
+            Ok(manifest) => manifest,
+            Err(DriveError::ServerDisabled { .. }) => {
+                mark_server_disabled(handle);
+                return Ok(false);
+            },
+            Err(error) => return Err(error),
+        };
         if manifest.entries.is_empty() {
             return Ok(false);
         }
@@ -261,4 +274,11 @@ pub async fn ensure_enabled(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResu
         status.root = Some(dir.to_path_buf());
     });
     Ok(true)
+}
+
+pub fn mark_server_disabled(handle: &DriveHandle) {
+    handle.update(|status| {
+        status.enabled = false;
+        status.last_error = None;
+    });
 }

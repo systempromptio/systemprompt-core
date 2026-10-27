@@ -42,8 +42,9 @@ pub use agent::{
 };
 pub use app_context::{
     default_governance_engine, default_governance_watch, fixture_analytics_repositories,
-    fixture_app_context_on_bootstrap, fixture_app_context_on_bootstrap_with_paths,
-    fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
+    fixture_app_context_documents_disabled, fixture_app_context_on_bootstrap,
+    fixture_app_context_on_bootstrap_with_paths, fixture_app_context_with,
+    fixture_app_context_with_config, fixture_app_context_with_extensions,
     fixture_app_context_with_hook, fixture_app_context_with_user_repository,
     fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_extension_context,
     fixture_fingerprint_repository, fixture_secret_store, fixture_services_state,

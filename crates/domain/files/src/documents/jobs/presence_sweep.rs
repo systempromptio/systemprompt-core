@@ -3,10 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
+use crate::FilesConfig;
 use crate::documents::repository::DocumentPresenceRepository;
 
 const BATCH: i64 = 1000;
@@ -33,6 +36,13 @@ impl Job for DocumentPresenceSweepJob {
     }
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+        if !ctx
+            .get::<Arc<FilesConfig>>()?
+            .documents_config()
+            .is_enabled()
+        {
+            return Ok(JobResult::success().with_message("document store disabled"));
+        }
         let started = std::time::Instant::now();
         let presence = DocumentPresenceRepository::new(ctx.get::<DbPool>()?);
         let swept = presence

@@ -2,7 +2,9 @@
 //!
 //! Each call takes the bearer it runs under, so the caller decides how a
 //! token is minted and what a 401 does to it. A downloaded blob is returned
-//! only after its digest matched the address it was requested by.
+//! only after its digest matched the address it was requested by. A 404 from
+//! the manifest or changes route means the server runs with the document
+//! store disabled, and is reported as [`DriveError::ServerDisabled`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -49,7 +51,11 @@ impl DriveClient {
             .bearer_auth(bearer.expose());
         decode(
             endpoint,
-            accept(endpoint, send(endpoint, request).await?).await?,
+            accept(
+                endpoint,
+                store_enabled(endpoint, send(endpoint, request).await?)?,
+            )
+            .await?,
         )
         .await
     }
@@ -63,7 +69,11 @@ impl DriveClient {
             .bearer_auth(bearer.expose());
         decode(
             endpoint,
-            accept(endpoint, send(endpoint, request).await?).await?,
+            accept(
+                endpoint,
+                store_enabled(endpoint, send(endpoint, request).await?)?,
+            )
+            .await?,
         )
         .await
     }
@@ -138,6 +148,16 @@ async fn send(
         .send()
         .await
         .map_err(|source| DriveError::Network { endpoint, source })
+}
+
+fn store_enabled(
+    endpoint: &'static str,
+    response: reqwest::Response,
+) -> DriveResult<reqwest::Response> {
+    if response.status() == StatusCode::NOT_FOUND {
+        return Err(DriveError::ServerDisabled { endpoint });
+    }
+    Ok(response)
 }
 
 async fn accept(

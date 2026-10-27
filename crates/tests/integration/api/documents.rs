@@ -906,3 +906,48 @@ async fn patch_moves_into_a_folder_and_an_explicit_null_moves_to_the_root() -> R
     assert_eq!(empty.status, StatusCode::BAD_REQUEST);
     Ok(())
 }
+
+#[tokio::test]
+async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
+    use std::net::SocketAddr;
+
+    use axum::extract::ConnectInfo;
+    use systemprompt_api::services::server::{ReadinessState, setup_api_server};
+    use systemprompt_manifest::profile::RateLimitsConfig;
+    use systemprompt_test_fixtures::{
+        ensure_test_bootstrap, fixture_app_context_documents_disabled, fixture_config, test_db_pool,
+    };
+
+    let bootstrap = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let mut config = fixture_config(&bootstrap.database_url);
+    config.rate_limits = RateLimitsConfig::disabled();
+    config.trusted_proxies = Vec::new();
+    let ctx = fixture_app_context_documents_disabled(&pool, config)?;
+    let server = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let device = seed_bridge_credential(&pool, "docs-disabled").await?;
+
+    for uri in ["/api/v1/documents", "/api/v1/document-folders"] {
+        let mut req = bridge(&device, Method::GET, uri)
+            .header(header::HOST, "127.0.0.1")
+            .header(header::USER_AGENT, "documents-test/1.0")
+            .body(Body::empty())
+            .expect("request");
+        req.extensions_mut().insert(ConnectInfo(
+            "203.0.113.9:40000".parse::<SocketAddr>().expect("addr"),
+        ));
+        let reply = send(server.clone(), req).await?;
+        assert_eq!(reply.status, StatusCode::NOT_FOUND, "{uri}");
+    }
+
+    let manifest = send(
+        gateway_router(&ctx)?,
+        bridge(&device, Method::GET, "/bridge/drive/manifest")
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await?;
+    assert_eq!(manifest.status, StatusCode::NOT_FOUND);
+    Ok(())
+}

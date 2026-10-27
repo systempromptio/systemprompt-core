@@ -85,6 +85,16 @@ pub const INSTRUCTIONS: &str = "Shared documents (Word, Excel, PowerPoint, OpenD
     as expected_hash. A stale hash or base is refused with the current text or head revision: \
     re-read and resend. Locations are document://<document>@<revision>#<node> URIs.";
 
+/// Why [`DocumentsMcpTools::from_context`] refused to build the tools.
+#[derive(Debug, thiserror::Error)]
+pub enum DocumentsMcpError {
+    #[error(
+        "MCP server {server_name} serves document tools but the document store is disabled: set \
+         files.documents.enabled: true in services/config/files.yaml"
+    )]
+    Disabled { server_name: McpServerId },
+}
+
 /// What [`DocumentsMcpTools`] is built from.
 #[derive(Clone)]
 pub struct DocumentsMcpConfig {
@@ -141,14 +151,19 @@ impl DocumentsMcpTools {
         }
     }
 
-    #[must_use]
-    pub fn from_context(ctx: &AppContext, server_name: McpServerId) -> Self {
-        Self::new(DocumentsMcpConfig {
+    pub fn from_context(
+        ctx: &AppContext,
+        server_name: McpServerId,
+    ) -> Result<Self, DocumentsMcpError> {
+        if !ctx.files_config().documents_config().is_enabled() {
+            return Err(DocumentsMcpError::Disabled { server_name });
+        }
+        Ok(Self::new(DocumentsMcpConfig {
             service: Arc::clone(ctx.documents().service()),
             tokens: ctx.token_authority(),
             server_name,
             api_external_url: ctx.config().api_external_url.clone(),
-        })
+        }))
     }
 
     #[must_use]

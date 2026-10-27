@@ -9,6 +9,10 @@ use anyhow::{Context, Result};
 use systemprompt_runtime::AppContext;
 
 pub(super) async fn reconcile_document_folders(ctx: &AppContext) -> Result<()> {
+    if !ctx.files_config().documents_config().is_enabled() {
+        tracing::info!("document store disabled");
+        return Ok(());
+    }
     let registered = ctx
         .documents()
         .reconcile_folder_entities()

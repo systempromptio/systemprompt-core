@@ -120,10 +120,25 @@ Behaviour:
 
 ## Configuration
 
+### Enabling
+
+The store is off by default. While it is off, every `/api/v1/documents`, `/api/v1/document-folders` and `/v1/bridge/drive/` path answers `404`, the folder reconcile at boot and both background jobs do nothing, and an MCP server that composes the document tools refuses to start. Turn it on in `services/config/files.yaml`:
+
+```yaml
+files:
+  documents:
+    enabled: true
+```
+
+Two further switches follow from it. An installation's MCP server declaration (`services/mcp/<name>.yaml` `enabled:`) decides whether the document tools are served to agents. The bridge `[drive] enabled` setting decides whether a device syncs its Drive folder. A bridge that meets a server with the store off shows Drive as disabled, with no error, and checks again on its normal cadence.
+
+### Keys
+
 The store reads the `files.documents` section of `<services>/config/files.yaml`.
 
 | Key | Default | Bounds | Meaning |
 |---|---|---|---|
+| `enabled` | `false` | | Mounts the routes and runs the jobs. |
 | `maxUploadBytes` | 64 MiB | 1 MiB to 2 GiB | Largest accepted document body. |
 | `blobGcGraceHours` | 24 | at least 1 | Age before an unreferenced blob can be deleted. |
 | `presenceTtlSecs` | 90 | at least 1 | How long a presence beacon stays valid. |
@@ -137,7 +152,7 @@ Config validation rejects values outside the bounds.
 | `document_blob_gc` | daily | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
 | Presence sweep | every 60 seconds | Removes expired presence rows. |
 
-Both run once per cluster.
+Both run once per cluster, and return without work while the store is disabled.
 
 ## Planned
 
