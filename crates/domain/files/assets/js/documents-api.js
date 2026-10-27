@@ -59,8 +59,8 @@ export const listRevisions = (id, params) => request("GET", doc(id, `/revisions$
 export const postEdits = (id, { baseRevision, ops, message }) =>
   request("POST", doc(id, "/edits"), { base_revision: baseRevision, ops, message, op_id: opId() });
 
-export const restoreRevision = (id, revisionId) =>
-  postEdits(id, { ops: [{ op: "restore", revision_id: revisionId }], message: "restore" });
+export const restoreRevision = (id, { revisionId, headRevision }) =>
+  postEdits(id, { baseRevision: headRevision, ops: [{ op: "restore", revision_id: revisionId }], message: "restore" });
 
 export const listGrants = (id) => request("GET", doc(id, "/grants"));
 export const shareDocument = (id, { subjectKind, subjectValue, level, validUntil }) =>
