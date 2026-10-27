@@ -28,8 +28,8 @@ mod history;
 mod items;
 mod lifecycle;
 mod listing;
-mod read;
 mod proposals;
+mod read;
 mod sharing;
 mod views;
 

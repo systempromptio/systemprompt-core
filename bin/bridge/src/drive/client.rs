@@ -135,7 +135,11 @@ impl DriveClient {
             .http
             .get(self.url(endpoint))
             .bearer_auth(bearer.expose());
-        decode(endpoint, accept(endpoint, send(endpoint, request).await?).await?).await
+        decode(
+            endpoint,
+            accept(endpoint, send(endpoint, request).await?).await?,
+        )
+        .await
     }
 
     pub async fn presence(&self, bearer: &BearerToken, beacon: &PresenceBeacon) -> DriveResult<()> {

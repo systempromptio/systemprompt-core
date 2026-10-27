@@ -55,7 +55,10 @@ fn print_status(root: &DriveRoot) -> ExitCode {
         stdio::print_line(&format!(
             "    {}  {}  by {}{}",
             proposal.proposal_id,
-            proposal.path.as_deref().unwrap_or(proposal.document_id.as_str()),
+            proposal
+                .path
+                .as_deref()
+                .unwrap_or(proposal.document_id.as_str()),
             proposal.proposer_id,
             proposal
                 .message

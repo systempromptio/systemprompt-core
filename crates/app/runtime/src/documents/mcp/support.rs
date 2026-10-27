@@ -13,7 +13,7 @@ use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::{DocumentRevision, RevisionAttribution};
 use systemprompt_files::documents::service::{Author, RevisionOrigin};
-use systemprompt_identifiers::{DocumentId, DocumentRevisionId, McpExecutionId};
+use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId, McpExecutionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ActorKind;
 use systemprompt_models::execution::context::RequestContext;
@@ -105,12 +105,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
             node,
             current_text,
             ..
-        } => Refusal {
-            head_revision: Some(head),
-            node,
-            current_text,
-            ..Refusal::new(RefusalCode::ProposalConflict)
-        },
+        } => proposal_conflict_refusal(head, node, current_text),
         DocumentsError::Codec(codec) => return codec_error(&codec),
         DocumentsError::TooLarge { .. }
         | DocumentsError::IntegrityMismatch { .. }
@@ -125,14 +120,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::Repository(_)
         | DocumentsError::Authz(_)
         | DocumentsError::Events { .. }
-        | DocumentsError::Worker(_) => {
-            tracing::error!(
-                error = %error,
-                cause = ?std::error::Error::source(&error),
-                "document tool failed"
-            );
-            return McpError::internal_error("the document store failed; try the call again", None);
-        },
+        | DocumentsError::Worker(_) => return internal_failure(&error),
     };
     refusal.into_error(message)
 }
@@ -216,4 +204,26 @@ fn find_none_refusal(closest: Option<ClosestBlock>) -> Refusal {
         refusal.current_text = Some(block.text);
     }
     refusal
+}
+
+fn proposal_conflict_refusal(
+    head: DocumentRevisionId,
+    node: Option<DocumentNodeId>,
+    current_text: Option<String>,
+) -> Refusal {
+    Refusal {
+        head_revision: Some(head),
+        node,
+        current_text,
+        ..Refusal::new(RefusalCode::ProposalConflict)
+    }
+}
+
+fn internal_failure(error: &DocumentsError) -> McpError {
+    tracing::error!(
+        error = %error,
+        cause = ?std::error::Error::source(error),
+        "document tool failed"
+    );
+    McpError::internal_error("the document store failed; try the call again", None)
 }

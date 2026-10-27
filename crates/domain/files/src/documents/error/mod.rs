@@ -16,15 +16,18 @@ use systemprompt_identifiers::{
     DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::authz::SubjectSourceError;
-use systemprompt_models::documents::{
-    AccessLevel, DocumentAction, DocumentFormat, ProposalStatus,
-};
+use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat, ProposalStatus};
 use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError, TargetError};
 use systemprompt_traits::RepositoryError;
 
+use self::labels::{
+    base_label, closest_label, comment_list, conflict_label, held_label, kinds_label, policy_label,
+};
 use super::blob_store::BlobStoreError;
 use super::models::{ListCursorError, LockHolderKind};
 use super::templates::TemplateError;
+
+mod labels;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DocumentsError {
@@ -250,61 +253,5 @@ impl DocumentsError {
             what,
             id: id.to_string(),
         }
-    }
-}
-
-fn base_label(base: Option<&DocumentRevisionId>) -> String {
-    base.map_or_else(
-        || "an unknown base revision".to_owned(),
-        |base| format!("base revision {base}"),
-    )
-}
-
-fn kinds_label(op: &str, kinds: &[&str]) -> String {
-    match (op, kinds) {
-        ("insert_after", []) => "; this format takes no insert_after".to_owned(),
-        ("insert_after", kinds) => format!("; insert_after accepts kind {}", kinds.join(", ")),
-        _ => String::new(),
-    }
-}
-
-fn closest_label(closest: Option<&ClosestBlock>) -> String {
-    closest.map_or_else(String::new, |block| {
-        format!(
-            "; the closest block is {} (hash {}): \"{}\"",
-            block.node, block.hash, block.text
-        )
-    })
-}
-
-fn held_label(held: Option<&AccessLevel>) -> String {
-    held.map_or_else(|| "no access".to_owned(), |level| format!("{level} access"))
-}
-
-fn policy_label(policy: Option<&str>, owner: Option<&UserId>) -> String {
-    match (policy, owner) {
-        (Some(policy), _) => format!(" but policy {policy} denied the request"),
-        (None, Some(owner)) => {
-            format!(". Ask the owner, user {owner}, to share it with you at that level")
-        },
-        (None, None) => ". Ask the owner to share it with you at that level".to_owned(),
-    }
-}
-
-fn comment_list(comments: &[DocumentCommentId]) -> String {
-    comments
-        .iter()
-        .map(DocumentCommentId::as_str)
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-fn conflict_label(node: Option<&DocumentNodeId>, current_text: Option<&str>) -> String {
-    match (node, current_text) {
-        (Some(node), Some(text)) => {
-            format!(": node {node} changed since the proposal; its current text is \"{text}\"")
-        },
-        (Some(node), None) => format!(": node {node} no longer exists"),
-        _ => String::new(),
     }
 }

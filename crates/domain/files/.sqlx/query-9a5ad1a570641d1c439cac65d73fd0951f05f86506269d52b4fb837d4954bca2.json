@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_proposals\n             SET status = CASE WHEN $2::text IS NULL THEN 'open' ELSE status END,\n                 reviewer_user_id = CASE WHEN $2::text IS NULL THEN NULL ELSE reviewer_user_id END,\n                 reviewed_at = CASE WHEN $2::text IS NULL THEN NULL ELSE reviewed_at END,\n                 note = CASE WHEN $2::text IS NULL THEN NULL ELSE note END,\n                 landed_revision_id = $2::text::uuid, updated_at = now()\n             WHERE id = $1::text::uuid AND status = 'accepted'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9a5ad1a570641d1c439cac65d73fd0951f05f86506269d52b4fb837d4954bca2"
+}

@@ -50,14 +50,16 @@ async fn a_failed_fetch_keeps_the_last_list() {
         .mount(&server)
         .await;
     let mut state = fx.state();
-    state.proposals.push(systemprompt_bridge::drive::OpenProposal {
-        proposal_id: DocumentProposalId::generate(),
-        document_id: DocumentId::generate(),
-        path: None,
-        proposer_id: systemprompt_identifiers::UserId::new("someone"),
-        message: None,
-        created_at: "2026-10-27T00:00:00Z".parse().expect("time"),
-    });
+    state
+        .proposals
+        .push(systemprompt_bridge::drive::OpenProposal {
+            proposal_id: DocumentProposalId::generate(),
+            document_id: DocumentId::generate(),
+            path: None,
+            proposer_id: systemprompt_identifiers::UserId::new("someone"),
+            message: None,
+            created_at: "2026-10-27T00:00:00Z".parse().expect("time"),
+        });
     assert!(!refresh(fx.cycle(), &mut state).await);
     assert_eq!(state.proposals.len(), 1);
 }

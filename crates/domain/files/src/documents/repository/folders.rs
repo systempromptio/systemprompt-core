@@ -30,10 +30,7 @@ impl TryFrom<FolderRow> for DocumentFolder {
 
     fn try_from(row: FolderRow) -> RepoResult<Self> {
         Ok(Self {
-            agent_edit_policy: parse(
-                "document_folders.agent_edit_policy",
-                &row.agent_edit_policy,
-            )?,
+            agent_edit_policy: parse("document_folders.agent_edit_policy", &row.agent_edit_policy)?,
             id: row.id,
             parent_id: row.parent_id,
             name: row.name,

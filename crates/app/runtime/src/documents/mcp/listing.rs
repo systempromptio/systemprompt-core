@@ -21,8 +21,7 @@ use systemprompt_mcp::McpToolHandler;
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
     ExportHandler, GuideHandler, HistoryHandler, ListHandler, ProposalsHandler, ReadHandler,
-    RestoreHandler, SearchHandler, ShareHandler, TrashHandler, UpdateHandler,
-    preview_tool_meta,
+    RestoreHandler, SearchHandler, ShareHandler, TrashHandler, UpdateHandler, preview_tool_meta,
 };
 
 const OP_NAMES: [&str; 8] = [

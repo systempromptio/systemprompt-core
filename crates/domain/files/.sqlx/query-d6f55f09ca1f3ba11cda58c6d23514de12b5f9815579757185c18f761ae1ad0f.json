@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id::text AS \"id!: DocumentFolderId\",\n                      parent_id::text AS \"parent_id: DocumentFolderId\",\n                      name,\n                      ancestor_ids::text[] AS \"ancestor_ids!: Vec<DocumentFolderId>\",\n                      owner_user_id AS \"owner_user_id: UserId\",\n                      created_by AS \"created_by: UserId\",\n                      created_at, updated_at, deleted_at\n               FROM document_folders WHERE parent_id IS NOT DISTINCT FROM $1::text::uuid AND deleted_at IS NULL ORDER BY name, id",
+  "query": "INSERT INTO document_folders (parent_id, name, ancestor_ids, owner_user_id, created_by)\n               SELECT $1::text::uuid, $2,\n                      COALESCE((SELECT p.ancestor_ids || p.id FROM document_folders p\n                                WHERE p.id = $1::text::uuid AND p.deleted_at IS NULL),\n                               '{}'::uuid[]),\n                      $3, $4\n               WHERE $1::text IS NULL OR EXISTS (\n                   SELECT 1 FROM document_folders p\n                   WHERE p.id = $1::text::uuid AND p.deleted_at IS NULL)\n               RETURNING id::text AS \"id!: DocumentFolderId\",\n                         parent_id::text AS \"parent_id: DocumentFolderId\",\n                         name,\n                         ancestor_ids::text[] AS \"ancestor_ids!: Vec<DocumentFolderId>\",\n                         owner_user_id AS \"owner_user_id: UserId\",\n                         created_by AS \"created_by: UserId\",\n                         created_at, updated_at, deleted_at, agent_edit_policy",
   "describe": {
     "columns": [
       {
@@ -86,11 +86,25 @@
             "name": "deleted_at"
           }
         }
+      },
+      {
+        "ordinal": 9,
+        "name": "agent_edit_policy",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "agent_edit_policy"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Text",
+        "Text",
+        "Varchar",
+        "Varchar"
       ]
     },
     "nullable": [
@@ -102,8 +116,9 @@
       false,
       false,
       false,
-      true
+      true,
+      false
     ]
   },
-  "hash": "7ea38da5b6500ba9676e1f006528c336d3237ff00fbad0dfee07bda37db821bf"
+  "hash": "d6f55f09ca1f3ba11cda58c6d23514de12b5f9815579757185c18f761ae1ad0f"
 }

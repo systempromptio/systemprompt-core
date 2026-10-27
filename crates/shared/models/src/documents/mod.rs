@@ -27,7 +27,8 @@ pub use drive::{
 pub use events::{
     DocumentCollabUpdateEvent, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent,
     DocumentConflictEvent, DocumentEventName, DocumentLockEvent, DocumentOwnershipTransferredEvent,
-    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent,
+    DocumentSharedEvent,
 };
 pub use systemprompt_provider_contracts::documents::{
     CellValue, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,

@@ -93,9 +93,20 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "one\ntwo\nthree").await;
 
-    let ack = edit(&h.tools, &ctx, &document, ("two", "TWO"), Some(EditMode::Propose)).await;
+    let ack = edit(
+        &h.tools,
+        &ctx,
+        &document,
+        ("two", "TWO"),
+        Some(EditMode::Propose),
+    )
+    .await;
     let proposal = ack.proposal_id.clone().expect("proposal id");
-    assert!(ack.written.iter().any(|line| line.ends_with("| TWO")), "{:?}", ack.written);
+    assert!(
+        ack.written.iter().any(|line| line.ends_with("| TWO")),
+        "{:?}",
+        ack.written
+    );
     let head = read_text(&h.tools, &ctx, &document).await;
     assert_eq!(texts(&head), vec!["one", "two", "three"]);
 
@@ -144,7 +155,14 @@ async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
     let viewer = person("mcp-viewer");
     let owner_ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &owner_ctx, "red\ngreen").await;
-    share(&h.tools, &owner, &document, &commenter, AccessLevel::Comment).await;
+    share(
+        &h.tools,
+        &owner,
+        &document,
+        &commenter,
+        AccessLevel::Comment,
+    )
+    .await;
     share(&h.tools, &owner, &document, &viewer, AccessLevel::View).await;
 
     let commenter_ctx = ctx_for(Some(&commenter));

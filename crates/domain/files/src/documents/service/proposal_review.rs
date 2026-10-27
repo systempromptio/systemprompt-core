@@ -21,6 +21,11 @@ use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentProposal, DocumentRevision, ProposalReview};
 use crate::documents::revision::CommitBody;
 
+struct Landing<'a> {
+    proposal: &'a DocumentProposal,
+    reviewer: Author,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewRequest {
     pub proposal_id: DocumentProposalId,
@@ -42,9 +47,7 @@ impl DocumentService {
         request: ReviewRequest,
         trace: &TraceId,
     ) -> Result<Accepted, DocumentsError> {
-        let (document, proposal) = self
-            .reviewable(who, &request.proposal_id, trace)
-            .await?;
+        let (document, proposal) = self.reviewable(who, &request.proposal_id, trace).await?;
         let claimed = self
             .claim(
                 &proposal,
@@ -57,7 +60,15 @@ impl DocumentService {
             )
             .await?;
         let landed = self
-            .land_proposal(who, &document, &claimed, request.reviewer, trace)
+            .land_proposal(
+                who,
+                &document,
+                Landing {
+                    proposal: &claimed,
+                    reviewer: request.reviewer,
+                },
+                trace,
+            )
             .await;
         let (revision, rebased) = match landed {
             Ok(landed) => landed,
@@ -88,9 +99,7 @@ impl DocumentService {
         request: ReviewRequest,
         trace: &TraceId,
     ) -> Result<DocumentProposal, DocumentsError> {
-        let (document, proposal) = self
-            .reviewable(who, &request.proposal_id, trace)
-            .await?;
+        let (document, proposal) = self.reviewable(who, &request.proposal_id, trace).await?;
         let rejected = self
             .claim(
                 &proposal,
@@ -154,8 +163,7 @@ impl DocumentService {
         &self,
         who: &AuthenticatedUser,
         document: &Document,
-        proposal: &DocumentProposal,
-        reviewer: Author,
+        Landing { proposal, reviewer }: Landing<'_>,
         trace: &TraceId,
     ) -> Result<(DocumentRevision, bool), DocumentsError> {
         let proposed = self

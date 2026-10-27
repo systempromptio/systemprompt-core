@@ -19,8 +19,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use systemprompt_identifiers::{DocumentId, DocumentProposalId, UserId};
 use systemprompt_models::documents::{
-    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent,
-    DocumentSharedEvent,
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
 };
 use tokio::sync::mpsc;
 

@@ -12,9 +12,7 @@ use systemprompt_identifiers::{
     DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
     DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
-use systemprompt_models::documents::{
-    AccessLevel, DocumentFormat, EditMode, EditOp,
-};
+use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditMode, EditOp};
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ListInput {

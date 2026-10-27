@@ -2,14 +2,14 @@
 //! one metadata update (rename and move).
 //!
 //! A trashed document is hidden from listings, reads and writes until it is
-//! restored, and trashing rejects its open proposals; `DocumentTrashPurgeJob` hard-deletes it, with its revisions and
-//! node ids, after `trash_retention_days`. Restoring into a folder that
-//! no longer exists lands the document at the root, and a name taken in the
-//! meantime gains the first free ` (restored)`, ` (restored 2)`, …
-//! suffix; a copy without a name takes the first free ` (copy)`, ` (copy 2)`, …
-//! name in its folder. Both retry once when a concurrent write takes the name.
-//! A copy starts a new revision chain from the source's head bytes and belongs
-//! to the caller.
+//! restored, and trashing rejects its open proposals; `DocumentTrashPurgeJob`
+//! hard-deletes it, with its revisions and node ids, after
+//! `trash_retention_days`. Restoring into a folder that no longer exists lands
+//! the document at the root, and a name taken in the meantime gains the first
+//! free ` (restored)`, ` (restored 2)`, … suffix; a copy without a name takes
+//! the first free ` (copy)`, ` (copy 2)`, … name in its folder. Both retry once
+//! when a concurrent write takes the name. A copy starts a new revision chain
+//! from the source's head bytes and belongs to the caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

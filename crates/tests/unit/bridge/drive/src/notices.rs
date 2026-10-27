@@ -63,5 +63,9 @@ fn queued_notices_are_numbered_and_bounded_and_render_their_keys() {
     assert_eq!(status.notices.last().map(|n| n.seq), Some(25));
     let text = notice_text(&status, &status.notices[0].notice);
     assert_eq!(text.title_key, "drive-proposal-title");
-    assert!(text.args.iter().any(|(k, v)| *k == "document" && v == document.as_str()));
+    assert!(
+        text.args
+            .iter()
+            .any(|(k, v)| *k == "document" && v == document.as_str())
+    );
 }

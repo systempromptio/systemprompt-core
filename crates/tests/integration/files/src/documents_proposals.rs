@@ -14,8 +14,8 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{ConnectionId, DocumentFolderId, DocumentId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, AgentEditPolicy, ContentAs, EditMode, EditOp, NodeTarget,
-    Projection, ProposalStatus,
+    AccessLevel, ActorKind, AgentEditPolicy, ContentAs, EditMode, EditOp, NodeTarget, Projection,
+    ProposalStatus,
 };
 use tokio::sync::mpsc;
 
@@ -186,9 +186,14 @@ async fn an_agent_proposes_under_a_folder_that_inherits_propose() {
     assert_eq!(user_mode.expect("user mode"), EditMode::Land);
 
     let before = outline(&h, &owner, &document, None).await;
-    let proposed = propose(&h, &owner, &document, vec![rewrite(&before, "alpha", "ALPHA")])
-        .await
-        .expect("propose");
+    let proposed = propose(
+        &h,
+        &owner,
+        &document,
+        vec![rewrite(&before, "alpha", "ALPHA")],
+    )
+    .await
+    .expect("propose");
     assert_eq!(proposed.proposal.status, ProposalStatus::Open);
     assert_eq!(proposed.proposal.base_revision_id, base);
     assert_eq!(proposed.proposal.actor_kind, ActorKind::Agent);
@@ -218,13 +223,28 @@ async fn a_comment_only_caller_proposes_and_cannot_land() {
 
     let chosen = mode(&h, &commenter, &document, None, ActorKind::User).await;
     assert_eq!(chosen.expect("mode"), EditMode::Propose);
-    let land = mode(&h, &commenter, &document, Some(EditMode::Land), ActorKind::User).await;
-    assert!(matches!(land, Err(DocumentsError::Forbidden { .. })), "{land:?}");
+    let land = mode(
+        &h,
+        &commenter,
+        &document,
+        Some(EditMode::Land),
+        ActorKind::User,
+    )
+    .await;
+    assert!(
+        matches!(land, Err(DocumentsError::Forbidden { .. })),
+        "{land:?}"
+    );
 
     let before = outline(&h, &commenter, &document, None).await;
-    let proposed = propose(&h, &commenter, &document, vec![rewrite(&before, "beta", "BETA")])
-        .await
-        .expect("comment-only propose");
+    let proposed = propose(
+        &h,
+        &commenter,
+        &document,
+        vec![rewrite(&before, "beta", "BETA")],
+    )
+    .await
+    .expect("comment-only propose");
     assert_eq!(proposed.proposal.proposer_user_id, commenter.id);
     assert_eq!(proposed.revision.author_user_id, commenter.id);
 }
@@ -239,7 +259,14 @@ async fn a_viewer_cannot_propose_and_an_editor_may_ask_for_propose() {
 
     let viewer_mode = mode(&h, &viewer, &document, None, ActorKind::User).await;
     assert!(matches!(viewer_mode, Err(DocumentsError::Forbidden { .. })));
-    let explicit = mode(&h, &owner, &document, Some(EditMode::Propose), ActorKind::User).await;
+    let explicit = mode(
+        &h,
+        &owner,
+        &document,
+        Some(EditMode::Propose),
+        ActorKind::User,
+    )
+    .await;
     assert_eq!(explicit.expect("explicit"), EditMode::Propose);
 }
 
@@ -259,12 +286,22 @@ async fn a_newer_proposal_supersedes_the_open_one_and_events_reach_the_owner() {
     );
 
     let before = outline(&h, &editor, &document, None).await;
-    let first = propose(&h, &editor, &document, vec![rewrite(&before, "alpha", "one")])
-        .await
-        .expect("first");
-    let second = propose(&h, &editor, &document, vec![rewrite(&before, "alpha", "two")])
-        .await
-        .expect("second");
+    let first = propose(
+        &h,
+        &editor,
+        &document,
+        vec![rewrite(&before, "alpha", "one")],
+    )
+    .await
+    .expect("first");
+    let second = propose(
+        &h,
+        &editor,
+        &document,
+        vec![rewrite(&before, "alpha", "two")],
+    )
+    .await
+    .expect("second");
     assert_eq!(second.superseded.len(), 1);
     assert_eq!(second.superseded[0].id, first.proposal.id);
     assert_eq!(second.superseded[0].status, ProposalStatus::Superseded);
@@ -284,7 +321,11 @@ async fn a_newer_proposal_supersedes_the_open_one_and_events_reach_the_owner() {
         names.push(format!("{event:?}"));
     }
     assert!(names.iter().any(|e| e.contains("document.proposal.opened")));
-    assert!(names.iter().any(|e| e.contains("document.proposal.superseded")));
+    assert!(
+        names
+            .iter()
+            .any(|e| e.contains("document.proposal.superseded"))
+    );
 }
 
 #[tokio::test]
@@ -309,7 +350,13 @@ async fn trashing_a_document_rejects_its_open_proposals() {
         .expect("proposal");
     assert_eq!(stored.status, ProposalStatus::Rejected);
     assert!(stored.note.is_some());
-    assert!(h.service.open_proposals_for(&owner).await.expect("open").is_empty());
+    assert!(
+        h.service
+            .open_proposals_for(&owner)
+            .await
+            .expect("open")
+            .is_empty()
+    );
 }
 
 #[tokio::test]
@@ -322,5 +369,8 @@ async fn only_share_access_sets_the_folder_policy() {
         .service
         .set_folder_agent_edit_policy(&stranger, &target, AgentEditPolicy::Propose, &trace())
         .await;
-    assert!(matches!(refused, Err(DocumentsError::Forbidden { .. })), "{refused:?}");
+    assert!(
+        matches!(refused, Err(DocumentsError::Forbidden { .. })),
+        "{refused:?}"
+    );
 }

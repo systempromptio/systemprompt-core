@@ -61,8 +61,8 @@ pub use guide::GuideHandler;
 pub use inputs::{
     CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput, ExportAs,
     ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput, ListSortInput,
-    NodeRange, ProposalAction, ProposalsInput, QuoteAnchor, ReadInput, ReadView,
-    SearchInput, ShareInput, UpdateInput,
+    NodeRange, ProposalAction, ProposalsInput, QuoteAnchor, ReadInput, ReadView, SearchInput,
+    ShareInput, UpdateInput,
 };
 pub use lifecycle::{AccessHandler, CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
 pub use lines::{
@@ -236,22 +236,24 @@ impl DocumentsMcpTools {
 
     pub async fn call(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
         match call.request.name.as_ref() {
-            "documents_list" => run(call, &ListHandler { tools: self }).await,
-            "documents_search" => run(call, &SearchHandler { tools: self }).await,
-            "documents_create" => run(call, &CreateHandler { tools: self }).await,
-            "documents_read" => run(call, &ReadHandler { tools: self }).await,
-            "documents_edit" => run(call, &EditHandler { tools: self }).await,
-            "documents_comment" => run(call, &CommentHandler { tools: self }).await,
-            "documents_history" => run(call, &HistoryHandler { tools: self }).await,
-            "documents_proposals" => run(call, &ProposalsHandler { tools: self }).await,
-            "documents_share" => run(call, &ShareHandler { tools: self }).await,
-            "documents_access" => run(call, &AccessHandler { tools: self }).await,
-            "documents_copy" => run(call, &CopyHandler { tools: self }).await,
-            "documents_update" => run(call, &UpdateHandler { tools: self }).await,
-            "documents_trash" => run(call, &TrashHandler { tools: self }).await,
-            "documents_restore_document" => run(call, &RestoreHandler { tools: self }).await,
-            "documents_export" => run(call, &ExportHandler { tools: self }).await,
-            "documents_guide" => run(call, &GuideHandler { tools: self }).await,
+            "documents_list" => Box::pin(run(call, &ListHandler { tools: self })).await,
+            "documents_search" => Box::pin(run(call, &SearchHandler { tools: self })).await,
+            "documents_create" => Box::pin(run(call, &CreateHandler { tools: self })).await,
+            "documents_read" => Box::pin(run(call, &ReadHandler { tools: self })).await,
+            "documents_edit" => Box::pin(run(call, &EditHandler { tools: self })).await,
+            "documents_comment" => Box::pin(run(call, &CommentHandler { tools: self })).await,
+            "documents_history" => Box::pin(run(call, &HistoryHandler { tools: self })).await,
+            "documents_proposals" => Box::pin(run(call, &ProposalsHandler { tools: self })).await,
+            "documents_share" => Box::pin(run(call, &ShareHandler { tools: self })).await,
+            "documents_access" => Box::pin(run(call, &AccessHandler { tools: self })).await,
+            "documents_copy" => Box::pin(run(call, &CopyHandler { tools: self })).await,
+            "documents_update" => Box::pin(run(call, &UpdateHandler { tools: self })).await,
+            "documents_trash" => Box::pin(run(call, &TrashHandler { tools: self })).await,
+            "documents_restore_document" => {
+                Box::pin(run(call, &RestoreHandler { tools: self })).await
+            },
+            "documents_export" => Box::pin(run(call, &ExportHandler { tools: self })).await,
+            "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
             other => Err(McpError::invalid_params(
                 format!(
                     "Unknown tool: '{other}'. This server exposes: {}.",

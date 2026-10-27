@@ -115,7 +115,10 @@ pub(super) struct DetailJson {
 }
 
 fn ids(document: &str, proposal: &str) -> DocumentsResult<(DocumentId, DocumentProposalId)> {
-    Ok((document_id(document)?, DocumentProposalId::try_new(proposal)?))
+    Ok((
+        document_id(document)?,
+        DocumentProposalId::try_new(proposal)?,
+    ))
 }
 
 fn belongs(proposal: &DocumentProposal, document: &DocumentId) -> Result<(), DocumentsError> {
@@ -186,8 +189,7 @@ pub(super) async fn accept(
 ) -> DocumentsResult<Json<ReviewedJson>> {
     let who = caller(&state, &req_ctx).await?;
     let (id, pid) = ids(&id, &pid)?;
-    let request =
-        review_request(&state, &who, (&req_ctx, &headers), (&id, pid), body.note).await?;
+    let request = review_request(&state, &who, (&req_ctx, &headers), (&id, pid), body.note).await?;
     let accepted = state
         .service
         .accept_proposal(&who.user, request, &who.trace)
@@ -208,8 +210,7 @@ pub(super) async fn reject(
 ) -> DocumentsResult<Json<ReviewedJson>> {
     let who = caller(&state, &req_ctx).await?;
     let (id, pid) = ids(&id, &pid)?;
-    let request =
-        review_request(&state, &who, (&req_ctx, &headers), (&id, pid), body.note).await?;
+    let request = review_request(&state, &who, (&req_ctx, &headers), (&id, pid), body.note).await?;
     let rejected = state
         .service
         .reject_proposal(&who.user, request, &who.trace)
