@@ -117,7 +117,26 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `POST`, `DELETE /api/v1/documents/{id}/lock` | Lease lock. |
 | `GET`, `POST`, `PATCH /api/v1/document-folders` | Folders: list, create, rename, move. |
 
+With the `files-collab` facade feature (part of `full`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
+
 Errors map to `409` conflict and stale anchor, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
+
+## Live co-editing
+
+HTML and Markdown documents can be edited by several people at once. The document body is a [Loro](https://loro.dev) CRDT: one text container named `body`, holding the inner markup of `<body>` for HTML (the whole document when it has no `<body>`) and the full text for Markdown. Office formats are not co-edited and answer `400`.
+
+| Route | Body | Response |
+|---|---|---|
+| `POST /api/v1/documents/{id}/collab/join` | `{"mode": "edit" \| "view"}` | `{session_id, snapshot_b64, vv, head_revision}` |
+| `POST /api/v1/documents/{id}/collab/updates` | `{session_id, vv?, update_b64}` | `{seq, vv, missing_b64?}` |
+| `POST /api/v1/documents/{id}/collab/leave` | `{session_id}` | `{closed, checkpoint_revision}` |
+| `POST /api/v1/documents/{id}/collab/cursor` | `{session_id, cursor}` | `204` |
+
+Binary values are standard base64: `snapshot_b64` is a Loro snapshot, `update_b64` a Loro update, `vv` a Loro version vector. `edit` needs edit access and `view` view access. Updates are accepted only from a user who joined in edit mode (`403` otherwise). An update for a session that is no longer open answers `409`, and the client joins again. When the posted `vv` lacks changes the server holds, `missing_b64` carries them.
+
+A document has at most one open edit session. Every accepted update is logged with a sequence number and sent as a `document.collab.update` event (`document_id`, `edit_session_id`, `seq`, `update_b64`, `author_id`) on the AG-UI stream of each user present on the document; there is no separate stream. Joins and cursor moves send `document.presence`, with `cursor` when one was posted.
+
+The server stores a snapshot 30 seconds after the first unsaved update or after 200 updates, and commits the body as a revision with origin `edit_session` after 2 minutes of activity and when the last editor leaves, which also closes the session. For HTML the revision keeps the document around `<body>` from the revision the checkpoint is based on. A checkpoint that the revision engine merges with writes made outside the session puts the merged body back into the live text.
 
 ## Bridge Drive sync
 
@@ -173,9 +192,10 @@ Config validation rejects values outside the bounds.
 |---|---|---|
 | `document_blob_gc` | daily | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
 | Presence sweep | every 60 seconds | Removes expired presence rows. |
+| `document_collab_update_sweep` | every 5 minutes | Deletes the update log of closed edit sessions. |
 
-Both run once per cluster, and return without work while the store is disabled.
+All run once per cluster, and return without work while the store is disabled.
 
 ## Planned
 
-These items are designed and not part of the current release: live co-editing of HTML documents in the browser, the Web Components for browsing and editing, and an `files-collab` facade feature. Browser access today is the HTTP API.
+These items are designed and not part of the current release: the Web Components for browsing and editing, including the browser editor for live co-editing. Browser access today is the HTTP API.
