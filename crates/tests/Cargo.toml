@@ -249,7 +249,7 @@ proptest = "1.12"
 # Path dependencies to main crates (relative to crates/tests/)
 systemprompt-identifiers = { path = "../shared/identifiers" }
 systemprompt-provider-contracts = { path = "../shared/provider-contracts" }
-umya-spreadsheet = { version = "3.1", default-features = false }
+umya-spreadsheet = { version = "=4.0.0-beta.1", default-features = false }
 systemprompt-traits = { path = "../shared/traits" }
 systemprompt = { path = "../../systemprompt", features = ["full"] }
 systemprompt-extension = { path = "../shared/extension" }
