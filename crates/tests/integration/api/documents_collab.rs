@@ -13,8 +13,13 @@ use loro::{ExportMode, LoroDoc};
 use serde_json::{Value, json};
 use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_database::DbPool;
+use systemprompt_governance::authz::{AllowAllHook, SharedAuthzHook, SubjectProviderSet};
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
+use systemprompt_storage::LocalFileStorage;
+use systemprompt_test_fixtures::{
+    AuthedFixture, fixture_documents_runtime_on, seed_bridge_credential,
+};
+use systemprompt_traits::{BackgroundTasks, FileStorage};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -90,6 +95,7 @@ async fn the_collab_routes_join_apply_cursor_and_leave() -> Result<()> {
     let session = joined["session_id"].as_str().expect("session").to_owned();
     assert!(joined["vv"].is_string());
     assert!(joined["head_revision"].is_string());
+    assert_eq!(joined["seq"], json!(0));
 
     let (update, vv) = update_from(&joined, "<p>Routed</p>")?;
     let (status, applied) = post(
@@ -121,7 +127,53 @@ async fn the_collab_routes_join_apply_cursor_and_leave() -> Result<()> {
     .await?;
     assert_eq!(status, StatusCode::OK, "{left}");
     assert_eq!(left["closed"], json!(true));
+    assert_eq!(left["checkpoint"], json!("committed"));
     assert!(left["checkpoint_revision"].is_string());
+    assert!(left.get("proposal_id").is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_viewer_leaving_an_unedited_session_leaves_it_open_and_unchanged() -> Result<()> {
+    let (pool, _ctx, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "collab-view-leave").await?;
+    let id = create_html(&state, &owner).await?;
+    let (status, joined) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/join"),
+        &json!({"mode": "view"}),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{joined}");
+    let (status, left) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/leave"),
+        &json!({"session_id": joined["session_id"]}),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{left}");
+    assert_eq!(left["closed"], json!(false));
+    assert_eq!(left["checkpoint"], json!("unchanged"));
+    assert!(left["checkpoint_revision"].is_null());
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_documents_runtime_starts_one_collab_timer() -> Result<()> {
+    let (pool, _ctx, _state) = fixture().await?;
+    let storage = tempfile::TempDir::new()?;
+    let files: Arc<dyn FileStorage> = Arc::new(LocalFileStorage::new(storage.path().to_path_buf()));
+    let tasks = BackgroundTasks::new();
+    let _runtime = fixture_documents_runtime_on(
+        &pool,
+        &files,
+        &(Arc::new(AllowAllHook::null()) as SharedAuthzHook),
+        Arc::new(SubjectProviderSet::default()),
+        tasks.clone(),
+    );
+    assert_eq!(tasks.in_flight(), 1);
     Ok(())
 }
 

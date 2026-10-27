@@ -12,6 +12,8 @@ use systemprompt_runtime::documents::{
 };
 use systemprompt_traits::FileStorage;
 use systemprompt_users::UserRepository;
+use systemprompt_runtime::documents::{DocumentsRuntime, DocumentsRuntimeParts};
+use systemprompt_traits::{BackgroundTasks, FileStorage};
 
 pub fn fixture_documents_runtime(
     pool: &DbPool,
@@ -32,6 +34,16 @@ pub fn fixture_documents_runtime_with(
     hook: &SharedAuthzHook,
     subjects: Arc<dyn SubjectAttributeSource>,
 ) -> Arc<DocumentsRuntime> {
+    fixture_documents_runtime_on(pool, file_storage, hook, subjects, BackgroundTasks::new())
+}
+
+pub fn fixture_documents_runtime_on(
+    pool: &DbPool,
+    file_storage: &Arc<dyn FileStorage>,
+    hook: &SharedAuthzHook,
+    subjects: Arc<dyn SubjectAttributeSource>,
+    background_tasks: BackgroundTasks,
+) -> Arc<DocumentsRuntime> {
     Arc::new(DocumentsRuntime::new(DocumentsRuntimeParts {
         database: Arc::clone(pool),
         file_storage: Arc::clone(file_storage),
@@ -44,5 +56,6 @@ pub fn fixture_documents_runtime_with(
         event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
         catalog: Vec::new(),
         config: DocumentsConfig::default(),
+        background_tasks,
     }))
 }

@@ -17,16 +17,19 @@ use crate::documents_service_fixture::{
     GroupSource, Harness, allow, create, harness, person, trace,
 };
 
-struct Collab {
-    h: Harness,
-    documents: Arc<systemprompt_files::documents::DocumentService>,
-    collab: CollabService,
+pub(crate) struct Collab {
+    pub(crate) h: Harness,
+    pub(crate) documents: Arc<systemprompt_files::documents::DocumentService>,
+    pub(crate) collab: Arc<CollabService>,
 }
 
-async fn collab() -> Collab {
+pub(crate) async fn collab() -> Collab {
     let h = harness(allow(), GroupSource::new(&[])).await;
     let documents = Arc::new(h.service.clone());
-    let collab = CollabService::new(Arc::clone(&documents), CollabTuning::default());
+    let collab = Arc::new(CollabService::new(
+        Arc::clone(&documents),
+        CollabTuning::default(),
+    ));
     Collab {
         h,
         documents,
@@ -34,7 +37,7 @@ async fn collab() -> Collab {
     }
 }
 
-async fn html_document(c: &Collab, owner: &AuthenticatedUser) -> DocumentId {
+pub(crate) async fn html_document(c: &Collab, owner: &AuthenticatedUser) -> DocumentId {
     let (document, _) = c
         .documents
         .create_from_template(owner, create("blank-html", None), &trace())
@@ -43,13 +46,13 @@ async fn html_document(c: &Collab, owner: &AuthenticatedUser) -> DocumentId {
     document.id
 }
 
-fn client(joined: &Joined) -> LoroDoc {
+pub(crate) fn client(joined: &Joined) -> LoroDoc {
     let doc = LoroDoc::new();
     doc.import(&joined.snapshot).expect("import snapshot");
     doc
 }
 
-fn edit(doc: &LoroDoc, text: &str) -> Vec<u8> {
+pub(crate) fn edit(doc: &LoroDoc, text: &str) -> Vec<u8> {
     let before = doc.oplog_vv();
     let body = doc.get_text(BODY_CONTAINER);
     body.insert(body.len_unicode(), text).expect("insert");
@@ -58,7 +61,12 @@ fn edit(doc: &LoroDoc, text: &str) -> Vec<u8> {
         .expect("export update")
 }
 
-fn request(document: &DocumentId, joined: &Joined, doc: &LoroDoc, update: Vec<u8>) -> ApplyRequest {
+pub(crate) fn request(
+    document: &DocumentId,
+    joined: &Joined,
+    doc: &LoroDoc,
+    update: Vec<u8>,
+) -> ApplyRequest {
     ApplyRequest {
         document_id: document.clone(),
         session_id: joined.session_id.clone(),
@@ -234,7 +242,11 @@ async fn the_last_editor_leaving_commits_an_edit_session_revision_and_closes() {
         .await
         .expect("leave");
     assert!(left.closed);
-    let revision_id = left.checkpoint.expect("checkpoint revision");
+    let revision_id = left
+        .checkpoint
+        .revision()
+        .cloned()
+        .expect("checkpoint revision");
     let revision =
         c.h.repos
             .revisions

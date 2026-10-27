@@ -67,7 +67,9 @@ pub use credential::{
 };
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
-pub use documents::{fixture_documents_runtime, fixture_documents_runtime_with};
+pub use documents::{
+    fixture_documents_runtime, fixture_documents_runtime_on, fixture_documents_runtime_with,
+};
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{

@@ -11,6 +11,7 @@ mod config_paths;
 mod documents_blob_store;
 #[cfg(test)]
 mod documents_collab;
+mod documents_collab_settle;
 #[cfg(test)]
 mod documents_comments;
 #[cfg(test)]
