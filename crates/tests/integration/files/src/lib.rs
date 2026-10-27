@@ -21,6 +21,7 @@ mod documents_comments;
 mod documents_drive_paths;
 #[cfg(test)]
 mod documents_folders;
+mod documents_engine_review;
 #[cfg(test)]
 mod documents_lifecycle;
 #[cfg(test)]
@@ -33,6 +34,8 @@ mod documents_proposals_review;
 mod documents_reads;
 #[cfg(test)]
 mod documents_repository;
+#[cfg(test)]
+mod documents_revision_engine;
 #[cfg(test)]
 mod documents_service;
 #[cfg(test)]
