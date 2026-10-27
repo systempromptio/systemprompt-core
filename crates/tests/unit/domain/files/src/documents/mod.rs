@@ -7,6 +7,7 @@ mod codecs_markdown;
 mod codecs_markdown_content;
 mod codecs_odp;
 mod codecs_ods;
+mod codecs_pending;
 mod codecs_odt;
 mod codecs_pptx;
 mod codecs_pptx_edits;
