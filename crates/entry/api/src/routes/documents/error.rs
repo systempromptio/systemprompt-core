@@ -162,9 +162,9 @@ fn api_error(error: DocumentsError, message: String) -> ApiError {
 fn codec_error(source: CodecError) -> ApiError {
     let message = source.to_string();
     match source {
-        CodecError::UnsupportedOp { .. } | CodecError::AmbiguousMatch { .. } | CodecError::NoMatch => {
-            ApiError::bad_request(message).with_error_key("edit_rejected")
-        },
+        CodecError::UnsupportedOp { .. }
+        | CodecError::AmbiguousMatch { .. }
+        | CodecError::NoMatch => ApiError::bad_request(message).with_error_key("edit_rejected"),
         CodecError::Parse { .. } | CodecError::Malformed { .. } => {
             ApiError::validation_error(message, Vec::new()).with_error_key("malformed_document")
         },

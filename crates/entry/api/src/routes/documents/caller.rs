@@ -14,9 +14,9 @@ use systemprompt_traits::{AuthUser, UserProvider};
 use super::DocumentsState;
 use crate::error::ApiHttpError;
 
-pub(super) struct Caller {
-    pub(super) user: AuthenticatedUser,
-    pub(super) trace: TraceId,
+pub(crate) struct Caller {
+    pub(crate) user: AuthenticatedUser,
+    pub(crate) trace: TraceId,
 }
 
 pub(super) async fn caller(
@@ -30,7 +30,10 @@ pub(super) async fn caller(
     })
 }
 
-async fn load(users: &dyn UserProvider, id: &UserId) -> Result<AuthenticatedUser, ApiHttpError> {
+pub(super) async fn load(
+    users: &dyn UserProvider,
+    id: &UserId,
+) -> Result<AuthenticatedUser, ApiHttpError> {
     let found = users
         .find_by_id(id)
         .await

@@ -28,14 +28,13 @@ use systemprompt_models::documents::{EditOp, Projection};
 use systemprompt_traits::{FileStorageError, StoredFileRead};
 
 use super::DocumentsState;
-use super::caller::caller;
+use super::caller::{Caller, caller};
 use super::documents::{api_author, cursor, document_id};
 use super::error::{DocumentsHttpError, DocumentsResult, conflict_response};
 use super::headers::{base_revision, content_disposition, etag, if_range_holds, none_match, range};
 use super::views::RevisionJson;
 
-const PREVIEW_CSP: &str =
-    "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
+const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
 const DEFAULT_HISTORY: i64 = 50;
 const MAX_HISTORY: i64 = 500;
 
@@ -61,14 +60,28 @@ pub(super) async fn read(
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
     let revision = revision_id(query.revision.as_deref())?;
-    let view = state.service.get(&who.user, &id, &who.trace).await?;
-    let wanted = (method == Method::GET).then(|| range(&headers)).flatten();
+    serve(&state, &who, &method, &headers, &id, revision).await
+}
+
+pub(super) async fn serve(
+    state: &DocumentsState,
+    who: &Caller,
+    method: &Method,
+    headers: &HeaderMap,
+    id: &DocumentId,
+    revision: Option<DocumentRevisionId>,
+) -> DocumentsResult<Response> {
+    let view = state.service.get(&who.user, id, &who.trace).await?;
+    let wanted = (*method == Method::GET).then(|| range(headers)).flatten();
     let request = StreamRequest {
-        document: &id,
+        document: id,
         revision: revision.as_ref(),
         range: wanted,
     };
-    let opened = state.service.open_stream(&who.user, request, &who.trace).await;
+    let opened = state
+        .service
+        .open_stream(&who.user, request, &who.trace)
+        .await;
     let (revision, read) = match opened {
         Err(DocumentsError::Blob(BlobStoreError::Storage(
             FileStorageError::RangeNotSatisfiable { size },
@@ -76,16 +89,20 @@ pub(super) async fn read(
         other => other?,
     };
     let tag = etag(&revision.content_sha256);
-    if none_match(&headers, &tag) {
+    if none_match(headers, &tag) {
         return Ok(not_modified(&tag));
     }
-    let read = if read.range.is_some() && !if_range_holds(&headers, &tag) {
+    let read = if read.range.is_some() && !if_range_holds(headers, &tag) {
         let whole = StreamRequest {
-            document: &id,
+            document: id,
             revision: Some(&revision.id),
             range: None,
         };
-        state.service.open_stream(&who.user, whole, &who.trace).await?.1
+        state
+            .service
+            .open_stream(&who.user, whole, &who.trace)
+            .await?
+            .1
     } else {
         read
     };
@@ -94,7 +111,7 @@ pub(super) async fn read(
         mime: &view.document.mime_type,
         name: &view.document.name,
         revision: &revision.id,
-        head: method == Method::HEAD,
+        head: *method == Method::HEAD,
     };
     Ok(stream_response(read, &served))
 }
@@ -138,7 +155,10 @@ fn stream_response(read: StoredFileRead, served: &Served<'_>) -> Response {
     set(header::ETAG, served.tag.to_owned());
     set(header::ACCEPT_RANGES, "bytes".to_owned());
     set(header::CACHE_CONTROL, "private, no-cache".to_owned());
-    set(header::CONTENT_DISPOSITION, content_disposition(served.name));
+    set(
+        header::CONTENT_DISPOSITION,
+        content_disposition(served.name),
+    );
     set(
         header::HeaderName::from_static("x-revision-id"),
         served.revision.as_str().to_owned(),

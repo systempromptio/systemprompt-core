@@ -117,4 +117,3 @@ pub(super) async fn delete(
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
-

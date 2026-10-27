@@ -92,7 +92,10 @@ fn id_of(created: &Value) -> String {
 }
 
 fn head_of(created: &Value) -> String {
-    created["revision"]["id"].as_str().expect("revision").to_owned()
+    created["revision"]["id"]
+        .as_str()
+        .expect("revision")
+        .to_owned()
 }
 
 async fn put_content(
@@ -362,7 +365,10 @@ async fn presence_lists_the_editor_until_its_ttl() -> Result<()> {
             .expect("rfc3339")
     };
     let lifetime = (parse("expires_at") - parse("updated_at")).num_seconds();
-    assert!((ttl - 2..=ttl + 2).contains(&lifetime), "{lifetime} vs {ttl}");
+    assert!(
+        (ttl - 2..=ttl + 2).contains(&lifetime),
+        "{lifetime} vs {ttl}"
+    );
     Ok(())
 }
 
@@ -382,7 +388,10 @@ fn multipart(meta: &Value, blob: &[u8]) -> Vec<u8> {
 }
 
 fn bridge(token: &AuthedFixture, method: Method, uri: &str) -> axum::http::request::Builder {
-    request(method, uri).header(header::AUTHORIZATION, format!("Bearer {}", token.jwt.as_str()))
+    request(method, uri).header(
+        header::AUTHORIZATION,
+        format!("Bearer {}", token.jwt.as_str()),
+    )
 }
 
 async fn drive_commit(
@@ -401,7 +410,8 @@ async fn drive_commit(
     }
     send(
         gateway.clone(),
-        req.body(Body::from(multipart(meta, blob))).expect("request"),
+        req.body(Body::from(multipart(meta, blob)))
+            .expect("request"),
     )
     .await
 }
@@ -416,13 +426,22 @@ fn commit_meta(path: &str, blob: &[u8], document: Option<&str>) -> Value {
     })
 }
 
-async fn change_for(gateway: &Router, device: &AuthedFixture, since: &str, path: &str) -> Result<Value> {
+async fn change_for(
+    gateway: &Router,
+    device: &AuthedFixture,
+    since: &str,
+    path: &str,
+) -> Result<Value> {
     let since: String = url::form_urlencoded::byte_serialize(since.as_bytes()).collect();
     let changes = send(
         gateway.clone(),
-        bridge(device, Method::GET, &format!("/bridge/drive/changes?since={since}"))
-            .body(Body::empty())
-            .expect("request"),
+        bridge(
+            device,
+            Method::GET,
+            &format!("/bridge/drive/changes?since={since}"),
+        )
+        .body(Body::empty())
+        .expect("request"),
     )
     .await?;
     assert_eq!(changes.status, StatusCode::OK, "{}", changes.json());
@@ -466,7 +485,14 @@ async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()>
 
     let path = format!("drive-{}.md", Uuid::new_v4().simple());
     let blob = b"# From the laptop\n";
-    let committed = drive_commit(&gateway, &device, &commit_meta(&path, blob, None), blob, None).await?;
+    let committed = drive_commit(
+        &gateway,
+        &device,
+        &commit_meta(&path, blob, None),
+        blob,
+        None,
+    )
+    .await?;
     assert_eq!(committed.status, StatusCode::OK, "{}", committed.json());
     assert_eq!(committed.json()["status"], "committed");
     let revision = committed.json()["revision_id"]
@@ -481,9 +507,13 @@ async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()>
     let sha = content_hash(blob);
     let downloaded = send(
         gateway.clone(),
-        bridge(&device, Method::GET, &format!("/bridge/drive/blob/{}", sha.as_str()))
-            .body(Body::empty())
-            .expect("request"),
+        bridge(
+            &device,
+            Method::GET,
+            &format!("/bridge/drive/blob/{}", sha.as_str()),
+        )
+        .body(Body::empty())
+        .expect("request"),
     )
     .await?;
     assert_eq!(downloaded.status, StatusCode::OK);
@@ -492,9 +522,13 @@ async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()>
     let other = seed_bridge_credential(&pool, "drive-other").await?;
     let foreign = send(
         gateway.clone(),
-        bridge(&other, Method::GET, &format!("/bridge/drive/blob/{}", sha.as_str()))
-            .body(Body::empty())
-            .expect("request"),
+        bridge(
+            &other,
+            Method::GET,
+            &format!("/bridge/drive/blob/{}", sha.as_str()),
+        )
+        .body(Body::empty())
+        .expect("request"),
     )
     .await?;
     assert_eq!(foreign.status, StatusCode::NOT_FOUND);
@@ -520,7 +554,14 @@ async fn a_stale_drive_commit_is_409_with_the_head_content_hash() -> Result<()> 
 
     let path = format!("drive-{}.txt", Uuid::new_v4().simple());
     let first = b"base line\n";
-    let created = drive_commit(&gateway, &device, &commit_meta(&path, first, None), first, None).await?;
+    let created = drive_commit(
+        &gateway,
+        &device,
+        &commit_meta(&path, first, None),
+        first,
+        None,
+    )
+    .await?;
     let base = created.json()["revision_id"]
         .as_str()
         .expect("revision")
@@ -593,5 +634,168 @@ async fn the_files_server_cannot_reach_document_blobs() -> Result<()> {
         .into_response();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND, "{path}");
     }
+    Ok(())
+}
+
+fn mint_download(
+    ctx: &AppContext,
+    owner: &AuthedFixture,
+    audience: &str,
+    ttl: chrono::Duration,
+    purpose: String,
+) -> String {
+    let user = systemprompt_models::auth::AuthenticatedUser::new(
+        owner.user_id.clone(),
+        owner.user_id.as_str().to_owned(),
+        owner.email.clone(),
+        vec![systemprompt_models::auth::Permission::User],
+    );
+    let request = systemprompt_models::auth::UserJwtRequest {
+        user,
+        session_id: owner.session_id.clone(),
+        jti: systemprompt_identifiers::AccessTokenId::generate(),
+        permissions: vec![systemprompt_models::auth::Permission::User],
+        audience: vec![systemprompt_models::auth::JwtAudience::Resource(
+            audience.to_owned(),
+        )],
+        ttl,
+        client_id: None,
+        purpose: Some(purpose),
+        plugin_id: None,
+    };
+    ctx.token_authority()
+        .mint_user_jwt(&request)
+        .expect("download token")
+}
+
+#[tokio::test]
+async fn a_signed_download_link_reads_only_its_document_revision() -> Result<()> {
+    use systemprompt_api::routes::documents::with_download_tokens;
+    use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
+    use systemprompt_runtime::documents::mcp::{DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose};
+
+    let (pool, ctx, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "docs-download").await?;
+    let created = create_markdown(&state, &owner).await?;
+    let other = create_markdown(&state, &owner).await?;
+    let (id, revision) = (id_of(&created), head_of(&created));
+    let purpose = download_purpose(&DocumentId::new(&id), &DocumentRevisionId::new(&revision));
+    let tokenised = with_download_tokens(router(state.clone()), state.clone());
+    let fetch = |doc: String, token: String| {
+        send(
+            tokenised.clone(),
+            request(
+                Method::GET,
+                &format!("/{doc}/content?revision={revision}&access_token={token}"),
+            )
+            .body(Body::empty())
+            .expect("request"),
+        )
+    };
+
+    let valid = mint_download(
+        &ctx,
+        &owner,
+        DOWNLOAD_AUDIENCE,
+        DOWNLOAD_TTL,
+        purpose.clone(),
+    );
+    let downloaded = fetch(id.clone(), valid.clone()).await?;
+    assert_eq!(downloaded.status, StatusCode::OK, "{}", downloaded.json());
+    assert_eq!(
+        content_hash(&downloaded.body).as_str(),
+        created["revision"]["content_sha256"].as_str().expect("sha")
+    );
+
+    let elsewhere = fetch(id_of(&other), valid).await?;
+    assert_eq!(elsewhere.status, StatusCode::FORBIDDEN);
+
+    let audience = mint_download(
+        &ctx,
+        &owner,
+        "other.audience",
+        DOWNLOAD_TTL,
+        purpose.clone(),
+    );
+    assert_eq!(
+        fetch(id.clone(), audience).await?.status,
+        StatusCode::UNAUTHORIZED
+    );
+
+    let expired = mint_download(
+        &ctx,
+        &owner,
+        DOWNLOAD_AUDIENCE,
+        chrono::Duration::minutes(-10),
+        purpose,
+    );
+    assert_eq!(
+        fetch(id.clone(), expired).await?.status,
+        StatusCode::UNAUTHORIZED
+    );
+
+    let session = send(
+        with_download_tokens(app(&state, &owner), state.clone()),
+        request(Method::GET, &format!("/{id}/content"))
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await?;
+    assert_eq!(session.status, StatusCode::OK);
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credential() -> Result<()> {
+    use std::net::SocketAddr;
+
+    use axum::extract::ConnectInfo;
+    use systemprompt_api::services::server::{ReadinessState, setup_api_server};
+    use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
+    use systemprompt_manifest::profile::RateLimitsConfig;
+    use systemprompt_runtime::documents::mcp::{DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose};
+    use systemprompt_test_fixtures::{
+        ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
+    };
+
+    let bootstrap = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let mut config = fixture_config(&bootstrap.database_url);
+    config.rate_limits = RateLimitsConfig::disabled();
+    config.trusted_proxies = Vec::new();
+    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let server = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let state = DocumentsState::build(&ctx)?;
+    let owner = seed_bridge_credential(&pool, "docs-mounted").await?;
+    let created = create_markdown(&state, &owner).await?;
+    let (id, revision) = (id_of(&created), head_of(&created));
+    let get = |uri: String| {
+        let mut req = request(Method::GET, &uri)
+            .header(header::HOST, "127.0.0.1")
+            .header(header::USER_AGENT, "documents-test/1.0")
+            .body(Body::empty())
+            .expect("request");
+        req.extensions_mut().insert(ConnectInfo(
+            "203.0.113.9:40000".parse::<SocketAddr>().expect("addr"),
+        ));
+        send(server.clone(), req)
+    };
+
+    let anonymous = get(format!("/api/v1/documents/{id}/content")).await?;
+    assert_eq!(anonymous.status, StatusCode::UNAUTHORIZED);
+
+    let token = mint_download(
+        &ctx,
+        &owner,
+        DOWNLOAD_AUDIENCE,
+        DOWNLOAD_TTL,
+        download_purpose(&DocumentId::new(&id), &DocumentRevisionId::new(&revision)),
+    );
+    let linked = get(format!(
+        "/api/v1/documents/{id}/content?revision={revision}&access_token={token}"
+    ))
+    .await?;
+    assert_eq!(linked.status, StatusCode::OK, "{}", linked.json());
     Ok(())
 }

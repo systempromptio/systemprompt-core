@@ -39,10 +39,7 @@ pub(super) async fn list_grants(
 ) -> DocumentsResult<Json<GrantsJson>> {
     let who = caller(&state, &req_ctx).await?;
     let target = GrantTarget::Document(document_id(&id)?);
-    let grants = state
-        .service
-        .grants(&who.user, &target, &who.trace)
-        .await?;
+    let grants = state.service.grants(&who.user, &target, &who.trace).await?;
     Ok(Json(GrantsJson {
         grants: grants.into_iter().map(Into::into).collect(),
     }))
@@ -140,10 +137,7 @@ pub(super) async fn presence(
 ) -> DocumentsResult<Json<PresenceListJson>> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    let rows = state
-        .service
-        .presence(&who.user, &id, &who.trace)
-        .await?;
+    let rows = state.service.presence(&who.user, &id, &who.trace).await?;
     Ok(Json(PresenceListJson {
         editors: rows.into_iter().map(Into::into).collect(),
     }))
@@ -189,9 +183,12 @@ pub(super) async fn acquire_lock(
                 current.holder_kind, current.holder_id
             ))
             .with_error_key("lock_held");
-            with_detail(&error, HeldDetail {
-                lock: LockJson::from(current),
-            })
+            with_detail(
+                &error,
+                HeldDetail {
+                    lock: LockJson::from(current),
+                },
+            )
         },
     })
 }

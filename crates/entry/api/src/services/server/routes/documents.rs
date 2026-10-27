@@ -9,7 +9,9 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::RouteMountError;
 use super::protocol::MountCtx;
-use crate::routes::documents::{DocumentsState, folders_router, router as documents_router};
+use crate::routes::documents::{
+    DocumentsState, folders_router, router as documents_router, with_download_tokens,
+};
 use crate::services::middleware::RouterExt;
 use crate::services::middleware::authz::AuthzPolicy;
 
@@ -23,9 +25,12 @@ pub(super) fn mount_documents(
     Ok(router
         .nest(
             ApiPaths::DOCUMENTS,
-            documents_router(state.clone())
-                .with_rate_limit(mount.limits, per_second, "documents")?
-                .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+            with_download_tokens(
+                documents_router(state.clone())
+                    .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+                state.clone(),
+            )
+            .with_rate_limit(mount.limits, per_second, "documents")?,
         )
         .nest(
             ApiPaths::DOCUMENT_FOLDERS,

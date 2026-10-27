@@ -13,6 +13,7 @@
 mod caller;
 mod content;
 mod documents;
+mod download;
 pub mod drive;
 mod error;
 mod folders;
@@ -25,16 +26,8 @@ use std::sync::Arc;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post, put};
-use systemprompt_files::documents::blob_store::BlobStore;
-use systemprompt_files::documents::codecs::CodecRegistry;
-use systemprompt_files::documents::repository::DocumentRepositories;
-use systemprompt_files::documents::templates::{
-    TemplateCatalogError, TemplateRegistry, load_catalog,
-};
-use systemprompt_files::documents::{
-    DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
-    DocumentServiceParts,
-};
+use systemprompt_files::documents::DocumentService;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, UserProvider};
 
@@ -44,6 +37,7 @@ use systemprompt_traits::{AppContext as _, UserProvider};
 pub struct DocumentsState {
     pub(crate) service: Arc<DocumentService>,
     pub(crate) users: Arc<dyn UserProvider>,
+    pub(crate) tokens: Arc<dyn TokenAuthority>,
 }
 
 impl std::fmt::Debug for DocumentsState {
@@ -52,21 +46,20 @@ impl std::fmt::Debug for DocumentsState {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
 pub enum DocumentsMountError {
     #[error("document routes need a user provider")]
     MissingUserProvider,
-    #[error("document template catalog could not be loaded")]
-    Catalog(#[from] TemplateCatalogError),
 }
 
 impl DocumentsState {
     pub fn build(ctx: &AppContext) -> Result<Self, DocumentsMountError> {
         Ok(Self {
-            service: document_service(ctx)?,
+            service: document_service(ctx),
             users: ctx
                 .user_provider()
                 .ok_or(DocumentsMountError::MissingUserProvider)?,
+            tokens: ctx.token_authority(),
         })
     }
 
@@ -86,33 +79,8 @@ pub(crate) fn body_limit(service: &DocumentService) -> usize {
     usize::try_from(limit).unwrap_or(usize::MAX)
 }
 
-pub fn document_service(ctx: &AppContext) -> Result<Arc<DocumentService>, DocumentsMountError> {
-    let db = ctx.db_pool();
-    let repos = Arc::new(DocumentRepositories::new(db));
-    let access = Arc::new(DocumentAccessService::new(
-        DocumentAccessRepositories {
-            grants: Arc::clone(&repos.grants),
-            folders: Arc::clone(&repos.folders),
-            documents: Arc::clone(&repos.documents),
-            access_entities: crate::repository::access_control(db),
-        },
-        Arc::clone(ctx.authz_hook()),
-        Arc::new(ctx.subject_providers().clone()),
-    ));
-    let services_root = systemprompt_extension::ExtensionContext::services_root(ctx);
-    let catalog = load_catalog(&services_root.path)?;
-    Ok(Arc::new(DocumentService::new(DocumentServiceParts {
-        blobs: Arc::new(BlobStore::new(
-            Arc::clone(ctx.file_storage()),
-            Arc::clone(&repos.blobs),
-        )),
-        repos,
-        codecs: Arc::new(CodecRegistry::discover()),
-        templates: Arc::new(TemplateRegistry::discover(catalog)),
-        access,
-        events: Arc::new(DocumentEvents::new(Arc::new(ctx.event_router().clone()))),
-        config: *ctx.files_config().documents_config(),
-    })))
+pub fn document_service(ctx: &AppContext) -> Arc<DocumentService> {
+    Arc::clone(ctx.documents().service())
 }
 
 pub fn router(state: DocumentsState) -> Router {
@@ -152,9 +120,16 @@ pub fn router(state: DocumentsState) -> Router {
         .with_state(state)
 }
 
+pub fn with_download_tokens(router: Router, state: DocumentsState) -> Router {
+    router.layer(axum::middleware::from_fn_with_state(state, download::gate))
+}
+
 pub fn folders_router(state: DocumentsState) -> Router {
     Router::new()
         .route("/", get(folders::list).post(folders::create))
-        .route("/{id}", axum::routing::patch(folders::update).delete(folders::delete))
+        .route(
+            "/{id}",
+            axum::routing::patch(folders::update).delete(folders::delete),
+        )
         .with_state(state)
 }

@@ -22,8 +22,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use serde::Deserialize;
-use systemprompt_files::documents::service::parse_drive_cursor;
 use systemprompt_files::documents::DocumentService;
+use systemprompt_files::documents::service::parse_drive_cursor;
 use systemprompt_identifiers::{ContentHash, TraceId};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::api::ApiError;
@@ -88,7 +88,10 @@ pub fn router(state: DriveState) -> Router {
         .with_state(state)
 }
 
-async fn device_user(state: &DriveState, headers: &HeaderMap) -> DocumentsResult<AuthenticatedUser> {
+async fn device_user(
+    state: &DriveState,
+    headers: &HeaderMap,
+) -> DocumentsResult<AuthenticatedUser> {
     let (_, user) = authenticate_bridge(&state.jwt, headers)
         .await
         .map_err(crate::error::ApiHttpError::from)?;
@@ -180,7 +183,11 @@ async fn commit(
     let trace = TraceId::generate();
     let (mut meta, bytes) = read_commit(form).await?;
     if let Some(base) = base_revision(&headers)? {
-        if meta.base_revision.as_ref().is_some_and(|declared| declared != &base) {
+        if meta
+            .base_revision
+            .as_ref()
+            .is_some_and(|declared| declared != &base)
+        {
             return Err(ApiError::bad_request(
                 "If-Match and meta.base_revision name different revisions",
             )
@@ -188,7 +195,10 @@ async fn commit(
         }
         meta.base_revision = Some(base);
     }
-    let outcome = state.service.drive_commit(&who, meta, bytes, &trace).await?;
+    let outcome = state
+        .service
+        .drive_commit(&who, meta, bytes, &trace)
+        .await?;
     let status = match outcome {
         DriveCommitResponse::Committed { .. } => StatusCode::OK,
         DriveCommitResponse::Conflict { .. } => StatusCode::CONFLICT,
@@ -205,14 +215,15 @@ async fn read_commit(mut form: Multipart) -> Result<(DriveCommitMeta, Vec<u8>), 
         .map_err(|source| ApiError::bad_request("invalid multipart body").with_source(source))?
     {
         let part = field.name().unwrap_or_default().to_owned();
-        let bytes = field
-            .bytes()
-            .await
-            .map_err(|source| ApiError::bad_request("invalid multipart part").with_source(source))?;
+        let bytes = field.bytes().await.map_err(|source| {
+            ApiError::bad_request("invalid multipart part").with_source(source)
+        })?;
         match part.as_str() {
             "meta" => {
                 meta = Some(serde_json::from_slice::<DriveCommitMeta>(&bytes).map_err(
-                    |source| ApiError::bad_request("meta is not a drive commit").with_source(source),
+                    |source| {
+                        ApiError::bad_request("meta is not a drive commit").with_source(source)
+                    },
                 )?);
             },
             "blob" => blob = Some(bytes.to_vec()),
@@ -234,4 +245,3 @@ async fn presence(
     state.service.touch_presence(&who, beacon, &trace).await?;
     Ok(StatusCode::NO_CONTENT)
 }
-

@@ -138,7 +138,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             .merge(bridge_session_routes(ctx, &jwt_extractor))
             .merge(crate::routes::documents::drive::router(
                 crate::routes::documents::drive::DriveState::new(
-                    crate::routes::documents::document_service(ctx)?,
+                    crate::routes::documents::document_service(ctx),
                     Arc::clone(&jwt_extractor),
                 ),
             ))
