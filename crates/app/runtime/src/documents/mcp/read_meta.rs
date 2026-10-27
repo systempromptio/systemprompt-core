@@ -64,6 +64,7 @@ pub(super) async fn meta(
                 updated_at: view.document.updated_at,
                 editing,
             }),
+            paths: Vec::new(),
         },
         summary,
     ))

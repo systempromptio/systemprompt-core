@@ -61,7 +61,7 @@ pub use lines::{
 };
 pub use outputs::{
     CreateOutput, DocumentItem, DocumentMeta, EditOutput, EditingNow, ExportOutput, FolderItem,
-    GuideOutput, HistoryOutput, ListOutput, ReadOutput, RevisionItem, SearchHit, SearchOutput,
+    GuideOutput, HistoryOutput, ListOutput, ReadOutput, RevisionAttributionItem, RevisionItem, SearchHit, SearchOutput,
     ShareOutput,
 };
 pub use preview::{
@@ -91,11 +91,13 @@ pub const TOOL_NAMES: [&str; 9] = [
 
 pub const INSTRUCTIONS: &str = "Shared documents (Word, Excel, PowerPoint, OpenDocument, HTML, \
 Markdown, text) you may view, edit and share.
-1. Read the outline first: documents_read view outline; lines are `<node>:<hash>| <text>`.
-2. Edit by node id and hash, or by quote with str_replace, in one documents_edit call.
-3. Anchor the next edit on the ack: its written lines and revision_id.
-4. On stale_base or guard_mismatch their edit wins: re-aim from the returned text, never resend \
-your old text.
+1. Read the outline first: documents_read view outline; lines are `<node>:<hash>| <text>` and \
+node ids are stable across revisions.
+2. Edit by node id and hash, or by quote, in one documents_edit call; only a touched node that \
+changed refuses. Pass op_id so a retry is safe.
+3. Anchor the next edit on the ack; resume later with view changes since your last revision.
+4. On guard_mismatch or stale_base the head edit wins: re-aim from the returned current text, \
+never resend your old text.
 5. Do not re-read between your own writes. Details: documents_guide.";
 
 /// Why [`DocumentsMcpTools::from_context`] refused to build the tools.

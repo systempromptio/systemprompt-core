@@ -2,8 +2,10 @@
 //!
 //! Each changed file is read once, hashed from the bytes actually sent, and
 //! committed with the revision it was based on as `If-Match`. A committed
-//! revision becomes the file's state entry; a conflict hands the file to
-//! [`super::conflict`]. A file that changed again while it was uploading is
+//! revision becomes the file's state entry. A merged revision (the server
+//! landed the edit on a newer head) is recorded against the uploaded bytes,
+//! so the next pull replaces the file with the merged content; a conflict
+//! hands the file to [`super::conflict`]. A file that changed again while it was uploading is
 //! left for the next cycle rather than recorded as synced.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -20,6 +22,7 @@ use super::{Cycle, conflict};
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct UploadReport {
     pub committed: usize,
+    pub merged: usize,
     pub conflicts: Vec<ConflictNotice>,
     pub deferred: usize,
 }
@@ -69,6 +72,20 @@ pub async fn upload_one(
             state.entries.insert(change.file.rel, entry);
             state.save(&cycle.root.state_path())?;
             report.committed += 1;
+        },
+        DriveCommitResponse::Merged { revision_id, .. } => {
+            let (mtime_unix, now_size) = metadata(path)?;
+            let unchanged = now_size == size && super::hash::hash_file(path)?.0 == sha256;
+            let entry = DriveEntryState {
+                document_id: meta.document_id,
+                revision_id,
+                sha256,
+                mtime_unix: if unchanged { mtime_unix } else { 0 },
+                size,
+            };
+            state.entries.insert(change.file.rel, entry);
+            state.save(&cycle.root.state_path())?;
+            report.merged += 1;
         },
         DriveCommitResponse::Conflict {
             head_revision_id, ..

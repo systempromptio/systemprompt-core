@@ -15,7 +15,7 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::inputs::{HistoryInput, ListInput, SearchInput};
 use super::outputs::{
-    DocumentItem, FolderItem, HistoryOutput, ListOutput, RevisionItem, SearchHit, SearchOutput,
+    DocumentItem, FolderItem, HistoryOutput, ListOutput, RevisionAttributionItem, RevisionItem, SearchHit, SearchOutput,
 };
 use super::support::{caller, clamp_limit, tool_error};
 
@@ -235,6 +235,13 @@ impl McpToolHandler for HistoryHandler<'_> {
                 actor_kind: r.actor_kind,
                 message: r.message,
                 content_sha256: verbose.then_some(r.content_sha256),
+                attribution: verbose.then(|| RevisionAttributionItem {
+                    session_id: r.attribution.session_id,
+                    context_id: r.attribution.context_id,
+                    trace_id: r.attribution.trace_id,
+                    task_id: r.attribution.task_id,
+                    on_behalf_of: r.attribution.on_behalf_of,
+                }),
                 created_at: r.created_at,
             })
             .collect();

@@ -4,8 +4,11 @@
 //! folder. It fetches a [`DriveManifest`] once, then polls
 //! [`DriveChanges`] from the manifest's cursor, downloads blobs by
 //! [`ContentHash`], and uploads local edits as a [`DriveCommitMeta`] plus
-//! blob. A commit whose `base_revision` is not the current head is answered
-//! with [`DriveCommitResponse::Conflict`] and is never applied.
+//! blob. A commit whose `base_revision` is not the current head is merged
+//! onto the head when it can be ([`DriveCommitResponse::Merged`] names the
+//! merged revision and its content, which the device then pulls) and is
+//! otherwise answered with [`DriveCommitResponse::Conflict`] and never
+//! applied.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -80,6 +83,10 @@ pub struct DriveCommitMeta {
 pub enum DriveCommitResponse {
     Committed {
         revision_id: DocumentRevisionId,
+    },
+    Merged {
+        revision_id: DocumentRevisionId,
+        content_sha256: ContentHash,
     },
     Conflict {
         head_revision_id: DocumentRevisionId,

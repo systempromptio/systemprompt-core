@@ -21,38 +21,47 @@ use super::refusal::RefusalCode;
 const EDITING: &str = "\
 Read: documents_read view outline first; each line is `<node>:<hash>| <text>`, with `# ` per \
 heading level, `- ` for a list item, `| ` for a table cell and `## slide N` at each slide. The \
-prefix is display only.
-Edit: documents_edit {document_id, base_revision: <read revision_id>, ops, message}. Ops: \
-replace_text {node, expected_hash, text}; delete {node, expected_hash}; insert_after {node, \
-kind: {type: heading, level} | {type: paragraph} | {type: list_item} | {type: row} | {type: \
-text}, text}; str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, \
-range, values}; insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; \
-append_markdown {markdown} (adds Markdown at the end).
+prefix is display only. Node ids are stable: an id names the same block in every revision \
+until the block is deleted. Long lists fold to `gap blocks=N`; view node {node_id} pages one \
+node and its children; view search {text} finds blocks; view meta gives head, size and who is \
+in the document now; view changes {since_revision} returns only the blocks changed since that \
+revision, `gap blocks=N` for unchanged runs and `gone <id>` for deletions.
+Edit: documents_edit {document_id, base_revision?, ops, message, op_id?}. Ops: replace_text \
+{node, expected_hash, text}; delete {node, expected_hash}; insert_after {node, kind: {type: \
+heading, level} | {type: paragraph} | {type: list_item} | {type: row} | {type: text}, text}; \
+str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, range, values}; \
+insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; append_markdown \
+{markdown}; insert_from_revision {revision_id, node, after} copies a block back from history; \
+restore {revision_id} alone makes an old revision the head (base_revision must be the head).
 Target: an anchored op names node by id with expected_hash, or node: {find: \"quoted text\", \
 nth?, within?: node} to hit the block containing the quote; no match refuses find_none with \
 the closest block. Content: replace_text and insert_after take as: \"markdown\" to write \
 headings, lists, tables, bold, italic and links as native formatting.
+Guards: ops apply to the head. An edit is refused only when a node it touches changed since \
+you read it; edits elsewhere in the document land and the ack says merged.
 Batch: every target resolves against the document as it stood before the call; ops apply in \
 order, so two insert_after on one node land in op order; all ops apply or none.
 Ack: an edit or create returns `written`, the lines it changed or created; anchor the next \
-edit on them and use the returned revision_id as base_revision. Do not re-read between your \
-own writes.
-Conflict: a stale_base or guard_mismatch means someone else edited first. Their edit wins: \
-re-aim from the returned text and never resend your old text over theirs.
-Terse output: verbose: true on read, edit, history or list adds URIs and content hashes.";
+edit on them. Do not re-read between your own writes. op_id: a retry with the same op_id \
+returns the first ack with replayed instead of applying twice.
+Conflict: a guard_mismatch or stale_base means someone else edited first. The head edit wins: \
+re-aim from the returned current text and never resend your old text over it.
+Terse output: verbose: true on read, edit, history or list adds URIs, content hashes, codec \
+paths and revision attribution.";
 
 const SHEETS: &str = "\
 Cells read as `<sheet>!<cell>:<hash>| <value>` with view cells, sheet and an A1 range such as \
 A1:C9. set_cells {sheet, range, values} writes a rectangle: values is rows of cells, each a \
 number, bool, string or null, and its shape must match the range; a string starting with = is \
-a formula. Rows are sheet[<name>]/row[N]: insert_after on a row adds a row below it from \
-tab-separated text; replace_text rewrites a row or a cell; delete clears it.";
+a formula. Rows and cells are named by the node ids a read returns: insert_after on a row \
+adds a row below it from tab-separated text; replace_text rewrites a row or a cell; delete \
+clears it.";
 
 const SLIDES: &str = "\
-A slide is slide[N]; its paragraphs are slide[N]/shape[H]/p[P]. insert_slide {after: \
-slide[N], layout, title, body: [lines]} adds a slide; delete on slide[N] removes it. \
-insert_after on a paragraph takes kind paragraph or list_item. Slide numbers in one call all \
-name the deck as read.";
+Slides and their paragraphs are named by the node ids a read returns (verbose shows each \
+id's position, slide[N]/shape[H]/p[P]). insert_slide {after: <slide id>, layout, title, body: \
+[lines]} adds a slide; delete on a slide id removes it. insert_after on a paragraph takes kind \
+paragraph or list_item. Every id in one call names the deck as read.";
 
 const SHARING: &str = "\
 documents_share {document_id | folder_id, subject_kind, subject_value, level, valid_until}. \
@@ -63,13 +72,14 @@ access.";
 const fn refusal_text(code: RefusalCode) -> &'static str {
     match code {
         RefusalCode::StaleBase => {
-            "stale_base: the document moved past your base_revision; head_revision, written_by, \
-             actor_kind and at say who. Their edit wins: read head_revision, re-aim at the text \
-             as it stands, never resend your old text."
+            "stale_base: a restore or whole-file write named a base that is no longer the head; \
+             head_revision, written_by, actor_kind and at say who moved it. The head edit wins: \
+             read head_revision, re-aim at the text as it stands, never resend your old text."
         },
         RefusalCode::GuardMismatch => {
-            "guard_mismatch: the node changed since you read it; current_text and hash are its \
-             state now. Re-aim at current_text with hash as expected_hash, or drop the edit."
+            "guard_mismatch: a node you touched changed since you read it; current_text and \
+             hash are its state now. The head edit wins: re-aim at current_text with hash as \
+             expected_hash, or drop the edit; never resend your old text."
         },
         RefusalCode::FindNone => {
             "find_none: old_str or a target find matched `matches` places, not one. Quote it \

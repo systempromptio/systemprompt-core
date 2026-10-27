@@ -200,7 +200,9 @@ async fn commit(
         .drive_commit(&who, meta, bytes, &trace)
         .await?;
     let status = match outcome {
-        DriveCommitResponse::Committed { .. } => StatusCode::OK,
+        DriveCommitResponse::Committed { .. } | DriveCommitResponse::Merged { .. } => {
+            StatusCode::OK
+        },
         DriveCommitResponse::Conflict { .. } => StatusCode::CONFLICT,
     };
     Ok((status, Json(outcome)).into_response())

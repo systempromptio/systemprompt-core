@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::nodes::changes;
+use systemprompt_files::documents::nodes::{changes, path_of};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{DocumentUri, Projection};
@@ -15,7 +15,7 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::inputs::{ReadInput, ReadView};
-use super::lines::{RenderedLines, render, shows, truncate};
+use super::lines::{MAX_LINES, RenderedLines, render, shows, truncate};
 use super::outputs::ReadOutput;
 use super::read_meta::meta;
 use super::support::{caller, tool_error};
@@ -94,6 +94,15 @@ impl McpToolHandler for ReadHandler<'_> {
         } else {
             render(&projection, &input, &revision.id)?
         };
+        let paths = if input.verbose {
+            projection
+                .nodes()
+                .map(|node| format!("{} {}", node.id, path_of(node)))
+                .take(MAX_LINES)
+                .collect()
+        } else {
+            Vec::new()
+        };
         let summary = format!(
             "{} lines of revision {}{}",
             rendered.lines.len(),
@@ -115,6 +124,7 @@ impl McpToolHandler for ReadHandler<'_> {
                 lines: rendered.lines,
                 truncated: rendered.truncated,
                 meta: None,
+                paths,
             },
             summary,
         ))

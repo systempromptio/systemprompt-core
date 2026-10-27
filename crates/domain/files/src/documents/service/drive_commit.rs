@@ -71,10 +71,12 @@ impl DocumentService {
             lock_holder_id: Some(meta.device_id.as_str().to_owned()),
         };
         Ok(match self.commit(who, request, trace).await? {
-            CommitOutcome::Committed { revision, .. } | CommitOutcome::Merged { revision, .. } => {
-                DriveCommitResponse::Committed {
-                    revision_id: revision.id,
-                }
+            CommitOutcome::Committed { revision, .. } => DriveCommitResponse::Committed {
+                revision_id: revision.id,
+            },
+            CommitOutcome::Merged { revision, .. } => DriveCommitResponse::Merged {
+                revision_id: revision.id,
+                content_sha256: revision.content_sha256,
             },
             CommitOutcome::Conflict { head, base } => DriveCommitResponse::Conflict {
                 head_revision_id: head.id,

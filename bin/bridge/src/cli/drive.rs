@@ -74,9 +74,10 @@ fn sync(ctx: &BridgeContext, root: &DriveRoot) -> ExitCode {
     match ctx.block_on(sync_once(ctx, root)) {
         Ok(report) => {
             stdio::print_line(&format!(
-                "drive synced: {} pulled, {} committed, {} conflicts, {} pending",
+                "drive synced: {} pulled, {} committed, {} merged, {} conflicts, {} pending",
                 report.pull.applied,
                 report.upload.committed,
+                report.upload.merged,
                 report.pull.conflicts.len() + report.upload.conflicts.len(),
                 report.pending_uploads,
             ));

@@ -12,7 +12,8 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, UserId,
+    ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentRevisionId, SessionId, TaskId,
+    TraceId, UserId,
 };
 use systemprompt_mcp::McpOutputSchema;
 use systemprompt_models::documents::{
@@ -101,6 +102,8 @@ pub struct ReadOutput {
     pub truncated: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<DocumentMeta>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub paths: Vec<String>,
 }
 documents_output!(ReadOutput, "documents_read");
 
@@ -153,7 +156,23 @@ pub struct RevisionItem {
     pub message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_sha256: Option<ContentHash>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<RevisionAttributionItem>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct RevisionAttributionItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<SessionId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_id: Option<ContextId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<TraceId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<TaskId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_behalf_of: Option<UserId>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
