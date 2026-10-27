@@ -174,23 +174,28 @@ fn decode(raw: &str) -> DocumentsResult<Vec<u8>> {
 
 impl From<CollabError> for DocumentsHttpError {
     fn from(error: CollabError) -> Self {
-        let message = error.to_string();
-        match error {
-            CollabError::Documents(error) => Self::from(error),
-            CollabError::SessionClosed { .. } => {
-                Self::from(ApiError::conflict(message).with_error_key("session_closed"))
-            },
-            CollabError::NotJoined { .. } => {
-                Self::from(ApiError::conflict(message).with_error_key("not_joined"))
-            },
-            CollabError::NotEditing { .. } => {
-                Self::from(ApiError::forbidden(message).with_error_key("not_editing"))
-            },
-            CollabError::InvalidUpdate(source) | CollabError::InvalidVersion(source) => {
-                Self::from(ApiError::bad_request(message).with_source(source))
-            },
-            CollabError::NotText { .. } => Self::from(ApiError::bad_request(message)),
-            other => Self::from(ApiError::internal("live edit session failed", other)),
-        }
+        collab_error(error)
+    }
+}
+
+fn collab_error(error: CollabError) -> DocumentsHttpError {
+    type Http = DocumentsHttpError;
+    let message = error.to_string();
+    match error {
+        CollabError::Documents(error) => Http::from(error),
+        CollabError::SessionClosed { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("session_closed"))
+        },
+        CollabError::NotJoined { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("not_joined"))
+        },
+        CollabError::NotEditing { .. } => {
+            Http::from(ApiError::forbidden(message).with_error_key("not_editing"))
+        },
+        CollabError::InvalidUpdate(source) | CollabError::InvalidVersion(source) => {
+            Http::from(ApiError::bad_request(message).with_source(source))
+        },
+        CollabError::NotText { .. } => Http::from(ApiError::bad_request(message)),
+        other => Http::from(ApiError::internal("live edit session failed", other)),
     }
 }
