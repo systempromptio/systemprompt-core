@@ -1,6 +1,5 @@
 import { DocumentsElement } from "./documents-element.js";
-import { getProjection, listRevisions, restoreRevision } from "./documents-api.js";
-import { diffProjections } from "./documents-diff.js";
+import { listRevisions, readView, restoreRevision } from "./documents-api.js";
 import { attr, errorText, escapeHtml, formatTime } from "./documents-html.js";
 
 export class SpHistory extends DocumentsElement {
@@ -35,12 +34,8 @@ export class SpHistory extends DocumentsElement {
 
   compare(revisionId) {
     return this.attempt(async () => {
-      const head = this.revisions[0]?.id;
-      const [before, after] = await Promise.all([
-        getProjection(this.documentId, { view: "outline", revision: revisionId }),
-        getProjection(this.documentId, { view: "outline", revision: head }),
-      ]);
-      this.diff = { from: revisionId, lines: diffProjections(before.projection, after.projection) };
+      const { lines } = await readView(this.documentId, { view: "changes", since_revision: revisionId });
+      this.diff = { from: revisionId, lines };
     });
   }
 
@@ -54,8 +49,8 @@ export class SpHistory extends DocumentsElement {
 
   renderDiff() {
     if (!this.diff) { return ""; }
-    const lines = this.diff.lines.map((line) => `<li class="sp-history__line sp-history__line--${escapeHtml(line.change)}"${attr("data-key", `${line.change}-${line.id}`)}>
-      <code class="sp-history__node">${escapeHtml(line.id)}</code> ${escapeHtml(line.change)}: ${escapeHtml(line.text)}${line.was == null ? "" : ` <del class="sp-history__was">${escapeHtml(line.was)}</del>`}</li>`).join("");
+    const lines = this.diff.lines.map((line, index) => `<li class="sp-history__line"${attr("data-key", `${index}-${line}`)}>
+      <code class="sp-history__node">${escapeHtml(line)}</code></li>`).join("");
     return `<section class="sp-history__diff" aria-label="Changes since revision"><ol class="sp-history__lines">${lines || `<li class="sp-history__line">No changes</li>`}</ol></section>`;
   }
 

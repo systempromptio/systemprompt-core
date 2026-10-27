@@ -184,8 +184,8 @@ The files extension ships native ES module Web Components for browsing, previewi
 | `sp-document-editor` | `document-id`, `readonly` | the collab routes above, `document.collab.update`, `document.presence` and `document.revision.created` (`origin_kind = edit_session` is shown as a checkpoint) |
 | `sp-sheet-grid` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `set_cells` |
 | `sp-slide-text` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `replace_text` by node id and hash |
-| `sp-share-dialog` | `document-id` | `GET`, `POST` and `DELETE /{id}/grants`; transfer shares at level `own` |
-| `sp-history` | `document-id` | `GET /{id}/revisions`, a `restore` op on `POST /{id}/edits`, and a node-by-node diff of two outline projections |
+| `sp-share-dialog` | `document-id` | `GET /{id}/access` and `GET /subject-kinds`, `POST` and `DELETE /{id}/grants`, `DELETE /{id}/grants/all` and `POST /{id}/transfer` |
+| `sp-history` | `document-id` | `GET /{id}/revisions`, a `restore` op on `POST /{id}/edits`, and `GET /{id}/read?view=changes` since a revision |
 | `sp-comments` | `document-id`, `anchor-node` | `/{id}/comments`; hidden when the install answers `404` |
 | `sp-proposal-list` | `document-id` | `/{id}/proposals`; hidden when the install answers `404` |
 

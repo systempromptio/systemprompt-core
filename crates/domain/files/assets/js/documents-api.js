@@ -62,7 +62,11 @@ export const postEdits = (id, { baseRevision, ops, message }) =>
 export const restoreRevision = (id, { revisionId, headRevision }) =>
   postEdits(id, { baseRevision: headRevision, ops: [{ op: "restore", revision_id: revisionId }], message: "restore" });
 
-export const listGrants = (id) => request("GET", doc(id, "/grants"));
+export const readView = (id, params) => request("GET", doc(id, `/read${query(params)}`));
+export const getAccess = (id) => request("GET", doc(id, "/access"));
+export const listSubjectKinds = () => request("GET", `${DOCUMENTS}/subject-kinds`);
+export const transferOwnership = (id, userId) => request("POST", doc(id, "/transfer"), { transfer_to: userId });
+export const revokeAllGrants = (id) => request("DELETE", doc(id, "/grants/all"));
 export const shareDocument = (id, { subjectKind, subjectValue, level, validUntil }) =>
   request("POST", doc(id, "/grants"), {
     subject_kind: subjectKind,
@@ -94,8 +98,8 @@ export const decideProposal = (id, proposalId, decision, note) =>
   request("POST", doc(id, `/proposals/${encodeURIComponent(proposalId)}/${decision}`), { note });
 
 export const listComments = (id) => request("GET", doc(id, "/comments"));
-export const postComment = (id, { anchor, body, answering }) =>
-  request("POST", doc(id, "/comments"), { anchor, body, answering });
+export const postComment = (id, { anchor, body, parentId }) =>
+  request("POST", doc(id, "/comments"), { anchor, body, parent_id: parentId });
 export const resolveComment = (id, commentId) =>
   request("POST", doc(id, `/comments/${encodeURIComponent(commentId)}/resolve`));
 

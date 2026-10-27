@@ -136,11 +136,6 @@ const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
         AssetType::JavaScript,
     ),
     (
-        "js/documents-diff.js",
-        "assets/documents/js/documents-diff.js",
-        AssetType::JavaScript,
-    ),
-    (
         "js/sp-document-browser.js",
         "assets/documents/js/sp-document-browser.js",
         AssetType::JavaScript,

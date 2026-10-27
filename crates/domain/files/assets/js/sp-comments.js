@@ -36,10 +36,10 @@ export class SpComments extends DocumentsElement {
   }
 
   post(form) {
-    const { body, node, answering } = form.elements;
+    const { body, node, parent } = form.elements;
     const anchor = node?.value.trim() ? { node: node.value.trim() } : undefined;
     return this.run(async () => {
-      await postComment(this.documentId, { anchor, body: body.value, answering: answering?.value || undefined });
+      await postComment(this.documentId, { anchor, body: body.value, parentId: parent?.value || undefined });
       form.reset();
     });
   }
@@ -51,19 +51,19 @@ export class SpComments extends DocumentsElement {
   }
 
   renderThread(root) {
-    const replies = this.comments.filter((c) => c.answering === root.id);
+    const replies = this.comments.filter((c) => c.parent_id === root.id);
     const anchor = root.anchor?.node ? `<p class="sp-comments__anchor">on ${escapeHtml(root.anchor.node)}</p>` : "";
-    const resolve = root.resolved ? `<p class="sp-comments__meta">Resolved</p>` : `<button type="button" class="sp-comments__button" data-action="resolve"${attr("data-id", root.id)}>Resolve</button>`;
-    return `<li class="sp-comments__thread${root.resolved ? " sp-comments__thread--resolved" : ""}"${attr("data-key", root.id)}>${anchor}
+    const resolve = root.resolved_at ? `<p class="sp-comments__meta">Resolved</p>` : `<button type="button" class="sp-comments__button" data-action="resolve"${attr("data-id", root.id)}>Resolve</button>`;
+    return `<li class="sp-comments__thread${root.resolved_at ? " sp-comments__thread--resolved" : ""}"${attr("data-key", root.id)}>${anchor}
       <ol class="sp-comments__messages">${[root, ...replies].map((c) => this.renderComment(c)).join("")}</ol>
-      <form class="sp-comments__form" data-submit="comment"><input type="hidden" name="answering"${attr("value", root.id)}>
+      <form class="sp-comments__form" data-submit="comment"><input type="hidden" name="parent"${attr("value", root.id)}>
         <input class="sp-comments__input" name="body" required aria-label="Reply"><button type="submit" class="sp-comments__button">Reply</button></form>
       ${resolve}</li>`;
   }
 
   render() {
     const error = this.error ? `<p class="sp-comments__error" role="alert">${escapeHtml(errorText(this.error))}</p>` : "";
-    const threads = this.comments.filter((c) => !c.answering).map((c) => this.renderThread(c)).join("");
+    const threads = this.comments.filter((c) => !c.parent_id).map((c) => this.renderThread(c)).join("");
     return `<section class="sp-comments" aria-label="Comments">${error}
       <ol class="sp-comments__threads">${threads}</ol>
       <form class="sp-comments__form" data-submit="comment">

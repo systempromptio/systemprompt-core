@@ -134,24 +134,8 @@
   border-inline-start: var(--sp-space-0-5) solid var(--sp-line);
 }
 
-.sp-history__line--added {
-  border-inline-start-color: var(--sp-ok);
-}
-
-.sp-history__line--removed {
-  border-inline-start-color: var(--sp-err);
-}
-
-.sp-history__line--changed {
-  border-inline-start-color: var(--sp-warn);
-}
-
 .sp-history__node {
   font-family: var(--sp-font-mono);
-  color: var(--sp-muted);
-}
-
-.sp-history__was {
   color: var(--sp-muted);
 }
 

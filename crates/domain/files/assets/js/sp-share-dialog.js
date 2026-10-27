@@ -1,5 +1,7 @@
 import { DocumentsElement } from "./documents-element.js";
-import { listGrants, revokeGrant, shareDocument } from "./documents-api.js";
+import {
+  getAccess, listSubjectKinds, revokeAllGrants, revokeGrant, shareDocument, transferOwnership,
+} from "./documents-api.js";
 import { attr, errorText, escapeHtml, formatTime } from "./documents-html.js";
 
 const LEVELS = ["view", "comment", "edit", "share", "own"];
@@ -7,16 +9,19 @@ const LEVELS = ["view", "comment", "edit", "share", "own"];
 export class SpShareDialog extends DocumentsElement {
   onConnect() {
     this.grants = [];
-    this.on("submit:share", (form) => this.share(form, form.elements.level.value));
-    this.on("action:transfer", (el) => this.share(el.closest("form"), "own"));
-    this.on("action:revoke", (el) => this.revoke([el.dataset.id]));
-    this.on("action:revoke-all", () => this.revoke(this.grants.map((g) => g.id)));
+    this.subjectKinds = ["user"];
+    this.on("submit:share", (form) => this.share(form));
+    this.on("action:transfer", (el) => this.transfer(el.closest("form")));
+    this.on("action:revoke", (el) => this.run(() => revokeGrant(this.documentId, el.dataset.id)));
+    this.on("action:revoke-all", () => this.run(() => revokeAllGrants(this.documentId)));
     this.load();
   }
 
   async load() {
     try {
-      ({ grants: this.grants } = await listGrants(this.documentId));
+      const [access, kinds] = await Promise.all([getAccess(this.documentId), listSubjectKinds()]);
+      this.grants = access.grants;
+      this.subjectKinds = kinds.subject_kinds;
       this.error = null;
     } catch (err) {
       this.error = err;
@@ -34,40 +39,33 @@ export class SpShareDialog extends DocumentsElement {
     await this.load();
   }
 
-  share(form, level) {
-    const { kind, value, expires } = form.elements;
+  share(form) {
+    const { kind, value, level, expires } = form.elements;
     return this.run(() => shareDocument(this.documentId, {
-      subjectKind: kind.value.trim(),
+      subjectKind: kind.value,
       subjectValue: value.value.trim(),
-      level,
+      level: level.value,
       validUntil: expires.value ? new Date(expires.value).toISOString() : null,
     }));
   }
 
-  revoke(ids) {
-    return this.run(async () => {
-      for (const id of ids) { await revokeGrant(this.documentId, id); }
-    });
-  }
-
-  kinds() {
-    return [...new Set(["user", ...this.grants.map((g) => g.subject_kind)])];
+  transfer(form) {
+    return this.run(() => transferOwnership(this.documentId, form.elements.value.value.trim()));
   }
 
   renderGrant(grant) {
     const expiry = grant.valid_until ? ` · until ${escapeHtml(formatTime(grant.valid_until))}` : "";
-    return `<li class="sp-share-dialog__grant"${attr("data-key", grant.id)}>
-      <span class="sp-share-dialog__subject">${escapeHtml(grant.subject_kind)}: ${escapeHtml(grant.subject_value)}</span>
-      <span class="sp-share-dialog__level">${escapeHtml(grant.access_level)}${expiry}</span>
-      <button type="button" class="sp-share-dialog__button" data-action="revoke"${attr("data-id", grant.id)}>Revoke</button></li>`;
+    return `<li class="sp-share-dialog__grant"${attr("data-key", grant.grant_id)}>
+      <span class="sp-share-dialog__subject">${escapeHtml(grant.subject_kind)}: ${escapeHtml(grant.display_name ?? grant.subject_value)}</span>
+      <span class="sp-share-dialog__level">${escapeHtml(grant.level)}${expiry}</span>
+      <button type="button" class="sp-share-dialog__button" data-action="revoke"${attr("data-id", grant.grant_id)}>Revoke</button></li>`;
   }
 
   renderForm() {
-    const kinds = this.kinds().map((k) => `<option${attr("value", k)}></option>`).join("");
+    const kinds = this.subjectKinds.map((k) => `<option${attr("value", k)}${attr("selected", k === "user")}>${escapeHtml(k)}</option>`).join("");
     const levels = LEVELS.map((l) => `<option${attr("value", l)}${attr("selected", l === "view")}>${escapeHtml(l)}</option>`).join("");
     return `<form class="sp-share-dialog__form" data-submit="share">
-      <label class="sp-share-dialog__field">Subject kind<input name="kind" list="sp-share-kinds" required value="user"></label>
-      <datalist id="sp-share-kinds">${kinds}</datalist>
+      <label class="sp-share-dialog__field">Subject kind<select name="kind">${kinds}</select></label>
       <label class="sp-share-dialog__field">Subject<input name="value" required></label>
       <label class="sp-share-dialog__field">Level<select name="level">${levels}</select></label>
       <label class="sp-share-dialog__field">Expires<input name="expires" type="datetime-local"></label>
