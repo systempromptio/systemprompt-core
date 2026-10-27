@@ -21,8 +21,7 @@ use super::headers::etag;
 use super::items::{cursor, document_id};
 use super::views::RevisionJson;
 
-const PREVIEW_CSP: &str =
-    "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
+const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
 const DEFAULT_HISTORY: i64 = 50;
 const MAX_HISTORY: i64 = 500;
 

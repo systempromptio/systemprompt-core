@@ -137,15 +137,11 @@ pub(super) async fn create(
         .and_then(|value| value.to_str().ok())
         .is_some_and(|value| value.starts_with("multipart/form-data"));
     let (document, revision) = if multipart {
-        let form = Multipart::from_request(request, &state)
-            .await
-            ?;
+        let form = Multipart::from_request(request, &state).await?;
         let import = read_import(form).await?;
         state.service.import(&who.user, import, &who.trace).await?
     } else {
-        let Json(body) = Json::<CreateBody>::from_request(request, &state)
-            .await
-            ?;
+        let Json(body) = Json::<CreateBody>::from_request(request, &state).await?;
         let create = CreateRequest {
             template_id: DocumentTemplateId::try_new(&body.template_id).map_err(ApiError::from)?,
             folder: body.folder_id,
@@ -170,11 +166,7 @@ async fn read_import(mut form: Multipart) -> DocumentsResult<ImportRequest> {
     let mut folder = None;
     let mut format = None;
     let mut file: Option<(Option<String>, Vec<u8>)> = None;
-    while let Some(field) = form
-        .next_field()
-        .await
-        ?
-    {
+    while let Some(field) = form.next_field().await? {
         let part = field.name().unwrap_or_default().to_owned();
         let file_name = field.file_name().map(str::to_owned);
         let bytes = field.bytes().await?;

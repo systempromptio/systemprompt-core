@@ -1,13 +1,15 @@
 //! The document store's MCP tools.
 //!
-//! [`DocumentsMcpTools`] is what an extension's MCP server binary composes:
-//! [`DocumentsMcpTools::list_tools`] for `tools/list`,
-//! [`DocumentsMcpTools::call`] to run one tool through core's
-//! [`McpToolExecutor`] after the binary has authenticated the request, and
-//! the `ui://<server>/document-preview` resource for `resources/list` and
-//! `resources/read`. Every handler acts as the authenticated user on the
-//! request context, and every write records the MCP execution as the
-//! revision's origin.
+//! [`DocumentsMcpTools`](crate::documents::mcp::DocumentsMcpTools) is what an
+//! extension's MCP server binary composes:
+//! [`DocumentsMcpTools::list_tools`](crate::documents::mcp::DocumentsMcpTools::list_tools) for `tools/list`,
+//! [`DocumentsMcpTools::call`](crate::documents::mcp::DocumentsMcpTools::call)
+//! to run one tool through core's
+//! [`McpToolExecutor`](systemprompt_mcp::McpToolExecutor) after the binary has
+//! authenticated the request, and the `ui://<server>/document-preview` resource
+//! for `resources/list` and `resources/read`. Every handler acts as the
+//! authenticated user on the request context, and every write records the MCP
+//! execution as the revision's origin.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

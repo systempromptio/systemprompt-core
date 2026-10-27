@@ -209,11 +209,7 @@ async fn commit(
 async fn read_commit(mut form: Multipart) -> DocumentsResult<(DriveCommitMeta, Vec<u8>)> {
     let mut meta = None;
     let mut blob = None;
-    while let Some(field) = form
-        .next_field()
-        .await
-        ?
-    {
+    while let Some(field) = form.next_field().await? {
         let part = field.name().unwrap_or_default().to_owned();
         let bytes = field.bytes().await?;
         match part.as_str() {
