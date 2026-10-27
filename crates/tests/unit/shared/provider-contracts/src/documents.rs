@@ -124,7 +124,10 @@ fn registered_codecs_are_discoverable_highest_priority_first() {
 fn codec_for_picks_highest_priority() {
     let codec = codec_for(DocumentFormat::Text).expect("text codec");
     assert_eq!(codec.plain_text(b"x").expect("text"), "preferred");
-    assert!(codec_for(DocumentFormat::Pptx).is_none());
+    assert!(
+        registered_codecs().any(|c| c.priority() == 100),
+        "the lower-priority codec stays registered behind the preferred one"
+    );
 }
 
 #[test]
