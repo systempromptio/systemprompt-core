@@ -8,7 +8,7 @@ The document store lives in the `files` domain (`crates/domain/files/src/documen
 
 - **Folders** form a tree. Each folder stores its materialised ancestors, so a grant on a folder covers its whole subtree. Folder names are unique within a parent.
 - **Documents** belong to a folder, carry one format and point at a head revision. Names always carry the format extension.
-- **Revisions** form a chain. Each revision records its parent, the SHA-256 of its bytes, an author, an actor kind (`user`, `agent`, `bridge`, `import`, `system`), the origin that produced it and, for structured edits, the edit operations.
+- **Revisions** form a chain. Each revision records its parent, the SHA-256 of its bytes, an author, an actor kind (`user`, `agent`, `bridge`, `import`, `system`), the origin that produced it, for structured edits the edit operations, and the request it was written in: session, conversation context, trace, task and, for an agent, the user it acted for. The `report_document_revisions` view exposes these columns with each revision's size, hiding a deleted author's rows.
 - **Blobs** are stored once per SHA-256 under `documents/blobs/<sha[0..2]>/<sha>`. Identical content is shared across revisions. The static `/files/*` server only serves `files/`-prefixed ids, so blobs are reachable only through the authorised document routes.
 
 The head of a document moves with a compare-and-swap on the previous head, so concurrent writers never overwrite each other silently.
@@ -33,9 +33,13 @@ The `office` feature of `systemprompt-files` is exposed by the facade as `files-
 
 ### Projections and anchors
 
-A projection is a list of nodes with a stable id, a kind, text and an 8-hex-character hash of the normalised text. Node ids are format-specific, for example `body/p[12]` or `pid:<paraId>` in Word, `sheet[Sales]/B7` in Excel, `slide[3]/shape[2]/p[0]` in PowerPoint and `line[N]` in Markdown and text. A line in the hashline read format pairs the node with its hash: `p[12]:a3f1| text` or `Sales!B7:9c2e| 1234.5`.
+A codec projects a document into nodes with a kind, text, an 8-hex-character hash of the normalised text and a positional path, for example `body/p[12]` in Word, `sheet[Sales]/B7` in Excel, `slide[3]/shape[2]/p[0]` in PowerPoint and `line[N]` in Markdown and text. A path names a position, so it shifts when a block is inserted above it.
 
-Edit operations are `ReplaceText`, `InsertAfter`, `Delete`, `SetCells`, `InsertSlide`, `StrReplace`, `SetHtml` and `SetText`. Operations that target a node carry the hash the writer saw (`expected_hash`).
+The service gives every node an opaque, stable id instead: `<writer>.<counter>`, where the writer is a short tag of the session or execution that committed the revision and the counter rises per writer within the document. Ids are stored per revision. A new revision inherits its parent's ids by aligning blocks of the same kind and hash, keeping ids for changed blocks between aligned ones, retiring the ids an edit deleted and minting ids for inserted blocks. An id therefore names the same block in every revision until the block is deleted, and the tool surface, `document://<document>#<node>` addresses and acknowledgements use ids only. The positional path stays available as a debug field.
+
+A line in the hashline read format pairs the id with its hash: `k3x9q2.14:a3f1c2d0| text`, or `Sales!B7:9c2e1f0a| 1234.5` for a cell.
+
+Edit operations are `ReplaceText`, `InsertAfter`, `Delete`, `SetCells`, `InsertSlide`, `StrReplace`, `SetHtml`, `SetText`, `AppendMarkdown`, `Restore` and `InsertFromRevision`. Operations that target a node carry the hash the writer saw (`expected_hash`), or quote the block's text.
 
 ## Templates
 
@@ -59,12 +63,15 @@ Required levels: view and read need `view`, edit and commit need `edit`, listing
 
 ## Revision engine
 
-`DocumentService` is the single write path for MCP, HTTP and the bridge. A commit carries a base revision and either whole bytes or edit operations.
+`DocumentService` is the single write path for MCP, HTTP and the bridge. A commit carries an optional base revision and either whole bytes or edit operations.
 
-- **Base is the head.** The commit applies and the head swaps atomically.
-- **Base is behind the head, text formats.** HTML, Markdown and text are merged three-way against the common base. A clean merge produces a revision marked as merged. An overlapping change is reported as a conflict.
-- **Base is behind the head, Office formats.** The commit is reported as a conflict that names both the head and the base. Nothing is merged.
-- **Stale anchors.** For an operation with `expected_hash`, the service projects the base revision and compares hashes. A mismatch is a stale-anchor error that carries the node's current text, so an agent retries without re-reading the document.
+- **Edit operations apply to the head, in every format.** Each anchored operation names a node by id and quotes its hash. A commit is refused only when a node it touches changed at the head; the refusal carries that node's current text. An edit elsewhere in the document does not conflict, and a commit that landed while the head moved past its base is marked as merged. The base only says which revision the ids and hashes were read from.
+- **Whole-document operations.** `set_text`, `set_html` and `restore` touch every node, so they apply only when their base is the head.
+- **Bytes on the head.** Whole bytes whose base is the head are stored as given.
+- **Bytes on a stale base, text formats.** HTML, Markdown and text are merged three-way against the common base. An overlapping change is reported as a conflict.
+- **Bytes on a stale base, Office formats.** The upload is diffed against its base: a changed heading, paragraph or list item becomes a text replacement, a removed one a delete and a new one an insert after its previous sibling. The diff is checked to rebuild the upload from the base, then applied to the head under the same node guards and marked as merged. A change the diff cannot express, such as an added table, a removed slide or a style change, is reported as a conflict that names the head and the base.
+- **History.** `restore` makes an earlier revision the head as a new revision, and `insert_from_revision` copies a block's text from an earlier revision, so text is never retyped.
+- **Idempotent writes.** A write may carry an `op_id`. Its acknowledgement is stored for seven days, and a repeat with the same `op_id` on the same document returns the stored acknowledgement marked as replayed instead of applying again.
 - **Locks.** A lease held by another holder (bridge, editor or agent) refuses the commit.
 - **Size.** Uploads are bounded by `maxUploadBytes`.
 
@@ -79,20 +86,20 @@ Document tools are exposed through MCP and authorise as the calling user, never 
 | `documents_list` | Folders and documents in one folder, paged by cursor. |
 | `documents_search` | Full-text search over the head revision of every visible document. |
 | `documents_create` | Create from a template, optionally applying edit operations in the same first revision. |
-| `documents_read` | A revision as hashlines, by outline, text, node range or spreadsheet cells. |
-| `documents_edit` | Apply edit operations as one revision against a base revision. |
-| `documents_history` | Revisions, newest first, with author, actor kind and message. |
+| `documents_read` | A revision as hashlines, by outline, text, node range, one node, spreadsheet cells or search; the changes since a revision; or the document's metadata and who is in it now. |
+| `documents_edit` | Apply edit operations as one revision on the head, guarded per node, optionally idempotent by `op_id`. |
+| `documents_history` | Revisions, newest first, with author, actor kind and message, and with `verbose` the session, context, trace, task and on-behalf-of user. |
 | `documents_share` | Grant a subject access to a document or a folder subtree. |
 | `documents_export` | A signed ten-minute download link, or the sanitised HTML preview for the document-preview app. |
 | `documents_guide` | Working detail by topic: `editing`, `formats`, `sheets`, `slides`, `sharing` and `refusal.<code>`. |
 
-The server `instructions` carry the working contract: read the outline, edit by node id and hash or by quote, anchor the next edit on the acknowledgement, let the other writer's edit win on a conflict, and do not re-read between your own writes.
+The server `instructions` carry the working contract: read the outline, edit by node id and hash or by quote with an `op_id`, anchor the next edit on the acknowledgement and resume later with the changes since your last revision, let the head edit win on a conflict and never resend the old text, and do not re-read between your own writes.
 
-**Reading.** A line is `<node>:<hash>| <text>`; a cell is `<sheet>!<cell>:<hash>| <value>`. The text shows structure as the outline does: `# ` by heading level, `- ` for a list item, `| ` for a table cell and `## slide N` at each slide.
+**Reading.** A line is `<node>:<hash>| <text>`; a cell is `<sheet>!<cell>:<hash>| <value>`. The text shows structure as the outline does: `# ` by heading level, `- ` for a list item, `| ` for a table cell and `## slide N` at each slide. The outline folds a run of list items after three as `gap blocks=N`. `view: node` reads one node and its children, `view: search` the blocks containing a text, `view: meta` the name, place, access, head, size and who is present, and `view: changes` with `since_revision` the blocks changed since that revision, a `gap blocks=N` line for each run of unchanged blocks and a `gone <id>` line for each deleted block.
 
-**Editing.** Operations are `replace_text`, `insert_after`, `delete`, `str_replace`, `set_cells`, `insert_slide`, `set_text` and `set_html`. Every target in a call resolves against the document as it stood before the call, operations apply in order, and all apply or none. Each codec reports the node kinds `insert_after` accepts for its format. Every write takes a revision message, which history shows.
+**Editing.** Operations are `replace_text`, `insert_after`, `delete`, `str_replace`, `set_cells`, `insert_slide`, `set_text`, `set_html`, `append_markdown`, `restore` and `insert_from_revision`. Every target in a call resolves against the document as it stood before the call, operations apply in order, and all apply or none. Each codec reports the node kinds `insert_after` accepts for its format. Every write takes a revision message, which history shows.
 
-**Results.** A result is a one-line summary plus structured content, sent once. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs and content hashes. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read.
+**Results.** A result is a one-line summary plus structured content, sent once. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs, content hashes, each node id's positional path and the revision attribution. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read; a write landed on a moved head says `merged`, and a replayed `op_id` says `replayed`.
 
 **Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` (`stale_base`, `guard_mismatch`, `find_none`, `unsupported_op`, `unsupported_format`, `template_failed`, `forbidden`, `not_found`, `locked`, `invalid_params`) and the detail the failure knows: the head revision and who wrote it, a node's current text and hash, a match count or the accepted node kinds. The text names what to do next.
 
@@ -108,8 +115,8 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 |---|---|
 | `GET`, `POST /api/v1/documents` | List, create from a template, or import by multipart upload. |
 | `GET`, `HEAD /api/v1/documents/{id}` | Metadata. The `ETag` is the head revision. |
-| `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support. Replace the bytes with `If-Match: "<revision_id>"`. A stale base returns `409` with the head and base. |
-| `POST /api/v1/documents/{id}/edits` | Structured edit operations with a base revision. |
+| `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support. Replace the bytes with `If-Match: "<revision_id>"`; a stale base merges as described above or returns `409` with the head and base. `?op_id=` makes the write idempotent. |
+| `POST /api/v1/documents/{id}/edits` | Structured edit operations, with an optional base revision and `op_id`. |
 | `GET /api/v1/documents/{id}/revisions` | Revision history. |
 | `GET /api/v1/documents/{id}/projection`, `/preview` | Node projection and HTML preview. |
 | `GET`, `POST`, `DELETE /api/v1/documents/{id}/grants` | Grants. |
@@ -120,6 +127,8 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 With the `files-collab` facade feature (part of `full`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
 
 Errors map to `409` conflict and stale anchor, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
+
+A write records the request's session, trace and task, and the conversation named by an `x-context-id` header. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`. Errors map to `409` conflict and stale anchor, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
 
 ## Live co-editing
 
@@ -147,13 +156,14 @@ The bridge keeps `~/<workspace>/Drive` in step with the store. It talks to five 
 | `GET manifest` | Every document the user can view, with head revision and hash. |
 | `GET changes?since=` | Revisions created since a keyset cursor. |
 | `GET blob/{sha256}` | Bytes by hash. The bridge verifies the hash before it writes. |
-| `POST commit` | Multipart metadata and bytes with `If-Match` set to the base revision. Returns the new revision, or a conflict naming the head. |
+| `POST commit` | Multipart metadata and bytes with `If-Match` set to the base revision. Returns the new revision, the merged revision and its hash when the upload landed on a newer head, or a conflict naming the head. |
 | `PUT presence` | Editing beacons. |
 
 Behaviour:
 
 - A watcher debounces local writes by 1.5 seconds, ignores dot files, `~$` lock files, backup `~` files and `.tmp` or `.crdownload` partials, and commits the file as a revision.
 - A pull loop polls the change feed every 20 seconds, or sooner when a `document.revision.created` event arrives on the bridge stream. Remote bytes are hash-verified and written atomically.
+- A merged upload is recorded against the uploaded bytes, and the next pull writes the merged content.
 - A conflicting local edit is renamed to `<name> (conflict from <host>).<ext>` and the head is pulled, so neither version is lost.
 - A document deleted remotely moves into `Drive/.trash/<timestamp>/`. A local deletion is not propagated.
 - Presence is reported from file activity and from agent tool calls that touch a path inside the Drive folder.
@@ -191,7 +201,7 @@ Config validation rejects values outside the bounds.
 | Job | Schedule | Behaviour |
 |---|---|---|
 | `document_blob_gc` | daily | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
-| Presence sweep | every 60 seconds | Removes expired presence rows. |
+| Presence sweep | every 60 seconds | Removes expired presence rows and write acknowledgements older than seven days. |
 | `document_collab_update_sweep` | every 5 minutes | Deletes the update log of closed edit sessions. |
 
 All run once per cluster, and return without work while the store is disabled.
