@@ -1,3 +1,6 @@
+use std::time::Duration;
+
+use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::jobs::DocumentTrashPurgeJob;
 use systemprompt_files::documents::models::GrantTarget;
@@ -6,10 +9,11 @@ use systemprompt_files::documents::service::{
     CommentPolicy, CommitRequest, CopyRequest, HistoryPage, NewFolderRequest, ShareRequest,
     UpdateRequest,
 };
-use systemprompt_identifiers::{DocumentFolderId, DocumentId};
+use systemprompt_identifiers::{ConnectionId, DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, EditOp};
 use systemprompt_test_fixtures::test_db_pool;
+use tokio::sync::mpsc;
 
 use crate::documents_service_fixture::{
     GroupSource, Harness, allow, api_author, create, harness, person, trace, unique,
@@ -241,20 +245,21 @@ async fn update_renames_and_moves_and_names_the_owner_when_refused() {
     let reader = person("update-reader");
     let id = document(&h, &owner).await;
     let target = folder(&h, &owner).await;
+    let fresh = unique("renamed");
     let updated = h
         .service
         .update(
             &owner,
             &id,
             UpdateRequest {
-                name: Some("renamed".to_owned()),
+                name: Some(fresh.clone()),
                 folder: Some(Some(target.clone())),
             },
             &trace(),
         )
         .await
         .expect("update");
-    assert_eq!(updated.name, "renamed.txt");
+    assert_eq!(updated.name, format!("{fresh}.txt"));
     assert_eq!(updated.folder_id.as_ref(), Some(&target));
 
     share(
@@ -346,12 +351,24 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
     let owner = person("transfer-from");
     let next = person("transfer-to");
     let id = document(&h, &owner).await;
+    let (tx, mut rx) = mpsc::channel(16);
+    assert!(
+        h.broadcasters
+            .agui
+            .register(&next.id, &ConnectionId::generate(), tx)
+            .await
+    );
     let moved = h
         .service
         .transfer_ownership(&owner, &id, &next.id, &trace())
         .await
         .expect("transfer");
     assert_eq!(moved.owner_user_id, next.id);
+    let mut seen = String::new();
+    while let Ok(Some(event)) = tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
+        seen.push_str(&format!("{event:?}"));
+    }
+    assert!(seen.contains("document.ownership_transferred"), "{seen}");
     let view = h.service.get(&owner, &id, &trace()).await.expect("previous owner reads");
     assert_eq!(view.my_access, AccessLevel::Edit);
     let refused = h
@@ -368,6 +385,13 @@ async fn revoke_all_removes_every_grant() {
     let owner = person("revoke-owner");
     let reader = person("revoke-reader");
     let id = document(&h, &owner).await;
+    let (tx, mut rx) = mpsc::channel(16);
+    assert!(
+        h.broadcasters
+            .agui
+            .register(&reader.id, &ConnectionId::generate(), tx)
+            .await
+    );
     share(
         &h,
         &owner,
@@ -376,6 +400,11 @@ async fn revoke_all_removes_every_grant() {
         AccessLevel::View,
     )
     .await;
+    let mut seen = String::new();
+    while let Ok(Some(event)) = tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
+        seen.push_str(&format!("{event:?}"));
+    }
+    assert!(seen.contains("document.shared"), "the grantee hears the share: {seen}");
     share(
         &h,
         &owner,

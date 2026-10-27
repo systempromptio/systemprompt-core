@@ -139,10 +139,13 @@ pub fn refusal(code: RefusalCode, message: impl Into<String>) -> McpError {
 
 #[must_use]
 pub fn refusal_code(error: &McpError) -> Option<RefusalCode> {
-    let code = error.data.as_ref()?.get("code")?.as_str()?;
-    RefusalCode::ALL
-        .into_iter()
-        .find(|candidate| candidate.as_str() == code)
+    let tagged = error
+        .data
+        .as_ref()
+        .and_then(|data| data.get("code"))
+        .and_then(serde_json::Value::as_str);
+    tagged
+        .and_then(|code| RefusalCode::ALL.into_iter().find(|c| c.as_str() == code))
         .or_else(|| (error.code == ErrorCode::INVALID_PARAMS).then_some(RefusalCode::InvalidParams))
 }
 

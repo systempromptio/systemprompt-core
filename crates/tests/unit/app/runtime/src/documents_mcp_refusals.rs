@@ -115,3 +115,32 @@ fn every_code_serialises_as_its_name() {
         );
     }
 }
+
+#[test]
+fn forbidden_names_the_owner_and_trash_and_anchors_carry_detail() {
+    let owner = systemprompt_identifiers::UserId::new("owner-1");
+    let (text, data) = refused(DocumentsError::Forbidden {
+        action: systemprompt_models::documents::DocumentAction::Edit,
+        needed: systemprompt_models::documents::AccessLevel::Edit,
+        held: Some(systemprompt_models::documents::AccessLevel::View),
+        policy: None,
+        owner: Some(owner.clone()),
+    });
+    assert_eq!(data["code"], "forbidden");
+    assert_eq!(data["owner"], "owner-1");
+    assert!(text.contains("owner-1"), "{text}");
+
+    let (_, data) = refused(DocumentsError::Trashed {
+        document_id: DocumentId::generate(),
+    });
+    assert_eq!(data["code"], "not_found");
+    assert_eq!(data["trashed"], true);
+
+    let comment = systemprompt_identifiers::DocumentCommentId::generate();
+    let (text, data) = refused(DocumentsError::AnchorsAffected {
+        comments: vec![comment.clone()],
+    });
+    assert_eq!(data["code"], "anchors_affected");
+    assert_eq!(data["comments"][0], comment.as_str());
+    assert!(text.contains("allow_detach"), "{text}");
+}

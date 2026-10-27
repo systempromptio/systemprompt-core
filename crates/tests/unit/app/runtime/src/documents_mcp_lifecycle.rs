@@ -143,11 +143,12 @@ async fn trash_restore_copy_update_and_access_tools() {
         .await
         .expect("restore");
 
+    let fresh = format!("renamed-{}", uuid::Uuid::new_v4().simple());
     let (updated, _) = UpdateHandler { tools: &h.tools }
         .handle(
             UpdateInput {
                 document_id: document.clone(),
-                name: Some("renamed".to_owned()),
+                name: Some(fresh.clone()),
                 folder_id: None,
             },
             &ctx,
@@ -155,12 +156,12 @@ async fn trash_restore_copy_update_and_access_tools() {
         )
         .await
         .expect("update");
-    assert_eq!(updated.document.name, "renamed.txt");
+    assert_eq!(updated.document.name, format!("{fresh}.txt"));
     let (copied, _) = CopyHandler { tools: &h.tools }
         .handle(
             CopyInput {
                 document_id: document.clone(),
-                name: Some("duplicate".to_owned()),
+                name: Some(format!("duplicate-{}", uuid::Uuid::new_v4().simple())),
                 folder_id: None,
             },
             &ctx,
