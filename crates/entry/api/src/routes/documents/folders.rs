@@ -16,11 +16,11 @@ use systemprompt_models::api::ApiError;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::documents::{ListQuery, present};
 use super::error::DocumentsResult;
+use super::items::{FolderTarget, ListQuery, folder_target};
 use super::views::FolderJson;
 
-fn folder(raw: &str) -> Result<DocumentFolderId, ApiError> {
+fn folder(raw: &str) -> DocumentsResult<DocumentFolderId> {
     Ok(DocumentFolderId::try_new(raw)?)
 }
 
@@ -29,7 +29,7 @@ pub(super) async fn list(
     req_ctx: Extension<RequestContext>,
     query: Query<ListQuery>,
 ) -> DocumentsResult<Response> {
-    Ok(super::documents::list(state, req_ctx, query)
+    Ok(super::items::list(state, req_ctx, query)
         .await?
         .into_response())
 }
@@ -62,8 +62,8 @@ pub(super) async fn create(
 pub(super) struct UpdateBody {
     #[serde(default)]
     name: Option<String>,
-    #[serde(default, deserialize_with = "present")]
-    parent_id: Option<Option<DocumentFolderId>>,
+    #[serde(default, deserialize_with = "folder_target")]
+    parent_id: FolderTarget,
 }
 
 pub(super) async fn update(
@@ -74,26 +74,29 @@ pub(super) async fn update(
 ) -> DocumentsResult<Json<Option<FolderJson>>> {
     let who = caller(&state, &req_ctx).await?;
     let id = folder(&id)?;
-    if body.name.is_none() && body.parent_id.is_none() {
+    if body.name.is_none() && body.parent_id.is_keep() {
         return Err(ApiError::bad_request("give a new `name`, a `parent_id`, or both").into());
     }
-    let mut updated = None;
-    if let Some(parent) = body.parent_id {
-        updated = Some(
+    let moved = if body.parent_id.is_keep() {
+        None
+    } else {
+        Some(
             state
                 .service
-                .move_folder(&who.user, &id, parent.as_ref(), &who.trace)
+                .move_folder(&who.user, &id, body.parent_id.folder(), &who.trace)
                 .await?,
-        );
-    }
-    if let Some(name) = body.name {
-        updated = Some(
+        )
+    };
+    let renamed = match body.name {
+        Some(name) => Some(
             state
                 .service
                 .rename_folder(&who.user, &id, &name, &who.trace)
                 .await?,
-        );
-    }
+        ),
+        None => None,
+    };
+    let updated = renamed.or(moved);
     Ok(Json(updated.map(FolderJson::from)))
 }
 

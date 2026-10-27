@@ -20,8 +20,8 @@ use uuid::Uuid;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::documents::document_id;
 use super::error::{DocumentsResult, with_detail};
+use super::items::document_id;
 use super::views::{GrantJson, LockJson, PresenceJson};
 
 const DEFAULT_LOCK_SECS: u64 = 300;

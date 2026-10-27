@@ -23,9 +23,9 @@ use systemprompt_runtime::documents::mcp::{
 
 use super::DocumentsState;
 use super::caller::{Caller, load};
-use super::content::serve;
-use super::documents::document_id;
+use super::content::{ContentRequest, serve};
 use super::error::DocumentsResult;
+use super::items::document_id;
 use crate::error::ApiHttpError;
 
 struct DownloadQuery {
@@ -107,5 +107,12 @@ async fn download(
         user: load(state.users.as_ref(), &subject).await?,
         trace: TraceId::generate(),
     };
-    serve(state, &who, method, headers, &id, Some(revision)).await
+    let request = ContentRequest {
+        who: &who,
+        method,
+        headers,
+        id: &id,
+        revision: Some(revision),
+    };
+    serve(state, request).await
 }

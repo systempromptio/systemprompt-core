@@ -11,6 +11,7 @@
 
 use axum::body::{Body, Bytes};
 use axum::extract::{Path, Query, State};
+use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Extension, Json};
@@ -29,10 +30,11 @@ use systemprompt_traits::{FileStorageError, StoredFileRead};
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
-use super::documents::{api_author, cursor, document_id};
 use super::error::{DocumentsHttpError, DocumentsResult, conflict_response};
 use super::headers::{base_revision, content_disposition, etag, if_range_holds, none_match, range};
+use super::items::{api_author, cursor, document_id};
 use super::views::RevisionJson;
+use crate::error::ApiHttpError;
 
 const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
 const DEFAULT_HISTORY: i64 = 50;
@@ -43,34 +45,54 @@ pub(super) struct RevisionQuery {
     revision: Option<String>,
 }
 
-fn revision_id(raw: Option<&str>) -> Result<Option<DocumentRevisionId>, ApiError> {
-    raw.map(DocumentRevisionId::try_new)
-        .transpose()
-        .map_err(ApiError::from)
+fn revision_id(raw: Option<&str>) -> DocumentsResult<Option<DocumentRevisionId>> {
+    Ok(raw.map(DocumentRevisionId::try_new).transpose()?)
 }
 
 pub(super) async fn read(
     State(state): State<DocumentsState>,
-    Extension(req_ctx): Extension<RequestContext>,
-    method: Method,
-    headers: HeaderMap,
     Path(id): Path<String>,
     Query(query): Query<RevisionQuery>,
+    parts: Parts,
 ) -> DocumentsResult<Response> {
-    let who = caller(&state, &req_ctx).await?;
+    let who = caller(&state, request_context(&parts)?).await?;
     let id = document_id(&id)?;
     let revision = revision_id(query.revision.as_deref())?;
-    serve(&state, &who, &method, &headers, &id, revision).await
+    let request = ContentRequest {
+        who: &who,
+        method: &parts.method,
+        headers: &parts.headers,
+        id: &id,
+        revision,
+    };
+    serve(&state, request).await
+}
+
+pub(super) fn request_context(parts: &Parts) -> DocumentsResult<&RequestContext> {
+    parts.extensions.get::<RequestContext>().ok_or_else(|| {
+        ApiHttpError::unauthorized("document routes need an authenticated session").into()
+    })
+}
+
+pub(super) struct ContentRequest<'a> {
+    pub(super) who: &'a Caller,
+    pub(super) method: &'a Method,
+    pub(super) headers: &'a HeaderMap,
+    pub(super) id: &'a DocumentId,
+    pub(super) revision: Option<DocumentRevisionId>,
 }
 
 pub(super) async fn serve(
     state: &DocumentsState,
-    who: &Caller,
-    method: &Method,
-    headers: &HeaderMap,
-    id: &DocumentId,
-    revision: Option<DocumentRevisionId>,
+    request: ContentRequest<'_>,
 ) -> DocumentsResult<Response> {
+    let ContentRequest {
+        who,
+        method,
+        headers,
+        id,
+        revision,
+    } = request;
     let view = state.service.get(&who.user, id, &who.trace).await?;
     let wanted = (*method == Method::GET).then(|| range(headers)).flatten();
     let request = StreamRequest {
@@ -244,17 +266,17 @@ pub(super) struct WriteQuery {
 
 pub(super) async fn write(
     State(state): State<DocumentsState>,
-    Extension(req_ctx): Extension<RequestContext>,
-    headers: HeaderMap,
     Path(id): Path<String>,
     Query(query): Query<WriteQuery>,
+    parts: Parts,
     body: Bytes,
 ) -> DocumentsResult<Response> {
-    let who = caller(&state, &req_ctx).await?;
+    let who = caller(&state, request_context(&parts)?).await?;
+    let headers = &parts.headers;
     let id = document_id(&id)?;
     let request = CommitRequest {
         document_id: id.clone(),
-        base_revision: base_revision(&headers)?,
+        base_revision: base_revision(headers)?,
         body: CommitBody::Bytes(body.to_vec()),
         author: api_author(),
         message: query.message,

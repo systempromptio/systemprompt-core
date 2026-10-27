@@ -12,12 +12,12 @@
 
 mod caller;
 mod content;
-mod documents;
 mod download;
 pub mod drive;
 mod error;
 mod folders;
 mod headers;
+mod items;
 mod sharing;
 mod views;
 
@@ -86,13 +86,13 @@ pub fn document_service(ctx: &AppContext) -> Arc<DocumentService> {
 pub fn router(state: DocumentsState) -> Router {
     let limit = state.max_body_bytes();
     Router::new()
-        .route("/", get(documents::list).post(documents::create))
+        .route("/", get(items::list).post(items::create))
         .route(
             "/{id}",
-            get(documents::get)
-                .head(documents::get)
-                .patch(documents::update)
-                .delete(documents::delete),
+            get(items::get)
+                .head(items::get)
+                .patch(items::update)
+                .delete(items::delete),
         )
         .route(
             "/{id}/content",

@@ -38,31 +38,56 @@ pub(super) const fn api_author() -> Author {
     }
 }
 
-pub(super) fn document_id(raw: &str) -> Result<DocumentId, ApiError> {
+pub(super) fn document_id(raw: &str) -> DocumentsResult<DocumentId> {
     Ok(DocumentId::try_new(raw)?)
 }
 
-pub(super) fn folder_id(raw: Option<&str>) -> Result<Option<DocumentFolderId>, ApiError> {
-    raw.filter(|raw| !raw.is_empty())
+pub(super) fn folder_id(raw: Option<&str>) -> DocumentsResult<Option<DocumentFolderId>> {
+    Ok(raw
+        .filter(|raw| !raw.is_empty())
         .map(DocumentFolderId::try_new)
-        .transpose()
-        .map_err(ApiError::from)
+        .transpose()?)
 }
 
-pub(super) fn cursor(raw: Option<&str>) -> Result<Option<ListCursor>, ApiError> {
-    raw.map(|raw| {
-        raw.parse::<ListCursor>()
-            .map_err(|source| ApiError::bad_request("cursor is not valid").with_source(source))
-    })
-    .transpose()
+pub(super) fn cursor(raw: Option<&str>) -> DocumentsResult<Option<ListCursor>> {
+    let Some(raw) = raw else {
+        return Ok(None);
+    };
+    match raw.parse::<ListCursor>() {
+        Ok(cursor) => Ok(Some(cursor)),
+        Err(source) => Err(ApiError::bad_request("cursor is not valid")
+            .with_source(source)
+            .into()),
+    }
 }
 
-pub(super) fn present<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(super) enum FolderTarget {
+    #[default]
+    Keep,
+    Root,
+    Folder(DocumentFolderId),
+}
+
+impl FolderTarget {
+    pub(super) const fn is_keep(&self) -> bool {
+        matches!(self, Self::Keep)
+    }
+
+    pub(super) const fn folder(&self) -> Option<&DocumentFolderId> {
+        match self {
+            Self::Keep | Self::Root => None,
+            Self::Folder(id) => Some(id),
+        }
+    }
+}
+
+pub(super) fn folder_target<'de, D>(deserializer: D) -> Result<FolderTarget, D::Error>
 where
     D: Deserializer<'de>,
-    T: Deserialize<'de>,
 {
-    T::deserialize(deserializer).map(Some)
+    Ok(Option::<DocumentFolderId>::deserialize(deserializer)?
+        .map_or(FolderTarget::Root, FolderTarget::Folder))
 }
 
 #[derive(Debug, Deserialize)]
@@ -142,7 +167,7 @@ pub(super) async fn create(
     Ok((StatusCode::CREATED, Json(created)).into_response())
 }
 
-async fn read_import(mut form: Multipart) -> Result<ImportRequest, ApiError> {
+async fn read_import(mut form: Multipart) -> DocumentsResult<ImportRequest> {
     let mut name = None;
     let mut folder = None;
     let mut format = None;
@@ -210,8 +235,8 @@ pub(super) async fn get(
 pub(super) struct UpdateBody {
     #[serde(default)]
     name: Option<String>,
-    #[serde(default, deserialize_with = "present")]
-    folder_id: Option<Option<DocumentFolderId>>,
+    #[serde(default, deserialize_with = "folder_target")]
+    folder_id: FolderTarget,
 }
 
 pub(super) async fn update(
@@ -222,26 +247,29 @@ pub(super) async fn update(
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    if body.name.is_none() && body.folder_id.is_none() {
+    if body.name.is_none() && body.folder_id.is_keep() {
         return Err(ApiError::bad_request("give a new `name`, a `folder_id`, or both").into());
     }
-    let mut document = None;
-    if let Some(folder) = body.folder_id {
-        document = Some(
+    let moved = if body.folder_id.is_keep() {
+        None
+    } else {
+        Some(
             state
                 .service
-                .move_to(&who.user, &id, folder.as_ref(), &who.trace)
+                .move_to(&who.user, &id, body.folder_id.folder(), &who.trace)
                 .await?,
-        );
-    }
-    if let Some(name) = body.name {
-        document = Some(
+        )
+    };
+    let renamed = match body.name {
+        Some(name) => Some(
             state
                 .service
                 .rename(&who.user, &id, &name, &who.trace)
                 .await?,
-        );
-    }
+        ),
+        None => None,
+    };
+    let document = renamed.or(moved);
     let detail = document.map(super::views::DocumentJson::from);
     Ok(Json(detail).into_response())
 }

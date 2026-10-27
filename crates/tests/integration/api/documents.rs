@@ -799,3 +799,43 @@ async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credenti
     assert_eq!(linked.status, StatusCode::OK, "{}", linked.json());
     Ok(())
 }
+
+#[tokio::test]
+async fn patch_moves_into_a_folder_and_an_explicit_null_moves_to_the_root() -> Result<()> {
+    use systemprompt_api::routes::documents::folders_router;
+
+    let (pool, _ctx, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "docs-move").await?;
+    let id = id_of(&create_markdown(&state, &owner).await?);
+    let folders =
+        folders_router(state.clone()).layer(Extension(request_context(owner.user_id.as_str())));
+    let folder = send(
+        folders,
+        json_request(
+            Method::POST,
+            "/",
+            &json!({ "name": format!("team-{}", Uuid::new_v4().simple()) }),
+        ),
+    )
+    .await?;
+    assert_eq!(folder.status, StatusCode::CREATED, "{}", folder.json());
+    let folder_id = folder.json()["id"].as_str().expect("folder id").to_owned();
+
+    let patch = |body: Value| {
+        send(
+            app(&state, &owner),
+            json_request(Method::PATCH, &format!("/{id}"), &body),
+        )
+    };
+    let moved = patch(json!({ "folder_id": folder_id })).await?;
+    assert_eq!(moved.status, StatusCode::OK, "{}", moved.json());
+    assert_eq!(moved.json()["folder_id"], folder_id.as_str());
+
+    let rooted = patch(json!({ "folder_id": null })).await?;
+    assert_eq!(rooted.status, StatusCode::OK, "{}", rooted.json());
+    assert_eq!(rooted.json()["folder_id"], Value::Null);
+
+    let empty = patch(json!({})).await?;
+    assert_eq!(empty.status, StatusCode::BAD_REQUEST);
+    Ok(())
+}

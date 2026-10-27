@@ -11,6 +11,8 @@ use systemprompt_identifiers::{ContentHash, DocumentRevisionId};
 use systemprompt_models::api::ApiError;
 use systemprompt_traits::ByteRange;
 
+use super::error::DocumentsResult;
+
 pub(super) fn etag(hash: &ContentHash) -> String {
     format!("\"{}\"", hash.as_str())
 }
@@ -39,13 +41,15 @@ pub(super) fn if_range_holds(headers: &HeaderMap, etag: &str) -> bool {
         .is_none_or(|value| value.trim() == etag)
 }
 
-pub(crate) fn base_revision(headers: &HeaderMap) -> Result<Option<DocumentRevisionId>, ApiError> {
+pub(crate) fn base_revision(headers: &HeaderMap) -> DocumentsResult<Option<DocumentRevisionId>> {
     let Some(value) = headers.get(header::IF_MATCH) else {
         return Ok(None);
     };
     let raw = value
         .to_str()
-        .map_err(|_| ApiError::bad_request("If-Match must be a quoted revision id"))?
+        .map_err(|source| {
+            ApiError::bad_request("If-Match must be a quoted revision id").with_source(source)
+        })?
         .trim();
     let unquoted = raw
         .strip_prefix('"')

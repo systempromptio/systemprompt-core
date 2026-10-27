@@ -12,6 +12,7 @@ use axum::Json;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{ContentHash, DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::api::ApiError;
 use systemprompt_provider_contracts::documents::CodecError;
@@ -20,25 +21,31 @@ use crate::error::ApiHttpError;
 
 #[derive(Debug)]
 pub(crate) enum DocumentsHttpError {
-    Service(DocumentsError),
-    Api(ApiHttpError),
+    Service(Box<DocumentsError>),
+    Api(Box<ApiHttpError>),
 }
 
 impl From<DocumentsError> for DocumentsHttpError {
     fn from(error: DocumentsError) -> Self {
-        Self::Service(error)
+        Self::Service(Box::new(error))
     }
 }
 
 impl From<ApiHttpError> for DocumentsHttpError {
     fn from(error: ApiHttpError) -> Self {
-        Self::Api(error)
+        Self::Api(Box::new(error))
     }
 }
 
 impl From<ApiError> for DocumentsHttpError {
     fn from(error: ApiError) -> Self {
-        Self::Api(ApiHttpError::from(error))
+        Self::Api(Box::new(ApiHttpError::from(error)))
+    }
+}
+
+impl From<IdValidationError> for DocumentsHttpError {
+    fn from(error: IdValidationError) -> Self {
+        Self::from(ApiError::from(error))
     }
 }
 
@@ -61,7 +68,7 @@ struct StaleAnchorDetail<'a> {
 }
 
 #[derive(Serialize)]
-struct WithDetail<'a, T: Serialize> {
+struct WithDetail<'a, T> {
     #[serde(flatten)]
     error: &'a ApiError,
     #[serde(flatten)]
@@ -99,8 +106,8 @@ pub(crate) fn conflict_response(
 impl IntoResponse for DocumentsHttpError {
     fn into_response(self) -> Response {
         match self {
-            Self::Api(error) => error.into_response(),
-            Self::Service(error) => service_response(error),
+            Self::Api(error) => (*error).into_response(),
+            Self::Service(error) => service_response(*error),
         }
     }
 }
@@ -117,7 +124,7 @@ fn service_response(error: DocumentsError) -> Response {
             actual,
             current_text,
         } => {
-            let api = ApiError::conflict(message.clone()).with_error_key("stale_anchor");
+            let api = ApiError::conflict(message).with_error_key("stale_anchor");
             return with_detail(
                 &api,
                 StaleAnchorDetail {
