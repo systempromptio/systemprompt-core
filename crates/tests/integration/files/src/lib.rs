@@ -12,6 +12,12 @@ mod documents_blob_store;
 #[cfg(test)]
 mod documents_repository;
 #[cfg(test)]
+mod documents_service;
+#[cfg(test)]
+mod documents_service_drive;
+#[cfg(test)]
+mod documents_service_fixture;
+#[cfg(test)]
 mod file_ingestion;
 #[cfg(test)]
 mod repository;

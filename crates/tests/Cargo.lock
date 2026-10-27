@@ -1775,6 +1775,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6184e33543162437515c2e2b48714794e37845ec9851711914eec9d308f6ebe8"
 
 [[package]]
+name = "diffy"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e3dc2f773b6aaa63b1a7684b8589f670a8a0146a510b74d23a401c882364b49"
+dependencies = [
+ "hashbrown 0.17.1",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8946,6 +8955,7 @@ dependencies = [
  "async-trait",
  "base64 0.23.1",
  "chrono",
+ "diffy",
  "ego-tree",
  "futures-util",
  "hex",
@@ -8961,7 +8971,9 @@ dependencies = [
  "systemprompt-cloud",
  "systemprompt-config",
  "systemprompt-database",
+ "systemprompt-events",
  "systemprompt-extension",
+ "systemprompt-governance",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
@@ -8988,10 +9000,13 @@ dependencies = [
  "sqlx",
  "systemprompt-config",
  "systemprompt-database",
+ "systemprompt-events",
  "systemprompt-files",
+ "systemprompt-governance",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-traits",

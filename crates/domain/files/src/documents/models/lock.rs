@@ -79,6 +79,7 @@ pub struct DocumentPresenceRow {
     pub user_id: UserId,
     pub source: PresenceSource,
     pub state: PresenceState,
+    // JSON: editor cursor position; the shape belongs to the client's editor.
     pub cursor: Option<serde_json::Value>,
     pub updated_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
@@ -90,5 +91,6 @@ pub struct PresenceUpsert {
     pub user_id: UserId,
     pub source: PresenceSource,
     pub state: PresenceState,
+    // JSON: editor cursor position; the shape belongs to the client's editor.
     pub cursor: Option<serde_json::Value>,
 }

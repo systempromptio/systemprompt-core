@@ -11,6 +11,8 @@
 mod blobs;
 mod documents;
 mod edit_sessions;
+
+mod folder_contents;
 mod folders;
 mod grants;
 mod locks;

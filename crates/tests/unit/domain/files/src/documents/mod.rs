@@ -7,6 +7,7 @@ mod codecs_pptx;
 mod codecs_pptx_edits;
 mod codecs_text;
 mod codecs_xlsx;
+mod commit_plan;
 mod docx_fixture;
 mod pptx_fixture;
 mod registry;

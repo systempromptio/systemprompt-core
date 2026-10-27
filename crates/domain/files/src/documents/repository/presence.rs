@@ -24,6 +24,7 @@ struct PresenceRow {
     user_id: UserId,
     source: String,
     state: String,
+    // JSON: editor cursor position; the shape belongs to the client's editor.
     cursor: Option<serde_json::Value>,
     updated_at: DateTime<Utc>,
     expires_at: DateTime<Utc>,

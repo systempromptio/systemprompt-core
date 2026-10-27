@@ -1,6 +1,11 @@
 //! Shared document store: folders, documents, content-addressed revisions,
 //! subject-keyed grants, locks, presence, edit sessions, codecs and templates.
 //!
+//! [`access`] decides who may do what ([`access::DocumentAccessService`]);
+//! [`service`] is the application service ([`service::DocumentService`]) that
+//! runs every operation through it, with the pure commit logic in
+//! [`revision`] and the AG-UI events in [`events`]. [`error`] is the one
+//! error type.
 //! [`blob_store`] stores revision bytes by content hash over `FileStorage`,
 //! and [`jobs`] collects unreferenced blobs and expired presence rows.
 //! [`models`] holds the row and request types; [`repository`] holds one
@@ -17,9 +22,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod access;
 pub mod blob_store;
 pub mod codecs;
+pub mod error;
+pub mod events;
 pub mod jobs;
 pub mod models;
 pub mod repository;
+pub mod revision;
+pub mod service;
 pub mod templates;
+
+pub use access::{AccessTarget, DocumentAccessService, Granted};
+pub use error::DocumentsError;
+pub use events::DocumentEvents;
+pub use service::DocumentService;

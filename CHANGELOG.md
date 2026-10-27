@@ -14,6 +14,7 @@
 
 ### Added
 
+- **Files:** `DocumentService` and `DocumentAccessService` — folders registered as authz entities, subject-keyed grants resolved with the registered subject dimensions and the authz hook (fail closed), template-based creation and import, hash-anchored edit commits with a compare-and-swap head, three-way merges for text formats and conflict reporting for Office formats, locks, presence, sharing, search and the bridge Drive feed, with document events on the AgUi stream.
 - **Files:** a content-addressed `BlobStore` over `FileStorage` for document revisions, with a daily unreferenced-blob garbage collector, a presence sweep job and `files.documents` configuration (upload limit, GC grace, presence TTL).
 - **Files:** a document template registry that merges `DocumentTemplateProvider` registrations with the `services/documents/templates/*.yaml` catalog, highest priority per id, and ships the core blank text, Markdown and HTML templates and the blank Word, Excel and PowerPoint documents (feature `office`).
 - **Files:** core `DocumentCodec` implementations for HTML, Markdown and plain text with hash-anchored line and block projections, and the `CodecRegistry` that picks the highest-priority codec per format.

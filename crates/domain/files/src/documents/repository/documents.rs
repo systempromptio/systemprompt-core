@@ -14,7 +14,7 @@ use crate::documents::models::{Document, ListCursor, NewDocument, SubjectPairs, 
 
 #[derive(Debug, Clone)]
 pub struct DocumentRepository {
-    pools: Pools,
+    pub(super) pools: Pools,
 }
 
 struct DocumentRow {

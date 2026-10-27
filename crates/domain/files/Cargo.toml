@@ -33,6 +33,8 @@ systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-governance = { workspace = true }
+systemprompt-events = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
@@ -53,6 +55,7 @@ pulldown-cmark = { workspace = true }
 ammonia = { workspace = true }
 scraper = { workspace = true }
 ego-tree = { workspace = true }
+diffy = { workspace = true }
 zip = { workspace = true, optional = true }
 quick-xml = { workspace = true, optional = true }
 umya-spreadsheet = { workspace = true, optional = true }

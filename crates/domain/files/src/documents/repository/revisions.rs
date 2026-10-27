@@ -24,6 +24,7 @@ struct RevisionRow {
     origin_kind: String,
     origin_id: Option<String>,
     message: Option<String>,
+    // JSON: the JSONB edit_ops column, decoded into EditOp values on read.
     edit_ops: Option<serde_json::Value>,
     created_at: DateTime<Utc>,
 }
