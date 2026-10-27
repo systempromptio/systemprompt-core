@@ -39,7 +39,7 @@
 
 ### Added
 
-- **Documents:** `replace_text`, `delete` and `insert_after` accept `target: {find, nth?, within?}` in place of a node id and hash. The quote matches the innermost block containing it in the document as read before the call, and a quote with no match is refused with the closest block's id, hash and text.
+- **Documents:** `replace_text`, `delete` and `insert_after` accept `node: {find, nth?, within?}` in place of a node id and hash. The quote matches the innermost block containing it in the document as read before the call, and a quote with no match is refused with the closest block's id, hash and text.
 - **Documents:** `insert_after` and `replace_text` accept `as: markdown`, and `append_markdown` adds Markdown at the end of the body. Each codec writes headings, paragraphs, lists, tables, bold, italic, code and links in its own markup, and writes a block it cannot represent as a plain paragraph.
 - **Analytics:** the `report_*` read contract gains `report_ai_request_attributions` (a request's scope dimensions and values), `report_ai_request_tool_calls` (the tool calls a request's model emitted, without arguments or results) and `report_governance_decisions`. Each hides a deleted user's rows, as the rest of the contract does. An extension can roll up by any attribution dimension without reading the source tables. The analytics extension now depends on `authz`, which owns `governance_decisions`.
 - **Bridge:** `doctor` checks that `OpenCode` kept the config it was given. It runs `opencode debug config` and fails, naming the file and entry, when the gateway provider or any written policy is missing from the loaded config or out of order. `OpenCode` drops a malformed policy without a message.

@@ -120,7 +120,6 @@ pub enum CellValue {
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum EditOp {
     ReplaceText {
-        #[serde(alias = "target")]
         node: NodeTarget,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         expected_hash: Option<String>,
@@ -129,7 +128,6 @@ pub enum EditOp {
         content_as: ContentAs,
     },
     InsertAfter {
-        #[serde(alias = "target")]
         node: NodeTarget,
         #[serde(default = "paragraph")]
         kind: NodeKind,
@@ -138,7 +136,6 @@ pub enum EditOp {
         content_as: ContentAs,
     },
     Delete {
-        #[serde(alias = "target")]
         node: NodeTarget,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         expected_hash: Option<String>,

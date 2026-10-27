@@ -28,7 +28,7 @@ kind: {type: heading, level} | {type: paragraph} | {type: list_item} | {type: ro
 text}, text}; str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, \
 range, values}; insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; \
 append_markdown {markdown} (adds Markdown at the end).
-Target: an anchored op names node by id with expected_hash, or target: {find: \"quoted text\", \
+Target: an anchored op names node by id with expected_hash, or node: {find: \"quoted text\", \
 nth?, within?: node} to hit the block containing the quote; no match refuses find_none with \
 the closest block. Content: replace_text and insert_after take as: \"markdown\" to write \
 headings, lists, tables, bold, italic and links as native formatting.

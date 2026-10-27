@@ -100,7 +100,7 @@ fn touches_reports_anchor_node() {
 fn quote_target_and_markdown_content_parse_from_the_wire() {
     let op: EditOp = serde_json::from_value(serde_json::json!({
         "op": "insert_after",
-        "target": {"find": "Revenue grew", "nth": 2, "within": "body/tbl[0]"},
+        "node": {"find": "Revenue grew", "nth": 2, "within": "body/tbl[0]"},
         "text": "**bold**",
         "as": "markdown"
     }))
@@ -131,7 +131,7 @@ fn quote_target_and_markdown_content_parse_from_the_wire() {
 fn quote_targets_need_no_expected_hash() {
     let op: EditOp = serde_json::from_value(serde_json::json!({
         "op": "delete",
-        "target": {"find": "obsolete"}
+        "node": {"find": "obsolete"}
     }))
     .expect("deserialize");
     assert!(matches!(
