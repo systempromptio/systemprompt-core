@@ -2,7 +2,10 @@
 //! ops, answered with the new revision (with `merged_from` when the head
 //! moved under the write) or a 409 naming head and base. An `op_id` (query
 //! parameter on a byte write, body field on edits) makes the write
-//! idempotent: a repeat answers the stored acknowledgement with `replayed`.
+//! idempotent: the commit stores its acknowledgement in its own transaction,
+//! and a repeat of the same request (over REST or MCP) answers it with
+//! `replayed`; a different request under a used op id is refused 409
+//! `op_id_mismatch`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,10 +18,9 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::models::StoredWriteAck;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ProposeRequest,
+    CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, LandedCommit, ProposeRequest,
 };
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentOpId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
@@ -26,7 +28,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
 
 use super::DocumentsState;
-use super::caller::{Caller, api_author, caller};
+use super::caller::{api_author, caller};
 use super::content::request_context;
 use super::error::{DocumentsResult, conflict_response};
 use super::headers::{base_revision, etag};
@@ -39,31 +41,30 @@ pub(super) struct CommittedJson {
     revision: RevisionJson,
     #[serde(skip_serializing_if = "Option::is_none")]
     merged_from: Option<DocumentRevisionId>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    replayed: bool,
+}
+
+fn landed_response(landed: LandedCommit) -> Response {
+    let tag = etag(&landed.revision.content_sha256);
+    let merged = landed.ack.merged_from.is_some();
+    let mut response = Json(CommittedJson {
+        revision: landed.revision.into(),
+        merged_from: landed.ack.merged_from,
+        replayed: landed.replayed,
+    })
+    .into_response();
+    if !merged && let Ok(value) = HeaderValue::from_str(&tag) {
+        response.headers_mut().insert(header::ETAG, value);
+    }
+    response
 }
 
 pub(super) fn outcome_response(outcome: CommitOutcome, document: &DocumentId) -> Response {
     match outcome {
-        CommitOutcome::Committed { revision, .. } => {
-            let tag = etag(&revision.content_sha256);
-            let mut response = Json(CommittedJson {
-                revision: revision.into(),
-                merged_from: None,
-            })
-            .into_response();
-            if let Ok(value) = HeaderValue::from_str(&tag) {
-                response.headers_mut().insert(header::ETAG, value);
-            }
-            response
+        CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => {
+            landed_response(*landed)
         },
-        CommitOutcome::Merged {
-            revision,
-            merged_from,
-            ..
-        } => Json(CommittedJson {
-            revision: revision.into(),
-            merged_from: Some(merged_from),
-        })
-        .into_response(),
         CommitOutcome::Conflict { head, base } => {
             let error = DocumentsError::Conflict {
                 document_id: document.clone(),
@@ -105,8 +106,10 @@ pub(super) async fn write(
         message: query.message,
         lock_holder_id: None,
         comments: CommentPolicy::detach(),
+        op_id: query.op_id,
     };
-    idempotent(&state, &who, request, query.op_id).await
+    let outcome = state.service.commit(&who.user, request, &who.trace).await?;
+    Ok(outcome_response(outcome, &id))
 }
 
 #[derive(Debug, Deserialize)]
@@ -165,7 +168,7 @@ pub(super) async fn edits(
         return Ok(proposed_response(proposed));
     }
     let request = CommitRequest {
-        document_id: id,
+        document_id: id.clone(),
         base_revision: body.base_revision,
         body: CommitBody::Ops(body.ops),
         author: api_author(&req_ctx, &headers),
@@ -175,76 +178,8 @@ pub(super) async fn edits(
             allow_detach: body.allow_detach,
             answering: body.answering,
         },
+        op_id: body.op_id,
     };
-    idempotent(&state, &who, request, body.op_id).await
-}
-
-async fn idempotent(
-    state: &DocumentsState,
-    who: &Caller,
-    request: CommitRequest,
-    op_id: Option<DocumentOpId>,
-) -> DocumentsResult<Response> {
-    let id = request.document_id.clone();
-    let Some(op_id) = op_id else {
-        let outcome = state.service.commit(&who.user, request, &who.trace).await?;
-        return Ok(outcome_response(outcome, &id));
-    };
-    if let Some(stored) = state
-        .service
-        .find_write_ack(&who.user, &id, &op_id, &who.trace)
-        .await?
-    {
-        return Ok(replayed(stored.ack));
-    }
     let outcome = state.service.commit(&who.user, request, &who.trace).await?;
-    remember(state, &id, &op_id, &outcome).await;
     Ok(outcome_response(outcome, &id))
-}
-
-async fn remember(
-    state: &DocumentsState,
-    document: &DocumentId,
-    op_id: &DocumentOpId,
-    outcome: &CommitOutcome,
-) {
-    let (revision, merged_from) = match outcome {
-        CommitOutcome::Committed { revision, .. } => (revision, None),
-        CommitOutcome::Merged {
-            revision,
-            merged_from,
-            ..
-        } => (revision, Some(merged_from.clone())),
-        CommitOutcome::Conflict { .. } => return,
-    };
-    let body = CommittedJson {
-        revision: revision.clone().into(),
-        merged_from,
-    };
-    let ack = match serde_json::to_value(&body) {
-        Ok(ack) => ack,
-        Err(error) => {
-            tracing::warn!(error = %error, op_id = %op_id, "Write ack not stored");
-            return;
-        },
-    };
-    let stored = StoredWriteAck {
-        revision_id: revision.id.clone(),
-        ack,
-    };
-    if let Err(error) = state
-        .service
-        .record_write_ack(document, op_id, &stored)
-        .await
-    {
-        tracing::warn!(error = %error, op_id = %op_id, "Write ack not stored");
-    }
-}
-
-// JSON: the stored acknowledgement is replayed as written, flagged as a replay.
-fn replayed(mut ack: serde_json::Value) -> Response {
-    if let Some(fields) = ack.as_object_mut() {
-        fields.insert("replayed".to_owned(), serde_json::Value::Bool(true));
-    }
-    Json(ack).into_response()
 }

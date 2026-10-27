@@ -4,18 +4,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::DocumentRevisionId;
+use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ContentAs, DocumentConflictEvent, EditOp, Projection};
-use systemprompt_provider_contracts::documents::CodecError;
+use systemprompt_provider_contracts::documents::{CodecError, NodeFragment};
 
-use super::apply::apply_on_head;
+use super::apply::{HeadEdit, apply_on_head};
 use super::byte_diff::DiffInput;
 use super::commit::{Built, Landing};
+use super::fragments::unsupported;
 use super::support::blocking;
 use super::{Author, CommitOutcome, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
+use crate::documents::nodes::path_of;
 use crate::documents::revision::{CommitBody, CommitPlan, MergeOutcome, three_way_bytes};
 
 pub(super) struct Conflicted<'a> {
@@ -30,6 +32,7 @@ impl DocumentService {
         plan: CommitPlan,
         landing: &Landing<'_>,
         body: CommitBody,
+        fragments: Vec<NodeFragment>,
     ) -> Result<(Built, Option<Projection>), DocumentsError> {
         let document = landing.document;
         let head = match landing.head {
@@ -46,8 +49,11 @@ impl DocumentService {
                 let codec = self.codec(document.format)?;
                 let format = document.format;
                 Built::Applied(
-                    blocking(move || apply_on_head(codec.as_ref(), format, &bytes, &head, ops))
-                        .await?,
+                    blocking(move || {
+                        let edit = HeadEdit { ops, fragments };
+                        apply_on_head(codec.as_ref(), format, &bytes, &head, edit)
+                    })
+                    .await?,
                 )
             },
             (CommitPlan::MergeBytes, CommitBody::Bytes(ours)) => {
@@ -90,7 +96,7 @@ impl DocumentService {
         &self,
         document: &Document,
         op: EditOp,
-    ) -> Result<EditOp, DocumentsError> {
+    ) -> Result<(EditOp, Option<NodeFragment>), DocumentsError> {
         match op {
             EditOp::Restore { .. } => Err(DocumentsError::Codec(CodecError::Malformed {
                 detail: "restore must be the only op of its commit",
@@ -101,19 +107,42 @@ impl DocumentService {
                 after,
             } => {
                 let revision = self.resolve_revision(document, Some(&revision_id)).await?;
-                let projected = self.projected(document, &revision).await?;
-                let source = projected
+                let (projected, bytes) = self.projected_with_bytes(document, &revision).await?;
+                let path = projected
                     .ids
                     .find(&node)
-                    .ok_or(DocumentsError::UnknownNode { node })?;
-                Ok(EditOp::InsertAfter {
-                    node: after,
-                    kind: source.kind,
-                    text: source.text.clone().unwrap_or_default(),
-                    content_as: ContentAs::Text,
+                    .map(|source| DocumentNodeId::new(path_of(source)))
+                    .ok_or_else(|| DocumentsError::UnknownNode { node: node.clone() })?;
+                let codec = self.codec(document.format)?;
+                let format = document.format;
+                let paths = projected.paths;
+                let fragment = blocking(move || {
+                    codec
+                        .copy_node(&bytes, &paths, &path)
+                        .map_err(|error| unsupported(codec.as_ref(), format, error))
                 })
+                .await?;
+                if fragment.native.is_some() {
+                    return Ok((
+                        EditOp::InsertFromRevision {
+                            revision_id,
+                            node,
+                            after,
+                        },
+                        Some(fragment),
+                    ));
+                }
+                Ok((
+                    EditOp::InsertAfter {
+                        node: after,
+                        kind: fragment.kind,
+                        text: fragment.text.unwrap_or_default(),
+                        content_as: ContentAs::Text,
+                    },
+                    None,
+                ))
             },
-            other => Ok(other),
+            other => Ok((other, None)),
         }
     }
 
@@ -154,6 +183,9 @@ impl DocumentService {
                 "Conflict event not delivered"
             );
         }
-        Ok(CommitOutcome::Conflict { head, base })
+        Ok(CommitOutcome::Conflict {
+            head: Box::new(head),
+            base,
+        })
     }
 }

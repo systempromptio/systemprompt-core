@@ -9,7 +9,9 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId, TraceId};
+use systemprompt_identifiers::{
+    DocumentFolderId, DocumentId, DocumentTemplateId, TraceId,
+};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 
@@ -17,7 +19,7 @@ use super::support::{apply_with, blocking, document_name, format_of_name, join_p
 use super::{Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, DocumentRevision, NewDocument, NewRevision};
+use crate::documents::models::{Document, DocumentRevision, NewDocument};
 use crate::documents::repository::PathMove;
 
 pub(super) struct NewContent {
@@ -176,46 +178,6 @@ impl DocumentService {
         self.announce_revision(&document, &revision).await;
         let document = self.load_document(&document.id).await?;
         Ok((document, revision))
-    }
-
-    async fn first_revision(
-        &self,
-        who: &AuthenticatedUser,
-        document: &Document,
-        hash: systemprompt_identifiers::ContentHash,
-        content: &NewContent,
-    ) -> Result<DocumentRevision, DocumentsError> {
-        let author = &content.author;
-        let revision = self
-            .repos
-            .revisions
-            .insert(NewRevision {
-                document_id: document.id.clone(),
-                parent_revision_id: None,
-                content_sha256: hash,
-                author_user_id: who.id.clone(),
-                actor_kind: author.actor_kind,
-                origin_kind: author.origin.kind(),
-                origin_id: author.origin.id(),
-                message: content.message.clone(),
-                edit_ops: content.ops.clone(),
-                attribution: author.attribution.clone(),
-            })
-            .await?;
-        if !self
-            .repos
-            .documents
-            .set_head_if(&document.id, None, &revision.id)
-            .await?
-        {
-            let head = self.repos.revisions.head(&document.id).await?;
-            return Err(DocumentsError::Conflict {
-                document_id: document.id.clone(),
-                head: head.map_or_else(|| revision.id.clone(), |head| head.id),
-                base: None,
-            });
-        }
-        Ok(revision)
     }
 
     pub async fn get(

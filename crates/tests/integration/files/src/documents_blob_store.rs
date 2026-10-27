@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use systemprompt_files::documents::blob_store::{BlobStore, BlobStoreError, storage_id_for};
 use systemprompt_files::documents::models::{NewDocument, NewRevision, RevisionAttribution};
 use systemprompt_files::documents::repository::DocumentRepositories;
-use systemprompt_identifiers::{ContentHash, UserId};
+use systemprompt_identifiers::{ContentHash, DocumentRevisionId, UserId};
 use systemprompt_models::documents::{ActorKind, DocumentFormat, RevisionOriginKind};
 use systemprompt_storage::{FileStorageBackend, build_file_storage};
 use systemprompt_test_fixtures::test_db_pool;
@@ -78,6 +78,7 @@ impl Harness {
         self.repos
             .revisions
             .insert(NewRevision {
+                id: DocumentRevisionId::generate(),
                 document_id: document.id,
                 parent_revision_id: None,
                 content_sha256: hash.clone(),

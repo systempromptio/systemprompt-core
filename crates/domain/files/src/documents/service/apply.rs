@@ -2,28 +2,63 @@
 //! checked against the head's id-addressed projection, then the ops are
 //! translated to codec paths and applied in one batch.
 //!
-//! A guard names one node: an op that quotes a hash is refused only when
-//! that node's hash at the head differs, and an op naming an id the head no
-//! longer has is refused as an unknown node. Codec errors are relabelled
-//! from paths back to ids so a refusal names what the caller read.
+//! An op that names a node by id must carry that node's `expected_hash`; a
+//! quote target resolves its own. A guard names one node: an op is refused
+//! only when that node's hash at the head differs, and an op naming an id
+//! the head no longer has is refused as an unknown node. Codec errors are
+//! relabelled from paths back to ids so a refusal names what the caller read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_models::documents::{DocumentFormat, EditOp, Projection};
-use systemprompt_provider_contracts::documents::{CodecError, DocumentCodec, resolve_targets};
+use systemprompt_models::documents::{DocumentFormat, EditOp, NodeTarget, Projection};
+use systemprompt_provider_contracts::documents::{
+    CodecError, DocumentCodec, NodeFragment, resolve_targets,
+};
 
+use super::fragments::{FragmentInsert, FragmentPass, unsupported};
 use super::node_ids::Projected;
 use crate::documents::error::DocumentsError;
-use crate::documents::nodes::{path_of, to_paths};
+use crate::documents::nodes::{CarryHints, path_of, to_paths};
 
 #[derive(Debug, Clone)]
 pub(super) struct AppliedOps {
     pub bytes: Vec<u8>,
-    pub retired: HashSet<DocumentNodeId>,
+    pub hints: CarryHints,
+}
+
+pub(super) struct HeadEdit {
+    pub(super) ops: Vec<EditOp>,
+    pub(super) fragments: Vec<NodeFragment>,
+}
+
+impl HeadEdit {
+    pub(super) const fn ops(ops: Vec<EditOp>) -> Self {
+        Self {
+            ops,
+            fragments: Vec::new(),
+        }
+    }
+}
+
+fn split_fragments(edit: HeadEdit) -> (Vec<EditOp>, Vec<FragmentInsert>) {
+    let mut fragments = edit.fragments.into_iter();
+    let mut ops = Vec::with_capacity(edit.ops.len());
+    let mut inserts = Vec::new();
+    for op in edit.ops {
+        match op {
+            EditOp::InsertFromRevision { after, .. } => {
+                if let Some(fragment) = fragments.next() {
+                    inserts.push(FragmentInsert { after, fragment });
+                }
+            },
+            other => ops.push(other),
+        }
+    }
+    (ops, inserts)
 }
 
 pub(super) fn apply_on_head(
@@ -31,30 +66,60 @@ pub(super) fn apply_on_head(
     format: DocumentFormat,
     bytes: &[u8],
     head: &Projected,
-    ops: Vec<EditOp>,
+    edit: HeadEdit,
 ) -> Result<AppliedOps, DocumentsError> {
+    let (ops, inserts) = split_fragments(edit);
+    require_guards(&ops)?;
     let resolved = resolve_targets(&head.ids, ops)?;
     guard(&head.ids, &resolved.ops)?;
-    let retired = resolved
-        .ops
-        .iter()
-        .filter_map(|op| match op {
-            EditOp::Delete { node, .. } => node.id().cloned(),
-            _ => None,
-        })
-        .collect();
-    let ops = to_paths(resolved.ops, &head.ids);
-    let bytes = codec
-        .apply(bytes, &head.paths, &ops)
-        .map_err(|error| match error {
-            CodecError::UnsupportedOp { op, format: _ } => DocumentsError::UnsupportedOp {
-                op,
-                format,
-                accepted_kinds: codec.insert_kinds(format),
-            },
-            other => relabel(DocumentsError::from(other), &head.ids),
-        })?;
-    Ok(AppliedOps { bytes, retired })
+    let mut hints = CarryHints::default();
+    for op in &resolved.ops {
+        match op {
+            EditOp::Delete { node, .. } => hints.retired.extend(node.id().cloned()),
+            EditOp::ReplaceText { node, .. } => hints.rewritten.extend(node.id().cloned()),
+            _ => {},
+        }
+    }
+    let edited = if resolved.ops.is_empty() {
+        bytes.to_vec()
+    } else {
+        let ops = to_paths(resolved.ops, &head.ids);
+        codec
+            .apply(bytes, &head.paths, &ops)
+            .map_err(|error| match error {
+                CodecError::UnsupportedOp { .. } => unsupported(codec, format, error),
+                other => relabel(DocumentsError::from(other), &head.ids),
+            })?
+    };
+    let bytes = FragmentPass {
+        codec,
+        format,
+        head,
+        retired: &hints.retired,
+    }
+    .insert(edited, inserts)?;
+    Ok(AppliedOps { bytes, hints })
+}
+
+fn require_guards(ops: &[EditOp]) -> Result<(), DocumentsError> {
+    for op in ops {
+        if let EditOp::ReplaceText {
+            node: NodeTarget::Id(node),
+            expected_hash: None,
+            ..
+        }
+        | EditOp::Delete {
+            node: NodeTarget::Id(node),
+            expected_hash: None,
+        } = op
+        {
+            return Err(DocumentsError::GuardMissing {
+                op: op.name(),
+                node: node.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn guard(ids: &Projection, ops: &[EditOp]) -> Result<(), DocumentsError> {

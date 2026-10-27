@@ -70,6 +70,7 @@ impl DocumentService {
         let document = self
             .authorized_document(who, &request.document, DocumentAction::Comment, trace)
             .await?;
+        self.check_comment_limit(&request.body)?;
         let anchor = match (&request.parent_id, request.anchor) {
             (Some(parent), _) => self.comment_of(&document.id, parent).await?.anchor,
             (None, Some(anchor)) => anchor,

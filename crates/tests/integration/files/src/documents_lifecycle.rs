@@ -82,6 +82,7 @@ fn set_text(document: &DocumentId, text: &str) -> CommitRequest {
         message: None,
         lock_holder_id: None,
         comments: CommentPolicy::default(),
+        op_id: None,
     }
 }
 

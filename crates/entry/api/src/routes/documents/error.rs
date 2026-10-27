@@ -228,7 +228,18 @@ fn api_error(error: DocumentsError, message: String) -> ApiError {
         DocumentsError::NotFound { .. } | DocumentsError::CommentNotFound { .. } => {
             ApiError::not_found(message)
         },
-        DocumentsError::TooLarge { .. } => ApiError::payload_too_large(message),
+        DocumentsError::TooLarge { .. } => {
+            ApiError::payload_too_large(message).with_error_key("too_large")
+        },
+        DocumentsError::OpIdMismatch { .. } => {
+            ApiError::conflict(message).with_error_key("op_id_mismatch")
+        },
+        DocumentsError::SelfReview { .. } => {
+            ApiError::forbidden(message).with_error_key("self_review")
+        },
+        DocumentsError::GuardMissing { .. } => {
+            ApiError::bad_request(message).with_error_key("invalid_params")
+        },
         DocumentsError::LockHeld { .. } => ApiError::locked(message).with_error_key("lock_held"),
         DocumentsError::IntegrityMismatch { .. } => {
             ApiError::validation_error(message, Vec::new()).with_error_key("integrity_mismatch")

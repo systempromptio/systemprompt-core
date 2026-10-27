@@ -29,7 +29,7 @@ pub use grant::{DocumentGrant, GrantTarget, NewGrant, SubjectPairs};
 pub use lock::{
     DocumentLock, DocumentPresenceRow, LockHolderKind, LockOutcome, LockRequest, PresenceUpsert,
 };
-pub use node_id::{NodeIdEntry, StoredWriteAck};
+pub use node_id::{AckClaim, NodeIdEntry, StoredWriteAck, WriteAck};
 pub use proposal::{DocumentProposal, NewProposal, ProposalReview};
 pub use revision::{DocumentBlob, DocumentRevision, NewRevision, RevisionAttribution};
 pub use session::{DocumentEditSession, DocumentTextIndexRow, EditSessionOpen};

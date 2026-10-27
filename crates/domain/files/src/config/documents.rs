@@ -1,11 +1,14 @@
 //! The `files.documents` section: the document store's on/off switch
 //! (off by default), upload limit, blob
-//! garbage-collection grace, presence time-to-live and trash retention.
+//! garbage-collection grace, presence time-to-live, trash retention and
+//! per-request input limits.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+
+use super::document_limits::DocumentLimits;
 
 pub const MIN_DOCUMENT_UPLOAD_BYTES: u64 = 1024 * 1024;
 pub const MAX_DOCUMENT_UPLOAD_BYTES: u64 = 2 * 1024 * 1024 * 1024;
@@ -27,6 +30,8 @@ pub struct DocumentsConfig {
     pub presence_ttl_secs: u32,
     #[serde(default = "default_trash_retention_days")]
     pub trash_retention_days: u32,
+    #[serde(default)]
+    pub limits: DocumentLimits,
 }
 
 const fn default_max_upload_bytes() -> u64 {
@@ -53,6 +58,7 @@ impl Default for DocumentsConfig {
             blob_gc_grace_hours: DEFAULT_BLOB_GC_GRACE_HOURS,
             presence_ttl_secs: DEFAULT_PRESENCE_TTL_SECS,
             trash_retention_days: DEFAULT_TRASH_RETENTION_DAYS,
+            limits: DocumentLimits::default(),
         }
     }
 }

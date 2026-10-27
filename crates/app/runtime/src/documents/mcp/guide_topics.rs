@@ -12,7 +12,8 @@ prefix is display only. Node ids are stable: an id names the same block in every
 until the block is deleted. Long lists fold to `gap blocks=N`; view node {node_id} pages one \
 node and its children; view search {text} finds blocks; view meta gives head, size and who is \
 in the document now; view changes {since_revision} returns only the blocks changed since that \
-revision, `gap blocks=N` for unchanged runs and `gone <id>` for deletions.
+revision, `gap blocks=N` for unchanged runs and `gone <id>` for deletions; a block that \
+only moved is not reported as changed.
 Edit: documents_edit {document_id, base_revision?, ops, message, op_id?}. Ops: replace_text \
 {node, expected_hash, text}; delete {node, expected_hash}; insert_after {node, kind: {type: \
 heading, level} | {type: paragraph} | {type: list_item} | {type: row} | {type: text}, text}; \
@@ -20,7 +21,7 @@ str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, rang
 insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; append_markdown \
 {markdown}; insert_from_revision {revision_id, node, after} copies a block back from history; \
 restore {revision_id} alone makes an old revision the head (base_revision must be the head).
-Target: an anchored op names node by id with expected_hash, or node: {find: \"quoted text\", \
+Target: an anchored op names node by id with expected_hash (required), or node: {find: \"quoted text\", \
 nth?, within?: node} to hit the block containing the quote; no match refuses find_none with \
 the closest block. Content: replace_text and insert_after take as: \"markdown\" to write \
 headings, lists, tables, bold, italic and links as native formatting.
@@ -29,8 +30,11 @@ you read it; edits elsewhere in the document land and the ack says merged.
 Batch: every target resolves against the document as it stood before the call; ops apply in \
 order, so two insert_after on one node land in op order; all ops apply or none.
 Ack: an edit or create returns `written`, the lines it changed or created; anchor the next \
-edit on them. Do not re-read between your own writes. op_id: a retry with the same op_id \
-returns the first ack with replayed instead of applying twice.
+edit on them. Do not re-read between your own writes. op_id: a retry with the same op_id and \
+the same request returns the first ack with replayed instead of applying twice, over MCP or \
+REST alike; reusing an op_id for a different request refuses op_id_mismatch.
+Limits: at most 200 ops per call and 1 MiB of text per op or of markdown, unless the operator \
+set other limits; larger calls refuse too_large.
 Skeleton then fill: lay a document out first with insert_after kind {type: pending} (or ops \
 in documents_create), whose text is the intent of the section, e.g. \"Goals: three outcomes\". \
 A pending block reads as kind pending with its intent as text; replace_text on its id lands the \
@@ -95,11 +99,13 @@ pub(super) const PROPOSALS: &str = "\
 An edit lands on the head, or is written as a proposal: a revision off the head that a \
 reviewer accepts or rejects. documents_edit mode: propose always proposes; mode: land needs \
 edit access. Without mode, a caller holding comment but not edit access proposes, and an \
-agent proposes in a folder whose agent edit policy (or an ancestor's) is propose. The ack \
+agent proposes in a folder whose agent edit policy (or an ancestor's) is propose; there an \
+agent's mode: land refuses forbidden. The ack \
 carries proposal_id; revision_id is the proposed revision and written its lines against the \
 base. A newer proposal of yours on the same document supersedes your open one. \
 documents_proposals {document_id} lists them; documents_proposals {action: accept | reject, \
-proposal_id, note?} reviews one and needs edit access. Accept makes the proposed revision the head when \
+proposal_id, note?} reviews one and needs edit access; nobody accepts their own proposal \
+(self_review). Accept makes the proposed revision the head when \
 the head is still its base; otherwise its ops apply again on the head, and a node changed in \
 between refuses as proposal_conflict.";
 
@@ -155,7 +161,19 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
              again on head_revision."
         },
         RefusalCode::InvalidParams => {
-            "invalid_params: the call is malformed; fix the named field and resend."
+            "invalid_params: the call is malformed; fix the named field and resend. An op that \
+             names a node by id without expected_hash is refused this way."
+        },
+        RefusalCode::TooLarge => {
+            "too_large: the call exceeds an input limit (ops per call, op text, markdown, \
+             comment body, collaborative update or cursor); split it into smaller calls."
+        },
+        RefusalCode::OpIdMismatch => {
+            "op_id_mismatch: this op_id was already used for a different request; send a new \
+             op_id for a new write."
+        },
+        RefusalCode::SelfReview => {
+            "self_review: you proposed this; another editor has to accept it."
         },
         RefusalCode::UnknownSubject => {
             "unknown_subject: no active user or subject has that id; check the id and resend."

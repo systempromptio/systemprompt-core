@@ -60,6 +60,7 @@ fn ops(document: &DocumentId, ops: Vec<EditOp>, comments: CommentPolicy) -> Comm
         message: None,
         lock_holder_id: None,
         comments,
+        op_id: None,
     }
 }
 
@@ -101,9 +102,7 @@ async fn comment_on(
 
 fn revision_of(outcome: CommitOutcome) -> DocumentRevisionId {
     match outcome {
-        CommitOutcome::Committed { revision, .. } | CommitOutcome::Merged { revision, .. } => {
-            revision.id
-        },
+        CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => landed.revision.id,
         CommitOutcome::Conflict { head, .. } => panic!("conflict at {}", head.id),
     }
 }

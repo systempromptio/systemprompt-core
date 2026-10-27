@@ -113,7 +113,11 @@ impl DocumentService {
         let size = size as u64;
         let limit = self.config.max_upload_bytes;
         if size > limit {
-            return Err(DocumentsError::TooLarge { size, limit });
+            return Err(DocumentsError::TooLarge {
+                what: "document content (bytes)",
+                size,
+                limit,
+            });
         }
         Ok(())
     }

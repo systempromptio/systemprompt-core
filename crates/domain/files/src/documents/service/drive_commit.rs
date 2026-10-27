@@ -73,14 +73,15 @@ impl DocumentService {
             message: meta.message,
             lock_holder_id: Some(meta.device_id.as_str().to_owned()),
             comments: CommentPolicy::detach(),
+            op_id: None,
         };
         Ok(match self.commit(who, request, trace).await? {
-            CommitOutcome::Committed { revision, .. } => DriveCommitResponse::Committed {
-                revision_id: revision.id,
+            CommitOutcome::Committed(landed) => DriveCommitResponse::Committed {
+                revision_id: landed.revision.id,
             },
-            CommitOutcome::Merged { revision, .. } => DriveCommitResponse::Merged {
-                revision_id: revision.id,
-                content_sha256: revision.content_sha256,
+            CommitOutcome::Merged(landed) => DriveCommitResponse::Merged {
+                revision_id: landed.revision.id,
+                content_sha256: landed.revision.content_sha256,
             },
             CommitOutcome::Conflict { head, base } => DriveCommitResponse::Conflict {
                 head_revision_id: head.id,

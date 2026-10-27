@@ -53,6 +53,7 @@ async fn owner_edit(
                 message: None,
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
+                op_id: None,
             },
             &trace(),
         )

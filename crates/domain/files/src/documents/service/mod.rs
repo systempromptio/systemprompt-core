@@ -29,14 +29,20 @@ mod documents;
 mod drive;
 mod drive_blob;
 mod drive_commit;
+mod first_revision;
 mod drive_feed;
 mod folders;
+mod fragments;
 mod grants;
+mod landed;
+mod landing;
 mod lifecycle;
+mod limits;
 mod listing;
 mod locks;
 mod node_ids;
 mod ownership;
+mod prepare;
 mod proposal_body;
 mod proposal_reads;
 mod proposal_review;
@@ -60,8 +66,8 @@ pub use proposal_review::{Accepted, ReviewRequest};
 pub use proposals::{EditModeRequest, ProposeRequest, Proposed};
 pub use types::{
     AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning,
-    CreateRequest, DocumentView, HistoryPage, ImportRequest, ListFolderRequest, Listing,
-    NewFolderRequest, RevisionOrigin, SearchResult, StreamRequest,
+    CreateRequest, DocumentView, HistoryPage, ImportRequest, LandedCommit, ListFolderRequest,
+    Listing, NewFolderRequest, RevisionOrigin, SearchResult, StreamRequest,
 };
 
 use super::access::DocumentAccessService;

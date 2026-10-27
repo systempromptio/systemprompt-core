@@ -12,7 +12,7 @@
 use systemprompt_events::RelayError;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::{
-    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
+    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
     DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::authz::SubjectSourceError;
@@ -121,8 +121,27 @@ pub enum DocumentsError {
     UnknownFormat { name: String },
     #[error("{what} {id} does not exist or has been deleted")]
     NotFound { what: &'static str, id: String },
-    #[error("content of {size} bytes exceeds the {limit}-byte document limit")]
-    TooLarge { size: u64, limit: u64 },
+    #[error("{what} of {size} exceeds the limit of {limit}")]
+    TooLarge {
+        what: &'static str,
+        size: u64,
+        limit: u64,
+    },
+    #[error(
+        "op id {op_id} was already used for a different request; send a new op id for a new \
+         write"
+    )]
+    OpIdMismatch { op_id: DocumentOpId },
+    #[error(
+        "{op} on node {node} needs expected_hash, the node's hash8 from your last read; a quote \
+         target resolves its own"
+    )]
+    GuardMissing {
+        op: &'static str,
+        node: DocumentNodeId,
+    },
+    #[error("proposal {proposal_id} was proposed by the reviewer; another editor must review it")]
+    SelfReview { proposal_id: DocumentProposalId },
     #[error(
         "uploaded bytes hash to {actual} but the commit declared {declared}; the upload was \
          corrupted, send it again"

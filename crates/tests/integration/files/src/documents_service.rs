@@ -7,7 +7,7 @@ use systemprompt_files::documents::models::{
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     AcquireLockRequest, CommentPolicy, CommitOutcome, CommitRequest, HistoryPage, ImportRequest,
-    ListFolderRequest, NewFolderRequest, ShareRequest,
+    LandedCommit, ListFolderRequest, NewFolderRequest, ShareRequest,
 };
 use systemprompt_governance::authz::EntityKind;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId};
@@ -28,6 +28,7 @@ fn commit_bytes(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>
         message: None,
         lock_holder_id: None,
         comments: CommentPolicy::default(),
+        op_id: None,
     }
 }
 
@@ -139,9 +140,12 @@ async fn ops_commit_checks_anchors_then_moves_the_head() {
         )
         .await
         .expect("commit with the current hash");
-    let CommitOutcome::Committed { revision, warnings } = outcome else {
+    let CommitOutcome::Committed(landed) = outcome else {
         panic!("expected Committed, got {outcome:?}");
     };
+    let LandedCommit {
+        revision, warnings, ..
+    } = *landed;
     assert!(warnings.is_empty(), "{warnings:?}");
     assert_eq!(revision.parent_revision_id.as_ref(), Some(&first.id));
     let view = h
@@ -196,9 +200,10 @@ async fn concurrent_docx_commits_conflict() {
         )
         .await
         .expect("first commit");
-    let CommitOutcome::Committed { revision: head, .. } = winner else {
+    let CommitOutcome::Committed(landed) = winner else {
         panic!("expected Committed, got {winner:?}");
     };
+    let head = landed.revision;
     let loser = h
         .service
         .commit(
@@ -233,7 +238,7 @@ async fn concurrent_markdown_commits_merge_or_conflict() {
         )
         .await
         .expect("first commit");
-    assert!(matches!(ours, CommitOutcome::Committed { .. }), "{ours:?}");
+    assert!(matches!(ours, CommitOutcome::Committed(_)), "{ours:?}");
     let theirs = h
         .service
         .commit(
@@ -243,9 +248,10 @@ async fn concurrent_markdown_commits_merge_or_conflict() {
         )
         .await
         .expect("second commit");
-    let CommitOutcome::Merged { revision, .. } = theirs else {
+    let CommitOutcome::Merged(landed) = theirs else {
         panic!("expected Merged, got {theirs:?}");
     };
+    let revision = landed.revision;
     let (_, merged) = h
         .service
         .read_bytes(&owner, &document, Some(&revision.id), &trace())
@@ -464,5 +470,5 @@ async fn a_lock_held_by_another_holder_blocks_commits() {
         .commit(&owner, holder, &trace())
         .await
         .expect("the holder commits");
-    assert!(matches!(committed, CommitOutcome::Committed { .. }));
+    assert!(matches!(committed, CommitOutcome::Committed(_)));
 }

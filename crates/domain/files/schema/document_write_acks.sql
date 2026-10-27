@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS document_write_acks (
     revision_id UUID NOT NULL REFERENCES document_revisions(id) ON DELETE CASCADE,
     ack JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_id VARCHAR(255),
+    request_sha256 TEXT,
     PRIMARY KEY (document_id, op_id)
 );
 

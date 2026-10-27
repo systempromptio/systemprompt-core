@@ -115,8 +115,14 @@ pub fn tool_error(error: DocumentsError) -> McpError {
             ..
         } => proposal_conflict_refusal(head, node, current_text),
         DocumentsError::Codec(codec) => return codec_error(&codec),
-        DocumentsError::TooLarge { .. }
-        | DocumentsError::IntegrityMismatch { .. }
+        DocumentsError::TooLarge { .. } => Refusal::new(RefusalCode::TooLarge),
+        DocumentsError::OpIdMismatch { .. } => Refusal::new(RefusalCode::OpIdMismatch),
+        DocumentsError::SelfReview { .. } => Refusal::new(RefusalCode::SelfReview),
+        DocumentsError::GuardMissing { node, .. } => Refusal {
+            node: Some(node),
+            ..Refusal::new(RefusalCode::InvalidParams)
+        },
+        DocumentsError::IntegrityMismatch { .. }
         | DocumentsError::InvalidName { .. }
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::OwnNotGrantable

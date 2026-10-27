@@ -92,13 +92,15 @@ impl CollabService {
                     message: Some(CHECKPOINT_MESSAGE.to_owned()),
                     lock_holder_id: None,
                     comments: CommentPolicy::detach(),
+                    op_id: None,
                 },
                 trace,
             )
             .await?;
         let revision = match outcome {
-            CommitOutcome::Committed { revision, .. } => revision,
-            CommitOutcome::Merged { revision, .. } => {
+            CommitOutcome::Committed(landed) => landed.revision,
+            CommitOutcome::Merged(landed) => {
+                let revision = landed.revision;
                 let merged = self.revision_bytes(&revision.id, limit).await?;
                 let merged = body_of(entry.format, &utf8(&document_id, merged)?);
                 self.reconcile(entry, who, &merged, trace).await?;

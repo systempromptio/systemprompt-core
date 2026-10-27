@@ -90,7 +90,7 @@ impl DocumentService {
             .resolve_revision(&document, Some(&proposal.base_revision_id))
             .await?;
         let proposed = self
-            .resolve_revision(&document, Some(&proposal.proposed_revision_id))
+            .proposed_revision(&document, &proposal.proposed_revision_id)
             .await?;
         Ok(ProposalView {
             base: self.projected(&document, &base).await?.ids,

@@ -128,17 +128,27 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
     assert_eq!(listed.proposals[0].proposal_id, proposal);
     assert!(summary.contains("suggestion"), "{summary}");
 
+    let accept = ProposalsInput {
+        action: ProposalAction::Accept,
+        document_id: None,
+        proposal_id: Some(proposal.clone()),
+        note: None,
+    };
+    let own = ProposalsHandler { tools: &h.tools }
+        .handle(accept.clone(), &ctx, &exec())
+        .await
+        .expect_err("a proposer cannot accept their own proposal");
+    let code = own
+        .data
+        .as_ref()
+        .and_then(|d| d.get("code"))
+        .and_then(|c| c.as_str());
+    assert_eq!(code, Some("self_review"));
+
+    let reviewer = person("mcp-reviewer");
+    share(&h.tools, &owner, &document, &reviewer, AccessLevel::Edit).await;
     let (output, _) = ProposalsHandler { tools: &h.tools }
-        .handle(
-            ProposalsInput {
-                action: ProposalAction::Accept,
-                document_id: None,
-                proposal_id: Some(proposal.clone()),
-                note: None,
-            },
-            &ctx,
-            &exec(),
-        )
+        .handle(accept, &ctx_for(Some(&reviewer)), &exec())
         .await
         .expect("accept");
     let reviewed = output.reviewed.expect("reviewed");

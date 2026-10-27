@@ -9,7 +9,8 @@ use systemprompt_files::documents::codecs::xlsx::XlsxCodec;
 use systemprompt_files::documents::codecs::{HtmlCodec, MarkdownCodec};
 use systemprompt_files::documents::models::NodeIdEntry;
 use systemprompt_files::documents::nodes::{
-    ChangeItem, NodeIdMinter, carry_forward, changes, derive_ops, mint_all, with_ids, writer_tag,
+    CarryHints, ChangeItem, NodeIdMinter, carry_forward, changes, derive_ops, mint_all, with_ids,
+    writer_tag,
 };
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
@@ -46,7 +47,16 @@ fn step(codec: &dyn DocumentCodec, bytes: &[u8], ops: &[EditOp]) -> Step {
         })
         .filter_map(|path| id_at(&before, path.as_str()))
         .collect();
-    let entries = carry_forward(&before, &next, &retired, &mut minter("b"));
+    let rewritten: HashSet<DocumentNodeId> = ops
+        .iter()
+        .filter_map(|op| match op {
+            EditOp::ReplaceText { node, .. } => node.id().cloned(),
+            _ => None,
+        })
+        .filter_map(|path| id_at(&before, path.as_str()))
+        .collect();
+    let hints = CarryHints { retired, rewritten };
+    let entries = carry_forward(&before, &next, &hints, &mut minter("b"));
     let after = with_ids(next, &entries);
     Step {
         before,
@@ -244,7 +254,7 @@ fn lcs_carries_ids_past_a_reorder_and_duplicates() {
         para("p3", "one"),
         para("p4", "three"),
     ]);
-    let entries = carry_forward(&before, &next, &HashSet::new(), &mut minter("b"));
+    let entries = carry_forward(&before, &next, &CarryHints::default(), &mut minter("b"));
     let ids: Vec<&str> = entries.iter().map(|e| e.node_id.as_str()).collect();
     assert_eq!(ids[0], "a.2");
     assert_eq!(&ids[1..3], &["a.3", "a.4"]);

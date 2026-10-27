@@ -108,6 +108,20 @@ async fn changes_since_a_revision_return_only_what_changed() {
     assert!(!changed.lines.iter().any(|line| line.ends_with("| alpha")));
 }
 
+fn edit_input(document: &DocumentId, op_id: &DocumentOpId, op: EditOp) -> EditInput {
+    EditInput {
+        document_id: document.clone(),
+        base_revision: None,
+        mode: None,
+        op_id: Some(op_id.clone()),
+        answering: None,
+        allow_detach: false,
+        ops: vec![op],
+        message: None,
+        verbose: false,
+    }
+}
+
 #[tokio::test]
 async fn a_repeated_op_id_replays_the_first_ack() {
     let h = harness().await;
@@ -115,32 +129,42 @@ async fn a_repeated_op_id_replays_the_first_ack() {
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "one\ntwo").await;
     let op_id = DocumentOpId::new(format!("op-{}", uuid::Uuid::new_v4()));
-    let first = replace_line(&h.tools, &ctx, &document, "two", "TWO", Some(op_id.clone())).await;
+    let current = read_text(&h.tools, &ctx, &document).await;
+    let (node, hash) = line_for(&current, "two");
+    let op = EditOp::ReplaceText {
+        node: NodeTarget::Id(DocumentNodeId::new(node)),
+        expected_hash: Some(hash.to_owned()),
+        text: "TWO".to_owned(),
+        content_as: ContentAs::Text,
+    };
+    let handler = EditHandler { tools: &h.tools };
+    let (first, _) = handler
+        .handle(edit_input(&document, &op_id, op.clone()), &ctx, &exec())
+        .await
+        .expect("first");
     assert!(!first.replayed);
-    let (again, summary) = EditHandler { tools: &h.tools }
-        .handle(
-            EditInput {
-                document_id: document.clone(),
-                base_revision: None,
-                mode: None,
-                op_id: Some(op_id),
-                answering: None,
-                allow_detach: false,
-                ops: vec![EditOp::StrReplace {
-                    old_str: "never applied".to_owned(),
-                    new_str: "x".to_owned(),
-                }],
-                message: None,
-                verbose: false,
-            },
-            &ctx,
-            &exec(),
-        )
+    let (again, summary) = handler
+        .handle(edit_input(&document, &op_id, op), &ctx, &exec())
         .await
         .expect("replay");
     assert!(again.replayed, "{summary}");
     assert_eq!(again.revision_id, first.revision_id);
     assert_eq!(again.written, first.written);
+
+    let different = EditOp::StrReplace {
+        old_str: "never applied".to_owned(),
+        new_str: "x".to_owned(),
+    };
+    let refused = handler
+        .handle(edit_input(&document, &op_id, different), &ctx, &exec())
+        .await
+        .expect_err("a different request under the same op id");
+    let code = refused
+        .data
+        .as_ref()
+        .and_then(|data| data.get("code"))
+        .and_then(|code| code.as_str());
+    assert_eq!(code, Some("op_id_mismatch"));
 }
 
 #[tokio::test]

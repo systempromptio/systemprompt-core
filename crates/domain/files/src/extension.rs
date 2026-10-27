@@ -89,6 +89,11 @@ const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         &["document_id", "revision_id", "node_id", "path", "hash8"],
     ),
     (
+        "document_node_counters",
+        include_str!("../schema/document_node_counters.sql"),
+        &["document_id", "writer", "next"],
+    ),
+    (
         "document_write_acks",
         include_str!("../schema/document_write_acks.sql"),
         &["document_id", "op_id", "revision_id", "ack"],

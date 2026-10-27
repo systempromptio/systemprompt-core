@@ -6,18 +6,18 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentRevisionId,
-    DocumentTemplateId, DriveDeviceId, McpExecutionId, SessionId,
+    DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentOpId,
+    DocumentRevisionId, DocumentTemplateId, DriveDeviceId, McpExecutionId, SessionId,
 };
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, DocumentFormat, EditOp, RevisionOriginKind,
+    AccessLevel, ActorKind, DocumentFormat, EditOp, Projection, RevisionOriginKind,
 };
 use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_traits::ByteRange;
 
 use crate::documents::models::{
     Document, DocumentFolder, DocumentRevision, DocumentSearchHit, ListCursor, ListScope, ListSort,
-    ListedDocument, ListingCursor, LockHolderKind, RevisionAttribution,
+    ListedDocument, ListingCursor, LockHolderKind, RevisionAttribution, WriteAck,
 };
 use crate::documents::revision::CommitBody;
 
@@ -155,6 +155,7 @@ pub struct CommitRequest {
     pub message: Option<String>,
     pub lock_holder_id: Option<String>,
     pub comments: CommentPolicy,
+    pub op_id: Option<DocumentOpId>,
 }
 
 /// How a commit treats comment anchors.
@@ -186,19 +187,34 @@ pub enum CommitWarning {
     EventsNotDelivered,
 }
 
+/// A revision a commit landed, with the acknowledgement stored for it.
+/// `projection` is the new head's id-addressed projection; a replayed
+/// acknowledgement (`replayed`) carries none.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LandedCommit {
+    pub revision: DocumentRevision,
+    pub ack: WriteAck,
+    pub projection: Option<Projection>,
+    pub replayed: bool,
+    pub warnings: Vec<CommitWarning>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommitOutcome {
-    Committed {
-        revision: DocumentRevision,
-        warnings: Vec<CommitWarning>,
-    },
-    Merged {
-        revision: DocumentRevision,
-        merged_from: DocumentRevisionId,
-        warnings: Vec<CommitWarning>,
-    },
+    Committed(Box<LandedCommit>),
+    Merged(Box<LandedCommit>),
     Conflict {
-        head: DocumentRevision,
+        head: Box<DocumentRevision>,
         base: Option<DocumentRevisionId>,
     },
+}
+
+impl CommitOutcome {
+    #[must_use]
+    pub fn landed(&self) -> Option<&LandedCommit> {
+        match self {
+            Self::Committed(landed) | Self::Merged(landed) => Some(landed),
+            Self::Conflict { .. } => None,
+        }
+    }
 }

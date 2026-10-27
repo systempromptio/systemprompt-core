@@ -18,7 +18,7 @@ use crate::documents::models::{DocumentProposal, NewProposal, ProposalReview};
 
 #[derive(Debug, Clone)]
 pub struct DocumentProposalRepository {
-    pools: Pools,
+    pub(super) pools: Pools,
 }
 
 struct ProposalRow {

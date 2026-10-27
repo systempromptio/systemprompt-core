@@ -87,6 +87,7 @@ fn ops_on(
         message: None,
         lock_holder_id: None,
         comments: CommentPolicy::default(),
+        op_id: None,
     }
 }
 
@@ -100,8 +101,8 @@ async fn commit(
 
 fn landed(outcome: CommitOutcome) -> (DocumentRevisionId, bool) {
     match outcome {
-        CommitOutcome::Committed { revision, .. } => (revision.id, false),
-        CommitOutcome::Merged { revision, .. } => (revision.id, true),
+        CommitOutcome::Committed(landed) => (landed.revision.id, false),
+        CommitOutcome::Merged(landed) => (landed.revision.id, true),
         CommitOutcome::Conflict { head, .. } => panic!("conflict at head {}", head.id),
     }
 }
@@ -191,15 +192,11 @@ async fn edits_to_different_blocks_on_a_stale_base_merge() {
     )
     .await
     .expect("second edit on the stale base");
-    let CommitOutcome::Merged {
-        revision,
-        merged_from,
-        ..
-    } = outcome
-    else {
+    let CommitOutcome::Merged(landed) = outcome else {
         panic!("expected Merged, got {outcome:?}");
     };
-    assert_eq!(merged_from, second);
+    let (revision, merged_from) = (landed.revision, landed.ack.merged_from);
+    assert_eq!(merged_from, Some(second));
     let head = ids(&h, &owner, &document, &revision.id).await;
     let shown = texts(&head);
     assert!(shown.contains(&"ALPHA".to_owned()), "{shown:?}");
@@ -280,6 +277,7 @@ fn upload(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>) -> C
         message: None,
         lock_holder_id: None,
         comments: CommentPolicy::default(),
+        op_id: None,
     }
 }
 

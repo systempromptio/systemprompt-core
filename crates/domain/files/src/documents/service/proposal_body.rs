@@ -6,16 +6,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashSet;
-
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, ProposalStatus};
 
-use super::commit::Landed;
-use super::{Author, DocumentService, Proposed};
+use super::apply::AppliedOps;
+use super::landing::{LandResult, Placement};
+use super::prepare::{Applied, Draft};
+use super::{Author, CommentPolicy, DocumentService, Proposed};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{NewProposal, ProposalReview};
+use crate::documents::nodes::CarryHints;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProposeBodyRequest {
@@ -40,21 +41,35 @@ impl DocumentService {
             .resolve_revision(&document, Some(&request.base_revision))
             .await?;
         let (projected, _) = self.projected_with_bytes(&document, &base).await?;
-        let (revision, _) = self
-            .store_revision(
+        let prepared = self
+            .prepare(
                 who,
                 &document,
-                Landed {
-                    bytes: &request.bytes,
-                    retired: HashSet::new(),
-                    previous: Some(projected.ids),
+                Draft {
+                    applied: Applied {
+                        ops: AppliedOps {
+                            bytes: request.bytes,
+                            hints: CarryHints::default(),
+                        },
+                        previous: Some(projected.ids),
+                        merged: false,
+                        edit_ops: None,
+                    },
                     parent: Some(base.id.clone()),
-                    edit_ops: None,
                     message: request.message.clone(),
                     author: &request.author,
                 },
             )
             .await?;
+        let revision = match self
+            .land(&document, prepared, Placement::proposal(&CommentPolicy::default()))
+            .await?
+        {
+            LandResult::Landed(stored) => stored.revision,
+            LandResult::HeadMoved | LandResult::Claimed(_) => {
+                return Err(DocumentsError::not_found("proposed revision", &document.id));
+            },
+        };
         let superseded = self
             .repos
             .proposals

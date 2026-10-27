@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS document_revisions (
     trace_id VARCHAR(255),
     task_id VARCHAR(255),
     on_behalf_of VARCHAR(255),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    landed_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_revisions_document_created

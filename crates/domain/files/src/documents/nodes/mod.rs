@@ -26,10 +26,12 @@ mod diff;
 mod flat;
 mod minter;
 mod view;
+mod written;
 
-pub use carry::{carry_forward, mint_all};
+pub use carry::{CarryHints, carry_forward, mint_all};
 pub use derive::derive_ops;
 pub use diff::{ChangeItem, NodeChanges, changes};
 pub use flat::{FlatNode, flatten};
 pub use minter::{NodeIdMinter, writer_tag};
 pub use view::{PATH_ATTR, path_of, to_paths, with_ids};
+pub use written::{created_nodes, written_nodes};

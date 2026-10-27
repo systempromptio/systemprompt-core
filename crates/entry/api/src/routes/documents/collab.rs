@@ -146,11 +146,13 @@ pub(super) async fn updates(
     Json(body): Json<UpdateBody>,
 ) -> DocumentsResult<Json<AppliedJson>> {
     let who = caller(&state, &req_ctx).await?;
+    let update = decode(&body.update_b64)?;
+    state.service.check_collab_update_limit(update.len())?;
     let request = ApplyRequest {
         document_id: document_id(&id)?,
         session_id: body.session_id,
         version: body.vv.as_deref().map(decode).transpose()?,
-        update: decode(&body.update_b64)?,
+        update,
     };
     let applied = state.collab.apply(&who.user, request, &who.trace).await?;
     Ok(Json(AppliedJson {
@@ -181,6 +183,9 @@ pub(super) async fn cursor(
     Json(body): Json<CursorBody>,
 ) -> DocumentsResult<StatusCode> {
     let who = caller(&state, &req_ctx).await?;
+    state
+        .service
+        .check_cursor_limit(body.cursor.to_string().len())?;
     state
         .collab
         .cursor(

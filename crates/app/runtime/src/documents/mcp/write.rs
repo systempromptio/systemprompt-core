@@ -6,10 +6,11 @@
 //! touches: a node that changed at the head is refused as `guard_mismatch`
 //! with its current text, and an edit that landed while the head moved past
 //! `base_revision` answers `merged`. A `restore` whose base is not the head
-//! is refused as `stale_base`. An `op_id` makes the call idempotent: a
-//! repeat returns the stored acknowledgement with `replayed`. Every write
-//! answers with the lines it wrote, diffed against the parent revision, so
-//! the next edit anchors on the ack. An edit whose mode resolves to
+//! is refused as `stale_base`. An `op_id` makes the call idempotent: the
+//! commit stores its acknowledgement in the same transaction, and a repeat
+//! of the same request returns it with `replayed`. Every write answers with
+//! the lines it wrote, diffed against the parent revision, so the next edit
+//! anchors on the ack. An edit whose mode resolves to
 //! `propose` is written as a proposal instead (see `proposals`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,12 +24,12 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{ActorKind, DocumentUri, EditMode, EditOp};
+use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsMcpTools;
-use super::acks::{remember, replay};
+use super::acks::edit_output;
 use super::inputs::{CreateInput, EditInput};
 use super::lines::written_lines;
 use super::outputs::{CreateOutput, EditOutput};
@@ -50,34 +51,7 @@ pub(super) struct EditCall<'a> {
     pub(super) verbose: bool,
 }
 
-pub(super) async fn written(
-    call: &EditCall<'_>,
-    parent: Option<&DocumentRevisionId>,
-    revision: &DocumentRevisionId,
-) -> Result<Vec<String>, McpError> {
-    let service = call.tools.service();
-    let trace = call.ctx.trace_id();
-    let (_, head) = service
-        .project(call.who, &call.document, Some(revision), trace)
-        .await
-        .map_err(tool_error)?;
-    let base = match parent {
-        Some(parent) => Some(
-            service
-                .project(call.who, &call.document, Some(parent), trace)
-                .await
-                .map_err(tool_error)?
-                .1,
-        ),
-        None => None,
-    };
-    Ok(written_lines(base.as_ref(), &head))
-}
-
 async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
-    if let Some(replayed) = replay(&call).await? {
-        return Ok(replayed);
-    }
     let mode = call
         .tools
         .service()
@@ -95,7 +69,6 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     if mode == EditMode::Propose {
         return propose_ops(call).await;
     }
-    let applied = call.ops.len();
     let outcome = call
         .tools
         .service()
@@ -109,37 +82,33 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
                 message: call.message.clone(),
                 lock_holder_id: None,
                 comments: call.comments.clone(),
+                op_id: call.op_id.clone(),
             },
             call.ctx.trace_id(),
         )
         .await
         .map_err(tool_error)?;
-    let (revision, merged) = match outcome {
-        CommitOutcome::Committed { revision, .. } => (revision, false),
-        CommitOutcome::Merged { revision, .. } => (revision, true),
+    let landed = match outcome {
+        CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => *landed,
         CommitOutcome::Conflict { head, base } => {
             return Err(stale_base(&call.document, &head, base.as_ref()));
         },
     };
-    let written = written(&call, revision.parent_revision_id.as_ref(), &revision.id).await?;
-    let summary = format!(
-        "revision {}: {applied} ops, {} lines written",
-        revision.id,
-        written.len()
-    );
-    let verbose = call.verbose;
-    let output = EditOutput {
-        uri: verbose
-            .then(|| DocumentUri::new(call.document.clone()).at_revision(revision.id.clone())),
-        parent_revision_id: revision.parent_revision_id.filter(|_| verbose),
-        revision_id: revision.id,
-        applied,
-        merged,
-        replayed: false,
-        proposal_id: None,
-        written,
+    let output = edit_output(&call, landed).await?;
+    let summary = if output.replayed {
+        format!(
+            "revision {}: op {} already applied",
+            output.revision_id,
+            call.op_id.as_ref().map_or("", |op| op.as_str())
+        )
+    } else {
+        format!(
+            "revision {}: {} ops, {} lines written",
+            output.revision_id,
+            output.applied,
+            output.written.len()
+        )
     };
-    remember(&call, &output).await;
     Ok((output, summary))
 }
 

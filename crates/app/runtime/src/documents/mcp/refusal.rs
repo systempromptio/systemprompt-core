@@ -36,10 +36,13 @@ pub enum RefusalCode {
     ProposalConflict,
     InvalidParams,
     UnknownSubject,
+    TooLarge,
+    OpIdMismatch,
+    SelfReview,
 }
 
 impl RefusalCode {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 16] = [
         Self::StaleBase,
         Self::GuardMismatch,
         Self::FindNone,
@@ -53,6 +56,9 @@ impl RefusalCode {
         Self::ProposalConflict,
         Self::InvalidParams,
         Self::UnknownSubject,
+        Self::TooLarge,
+        Self::OpIdMismatch,
+        Self::SelfReview,
     ];
 
     #[must_use]
@@ -71,6 +77,9 @@ impl RefusalCode {
             Self::ProposalConflict => "proposal_conflict",
             Self::InvalidParams => "invalid_params",
             Self::UnknownSubject => "unknown_subject",
+            Self::TooLarge => "too_large",
+            Self::OpIdMismatch => "op_id_mismatch",
+            Self::SelfReview => "self_review",
         }
     }
 }

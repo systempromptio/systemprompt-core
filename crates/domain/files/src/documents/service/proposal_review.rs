@@ -6,8 +6,12 @@
 //! its author. When the head has moved, the proposal's ops are applied
 //! again on the head under node guards as a commit by the reviewer, on
 //! behalf of the proposer; a touched node that changed refuses as
-//! [`DocumentsError::ProposalConflict`] with its current text. A landing
-//! that fails returns the proposal to `open`.
+//! [`DocumentsError::ProposalConflict`] with its current text. Either way
+//! the landing transaction records the landed revision on the proposal, so
+//! an accepted proposal is landed exactly when it names its revision. A
+//! landing that fails returns the proposal to `open`; one interrupted
+//! before it settles is reopened by the presence sweep. A proposer cannot
+//! accept their own proposal.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -48,6 +52,11 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<Accepted, DocumentsError> {
         let (document, proposal) = self.reviewable(who, &request.proposal_id, trace).await?;
+        if proposal.proposer_user_id == who.id {
+            return Err(DocumentsError::SelfReview {
+                proposal_id: proposal.id,
+            });
+        }
         let claimed = self
             .claim(
                 &proposal,
@@ -77,10 +86,6 @@ impl DocumentService {
                 return Err(error);
             },
         };
-        self.repos
-            .proposals
-            .settle(&claimed.id, Some(&revision.id))
-            .await?;
         let proposal = DocumentProposal {
             landed_revision_id: Some(revision.id.clone()),
             ..claimed
@@ -166,19 +171,17 @@ impl DocumentService {
         Landing { proposal, reviewer }: Landing<'_>,
         trace: &TraceId,
     ) -> Result<(DocumentRevision, bool), DocumentsError> {
-        let proposed = self
-            .resolve_revision(document, Some(&proposal.proposed_revision_id))
+        let mut proposed = self
+            .proposed_revision(document, &proposal.proposed_revision_id)
             .await?;
         let head = self.resolve_revision(document, None).await?;
         if head.id == proposal.base_revision_id
             && self
-                .repos
-                .documents
-                .set_head_if(&document.id, Some(&head.id), &proposed.id)
+                .land_existing(document, &head.id, &mut proposed, &proposal.id)
                 .await?
         {
             let bytes = self.revision_bytes(&proposed).await?;
-            self.finish(document, proposed.clone(), bytes, None).await;
+            self.announce_landed(document, &proposed, bytes).await;
             return Ok((proposed, false));
         }
         let conflict = |head: DocumentRevision| DocumentsError::ProposalConflict {
@@ -193,7 +196,7 @@ impl DocumentService {
         let mut author = reviewer;
         author.attribution.on_behalf_of = Some(proposal.proposer_user_id.clone());
         let outcome = self
-            .commit(
+            .commit_settling(
                 who,
                 CommitRequest {
                     document_id: document.id.clone(),
@@ -203,16 +206,18 @@ impl DocumentService {
                     message: proposal.message.clone(),
                     lock_holder_id: None,
                     comments: CommentPolicy::default(),
+                    op_id: None,
                 },
+                Some(&proposal.id),
                 trace,
             )
             .await
             .map_err(|error| rebase_refusal(error, proposal, &head))?;
         match outcome {
-            CommitOutcome::Committed { revision, .. } | CommitOutcome::Merged { revision, .. } => {
-                Ok((revision, true))
+            CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => {
+                Ok((landed.revision, true))
             },
-            CommitOutcome::Conflict { head, .. } => Err(conflict(head)),
+            CommitOutcome::Conflict { head, .. } => Err(conflict(*head)),
         }
     }
 }

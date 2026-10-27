@@ -219,6 +219,7 @@ async fn recent_orders_by_the_callers_last_touch() {
                 message: None,
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
+                op_id: None,
             },
             &trace(),
         )

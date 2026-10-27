@@ -11,6 +11,7 @@ use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
 use systemprompt_traits::ConfigProvider;
 
 use super::FilesConfig;
+use super::document_limits::DocumentLimits;
 use super::documents::{MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
 use super::types::FilesConfigYaml;
 
@@ -127,7 +128,19 @@ impl DomainConfig for FilesConfigValidator {
                 "Trash retention must be at least one day",
             ));
         }
+        validate_limits(&mut report, &documents.limits);
 
         Ok(report)
+    }
+}
+
+fn validate_limits(report: &mut ValidationReport, limits: &DocumentLimits) {
+    for (field, value, (low, high)) in limits.bounded() {
+        if !(low..=high).contains(&value) {
+            report.add_error(ValidationIssue::new(
+                format!("files.documents.limits.{field}"),
+                format!("{field} must be between {low} and {high}"),
+            ));
+        }
     }
 }

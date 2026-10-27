@@ -3,10 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod document_limits;
 mod documents;
 mod types;
 mod validator;
 
+pub use document_limits::DocumentLimits;
 pub use documents::{DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
 pub use validator::FilesConfigValidator;
