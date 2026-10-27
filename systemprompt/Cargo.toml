@@ -87,6 +87,10 @@ agent-runs = ["dep:systemprompt-agent-runs"]
 # Office document codecs (.docx) for the files domain. `full` implies it.
 files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
 
+# Live co-editing of HTML and Markdown documents (Loro CRDT) and its HTTP
+# routes. `full` implies it.
+files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-api?/collab"]
+
 # Full functionality including all domain modules and CLI
 full = [
     "api",
@@ -108,6 +112,7 @@ full = [
     "config",
     "dep:systemprompt-files",
     "files-office",
+    "files-collab",
     "agent-runs",
     # Infrastructure crates for extension authors
     "loader",

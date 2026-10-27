@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod blobs;
+mod collab_updates;
 mod documents;
 mod edit_sessions;
 
@@ -28,6 +29,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
 pub use blobs::DocumentBlobRepository;
+pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository};
 pub use documents::DocumentRepository;
 pub use edit_sessions::DocumentEditSessionRepository;
 pub use folders::DocumentFolderRepository;
@@ -48,6 +50,7 @@ pub struct DocumentRepositories {
     pub presence: Arc<DocumentPresenceRepository>,
     pub edit_sessions: Arc<DocumentEditSessionRepository>,
     pub text_index: Arc<DocumentTextIndexRepository>,
+    pub collab: Arc<DocumentCollabRepository>,
 }
 
 impl DocumentRepositories {
@@ -62,6 +65,7 @@ impl DocumentRepositories {
             presence: Arc::new(DocumentPresenceRepository::new(db)),
             edit_sessions: Arc::new(DocumentEditSessionRepository::new(db)),
             text_index: Arc::new(DocumentTextIndexRepository::new(db)),
+            collab: Arc::new(DocumentCollabRepository::new(db)),
         }
     }
 }

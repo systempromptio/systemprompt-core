@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS document_edit_sessions (
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     base_revision_id UUID REFERENCES document_revisions(id) ON DELETE SET NULL,
     snapshot_sha256 TEXT REFERENCES document_blobs(content_sha256) ON DELETE RESTRICT,
+    snapshot_seq BIGINT NOT NULL DEFAULT 0,
     checkpoint_revision_id UUID REFERENCES document_revisions(id) ON DELETE SET NULL,
     opened_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

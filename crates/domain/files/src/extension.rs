@@ -73,6 +73,11 @@ const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         &["id", "document_id", "closed_at"],
     ),
     (
+        "document_collab_updates",
+        include_str!("../schema/document_collab_updates.sql"),
+        &["session_id", "seq", "update"],
+    ),
+    (
         "document_text_index",
         include_str!("../schema/document_text_index.sql"),
         &["document_id", "revision_id", "body"],

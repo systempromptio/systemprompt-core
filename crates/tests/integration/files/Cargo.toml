@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 reqwest = { workspace = true }
-systemprompt-files = { workspace = true, features = ["office"] }
+systemprompt-files = { workspace = true, features = ["office", "collab"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }

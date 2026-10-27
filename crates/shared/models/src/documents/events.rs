@@ -78,6 +78,9 @@ pub struct DocumentPresenceEvent {
     pub state: PresenceState,
     pub source_kind: PresenceSource,
     pub source_ref: String,
+    // JSON: editor cursor position; the shape belongs to the client's editor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<serde_json::Value>,
 }
 
 impl DocumentPresenceEvent {
@@ -117,7 +120,9 @@ impl DocumentConflictEvent {
 pub struct DocumentCollabUpdateEvent {
     pub document_id: DocumentId,
     pub edit_session_id: DocumentEditSessionId,
+    pub seq: i64,
     pub update_b64: String,
+    pub author_id: UserId,
 }
 
 impl DocumentCollabUpdateEvent {

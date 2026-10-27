@@ -92,6 +92,21 @@ impl DocumentService {
     }
 
     #[must_use]
+    pub const fn repositories(&self) -> &Arc<DocumentRepositories> {
+        &self.repos
+    }
+
+    #[must_use]
+    pub const fn blobs(&self) -> &Arc<BlobStore> {
+        &self.blobs
+    }
+
+    #[must_use]
+    pub const fn events(&self) -> &Arc<DocumentEvents> {
+        &self.events
+    }
+
+    #[must_use]
     pub const fn config(&self) -> &DocumentsConfig {
         &self.config
     }

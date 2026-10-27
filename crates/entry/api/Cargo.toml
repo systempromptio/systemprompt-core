@@ -117,5 +117,8 @@ nix = { workspace = true }
 prost = { workspace = true }
 opentelemetry-proto = { workspace = true }
 
+[features]
+collab = ["systemprompt-files/collab"]
+
 [lints]
 workspace = true

@@ -59,9 +59,11 @@ diffy = { workspace = true }
 zip = { workspace = true, optional = true }
 quick-xml = { workspace = true, optional = true }
 umya-spreadsheet = { workspace = true, optional = true }
+loro = { workspace = true, optional = true }
 
 [features]
 office = ["dep:zip", "dep:quick-xml", "dep:umya-spreadsheet"]
+collab = ["dep:loro"]
 
 [package.metadata.cargo-machete]
 # inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)

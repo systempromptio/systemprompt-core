@@ -239,6 +239,7 @@ pg_query = "6.2"
 tempfile = "3.27"
 walkdir = "2.5"
 umya-spreadsheet = { version = "=4.0.0-beta.1", default-features = false }
+loro = { version = "=1.17.1", default-features = false }
 flate2 = "1.1"
 tar = "0.4"
 tokio-cron-scheduler = "0.15"

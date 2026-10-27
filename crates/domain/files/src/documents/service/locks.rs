@@ -109,6 +109,7 @@ impl DocumentService {
             state: beacon.state,
             source_kind: beacon.source_kind,
             source_ref: beacon.source_ref,
+            cursor: None,
         };
         if let Err(error) = self.events.presence(&others, &event).await {
             tracing::warn!(

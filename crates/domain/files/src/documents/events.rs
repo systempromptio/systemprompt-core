@@ -2,7 +2,7 @@
 //!
 //! Each event is an AG-UI `CUSTOM` event named by the payload's `NAME`
 //! (`document.revision.created`, `document.presence`, `document.lock`,
-//! `document.conflict`) and routed to each recipient through the
+//! `document.conflict`, `document.collab.update`) and routed to each recipient through the
 //! [`EventRouter`], which also relays it to other replicas. Clients filter
 //! the stream on the `document.` prefix.
 //!
@@ -21,7 +21,8 @@ use systemprompt_events::{EventRouter, RelayOutcome};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::documents::{
-    DocumentConflictEvent, DocumentLockEvent, DocumentPresenceEvent, DocumentRevisionCreatedEvent,
+    DocumentCollabUpdateEvent, DocumentConflictEvent, DocumentLockEvent, DocumentPresenceEvent,
+    DocumentRevisionCreatedEvent,
 };
 
 use super::error::{DocumentsError, EventFailure};
@@ -68,6 +69,14 @@ impl DocumentEvents {
         event: &DocumentConflictEvent,
     ) -> Result<(), DocumentsError> {
         self.emit(DocumentConflictEvent::NAME, to, event).await
+    }
+
+    pub async fn collab_update(
+        &self,
+        to: &[UserId],
+        event: &DocumentCollabUpdateEvent,
+    ) -> Result<(), DocumentsError> {
+        self.emit(DocumentCollabUpdateEvent::NAME, to, event).await
     }
 
     async fn emit<T: Serialize + Sync>(
