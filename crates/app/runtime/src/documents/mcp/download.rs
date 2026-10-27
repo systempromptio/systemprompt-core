@@ -1,4 +1,4 @@
-//! Short-lived download URLs for `documents_download_url`.
+//! Short-lived download URLs for `documents_export`.
 //!
 //! The URL carries a user JWT minted by the deployment's
 //! [`TokenAuthority`] for the caller, with the audience

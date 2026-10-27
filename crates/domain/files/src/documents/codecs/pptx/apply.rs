@@ -12,9 +12,7 @@
 
 use quick_xml::escape::escape;
 use systemprompt_identifiers::DocumentNodeId;
-use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentFormat, EditOp, NodeKind,
-};
+use systemprompt_provider_contracts::documents::{CodecError, DocumentFormat, EditOp, NodeKind};
 
 use super::layout::NewSlide;
 use super::projection::{self, Content, Paragraph, Slide};

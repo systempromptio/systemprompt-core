@@ -60,8 +60,8 @@ impl McpToolHandler for ListHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List the folders and documents in one folder (the root when folder_id is omitted) that \
-         you may view. query narrows by name; pass next_cursor back as cursor for the next page."
+        "List the folders and documents you may view in one folder (the root by default); pass \
+         next_cursor back as cursor."
     }
 
     fn read_only(&self) -> bool {
@@ -145,8 +145,7 @@ impl McpToolHandler for SearchHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Full-text search over the head revision of every document you may view. Each hit \
-         carries a snippet and the document and revision ids to read next."
+        "Full-text search over the head revision of every document you may view."
     }
 
     fn read_only(&self) -> bool {
@@ -196,7 +195,7 @@ impl McpToolHandler for HistoryHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List a document's revisions, newest first, with author, actor kind and message."
+        "A document's revisions, newest first, with author, actor kind and message."
     }
 
     fn read_only(&self) -> bool {
@@ -228,7 +227,8 @@ impl McpToolHandler for HistoryHandler<'_> {
         let revisions: Vec<RevisionItem> = revisions
             .into_iter()
             .map(|r| RevisionItem {
-                uri: verbose.then(|| DocumentUri::new(r.document_id.clone()).at_revision(r.id.clone())),
+                uri: verbose
+                    .then(|| DocumentUri::new(r.document_id.clone()).at_revision(r.id.clone())),
                 revision_id: r.id,
                 parent_revision_id: r.parent_revision_id.filter(|_| verbose),
                 author_user_id: r.author_user_id,

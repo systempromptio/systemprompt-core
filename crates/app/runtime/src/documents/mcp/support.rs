@@ -117,9 +117,7 @@ fn codec_error(error: &CodecError) -> McpError {
             ..Refusal::new(RefusalCode::FindNone)
         }
         .into_error(error.to_string()),
-        CodecError::UnsupportedOp { .. } => {
-            refusal(RefusalCode::UnsupportedOp, error.to_string())
-        },
+        CodecError::UnsupportedOp { .. } => refusal(RefusalCode::UnsupportedOp, error.to_string()),
         CodecError::UnknownNode { node } => Refusal {
             node: Some(node.clone()),
             ..Refusal::new(RefusalCode::NotFound)

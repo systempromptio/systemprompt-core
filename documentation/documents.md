@@ -72,9 +72,31 @@ Each commit updates the per-document search index (full-text over the extracted 
 
 ## MCP tools
 
-Document tools are exposed through MCP and authorise as the calling user, never as the server. The tools are `documents_list`, `documents_search`, `documents_create`, `documents_read`, `documents_edit`, `documents_str_replace`, `documents_set_cells`, `documents_history`, `documents_share`, `documents_download_url` and `documents_render_preview`. Read-only tools are annotated as such.
+Document tools are exposed through MCP and authorise as the calling user, never as the server. There are nine tools. Read-only tools are annotated as such.
 
-Locations in tool output use the URI `document://<document_id>@<revision_id>#<node_id>`. `documents_read` returns hashline lines. Edit tools take the base revision and return the new revision, or an error written for retry: stale anchors name the node and current text, stale bases name the head, `documents_str_replace` reports the match count, and a refusal names the held and the needed level.
+| Tool | Purpose |
+|---|---|
+| `documents_list` | Folders and documents in one folder, paged by cursor. |
+| `documents_search` | Full-text search over the head revision of every visible document. |
+| `documents_create` | Create from a template, optionally applying edit operations in the same first revision. |
+| `documents_read` | A revision as hashlines, by outline, text, node range or spreadsheet cells. |
+| `documents_edit` | Apply edit operations as one revision against a base revision. |
+| `documents_history` | Revisions, newest first, with author, actor kind and message. |
+| `documents_share` | Grant a subject access to a document or a folder subtree. |
+| `documents_export` | A signed ten-minute download link, or the sanitised HTML preview for the document-preview app. |
+| `documents_guide` | Working detail by topic: `editing`, `formats`, `sheets`, `slides`, `sharing` and `refusal.<code>`. |
+
+The server `instructions` carry the working contract: read the outline, edit by node id and hash or by quote, anchor the next edit on the acknowledgement, let the other writer's edit win on a conflict, and do not re-read between your own writes.
+
+**Reading.** A line is `<node>:<hash>| <text>`; a cell is `<sheet>!<cell>:<hash>| <value>`. The text shows structure as the outline does: `# ` by heading level, `- ` for a list item, `| ` for a table cell and `## slide N` at each slide.
+
+**Editing.** Operations are `replace_text`, `insert_after`, `delete`, `str_replace`, `set_cells`, `insert_slide`, `set_text` and `set_html`. Every target in a call resolves against the document as it stood before the call, operations apply in order, and all apply or none. Each codec reports the node kinds `insert_after` accepts for its format. Every write takes a revision message, which history shows.
+
+**Results.** A result is a one-line summary plus structured content, sent once. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs and content hashes. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read.
+
+**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` (`stale_base`, `guard_mismatch`, `find_none`, `unsupported_op`, `unsupported_format`, `template_failed`, `forbidden`, `not_found`, `locked`, `invalid_params`) and the detail the failure knows: the head revision and who wrote it, a node's current text and hash, a match count or the accepted node kinds. The text names what to do next.
+
+**Export.** `native` as a URL works for every format, and `html` as a preview works for every format. `md` or `html` as a URL is offered only for a document already in that format, and `pdf` is refused as `unsupported_format`.
 
 The tool handlers are composed by an extension's MCP server binary; core provides the handlers and the service behind them.
 

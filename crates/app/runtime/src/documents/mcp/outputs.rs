@@ -147,17 +147,22 @@ pub struct ShareOutput {
 documents_output!(ShareOutput, "documents_share");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct DownloadOutput {
+pub struct ExportOutput {
     pub revision_id: DocumentRevisionId,
-    pub url: String,
-    pub expires_at: DateTime<Utc>,
+    pub format: DocumentFormat,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub html: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ui_resource: Option<String>,
 }
-documents_output!(DownloadOutput, "documents_download_url");
+documents_output!(ExportOutput, "documents_export");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct PreviewOutput {
-    pub revision_id: DocumentRevisionId,
-    pub html: String,
-    pub ui_resource: String,
+pub struct GuideOutput {
+    pub topics: Vec<String>,
 }
-documents_output!(PreviewOutput, "documents_render_preview");
+documents_output!(GuideOutput, "documents_guide");

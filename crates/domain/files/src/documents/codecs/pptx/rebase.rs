@@ -49,13 +49,10 @@ fn moved_tails<K>(tails: &mut HashMap<K, usize>, mut keep: impl FnMut(&K) -> boo
         if !keep(key) {
             return true;
         }
-        match shifted(&[shift], *tail) {
-            Some(next) => {
-                *tail = next;
-                true
-            },
-            None => false,
-        }
+        shifted(&[shift], *tail).is_some_and(|next| {
+            *tail = next;
+            true
+        })
     });
 }
 
@@ -82,11 +79,17 @@ impl DeckShifts {
             },
             Target::Paragraph { slide, shape, para } => {
                 let current_slide = self.slide(slide).ok_or_else(gone)?;
-                let current = match self.para_tails.get(&(slide, shape, para)).filter(|_| anchor) {
+                let current = match self
+                    .para_tails
+                    .get(&(slide, shape, para))
+                    .filter(|_| anchor)
+                {
                     Some(tail) => *tail,
                     None => self.para(slide, shape, para).ok_or_else(gone)?,
                 };
-                DocumentNodeId::new(format!("slide[{current_slide}]/shape[{shape}]/p[{current}]"))
+                DocumentNodeId::new(format!(
+                    "slide[{current_slide}]/shape[{shape}]/p[{current}]"
+                ))
             },
             Target::Other => node.clone(),
         })
@@ -115,7 +118,11 @@ impl DeckShifts {
         let current = self.rebase(node, anchor)?;
         let removed = apply_one(package, &with_node(op, current.clone()))?;
         match (op, target(node)?, target(&current)?) {
-            (EditOp::InsertAfter { .. }, Target::Paragraph { slide, shape, para }, Target::Paragraph { para: at, .. }) => {
+            (
+                EditOp::InsertAfter { .. },
+                Target::Paragraph { slide, shape, para },
+                Target::Paragraph { para: at, .. },
+            ) => {
                 self.para_shift((slide, shape), Shift::Insert(at + 1));
                 self.para_tails.insert((slide, shape, para), at + 1);
             },
@@ -126,7 +133,11 @@ impl DeckShifts {
             (EditOp::Delete { .. }, Target::Slide(_), Target::Slide(at)) => {
                 self.slide_shift(Shift::Remove(at));
             },
-            (EditOp::Delete { .. }, Target::Paragraph { slide, shape, .. }, Target::Paragraph { para: at, .. }) if removed => {
+            (
+                EditOp::Delete { .. },
+                Target::Paragraph { slide, shape, .. },
+                Target::Paragraph { para: at, .. },
+            ) if removed => {
                 self.para_shift((slide, shape), Shift::Remove(at));
             },
             _ => {},
@@ -213,4 +224,3 @@ pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError>
     }
     package.finish()
 }
-

@@ -53,11 +53,12 @@ impl DocumentService {
                     source,
                 })?;
             if !ops.is_empty() {
-                let codec = codecs
-                    .for_format(made.format)
-                    .ok_or(DocumentsError::UnsupportedFormat {
-                        format: made.format,
-                    })?;
+                let codec =
+                    codecs
+                        .for_format(made.format)
+                        .ok_or(DocumentsError::UnsupportedFormat {
+                            format: made.format,
+                        })?;
                 made.bytes = apply_with(codec.as_ref(), made.format, &made.bytes, &ops)?;
             }
             Ok(made)

@@ -35,6 +35,8 @@ mod database_context_live;
 #[cfg(test)]
 mod display_tests;
 #[cfg(test)]
+mod documents_mcp_guide;
+#[cfg(test)]
 mod documents_mcp_handlers;
 #[cfg(test)]
 mod documents_mcp_lines;

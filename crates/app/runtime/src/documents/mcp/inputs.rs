@@ -10,7 +10,7 @@ use serde::Deserialize;
 use systemprompt_identifiers::{
     DocumentFolderId, DocumentId, DocumentNodeId, DocumentRevisionId, DocumentTemplateId,
 };
-use systemprompt_models::documents::{AccessLevel, CellValue, DocumentFormat, EditOp};
+use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditOp};
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ListInput {
@@ -94,27 +94,6 @@ pub struct EditInput {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct StrReplaceInput {
-    pub document_id: DocumentId,
-    pub base_revision: DocumentRevisionId,
-    pub old_str: String,
-    pub new_str: String,
-    #[serde(default)]
-    pub message: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct SetCellsInput {
-    pub document_id: DocumentId,
-    pub base_revision: DocumentRevisionId,
-    pub sheet: String,
-    pub range: String,
-    pub values: Vec<Vec<CellValue>>,
-    #[serde(default)]
-    pub message: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct HistoryInput {
     pub document_id: DocumentId,
     #[serde(default)]
@@ -136,9 +115,36 @@ pub struct ShareInput {
     pub valid_until: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExportFormat {
+    #[default]
+    Native,
+    Pdf,
+    Md,
+    Html,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExportAs {
+    #[default]
+    Url,
+    Preview,
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct RevisionInput {
+pub struct ExportInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub revision_id: Option<DocumentRevisionId>,
+    #[serde(default)]
+    pub format: ExportFormat,
+    #[serde(default, rename = "as")]
+    pub export_as: ExportAs,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GuideInput {
+    pub topics: Vec<String>,
 }

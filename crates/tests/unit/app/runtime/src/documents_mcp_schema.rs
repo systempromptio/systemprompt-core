@@ -8,8 +8,8 @@ const READ_ONLY: [&str; 6] = [
     "documents_search",
     "documents_read",
     "documents_history",
-    "documents_download_url",
-    "documents_render_preview",
+    "documents_export",
+    "documents_guide",
 ];
 
 #[tokio::test]
@@ -23,6 +23,29 @@ async fn tool_list_matches_the_plan_in_order() {
         .collect();
     assert_eq!(names, TOOL_NAMES.map(str::to_owned).to_vec());
     assert_eq!(DocumentsMcpTools::tool_names(), &TOOL_NAMES);
+}
+
+#[tokio::test]
+async fn the_tool_list_stays_under_six_kilobytes() {
+    let h = harness().await;
+    let bytes = serde_json::to_vec(&h.tools.list_tools())
+        .expect("tools json")
+        .len();
+    let per_tool: Vec<String> = h
+        .tools
+        .list_tools()
+        .iter()
+        .map(|tool| {
+            format!(
+                "{} in={} meta={} desc={}",
+                tool.name,
+                serde_json::to_vec(&tool.input_schema).map_or(0, |v| v.len()),
+                serde_json::to_vec(&tool.meta).map_or(0, |v| v.len()),
+                tool.description.as_ref().map_or(0, |d| d.len())
+            )
+        })
+        .collect();
+    assert!(bytes < 6144, "{bytes} bytes: {per_tool:#?}");
 }
 
 #[tokio::test]
@@ -57,12 +80,12 @@ async fn read_only_annotations_follow_the_plan() {
 }
 
 #[tokio::test]
-async fn render_preview_points_at_the_document_preview_resource() {
+async fn export_points_at_the_document_preview_resource() {
     let h = harness().await;
     let tools = h.tools.list_tools();
     let preview = tools
         .iter()
-        .find(|t| t.name == "documents_render_preview")
+        .find(|t| t.name == "documents_export")
         .expect("preview tool");
     let meta = serde_json::to_string(&preview.meta).expect("meta json");
     let uri = preview_resource_uri(&McpServerId::new(SERVER));

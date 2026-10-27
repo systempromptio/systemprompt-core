@@ -40,9 +40,8 @@ impl McpToolHandler for ShareHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Grant a subject access to a document or a folder subtree. subject_kind is user, role or \
-         a registered subject dimension such as group or project; level is view, comment, edit, \
-         share or own. Needs share access."
+        "Grant a subject access to one document or a folder subtree. See documents_guide topic \
+         sharing."
     }
 
     async fn handle(

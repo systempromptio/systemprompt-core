@@ -2,9 +2,9 @@ use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, ActorKind, EditOp};
 use systemprompt_runtime::documents::mcp::{
-    DownloadUrlHandler, EditHandler, EditInput, HistoryHandler, HistoryInput, ListHandler,
-    ListInput, ReadHandler, ReadInput, ReadView, RenderPreviewHandler, RevisionInput, ShareHandler,
-    ShareInput, StrReplaceHandler, StrReplaceInput,
+    EditHandler, EditInput, ExportAs, ExportFormat, ExportHandler, ExportInput, HistoryHandler,
+    HistoryInput, ListHandler, ListInput, ReadHandler, ReadInput, ReadView, ShareHandler,
+    ShareInput,
 };
 
 use crate::documents_mcp_support::{
@@ -122,14 +122,17 @@ async fn str_replace_reports_the_match_count() {
     let owner = person("replace");
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta\nalpha").await;
-    let replace = |old: &str| StrReplaceInput {
+    let replace = |old: &str| EditInput {
         document_id: document.clone(),
         base_revision: revision.clone(),
-        old_str: old.to_owned(),
-        new_str: "omega".to_owned(),
+        ops: vec![EditOp::StrReplace {
+            old_str: old.to_owned(),
+            new_str: "omega".to_owned(),
+        }],
         message: Some("swap".to_owned()),
+        verbose: false,
     };
-    let handler = StrReplaceHandler { tools: &h.tools };
+    let handler = EditHandler { tools: &h.tools };
     let twice = handler
         .handle(replace("alpha"), &ctx, &exec())
         .await
@@ -288,36 +291,54 @@ async fn list_shows_the_owners_root_document() {
 }
 
 #[tokio::test]
-async fn download_url_and_preview_address_the_revision() {
+async fn export_links_and_previews_the_revision() {
     let h = harness().await;
     let owner = person("download");
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "hello").await;
-    let input = RevisionInput {
+    let input = |format, export_as| ExportInput {
         document_id: document.clone(),
         revision_id: None,
+        format,
+        export_as,
     };
-    let (download, _) = DownloadUrlHandler { tools: &h.tools }
-        .handle(input.clone(), &ctx, &exec())
+    let (download, _) = ExportHandler { tools: &h.tools }
+        .handle(input(ExportFormat::Native, ExportAs::Url), &ctx, &exec())
         .await
         .expect("download url");
     assert_eq!(download.revision_id, revision);
+    let url = download.url.clone().expect("url");
     assert!(
-        download.url.starts_with(&format!(
+        url.starts_with(&format!(
             "https://docs.example.test/api/v1/documents/{document}/content?revision={revision}&access_token="
         )),
-        "{}",
-        download.url
+        "{url}"
     );
-    let lifetime = download.expires_at - chrono::Utc::now();
+    let lifetime = download.expires_at.expect("expiry") - chrono::Utc::now();
     assert!(lifetime <= chrono::Duration::minutes(10) && lifetime > chrono::Duration::minutes(9));
 
-    let (preview, _) = RenderPreviewHandler { tools: &h.tools }
-        .handle(input, &ctx, &exec())
+    let (preview, _) = ExportHandler { tools: &h.tools }
+        .handle(input(ExportFormat::Html, ExportAs::Preview), &ctx, &exec())
         .await
         .expect("preview");
-    assert_eq!(preview.ui_resource, "ui://documents/document-preview");
-    assert!(preview.html.contains("hello"), "{}", preview.html);
+    assert_eq!(
+        preview.ui_resource.as_deref(),
+        Some("ui://documents/document-preview")
+    );
+    assert!(
+        preview
+            .html
+            .as_deref()
+            .is_some_and(|html| html.contains("hello"))
+    );
+    let pdf = ExportHandler { tools: &h.tools }
+        .handle(input(ExportFormat::Pdf, ExportAs::Url), &ctx, &exec())
+        .await
+        .expect_err("no codec renders pdf");
+    assert_eq!(
+        pdf.data.as_ref().expect("refusal")["code"],
+        "unsupported_format"
+    );
 }
 
 #[tokio::test]
@@ -333,7 +354,7 @@ async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
             CreateInput {
                 template_id: DocumentTemplateId::new("blank-html"),
                 folder_id: None,
-                name: "memo".to_owned(),
+                name: format!("memo-{}", uuid::Uuid::new_v4().simple()),
                 params: Default::default(),
                 ops: vec![
                     EditOp::InsertAfter {

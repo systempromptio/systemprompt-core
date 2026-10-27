@@ -155,7 +155,10 @@ fn every_codec_names_its_insert_kinds() {
             .expect("codec")
             .insert_kinds(format)
     };
-    assert_eq!(kinds(DocumentFormat::Docx), &["heading", "paragraph", "list_item"]);
+    assert_eq!(
+        kinds(DocumentFormat::Docx),
+        &["heading", "paragraph", "list_item"]
+    );
     assert_eq!(kinds(DocumentFormat::Pptx), &["paragraph", "list_item"]);
     assert_eq!(kinds(DocumentFormat::Xlsx), &["row"]);
     assert!(kinds(DocumentFormat::Ods).is_empty());

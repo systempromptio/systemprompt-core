@@ -221,10 +221,11 @@ fn office_blanks_are_listed_and_project() {
 }
 
 fn shipped_codecs() -> CodecRegistry {
+    use systemprompt_files::documents::codecs::docx::DocxCodec;
     use systemprompt_files::documents::codecs::odf::{OdpCodec, OdsCodec, OdtCodec};
-    use systemprompt_files::documents::codecs::{
-        HtmlCodec, MarkdownCodec, TextCodec, docx::DocxCodec, pptx::PptxCodec, xlsx::XlsxCodec,
-    };
+    use systemprompt_files::documents::codecs::pptx::PptxCodec;
+    use systemprompt_files::documents::codecs::xlsx::XlsxCodec;
+    use systemprompt_files::documents::codecs::{HtmlCodec, MarkdownCodec, TextCodec};
     use systemprompt_provider_contracts::documents::DocumentCodec;
     let codecs: Vec<Arc<dyn DocumentCodec>> = vec![
         Arc::new(TextCodec),

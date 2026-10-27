@@ -198,13 +198,12 @@ fn insert_after(
     let (name, original) =
         parse_node(node).ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
     let (sheet, target) = resolve(workbook, node, shifts)?;
-    let anchor = match (target, original) {
-        (Target::Row(_) | Target::Cell(..), Target::Row(row) | Target::Cell(_, row)) => row,
-        _ => {
-            let row = sheet.highest_row() + 1;
-            write_row(sheet, row, text);
-            return Ok(());
-        },
+    let (Target::Row(_) | Target::Cell(..), Target::Row(anchor) | Target::Cell(_, anchor)) =
+        (target, original)
+    else {
+        let row = sheet.highest_row() + 1;
+        write_row(sheet, row, text);
+        return Ok(());
     };
     let at = shifts.anchor(&name, anchor) + 1;
     sheet.insert_new_row(at, 1);

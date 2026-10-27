@@ -1,5 +1,4 @@
-//! Writing tools: `documents_create`, `documents_edit`,
-//! `documents_str_replace` and `documents_set_cells`.
+//! Writing tools: `documents_create` and `documents_edit`.
 //!
 //! Every edit is a commit against the caller's `base_revision`, authored by
 //! an agent with the MCP execution as its origin. A base that is no longer
@@ -21,7 +20,7 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsMcpTools;
-use super::inputs::{CreateInput, EditInput, SetCellsInput, StrReplaceInput};
+use super::inputs::{CreateInput, EditInput};
 use super::lines::written_lines;
 use super::outputs::{CreateOutput, EditOutput};
 use super::support::{agent_author, caller, stale_base, tool_error};
@@ -123,10 +122,9 @@ impl McpToolHandler for CreateHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create a document from a template (for example blank-docx, blank-xlsx, blank-pptx, \
-         blank-html, blank-markdown) in a folder, the root when folder_id is omitted. params \
-         fill the template's placeholders; ops apply after instantiation in the same revision. \
-         The name gets the format's extension. Returns the written lines to anchor on."
+        "Create a document from a template (blank-docx, blank-xlsx, blank-pptx, blank-html, \
+         blank-markdown, ...), optionally applying ops in the same revision; returns the written \
+         lines. See documents_guide topic editing."
     }
 
     async fn handle(
@@ -183,100 +181,43 @@ impl McpToolHandler for CreateHandler<'_> {
     }
 }
 
-macro_rules! edit_handler {
-    (
-        $handler:ident,
-        $input:ty,
-        $name:literal,
-        $description:literal,
-        |$i:ident| $ops:expr,
-        $message:expr,
-        $verbose:expr
-    ) => {
-        #[derive(Debug, Clone, Copy)]
-        pub struct $handler<'a> {
-            pub tools: &'a DocumentsMcpTools,
-        }
-
-        impl McpToolHandler for $handler<'_> {
-            type Input = $input;
-            type Output = EditOutput;
-
-            fn tool_name(&self) -> &'static str {
-                $name
-            }
-
-            fn description(&self) -> &'static str {
-                $description
-            }
-
-            async fn handle(
-                &self,
-                $i: $input,
-                ctx: &RequestContext,
-                exec_id: &McpExecutionId,
-            ) -> Result<(EditOutput, String), McpError> {
-                let who = caller(ctx)?;
-                let message = $message;
-                let verbose = $verbose;
-                commit_ops(EditCall {
-                    tools: self.tools,
-                    who,
-                    ctx,
-                    exec_id,
-                    document: $i.document_id.clone(),
-                    base: $i.base_revision.clone(),
-                    ops: $ops,
-                    message,
-                    verbose,
-                })
-                .await
-            }
-        }
-    };
+#[derive(Debug, Clone, Copy)]
+pub struct EditHandler<'a> {
+    pub tools: &'a DocumentsMcpTools,
 }
 
-edit_handler!(
-    EditHandler,
-    EditInput,
-    "documents_edit",
-    "Apply edit ops to a document as one revision against base_revision. Anchored ops \
-     (replace_text, delete) quote the node id and hash from documents_read as node and \
-     expected_hash; a stale hash is refused with the node's current text. Every target \
-     resolves against the document as it stood before the call, and ops apply in order: two \
-     insert_after on one node land in op order. insert_after kinds differ per format; a refusal \
-     names accepted_kinds. All ops apply or none; message is kept in the history.",
-    |input| input.ops.clone(),
-    input.message.clone(),
-    input.verbose
-);
+impl McpToolHandler for EditHandler<'_> {
+    type Input = EditInput;
+    type Output = EditOutput;
 
-edit_handler!(
-    StrReplaceHandler,
-    StrReplaceInput,
-    "documents_str_replace",
-    "Replace old_str with new_str in the document text as one revision against base_revision. \
-     old_str must occur exactly once; the error reports how many places it matched.",
-    |input| vec![EditOp::StrReplace {
-        old_str: input.old_str.clone(),
-        new_str: input.new_str.clone(),
-    }],
-    input.message.clone(),
-    false
-);
+    fn tool_name(&self) -> &'static str {
+        "documents_edit"
+    }
 
-edit_handler!(
-    SetCellsHandler,
-    SetCellsInput,
-    "documents_set_cells",
-    "Write a rectangle of spreadsheet values (rows of cells) into sheet at an A1 range such as \
-     B7 or A1:C9, as one revision against base_revision.",
-    |input| vec![EditOp::SetCells {
-        sheet: input.sheet.clone(),
-        range: input.range.clone(),
-        values: input.values.clone(),
-        expected_hash: None,
-    }],
-    input.message.clone(),
-    false
-);
+    fn description(&self) -> &'static str {
+        "Apply ops (replace_text, insert_after, delete, str_replace, set_cells, insert_slide, \
+         set_text, set_html) as one revision against base_revision; returns the written lines. \
+         See documents_guide topic editing."
+    }
+
+    async fn handle(
+        &self,
+        input: EditInput,
+        ctx: &RequestContext,
+        exec_id: &McpExecutionId,
+    ) -> Result<(EditOutput, String), McpError> {
+        let who = caller(ctx)?;
+        commit_ops(EditCall {
+            tools: self.tools,
+            who,
+            ctx,
+            exec_id,
+            document: input.document_id,
+            base: input.base_revision,
+            ops: input.ops,
+            message: input.message,
+            verbose: input.verbose,
+        })
+        .await
+    }
+}

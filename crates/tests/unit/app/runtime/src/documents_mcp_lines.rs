@@ -221,7 +221,13 @@ fn text_view_carries_headings_lists_cells_and_slides() {
         .collect();
     assert_eq!(
         shown,
-        vec!["## slide 1: Agenda", "## Plan", "## slide 2", "- one", "| a"]
+        vec![
+            "## slide 1: Agenda",
+            "## Plan",
+            "## slide 2",
+            "- one",
+            "| a"
+        ]
     );
     let outline = render(
         &doc,
@@ -240,7 +246,12 @@ fn written_lines_are_the_nodes_a_revision_added_or_changed() {
         para("p[0]", "keep"),
         para("p[1]", "new"),
         para("p[2]", "old"),
-        node("p[3]", NodeKind::Heading { level: 1 }, Some("Title"), Vec::new()),
+        node(
+            "p[3]",
+            NodeKind::Heading { level: 1 },
+            Some("Title"),
+            Vec::new(),
+        ),
     ]);
     assert_eq!(
         systemprompt_runtime::documents::mcp::written_lines(Some(&base), &head),

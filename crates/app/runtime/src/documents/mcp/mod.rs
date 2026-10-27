@@ -16,8 +16,11 @@
 
 mod browse;
 mod download;
+mod export;
+mod guide;
 mod inputs;
 mod lines;
+mod listing;
 mod outputs;
 mod preview;
 mod read;
@@ -44,51 +47,52 @@ pub use download::{
     DOWNLOAD_AUDIENCE, DOWNLOAD_TOKEN_QUERY, DOWNLOAD_TTL, DownloadTarget, download_purpose,
     signed_download_url,
 };
+pub use export::ExportHandler;
+pub use guide::GuideHandler;
 pub use inputs::{
-    CreateInput, EditInput, HistoryInput, ListInput, NodeRange, ReadInput, ReadView, RevisionInput,
-    SearchInput, SetCellsInput, ShareInput, StrReplaceInput,
+    CreateInput, EditInput, ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput,
+    ListInput, NodeRange, ReadInput, ReadView, SearchInput, ShareInput,
 };
 pub use lines::{
     MAX_LINES, MAX_WRITTEN, RenderedLines, parse_cell, render, split_cell_id, structured_line,
     written_lines,
 };
 pub use outputs::{
-    CreateOutput, DocumentItem, DownloadOutput, EditOutput, FolderItem, HistoryOutput, ListOutput,
-    PreviewOutput, ReadOutput, RevisionItem, SearchHit, SearchOutput, ShareOutput,
+    CreateOutput, DocumentItem, EditOutput, ExportOutput, FolderItem, GuideOutput, HistoryOutput,
+    ListOutput, ReadOutput, RevisionItem, SearchHit, SearchOutput, ShareOutput,
 };
 pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
     preview_template, preview_tool_meta, read_preview_resource,
 };
+pub use read::ReadHandler;
 pub use refusal::{Refusal, RefusalCode, refusal, refusal_result};
-pub use read::{DownloadUrlHandler, ReadHandler, RenderPreviewHandler};
 pub use share::ShareHandler;
 pub use support::tool_error;
-pub use write::{CreateHandler, EditHandler, SetCellsHandler, StrReplaceHandler};
+pub use write::{CreateHandler, EditHandler};
 
 use crate::AppContext;
 
-pub const TOOL_NAMES: [&str; 11] = [
+pub const TOOL_NAMES: [&str; 9] = [
     "documents_list",
     "documents_search",
     "documents_create",
     "documents_read",
     "documents_edit",
-    "documents_str_replace",
-    "documents_set_cells",
     "documents_history",
     "documents_share",
-    "documents_download_url",
-    "documents_render_preview",
+    "documents_export",
+    "documents_guide",
 ];
 
 pub const INSTRUCTIONS: &str = "Shared documents (Word, Excel, PowerPoint, OpenDocument, HTML, \
-    Markdown, text) you may view, edit and share. Find documents with documents_list or \
-    documents_search, then documents_read (view outline first for large documents). Each read \
-    line is `<node>:<hash>| <text>`; edit with documents_edit, documents_str_replace or \
-    documents_set_cells, passing the read's revision_id as base_revision and the node's hash \
-    as expected_hash. A stale hash or base is refused with the current text or head revision: \
-    re-read and resend. Locations are document://<document>@<revision>#<node> URIs.";
+Markdown, text) you may view, edit and share.
+1. Read the outline first: documents_read view outline; lines are `<node>:<hash>| <text>`.
+2. Edit by node id and hash, or by quote with str_replace, in one documents_edit call.
+3. Anchor the next edit on the ack: its written lines and revision_id.
+4. On stale_base or guard_mismatch their edit wins: re-aim from the returned text, never resend \
+your old text.
+5. Do not re-read between your own writes. Details: documents_guide.";
 
 /// Why [`DocumentsMcpTools::from_context`] refused to build the tools.
 #[derive(Debug, thiserror::Error)]
@@ -118,7 +122,7 @@ pub struct DocumentsToolCall<'a> {
     pub client: &'a ClientProfile,
 }
 
-/// The eleven document tools and the preview resource of one MCP server.
+/// The nine document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
@@ -199,20 +203,21 @@ impl DocumentsMcpTools {
     #[must_use]
     pub fn list_tools(&self) -> Vec<Tool> {
         let server = &self.server_name;
-        let mut preview = RenderPreviewHandler { tools: self }.tool_definition(server);
-        preview.meta = Some(preview_tool_meta(server));
+        let mut export = ExportHandler { tools: self }.tool_definition(server);
+        export.meta = Some(preview_tool_meta(server));
         vec![
-            ListHandler { tools: self }.tool_definition(server),
-            SearchHandler { tools: self }.tool_definition(server),
-            CreateHandler { tools: self }.tool_definition(server),
-            ReadHandler { tools: self }.tool_definition(server),
-            EditHandler { tools: self }.tool_definition(server),
-            StrReplaceHandler { tools: self }.tool_definition(server),
-            SetCellsHandler { tools: self }.tool_definition(server),
-            HistoryHandler { tools: self }.tool_definition(server),
-            ShareHandler { tools: self }.tool_definition(server),
-            DownloadUrlHandler { tools: self }.tool_definition(server),
-            preview,
+            listing::compact(ListHandler { tools: self }.tool_definition(server), false),
+            listing::compact(SearchHandler { tools: self }.tool_definition(server), false),
+            listing::compact(CreateHandler { tools: self }.tool_definition(server), false),
+            listing::compact(ReadHandler { tools: self }.tool_definition(server), false),
+            listing::compact(EditHandler { tools: self }.tool_definition(server), false),
+            listing::compact(
+                HistoryHandler { tools: self }.tool_definition(server),
+                false,
+            ),
+            listing::compact(ShareHandler { tools: self }.tool_definition(server), false),
+            listing::compact(export, true),
+            listing::compact(GuideHandler { tools: self }.tool_definition(server), false),
         ]
     }
 
@@ -223,12 +228,10 @@ impl DocumentsMcpTools {
             "documents_create" => run(call, &CreateHandler { tools: self }).await,
             "documents_read" => run(call, &ReadHandler { tools: self }).await,
             "documents_edit" => run(call, &EditHandler { tools: self }).await,
-            "documents_str_replace" => run(call, &StrReplaceHandler { tools: self }).await,
-            "documents_set_cells" => run(call, &SetCellsHandler { tools: self }).await,
             "documents_history" => run(call, &HistoryHandler { tools: self }).await,
             "documents_share" => run(call, &ShareHandler { tools: self }).await,
-            "documents_download_url" => run(call, &DownloadUrlHandler { tools: self }).await,
-            "documents_render_preview" => run(call, &RenderPreviewHandler { tools: self }).await,
+            "documents_export" => run(call, &ExportHandler { tools: self }).await,
+            "documents_guide" => run(call, &GuideHandler { tools: self }).await,
             other => Err(McpError::invalid_params(
                 format!(
                     "Unknown tool: '{other}'. This server exposes: {}.",

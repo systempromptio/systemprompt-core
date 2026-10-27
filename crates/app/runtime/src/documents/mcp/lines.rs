@@ -67,7 +67,10 @@ pub fn structured_line(node: &ProjectionNode, slide: usize) -> String {
     format!("{}:{}| {shown}", node.id.as_str(), node.hash8)
 }
 
-fn structured(projection: &Projection, mut keep: impl FnMut(&ProjectionNode) -> bool) -> Vec<String> {
+fn structured(
+    projection: &Projection,
+    mut keep: impl FnMut(&ProjectionNode) -> bool,
+) -> Vec<String> {
     let mut slide = 0;
     projection
         .nodes()
@@ -87,7 +90,11 @@ fn shows(node: &ProjectionNode) -> bool {
 #[must_use]
 pub fn written_lines(base: Option<&Projection>, head: &Projection) -> Vec<String> {
     let mut unchanged: HashMap<&str, usize> = HashMap::new();
-    for node in base.into_iter().flat_map(Projection::nodes).filter(|n| shows(n)) {
+    for node in base
+        .into_iter()
+        .flat_map(Projection::nodes)
+        .filter(|n| shows(n))
+    {
         *unchanged.entry(node.hash8.as_str()).or_default() += 1;
     }
     let mut lines = structured(head, |node| {

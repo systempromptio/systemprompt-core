@@ -1,0 +1,104 @@
+//! The `tools/list` shape of the document tools.
+//!
+//! Descriptions are one line and the working detail lives in
+//! `documents_guide`, so the list stays small. Edit ops are listed by name
+//! with their fields left open; the `editing` topic carries their shapes.
+//! A tool advertises no output schema and no artifact-viewer `_meta`, since
+//! results arrive as summary text and untagged structured content and this
+//! server serves only the document-preview resource, which `documents_export`
+//! names.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::collections::BTreeSet;
+use std::sync::Arc;
+
+use rmcp::model::Tool;
+use serde_json::{Map, Value as JsonValue, json};
+
+const OP_NAMES: [&str; 8] = [
+    "replace_text",
+    "insert_after",
+    "delete",
+    "str_replace",
+    "set_cells",
+    "insert_slide",
+    "set_text",
+    "set_html",
+];
+
+// JSON: MCP tool `inputSchema` — the ops array is described in the guide.
+fn ops_schema() -> JsonValue {
+    json!({
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": { "op": { "enum": OP_NAMES } },
+            "required": ["op"]
+        }
+    })
+}
+
+// JSON: walks an arbitrary JSON Schema document for $ref strings
+fn refs(value: &JsonValue, out: &mut BTreeSet<String>) {
+    match value {
+        JsonValue::Object(map) => {
+            for (key, inner) in map {
+                if key == "$ref"
+                    && let Some(target) = inner.as_str().and_then(|r| r.rsplit('/').next())
+                {
+                    out.insert(target.to_owned());
+                }
+                refs(inner, out);
+            }
+        },
+        JsonValue::Array(items) => items.iter().for_each(|item| refs(item, out)),
+        _ => {},
+    }
+}
+
+// JSON: edits the schemars output in place; the schema has no typed shape
+fn prune_definitions(schema: &mut Map<String, JsonValue>) {
+    for key in ["$defs", "definitions"] {
+        let Some(JsonValue::Object(mut defs)) = schema.remove(key) else {
+            continue;
+        };
+        loop {
+            let mut used = BTreeSet::new();
+            refs(&JsonValue::Object(schema.clone()), &mut used);
+            refs(&JsonValue::Object(defs.clone()), &mut used);
+            let before = defs.len();
+            defs.retain(|name, _| used.contains(name));
+            if defs.len() == before {
+                break;
+            }
+        }
+        if !defs.is_empty() {
+            schema.insert(key.to_owned(), JsonValue::Object(defs));
+        }
+    }
+}
+
+// JSON: schemars output in, compacted schemars output out
+fn compact_input(schema: &Map<String, JsonValue>) -> Map<String, JsonValue> {
+    let mut schema = schema.clone();
+    schema.remove("$schema");
+    schema.remove("title");
+    if let Some(JsonValue::Object(properties)) = schema.get_mut("properties")
+        && properties.contains_key("ops")
+    {
+        properties.insert("ops".to_owned(), ops_schema());
+    }
+    prune_definitions(&mut schema);
+    schema
+}
+
+pub(super) fn compact(mut tool: Tool, keep_meta: bool) -> Tool {
+    tool.input_schema = Arc::new(compact_input(&tool.input_schema));
+    tool.output_schema = None;
+    if !keep_meta {
+        tool.meta = None;
+    }
+    tool
+}

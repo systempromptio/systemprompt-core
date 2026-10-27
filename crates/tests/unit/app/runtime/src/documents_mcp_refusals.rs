@@ -79,7 +79,9 @@ fn a_missing_quote_is_find_none() {
     let (_, data) = refused(DocumentsError::Codec(CodecError::NoMatch));
     assert_eq!(data["code"], "find_none");
     assert_eq!(data["matches"], 0);
-    let (_, data) = refused(DocumentsError::Codec(CodecError::AmbiguousMatch { matches: 3 }));
+    let (_, data) = refused(DocumentsError::Codec(CodecError::AmbiguousMatch {
+        matches: 3,
+    }));
     assert_eq!(data["code"], "find_none");
     assert_eq!(data["matches"], 3);
 }

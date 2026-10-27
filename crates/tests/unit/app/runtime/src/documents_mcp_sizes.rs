@@ -1,6 +1,6 @@
 use chrono::Utc;
-use systemprompt_identifiers::{DocumentRevisionId, UserId};
 use rmcp::model::{CallToolResult, ContentBlock};
+use systemprompt_identifiers::{DocumentRevisionId, UserId};
 use systemprompt_models::documents::{ActorKind, hash8};
 use systemprompt_runtime::documents::mcp::{EditOutput, HistoryOutput, RevisionItem};
 

@@ -128,19 +128,16 @@ fn insert_after(
     let Some(&last) = nodes.last() else {
         return Ok(());
     };
-    match tails.get(&key).copied().or(anchor) {
-        Some(after) => {
-            let mut at = html.tree.get_mut(after).ok_or(DETACHED)?;
-            for id in nodes.into_iter().rev() {
-                at.insert_id_after(id);
-            }
-        },
-        None => {
-            let mut body = html.tree.get_mut(projection.body).ok_or(DETACHED)?;
-            for id in nodes.into_iter().rev() {
-                body.prepend_id(id);
-            }
-        },
+    if let Some(after) = tails.get(&key).copied().or(anchor) {
+        let mut at = html.tree.get_mut(after).ok_or(DETACHED)?;
+        for id in nodes.into_iter().rev() {
+            at.insert_id_after(id);
+        }
+    } else {
+        let mut body = html.tree.get_mut(projection.body).ok_or(DETACHED)?;
+        for id in nodes.into_iter().rev() {
+            body.prepend_id(id);
+        }
     }
     tails.insert(key, last);
     Ok(())

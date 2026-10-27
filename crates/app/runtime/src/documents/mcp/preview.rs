@@ -1,5 +1,5 @@
 //! The `ui://<server>/document-preview` MCP App resource that renders a
-//! `documents_render_preview` result, built the same way as the artifact
+//! `documents_export` preview, built the same way as the artifact
 //! viewer resource.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
