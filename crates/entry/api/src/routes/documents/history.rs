@@ -8,10 +8,12 @@ use axum::http::{HeaderValue, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
+use systemprompt_extension::FrameOptionsOverride;
 use systemprompt_files::documents::service::HistoryPage;
 use systemprompt_identifiers::DocumentRevisionId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::Projection;
+use systemprompt_provider_contracts::FrameOptions;
 
 use super::DocumentsState;
 use super::caller::caller;
@@ -133,6 +135,9 @@ pub(super) async fn preview(
         .preview_html(&who.user, &id, revision.as_ref(), &who.trace)
         .await?;
     let mut response = Html(html).into_response();
+    response
+        .extensions_mut()
+        .insert(FrameOptionsOverride(FrameOptions::SameOrigin));
     let headers = response.headers_mut();
     headers.insert(
         header::CONTENT_SECURITY_POLICY,

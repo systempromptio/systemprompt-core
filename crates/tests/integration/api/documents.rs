@@ -814,6 +814,60 @@ async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credenti
 }
 
 #[tokio::test]
+async fn the_mounted_preview_frames_same_origin_and_keeps_its_sandbox_policy() -> Result<()> {
+    use std::net::SocketAddr;
+
+    use axum::extract::ConnectInfo;
+    use systemprompt_api::services::server::{ReadinessState, setup_api_server};
+    use systemprompt_manifest::profile::RateLimitsConfig;
+    use systemprompt_test_fixtures::{
+        ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
+    };
+
+    let bootstrap = ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let mut config = fixture_config(&bootstrap.database_url);
+    config.rate_limits = RateLimitsConfig::disabled();
+    config.trusted_proxies = Vec::new();
+    let ctx = fixture_app_context_with_config(&pool, config)?;
+    let server = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
+        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let state = DocumentsState::build(&ctx)?;
+    let owner = seed_bridge_credential(&pool, "docs-preview").await?;
+    let id = id_of(&create_markdown(&state, &owner).await?);
+    let mut req = request(Method::GET, &format!("/api/v1/documents/{id}/preview"))
+        .header(header::HOST, "127.0.0.1")
+        .header(header::USER_AGENT, "documents-test/1.0")
+        .header(
+            header::AUTHORIZATION,
+            format!("Bearer {}", owner.jwt.as_str()),
+        )
+        .body(Body::empty())
+        .expect("request");
+    req.extensions_mut().insert(ConnectInfo(
+        "203.0.113.9:40000".parse::<SocketAddr>().expect("addr"),
+    ));
+    let reply = send(server, req).await?;
+    assert_eq!(reply.status, StatusCode::OK, "{}", reply.json());
+    assert_eq!(
+        reply
+            .headers
+            .get("x-frame-options")
+            .expect("x-frame-options"),
+        "SAMEORIGIN"
+    );
+    let csp = reply
+        .headers
+        .get(header::CONTENT_SECURITY_POLICY)
+        .expect("csp")
+        .to_str()?;
+    assert!(csp.contains("sandbox"), "{csp}");
+    assert!(csp.contains("default-src 'none'"), "{csp}");
+    assert!(csp.contains("frame-ancestors 'self'"), "{csp}");
+    Ok(())
+}
+
+#[tokio::test]
 async fn patch_moves_into_a_folder_and_an_explicit_null_moves_to_the_root() -> Result<()> {
     use systemprompt_api::routes::documents::folders_router;
 

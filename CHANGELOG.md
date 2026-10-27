@@ -56,6 +56,7 @@
 
 - **Marketplace:** `core marketplace import` keeps a rule's frontmatter `hosts` and copies a plugin's `hosts/` tree, so host-targeted rules and host-native files reach the bundle.
 - **Bridge:** clearing Claude Code leaves `settings.json` unwritten when the bridge owns no permission rules, plugins or marketplaces in it.
+- **API:** document previews answer with same-origin frame options and keep their sandbox policy alongside `frame-ancestors`, so an installation's admin pages can embed them in a sandboxed iframe.
 
 ## [0.73.0] - 2026-10-26
 
