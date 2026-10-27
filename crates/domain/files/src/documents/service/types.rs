@@ -3,15 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::time::Duration;
+
 use systemprompt_identifiers::{
     DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId,
     DriveDeviceId, McpExecutionId, SessionId,
 };
 use systemprompt_models::documents::{AccessLevel, ActorKind, DocumentFormat, RevisionOriginKind};
 use systemprompt_provider_contracts::documents::TemplateParams;
+use systemprompt_traits::ByteRange;
 
 use crate::documents::models::{
-    Document, DocumentFolder, DocumentRevision, DocumentSearchHit, ListCursor,
+    Document, DocumentFolder, DocumentRevision, DocumentSearchHit, ListCursor, LockHolderKind,
 };
 use crate::documents::revision::CommitBody;
 
@@ -66,6 +69,33 @@ pub struct Author {
 pub struct NewFolderRequest {
     pub parent: Option<DocumentFolderId>,
     pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListFolderRequest {
+    pub folder: Option<DocumentFolderId>,
+    pub cursor: Option<ListCursor>,
+    pub limit: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HistoryPage {
+    pub limit: i64,
+    pub before: Option<ListCursor>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StreamRequest<'a> {
+    pub document: &'a DocumentId,
+    pub revision: Option<&'a DocumentRevisionId>,
+    pub range: Option<ByteRange>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AcquireLockRequest {
+    pub holder_kind: LockHolderKind,
+    pub holder_id: String,
+    pub ttl: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

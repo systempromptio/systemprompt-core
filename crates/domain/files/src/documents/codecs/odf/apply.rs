@@ -95,9 +95,7 @@ impl<'d> FlowBatch<'d> {
                 let text = para.text.replacen(old_str.as_str(), new_str, 1);
                 self.push(order, para.range.clone(), replaced(para, &text));
             },
-            EditOp::InsertAfter { node, kind, text } => {
-                self.insert_after(order, op, node, *kind, text)?;
-            },
+            EditOp::InsertAfter { .. } => self.insert_after(order, op)?,
             EditOp::Delete {
                 node,
                 expected_hash,
@@ -159,14 +157,11 @@ impl<'d> FlowBatch<'d> {
         Ok(())
     }
 
-    fn insert_after(
-        &mut self,
-        order: usize,
-        op: &EditOp,
-        node: &DocumentNodeId,
-        kind: NodeKind,
-        text: &str,
-    ) -> Result<(), CodecError> {
+    fn insert_after(&mut self, order: usize, op: &EditOp) -> Result<(), CodecError> {
+        let EditOp::InsertAfter { node, kind, text } = op else {
+            return Err(self.unsupported(op));
+        };
+        let kind = *kind;
         let (at, anchor) = match self.find(node)? {
             Target::Para(para) => {
                 let at = match (&para.list_item, kind) {

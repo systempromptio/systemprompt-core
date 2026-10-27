@@ -36,4 +36,7 @@ mod resolve;
 mod service;
 mod subjects;
 
-pub use service::{AccessTarget, DocumentAccessService, Granted, root_folder_entity};
+pub use service::{
+    AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
+    root_folder_entity,
+};

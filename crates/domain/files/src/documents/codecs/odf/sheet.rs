@@ -13,7 +13,7 @@ use systemprompt_provider_contracts::documents::{CodecError, NodeKind, Projectio
 
 use super::a1::{a1, sheet_id};
 use super::package::{Content, inline_text};
-use super::projection::container_node;
+use super::projection::{ContainerSpec, container_node};
 use crate::documents::codecs::xml_tree::Element;
 
 const MAX_PROJECTED_CELLS: usize = 2_000;
@@ -35,10 +35,12 @@ pub(super) struct CellData {
 }
 
 impl CellData {
-    fn is_empty(&self) -> bool {
+    const fn is_empty(&self) -> bool {
         self.display.is_empty() && self.formula.is_none() && self.value.is_none()
     }
 }
+
+pub(super) type FilledRow<'a> = (u32, Vec<(u32, &'a CellData)>);
 
 #[derive(Debug)]
 pub(super) struct CellSeg {
@@ -180,7 +182,7 @@ impl Sheet {
             .join("\n")
     }
 
-    pub(super) fn filled(&self, cap: usize) -> (Vec<(u32, Vec<(u32, &CellData)>)>, bool) {
+    pub(super) fn filled(&self, cap: usize) -> (Vec<FilledRow<'_>>, bool) {
         let mut out = Vec::new();
         let mut emitted = 0usize;
         for seg in &self.rows {
@@ -232,20 +234,24 @@ impl Sheet {
                         }
                         let id = format!("{prefix}/{}", a1(*col, *row));
                         container_node(
-                            &id,
-                            NodeKind::Cell,
-                            Some(data.display.clone()),
-                            &data.display,
+                            ContainerSpec {
+                                id: &id,
+                                kind: NodeKind::Cell,
+                                text: Some(data.display.clone()),
+                                hashed: &data.display,
+                            },
                             Vec::new(),
                             attrs,
                         )
                     })
                     .collect();
                 container_node(
-                    &format!("{prefix}/row[{row}]"),
-                    NodeKind::Row,
-                    Some(text.clone()),
-                    &text,
+                    ContainerSpec {
+                        id: &format!("{prefix}/row[{row}]"),
+                        kind: NodeKind::Row,
+                        text: Some(text.clone()),
+                        hashed: &text,
+                    },
                     nodes,
                     BTreeMap::new(),
                 )
@@ -261,10 +267,12 @@ impl Sheet {
             attrs.insert("truncated".to_owned(), "true".to_owned());
         }
         container_node(
-            &prefix,
-            NodeKind::Sheet,
-            Some(self.name.clone()),
-            &joined,
+            ContainerSpec {
+                id: &prefix,
+                kind: NodeKind::Sheet,
+                text: Some(self.name.clone()),
+                hashed: &joined,
+            },
             children,
             attrs,
         )

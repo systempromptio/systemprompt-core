@@ -9,20 +9,24 @@ use systemprompt_identifiers::{DocumentFolderId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
 
-use super::{DocumentService, Listing};
-use crate::documents::access::AccessTarget;
+use super::{DocumentService, ListFolderRequest, Listing};
+use crate::documents::access::{AccessCheck, AccessTarget};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, ListCursor, VisibleListing};
+use crate::documents::models::{Document, VisibleListing};
 
 impl DocumentService {
     pub async fn list_folder(
         &self,
         who: &AuthenticatedUser,
-        folder: Option<&DocumentFolderId>,
-        cursor: Option<ListCursor>,
-        limit: i64,
+        request: ListFolderRequest,
         trace: &TraceId,
     ) -> Result<Listing, DocumentsError> {
+        let ListFolderRequest {
+            folder,
+            cursor,
+            limit,
+        } = request;
+        let folder = folder.as_ref();
         let granted = self
             .access
             .authorize(
@@ -35,16 +39,14 @@ impl DocumentService {
         let mut folders = Vec::new();
         if cursor.is_none() {
             for child in self.repos.folders.list_children(folder).await? {
-                let probe = self
-                    .access
-                    .probe_with(
-                        who,
-                        AccessTarget::Folder(Some(child.id.clone())),
-                        DocumentAction::View,
-                        trace,
-                        &granted.pairs,
-                    )
-                    .await;
+                let target = AccessTarget::Folder(Some(child.id.clone()));
+                let check = AccessCheck {
+                    who,
+                    target: &target,
+                    action: DocumentAction::View,
+                    trace,
+                };
+                let probe = self.access.probe_with(check, &granted.pairs).await;
                 match probe {
                     Ok(_) => folders.push(child),
                     Err(DocumentsError::Forbidden { .. }) => {},

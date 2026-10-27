@@ -34,7 +34,9 @@ pub mod revision;
 pub mod service;
 pub mod templates;
 
-pub use access::{AccessTarget, DocumentAccessService, Granted};
+pub use access::{
+    AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
+};
 pub use error::DocumentsError;
 pub use events::DocumentEvents;
-pub use service::DocumentService;
+pub use service::{DocumentService, DocumentServiceParts};

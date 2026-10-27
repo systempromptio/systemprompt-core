@@ -1,5 +1,5 @@
 //! `{{key}}` placeholder substitution in the text of every paragraph of
-//! `content.xml`, shared by the three OpenDocument codecs.
+//! `content.xml`, shared by the three `OpenDocument` codecs.
 //!
 //! A placeholder that sits inside one text node is replaced in place, so the
 //! paragraph keeps its spans; one split across spans rewrites the paragraph

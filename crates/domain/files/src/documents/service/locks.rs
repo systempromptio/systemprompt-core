@@ -11,10 +11,10 @@ use systemprompt_models::documents::{
     DocumentAction, DocumentLockEvent, DocumentPresenceEvent, PresenceBeacon,
 };
 
-use super::DocumentService;
+use super::{AcquireLockRequest, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{
-    Document, DocumentPresenceRow, LockHolderKind, LockOutcome, LockRequest, PresenceUpsert,
+    Document, DocumentPresenceRow, LockOutcome, LockRequest, PresenceUpsert,
 };
 
 impl DocumentService {
@@ -22,9 +22,7 @@ impl DocumentService {
         &self,
         who: &AuthenticatedUser,
         document: &DocumentId,
-        holder_kind: LockHolderKind,
-        holder_id: &str,
-        ttl: Duration,
+        request: AcquireLockRequest,
         trace: &TraceId,
     ) -> Result<LockOutcome, DocumentsError> {
         let document = self
@@ -36,9 +34,9 @@ impl DocumentService {
             .acquire(&LockRequest {
                 document_id: document.id.clone(),
                 holder_user_id: who.id.clone(),
-                holder_kind,
-                holder_id: holder_id.to_owned(),
-                ttl,
+                holder_kind: request.holder_kind,
+                holder_id: request.holder_id,
+                ttl: request.ttl,
             })
             .await?;
         if matches!(outcome, LockOutcome::Acquired(_)) {

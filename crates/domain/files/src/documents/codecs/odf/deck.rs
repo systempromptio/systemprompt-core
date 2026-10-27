@@ -12,7 +12,7 @@ use systemprompt_provider_contracts::documents::{CodecError, NodeKind, Projectio
 
 use super::apply::Container;
 use super::package::{Content, open_tag};
-use super::projection::{Flow, Para, container_node, para_node, preview_paras};
+use super::projection::{ContainerSpec, Flow, Para, container_node, para_node, preview_paras};
 use crate::documents::codecs::xml_tree::Element;
 
 const NON_SHAPES: [&str; 4] = ["presentation:notes", "office:forms", "anim:par", "anim:seq"];
@@ -173,16 +173,27 @@ impl Deck {
                             ("name", &shape.name),
                             ("href", &shape.href),
                         ]);
-                        container_node(&shape.id, shape.kind, None, &text, paras, attrs)
+                        container_node(
+                            ContainerSpec {
+                                id: &shape.id,
+                                kind: shape.kind,
+                                text: None,
+                                hashed: &text,
+                            },
+                            paras,
+                            attrs,
+                        )
                     })
                     .collect();
                 let attrs = attrs(&[("master", &slide.master), ("layout", &slide.layout)]);
                 let text = self.joined(Self::slide_paras(slide));
                 container_node(
-                    &slide.id,
-                    NodeKind::Slide,
-                    slide.name.clone(),
-                    &text,
+                    ContainerSpec {
+                        id: &slide.id,
+                        kind: NodeKind::Slide,
+                        text: slide.name.clone(),
+                        hashed: &text,
+                    },
                     shapes,
                     attrs,
                 )

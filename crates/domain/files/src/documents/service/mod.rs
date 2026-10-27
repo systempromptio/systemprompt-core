@@ -33,8 +33,9 @@ use std::sync::Arc;
 pub use drive::{CHANGE_LAG, parse_drive_cursor};
 pub use grants::ShareRequest;
 pub use types::{
-    Author, CommitOutcome, CommitRequest, CommitWarning, CreateRequest, DocumentView,
-    ImportRequest, Listing, NewFolderRequest, RevisionOrigin, SearchResult,
+    AcquireLockRequest, Author, CommitOutcome, CommitRequest, CommitWarning, CreateRequest,
+    DocumentView, HistoryPage, ImportRequest, ListFolderRequest, Listing, NewFolderRequest,
+    RevisionOrigin, SearchResult, StreamRequest,
 };
 
 use super::access::DocumentAccessService;
@@ -58,24 +59,29 @@ pub struct DocumentService {
     config: DocumentsConfig,
 }
 
+/// The collaborators a [`DocumentService`] is built from.
+#[derive(Debug, Clone)]
+pub struct DocumentServiceParts {
+    pub repos: Arc<DocumentRepositories>,
+    pub blobs: Arc<BlobStore>,
+    pub codecs: Arc<CodecRegistry>,
+    pub templates: Arc<TemplateRegistry>,
+    pub access: Arc<DocumentAccessService>,
+    pub events: Arc<DocumentEvents>,
+    pub config: DocumentsConfig,
+}
+
 impl DocumentService {
-    pub const fn new(
-        repos: Arc<DocumentRepositories>,
-        blobs: Arc<BlobStore>,
-        codecs: Arc<CodecRegistry>,
-        templates: Arc<TemplateRegistry>,
-        access: Arc<DocumentAccessService>,
-        events: Arc<DocumentEvents>,
-        config: DocumentsConfig,
-    ) -> Self {
+    #[must_use]
+    pub fn new(parts: DocumentServiceParts) -> Self {
         Self {
-            repos,
-            blobs,
-            codecs,
-            templates,
-            access,
-            events,
-            config,
+            repos: parts.repos,
+            blobs: parts.blobs,
+            codecs: parts.codecs,
+            templates: parts.templates,
+            access: parts.access,
+            events: parts.events,
+            config: parts.config,
         }
     }
 

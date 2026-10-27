@@ -27,6 +27,17 @@ enum Built {
     Conflict,
 }
 
+struct CommitState<'a> {
+    document: &'a Document,
+    head: Option<&'a DocumentRevision>,
+    base: Option<&'a DocumentRevisionId>,
+}
+
+struct Conflicted {
+    head: Option<DocumentRevision>,
+    base: Option<DocumentRevisionId>,
+}
+
 impl DocumentService {
     pub async fn commit(
         &self,
@@ -51,35 +62,16 @@ impl DocumentService {
             CommitBody::Ops(ops) => Some(ops.clone()),
             CommitBody::Bytes(_) => None,
         };
-        let built = match (plan, request.body) {
-            (CommitPlan::NoHead, _) => {
-                return Err(DocumentsError::not_found(
-                    "head revision of document",
-                    &document.id,
-                ));
-            },
-            (CommitPlan::Store, CommitBody::Bytes(bytes)) => Built::Bytes(bytes),
-            (CommitPlan::Apply, CommitBody::Ops(ops)) => {
-                let head_bytes = self.head_bytes(head.as_ref()).await?;
-                Built::Bytes(self.apply_ops(document.format, head_bytes, ops).await?)
-            },
-            (CommitPlan::MergeBytes, CommitBody::Bytes(ours)) => {
-                self.merge(&document, base.as_ref(), head.as_ref(), ours)
-                    .await?
-            },
-            (CommitPlan::MergeOps, CommitBody::Ops(ops)) => {
-                let base_bytes = self.base_bytes(&document, base.as_ref()).await?;
-                let ours = self.apply_ops(document.format, base_bytes, ops).await?;
-                self.merge(&document, base.as_ref(), head.as_ref(), ours)
-                    .await?
-            },
-            _ => Built::Conflict,
+        let state = CommitState {
+            document: &document,
+            head: head.as_ref(),
+            base: base.as_ref(),
         };
-        let bytes = match built {
+        let bytes = match self.build(plan, &state, request.body).await? {
             Built::Bytes(bytes) => bytes,
             Built::Conflict => {
                 return self
-                    .conflict(who, &document, head, base, &request.author)
+                    .conflict(who, &document, Conflicted { head, base }, &request.author)
                     .await;
             },
         };
@@ -107,26 +99,66 @@ impl DocumentService {
             .set_head_if(&document.id, parent.as_ref(), &revision.id)
             .await?
         {
-            let current = self.repos.revisions.head(&document.id).await?;
+            let head = self.repos.revisions.head(&document.id).await?;
             return self
-                .conflict(who, &document, current, base, &request.author)
+                .conflict(who, &document, Conflicted { head, base }, &request.author)
                 .await;
         }
+        let merged_from = parent.filter(|_| plan.merges());
+        Ok(self.finish(&document, revision, bytes, merged_from).await)
+    }
+
+    async fn build(
+        &self,
+        plan: CommitPlan,
+        state: &CommitState<'_>,
+        body: CommitBody,
+    ) -> Result<Built, DocumentsError> {
+        let format = state.document.format;
+        Ok(match (plan, body) {
+            (CommitPlan::NoHead, _) => {
+                return Err(DocumentsError::not_found(
+                    "head revision of document",
+                    &state.document.id,
+                ));
+            },
+            (CommitPlan::Store, CommitBody::Bytes(bytes)) => Built::Bytes(bytes),
+            (CommitPlan::Apply, CommitBody::Ops(ops)) => {
+                let head_bytes = self.head_bytes(state.head).await?;
+                Built::Bytes(self.apply_ops(format, head_bytes, ops).await?)
+            },
+            (CommitPlan::MergeBytes, CommitBody::Bytes(ours)) => self.merge(state, ours).await?,
+            (CommitPlan::MergeOps, CommitBody::Ops(ops)) => {
+                let base_bytes = self.base_bytes(state.document, state.base).await?;
+                let ours = self.apply_ops(format, base_bytes, ops).await?;
+                self.merge(state, ours).await?
+            },
+            _ => Built::Conflict,
+        })
+    }
+
+    async fn finish(
+        &self,
+        document: &Document,
+        revision: DocumentRevision,
+        bytes: Vec<u8>,
+        merged_from: Option<DocumentRevisionId>,
+    ) -> CommitOutcome {
         let mut warnings = Vec::new();
-        if !self.index_text(&document, &revision, bytes).await {
+        if !self.index_text(document, &revision, bytes).await {
             warnings.push(CommitWarning::SearchIndexStale);
         }
-        if !self.announce_revision(&document, &revision).await {
+        if !self.announce_revision(document, &revision).await {
             warnings.push(CommitWarning::EventsNotDelivered);
         }
-        Ok(match (plan.merges(), parent) {
-            (true, Some(merged_from)) => CommitOutcome::Merged {
+        match merged_from {
+            Some(merged_from) => CommitOutcome::Merged {
                 revision,
                 merged_from,
                 warnings,
             },
-            _ => CommitOutcome::Committed { revision, warnings },
-        })
+            None => CommitOutcome::Committed { revision, warnings },
+        }
     }
 
     async fn check_lock(
@@ -176,15 +208,9 @@ impl DocumentService {
         .await
     }
 
-    async fn merge(
-        &self,
-        document: &Document,
-        base: Option<&DocumentRevisionId>,
-        head: Option<&DocumentRevision>,
-        ours: Vec<u8>,
-    ) -> Result<Built, DocumentsError> {
-        let base_bytes = self.base_bytes(document, base).await?;
-        let head_bytes = self.head_bytes(head).await?;
+    async fn merge(&self, state: &CommitState<'_>, ours: Vec<u8>) -> Result<Built, DocumentsError> {
+        let base_bytes = self.base_bytes(state.document, state.base).await?;
+        let head_bytes = self.head_bytes(state.head).await?;
         Ok(match three_way_bytes(&base_bytes, &ours, &head_bytes) {
             MergeOutcome::Clean(merged) => Built::Bytes(merged.into_bytes()),
             MergeOutcome::Conflicted => Built::Conflict,
@@ -195,10 +221,10 @@ impl DocumentService {
         &self,
         who: &AuthenticatedUser,
         document: &Document,
-        head: Option<DocumentRevision>,
-        base: Option<DocumentRevisionId>,
+        conflicted: Conflicted,
         author: &Author,
     ) -> Result<CommitOutcome, DocumentsError> {
+        let Conflicted { head, base } = conflicted;
         let head = head
             .ok_or_else(|| DocumentsError::not_found("head revision of document", &document.id))?;
         let path = match self.document_path(document).await {

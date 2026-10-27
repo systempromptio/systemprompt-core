@@ -164,7 +164,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
             sources,
         })
         .expect("seed pending composition state");
-    let bundle_dir = cache.bundle_dir(SOURCE, CONTENT_HASH);
+    let bundle_dir = cache.bundle_dir(SOURCE, &ContentHash::new(CONTENT_HASH));
     std::fs::create_dir_all(&bundle_dir).unwrap();
     let signed = SignedBundleManifest {
         manifest: ServicesBundleManifest {

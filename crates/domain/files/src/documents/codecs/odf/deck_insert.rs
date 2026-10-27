@@ -11,17 +11,18 @@ use super::package::{attr_escaped, text_markup};
 
 impl Deck {
     fn reference(&self, after: Option<&str>) -> Result<(Option<&Slide>, usize), CodecError> {
-        match after {
-            Some(id) => self
-                .slides
-                .iter()
-                .find(|slide| slide.id == id)
-                .map(|slide| (Some(slide), slide.range.end))
-                .ok_or_else(|| CodecError::UnknownNode {
-                    node: DocumentNodeId::new(id),
-                }),
-            None => Ok((self.slides.last(), self.insert_at)),
-        }
+        after.map_or_else(
+            || Ok((self.slides.last(), self.insert_at)),
+            |id| {
+                self.slides
+                    .iter()
+                    .find(|slide| slide.id == id)
+                    .map(|slide| (Some(slide), slide.range.end))
+                    .ok_or_else(|| CodecError::UnknownNode {
+                        node: DocumentNodeId::new(id),
+                    })
+            },
+        )
     }
 
     fn fresh_name(&self) -> String {
@@ -97,10 +98,12 @@ fn frame(reference: Option<&Slide>, class: &str, paras: &[String]) -> String {
             },
             |shape| strip_ids(&shape.open),
         );
-    let text: String = paras
-        .iter()
-        .map(|para| format!("<text:p>{}</text:p>", text_markup(para)))
-        .collect();
+    let mut text = String::new();
+    for para in paras {
+        text.push_str("<text:p>");
+        text.push_str(&text_markup(para));
+        text.push_str("</text:p>");
+    }
     format!("{open}<draw:text-box>{text}</draw:text-box></draw:frame>")
 }
 

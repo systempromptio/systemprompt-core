@@ -37,6 +37,12 @@ pub enum BlobStoreError {
     NotFound { hash: ContentHash },
     #[error("blob of {size} bytes exceeds the {limit}-byte limit")]
     TooLarge { size: u64, limit: u64 },
+    #[error("blob of {size} bytes does not fit the size column")]
+    SizeOutOfRange {
+        size: u64,
+        #[source]
+        source: std::num::TryFromIntError,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,10 +88,8 @@ impl BlobStore {
         let hash = content_hash(bytes);
         let storage_id = storage_id_for(&hash);
         let size = bytes.len() as u64;
-        let size_column = i64::try_from(size).map_err(|_| BlobStoreError::TooLarge {
-            size,
-            limit: i64::MAX.unsigned_abs(),
-        })?;
+        let size_column = i64::try_from(size)
+            .map_err(|source| BlobStoreError::SizeOutOfRange { size, source })?;
 
         let freshly_stored = if self.storage.exists(&storage_id).await? {
             false

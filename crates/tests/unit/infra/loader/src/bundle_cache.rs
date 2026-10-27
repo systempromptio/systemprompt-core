@@ -4,12 +4,13 @@
 
 use std::fs;
 
+use systemprompt_identifiers::ContentHash;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_manifest::services::bundle::BUNDLE_MANIFEST_FILE;
 
 use crate::bundle_support::{base_tree, pack};
 
-fn seed(cache: &BundleCache, name: &str) -> String {
+fn seed(cache: &BundleCache, name: &str) -> ContentHash {
     let tree = tempfile::tempdir().expect("tempdir");
     let out = tempfile::tempdir().expect("tempdir");
     base_tree(tree.path());
@@ -48,7 +49,7 @@ fn a_missing_cache_entry_is_an_error_rather_than_an_empty_manifest() {
     let cache = BundleCache::new(dir.path());
 
     let err = cache
-        .read_manifest("base", &"0".repeat(64))
+        .read_manifest("base", &ContentHash::new("0".repeat(64)))
         .expect_err("a missing entry must not read as a default manifest");
 
     assert!(

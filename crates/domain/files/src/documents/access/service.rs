@@ -43,6 +43,22 @@ pub(super) fn no_document() -> DocumentId {
     DocumentId::from_uuid(Uuid::nil())
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct AccessCheck<'a> {
+    pub who: &'a AuthenticatedUser,
+    pub target: &'a AccessTarget,
+    pub action: DocumentAction,
+    pub trace: &'a TraceId,
+}
+
+#[derive(Debug, Clone)]
+pub struct DocumentAccessRepositories {
+    pub grants: Arc<DocumentGrantRepository>,
+    pub folders: Arc<DocumentFolderRepository>,
+    pub documents: Arc<DocumentRepository>,
+    pub access_entities: Arc<AccessControlRepository>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum HookMode {
     Evaluate,
@@ -77,13 +93,16 @@ impl std::fmt::Debug for DocumentAccessService {
 
 impl DocumentAccessService {
     pub fn new(
-        grants: Arc<DocumentGrantRepository>,
-        folders: Arc<DocumentFolderRepository>,
-        documents: Arc<DocumentRepository>,
-        access_entities: Arc<AccessControlRepository>,
+        repositories: DocumentAccessRepositories,
         hook: SharedAuthzHook,
         subjects: Arc<dyn SubjectAttributeSource>,
     ) -> Self {
+        let DocumentAccessRepositories {
+            grants,
+            folders,
+            documents,
+            access_entities,
+        } = repositories;
         Self {
             grants,
             folders,
@@ -102,8 +121,13 @@ impl DocumentAccessService {
         trace: &TraceId,
     ) -> Result<Granted, DocumentsError> {
         let pairs = self.subject_pairs(who).await?;
-        self.decide(who, &target, action, trace, pairs, HookMode::Evaluate)
-            .await
+        let check = AccessCheck {
+            who,
+            target: &target,
+            action,
+            trace,
+        };
+        self.decide(check, pairs, HookMode::Evaluate).await
     }
 
     pub async fn probe(
@@ -114,20 +138,21 @@ impl DocumentAccessService {
         trace: &TraceId,
     ) -> Result<Granted, DocumentsError> {
         let pairs = self.subject_pairs(who).await?;
-        self.decide(who, &target, action, trace, pairs, HookMode::Probe)
-            .await
+        let check = AccessCheck {
+            who,
+            target: &target,
+            action,
+            trace,
+        };
+        self.decide(check, pairs, HookMode::Probe).await
     }
 
     pub async fn probe_with(
         &self,
-        who: &AuthenticatedUser,
-        target: AccessTarget,
-        action: DocumentAction,
-        trace: &TraceId,
+        check: AccessCheck<'_>,
         pairs: &SubjectPairs,
     ) -> Result<Granted, DocumentsError> {
-        self.decide(who, &target, action, trace, pairs.clone(), HookMode::Probe)
-            .await
+        self.decide(check, pairs.clone(), HookMode::Probe).await
     }
 
     pub async fn probe_folder(
@@ -159,13 +184,16 @@ impl DocumentAccessService {
 
     async fn decide(
         &self,
-        who: &AuthenticatedUser,
-        target: &AccessTarget,
-        action: DocumentAction,
-        trace: &TraceId,
+        check: AccessCheck<'_>,
         pairs: SubjectPairs,
         mode: HookMode,
     ) -> Result<Granted, DocumentsError> {
+        let AccessCheck {
+            who,
+            target,
+            action,
+            trace,
+        } = check;
         let resolved = self.resolve(who, target, action, &pairs).await?;
         let needed = action.required_level();
         let level = match resolved.level {

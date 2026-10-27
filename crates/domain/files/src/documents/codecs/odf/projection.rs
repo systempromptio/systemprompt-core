@@ -157,19 +157,23 @@ pub(super) fn para_node(para: &Para) -> ProjectionNode {
     }
 }
 
+pub(super) struct ContainerSpec<'a> {
+    pub(super) id: &'a str,
+    pub(super) kind: NodeKind,
+    pub(super) text: Option<String>,
+    pub(super) hashed: &'a str,
+}
+
 pub(super) fn container_node(
-    id: &str,
-    kind: NodeKind,
-    text: Option<String>,
-    hashed: &str,
+    spec: ContainerSpec<'_>,
     children: Vec<ProjectionNode>,
     attrs: BTreeMap<String, String>,
 ) -> ProjectionNode {
     ProjectionNode {
-        id: DocumentNodeId::new(id.to_owned()),
-        kind,
-        text,
-        hash8: hash8(hashed),
+        id: DocumentNodeId::new(spec.id.to_owned()),
+        kind: spec.kind,
+        text: spec.text,
+        hash8: hash8(spec.hashed),
         children,
         attrs,
     }

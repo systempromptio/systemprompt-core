@@ -7,6 +7,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentFormat};
@@ -35,8 +37,8 @@ impl DocumentService {
     ) -> Result<(Document, DocumentRevision), DocumentsError> {
         self.authorize_create(who, request.folder.as_ref(), trace)
             .await?;
-        let templates = self.templates.clone();
-        let codecs = self.codecs.clone();
+        let templates = Arc::clone(&self.templates);
+        let codecs = Arc::clone(&self.codecs);
         let template_id = request.template_id.clone();
         let params = request.params;
         let instantiated =

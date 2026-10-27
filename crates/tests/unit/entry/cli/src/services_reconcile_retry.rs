@@ -58,7 +58,7 @@ async fn a_failed_reconcile_is_retried_by_the_next_refresh() {
     cache
         .write_state(&state)
         .expect("state as the swap leaves it");
-    let bundle_dir = cache.bundle_dir(SOURCE, CONTENT_HASH);
+    let bundle_dir = cache.bundle_dir(SOURCE, &ContentHash::new(CONTENT_HASH));
     std::fs::create_dir_all(&bundle_dir).expect("bundle dir");
     let signed = SignedBundleManifest {
         manifest: ServicesBundleManifest {

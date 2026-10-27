@@ -4,7 +4,8 @@ use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::{GrantTarget, LockHolderKind, LockOutcome};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    CommitOutcome, CommitRequest, ImportRequest, NewFolderRequest, ShareRequest,
+    AcquireLockRequest, CommitOutcome, CommitRequest, HistoryPage, ImportRequest,
+    ListFolderRequest, NewFolderRequest, ShareRequest,
 };
 use systemprompt_governance::authz::EntityKind;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId};
@@ -146,7 +147,15 @@ async fn ops_commit_checks_anchors_then_moves_the_head() {
     assert_eq!(view.my_access, AccessLevel::Own);
     let history = h
         .service
-        .history(&owner, &document.id, 10, None, &trace())
+        .history(
+            &owner,
+            &document.id,
+            HistoryPage {
+                limit: 10,
+                before: None,
+            },
+            &trace(),
+        )
         .await
         .expect("history");
     assert_eq!(history.len(), 2);
@@ -325,7 +334,15 @@ async fn a_group_folder_grant_reaches_members_only() {
     assert_eq!(seen.my_access, AccessLevel::View);
     let listing = h
         .service
-        .list_folder(&sales, Some(&folder.id), None, 50, &trace())
+        .list_folder(
+            &sales,
+            ListFolderRequest {
+                folder: Some(folder.id.clone()),
+                cursor: None,
+                limit: 50,
+            },
+            &trace(),
+        )
         .await
         .expect("sales member lists the folder");
     assert!(listing.documents.iter().any(|d| d.id == document.id));
@@ -407,9 +424,11 @@ async fn a_lock_held_by_another_holder_blocks_commits() {
         .acquire_lock(
             &owner,
             &document,
-            LockHolderKind::Bridge,
-            "device-1",
-            Duration::from_secs(60),
+            AcquireLockRequest {
+                holder_kind: LockHolderKind::Bridge,
+                holder_id: "device-1".to_owned(),
+                ttl: Duration::from_secs(60),
+            },
             &trace(),
         )
         .await

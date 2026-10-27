@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use super::DocumentService;
 use super::support::join_path;
-use crate::documents::access::AccessTarget;
+use crate::documents::access::{AccessCheck, AccessTarget};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, ListCursor, VisibleListing};
 
@@ -166,17 +166,14 @@ impl DocumentService {
         let mut changes = Vec::new();
         for revision in rows {
             if !visible.contains_key(&revision.document_id) {
-                let seen = match self
-                    .access
-                    .probe_with(
-                        who,
-                        AccessTarget::Document(revision.document_id.clone()),
-                        DocumentAction::View,
-                        trace,
-                        &pairs,
-                    )
-                    .await
-                {
+                let target = AccessTarget::Document(revision.document_id.clone());
+                let check = AccessCheck {
+                    who,
+                    target: &target,
+                    action: DocumentAction::View,
+                    trace,
+                };
+                let seen = match self.access.probe_with(check, &pairs).await {
                     Ok(granted) => match granted.document {
                         Some(document) => {
                             let path = self.cached_path(&document, &mut paths).await?;

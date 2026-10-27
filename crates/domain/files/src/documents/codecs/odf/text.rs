@@ -12,7 +12,9 @@ use systemprompt_provider_contracts::documents::{CodecError, NodeKind, Projectio
 
 use super::apply::Container;
 use super::package::Content;
-use super::projection::{Flow, Para, container_node, is_para, para_node, preview_paras};
+use super::projection::{
+    ContainerSpec, Flow, Para, container_node, is_para, para_node, preview_paras,
+};
 use crate::documents::codecs::xml_tree::Element;
 
 const SECTIONS: [&str; 3] = ["text:section", "text:index-body", "text:soft-page-break"];
@@ -211,30 +213,36 @@ impl TextDoc {
                             .map(para_node)
                             .collect();
                         container_node(
-                            &cell.id,
-                            NodeKind::Cell,
-                            Some(text.clone()),
-                            &text,
+                            ContainerSpec {
+                                id: &cell.id,
+                                kind: NodeKind::Cell,
+                                text: Some(text.clone()),
+                                hashed: &text,
+                            },
                             paras,
                             BTreeMap::new(),
                         )
                     })
                     .collect();
                 container_node(
-                    &row.id,
-                    NodeKind::Row,
-                    None,
-                    &self.row_text(row),
+                    ContainerSpec {
+                        id: &row.id,
+                        kind: NodeKind::Row,
+                        text: None,
+                        hashed: &self.row_text(row),
+                    },
                     cells,
                     BTreeMap::new(),
                 )
             })
             .collect();
         container_node(
-            &table.id,
-            NodeKind::Table,
-            None,
-            &self.table_text(table),
+            ContainerSpec {
+                id: &table.id,
+                kind: NodeKind::Table,
+                text: None,
+                hashed: &self.table_text(table),
+            },
             rows,
             BTreeMap::new(),
         )

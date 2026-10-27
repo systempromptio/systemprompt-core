@@ -6,13 +6,13 @@
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, Projection};
-use systemprompt_traits::{ByteRange, StoredFileRead};
+use systemprompt_traits::StoredFileRead;
 
 use super::support::blocking;
-use super::{DocumentService, SearchResult};
+use super::{DocumentService, HistoryPage, SearchResult, StreamRequest};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, DocumentRevision, ListCursor};
+use crate::documents::models::{Document, DocumentRevision};
 
 impl DocumentService {
     pub(super) async fn authorized_document(
@@ -46,32 +46,36 @@ impl DocumentService {
         document: &Document,
         revision: Option<&DocumentRevisionId>,
     ) -> Result<DocumentRevision, DocumentsError> {
-        let found = match revision {
-            Some(id) => self
+        if let Some(id) = revision {
+            return self
                 .repos
                 .revisions
                 .find(id)
                 .await?
-                .filter(|r| r.document_id == document.id),
-            None => self.repos.revisions.head(&document.id).await?,
-        };
-        found.ok_or_else(|| match revision {
-            Some(id) => DocumentsError::not_found("revision", id),
-            None => DocumentsError::not_found("head revision of document", &document.id),
-        })
+                .filter(|r| r.document_id == document.id)
+                .ok_or_else(|| DocumentsError::not_found("revision", id));
+        }
+        self.repos
+            .revisions
+            .head(&document.id)
+            .await?
+            .ok_or_else(|| DocumentsError::not_found("head revision of document", &document.id))
     }
 
     pub async fn history(
         &self,
         who: &AuthenticatedUser,
         document: &DocumentId,
-        limit: i64,
-        before: Option<ListCursor>,
+        page: HistoryPage,
         trace: &TraceId,
     ) -> Result<Vec<DocumentRevision>, DocumentsError> {
         self.authorized_document(who, document, DocumentAction::View, trace)
             .await?;
-        Ok(self.repos.revisions.list(document, limit, before).await?)
+        Ok(self
+            .repos
+            .revisions
+            .list(document, page.limit, page.before)
+            .await?)
     }
 
     pub async fn revision(
@@ -116,16 +120,17 @@ impl DocumentService {
     pub async fn open_stream(
         &self,
         who: &AuthenticatedUser,
-        document: &DocumentId,
-        revision: Option<&DocumentRevisionId>,
-        range: Option<ByteRange>,
+        request: StreamRequest<'_>,
         trace: &TraceId,
     ) -> Result<(DocumentRevision, StoredFileRead), DocumentsError> {
         let document = self
-            .authorized_document(who, document, DocumentAction::View, trace)
+            .authorized_document(who, request.document, DocumentAction::View, trace)
             .await?;
-        let revision = self.resolve_revision(&document, revision).await?;
-        let read = self.blobs.open(&revision.content_sha256, range).await?;
+        let revision = self.resolve_revision(&document, request.revision).await?;
+        let read = self
+            .blobs
+            .open(&revision.content_sha256, request.range)
+            .await?;
         Ok((revision, read))
     }
 

@@ -1,4 +1,4 @@
-//! Minimal valid OpenDocument packages new documents start from: the
+//! Minimal valid `OpenDocument` packages new documents start from: the
 //! `mimetype` entry first and stored, then the manifest, content, styles and
 //! meta parts.
 //!

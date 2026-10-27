@@ -105,24 +105,30 @@ fn written_cell(xml: &str, base: Option<&CellSeg>, value: &CellValue) -> String 
             ],
             vec![number(*n)],
         ),
-        CellValue::Text(text) => match text.strip_prefix('=') {
-            Some(formula) => (
-                vec![("table:formula", format!("of:={formula}"))],
-                Vec::new(),
-            ),
-            None => (
-                vec![("office:value-type", "string".to_owned())],
-                text.split('\n').map(str::to_owned).collect(),
-            ),
-        },
+        CellValue::Text(text) => text.strip_prefix('=').map_or_else(
+            || {
+                (
+                    vec![("office:value-type", "string".to_owned())],
+                    text.split('\n').map(str::to_owned).collect(),
+                )
+            },
+            |formula| {
+                (
+                    vec![("table:formula", format!("of:={formula}"))],
+                    Vec::new(),
+                )
+            },
+        ),
     };
     for (name, value) in attrs {
         tag = with_attr(&tag, name, Some(&value));
     }
-    let body: String = lines
-        .iter()
-        .map(|line| format!("<text:p>{}</text:p>", text_markup(line)))
-        .collect();
+    let mut body = String::new();
+    for line in &lines {
+        body.push_str("<text:p>");
+        body.push_str(&text_markup(line));
+        body.push_str("</text:p>");
+    }
     format!("{tag}{body}</table:table-cell>")
 }
 
@@ -176,8 +182,14 @@ fn written_cells(xml: &str, cells: &[CellSeg], writes: &BTreeMap<u32, CellValue>
 }
 
 fn written_row(xml: &str, seg: Option<&RowSeg>, writes: &BTreeMap<u32, CellValue>) -> String {
-    match seg {
-        Some(seg) => {
+    seg.map_or_else(
+        || {
+            format!(
+                "<table:table-row>{}</table:table-row>",
+                written_cells(xml, &[], writes)
+            )
+        },
+        |seg| {
             let open = with_attr(
                 parts(xml, &seg.element).0,
                 "table:number-rows-repeated",
@@ -193,11 +205,7 @@ fn written_row(xml: &str, seg: Option<&RowSeg>, writes: &BTreeMap<u32, CellValue
                 written_cells(xml, &seg.cells, writes)
             )
         },
-        None => format!(
-            "<table:table-row>{}</table:table-row>",
-            written_cells(xml, &[], writes)
-        ),
-    }
+    )
 }
 
 pub(super) fn render(xml: &str, sheet: &Sheet, writes: &RowWrites, order: usize) -> Vec<Splice> {

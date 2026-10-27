@@ -1,4 +1,4 @@
-//! The OpenDocument codecs: `.odt` text, `.ods` spreadsheets and `.odp`
+//! The `OpenDocument` codecs: `.odt` text, `.ods` spreadsheets and `.odp`
 //! presentations.
 //!
 //! Every format keeps its content in `content.xml`; the codecs read and

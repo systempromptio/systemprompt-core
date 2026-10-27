@@ -9,7 +9,10 @@ use systemprompt_files::documents::codecs::CodecRegistry;
 use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_files::documents::service::{Author, CreateRequest, RevisionOrigin};
 use systemprompt_files::documents::templates::TemplateRegistry;
-use systemprompt_files::documents::{DocumentAccessService, DocumentEvents, DocumentService};
+use systemprompt_files::documents::{
+    DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
+    DocumentServiceParts,
+};
 use systemprompt_governance::authz::{
     AccessControlRepository, AllowAllHook, DenyAllHook, RuleType, SharedAuthzHook,
 };
@@ -104,10 +107,12 @@ pub(crate) async fn harness_on(
     let repos = Arc::new(DocumentRepositories::new(&db));
     let access_entities = Arc::new(AccessControlRepository::new(&db));
     let access = Arc::new(DocumentAccessService::new(
-        repos.grants.clone(),
-        repos.folders.clone(),
-        repos.documents.clone(),
-        access_entities.clone(),
+        DocumentAccessRepositories {
+            grants: Arc::clone(&repos.grants),
+            folders: Arc::clone(&repos.folders),
+            documents: Arc::clone(&repos.documents),
+            access_entities: Arc::clone(&access_entities),
+        },
         hook,
         Arc::new(subjects),
     ));
@@ -118,15 +123,15 @@ pub(crate) async fn harness_on(
     let events = Arc::new(DocumentEvents::new(Arc::new(EventRouter::local_only(
         Arc::new(EventBroadcasters::new()),
     ))));
-    let service = DocumentService::new(
-        repos.clone(),
+    let service = DocumentService::new(DocumentServiceParts {
+        repos: Arc::clone(&repos),
         blobs,
-        Arc::new(CodecRegistry::discover()),
-        Arc::new(TemplateRegistry::discover(Vec::new())),
+        codecs: Arc::new(CodecRegistry::discover()),
+        templates: Arc::new(TemplateRegistry::discover(Vec::new())),
         access,
         events,
-        DocumentsConfig::default(),
-    );
+        config: DocumentsConfig::default(),
+    });
     Harness {
         service,
         repos,

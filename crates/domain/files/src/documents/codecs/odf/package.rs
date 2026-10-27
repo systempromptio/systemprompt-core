@@ -1,5 +1,5 @@
 //! `content.xml` access, inline text extraction and the text markup edits
-//! write, shared by the three OpenDocument codecs.
+//! write, shared by the three `OpenDocument` codecs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
