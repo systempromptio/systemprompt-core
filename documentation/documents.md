@@ -54,12 +54,21 @@ The registry merges both sources and the highest priority wins per template id. 
 
 Access is checked in two steps and both must pass.
 
-1. **Grants.** A grant names a subject (`subject_kind`, `subject_value`), a level and an optional expiry. Levels are ordered `view < comment < edit < share < own`. The subject kinds are `user`, role names and every dimension registered through the subject-attribute provider seam, such as group or project in an extension. A subject holds the highest unexpired level granted on the document, its folder or any ancestor folder. The owner holds `own`. Creating a folder grants its creator `own`.
+1. **Grants.** A grant names a subject (`subject_kind`, `subject_value`), a level and an optional expiry. Levels are ordered `view < comment < edit < share < own`. The subject kinds are `user`, role names and every dimension registered through the subject-attribute provider seam, such as group or project in an extension. A subject holds the highest unexpired level granted on the document, its folder or any ancestor folder, up to `share`. Only the owner holds `own`: it is never granted, and actions that need it belong to the owner alone. Creating a folder grants its creator `share` over the subtree.
 2. **Policy.** The authz hook must allow a `document.access` request whose entity is the nearest folder. Folders are registered as authz entities when created, and a boot reconcile registers any that are missing, so an operator governs folders in `rules.yaml` like any other entity. Documents at the root are checked against a root folder entity.
 
 Administrators are not special-cased. They reach documents through grants to their role. Everything fails closed: an unknown target, a subject provider error or a hook denial is a refusal, never a partial answer. Hook decisions appear in the governance audit trail. Listings filter in SQL with the same grant predicate. Anonymous share links are not part of this release.
 
-Required levels: view and read need `view`, edit and commit need `edit`, listing or changing grants needs `share`, deleting and moving need `own`.
+Required levels: view and read need `view`, edit and commit need `edit`, listing or changing grants needs `share`. Deleting, trashing, restoring, moving, transferring ownership and revoking every grant are the owner's.
+
+A caller who holds no level on a document or folder is answered `not_found`, never `forbidden`, and is not told the owner. A refusal names the owner only to a caller who holds some level. Reading access back (`documents_access`, `GET /{id}/access`) shows the owner and the caller's level to every member; the grants and inherited grants are shown only to holders of `share`.
+
+### Sharing
+
+- `share` refuses level `own`, and refuses to change a grant whose subject already holds more than the caller (`forbidden` with `existing_level`).
+- Transferring ownership names an active user; any other recipient is refused with `unknown_subject`. The previous owner keeps `edit`.
+- Revoking a grant, revoking every grant and a grant's expiry remove the presence rows of the users it named, which also ends their live editing state. Role subjects are resolved to their active members; dimension subjects have no reverse index and rely on the recipient filter below.
+- A grant past its `valid_until` grants nothing. Until the presence sweep deletes it, listings and access read-backs mark it `expired: true`.
 
 ## Revision engine
 
@@ -75,7 +84,7 @@ Required levels: view and read need `view`, edit and commit need `edit`, listing
 - **Locks.** A lease held by another holder (bridge, editor or agent) refuses the commit.
 - **Size.** Uploads are bounded by `maxUploadBytes`.
 
-Each commit updates the per-document search index (full-text over the extracted plain text). Revisions, presence and locks emit `document.revision.created`, `document.presence`, `document.lock` and `document.conflict` events on the AgUi stream (`/api/v1/stream/agui`), delivered to the owner and to users with presence on the document. Comments emit `document.comment.created` and `document.comment.resolved` to the same users; a grant emits `document.shared` to them and to the user it names, and an ownership transfer emits `document.ownership_transferred` to the new owner. Clients filter on the `document.` prefix.
+Each commit updates the per-document search index (full-text over the extracted plain text). Revisions, presence and locks emit `document.revision.created`, `document.presence`, `document.lock` and `document.conflict` events on the AgUi stream (`/api/v1/stream/agui`), delivered to the owner and to users with presence on the document who still hold `view` or better when the event is emitted. Comments emit `document.comment.created` and `document.comment.resolved` to the same users. A grant emits one `document.shared` per recipient: the user it names, or each active member of the role it names (at most 500, the truncation logged), never the sharer. Each carries `recipient_user_id`, `document_name`, `shared_by` and `level`. An ownership transfer emits `document.ownership_transferred` to the new owner, the previous owner and present users. Clients filter on the `document.` prefix.
 
 ## MCP tools
 
@@ -110,7 +119,7 @@ The server `instructions` carry the working contract: read the outline, edit by 
 
 **Comments.** A comment is anchored to a stable node id and, optionally, to the nth occurrence of a quote inside that node; a reply carries its parent's anchor. Edits elsewhere never move an anchor. An edit that deletes the node or the quoted words is refused with `anchors_affected`, listing the comments, unless it sets `allow_detach`; a detached comment keeps its node and drops its quote. Bridge uploads and whole-file writes detach without refusing. Commenting needs `comment` access.
 
-**Lifecycle.** A trashed document leaves listings, and reads, edits and shares refuse it as `not_found` with `trashed: true`; only a caller who could reach it learns it is trashed. Trashing and restoring need `own`. A document restored into a deleted folder lands at the root, and a name taken in the meantime gains the first free ` (restored)`, ` (restored 2)`, … suffix; a copy without a name takes the first free ` (copy)`, ` (copy 2)`, … name in its folder. Trashed documents are deleted, with their revisions, after the retention period. Transferring ownership needs `own`, and the previous owner keeps `edit`.
+**Lifecycle.** A trashed document leaves listings, and reads, edits and shares refuse it as `not_found` with `trashed: true`; only a caller who could reach it learns it is trashed. Trashing and restoring are the owner's. A document restored into a deleted folder lands at the root, and a name taken in the meantime gains the first free ` (restored)`, ` (restored 2)`, … suffix; a copy without a name takes the first free ` (copy)`, ` (copy 2)`, … name in its folder. Trashed documents are deleted, with their revisions, after the retention period. Transferring ownership is the owner's, and the previous owner keeps `edit`.
 
 **Results.** A result is a one-line summary plus structured content, sent once. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs, content hashes, each node id's positional path and the revision attribution. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read; a write landed on a moved head says `merged`, and a replayed `op_id` says `replayed`.
 
@@ -226,7 +235,7 @@ Behaviour:
 - A conflicting local edit is renamed to `<name> (conflict from <host>).<ext>` and the head is pulled, so neither version is lost.
 - A document deleted remotely moves into `Drive/.trash/<timestamp>/`. A local deletion is not propagated.
 - Presence is reported from file activity and from agent tool calls that touch a path inside the Drive folder.
-- A `document.shared` or `document.proposal.opened` event on the bridge stream raises a desktop notification.
+- A `document.proposal.opened` event on the bridge stream raises a desktop notification, and so does a `document.shared` event whose `recipient_user_id` is the signed-in user; it names the document and the sharer.
 - Each sync refreshes the open proposals, which `bridge drive status` lists.
 - Status shows in the tray, the GUI and `bridge drive status|sync|conflicts`. The `[drive] enabled` setting turns the loop off.
 
@@ -263,7 +272,7 @@ Config validation rejects values outside the bounds.
 | Job | Schedule | Behaviour |
 |---|---|---|
 | `document_blob_gc` | daily | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
-| Presence sweep | every 60 seconds | Removes expired presence rows and write acknowledgements older than seven days. |
+| Presence sweep | every 60 seconds | Removes expired presence rows, grants past their `valid_until` (with the named user's presence on that document) and write acknowledgements older than seven days. |
 | `document_collab_update_sweep` | every 5 minutes | Deletes the update log of closed edit sessions. |
 | `document_trash_purge` | daily | Deletes documents trashed longer than the retention period, with their revisions, node ids, grants and comments; the blob GC then collects their blobs. |
 

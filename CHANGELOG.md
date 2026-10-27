@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.75.0] - 2026-10-27
+
+### Breaking
+
+- **Breaking:** **Files:** `DocumentAccessService::new` takes a fourth argument, `Arc<dyn SubjectDirectory>`, which resolves grant subjects to users. Migrate by passing `UserSubjectDirectory` from `systemprompt-runtime` or your own implementation.
+- **Breaking:** **Runtime:** `DocumentsRuntimeParts` gains `directory: Arc<dyn SubjectDirectory>`. Migrate struct literals by passing `Arc::new(UserSubjectDirectory::new(users))`.
+- **Breaking:** **Files:** `DocumentService::transfer_ownership` takes a `TransferRequest { to, to_display }`; a `to_display` of `None` is refused with `UnknownSubject`. Migrate by resolving the recipient with `active_user_display` and passing the result.
+- **Breaking:** **Files:** `DocumentsError` gains `UnknownSubject`, `OwnNotGrantable`, `ShareBelowExisting` and `Directory`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+- **Breaking:** **Models:** `DocumentSharedEvent` gains `document_name`, `recipient_user_id` and `shared_by`. Migrate struct literals by adding the fields.
+- **Breaking:** **Runtime:** `RefusalCode` gains `UnknownSubject` (`unknown_subject`) and `Refusal` gains `existing_level`. Migrate by adding an arm (or a wildcard) to exhaustive matches and `existing_level: None` to struct literals.
+- **Breaking:** **Files:** `own` is no longer a grantable level: `share` refuses it with `invalid_params`, and a stored `own` grant confers `share`. Migrate by transferring ownership instead.
+
+### Added
+
+- **Users:** `UserRepository::list_active_ids_with_role`.
+- **Files:** `DocumentGrant::is_expired`, and grant listings and access read-backs carry `expired: true` for a grant past its `valid_until`.
+
+### Fixed
+
+- **Files:** Deleting, trashing, restoring, moving, transferring ownership and revoking every grant on a document are the owner's alone.
+- **Files:** A share holder can no longer change a grant whose subject holds more than they do.
+- **Files:** A caller with no access to a document or folder is answered `not_found` without the owner's id, and a caller below `share` reads back only the owner and their own level.
+- **Files:** Transferring ownership requires an active recipient and notifies the previous owner and present users.
+- **Files:** Revoking a grant, revoking every grant and grant expiry clear the affected users' presence and live editing state, and document events reach only present users who still hold access.
+- **Files:** The presence sweep job deletes expired grants.
+- **Files:** `document.shared` is emitted once per recipient user, with role subjects resolved to their active members, and never to the sharer.
+- **Bridge:** A share notification is shown only to its recipient and names the document and the sharer.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking
