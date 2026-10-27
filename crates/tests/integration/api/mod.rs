@@ -185,6 +185,8 @@ mod routes_agent_runs;
 #[cfg(test)]
 mod documents;
 #[cfg(test)]
+mod documents_collab;
+#[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
 
