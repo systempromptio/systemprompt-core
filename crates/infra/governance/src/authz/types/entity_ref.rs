@@ -8,8 +8,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{
-    AgentId, HookId, MarketplaceId, McpServerId, ModelId, PluginId, ProviderId, RouteId, SkillId,
-    SlackChannelId, SlackWorkspaceId, TeamsConversationId, TeamsTenantId,
+    AgentId, DocumentFolderId, DocumentId, HookId, MarketplaceId, McpServerId, ModelId, PluginId,
+    ProviderId, RouteId, SkillId, SlackChannelId, SlackWorkspaceId, TeamsConversationId,
+    TeamsTenantId,
 };
 
 use super::kinds::EntityKind;
@@ -38,6 +39,8 @@ pub enum EntityRef {
     TeamsConversation(TeamsConversationId),
     Model(ModelId),
     Provider(ProviderId),
+    Document(DocumentId),
+    Folder(DocumentFolderId),
 }
 
 impl EntityRef {
@@ -56,6 +59,8 @@ impl EntityRef {
             EntityKind::TeamsConversation => Self::TeamsConversation(TeamsConversationId::new(id)),
             EntityKind::Model => Self::Model(ModelId::new(id)),
             EntityKind::Provider => Self::Provider(ProviderId::new(id)),
+            EntityKind::Document => Self::Document(DocumentId::try_new(id)?),
+            EntityKind::Folder => Self::Folder(DocumentFolderId::try_new(id)?),
         })
     }
 
@@ -75,6 +80,8 @@ impl EntityRef {
             Self::TeamsConversation(_) => EntityKind::TeamsConversation,
             Self::Model(_) => EntityKind::Model,
             Self::Provider(_) => EntityKind::Provider,
+            Self::Document(_) => EntityKind::Document,
+            Self::Folder(_) => EntityKind::Folder,
         }
     }
 
@@ -94,6 +101,8 @@ impl EntityRef {
             Self::TeamsConversation(id) => id.as_str(),
             Self::Model(id) => id.as_str(),
             Self::Provider(id) => id.as_str(),
+            Self::Document(id) => id.as_str(),
+            Self::Folder(id) => id.as_str(),
         }
     }
 }
