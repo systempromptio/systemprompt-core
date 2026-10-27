@@ -93,8 +93,8 @@ impl McpToolHandler for ExportHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Export a revision (head by default): as url, a ten-minute signed download link; as \
-         preview, sanitised HTML for the preview app. See documents_guide topic formats."
+        "Export a revision: as url, a signed download link; as preview, sanitised HTML. Guide \
+         topic: formats."
     }
 
     fn read_only(&self) -> bool {

@@ -186,9 +186,8 @@ impl McpToolHandler for CreateHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create a document from a template (blank-docx, blank-xlsx, blank-pptx, blank-html, \
-         blank-markdown, ...), optionally applying ops in the same revision; returns the written \
-         lines. See documents_guide topic editing."
+        "Create a document from a template (blank-docx, blank-xlsx, blank-pptx, ...), \
+         optionally with ops; returns the written lines. Guide topic: editing."
     }
 
     async fn handle(
@@ -259,8 +258,7 @@ impl McpToolHandler for EditHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Apply ops as one revision on the head; returns the written lines. answering names the \
-         comment the edit answers. See documents_guide topic editing."
+        "Apply ops as one revision on the head; returns the written lines. Guide topic: editing."
     }
 
     async fn handle(

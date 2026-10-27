@@ -112,8 +112,8 @@ impl McpToolHandler for ReadHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Read a document as `<node>:<hash>| <text>` lines; view outline first, then text, range, \
-         node, cells, search, changes (since_revision) or meta. See documents_guide topic editing."
+        "Read `<node>:<hash>| <text>` lines; view outline first, then text, range, node, cells, \
+         search, changes or meta. Guide topic: editing."
     }
 
     fn read_only(&self) -> bool {

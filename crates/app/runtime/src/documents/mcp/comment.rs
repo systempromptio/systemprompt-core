@@ -97,8 +97,7 @@ impl McpToolHandler for CommentHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create, list or resolve comments anchored to a node and quote. See documents_guide \
-         topic comments."
+        "Create, list or resolve anchored comments. Guide topic: comments."
     }
 
     async fn handle(

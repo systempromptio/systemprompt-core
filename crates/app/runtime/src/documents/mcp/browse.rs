@@ -83,8 +83,7 @@ impl McpToolHandler for ListHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List documents by scope (folder, shared, mine, recent) with a name query and sort; \
-         pass next_cursor back as cursor."
+        "List documents by scope (folder, shared, mine, recent); pass next_cursor as cursor."
     }
 
     fn read_only(&self) -> bool {

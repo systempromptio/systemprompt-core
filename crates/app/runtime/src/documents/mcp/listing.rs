@@ -87,15 +87,65 @@ fn prune_definitions(schema: &mut Map<String, JsonValue>) {
     }
 }
 
+// JSON: the enum values of a `$ref` target, when that definition is an enum
+fn ref_enum(property: &Map<String, JsonValue>, defs: &Map<String, JsonValue>) -> Option<JsonValue> {
+    let name = property.get("$ref")?.as_str()?.rsplit('/').next()?;
+    defs.get(name)?.get("enum").cloned()
+}
+
+// JSON: narrows one schemars property schema to what a caller needs
+fn slim(property: &mut JsonValue, defs: &Map<String, JsonValue>) {
+    let JsonValue::Object(map) = property else {
+        return;
+    };
+    map.remove("default");
+    map.remove("format");
+    if let Some(JsonValue::Array(options)) = map.get("anyOf") {
+        let concrete: Vec<JsonValue> = options
+            .iter()
+            .filter(|option| option.get("type").and_then(JsonValue::as_str) != Some("null"))
+            .cloned()
+            .collect();
+        if let [single] = concrete.as_slice()
+            && let JsonValue::Object(inner) = single.clone()
+        {
+            map.remove("anyOf");
+            map.extend(inner);
+        }
+    }
+    if let Some(JsonValue::Array(types)) = map.get("type") {
+        let concrete: Vec<JsonValue> = types.iter().filter(|t| *t != "null").cloned().collect();
+        if let [single] = concrete.as_slice() {
+            map.insert("type".to_owned(), single.clone());
+        }
+    }
+    if let Some(values) = ref_enum(map, defs) {
+        map.remove("$ref");
+        map.insert("enum".to_owned(), values);
+    }
+    if let Some(JsonValue::Object(properties)) = map.get_mut("properties") {
+        properties.values_mut().for_each(|inner| slim(inner, defs));
+    }
+}
+
 // JSON: schemars output in, compacted schemars output out
 fn compact_input(schema: &Map<String, JsonValue>) -> Map<String, JsonValue> {
     let mut schema = schema.clone();
     schema.remove("$schema");
     schema.remove("title");
-    if let Some(JsonValue::Object(properties)) = schema.get_mut("properties")
-        && properties.contains_key("ops")
-    {
-        properties.insert("ops".to_owned(), ops_schema());
+    let defs = match schema.get_mut("$defs") {
+        Some(JsonValue::Object(defs)) => {
+            let snapshot = defs.clone();
+            defs.values_mut().for_each(|def| slim(def, &snapshot));
+            defs.clone()
+        },
+        _ => Map::new(),
+    };
+    if let Some(JsonValue::Object(properties)) = schema.get_mut("properties") {
+        properties.values_mut().for_each(|property| slim(property, &defs));
+        if properties.contains_key("ops") {
+            properties.insert("ops".to_owned(), ops_schema());
+        }
     }
     prune_definitions(&mut schema);
     schema

@@ -30,7 +30,7 @@ impl McpToolHandler for TrashHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Move a document to the trash. See documents_guide topic lifecycle."
+        "Move a document to the trash. Guide topic: lifecycle."
     }
 
     async fn handle(
