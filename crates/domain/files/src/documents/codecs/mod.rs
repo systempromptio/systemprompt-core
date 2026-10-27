@@ -40,3 +40,6 @@ pub mod docx;
 
 #[cfg(feature = "office")]
 pub mod xlsx;
+
+#[cfg(feature = "office")]
+pub mod pptx;

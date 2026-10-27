@@ -24,6 +24,7 @@
 - **Governance:** `AuthzContext::document_access` mints the `document.access` context, read back with `document_action`, `document_access_document` and `document_access_folder`.
 - **Files:** a `.docx` `DocumentCodec` (feature `office`) that projects paragraphs, headings, lists and tables to hash-anchored nodes, applies edits by rewriting only `word/document.xml`, renders an HTML preview and instantiates templates; `files-office` facade feature.
 - **Models:** `ApiPaths` gains the documents, document-folders and bridge drive paths, plus `bridge_drive_blob`.
+- **Files:** a `.pptx` `DocumentCodec` (feature `office`) that projects slides, shapes, paragraphs, tables and notes to hash-anchored nodes, edits text and inserts or removes slides by rewriting only the touched parts, renders an HTML preview and instantiates templates.
 - **Marketplace:** `core marketplace import` reports a skill directory without `SKILL.md`, a cited `references/…` path the imported skill does not carry, and a `../` path out of the skill directory; `--strict` refuses each.
 
 ### Fixed

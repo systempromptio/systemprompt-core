@@ -2,9 +2,12 @@ mod codecs_docx;
 mod codecs_docx_edits;
 mod codecs_html;
 mod codecs_markdown;
+mod codecs_pptx;
+mod codecs_pptx_edits;
 mod codecs_text;
 mod codecs_xlsx;
 mod docx_fixture;
+mod pptx_fixture;
 mod registry;
 mod templates;
 
