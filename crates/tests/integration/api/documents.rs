@@ -212,6 +212,17 @@ async fn a_put_against_a_stale_base_is_409_with_head_and_base() -> Result<()> {
     Ok(())
 }
 
+fn first_text_node(nodes: &Value) -> Option<Value> {
+    nodes.as_array()?.iter().find_map(|node| {
+        let has_text = node["text"].as_str().is_some_and(|text| !text.is_empty());
+        if has_text {
+            Some(node.clone())
+        } else {
+            first_text_node(&node["children"])
+        }
+    })
+}
+
 #[tokio::test]
 async fn an_edit_with_a_stale_anchor_is_409_with_the_current_text() -> Result<()> {
     let (pool, _ctx, state) = fixture().await?;
@@ -227,7 +238,7 @@ async fn an_edit_with_a_stale_anchor_is_409_with_the_current_text() -> Result<()
     )
     .await?;
     assert_eq!(outline.status, StatusCode::OK, "{}", outline.json());
-    let node = outline.json()["projection"]["root"][0].clone();
+    let node = first_text_node(&outline.json()["projection"]["root"]).expect("a node with text");
     let node_id = node["id"].as_str().expect("node id").to_owned();
     let text = node["text"].as_str().expect("node text").to_owned();
 
@@ -638,7 +649,7 @@ async fn the_files_server_cannot_reach_document_blobs() -> Result<()> {
 }
 
 fn mint_download(
-    ctx: &AppContext,
+    authority: &dyn systemprompt_models::auth::TokenAuthority,
     owner: &AuthedFixture,
     audience: &str,
     ttl: chrono::Duration,
@@ -663,9 +674,16 @@ fn mint_download(
         purpose: Some(purpose),
         plugin_id: None,
     };
-    ctx.token_authority()
-        .mint_user_jwt(&request)
-        .expect("download token")
+    authority.mint_user_jwt(&request).expect("download token")
+}
+
+fn foreign_authority(ctx: &AppContext) -> Result<systemprompt_security::DeploymentTokenAuthority> {
+    use systemprompt_security::keys::{RsaSigningKey, SigningKeys};
+    let keys = SigningKeys::new(RsaSigningKey::generate_bits(1024)?, &[7; 32])?;
+    Ok(systemprompt_security::DeploymentTokenAuthority::new(
+        keys,
+        ctx.config().jwt_issuer.clone(),
+    ))
 }
 
 #[tokio::test]
@@ -694,7 +712,7 @@ async fn a_signed_download_link_reads_only_its_document_revision() -> Result<()>
     };
 
     let valid = mint_download(
-        &ctx,
+        ctx.token_authority().as_ref(),
         &owner,
         DOWNLOAD_AUDIENCE,
         DOWNLOAD_TTL,
@@ -711,7 +729,7 @@ async fn a_signed_download_link_reads_only_its_document_revision() -> Result<()>
     assert_eq!(elsewhere.status, StatusCode::FORBIDDEN);
 
     let audience = mint_download(
-        &ctx,
+        ctx.token_authority().as_ref(),
         &owner,
         "other.audience",
         DOWNLOAD_TTL,
@@ -722,15 +740,10 @@ async fn a_signed_download_link_reads_only_its_document_revision() -> Result<()>
         StatusCode::UNAUTHORIZED
     );
 
-    let expired = mint_download(
-        &ctx,
-        &owner,
-        DOWNLOAD_AUDIENCE,
-        chrono::Duration::minutes(-10),
-        purpose,
-    );
+    let foreign = foreign_authority(&ctx)?;
+    let forged = mint_download(&foreign, &owner, DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, purpose);
     assert_eq!(
-        fetch(id.clone(), expired).await?.status,
+        fetch(id.clone(), forged).await?.status,
         StatusCode::UNAUTHORIZED
     );
 
@@ -786,7 +799,7 @@ async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credenti
     assert_eq!(anonymous.status, StatusCode::UNAUTHORIZED);
 
     let token = mint_download(
-        &ctx,
+        ctx.token_authority().as_ref(),
         &owner,
         DOWNLOAD_AUDIENCE,
         DOWNLOAD_TTL,
