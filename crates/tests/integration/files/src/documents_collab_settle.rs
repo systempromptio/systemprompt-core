@@ -115,7 +115,6 @@ async fn a_viewer_leaving_last_never_checkpoints() {
     let c = collab().await;
     let other = CollabService::new(Arc::clone(&c.documents), CollabTuning::default());
     let owner = person("settle-owner");
-    let viewer = person("settle-viewer");
     let document = seeded(&c, &owner).await;
     let (head, _) = head_text(&c, &owner, &document).await;
     let joined = c
@@ -129,17 +128,17 @@ async fn a_viewer_leaving_last_never_checkpoints() {
         .apply(&owner, request(&document, &joined, &doc, update), &trace())
         .await
         .expect("apply");
-    other
-        .join(&viewer, &document, JoinMode::View, &trace())
-        .await
-        .expect("viewer join");
     c.h.repos
         .collab
         .remove_web_presence(&document, &owner.id)
         .await
         .expect("drop editor presence");
+    other
+        .join(&owner, &document, JoinMode::View, &trace())
+        .await
+        .expect("view join on a replica that saw no edit");
     let left = other
-        .leave(&viewer, &document, &joined.session_id, &trace())
+        .leave(&owner, &document, &joined.session_id, &trace())
         .await
         .expect("viewer leave");
     assert!(!left.closed);

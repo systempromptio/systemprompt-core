@@ -8159,6 +8159,7 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-security",
  "systemprompt-slack",
+ "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "systemprompt-users",
