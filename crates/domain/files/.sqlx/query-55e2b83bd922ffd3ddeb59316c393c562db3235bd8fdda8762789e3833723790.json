@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE documents SET template_id = $2, updated_at = now()\n             WHERE id = $1::text::uuid AND trashed_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "55e2b83bd922ffd3ddeb59316c393c562db3235bd8fdda8762789e3833723790"
+}

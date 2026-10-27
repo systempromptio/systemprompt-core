@@ -14,9 +14,9 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
+use super::guide_topics::{COMMENTS, EDITING, LIFECYCLE, SHARING, SHEETS, SLIDES, refusal_text};
 use super::inputs::GuideInput;
 use super::outputs::GuideOutput;
-use super::guide_topics::{COMMENTS, EDITING, LIFECYCLE, SHARING, SHEETS, SLIDES, refusal_text};
 use super::refusal::RefusalCode;
 
 fn formats(tools: &DocumentsMcpTools) -> String {

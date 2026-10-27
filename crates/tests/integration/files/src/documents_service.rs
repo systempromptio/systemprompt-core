@@ -354,7 +354,12 @@ async fn a_group_folder_grant_reaches_members_only() {
         )
         .await
         .expect("sales member lists the folder");
-    assert!(listing.documents.iter().any(|d| d.document.id == document.id));
+    assert!(
+        listing
+            .documents
+            .iter()
+            .any(|d| d.document.id == document.id)
+    );
 
     let refused = h
         .service

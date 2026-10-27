@@ -50,7 +50,11 @@ async fn fixture() -> Result<(DbPool, DocumentsState)> {
     Ok((pool, state))
 }
 
-async fn create(state: &DocumentsState, owner: &AuthedFixture, name: &str) -> Result<(String, String)> {
+async fn create(
+    state: &DocumentsState,
+    owner: &AuthedFixture,
+    name: &str,
+) -> Result<(String, String)> {
     let body = json!({
         "template_id": "blank-markdown",
         "name": name,
@@ -60,7 +64,10 @@ async fn create(state: &DocumentsState, owner: &AuthedFixture, name: &str) -> Re
     assert_eq!(status, StatusCode::CREATED, "{created}");
     Ok((
         created["document"]["id"].as_str().expect("id").to_owned(),
-        created["revision"]["id"].as_str().expect("revision").to_owned(),
+        created["revision"]["id"]
+            .as_str()
+            .expect("revision")
+            .to_owned(),
     ))
 }
 
@@ -83,19 +90,34 @@ async fn read_views_mirror_the_read_tool() -> Result<()> {
     let (pool, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-views").await?;
     let (id, head) = create(&state, &owner, &unique("views")).await?;
-    let (status, outline) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}/read?view=outline"))).await?;
+    let (status, outline) = send(
+        app(&state, &owner),
+        empty(Method::GET, &format!("/{id}/read?view=outline")),
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK, "{outline}");
     assert!(!outline["lines"].as_array().expect("lines").is_empty());
-    let (status, meta) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}/read?view=meta"))).await?;
+    let (status, meta) = send(
+        app(&state, &owner),
+        empty(Method::GET, &format!("/{id}/read?view=meta")),
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK, "{meta}");
     assert_eq!(meta["meta"]["access"], "own");
     let (status, changes) = send(
         app(&state, &owner),
-        empty(Method::GET, &format!("/{id}/read?view=changes&since_revision={head}")),
+        empty(
+            Method::GET,
+            &format!("/{id}/read?view=changes&since_revision={head}"),
+        ),
     )
     .await?;
     assert_eq!(status, StatusCode::OK, "{changes}");
-    let (status, refused) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}/read?view=changes"))).await?;
+    let (status, refused) = send(
+        app(&state, &owner),
+        empty(Method::GET, &format!("/{id}/read?view=changes")),
+    )
+    .await?;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
     Ok(())
 }
@@ -105,7 +127,11 @@ async fn comments_are_posted_listed_and_resolved() -> Result<()> {
     let (pool, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-comments").await?;
     let (id, _) = create(&state, &owner, &unique("comments")).await?;
-    let (_, outline) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}/read?view=outline"))).await?;
+    let (_, outline) = send(
+        app(&state, &owner),
+        empty(Method::GET, &format!("/{id}/read?view=outline")),
+    )
+    .await?;
     let node = first_node(&outline);
     let (status, created) = send(
         app(&state, &owner),
@@ -127,7 +153,11 @@ async fn comments_are_posted_listed_and_resolved() -> Result<()> {
     .await?;
     assert_eq!(status, StatusCode::OK, "{resolved}");
     assert!(resolved["resolved_at"].is_string());
-    let (_, listed) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}/comments"))).await?;
+    let (_, listed) = send(
+        app(&state, &owner),
+        empty(Method::GET, &format!("/{id}/comments")),
+    )
+    .await?;
     assert_eq!(listed["comments"].as_array().map(Vec::len), Some(1));
     Ok(())
 }
@@ -140,7 +170,12 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
     let (id, _) = create(&state, &owner, &unique("access")).await?;
     let (status, kinds) = send(app(&state, &owner), empty(Method::GET, "/subject-kinds")).await?;
     assert_eq!(status, StatusCode::OK, "{kinds}");
-    assert!(kinds["subject_kinds"].as_array().expect("kinds").contains(&json!("user")));
+    assert!(
+        kinds["subject_kinds"]
+            .as_array()
+            .expect("kinds")
+            .contains(&json!("user"))
+    );
 
     let (status, _) = send(
         app(&state, &owner),
@@ -152,12 +187,20 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
     )
     .await?;
     assert_eq!(status, StatusCode::CREATED);
-    let (status, access) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}/access"))).await?;
+    let (status, access) = send(
+        app(&state, &owner),
+        empty(Method::GET, &format!("/{id}/access")),
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK, "{access}");
     assert_eq!(access["my_access"], "own");
     assert_eq!(access["grants"].as_array().map(Vec::len), Some(1));
 
-    let (status, _) = send(app(&state, &owner), empty(Method::DELETE, &format!("/{id}/grants/all"))).await?;
+    let (status, _) = send(
+        app(&state, &owner),
+        empty(Method::DELETE, &format!("/{id}/grants/all")),
+    )
+    .await?;
     assert_eq!(status, StatusCode::NO_CONTENT);
     let (status, moved) = send(
         app(&state, &owner),
@@ -191,17 +234,29 @@ async fn trash_restore_copy_and_scoped_listing() -> Result<()> {
     let prefix = format!("trash-{}", Uuid::new_v4().simple());
     let (id, _) = create(&state, &owner, &format!("{prefix}.md")).await?;
 
-    let (status, _) = send(app(&state, &owner), empty(Method::DELETE, &format!("/{id}"))).await?;
+    let (status, _) = send(
+        app(&state, &owner),
+        empty(Method::DELETE, &format!("/{id}")),
+    )
+    .await?;
     assert_eq!(status, StatusCode::NO_CONTENT);
     let (status, gone) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}"))).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{gone}");
     assert_eq!(gone["trashed"], true);
-    let (status, restored) = send(app(&state, &owner), empty(Method::POST, &format!("/{id}/restore"))).await?;
+    let (status, restored) = send(
+        app(&state, &owner),
+        empty(Method::POST, &format!("/{id}/restore")),
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK, "{restored}");
 
     let (status, copied) = send(
         app(&state, &owner),
-        json_request(Method::POST, &format!("/{id}/copy"), &json!({ "name": format!("{prefix}-copy") })),
+        json_request(
+            Method::POST,
+            &format!("/{id}/copy"),
+            &json!({ "name": format!("{prefix}-copy") }),
+        ),
     )
     .await?;
     assert_eq!(status, StatusCode::CREATED, "{copied}");
@@ -209,7 +264,10 @@ async fn trash_restore_copy_and_scoped_listing() -> Result<()> {
 
     let (status, listed) = send(
         app(&state, &owner),
-        empty(Method::GET, &format!("/?scope=mine&sort=name&query={prefix}")),
+        empty(
+            Method::GET,
+            &format!("/?scope=mine&sort=name&query={prefix}"),
+        ),
     )
     .await?;
     assert_eq!(status, StatusCode::OK, "{listed}");

@@ -56,12 +56,12 @@ pub use download::{
 };
 pub use export::ExportHandler;
 pub use guide::GuideHandler;
-pub use lifecycle::{AccessHandler, CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
 pub use inputs::{
     CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput, ExportAs,
     ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput, ListSortInput,
     NodeRange, QuoteAnchor, ReadInput, ReadView, SearchInput, ShareInput, UpdateInput,
 };
+pub use lifecycle::{AccessHandler, CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
 pub use lines::{
     MAX_LINES, MAX_WRITTEN, RenderedLines, parse_cell, render, split_cell_id, structured_line,
     written_lines,

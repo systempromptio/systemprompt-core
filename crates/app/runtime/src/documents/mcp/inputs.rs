@@ -7,6 +7,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use systemprompt_files::documents::service::FolderMove;
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
     DocumentRevisionId, DocumentTemplateId, UserId,
@@ -249,15 +250,14 @@ pub struct UpdateInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub name: Option<String>,
-    #[serde(default, deserialize_with = "present")]
-    #[schemars(description = "null = root")]
-    pub folder_id: Option<Option<DocumentFolderId>>,
+    #[serde(default, deserialize_with = "folder_move")]
+    #[schemars(with = "Option<DocumentFolderId>", description = "null = root")]
+    pub folder_id: FolderMove,
 }
 
-fn present<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+fn folder_move<'de, D>(deserializer: D) -> Result<FolderMove, D::Error>
 where
     D: serde::Deserializer<'de>,
-    T: Deserialize<'de>,
 {
-    Option::<T>::deserialize(deserializer).map(Some)
+    Option::<DocumentFolderId>::deserialize(deserializer).map(FolderMove::from_present)
 }

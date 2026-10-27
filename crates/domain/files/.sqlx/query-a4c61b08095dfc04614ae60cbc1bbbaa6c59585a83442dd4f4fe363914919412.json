@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE documents SET head_revision_id = $3::text::uuid, updated_at = now()\n             WHERE id = $1::text::uuid\n               AND head_revision_id IS NOT DISTINCT FROM $2::text::uuid\n               AND trashed_at IS NULL\n               AND EXISTS (SELECT 1 FROM document_revisions r\n                           WHERE r.id = $3::text::uuid AND r.document_id = $1::text::uuid)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a4c61b08095dfc04614ae60cbc1bbbaa6c59585a83442dd4f4fe363914919412"
+}

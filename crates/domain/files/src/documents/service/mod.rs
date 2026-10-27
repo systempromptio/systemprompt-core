@@ -27,8 +27,8 @@ mod drive_blob;
 mod drive_commit;
 mod folders;
 mod grants;
-mod listing;
 mod lifecycle;
+mod listing;
 mod locks;
 mod node_ids;
 mod ownership;
@@ -39,15 +39,15 @@ mod types;
 
 use std::sync::Arc;
 
-pub use drive::{CHANGE_LAG, parse_drive_cursor};
 pub use comments::{CommentRequest, ResolveCommentRequest};
+pub use drive::{CHANGE_LAG, parse_drive_cursor};
 pub use grants::ShareRequest;
-pub use lifecycle::{CopyRequest, UpdateRequest};
+pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
 pub use ownership::DocumentAccess;
 pub use types::{
-    AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning, CreateRequest,
-    DocumentView, HistoryPage, ImportRequest, ListFolderRequest, Listing, NewFolderRequest,
-    RevisionOrigin, SearchResult, StreamRequest,
+    AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning,
+    CreateRequest, DocumentView, HistoryPage, ImportRequest, ListFolderRequest, Listing,
+    NewFolderRequest, RevisionOrigin, SearchResult, StreamRequest,
 };
 
 use super::access::DocumentAccessService;

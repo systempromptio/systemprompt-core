@@ -137,7 +137,10 @@ async fn comments_are_created_listed_replied_to_and_resolved_with_events() {
         )
         .await
         .expect("reply");
-    assert_eq!(reply.anchor.node, node.id, "a reply carries its parent's anchor");
+    assert_eq!(
+        reply.anchor.node, node.id,
+        "a reply carries its parent's anchor"
+    );
     assert_eq!(reply.parent_id.as_ref(), Some(&root));
 
     let resolved = h
@@ -197,7 +200,10 @@ async fn a_comment_needs_a_quote_the_node_contains() {
         )
         .await
         .expect_err("quote is absent");
-    assert!(matches!(refused, DocumentsError::FindNone { .. }), "{refused:?}");
+    assert!(
+        matches!(refused, DocumentsError::FindNone { .. }),
+        "{refused:?}"
+    );
 }
 
 #[tokio::test]
@@ -213,7 +219,11 @@ async fn an_edit_removing_anchored_words_refuses_until_detach_is_allowed() {
         .service
         .commit(
             &owner,
-            ops(&document, vec![replace(&node, "alpha gamma")], CommentPolicy::default()),
+            ops(
+                &document,
+                vec![replace(&node, "alpha gamma")],
+                CommentPolicy::default(),
+            ),
             &trace(),
         )
         .await
@@ -226,7 +236,11 @@ async fn an_edit_removing_anchored_words_refuses_until_detach_is_allowed() {
     h.service
         .commit(
             &owner,
-            ops(&document, vec![replace(&node, "alpha gamma")], CommentPolicy::detach()),
+            ops(
+                &document,
+                vec![replace(&node, "alpha gamma")],
+                CommentPolicy::detach(),
+            ),
             &trace(),
         )
         .await
@@ -236,8 +250,14 @@ async fn an_edit_removing_anchored_words_refuses_until_detach_is_allowed() {
         .comments(&owner, &document, &trace())
         .await
         .expect("list");
-    assert_eq!(listed[0].anchor.node, node.id, "a detached comment keeps its node");
-    assert!(listed[0].anchor.find.is_none(), "a detached comment loses its quote");
+    assert_eq!(
+        listed[0].anchor.node, node.id,
+        "a detached comment keeps its node"
+    );
+    assert!(
+        listed[0].anchor.find.is_none(),
+        "a detached comment loses its quote"
+    );
 }
 
 #[tokio::test]
@@ -256,7 +276,11 @@ async fn an_anchor_survives_an_insert_before_it() {
         content_as: ContentAs::Text,
     };
     h.service
-        .commit(&owner, ops(&document, vec![insert], CommentPolicy::default()), &trace())
+        .commit(
+            &owner,
+            ops(&document, vec![insert], CommentPolicy::default()),
+            &trace(),
+        )
         .await
         .expect("an insert elsewhere lands");
     let (_, after) = head(&h, &owner, &document).await;

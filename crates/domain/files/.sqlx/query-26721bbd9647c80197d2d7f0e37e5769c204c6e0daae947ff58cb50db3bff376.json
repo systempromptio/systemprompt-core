@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO document_grants\n                   (document_id, folder_id, subject_kind, subject_value, access_level, granted_by, valid_until)\n               VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7)\n               ON CONFLICT (document_id, folder_id, subject_kind, subject_value) DO UPDATE\n                   SET access_level = EXCLUDED.access_level,\n                       valid_until = EXCLUDED.valid_until,\n                       granted_by = EXCLUDED.granted_by,\n                       updated_at = now()\n               RETURNING id, document_id::text AS \"document_id: DocumentId\",\n                         folder_id::text AS \"folder_id: DocumentFolderId\",\n                         subject_kind, subject_value, access_level,\n                         granted_by AS \"granted_by: UserId\",\n                         valid_until, created_at, updated_at",
+  "query": "WITH g AS (INSERT INTO document_grants\n                   (document_id, folder_id, subject_kind, subject_value, access_level, granted_by, valid_until)\n               VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7)\n               ON CONFLICT (document_id, folder_id, subject_kind, subject_value) DO UPDATE\n                   SET access_level = EXCLUDED.access_level,\n                       valid_until = EXCLUDED.valid_until,\n                       granted_by = EXCLUDED.granted_by,\n                       updated_at = now()\n               RETURNING *)\n               SELECT g.id AS \"id!\", g.document_id::text AS \"document_id: DocumentId\",\n                      g.folder_id::text AS \"folder_id: DocumentFolderId\",\n                      g.subject_kind AS \"subject_kind!\", g.subject_value AS \"subject_value!\",\n                      g.access_level AS \"access_level!\",\n                      g.granted_by AS \"granted_by!: UserId\",\n                      g.valid_until, g.created_at AS \"created_at!\", g.updated_at AS \"updated_at!\",\n                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display\n               FROM g LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "id!",
         "type_info": "Uuid",
         "origin": {
           "Table": {
@@ -28,7 +28,7 @@
       },
       {
         "ordinal": 3,
-        "name": "subject_kind",
+        "name": "subject_kind!",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -39,7 +39,7 @@
       },
       {
         "ordinal": 4,
-        "name": "subject_value",
+        "name": "subject_value!",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -50,7 +50,7 @@
       },
       {
         "ordinal": 5,
-        "name": "access_level",
+        "name": "access_level!",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -61,7 +61,7 @@
       },
       {
         "ordinal": 6,
-        "name": "granted_by: UserId",
+        "name": "granted_by!: UserId",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -83,7 +83,7 @@
       },
       {
         "ordinal": 8,
-        "name": "created_at",
+        "name": "created_at!",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -94,7 +94,7 @@
       },
       {
         "ordinal": 9,
-        "name": "updated_at",
+        "name": "updated_at!",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -102,6 +102,12 @@
             "name": "updated_at"
           }
         }
+      },
+      {
+        "ordinal": 10,
+        "name": "subject_display",
+        "type_info": "Varchar",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -125,8 +131,9 @@
       false,
       true,
       false,
-      false
+      false,
+      null
     ]
   },
-  "hash": "90bbb8c4e19f55a426422af7b8c5ad83dac17bd8675997237f589681a064dba2"
+  "hash": "26721bbd9647c80197d2d7f0e37e5769c204c6e0daae947ff58cb50db3bff376"
 }

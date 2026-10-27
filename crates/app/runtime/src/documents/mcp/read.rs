@@ -7,8 +7,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::nodes::{changes, path_of};
 use systemprompt_files::documents::DocumentService;
+use systemprompt_files::documents::nodes::{changes, path_of};
 use systemprompt_identifiers::{McpExecutionId, TraceId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;

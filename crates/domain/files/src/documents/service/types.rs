@@ -6,8 +6,8 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId,
-    DriveDeviceId, McpExecutionId, SessionId,
+    DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentRevisionId,
+    DocumentTemplateId, DriveDeviceId, McpExecutionId, SessionId,
 };
 use systemprompt_models::documents::{
     AccessLevel, ActorKind, DocumentFormat, EditOp, RevisionOriginKind,
@@ -157,10 +157,11 @@ pub struct CommitRequest {
     pub comments: CommentPolicy,
 }
 
-/// How a commit treats comment anchors. `guard` refuses a commit that drops
-/// a comment's node or quoted text with `AnchorsAffected`; `detach` lets it
-/// land and clears those quotes. `answering` records the new revision on
-/// that comment.
+/// How a commit treats comment anchors.
+///
+/// `guard` refuses a commit that drops a comment's node or quoted text with
+/// `AnchorsAffected`; `detach` lets it land and clears those quotes.
+/// `answering` records the new revision on that comment.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CommentPolicy {
     pub allow_detach: bool,

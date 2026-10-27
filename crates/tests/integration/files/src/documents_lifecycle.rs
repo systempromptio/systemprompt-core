@@ -6,8 +6,8 @@ use systemprompt_files::documents::jobs::DocumentTrashPurgeJob;
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    CommentPolicy, CommitRequest, CopyRequest, HistoryPage, NewFolderRequest, ShareRequest,
-    UpdateRequest,
+    CommentPolicy, CommitRequest, CopyRequest, FolderMove, HistoryPage, NewFolderRequest,
+    ShareRequest, UpdateRequest,
 };
 use systemprompt_identifiers::{ConnectionId, DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -136,7 +136,10 @@ async fn a_stranger_cannot_learn_a_trashed_document_exists() {
         .get(&stranger, &id, &trace())
         .await
         .expect_err("stranger");
-    assert!(matches!(refused, DocumentsError::NotFound { .. }), "{refused:?}");
+    assert!(
+        matches!(refused, DocumentsError::NotFound { .. }),
+        "{refused:?}"
+    );
 }
 
 #[tokio::test]
@@ -183,7 +186,12 @@ async fn copy_starts_a_new_history_owned_by_the_caller() {
     let owner = person("copy-owner");
     let reader = person("copy-reader");
     let id = document(&h, &owner).await;
-    let base = h.service.get(&owner, &id, &trace()).await.expect("get").head;
+    let base = h
+        .service
+        .get(&owner, &id, &trace())
+        .await
+        .expect("get")
+        .head;
     let mut request = set_text(&id, "first\nsecond\nthird\n");
     request.base_revision = base.map(|head| head.id);
     h.service
@@ -229,7 +237,11 @@ async fn copy_starts_a_new_history_owned_by_the_caller() {
         )
         .await
         .expect("history");
-    assert_eq!(history.len(), 1, "the copy does not carry the source's history");
+    assert_eq!(
+        history.len(),
+        1,
+        "the copy does not carry the source's history"
+    );
     let (_, text) = h
         .service
         .read_bytes(&reader, &copy.id, None, &trace())
@@ -253,7 +265,7 @@ async fn update_renames_and_moves_and_names_the_owner_when_refused() {
             &id,
             UpdateRequest {
                 name: Some(fresh.clone()),
-                folder: Some(Some(target.clone())),
+                folder: FolderMove::Into(target.clone()),
             },
             &trace(),
         )
@@ -277,7 +289,7 @@ async fn update_renames_and_moves_and_names_the_owner_when_refused() {
             &id,
             UpdateRequest {
                 name: Some("mine".to_owned()),
-                folder: None,
+                folder: FolderMove::Keep,
             },
             &trace(),
         )
@@ -296,12 +308,14 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
     let owner = person("access-owner");
     let reader = person("access-reader");
     let db = test_db_pool().await;
-    sqlx::query("INSERT INTO users (id, name, email, display_name) VALUES ($1, $1, $2, 'Ada Reader')")
-        .bind(reader.id.as_str())
-        .bind(format!("{}@example.test", reader.id.as_str()))
-        .execute(&*db.write_pool())
-        .await
-        .expect("user row");
+    sqlx::query(
+        "INSERT INTO users (id, name, email, display_name) VALUES ($1, $1, $2, 'Ada Reader')",
+    )
+    .bind(reader.id.as_str())
+    .bind(format!("{}@example.test", reader.id.as_str()))
+    .execute(&*db.write_pool())
+    .await
+    .expect("user row");
     let parent = folder(&h, &owner).await;
     let mut request = create("blank-text", Some(&parent));
     request.ops = vec![EditOp::SetText {
@@ -336,7 +350,10 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
     assert_eq!(access.owner, owner.id);
     assert_eq!(access.my_access, AccessLevel::Comment);
     assert_eq!(access.grants.len(), 1);
-    assert_eq!(access.grants[0].subject_display.as_deref(), Some("Ada Reader"));
+    assert_eq!(
+        access.grants[0].subject_display.as_deref(),
+        Some("Ada Reader")
+    );
     assert!(
         access
             .inherited
@@ -369,14 +386,21 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
         seen.push_str(&format!("{event:?}"));
     }
     assert!(seen.contains("document.ownership_transferred"), "{seen}");
-    let view = h.service.get(&owner, &id, &trace()).await.expect("previous owner reads");
+    let view = h
+        .service
+        .get(&owner, &id, &trace())
+        .await
+        .expect("previous owner reads");
     assert_eq!(view.my_access, AccessLevel::Edit);
     let refused = h
         .service
         .transfer_ownership(&owner, &id, &owner.id, &trace())
         .await
         .expect_err("only the owner transfers");
-    assert!(matches!(refused, DocumentsError::Forbidden { .. }), "{refused:?}");
+    assert!(
+        matches!(refused, DocumentsError::Forbidden { .. }),
+        "{refused:?}"
+    );
 }
 
 #[tokio::test]
@@ -404,7 +428,10 @@ async fn revoke_all_removes_every_grant() {
     while let Ok(Some(event)) = tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
         seen.push_str(&format!("{event:?}"));
     }
-    assert!(seen.contains("document.shared"), "the grantee hears the share: {seen}");
+    assert!(
+        seen.contains("document.shared"),
+        "the grantee hears the share: {seen}"
+    );
     share(
         &h,
         &owner,
@@ -424,7 +451,10 @@ async fn revoke_all_removes_every_grant() {
         .get(&reader, &id, &trace())
         .await
         .expect_err("access is gone");
-    assert!(matches!(refused, DocumentsError::Forbidden { .. }), "{refused:?}");
+    assert!(
+        matches!(refused, DocumentsError::Forbidden { .. }),
+        "{refused:?}"
+    );
 }
 
 #[tokio::test]
@@ -450,8 +480,18 @@ async fn repeated_copies_and_restores_take_the_next_free_name() {
         folder: None,
         author: api_author(),
     };
-    let first = h.service.copy(&owner, copy(), &trace()).await.expect("copy").0;
-    let second = h.service.copy(&owner, copy(), &trace()).await.expect("copy again").0;
+    let first = h
+        .service
+        .copy(&owner, copy(), &trace())
+        .await
+        .expect("copy")
+        .0;
+    let second = h
+        .service
+        .copy(&owner, copy(), &trace())
+        .await
+        .expect("copy again")
+        .0;
     assert_eq!(first.name, format!("{name} (copy).txt"));
     assert_eq!(second.name, format!("{name} (copy 2).txt"));
 
@@ -459,15 +499,24 @@ async fn repeated_copies_and_restores_take_the_next_free_name() {
         .service
         .create_from_template(&owner, make(), &trace())
         .await;
-    assert!(trashed_twin.is_err(), "the name is taken while the source is live");
-    h.service.trash(&owner, &source.id, &trace()).await.expect("trash source");
+    assert!(
+        trashed_twin.is_err(),
+        "the name is taken while the source is live"
+    );
+    h.service
+        .trash(&owner, &source.id, &trace())
+        .await
+        .expect("trash source");
     let twin = h
         .service
         .create_from_template(&owner, make(), &trace())
         .await
         .expect("twin takes the name")
         .0;
-    h.service.trash(&owner, &twin.id, &trace()).await.expect("trash twin");
+    h.service
+        .trash(&owner, &twin.id, &trace())
+        .await
+        .expect("trash twin");
     h.service
         .create_from_template(&owner, make(), &trace())
         .await

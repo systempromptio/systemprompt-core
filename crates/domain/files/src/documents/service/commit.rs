@@ -10,8 +10,9 @@
 //! write the blob and the revision, record the revision's stable node ids,
 //! refuse when the new revision drops text a comment is anchored to (unless
 //! the request allows detaching), then move the head by compare-and-swap and
-//! settle the comments the commit detached or answered. Index and event failures after
-//! the swap are returned as [`CommitWarning`]s; the commit stands.
+//! settle the comments the commit detached or answered. Index and event
+//! failures after the swap are returned as [`CommitWarning`]s; the commit
+//! stands.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

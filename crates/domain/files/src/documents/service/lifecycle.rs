@@ -7,8 +7,9 @@
 //! no longer exists lands the document at the root, and a name taken in the
 //! meantime gains the first free ` (restored)`, ` (restored 2)`, …
 //! suffix; a copy without a name takes the first free ` (copy)`, ` (copy 2)`, …
-//! name in its folder. Both retry once when a concurrent write takes the name. A copy starts a new revision chain
-//! from the source's head bytes and belongs to the caller.
+//! name in its folder. Both retry once when a concurrent write takes the name.
+//! A copy starts a new revision chain from the source's head bytes and belongs
+//! to the caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,7 +41,37 @@ pub struct CopyRequest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateRequest {
     pub name: Option<String>,
-    pub folder: Option<Option<DocumentFolderId>>,
+    pub folder: FolderMove,
+}
+
+/// Where an update leaves a document: in its folder, at the root, or in
+/// another folder.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum FolderMove {
+    #[default]
+    Keep,
+    Root,
+    Into(DocumentFolderId),
+}
+
+impl FolderMove {
+    #[must_use]
+    pub fn from_present(folder: Option<DocumentFolderId>) -> Self {
+        folder.map_or(Self::Root, Self::Into)
+    }
+
+    #[must_use]
+    pub const fn is_keep(&self) -> bool {
+        matches!(self, Self::Keep)
+    }
+
+    #[must_use]
+    pub const fn target(&self) -> Option<&DocumentFolderId> {
+        match self {
+            Self::Keep | Self::Root => None,
+            Self::Into(id) => Some(id),
+        }
+    }
 }
 
 impl DocumentService {
@@ -203,8 +234,9 @@ impl DocumentService {
         if let Some(name) = &request.name {
             self.rename(who, document, name, trace).await?;
         }
-        if let Some(folder) = &request.folder {
-            self.move_to(who, document, folder.as_ref(), trace).await?;
+        if !request.folder.is_keep() {
+            self.move_to(who, document, request.folder.target(), trace)
+                .await?;
         }
         self.load_document(document).await
     }
@@ -216,7 +248,7 @@ fn split_extension(name: &str) -> (&str, &str) {
         .map_or((name, ""), |dot| name.split_at(dot))
 }
 
-fn is_name_taken(error: &RepositoryError) -> bool {
+const fn is_name_taken(error: &RepositoryError) -> bool {
     matches!(
         error,
         RepositoryError::Constraint {

@@ -62,16 +62,13 @@ pub(crate) fn lower(markdown: &str) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut chunk = String::new();
     for line in markdown.lines() {
-        match intent_of_line(line) {
-            Some(intent) => {
-                blocks.extend(lower_chunk(&chunk));
-                chunk.clear();
-                blocks.push(Block::Pending(intent.to_owned()));
-            },
-            None => {
-                chunk.push_str(line);
-                chunk.push('\n');
-            },
+        if let Some(intent) = intent_of_line(line) {
+            blocks.extend(lower_chunk(&chunk));
+            chunk.clear();
+            blocks.push(Block::Pending(intent.to_owned()));
+        } else {
+            chunk.push_str(line);
+            chunk.push('\n');
         }
     }
     blocks.extend(lower_chunk(&chunk));

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_comments\n             SET answering_revision_id = $3::text::uuid, updated_at = now()\n             WHERE id = $1::text::uuid AND document_id = $2::text::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "699d9eca46a2905e587258996a7ee15b446628f0554d9844c75d2dbff1be597b"
+}

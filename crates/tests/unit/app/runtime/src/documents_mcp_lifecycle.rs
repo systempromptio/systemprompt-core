@@ -1,3 +1,4 @@
+use systemprompt_files::documents::service::FolderMove;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, ContentAs, EditOp, NodeTarget};
@@ -149,7 +150,7 @@ async fn trash_restore_copy_update_and_access_tools() {
             UpdateInput {
                 document_id: document.clone(),
                 name: Some(fresh.clone()),
-                folder_id: None,
+                folder_id: FolderMove::Keep,
             },
             &ctx,
             &exec(),
@@ -253,12 +254,12 @@ fn update_folder_id_is_tri_state() {
     let parse = |extra: &str| -> UpdateInput {
         serde_json::from_str(&format!("{{\"document_id\":\"{id}\"{extra}}}")).expect("parse")
     };
-    assert_eq!(parse("").folder_id, None);
-    assert_eq!(parse(",\"folder_id\":null").folder_id, Some(None));
+    assert_eq!(parse("").folder_id, FolderMove::Keep);
+    assert_eq!(parse(",\"folder_id\":null").folder_id, FolderMove::Root);
     let folder = systemprompt_identifiers::DocumentFolderId::generate();
     assert_eq!(
         parse(&format!(",\"folder_id\":\"{folder}\"")).folder_id,
-        Some(Some(folder))
+        FolderMove::Into(folder)
     );
 }
 
@@ -288,12 +289,12 @@ async fn update_moves_a_document_back_to_the_root() {
         folder_id,
     };
     let (moved, _) = UpdateHandler { tools: &h.tools }
-        .handle(update(Some(Some(folder.clone()))), &ctx, &exec())
+        .handle(update(FolderMove::Into(folder.clone())), &ctx, &exec())
         .await
         .expect("into folder");
     assert_eq!(moved.document.folder_id, Some(folder));
     let (home, _) = UpdateHandler { tools: &h.tools }
-        .handle(update(Some(None)), &ctx, &exec())
+        .handle(update(FolderMove::Root), &ctx, &exec())
         .await
         .expect("to the root");
     assert_eq!(home.document.folder_id, None);

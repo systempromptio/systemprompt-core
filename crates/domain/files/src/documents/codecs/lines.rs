@@ -260,8 +260,8 @@ impl LineDoc {
 }
 
 pub(crate) fn line_node(number: usize, text: &str) -> ProjectionNode {
-    let (kind, shown) = intent_of_line(text)
-        .map_or((NodeKind::Text, text), |intent| (NodeKind::Pending, intent));
+    let (kind, shown) =
+        intent_of_line(text).map_or((NodeKind::Text, text), |intent| (NodeKind::Pending, intent));
     ProjectionNode {
         id: DocumentNodeId::new(format!("line[{number}]")),
         kind,

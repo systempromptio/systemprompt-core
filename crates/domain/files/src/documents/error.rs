@@ -12,8 +12,8 @@
 use systemprompt_events::RelayError;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::{
-    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentRevisionId,
-    DocumentTemplateId, UserId,
+    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
+    DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::authz::SubjectSourceError;
 use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat};

@@ -5,10 +5,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_models::documents::DocumentUri;
 use systemprompt_files::documents::DocumentService;
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_models::documents::DocumentUri;
 
 use super::inputs::ReadInput;
 use super::outputs::{DocumentMeta, EditingNow, ReadOutput};

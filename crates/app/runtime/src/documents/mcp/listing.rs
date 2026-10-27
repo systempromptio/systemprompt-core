@@ -15,8 +15,8 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use rmcp::model::Tool;
-use systemprompt_mcp::McpToolHandler;
 use serde_json::{Map, Value as JsonValue, json};
+use systemprompt_mcp::McpToolHandler;
 
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
@@ -113,7 +113,9 @@ fn slim(property: &mut JsonValue, defs: &Map<String, JsonValue>) {
             map.extend(inner);
         }
     }
-    if let Some(JsonValue::Array(types)) = map.get("type").filter(|_| !map.contains_key("description")) {
+    if let Some(JsonValue::Array(types)) =
+        map.get("type").filter(|_| !map.contains_key("description"))
+    {
         let concrete: Vec<JsonValue> = types.iter().filter(|t| *t != "null").cloned().collect();
         if let [single] = concrete.as_slice() {
             map.insert("type".to_owned(), single.clone());
@@ -142,7 +144,9 @@ fn compact_input(schema: &Map<String, JsonValue>) -> Map<String, JsonValue> {
         _ => Map::new(),
     };
     if let Some(JsonValue::Object(properties)) = schema.get_mut("properties") {
-        properties.values_mut().for_each(|property| slim(property, &defs));
+        properties
+            .values_mut()
+            .for_each(|property| slim(property, &defs));
         if properties.contains_key("ops") {
             properties.insert("ops".to_owned(), ops_schema());
         }
@@ -161,33 +165,24 @@ fn compact(mut tool: Tool, keep_meta: bool) -> Tool {
 }
 
 pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
-        let server = tools.server_name();
-        let mut export = ExportHandler { tools }.tool_definition(server);
-        export.meta = Some(preview_tool_meta(server));
-        vec![
-            compact(ListHandler { tools }.tool_definition(server), false),
-            compact(SearchHandler { tools }.tool_definition(server), false),
-            compact(CreateHandler { tools }.tool_definition(server), false),
-            compact(ReadHandler { tools }.tool_definition(server), false),
-            compact(EditHandler { tools }.tool_definition(server), false),
-            compact(
-                CommentHandler { tools }.tool_definition(server),
-                false,
-            ),
-            compact(
-                HistoryHandler { tools }.tool_definition(server),
-                false,
-            ),
-            compact(ShareHandler { tools }.tool_definition(server), false),
-            compact(AccessHandler { tools }.tool_definition(server), false),
-            compact(CopyHandler { tools }.tool_definition(server), false),
-            compact(UpdateHandler { tools }.tool_definition(server), false),
-            compact(TrashHandler { tools }.tool_definition(server), false),
-            compact(
-                RestoreHandler { tools }.tool_definition(server),
-                false,
-            ),
-            compact(export, true),
-            compact(GuideHandler { tools }.tool_definition(server), false),
-        ]
-    }
+    let server = tools.server_name();
+    let mut export = ExportHandler { tools }.tool_definition(server);
+    export.meta = Some(preview_tool_meta(server));
+    vec![
+        compact(ListHandler { tools }.tool_definition(server), false),
+        compact(SearchHandler { tools }.tool_definition(server), false),
+        compact(CreateHandler { tools }.tool_definition(server), false),
+        compact(ReadHandler { tools }.tool_definition(server), false),
+        compact(EditHandler { tools }.tool_definition(server), false),
+        compact(CommentHandler { tools }.tool_definition(server), false),
+        compact(HistoryHandler { tools }.tool_definition(server), false),
+        compact(ShareHandler { tools }.tool_definition(server), false),
+        compact(AccessHandler { tools }.tool_definition(server), false),
+        compact(CopyHandler { tools }.tool_definition(server), false),
+        compact(UpdateHandler { tools }.tool_definition(server), false),
+        compact(TrashHandler { tools }.tool_definition(server), false),
+        compact(RestoreHandler { tools }.tool_definition(server), false),
+        compact(export, true),
+        compact(GuideHandler { tools }.tool_definition(server), false),
+    ]
+}

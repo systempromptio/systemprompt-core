@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE documents SET name = $2, updated_at = now()\n             WHERE id = $1::text::uuid AND trashed_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2c1521903d9d91eb00e6ab9c7d2247936deef8752ecc3194ef92efb8f6da443e"
+}

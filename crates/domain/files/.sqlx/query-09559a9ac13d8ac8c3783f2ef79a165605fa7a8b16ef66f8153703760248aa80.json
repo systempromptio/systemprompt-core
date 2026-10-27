@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, document_id::text AS \"document_id: DocumentId\",\n                      folder_id::text AS \"folder_id: DocumentFolderId\",\n                      subject_kind, subject_value, access_level,\n                      granted_by AS \"granted_by: UserId\",\n                      valid_until, created_at, updated_at\n               FROM document_grants WHERE folder_id = $1::text::uuid ORDER BY created_at, id",
+  "query": "SELECT g.id, g.document_id::text AS \"document_id: DocumentId\",\n                      g.folder_id::text AS \"folder_id: DocumentFolderId\",\n                      g.subject_kind, g.subject_value, g.access_level,\n                      g.granted_by AS \"granted_by: UserId\",\n                      g.valid_until, g.created_at, g.updated_at,\n                      COALESCE(u.display_name, u.full_name, u.name) AS subject_display\n               FROM document_grants g\n               LEFT JOIN users u ON g.subject_kind = 'user' AND u.id = g.subject_value\n               WHERE g.document_id = $1::text::uuid ORDER BY g.created_at, g.id",
   "describe": {
     "columns": [
       {
@@ -102,6 +102,12 @@
             "name": "updated_at"
           }
         }
+      },
+      {
+        "ordinal": 10,
+        "name": "subject_display",
+        "type_info": "Varchar",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -119,8 +125,9 @@
       false,
       true,
       false,
-      false
+      false,
+      null
     ]
   },
-  "hash": "05b1a5a355f8b4d210e1cc1325bb8261204444598b9db180ef57db6965046cb0"
+  "hash": "09559a9ac13d8ac8c3783f2ef79a165605fa7a8b16ef66f8153703760248aa80"
 }

@@ -14,8 +14,8 @@ use systemprompt_provider_contracts::documents::{
 };
 
 use super::super::anchors::{str_replace_once, verify_anchor};
-use super::super::text::escape_html;
 use super::super::pending::intent_of_line;
+use super::super::text::escape_html;
 use super::tree::{HtmlProjection, Located, PENDING_ATTR, anchor_node, node_text};
 
 const DETACHED: CodecError = CodecError::Malformed {

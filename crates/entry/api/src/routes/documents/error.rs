@@ -19,8 +19,8 @@ use systemprompt_identifiers::{
     ContentHash, DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId,
 };
 use systemprompt_models::api::{ApiError, ErrorCode};
-use systemprompt_runtime::documents::mcp::RefusalCode;
 use systemprompt_provider_contracts::documents::CodecError;
+use systemprompt_runtime::documents::mcp::RefusalCode;
 use systemprompt_traits::AuthProviderError;
 
 use crate::error::ApiHttpError;
@@ -249,9 +249,9 @@ pub(super) fn tool_failure(code: Option<RefusalCode>, message: String) -> Docume
         Some(RefusalCode::NotFound) => ApiError::not_found(message),
         Some(RefusalCode::Forbidden) => ApiError::forbidden(message),
         Some(RefusalCode::Locked) => ApiError::locked(message),
-        Some(RefusalCode::StaleBase | RefusalCode::GuardMismatch | RefusalCode::AnchorsAffected) => {
-            ApiError::conflict(message)
-        },
+        Some(
+            RefusalCode::StaleBase | RefusalCode::GuardMismatch | RefusalCode::AnchorsAffected,
+        ) => ApiError::conflict(message),
         Some(other) => ApiError::bad_request(message).with_error_key(other.as_str()),
         None => ApiError::new(ErrorCode::InternalError, message),
     };

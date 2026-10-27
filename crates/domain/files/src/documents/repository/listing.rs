@@ -20,8 +20,7 @@ use uuid::Uuid;
 use super::documents::{DocumentRepository, DocumentRow};
 use super::rows::{RepoResult, parse};
 use crate::documents::models::{
-    Document, ListCursor, ListSort, ListedDocument, ListingCursor, ScopedListing,
-    SubjectPairs,
+    Document, ListCursor, ListSort, ListedDocument, ListingCursor, ScopedListing, SubjectPairs,
 };
 
 struct ListedRow {
@@ -111,9 +110,8 @@ fn keyset(cursor: Option<&ListingCursor>) -> Keyset {
 }
 
 fn next_cursor(sort: ListSort, last: &ListedDocument) -> RepoResult<ListingCursor> {
-    let id = Uuid::parse_str(last.document.id.as_str()).map_err(|source| {
-        systemprompt_traits::RepositoryError::decode("documents.id", source)
-    })?;
+    let id = Uuid::parse_str(last.document.id.as_str())
+        .map_err(|source| systemprompt_traits::RepositoryError::decode("documents.id", source))?;
     Ok(match sort {
         ListSort::Name => ListingCursor::Name {
             name: last.document.name.clone(),
@@ -128,6 +126,10 @@ fn next_cursor(sort: ListSort, last: &ListedDocument) -> RepoResult<ListingCurso
 }
 
 impl DocumentRepository {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one query! literal; the scoped listing is a single SQL statement"
+    )]
     pub async fn list_scoped(
         &self,
         listing: &ScopedListing,

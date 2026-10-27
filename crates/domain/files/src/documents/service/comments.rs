@@ -141,7 +141,12 @@ impl DocumentService {
         let current = self
             .authorized_document(who, document, DocumentAction::Comment, trace)
             .await?;
-        if !self.repos.comments.resolve(document, comment, &who.id).await? {
+        if !self
+            .repos
+            .comments
+            .resolve(document, comment, &who.id)
+            .await?
+        {
             return Err(DocumentsError::CommentNotFound {
                 document_id: document.clone(),
                 comment_id: comment.clone(),

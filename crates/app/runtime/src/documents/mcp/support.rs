@@ -17,7 +17,7 @@ use systemprompt_identifiers::{DocumentId, DocumentRevisionId, McpExecutionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ActorKind;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_provider_contracts::documents::CodecError;
+use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
 
 use super::refusal::{Refusal, RefusalCode, refusal};
 
@@ -91,20 +91,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
             current_text: Some(current_text),
             ..Refusal::new(RefusalCode::GuardMismatch)
         },
-        DocumentsError::FindNone { closest, .. } => {
-            let closest = closest.map(|block| (block.node, block.hash, block.text));
-            let (node, hash, current_text) = match closest {
-                Some((node, hash, text)) => (Some(node), Some(hash), Some(text)),
-                None => (None, None, None),
-            };
-            Refusal {
-                matches: Some(0),
-                node,
-                hash,
-                current_text,
-                ..Refusal::new(RefusalCode::FindNone)
-            }
-        },
+        DocumentsError::FindNone { closest, .. } => find_none_refusal(closest),
         DocumentsError::UnsupportedOp { accepted_kinds, .. } => Refusal {
             accepted_kinds: Some(accepted_kinds.iter().map(|k| (*k).to_owned()).collect()),
             ..Refusal::new(RefusalCode::UnsupportedOp)
@@ -206,4 +193,15 @@ pub(super) fn stale_base(
         actor = head.actor_kind,
         time = head.created_at.to_rfc3339(),
     ))
+}
+
+fn find_none_refusal(closest: Option<ClosestBlock>) -> Refusal {
+    let mut refusal = Refusal::new(RefusalCode::FindNone);
+    refusal.matches = Some(0);
+    if let Some(block) = closest {
+        refusal.node = Some(block.node);
+        refusal.hash = Some(block.hash);
+        refusal.current_text = Some(block.text);
+    }
+    refusal
 }

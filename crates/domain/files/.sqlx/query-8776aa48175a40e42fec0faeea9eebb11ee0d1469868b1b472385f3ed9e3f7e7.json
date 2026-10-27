@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT d.id::text AS \"id!: DocumentId\",\n                      d.folder_id::text AS \"folder_id: DocumentFolderId\",\n                      d.name, d.format, d.mime_type,\n                      d.head_revision_id::text AS \"head_revision_id: DocumentRevisionId\",\n                      d.template_id AS \"template_id: DocumentTemplateId\",\n                      d.owner_user_id AS \"owner_user_id: UserId\",\n                      d.created_by AS \"created_by: UserId\",\n                      d.created_at, d.updated_at, d.deleted_at\n               FROM documents d WHERE d.folder_id IS NOT DISTINCT FROM $1::text::uuid AND d.name = $2 AND d.deleted_at IS NULL",
+  "query": "SELECT d.id::text AS \"id!: DocumentId\",\n                      d.folder_id::text AS \"folder_id: DocumentFolderId\",\n                      d.name, d.format, d.mime_type,\n                      d.head_revision_id::text AS \"head_revision_id: DocumentRevisionId\",\n                      d.template_id AS \"template_id: DocumentTemplateId\",\n                      d.owner_user_id AS \"owner_user_id: UserId\",\n                      d.created_by AS \"created_by: UserId\",\n                      d.created_at, d.updated_at, d.trashed_at,\n                      d.trashed_by AS \"trashed_by: UserId\"\n               FROM documents d WHERE d.folder_id IS NOT DISTINCT FROM $1::text::uuid AND d.name = $2 AND d.trashed_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -111,12 +111,23 @@
       },
       {
         "ordinal": 11,
-        "name": "deleted_at",
+        "name": "trashed_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
             "table": "documents",
-            "name": "deleted_at"
+            "name": "trashed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "trashed_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "trashed_by"
           }
         }
       }
@@ -139,8 +150,9 @@
       false,
       false,
       false,
+      true,
       true
     ]
   },
-  "hash": "46096a51c754140546b8bfb21368e0a86366b8b88f74fbc7b9d1968426775266"
+  "hash": "8776aa48175a40e42fec0faeea9eebb11ee0d1469868b1b472385f3ed9e3f7e7"
 }

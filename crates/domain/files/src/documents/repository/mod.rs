@@ -13,9 +13,11 @@ mod collab_updates;
 mod documents;
 mod edit_sessions;
 
+mod comments;
 mod folder_contents;
 mod folders;
 mod grants;
+mod listing;
 mod locks;
 mod node_ids;
 mod presence;
@@ -24,8 +26,6 @@ mod revisions;
 mod rows;
 mod text_index;
 mod trash;
-mod comments;
-mod listing;
 mod write_acks;
 
 use std::sync::Arc;

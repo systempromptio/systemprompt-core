@@ -33,7 +33,9 @@ fn anchor(projection: &Projection, kinds: &[NodeKind]) -> ProjectionNode {
 }
 
 fn pending(projection: &Projection) -> Option<&ProjectionNode> {
-    projection.nodes().find(|node| node.kind == NodeKind::Pending)
+    projection
+        .nodes()
+        .find(|node| node.kind == NodeKind::Pending)
 }
 
 fn round_trip(codec: &dyn DocumentCodec, bytes: &[u8], kinds: &[NodeKind]) {
@@ -45,7 +47,9 @@ fn round_trip(codec: &dyn DocumentCodec, bytes: &[u8], kinds: &[NodeKind]) {
         text: INTENT.to_owned(),
         content_as: ContentAs::Text,
     };
-    let laid_out = codec.apply(bytes, &base, &[insert]).expect("insert pending");
+    let laid_out = codec
+        .apply(bytes, &base, &[insert])
+        .expect("insert pending");
     let skeleton = codec.project(&laid_out).expect("reproject");
     let placeholder = pending(&skeleton)
         .unwrap_or_else(|| panic!("{:?} projects no pending node", codec.formats()))
@@ -60,9 +64,14 @@ fn round_trip(codec: &dyn DocumentCodec, bytes: &[u8], kinds: &[NodeKind]) {
     };
     let filled = codec.apply(&laid_out, &skeleton, &[fill]).expect("fill");
     let done = codec.project(&filled).expect("project filled");
-    assert!(pending(&done).is_none(), "{:?} keeps a placeholder", codec.formats());
     assert!(
-        done.nodes().any(|node| node.text.as_deref() == Some(FILLED)),
+        pending(&done).is_none(),
+        "{:?} keeps a placeholder",
+        codec.formats()
+    );
+    assert!(
+        done.nodes()
+            .any(|node| node.text.as_deref() == Some(FILLED)),
         "{:?} lacks the filled text",
         codec.formats()
     );

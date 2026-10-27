@@ -102,7 +102,11 @@ impl McpToolHandler for ShareHandler<'_> {
         let who = caller(ctx)?;
         let service = self.tools.service();
         let trace = ctx.trace_id();
-        match (input.transfer_to.clone(), input.revoke_all, &input.document_id) {
+        match (
+            input.transfer_to.clone(),
+            input.revoke_all,
+            &input.document_id,
+        ) {
             (Some(to), _, Some(document)) => {
                 service
                     .transfer_ownership(who, document, &to, trace)

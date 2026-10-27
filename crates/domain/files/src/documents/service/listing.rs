@@ -17,9 +17,7 @@ use systemprompt_models::documents::DocumentAction;
 use super::{DocumentService, ListFolderRequest, Listing};
 use crate::documents::access::{AccessCheck, AccessTarget};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{
-    Document, DocumentFolder, ListScope, ScopedListing, SubjectPairs,
-};
+use crate::documents::models::{Document, DocumentFolder, ListScope, ScopedListing, SubjectPairs};
 
 fn name_matches(name: &str, query: Option<&str>) -> bool {
     query
@@ -86,7 +84,12 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<Vec<DocumentFolder>, DocumentsError> {
         let mut folders = Vec::new();
-        for child in self.repos.folders.list_children(request.folder.as_ref()).await? {
+        for child in self
+            .repos
+            .folders
+            .list_children(request.folder.as_ref())
+            .await?
+        {
             if !name_matches(&child.name, request.query.as_deref()) {
                 continue;
             }

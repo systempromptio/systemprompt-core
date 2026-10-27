@@ -147,6 +147,11 @@ impl DocumentCollabUpdateEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "the document event wire vocabulary names every reference document_id, comment_id, \
+              node_id, parent_id and author_id, as the sibling events do"
+)]
 pub struct DocumentCommentCreatedEvent {
     pub document_id: DocumentId,
     pub comment_id: DocumentCommentId,

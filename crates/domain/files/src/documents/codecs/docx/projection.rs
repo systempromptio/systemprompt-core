@@ -82,10 +82,10 @@ fn para_node(para: &Para) -> ProjectionNode {
         })
         .collect();
     let hash = hash8(&text);
-    let (kind, text) = match intent_of_line(&text) {
-        Some(intent) => (NodeKind::Pending, intent.to_owned()),
-        None => (para_kind(para), text),
-    };
+    let (kind, text) = intent_of_line(&text).map_or_else(
+        || (para_kind(para), text.clone()),
+        |intent| (NodeKind::Pending, intent.to_owned()),
+    );
     ProjectionNode {
         id: DocumentNodeId::new(para.id.clone()),
         kind,

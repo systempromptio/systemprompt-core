@@ -1,5 +1,6 @@
-//! `documents_comment`: create, list and resolve comment threads anchored
-//! to a stable node id and an optional quote inside it.
+//! Comment threads anchor to a stable node id and an optional quote inside
+//! it, so a thread survives edits elsewhere in the document and is detached,
+//! not lost, when its words go.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -3,8 +3,7 @@ use systemprompt_files::documents::models::{
 };
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    CommentPolicy, CommentRequest, CommitRequest, ListFolderRequest, NewFolderRequest,
-    ShareRequest,
+    CommentPolicy, CommentRequest, CommitRequest, ListFolderRequest, NewFolderRequest, ShareRequest,
 };
 use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -122,12 +121,20 @@ async fn shared_lists_folder_and_group_grants_with_size_and_access() {
     )
     .await;
 
-    let shared = list(&h, &reader, listing(ListScope::Shared, None, ListSort::Updated)).await;
+    let shared = list(
+        &h,
+        &reader,
+        listing(ListScope::Shared, None, ListSort::Updated),
+    )
+    .await;
     let seen = ids(&shared);
     assert!(seen.contains(&in_folder), "a folder grant is shared");
     assert!(seen.contains(&by_group), "a group grant is shared");
     assert!(!seen.contains(&unshared));
-    assert!(!seen.contains(&own), "shared excludes the caller's own documents");
+    assert!(
+        !seen.contains(&own),
+        "shared excludes the caller's own documents"
+    );
     let group_row = shared
         .iter()
         .find(|l| l.document.id == by_group)
@@ -135,7 +142,12 @@ async fn shared_lists_folder_and_group_grants_with_size_and_access() {
     assert_eq!(group_row.my_access, AccessLevel::Edit);
     assert_eq!(group_row.size_bytes, Some(6));
 
-    let mine = list(&h, &reader, listing(ListScope::Mine, None, ListSort::Updated)).await;
+    let mine = list(
+        &h,
+        &reader,
+        listing(ListScope::Mine, None, ListSort::Updated),
+    )
+    .await;
     let mine_row = mine.iter().find(|l| l.document.id == own).expect("own row");
     assert_eq!(mine_row.my_access, AccessLevel::Own);
 }
@@ -211,7 +223,12 @@ async fn recent_orders_by_the_callers_last_touch() {
         )
         .await
         .expect("edit");
-    let recent = ids(&list(&h, &reader, listing(ListScope::Recent, None, ListSort::Recent)).await);
+    let recent = ids(&list(
+        &h,
+        &reader,
+        listing(ListScope::Recent, None, ListSort::Recent),
+    )
+    .await);
     assert_eq!(recent, vec![edited, commented], "{recent:?}");
     assert!(!recent.contains(&untouched));
 }
@@ -226,7 +243,11 @@ async fn the_name_query_escapes_like_wildcards_and_pages_by_name() {
     let found = ids(&list(
         &h,
         &owner,
-        listing(ListScope::Mine, Some(&format!("{prefix}-50%_")), ListSort::Name),
+        listing(
+            ListScope::Mine,
+            Some(&format!("{prefix}-50%_")),
+            ListSort::Name,
+        ),
     )
     .await);
     assert_eq!(found, vec![literal.clone()], "% and _ match literally");

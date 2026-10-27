@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_comments SET resolved_by = $2 WHERE resolved_by = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6337177a28e1429ff2e6e1dd837d4a922a558d22511594bb2a60fb4d836b897a"
+}

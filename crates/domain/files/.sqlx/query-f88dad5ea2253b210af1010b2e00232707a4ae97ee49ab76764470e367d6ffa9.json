@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_comments\n             SET resolved_at = COALESCE(resolved_at, now()),\n                 resolved_by = COALESCE(resolved_by, $3), updated_at = now()\n             WHERE id = $1::text::uuid AND document_id = $2::text::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f88dad5ea2253b210af1010b2e00232707a4ae97ee49ab76764470e367d6ffa9"
+}

@@ -25,10 +25,10 @@ mod error;
 mod folders;
 mod headers;
 mod history;
-mod read;
 mod items;
 mod lifecycle;
 mod listing;
+mod read;
 mod sharing;
 mod views;
 
@@ -141,10 +141,7 @@ pub fn router(state: DocumentsState) -> Router {
         )
         .route("/{id}/edits", post(commits::edits))
         .route("/{id}/read", get(read::read))
-        .route(
-            "/{id}/comments",
-            get(comments::list).post(comments::create),
-        )
+        .route("/{id}/comments", get(comments::list).post(comments::create))
         .route(
             "/{id}/comments/{comment_id}/resolve",
             post(comments::resolve),

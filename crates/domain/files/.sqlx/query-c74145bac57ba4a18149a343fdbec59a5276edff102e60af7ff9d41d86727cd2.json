@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE documents SET trashed_by = $2 WHERE trashed_by = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c74145bac57ba4a18149a343fdbec59a5276edff102e60af7ff9d41d86727cd2"
+}

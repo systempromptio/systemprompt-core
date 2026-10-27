@@ -58,11 +58,7 @@ impl DocumentRepository {
         Ok(result.rows_affected() == 1)
     }
 
-    pub async fn purge_trashed_before(
-        &self,
-        cutoff: DateTime<Utc>,
-        limit: i64,
-    ) -> RepoResult<u64> {
+    pub async fn purge_trashed_before(&self, cutoff: DateTime<Utc>, limit: i64) -> RepoResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM documents WHERE id IN (
                  SELECT id FROM documents WHERE trashed_at IS NOT NULL AND trashed_at < $1

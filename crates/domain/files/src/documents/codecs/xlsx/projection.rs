@@ -132,10 +132,10 @@ fn cell_node(prefix: &str, col: u32, row: u32, cell: &Cell) -> ProjectionNode {
         attrs.insert("formula".to_owned(), cell.formula().to_owned());
     }
     let hash = hash8(&text);
-    let (kind, text) = match intent_of_line(&text) {
-        Some(intent) => (NodeKind::Pending, intent.to_owned()),
-        None => (NodeKind::Cell, text),
-    };
+    let (kind, text) = intent_of_line(&text).map_or_else(
+        || (NodeKind::Cell, text.clone()),
+        |intent| (NodeKind::Pending, intent.to_owned()),
+    );
     ProjectionNode {
         id: node_id(format!("{prefix}/{}", a1(col, row))),
         kind,

@@ -14,7 +14,7 @@ use axum::{Extension, Json};
 use serde::{Deserialize, Deserializer};
 use systemprompt_files::documents::models::ListCursor;
 use systemprompt_files::documents::service::{
-    Author, CreateRequest, ImportRequest, UpdateRequest,
+    Author, CreateRequest, FolderMove, ImportRequest, UpdateRequest,
 };
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId};
 use systemprompt_models::RequestContext;
@@ -206,10 +206,10 @@ pub(super) async fn update(
     if body.name.is_none() && body.folder_id.is_keep() {
         return Err(ApiError::bad_request("give a new `name`, a `folder_id`, or both").into());
     }
-    let folder = if body.folder_id.is_keep() {
-        None
-    } else {
-        Some(body.folder_id.folder().cloned())
+    let folder = match body.folder_id {
+        FolderTarget::Keep => FolderMove::Keep,
+        FolderTarget::Root => FolderMove::Root,
+        FolderTarget::Folder(id) => FolderMove::Into(id),
     };
     let document = state
         .service
