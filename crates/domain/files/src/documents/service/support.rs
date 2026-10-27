@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{DocumentFolderId, UserId};
 use systemprompt_models::documents::DocumentFormat;
-use systemprompt_provider_contracts::documents::DocumentCodec;
+use systemprompt_provider_contracts::documents::{CodecError, DocumentCodec, EditOp};
 
 use super::DocumentService;
 use crate::documents::error::DocumentsError;
@@ -57,6 +57,25 @@ pub(super) fn document_name(name: &str, format: DocumentFormat) -> Result<String
     Ok(named)
 }
 
+pub(super) fn apply_with(
+    codec: &dyn DocumentCodec,
+    format: DocumentFormat,
+    bytes: &[u8],
+    ops: &[EditOp],
+) -> Result<Vec<u8>, DocumentsError> {
+    let projection = codec.project(bytes)?;
+    codec
+        .apply(bytes, &projection, ops)
+        .map_err(|error| match error {
+            CodecError::UnsupportedOp { op, format: _ } => DocumentsError::UnsupportedOp {
+                op,
+                format,
+                accepted_kinds: codec.insert_kinds(format),
+            },
+            other => other.into(),
+        })
+}
+
 pub(super) fn format_of_name(name: &str) -> Option<DocumentFormat> {
     name.rsplit_once('.')
         .and_then(|(_, ext)| DocumentFormat::from_extension(ext))
@@ -70,6 +89,18 @@ impl DocumentService {
         self.codecs
             .for_format(format)
             .ok_or(DocumentsError::UnsupportedFormat { format })
+    }
+
+    #[must_use]
+    pub fn insert_kinds(&self, format: DocumentFormat) -> &'static [&'static str] {
+        self.codecs
+            .for_format(format)
+            .map_or(&[], |codec| codec.insert_kinds(format))
+    }
+
+    #[must_use]
+    pub fn formats(&self) -> Vec<DocumentFormat> {
+        self.codecs.formats()
     }
 
     pub(super) const fn check_size(&self, size: usize) -> Result<(), DocumentsError> {

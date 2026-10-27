@@ -17,6 +17,7 @@ use super::inputs::{ReadInput, RevisionInput};
 use super::lines::render;
 use super::outputs::{DownloadOutput, PreviewOutput, ReadOutput};
 use super::preview::preview_resource_uri;
+use super::refusal::{RefusalCode, refusal};
 use super::support::{caller, tool_error};
 
 #[derive(Debug, Clone, Copy)]
@@ -111,9 +112,9 @@ async fn resolve_revision(
 }
 
 fn no_revision(document: &DocumentId) -> McpError {
-    McpError::invalid_params(
+    refusal(
+        RefusalCode::NotFound,
         format!("document {document} has no revision yet; nothing to download"),
-        None,
     )
 }
 

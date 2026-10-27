@@ -182,3 +182,51 @@ fn long_documents_are_truncated() {
     assert_eq!(rendered.lines.len(), MAX_LINES);
     assert!(rendered.truncated);
 }
+
+#[test]
+fn text_view_carries_headings_lists_cells_and_slides() {
+    let doc = projection(vec![
+        node(
+            "slide[1]",
+            NodeKind::Slide,
+            Some("Agenda"),
+            vec![node(
+                "slide[1]/shape[0]/p[0]",
+                NodeKind::Heading { level: 2 },
+                Some("Plan"),
+                Vec::new(),
+            )],
+        ),
+        node(
+            "slide[2]",
+            NodeKind::Slide,
+            None,
+            vec![
+                node("slide[2]/li", NodeKind::ListItem, Some("one"), Vec::new()),
+                node("slide[2]/tc", NodeKind::Cell, Some("a"), Vec::new()),
+            ],
+        ),
+    ]);
+    let rendered = render(
+        &doc,
+        &input(ReadView::Text),
+        &DocumentRevisionId::generate(),
+    )
+    .expect("text");
+    let shown: Vec<&str> = rendered
+        .lines
+        .iter()
+        .map(|line| line.split_once("| ").expect("hashline").1)
+        .collect();
+    assert_eq!(
+        shown,
+        vec!["## slide 1: Agenda", "## Plan", "## slide 2", "- one", "| a"]
+    );
+    let outline = render(
+        &doc,
+        &input(ReadView::Outline),
+        &DocumentRevisionId::generate(),
+    )
+    .expect("outline");
+    assert_eq!(outline.lines[1], rendered.lines[1]);
+}

@@ -39,6 +39,8 @@ mod documents_mcp_handlers;
 #[cfg(test)]
 mod documents_mcp_lines;
 #[cfg(test)]
+mod documents_mcp_refusals;
+#[cfg(test)]
 mod documents_mcp_schema;
 #[cfg(test)]
 mod documents_mcp_support;

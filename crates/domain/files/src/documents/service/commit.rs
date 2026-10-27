@@ -16,7 +16,7 @@ use systemprompt_models::documents::{
     DocumentAction, DocumentConflictEvent, DocumentFormat, EditOp,
 };
 
-use super::support::blocking;
+use super::support::{apply_with, blocking};
 use super::{Author, CommitOutcome, CommitRequest, CommitWarning, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewRevision};
@@ -201,11 +201,7 @@ impl DocumentService {
         ops: Vec<EditOp>,
     ) -> Result<Vec<u8>, DocumentsError> {
         let codec = self.codec(format)?;
-        blocking(move || {
-            let projection = codec.project(&bytes)?;
-            Ok(codec.apply(&bytes, &projection, &ops)?)
-        })
-        .await
+        blocking(move || apply_with(codec.as_ref(), format, &bytes, &ops)).await
     }
 
     async fn merge(&self, state: &CommitState<'_>, ours: Vec<u8>) -> Result<Built, DocumentsError> {

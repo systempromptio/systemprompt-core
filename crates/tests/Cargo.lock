@@ -9979,6 +9979,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
+ "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-security",
  "systemprompt-storage",

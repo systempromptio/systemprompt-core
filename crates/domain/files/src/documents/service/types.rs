@@ -112,6 +112,7 @@ pub struct CreateRequest {
     pub name: String,
     pub params: TemplateParams,
     pub author: Author,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

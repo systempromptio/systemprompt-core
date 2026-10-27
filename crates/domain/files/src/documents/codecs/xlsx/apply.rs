@@ -10,6 +10,8 @@ use systemprompt_provider_contracts::documents::{
 };
 use umya_spreadsheet::{Workbook, Worksheet};
 
+use super::cells::{auto_parse, clear_row, write_cell, write_row};
+use super::rebase::RowShifts;
 use super::workbook::{
     CellRange, Target, cell_display, load, node_id, parse_node, save, sheet_error, sheet_id,
     sheet_row_text,
@@ -17,31 +19,42 @@ use super::workbook::{
 
 pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError> {
     let mut workbook = load(bytes)?;
+    let mut shifts = RowShifts::default();
     for op in ops {
-        apply_one(&mut workbook, op)?;
+        apply_one(&mut workbook, op, &mut shifts)?;
     }
     save(&workbook)
 }
 
-fn apply_one(workbook: &mut Workbook, op: &EditOp) -> Result<(), CodecError> {
+fn apply_one(
+    workbook: &mut Workbook,
+    op: &EditOp,
+    shifts: &mut RowShifts,
+) -> Result<(), CodecError> {
     match op {
         EditOp::SetCells {
             sheet,
             range,
             values,
             expected_hash,
-        } => set_cells(workbook, sheet, range, values, expected_hash.as_deref()),
+        } => set_cells(
+            workbook,
+            (sheet, range),
+            values,
+            expected_hash.as_deref(),
+            shifts,
+        ),
         EditOp::ReplaceText {
             node,
             expected_hash,
             text,
-        } => replace_text(workbook, node, expected_hash, text),
+        } => replace_text(workbook, node, expected_hash, text, shifts),
         EditOp::Delete {
             node,
             expected_hash,
-        } => delete(workbook, node, expected_hash),
+        } => delete(workbook, node, expected_hash, shifts),
         EditOp::StrReplace { old_str, new_str } => str_replace(workbook, old_str, new_str),
-        EditOp::InsertAfter { node, text, .. } => insert_after(workbook, node, text),
+        EditOp::InsertAfter { node, text, .. } => insert_after(workbook, node, text, shifts),
         EditOp::InsertSlide { .. } | EditOp::SetHtml { .. } | EditOp::SetText { .. } => {
             Err(CodecError::UnsupportedOp {
                 op: op.name(),
@@ -60,9 +73,15 @@ fn sheet_mut<'a>(workbook: &'a mut Workbook, name: &str) -> Result<&'a mut Works
 fn resolve<'a>(
     workbook: &'a mut Workbook,
     node: &DocumentNodeId,
+    shifts: &RowShifts,
 ) -> Result<(&'a mut Worksheet, Target), CodecError> {
     let (name, target) =
         parse_node(node).ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
+    let target = match target {
+        Target::Row(row) => Target::Row(shifts.row(&name, row)),
+        Target::Cell(col, row) => Target::Cell(col, shifts.row(&name, row)),
+        Target::Sheet => Target::Sheet,
+    };
     let sheet = workbook
         .sheet_by_name_mut(&name)
         .map_err(sheet_error(node.clone()))?;
@@ -84,15 +103,17 @@ fn check(node: &DocumentNodeId, expected: &str, current_text: String) -> Result<
 
 fn set_cells(
     workbook: &mut Workbook,
-    sheet_name: &str,
-    range: &str,
+    (sheet_name, range): (&str, &str),
     values: &[Vec<CellValue>],
     expected_hash: Option<&str>,
+    shifts: &RowShifts,
 ) -> Result<(), CodecError> {
     let sheet = sheet_mut(workbook, sheet_name)?;
-    let parsed = CellRange::parse(range).ok_or(CodecError::Malformed {
+    let mut parsed = CellRange::parse(range).ok_or(CodecError::Malformed {
         detail: "set_cells range is not an A1 reference",
     })?;
+    parsed.start.1 = shifts.row(sheet_name, parsed.start.1);
+    parsed.end.1 = shifts.row(sheet_name, parsed.end.1);
     let fits = usize::try_from(parsed.height()).is_ok_and(|h| h == values.len())
         && values
             .iter()
@@ -114,66 +135,14 @@ fn set_cells(
     Ok(())
 }
 
-fn write_cell(sheet: &mut Worksheet, col: u32, row: u32, value: &CellValue) {
-    if matches!(value, CellValue::Empty) {
-        if sheet.cell((col, row)).is_some() {
-            sheet.cell_mut((col, row)).set_blank();
-        }
-        return;
-    }
-    let cell = sheet.cell_mut((col, row));
-    match value {
-        CellValue::Bool(flag) => {
-            cell.set_value_bool(*flag);
-        },
-        CellValue::Number(number) => {
-            cell.set_value_number(*number);
-        },
-        CellValue::Text(text) => match text.strip_prefix('=') {
-            Some(formula) => {
-                cell.set_blank();
-                cell.set_formula(formula);
-            },
-            None => {
-                cell.set_value_string(text.as_str());
-            },
-        },
-        CellValue::Empty => {},
-    }
-}
-
-fn auto_parse(text: &str) -> CellValue {
-    let trimmed = text.trim();
-    if trimmed.is_empty() {
-        return CellValue::Empty;
-    }
-    if !trimmed.starts_with('=') {
-        if let Ok(number) = trimmed.parse::<f64>() {
-            return CellValue::Number(number);
-        }
-        if trimmed.eq_ignore_ascii_case("true") {
-            return CellValue::Bool(true);
-        }
-        if trimmed.eq_ignore_ascii_case("false") {
-            return CellValue::Bool(false);
-        }
-    }
-    CellValue::Text(text.to_owned())
-}
-
-fn write_row(sheet: &mut Worksheet, row: u32, text: &str) {
-    for (col, value) in (1u32..).zip(text.split('\t')) {
-        write_cell(sheet, col, row, &auto_parse(value));
-    }
-}
-
 fn replace_text(
     workbook: &mut Workbook,
     node: &DocumentNodeId,
     expected: &str,
     text: &str,
+    shifts: &RowShifts,
 ) -> Result<(), CodecError> {
-    let (sheet, target) = resolve(workbook, node)?;
+    let (sheet, target) = resolve(workbook, node, shifts)?;
     match target {
         Target::Cell(col, row) => {
             check(node, expected, cell_display(sheet, col, row))?;
@@ -194,23 +163,13 @@ fn replace_text(
     Ok(())
 }
 
-fn clear_row(sheet: &mut Worksheet, row: u32) {
-    let columns: Vec<u32> = sheet
-        .collection_by_row(row)
-        .into_iter()
-        .map(|cell| cell.coordinate().col_num())
-        .collect();
-    for col in columns {
-        sheet.cell_mut((col, row)).set_blank();
-    }
-}
-
 fn delete(
     workbook: &mut Workbook,
     node: &DocumentNodeId,
     expected: &str,
+    shifts: &RowShifts,
 ) -> Result<(), CodecError> {
-    let (sheet, target) = resolve(workbook, node)?;
+    let (sheet, target) = resolve(workbook, node, shifts)?;
     match target {
         Target::Cell(col, row) => {
             check(node, expected, cell_display(sheet, col, row))?;
@@ -234,16 +193,23 @@ fn insert_after(
     workbook: &mut Workbook,
     node: &DocumentNodeId,
     text: &str,
+    shifts: &mut RowShifts,
 ) -> Result<(), CodecError> {
-    let (sheet, target) = resolve(workbook, node)?;
-    let row = match target {
-        Target::Row(row) | Target::Cell(_, row) => {
-            sheet.insert_new_row(row + 1, 1);
-            row + 1
+    let (name, original) =
+        parse_node(node).ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
+    let (sheet, target) = resolve(workbook, node, shifts)?;
+    let anchor = match (target, original) {
+        (Target::Row(_) | Target::Cell(..), Target::Row(row) | Target::Cell(_, row)) => row,
+        _ => {
+            let row = sheet.highest_row() + 1;
+            write_row(sheet, row, text);
+            return Ok(());
         },
-        Target::Sheet => sheet.highest_row() + 1,
     };
-    write_row(sheet, row, text);
+    let at = shifts.anchor(&name, anchor) + 1;
+    sheet.insert_new_row(at, 1);
+    write_row(sheet, at, text);
+    shifts.inserted(&name, anchor, at);
     Ok(())
 }
 

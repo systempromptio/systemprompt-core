@@ -41,6 +41,8 @@ pub struct CreateInput {
     pub name: String,
     #[serde(default)]
     pub params: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -89,6 +91,8 @@ pub struct StrReplaceInput {
     pub base_revision: DocumentRevisionId,
     pub old_str: String,
     pub new_str: String,
+    #[serde(default)]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -98,6 +102,8 @@ pub struct SetCellsInput {
     pub sheet: String,
     pub range: String,
     pub values: Vec<Vec<CellValue>>,
+    #[serde(default)]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

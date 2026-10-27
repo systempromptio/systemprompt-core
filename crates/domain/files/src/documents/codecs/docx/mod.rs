@@ -48,6 +48,10 @@ pub use blank::blank_docx;
 pub struct DocxCodec;
 
 impl DocumentCodec for DocxCodec {
+    fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
+        &["heading", "paragraph", "list_item"]
+    }
+
     fn formats(&self) -> &'static [DocumentFormat] {
         &[DocumentFormat::Docx]
     }

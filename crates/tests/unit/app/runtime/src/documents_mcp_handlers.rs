@@ -121,6 +121,7 @@ async fn str_replace_reports_the_match_count() {
         base_revision: revision.clone(),
         old_str: old.to_owned(),
         new_str: "omega".to_owned(),
+        message: Some("swap".to_owned()),
     };
     let handler = StrReplaceHandler { tools: &h.tools };
     let twice = handler
@@ -177,6 +178,11 @@ async fn stale_base_names_the_head_revision() {
         error.message
     );
     assert!(error.message.contains("base_revision"), "{}", error.message);
+    let data = error.data.as_ref().expect("refusal data");
+    assert_eq!(data["code"], "stale_base");
+    assert_eq!(data["head_revision"], first.revision_id.as_str());
+    assert_eq!(data["written_by"], owner.id.as_str());
+    assert_eq!(data["actor_kind"], "agent");
 }
 
 #[tokio::test]

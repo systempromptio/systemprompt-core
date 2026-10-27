@@ -158,6 +158,7 @@ impl McpToolHandler for CreateHandler<'_> {
                         values: input.params,
                     },
                     author: agent_author(exec_id),
+                    message: input.message,
                 },
                 ctx.trace_id(),
             )
@@ -239,7 +240,10 @@ edit_handler!(
     "documents_edit",
     "Apply edit ops to a document as one revision against base_revision. Anchored ops \
      (replace_text, delete) quote the node id and hash from documents_read as node and \
-     expected_hash; a stale hash is refused with the node's current text. All ops apply or none.",
+     expected_hash; a stale hash is refused with the node's current text. Every target \
+     resolves against the document as it stood before the call, and ops apply in order: two \
+     insert_after on one node land in op order. insert_after kinds differ per format; a refusal \
+     names accepted_kinds. All ops apply or none; message is kept in the history.",
     |input| input.ops.clone(),
     input.message.clone()
 );
@@ -254,7 +258,7 @@ edit_handler!(
         old_str: input.old_str.clone(),
         new_str: input.new_str.clone(),
     }],
-    None
+    input.message.clone()
 );
 
 edit_handler!(
@@ -269,5 +273,5 @@ edit_handler!(
         values: input.values.clone(),
         expected_hash: None,
     }],
-    None
+    input.message.clone()
 );

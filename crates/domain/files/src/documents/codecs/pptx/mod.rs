@@ -28,6 +28,7 @@ mod layout;
 mod nodes;
 mod package;
 mod projection;
+mod rebase;
 mod slides;
 
 use std::sync::Arc;
@@ -49,6 +50,10 @@ use projection::{Content, Slide};
 pub struct PptxCodec;
 
 impl DocumentCodec for PptxCodec {
+    fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
+        &["paragraph", "list_item"]
+    }
+
     fn formats(&self) -> &'static [DocumentFormat] {
         &[DocumentFormat::Pptx]
     }
@@ -73,7 +78,7 @@ impl DocumentCodec for PptxCodec {
                 detail: "the base projection was not read from these document bytes",
             });
         }
-        apply::apply(bytes, ops)
+        rebase::apply(bytes, ops)
     }
 
     fn preview_html(&self, bytes: &[u8]) -> Result<String, CodecError> {

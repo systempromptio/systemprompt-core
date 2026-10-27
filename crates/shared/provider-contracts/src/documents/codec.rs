@@ -69,7 +69,9 @@ pub struct TemplateParams {
 /// Methods are synchronous and CPU-bound; async callers run them on a
 /// blocking pool. `apply` must verify every anchored op against `base` and
 /// return [`CodecError::StaleAnchor`] instead of applying a partial batch:
-/// ops apply all or none.
+/// ops apply all or none, in the order given. `insert_kinds` names the
+/// `NodeKind` tags (`heading`, `paragraph`, …) an `insert_after` may create
+/// in a format; an empty list means the format takes no `insert_after`.
 pub trait DocumentCodec: Send + Sync + std::fmt::Debug {
     fn formats(&self) -> &'static [DocumentFormat];
 
@@ -83,6 +85,10 @@ pub trait DocumentCodec: Send + Sync + std::fmt::Debug {
     fn plain_text(&self, bytes: &[u8]) -> Result<String, CodecError>;
 
     fn instantiate(&self, template: &[u8], params: &TemplateParams) -> Result<Vec<u8>, CodecError>;
+
+    fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
+        &[]
+    }
 
     fn priority(&self) -> u32 {
         100

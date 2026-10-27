@@ -1,9 +1,10 @@
 //! What every handler shares: the caller, the revision author, and the
 //! translation of document errors into tool errors an agent can act on.
 //!
-//! Retriable errors keep the service's Display text, which names the node,
-//! hashes, revision or level involved. Infrastructure failures are logged
-//! with their cause and answered with a fixed message.
+//! Every [`DocumentsError`] maps to one refusal code here. Refusals keep the
+//! service's Display text, which names the node, hashes, revision or level
+//! involved. Infrastructure failures are logged with their cause and
+//! answered with a fixed message as a protocol error.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,15 +19,16 @@ use systemprompt_models::documents::ActorKind;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::CodecError;
 
+use super::refusal::{Refusal, RefusalCode, refusal};
+
 pub(super) const DEFAULT_LIMIT: i64 = 50;
 pub(super) const MAX_LIMIT: i64 = 200;
 
 pub(super) fn caller(ctx: &RequestContext) -> Result<&AuthenticatedUser, McpError> {
     ctx.user.as_ref().ok_or_else(|| {
-        McpError::invalid_request(
-            "documents tools act as the signed-in user; this call carried no authenticated \
-             user",
-            None,
+        refusal(
+            RefusalCode::Forbidden,
+            "documents tools act as the signed-in user; this call carried no authenticated user",
         )
     })
 }
@@ -44,24 +46,46 @@ pub(super) fn clamp_limit(limit: Option<i64>) -> i64 {
 
 #[must_use]
 pub fn tool_error(error: DocumentsError) -> McpError {
-    match error {
-        DocumentsError::Forbidden { .. } => McpError::invalid_request(error.to_string(), None),
-        DocumentsError::NotFound { .. } => McpError::resource_not_found(error.to_string(), None),
-        DocumentsError::Codec(codec) => codec_error(&codec),
-        DocumentsError::Conflict { .. }
-        | DocumentsError::StaleAnchor { .. }
-        | DocumentsError::UnknownNode { .. }
-        | DocumentsError::LockHeld { .. }
-        | DocumentsError::UnsupportedFormat { .. }
-        | DocumentsError::UnknownFormat { .. }
-        | DocumentsError::TooLarge { .. }
+    let message = error.to_string();
+    let refusal = match error {
+        DocumentsError::Forbidden { .. } => Refusal::new(RefusalCode::Forbidden),
+        DocumentsError::NotFound { .. } => Refusal::new(RefusalCode::NotFound),
+        DocumentsError::UnknownNode { node } => Refusal {
+            node: Some(node),
+            ..Refusal::new(RefusalCode::NotFound)
+        },
+        DocumentsError::LockHeld { .. } => Refusal::new(RefusalCode::Locked),
+        DocumentsError::Conflict { head, .. } => Refusal {
+            head_revision: Some(head),
+            ..Refusal::new(RefusalCode::StaleBase)
+        },
+        DocumentsError::StaleAnchor {
+            node,
+            actual,
+            current_text,
+            ..
+        } => Refusal {
+            node: Some(node),
+            hash: Some(actual),
+            current_text: Some(current_text),
+            ..Refusal::new(RefusalCode::GuardMismatch)
+        },
+        DocumentsError::UnsupportedOp { accepted_kinds, .. } => Refusal {
+            accepted_kinds: Some(accepted_kinds.iter().map(|k| (*k).to_owned()).collect()),
+            ..Refusal::new(RefusalCode::UnsupportedOp)
+        },
+        DocumentsError::UnsupportedFormat { .. } | DocumentsError::UnknownFormat { .. } => {
+            Refusal::new(RefusalCode::UnsupportedFormat)
+        },
+        DocumentsError::Template { .. } => Refusal::new(RefusalCode::TemplateFailed),
+        DocumentsError::Codec(codec) => return codec_error(&codec),
+        DocumentsError::TooLarge { .. }
         | DocumentsError::IntegrityMismatch { .. }
         | DocumentsError::InvalidName { .. }
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::FolderNotEmpty { .. }
         | DocumentsError::InvalidMove { .. }
-        | DocumentsError::InvalidCursor { .. }
-        | DocumentsError::Template(_) => McpError::invalid_params(error.to_string(), None),
+        | DocumentsError::InvalidCursor { .. } => Refusal::new(RefusalCode::InvalidParams),
         DocumentsError::Blob(_)
         | DocumentsError::Repository(_)
         | DocumentsError::Authz(_)
@@ -72,23 +96,48 @@ pub fn tool_error(error: DocumentsError) -> McpError {
                 cause = ?std::error::Error::source(&error),
                 "document tool failed"
             );
-            McpError::internal_error("the document store failed; try the call again", None)
+            return McpError::internal_error("the document store failed; try the call again", None);
         },
-    }
+    };
+    refusal.into_error(message)
 }
 
 fn codec_error(error: &CodecError) -> McpError {
     match error {
-        CodecError::NoMatch => McpError::invalid_params(
+        CodecError::NoMatch => Refusal {
+            matches: Some(0),
+            ..Refusal::new(RefusalCode::FindNone)
+        }
+        .into_error(
             "old_str matches 0 places; read the document text and quote old_str exactly as it \
              appears",
-            None,
         ),
-        CodecError::AmbiguousMatch { .. }
-        | CodecError::UnsupportedOp { .. }
-        | CodecError::UnknownNode { .. }
-        | CodecError::StaleAnchor { .. }
-        | CodecError::Malformed { .. } => McpError::invalid_params(error.to_string(), None),
+        CodecError::AmbiguousMatch { matches } => Refusal {
+            matches: Some(*matches),
+            ..Refusal::new(RefusalCode::FindNone)
+        }
+        .into_error(error.to_string()),
+        CodecError::UnsupportedOp { .. } => {
+            refusal(RefusalCode::UnsupportedOp, error.to_string())
+        },
+        CodecError::UnknownNode { node } => Refusal {
+            node: Some(node.clone()),
+            ..Refusal::new(RefusalCode::NotFound)
+        }
+        .into_error(error.to_string()),
+        CodecError::StaleAnchor {
+            node,
+            actual,
+            current_text,
+            ..
+        } => Refusal {
+            node: Some(node.clone()),
+            hash: Some(actual.clone()),
+            current_text: Some(current_text.clone()),
+            ..Refusal::new(RefusalCode::GuardMismatch)
+        }
+        .into_error(error.to_string()),
+        CodecError::Malformed { .. } => refusal(RefusalCode::InvalidParams, error.to_string()),
         CodecError::Parse { .. } | CodecError::Io(_) => {
             tracing::error!(
                 error = %error,
@@ -106,16 +155,21 @@ pub(super) fn stale_base(
     base: Option<&DocumentRevisionId>,
 ) -> McpError {
     let base = base.map_or_else(|| "none".to_owned(), ToString::to_string);
-    McpError::invalid_params(
-        format!(
-            "stale base: document {document} is at head revision {head_id}, written by {author} \
-             ({actor}) at {time}, not your base_revision {base}. Read the document again at \
-             revision {head_id} and resend the edit with base_revision {head_id}",
-            head_id = head.id,
-            author = head.author_user_id,
-            actor = head.actor_kind,
-            time = head.created_at.to_rfc3339(),
-        ),
-        None,
-    )
+    Refusal {
+        head_revision: Some(head.id.clone()),
+        written_by: Some(head.author_user_id.clone()),
+        actor_kind: Some(head.actor_kind),
+        at: Some(head.created_at),
+        ..Refusal::new(RefusalCode::StaleBase)
+    }
+    .into_error(format!(
+        "stale base: document {document} is at head revision {head_id}, written by {author} \
+         ({actor}) at {time}, not your base_revision {base}. Their edit wins: read revision \
+         {head_id}, re-aim your change at the text as it stands and never resend your old text \
+         over it",
+        head_id = head.id,
+        author = head.author_user_id,
+        actor = head.actor_kind,
+        time = head.created_at.to_rfc3339(),
+    ))
 }

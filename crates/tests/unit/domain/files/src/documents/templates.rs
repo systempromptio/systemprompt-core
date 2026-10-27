@@ -219,3 +219,62 @@ fn office_blanks_are_listed_and_project() {
             .expect("project");
     }
 }
+
+fn shipped_codecs() -> CodecRegistry {
+    use systemprompt_files::documents::codecs::odf::{OdpCodec, OdsCodec, OdtCodec};
+    use systemprompt_files::documents::codecs::{
+        HtmlCodec, MarkdownCodec, TextCodec, docx::DocxCodec, pptx::PptxCodec, xlsx::XlsxCodec,
+    };
+    use systemprompt_provider_contracts::documents::DocumentCodec;
+    let codecs: Vec<Arc<dyn DocumentCodec>> = vec![
+        Arc::new(TextCodec),
+        Arc::new(MarkdownCodec),
+        Arc::new(HtmlCodec),
+        Arc::new(DocxCodec),
+        Arc::new(XlsxCodec),
+        Arc::new(PptxCodec),
+        Arc::new(OdtCodec),
+        Arc::new(OdsCodec),
+        Arc::new(OdpCodec),
+    ];
+    CodecRegistry::from_codecs(codecs)
+}
+
+#[test]
+fn every_registered_template_instantiates_and_projects() {
+    let catalog = load_catalog(&fixture_root("valid")).expect("catalog");
+    let registry = TemplateRegistry::discover(catalog);
+    let codecs = shipped_codecs();
+    let templates = registry.list();
+    assert!(templates.len() > 9, "{} templates", templates.len());
+    for template in templates {
+        let mut params = TemplateParams::default();
+        for placeholder in template.placeholders.iter().filter(|p| p.default.is_none()) {
+            params
+                .values
+                .insert(placeholder.key.clone(), placeholder.key.clone());
+        }
+        let made = registry
+            .instantiate(&template.id, &params, &codecs)
+            .unwrap_or_else(|err| panic!("{} does not instantiate: {err}", template.id));
+        codecs
+            .for_format(made.format)
+            .expect("codec")
+            .project(&made.bytes)
+            .unwrap_or_else(|err| panic!("{} does not project: {err}", template.id));
+    }
+}
+
+#[test]
+fn a_template_failure_names_the_template_and_the_cause() {
+    use systemprompt_files::documents::DocumentsError;
+    let id = tid("astound-word");
+    let error = DocumentsError::Template {
+        template_id: id.clone(),
+        source: TemplateError::NotFound { id },
+    };
+    let message = error.to_string();
+    assert!(message.contains("astound-word"), "{message}");
+    assert!(message.contains("does not exist"), "{message}");
+    assert!(std::error::Error::source(&error).is_some());
+}

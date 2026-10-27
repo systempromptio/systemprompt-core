@@ -18,7 +18,9 @@
 
 mod apply;
 mod blank;
+mod cells;
 mod projection;
+mod rebase;
 mod workbook;
 
 use std::sync::Arc;
@@ -44,6 +46,10 @@ impl XlsxCodec {
 }
 
 impl DocumentCodec for XlsxCodec {
+    fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
+        &["row"]
+    }
+
     fn formats(&self) -> &'static [DocumentFormat] {
         &[DocumentFormat::Xlsx]
     }

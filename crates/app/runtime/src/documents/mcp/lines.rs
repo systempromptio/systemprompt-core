@@ -2,7 +2,10 @@
 //!
 //! A line is `<node id>:<hash8>| <text>`; a spreadsheet cell renders as
 //! `<sheet>!<cell>:<hash8>| <value>`. The hash is the anchor an edit quotes
-//! back as `expected_hash`.
+//! back as `expected_hash`. The text carries the node's structure the way
+//! the outline does: `# `…`###### ` by heading level, `- ` for a list item,
+//! `| ` for a table cell and `## slide N` at each slide boundary. The
+//! prefix is presentation only; the hash covers the node's text alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +15,7 @@ use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 
 use super::inputs::{NodeRange, ReadInput, ReadView};
+use super::refusal::{Refusal, RefusalCode};
 
 pub const MAX_LINES: usize = 2000;
 
@@ -27,16 +31,10 @@ pub fn render(
     revision: &DocumentRevisionId,
 ) -> Result<RenderedLines, McpError> {
     let lines = match input.view {
-        ReadView::Text => projection
-            .nodes()
-            .filter(|node| node.text.is_some())
-            .map(ProjectionNode::hashline)
-            .collect(),
-        ReadView::Outline => projection
-            .nodes()
-            .filter(|node| is_outline(node.kind))
-            .map(ProjectionNode::hashline)
-            .collect(),
+        ReadView::Text => structured(projection, |node| {
+            node.text.is_some() || node.kind == NodeKind::Slide
+        }),
+        ReadView::Outline => structured(projection, |node| is_outline(node.kind)),
         ReadView::Range => {
             let range = input.range.as_ref().ok_or_else(|| {
                 McpError::invalid_params(
@@ -50,6 +48,35 @@ pub fn render(
         ReadView::Cells => cell_lines(projection, input.sheet.as_deref(), input.cells.as_deref())?,
     };
     Ok(truncate(lines))
+}
+
+#[must_use]
+pub fn structured_line(node: &ProjectionNode, slide: usize) -> String {
+    let text = node.text.as_deref().unwrap_or_default();
+    let shown = match node.kind {
+        NodeKind::Heading { level } => {
+            format!("{} {text}", "#".repeat(usize::from(level.clamp(1, 6))))
+        },
+        NodeKind::ListItem => format!("- {text}"),
+        NodeKind::Cell => format!("| {text}"),
+        NodeKind::Slide if text.is_empty() => format!("## slide {slide}"),
+        NodeKind::Slide => format!("## slide {slide}: {text}"),
+        _ => text.to_owned(),
+    };
+    format!("{}:{}| {shown}", node.id.as_str(), node.hash8)
+}
+
+fn structured(projection: &Projection, mut keep: impl FnMut(&ProjectionNode) -> bool) -> Vec<String> {
+    let mut slide = 0;
+    projection
+        .nodes()
+        .filter_map(|node| {
+            if node.kind == NodeKind::Slide {
+                slide += 1;
+            }
+            keep(node).then(|| structured_line(node, slide))
+        })
+        .collect()
 }
 
 const fn is_outline(kind: NodeKind) -> bool {
@@ -75,17 +102,25 @@ fn range_lines(
             return Err(unknown_node(node, revision));
         }
     }
-    Ok(projection.lines(Some((&range.from_node, &range.to_node))))
+    let mut inside = false;
+    let mut done = false;
+    Ok(structured(projection, |node| {
+        inside |= node.id == range.from_node;
+        let keep = inside && !done;
+        done |= inside && node.id == range.to_node;
+        keep
+    }))
 }
 
 fn unknown_node(node: &DocumentNodeId, revision: &DocumentRevisionId) -> McpError {
-    McpError::invalid_params(
-        format!(
-            "node {node} does not exist in revision {revision}; read the outline again for \
-             current node ids"
-        ),
-        None,
-    )
+    Refusal {
+        node: Some(node.clone()),
+        ..Refusal::new(RefusalCode::NotFound)
+    }
+    .into_error(format!(
+        "node {node} does not exist in revision {revision}; read the outline again for current \
+         node ids"
+    ))
 }
 
 fn cell_lines(

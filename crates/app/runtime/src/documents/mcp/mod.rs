@@ -21,6 +21,7 @@ mod lines;
 mod outputs;
 mod preview;
 mod read;
+mod refusal;
 mod share;
 mod support;
 mod write;
@@ -47,7 +48,7 @@ pub use inputs::{
     CreateInput, EditInput, HistoryInput, ListInput, NodeRange, ReadInput, ReadView, RevisionInput,
     SearchInput, SetCellsInput, ShareInput, StrReplaceInput,
 };
-pub use lines::{MAX_LINES, RenderedLines, parse_cell, render, split_cell_id};
+pub use lines::{MAX_LINES, RenderedLines, parse_cell, render, split_cell_id, structured_line};
 pub use outputs::{
     CreateOutput, DocumentItem, DownloadOutput, EditOutput, FolderItem, HistoryOutput, ListOutput,
     PreviewOutput, ReadOutput, RevisionItem, SearchHit, SearchOutput, ShareOutput,
@@ -56,6 +57,7 @@ pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
     preview_template, preview_tool_meta, read_preview_resource,
 };
+pub use refusal::{Refusal, RefusalCode, refusal, refusal_result};
 pub use read::{DownloadUrlHandler, ReadHandler, RenderPreviewHandler};
 pub use share::ShareHandler;
 pub use support::tool_error;
@@ -251,7 +253,12 @@ async fn run<H: McpToolHandler>(
     call: DocumentsToolCall<'_>,
     handler: &H,
 ) -> Result<CallToolResult, McpError> {
-    call.executor
+    match call
+        .executor
         .execute(handler, call.request, call.context, call.client)
         .await
+    {
+        Err(error) => refusal_result(&error).ok_or(error),
+        ok => ok,
+    }
 }

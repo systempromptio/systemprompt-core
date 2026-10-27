@@ -172,5 +172,6 @@ pub(crate) fn create(template: &str, folder: Option<&DocumentFolderId>) -> Creat
         name: unique("doc"),
         params: TemplateParams::default(),
         author: api_author(),
+        message: None,
     }
 }

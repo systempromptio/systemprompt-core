@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use ego_tree::NodeId;
 use scraper::node::Text;
 use scraper::{ElementRef, Html, Node, StrTendril};
@@ -109,27 +111,38 @@ fn insert_after(
     html: &mut Html,
     projection: &HtmlProjection,
     op: &EditOp,
+    tails: &mut HashMap<NodeId, NodeId>,
 ) -> Result<(), CodecError> {
     let EditOp::InsertAfter { node, kind, text } = op else {
         return Err(unsupported(op));
     };
-    let kind = *kind;
-    let tag = insert_tag(kind).ok_or_else(|| unsupported(op))?;
+    let tag = insert_tag(*kind).ok_or_else(|| unsupported(op))?;
     let markup = format!("<{tag}>{}</{tag}>", escape_html(text));
-    if node.as_str() == "body" {
-        let nodes = parse_into(html, &markup)?;
-        let mut body = html.tree.get_mut(projection.body).ok_or(DETACHED)?;
-        for id in nodes.into_iter().rev() {
-            body.prepend_id(id);
-        }
-        return Ok(());
-    }
-    let located = locate(html, projection, node)?;
+    let anchor = if node.as_str() == "body" {
+        None
+    } else {
+        Some(locate(html, projection, node)?.tree_id)
+    };
+    let key = anchor.unwrap_or(projection.body);
     let nodes = parse_into(html, &markup)?;
-    let mut anchor = html.tree.get_mut(located.tree_id).ok_or(DETACHED)?;
-    for id in nodes.into_iter().rev() {
-        anchor.insert_id_after(id);
+    let Some(&last) = nodes.last() else {
+        return Ok(());
+    };
+    match tails.get(&key).copied().or(anchor) {
+        Some(after) => {
+            let mut at = html.tree.get_mut(after).ok_or(DETACHED)?;
+            for id in nodes.into_iter().rev() {
+                at.insert_id_after(id);
+            }
+        },
+        None => {
+            let mut body = html.tree.get_mut(projection.body).ok_or(DETACHED)?;
+            for id in nodes.into_iter().rev() {
+                body.prepend_id(id);
+            }
+        },
     }
+    tails.insert(key, last);
     Ok(())
 }
 
@@ -139,6 +152,7 @@ pub(super) fn apply_ops(
     ops: &[EditOp],
 ) -> Result<(), CodecError> {
     let mut rewritten = false;
+    let mut tails = HashMap::new();
     for op in ops {
         if rewritten && op.touches().is_some() {
             return Err(CodecError::Malformed {
@@ -173,7 +187,7 @@ pub(super) fn apply_ops(
                 verify(html, node, located, expected_hash)?;
                 html.tree.get_mut(located.tree_id).ok_or(DETACHED)?.detach();
             },
-            EditOp::InsertAfter { .. } => insert_after(html, projection, op)?,
+            EditOp::InsertAfter { .. } => insert_after(html, projection, op, &mut tails)?,
             EditOp::StrReplace { old_str, new_str } => {
                 let replaced =
                     str_replace_once(&body_inner(html, projection.body)?, old_str, new_str)?;

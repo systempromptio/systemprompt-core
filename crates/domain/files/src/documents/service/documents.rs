@@ -26,6 +26,7 @@ struct NewContent {
     template_id: Option<DocumentTemplateId>,
     bytes: Vec<u8>,
     author: Author,
+    message: Option<String>,
 }
 
 impl DocumentService {
@@ -41,8 +42,15 @@ impl DocumentService {
         let codecs = Arc::clone(&self.codecs);
         let template_id = request.template_id.clone();
         let params = request.params;
-        let instantiated =
-            blocking(move || Ok(templates.instantiate(&template_id, &params, &codecs)?)).await?;
+        let instantiated = blocking(move || {
+            templates
+                .instantiate(&template_id, &params, &codecs)
+                .map_err(|source| DocumentsError::Template {
+                    template_id,
+                    source,
+                })
+        })
+        .await?;
         self.create_with_bytes(
             who,
             NewContent {
@@ -52,6 +60,7 @@ impl DocumentService {
                 template_id: Some(instantiated.template_id),
                 bytes: instantiated.bytes,
                 author: request.author,
+                message: request.message,
             },
         )
         .await
@@ -88,6 +97,7 @@ impl DocumentService {
                 template_id: None,
                 bytes,
                 author: request.author,
+                message: None,
             },
         )
         .await
@@ -121,17 +131,17 @@ impl DocumentService {
             .repos
             .documents
             .insert(NewDocument {
-                folder_id: content.folder,
-                name: content.name,
+                folder_id: content.folder.clone(),
+                name: content.name.clone(),
                 format: content.format,
                 mime_type: content.format.mime_type().to_owned(),
-                template_id: content.template_id,
+                template_id: content.template_id.clone(),
                 owner_user_id: who.id.clone(),
                 created_by: who.id.clone(),
             })
             .await?;
         let revision = match self
-            .first_revision(who, &document, blob.hash, &content.author)
+            .first_revision(who, &document, blob.hash, &content)
             .await
         {
             Ok(revision) => revision,
@@ -157,8 +167,9 @@ impl DocumentService {
         who: &AuthenticatedUser,
         document: &Document,
         hash: systemprompt_identifiers::ContentHash,
-        author: &Author,
+        content: &NewContent,
     ) -> Result<DocumentRevision, DocumentsError> {
+        let author = &content.author;
         let revision = self
             .repos
             .revisions
@@ -170,7 +181,7 @@ impl DocumentService {
                 actor_kind: author.actor_kind,
                 origin_kind: author.origin.kind(),
                 origin_id: author.origin.id(),
-                message: None,
+                message: content.message.clone(),
                 edit_ops: None,
             })
             .await?;

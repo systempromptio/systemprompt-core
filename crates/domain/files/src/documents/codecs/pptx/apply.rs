@@ -3,9 +3,9 @@
 //! removal.
 //!
 //! Every anchored operation is checked against the deck as read before any
-//! operation runs, so a batch applies all or none. Node ids in later
-//! operations of a batch resolve against the deck as edited by the earlier
-//! ones.
+//! operation runs, so a batch applies all or none. Node ids in every
+//! operation name the deck as read; the rebase module moves them past the
+//! inserts and removals of earlier operations in the batch.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,16 +13,16 @@
 use quick_xml::escape::escape;
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentFormat, EditOp, NodeKind, Projection, content_hash,
+    CodecError, DocumentFormat, EditOp, NodeKind,
 };
 
 use super::layout::NewSlide;
 use super::projection::{self, Content, Paragraph, Slide};
-use super::{nodes, slides};
+use super::slides;
 use crate::documents::codecs::xml_tree::{parse_xml, splice};
 use crate::documents::codecs::zip_package::Package;
 
-enum Target {
+pub(super) enum Target {
     Slide(usize),
     Paragraph {
         slide: usize,
@@ -40,7 +40,7 @@ fn index(segment: &str, prefix: &str) -> Option<usize> {
         .ok()
 }
 
-fn target(node: &DocumentNodeId) -> Result<Target, CodecError> {
+pub(super) fn target(node: &DocumentNodeId) -> Result<Target, CodecError> {
     let unknown = || CodecError::UnknownNode { node: node.clone() };
     let mut segments = node.as_str().split('/');
     let slide = segments
@@ -169,20 +169,21 @@ fn insert_after(
     Ok(())
 }
 
-fn delete(package: &mut Package<'_>, node: &DocumentNodeId) -> Result<(), CodecError> {
+fn delete(package: &mut Package<'_>, node: &DocumentNodeId) -> Result<bool, CodecError> {
     if let Target::Slide(index) = target(node)? {
-        return slides::delete_slide(package, index);
+        return slides::delete_slide(package, index).map(|()| true);
     }
     let slides = projection::load(package)?;
     let (slide, paras, at) = locate(&slides, node, "delete")?;
     let para = &paras[at];
-    let replacement = if paras.len() > 1 {
+    let removed = paras.len() > 1;
+    let replacement = if removed {
         String::new()
     } else {
         paragraph_xml(para, para.ppr.as_deref(), "")
     };
     edit_slide(package, slide, (para.start, para.end, replacement));
-    Ok(())
+    Ok(removed)
 }
 
 fn str_replace(package: &mut Package<'_>, old: &str, new: &str) -> Result<(), CodecError> {
@@ -214,44 +215,17 @@ fn str_replace(package: &mut Package<'_>, old: &str, new: &str) -> Result<(), Co
     }
 }
 
-fn verify(current: &Projection, ops: &[EditOp]) -> Result<(), CodecError> {
-    for op in ops {
-        let (node, expected) = match op {
-            EditOp::ReplaceText {
-                node,
-                expected_hash,
-                ..
-            }
-            | EditOp::Delete {
-                node,
-                expected_hash,
-            } => (node, Some(expected_hash)),
-            EditOp::InsertAfter { node, .. }
-            | EditOp::InsertSlide {
-                after: Some(node), ..
-            } => (node, None),
-            _ => continue,
-        };
-        let found = current
-            .find(node)
-            .ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
-        if let Some(expected) = expected.filter(|expected| **expected != found.hash8) {
-            return Err(CodecError::StaleAnchor {
-                node: node.clone(),
-                expected: expected.clone(),
-                actual: found.hash8.clone(),
-                current_text: found.text.clone().unwrap_or_default(),
-            });
-        }
+pub(super) fn apply_one(package: &mut Package<'_>, op: &EditOp) -> Result<bool, CodecError> {
+    match op {
+        EditOp::Delete { node, .. } => delete(package, node),
+        other => apply_edit(package, other).map(|()| false),
     }
-    Ok(())
 }
 
-fn apply_one(package: &mut Package<'_>, op: &EditOp) -> Result<(), CodecError> {
+fn apply_edit(package: &mut Package<'_>, op: &EditOp) -> Result<(), CodecError> {
     match op {
         EditOp::ReplaceText { node, text, .. } => replace_text(package, node, text),
         EditOp::InsertAfter { node, kind, text } => insert_after(package, node, *kind, text),
-        EditOp::Delete { node, .. } => delete(package, node),
         EditOp::StrReplace { old_str, new_str } => str_replace(package, old_str, new_str),
         EditOp::InsertSlide {
             after,
@@ -274,25 +248,12 @@ fn apply_one(package: &mut Package<'_>, op: &EditOp) -> Result<(), CodecError> {
             };
             slides::insert_slide(package, &new)
         },
-        EditOp::SetCells { .. } | EditOp::SetHtml { .. } | EditOp::SetText { .. } => {
-            Err(CodecError::UnsupportedOp {
-                op: op.name(),
-                format: DocumentFormat::Pptx,
-            })
-        },
+        EditOp::Delete { .. }
+        | EditOp::SetCells { .. }
+        | EditOp::SetHtml { .. }
+        | EditOp::SetText { .. } => Err(CodecError::UnsupportedOp {
+            op: op.name(),
+            format: DocumentFormat::Pptx,
+        }),
     }
-}
-
-pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError> {
-    let mut package = Package::open(bytes)?;
-    let current = Projection {
-        format: DocumentFormat::Pptx,
-        root: nodes::nodes(&projection::load(&mut package)?),
-        content_sha256: content_hash(bytes),
-    };
-    verify(&current, ops)?;
-    for op in ops {
-        apply_one(&mut package, op)?;
-    }
-    package.finish()
 }

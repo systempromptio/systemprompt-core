@@ -148,6 +148,7 @@ pub(super) async fn create(
             name: body.name,
             params: body.params,
             author: api_author(),
+            message: None,
         };
         state
             .service

@@ -13,6 +13,7 @@ use systemprompt_events::RelayError;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::{
     ContentHash, DocumentFolderId, DocumentId, DocumentNodeId, DocumentRevisionId,
+    DocumentTemplateId,
 };
 use systemprompt_models::authz::SubjectSourceError;
 use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat};
@@ -69,6 +70,15 @@ pub enum DocumentsError {
         holder_kind: LockHolderKind,
         holder_id: String,
     },
+    #[error(
+        "operation {op} is not supported for {format} documents{}",
+        kinds_label(.op, .accepted_kinds)
+    )]
+    UnsupportedOp {
+        op: &'static str,
+        format: DocumentFormat,
+        accepted_kinds: &'static [&'static str],
+    },
     #[error("no codec is registered for {format} documents")]
     UnsupportedFormat { format: DocumentFormat },
     #[error("cannot tell the document format of \"{name}\"; give the name a known extension")]
@@ -104,8 +114,12 @@ pub enum DocumentsError {
     },
     #[error("document codec failed")]
     Codec(#[source] CodecError),
-    #[error("document template failed")]
-    Template(#[from] TemplateError),
+    #[error("document template {template_id} failed: {source}")]
+    Template {
+        template_id: DocumentTemplateId,
+        #[source]
+        source: TemplateError,
+    },
     #[error("document blob storage failed")]
     Blob(#[from] BlobStoreError),
     #[error("document store query failed")]
@@ -184,6 +198,14 @@ fn base_label(base: Option<&DocumentRevisionId>) -> String {
         || "an unknown base revision".to_owned(),
         |base| format!("base revision {base}"),
     )
+}
+
+fn kinds_label(op: &str, kinds: &[&str]) -> String {
+    match (op, kinds) {
+        ("insert_after", []) => "; this format takes no insert_after".to_owned(),
+        ("insert_after", kinds) => format!("; insert_after accepts kind {}", kinds.join(", ")),
+        _ => String::new(),
+    }
 }
 
 fn held_label(held: Option<&AccessLevel>) -> String {

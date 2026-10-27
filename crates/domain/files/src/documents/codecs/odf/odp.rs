@@ -31,6 +31,10 @@ fn master_pages(package: &mut Package<'_>) -> Result<Vec<String>, CodecError> {
 }
 
 impl DocumentCodec for OdpCodec {
+    fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
+        &["heading", "paragraph", "list_item"]
+    }
+
     fn formats(&self) -> &'static [DocumentFormat] {
         &[DocumentFormat::Odp]
     }

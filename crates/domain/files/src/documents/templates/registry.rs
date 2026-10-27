@@ -23,11 +23,11 @@ pub enum TemplateError {
     NotFound { id: DocumentTemplateId },
     #[error("no codec is registered for {format} documents")]
     NoCodec { format: DocumentFormat },
-    #[error("template catalog is invalid")]
+    #[error("template catalog is invalid: {0}")]
     Catalog(#[from] TemplateCatalogError),
-    #[error("template could not be instantiated")]
+    #[error("template could not be instantiated: {0}")]
     Codec(#[from] CodecError),
-    #[error("failed to read template file {path}")]
+    #[error("failed to read template file {path}: {source}")]
     Io {
         path: PathBuf,
         #[source]
