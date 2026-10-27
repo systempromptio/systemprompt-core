@@ -4,6 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
+
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{CodecError, DocumentFormat, NodeKind};
 
@@ -104,14 +106,18 @@ impl Batch<'_> {
     }
 
     fn fresh_para_id(&mut self) -> String {
-        loop {
-            // Why: Word requires w14:paraId values below 0x80000000.
-            let [a, b, c, d, ..] = *uuid::Uuid::new_v4().as_bytes();
-            let value = u32::from_be_bytes([a, b, c, d]) & 0x7FFF_FFFF;
-            let id = format!("{value:08X}");
-            if value != 0 && self.para_ids.insert(id.clone()) {
-                return id;
-            }
+        fresh_para_id(&mut self.para_ids)
+    }
+}
+
+pub(super) fn fresh_para_id(taken: &mut BTreeSet<String>) -> String {
+    loop {
+        // Why: Word requires w14:paraId values below 0x80000000.
+        let [a, b, c, d, ..] = *uuid::Uuid::new_v4().as_bytes();
+        let value = u32::from_be_bytes([a, b, c, d]) & 0x7FFF_FFFF;
+        let id = format!("{value:08X}");
+        if value != 0 && taken.insert(id.clone()) {
+            return id;
         }
     }
 }

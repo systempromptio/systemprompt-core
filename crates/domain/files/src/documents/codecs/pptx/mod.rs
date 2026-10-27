@@ -24,6 +24,7 @@
 
 mod apply;
 mod blank;
+mod fragment;
 mod layout;
 mod nodes;
 mod package;
@@ -35,13 +36,16 @@ mod slides;
 use std::sync::Arc;
 
 use quick_xml::escape::escape;
+use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, TemplateParams, content_hash,
+    CodecError, DocumentCodec, DocumentFormat, EditOp, NodeFragment, NodeTarget, Projection,
+    TemplateParams, content_hash, fragment_insert_op,
 };
 use systemprompt_provider_contracts::register_document_codec;
 
 pub use blank::blank_pptx;
 
+use crate::documents::codecs::fragments::leaf_hashes;
 use crate::documents::codecs::xml_tree::{Element, parse_xml};
 use crate::documents::codecs::zip_package::Package;
 use projection::{Content, Slide};
@@ -92,6 +96,35 @@ impl DocumentCodec for PptxCodec {
 
     fn instantiate(&self, template: &[u8], params: &TemplateParams) -> Result<Vec<u8>, CodecError> {
         instantiate(template, params)
+    }
+
+    fn style_hashes(&self, bytes: &[u8]) -> Result<Vec<(DocumentNodeId, String)>, CodecError> {
+        Ok(leaf_hashes(
+            &self.project(bytes)?,
+            &fragment::styled(bytes)?,
+        ))
+    }
+
+    fn copy_node(
+        &self,
+        bytes: &[u8],
+        base: &Projection,
+        path: &DocumentNodeId,
+    ) -> Result<NodeFragment, CodecError> {
+        fragment::copy(bytes, base, path)
+    }
+
+    fn insert_fragment(
+        &self,
+        bytes: &[u8],
+        base: &Projection,
+        after: &NodeTarget,
+        fragment: &NodeFragment,
+    ) -> Result<Vec<u8>, CodecError> {
+        if fragment.native.is_none() {
+            return self.apply(bytes, base, &[fragment_insert_op(after, fragment)]);
+        }
+        fragment::insert(bytes, base, after, fragment)
     }
 }
 

@@ -10,9 +10,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::DocumentNodeId;
 
-use super::edit_op::EditOp;
+use super::edit_op::{ContentAs, EditOp, NodeTarget};
 use super::format::DocumentFormat;
-use super::projection::Projection;
+use super::projection::{NodeKind, Projection};
 
 /// A failure reading or editing document bytes.
 ///
@@ -57,6 +57,17 @@ pub enum CodecError {
     Malformed { detail: &'static str },
 }
 
+/// A node copied out of one revision's bytes for insertion into another.
+///
+/// `native` is the codec's own markup for the node, carrying its formatting;
+/// `None` is a text-only copy that inserts as a plain `insert_after`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NodeFragment {
+    pub kind: NodeKind,
+    pub text: Option<String>,
+    pub native: Option<Vec<u8>>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct TemplateParams {
     #[serde(default)]
@@ -72,6 +83,13 @@ pub struct TemplateParams {
 /// ops apply all or none, in the order given. `insert_kinds` names the
 /// `NodeKind` tags (`heading`, `paragraph`, …) an `insert_after` may create
 /// in a format; an empty list means the format takes no `insert_after`.
+///
+/// `style_hashes` reports one hash per leaf node of the projection, keyed
+/// by the same ids, that changes when the leaf's text or its formatting
+/// changes. `copy_node` lifts a node out of `bytes` and `insert_fragment`
+/// splices it after an anchor in another revision; the defaults copy the
+/// text of a leaf only, and a codec that copies its native markup refuses
+/// what it cannot carry intact with [`CodecError::UnsupportedOp`].
 pub trait DocumentCodec: Send + Sync + std::fmt::Debug {
     fn formats(&self) -> &'static [DocumentFormat];
 
@@ -93,6 +111,67 @@ pub trait DocumentCodec: Send + Sync + std::fmt::Debug {
     fn priority(&self) -> u32 {
         100
     }
+
+    fn style_hashes(&self, bytes: &[u8]) -> Result<Vec<(DocumentNodeId, String)>, CodecError> {
+        let projection = self.project(bytes)?;
+        Ok(projection
+            .nodes()
+            .filter(|node| node.children.is_empty())
+            .map(|node| (node.id.clone(), node.hash8.clone()))
+            .collect())
+    }
+
+    fn copy_node(
+        &self,
+        _bytes: &[u8],
+        base: &Projection,
+        path: &DocumentNodeId,
+    ) -> Result<NodeFragment, CodecError> {
+        text_fragment(base, path)
+    }
+
+    fn insert_fragment(
+        &self,
+        bytes: &[u8],
+        base: &Projection,
+        after: &NodeTarget,
+        fragment: &NodeFragment,
+    ) -> Result<Vec<u8>, CodecError> {
+        if fragment.native.is_some() {
+            return Err(CodecError::UnsupportedOp {
+                op: "insert_fragment",
+                format: base.format,
+            });
+        }
+        self.apply(bytes, base, &[fragment_insert_op(after, fragment)])
+    }
+}
+
+#[must_use]
+pub fn fragment_insert_op(after: &NodeTarget, fragment: &NodeFragment) -> EditOp {
+    EditOp::InsertAfter {
+        node: after.clone(),
+        kind: fragment.kind,
+        text: fragment.text.clone().unwrap_or_default(),
+        content_as: ContentAs::Text,
+    }
+}
+
+pub fn text_fragment(base: &Projection, path: &DocumentNodeId) -> Result<NodeFragment, CodecError> {
+    let node = base
+        .find(path)
+        .ok_or_else(|| CodecError::UnknownNode { node: path.clone() })?;
+    if !node.children.is_empty() {
+        return Err(CodecError::UnsupportedOp {
+            op: "copy_node",
+            format: base.format,
+        });
+    }
+    Ok(NodeFragment {
+        kind: node.kind,
+        text: node.text.clone(),
+        native: None,
+    })
 }
 
 /// One compile-time codec registration, submitted by

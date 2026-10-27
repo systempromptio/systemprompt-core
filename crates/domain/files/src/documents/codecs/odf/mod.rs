@@ -41,6 +41,7 @@ mod apply;
 mod blank;
 mod deck;
 mod deck_insert;
+mod fragment;
 mod instantiate;
 mod markdown;
 mod odp;

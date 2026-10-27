@@ -3,12 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, TemplateParams,
 };
 
+use crate::documents::codecs::fragments::leaf_hashes;
+
 use super::apply::FlowBatch;
-use super::{OdtCodec, check_base, finish, instantiate, projection, read, text};
+use super::{OdtCodec, check_base, finish, fragment, instantiate, projection, read, text};
 
 impl DocumentCodec for OdtCodec {
     fn insert_kinds(&self, _format: DocumentFormat) -> &'static [&'static str] {
@@ -57,5 +60,14 @@ impl DocumentCodec for OdtCodec {
 
     fn instantiate(&self, template: &[u8], params: &TemplateParams) -> Result<Vec<u8>, CodecError> {
         instantiate::instantiate(template, params)
+    }
+
+    fn style_hashes(&self, bytes: &[u8]) -> Result<Vec<(DocumentNodeId, String)>, CodecError> {
+        let (_, content) = read(bytes)?;
+        let paras = text::read(&content)?.paras;
+        Ok(leaf_hashes(
+            &self.project(bytes)?,
+            &fragment::styled(&content.xml, &paras)?,
+        ))
     }
 }

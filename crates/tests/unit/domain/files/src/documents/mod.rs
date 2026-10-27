@@ -3,6 +3,7 @@ mod blob_ids;
 mod codecs_docx;
 mod codecs_docx_edits;
 mod codecs_docx_inline;
+mod codecs_fragments;
 mod codecs_html;
 mod codecs_html_paths;
 mod codecs_markdown;

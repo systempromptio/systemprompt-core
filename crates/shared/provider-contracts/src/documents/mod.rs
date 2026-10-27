@@ -38,8 +38,8 @@ mod target;
 mod template;
 
 pub use codec::{
-    CodecError, DocumentCodec, DocumentCodecRegistration, TemplateParams, codec_for,
-    registered_codecs,
+    CodecError, DocumentCodec, DocumentCodecRegistration, NodeFragment, TemplateParams, codec_for,
+    fragment_insert_op, registered_codecs, text_fragment,
 };
 pub use edit_op::{CellValue, ContentAs, EditOp, NodeTarget, QuoteTarget, required_hash};
 pub use format::{DocumentFormat, UnknownDocumentFormat};

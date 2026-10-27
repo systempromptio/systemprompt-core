@@ -41,6 +41,8 @@ mod registry;
 mod text;
 
 #[cfg(feature = "office")]
+mod fragments;
+#[cfg(feature = "office")]
 mod xml_tree;
 #[cfg(feature = "office")]
 mod zip_package;
