@@ -53,7 +53,7 @@ impl Extension for AnalyticsExtension {
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users", "agent"]
+        vec!["users", "agent", "authz"]
     }
 
     fn migrations(&self) -> Vec<Migration> {

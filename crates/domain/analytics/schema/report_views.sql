@@ -246,3 +246,37 @@ FROM analytics_link_click_rollup_hourly src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
+
+-- A request's attribution scopes (dimension/value pairs), keyed by
+-- report_ai_requests.id; visible while the request's user is.
+CREATE OR REPLACE VIEW report_ai_request_attributions AS
+SELECT src.request_id, src.dimension, src.value, src.source
+FROM ai_request_attributions src
+JOIN ai_requests r ON r.id = src.request_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = r.user_id AND d.status = 'deleted'
+);
+
+-- The tool calls a request's model emitted, keyed by report_ai_requests.id.
+-- The call's arguments and result payload stay in the source table.
+CREATE OR REPLACE VIEW report_ai_request_tool_calls AS
+SELECT
+    src.id, src.request_id, src.tool_name, src.mcp_execution_id,
+    src.ai_tool_call_id, src.sequence_number, src.args_validity,
+    src.args_error_path, src.created_at, src.updated_at
+FROM ai_request_tool_calls src
+JOIN ai_requests r ON r.id = src.request_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = r.user_id AND d.status = 'deleted'
+);
+
+CREATE OR REPLACE VIEW report_governance_decisions AS
+SELECT
+    src.id, src.user_id, src.session_id, src.tool_name, src.agent_id,
+    src.agent_scope, src.decision, src.policy, src.reason, src.plugin_id,
+    src.actor_kind, src.actor_id, src.context_id, src.task_id, src.trace_id,
+    src.client_id, src.tool_use_id, src.created_at
+FROM governance_decisions src
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
+);
