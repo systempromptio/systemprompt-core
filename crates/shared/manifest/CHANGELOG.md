@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- `BUNDLE_ALLOWED_DIRS` includes `documents/`, so a composed services root keeps the document template catalog and its files. Without it every catalog template was missing at runtime and `create_from_template` failed with `document template failed`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking
