@@ -83,6 +83,7 @@ pub(crate) struct Harness {
     pub(crate) repos: Arc<DocumentRepositories>,
     pub(crate) access_entities: Arc<AccessControlRepository>,
     pub(crate) storage: Arc<TempDir>,
+    pub(crate) broadcasters: Arc<EventBroadcasters>,
 }
 
 pub(crate) fn allow() -> SharedAuthzHook {
@@ -120,8 +121,9 @@ pub(crate) async fn harness_on(
         Arc::new(LocalFileStorage::new(storage.path().to_path_buf())),
         repos.blobs.clone(),
     ));
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let events = Arc::new(DocumentEvents::new(Arc::new(EventRouter::local_only(
-        Arc::new(EventBroadcasters::new()),
+        Arc::clone(&broadcasters),
     ))));
     let service = DocumentService::new(DocumentServiceParts {
         repos: Arc::clone(&repos),
@@ -137,6 +139,7 @@ pub(crate) async fn harness_on(
         repos,
         access_entities,
         storage,
+        broadcasters,
     }
 }
 

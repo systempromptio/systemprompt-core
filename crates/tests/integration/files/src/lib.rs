@@ -10,6 +10,8 @@ mod config_paths;
 #[cfg(test)]
 mod documents_blob_store;
 #[cfg(test)]
+mod documents_collab;
+#[cfg(test)]
 mod documents_repository;
 #[cfg(test)]
 mod documents_service;
