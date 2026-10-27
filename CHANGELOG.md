@@ -17,7 +17,14 @@
 - **Breaking:** **Runtime:** `DocumentsRuntimeParts` gains `background_tasks`; with the new `collab` feature the runtime builds the one `CollabService` and starts its timer. Migrate by passing the context's `BackgroundTasks` and reading the service from `DocumentsRuntime::collab`.
 - **Breaking:** **Files:** `DocumentRepository::rename`, `move_to`, `trash` and `restore` take the document's path before and after the change (`PathMove`, or the single path a trash leaves or a restore returns to) and record it in `document_path_changes`. Migrate by passing the paths; `DocumentService` callers are unchanged.
 - **Breaking:** **Files:** the drive change feed (`GET /v1/bridge/drive/changes`) reports `deleted` when a document is trashed, `created` with the head revision when it is restored, and `renamed { from }` when it is renamed or moved. Clients that matched only `created` and `updated` must handle both kinds.
-
+- **Breaking:** **Files:** `CommitRequest` gains `op_id`, and `CommitOutcome` becomes `Committed(Box<LandedCommit>)`, `Merged(Box<LandedCommit>)` or `Conflict { head: Box<DocumentRevision>, base }`; `LandedCommit` carries the revision, the stored `WriteAck`, the new head's projection and `replayed`. Migrate by passing `op_id: None` (or the caller's op id) and matching `Committed(landed)` / `Merged(landed)`, reading `landed.revision` and `landed.ack.merged_from`.
+- **Breaking:** **Files:** `DocumentService::find_write_ack` and `record_write_ack` are removed and `StoredWriteAck` holds `user_id`, `request_sha256` and a typed `WriteAck`. Migrate by passing the op id in `CommitRequest::op_id`; the commit claims and replays acknowledgements itself.
+- **Breaking:** **Files:** `DocumentRevision` gains `landed_at` and `NewRevision` gains `id`. Migrate struct literals by passing `DocumentRevisionId::generate()`; only revisions with `landed_at` resolve in reads, history, `restore` and `insert_from_revision`.
+- **Breaking:** **Files:** `DocumentRepository::set_head_if` is replaced by `begin` and `DocumentRepository::move_head(conn, HeadMove)`, `DocumentNodeIdRepository::insert` takes a connection and refuses a second write of a revision's ids, `max_counter` is replaced by `reserve`, `DocumentWriteAckRepository::insert` by `claim`, and `DocumentRevisionRepository` gains `insert_in` and `mark_landed`. Migrate by writing heads, ids and acknowledgements inside one transaction from `DocumentRepository::begin`.
+- **Breaking:** **Files:** `DocumentsError::TooLarge` gains `what`, and `DocumentsError` gains `OpIdMismatch`, `GuardMissing` and `SelfReview`. Migrate by adding the field to patterns that bind it and arms (or a wildcard) to exhaustive matches.
+- **Breaking:** **Files:** `carry_forward` takes `&CarryHints` (retired and rewritten ids) instead of a retired id set. Migrate by passing `CarryHints { retired, ..CarryHints::default() }`.
+- **Breaking:** **Files:** `DocumentsConfig` gains `limits: DocumentLimits`. Migrate struct literals by adding `limits: DocumentLimits::default()`.
+- **Breaking:** **Runtime:** `RefusalCode` gains `TooLarge`, `OpIdMismatch` and `SelfReview`. Migrate by adding arms (or a wildcard) to exhaustive matches.
 
 ### Added
 
@@ -28,7 +35,18 @@
 - **Files:** `collab::Joined::seq` and the join route's `seq` give the sequence number a client resumes from.
 - **Files:** migration `013_document_path_history` adds `document_path_changes`, the path history the drive change feed merges with revisions under one `(timestamp, id)` cursor.
 - **Bridge:** `bridge drive status` lists the documents shared with the user that the Drive folder has not synced yet, recorded in `.drive-state.json` from `document.shared` notices.
+- **Provider contracts:** `DocumentCodec::style_hashes`, `copy_node` and `insert_fragment`, with `NodeFragment`; the defaults hash and copy text, and the docx, pptx, odt and odp codecs hash formatting and copy natively.
+- **Files:** `files.documents.limits` (`maxOpsPerCall`, `maxOpTextBytes`, `maxMarkdownBytes`, `maxCommentBytes`, `maxCollabUpdateBytes`, `maxCursorBytes`) with bounds validation; a request over a limit is refused as `too_large` (HTTP 413).
+- **Files:** migration `011_document_revision_landing` adds `document_node_counters`, `document_revisions.landed_at` (backfilled along each head chain) and `document_write_acks.user_id` and `request_sha256`.
 
+### Changed
+
+- **Files:** a commit's revision, node ids, op id acknowledgement and head move commit in one transaction on the primary database, and the head's compare-and-swap also refuses a foreign lock.
+- **Files:** an `op_id` replays only for the same user and the same request, over MCP and HTTP alike; a different request under a used op id is refused as `op_id_mismatch`.
+- **Files:** `replace_text` and `delete` on a node id require `expected_hash`; a quote target resolves its own.
+- **Files:** an agent's `mode: land` in a folder whose agent edit policy is `propose` is refused, and a proposer cannot accept their own proposal (`self_review`).
+- **Files:** `insert_from_revision` copies Word paragraphs and tables and PowerPoint paragraphs with their formatting.
+- **Runtime:** `documents_edit` acknowledgements render from the projection the commit returns instead of reading the head again.
 
 ### Fixed
 
@@ -49,7 +67,11 @@
 - **Files:** the drive change feed skips the revisions of a trashed document instead of failing the page.
 - **Bridge:** a Drive pull hashes the local file again just before the downloaded head replaces it, and keeps a local edit made during the download as a conflict sibling.
 - **Bridge:** a `created` or `updated` change for a document the Drive folder holds at another path moves the file before writing the new head.
-
+- **Files:** concurrent commits by one writer no longer mint the same node id, and a node id is never stored without its row.
+- **Files:** a commit that loses the head race no longer leaves a revision that history, `restore` or `since_revision` would accept.
+- **Files:** a block inserted where an unrelated block was deleted no longer inherits its id, and a moved block keeps its id.
+- **Files:** a stale Office upload that changes a paragraph's formatting is reported as a conflict instead of landing without the formatting.
+- **Files:** an accepted proposal records its landed revision in the landing transaction, and the presence sweep reopens an accept that never landed.
 
 
 ## [0.74.0] - 2026-10-27
