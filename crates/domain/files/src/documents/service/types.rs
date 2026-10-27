@@ -9,7 +9,9 @@ use systemprompt_identifiers::{
     DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId,
     DriveDeviceId, McpExecutionId, SessionId,
 };
-use systemprompt_models::documents::{AccessLevel, ActorKind, DocumentFormat, RevisionOriginKind};
+use systemprompt_models::documents::{
+    AccessLevel, ActorKind, DocumentFormat, EditOp, RevisionOriginKind,
+};
 use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_traits::ByteRange;
 
@@ -105,12 +107,13 @@ pub struct Listing {
     pub next_cursor: Option<ListCursor>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CreateRequest {
     pub template_id: DocumentTemplateId,
     pub folder: Option<DocumentFolderId>,
     pub name: String,
     pub params: TemplateParams,
+    pub ops: Vec<EditOp>,
     pub author: Author,
     pub message: Option<String>,
 }

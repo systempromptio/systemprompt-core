@@ -11,9 +11,9 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{DocumentAction, DocumentFormat};
+use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 
-use super::support::{blocking, document_name, format_of_name};
+use super::support::{apply_with, blocking, document_name, format_of_name};
 use super::{Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
@@ -27,6 +27,7 @@ struct NewContent {
     bytes: Vec<u8>,
     author: Author,
     message: Option<String>,
+    ops: Option<Vec<EditOp>>,
 }
 
 impl DocumentService {
@@ -42,13 +43,24 @@ impl DocumentService {
         let codecs = Arc::clone(&self.codecs);
         let template_id = request.template_id.clone();
         let params = request.params;
+        let ops = request.ops;
+        let recorded = (!ops.is_empty()).then(|| ops.clone());
         let instantiated = blocking(move || {
-            templates
+            let mut made = templates
                 .instantiate(&template_id, &params, &codecs)
                 .map_err(|source| DocumentsError::Template {
                     template_id,
                     source,
-                })
+                })?;
+            if !ops.is_empty() {
+                let codec = codecs
+                    .for_format(made.format)
+                    .ok_or(DocumentsError::UnsupportedFormat {
+                        format: made.format,
+                    })?;
+                made.bytes = apply_with(codec.as_ref(), made.format, &made.bytes, &ops)?;
+            }
+            Ok(made)
         })
         .await?;
         self.create_with_bytes(
@@ -61,6 +73,7 @@ impl DocumentService {
                 bytes: instantiated.bytes,
                 author: request.author,
                 message: request.message,
+                ops: recorded,
             },
         )
         .await
@@ -98,6 +111,7 @@ impl DocumentService {
                 bytes,
                 author: request.author,
                 message: None,
+                ops: None,
             },
         )
         .await
@@ -182,7 +196,7 @@ impl DocumentService {
                 origin_kind: author.origin.kind(),
                 origin_id: author.origin.id(),
                 message: content.message.clone(),
-                edit_ops: None,
+                edit_ops: content.ops.clone(),
             })
             .await?;
         if !self

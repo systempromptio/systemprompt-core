@@ -22,6 +22,8 @@ pub struct ListInput {
     pub cursor: Option<String>,
     #[serde(default)]
     pub limit: Option<i64>,
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -41,6 +43,8 @@ pub struct CreateInput {
     pub name: String,
     #[serde(default)]
     pub params: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub ops: Vec<EditOp>,
     #[serde(default)]
     pub message: Option<String>,
 }
@@ -74,6 +78,8 @@ pub struct ReadInput {
     pub cells: Option<String>,
     #[serde(default)]
     pub revision_id: Option<DocumentRevisionId>,
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -83,6 +89,8 @@ pub struct EditInput {
     pub ops: Vec<EditOp>,
     #[serde(default)]
     pub message: Option<String>,
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -111,6 +119,8 @@ pub struct HistoryInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub limit: Option<i64>,
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

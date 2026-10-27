@@ -10,6 +10,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use rmcp::ErrorData as McpError;
 use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
@@ -18,6 +20,7 @@ use super::inputs::{NodeRange, ReadInput, ReadView};
 use super::refusal::{Refusal, RefusalCode};
 
 pub const MAX_LINES: usize = 2000;
+pub const MAX_WRITTEN: usize = 100;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderedLines {
@@ -31,9 +34,7 @@ pub fn render(
     revision: &DocumentRevisionId,
 ) -> Result<RenderedLines, McpError> {
     let lines = match input.view {
-        ReadView::Text => structured(projection, |node| {
-            node.text.is_some() || node.kind == NodeKind::Slide
-        }),
+        ReadView::Text => structured(projection, shows),
         ReadView::Outline => structured(projection, |node| is_outline(node.kind)),
         ReadView::Range => {
             let range = input.range.as_ref().ok_or_else(|| {
@@ -77,6 +78,32 @@ fn structured(projection: &Projection, mut keep: impl FnMut(&ProjectionNode) -> 
             keep(node).then(|| structured_line(node, slide))
         })
         .collect()
+}
+
+fn shows(node: &ProjectionNode) -> bool {
+    node.text.is_some() || node.kind == NodeKind::Slide
+}
+
+#[must_use]
+pub fn written_lines(base: Option<&Projection>, head: &Projection) -> Vec<String> {
+    let mut unchanged: HashMap<&str, usize> = HashMap::new();
+    for node in base.into_iter().flat_map(Projection::nodes).filter(|n| shows(n)) {
+        *unchanged.entry(node.hash8.as_str()).or_default() += 1;
+    }
+    let mut lines = structured(head, |node| {
+        if !shows(node) {
+            return false;
+        }
+        match unchanged.get_mut(node.hash8.as_str()) {
+            Some(left) if *left > 0 => {
+                *left -= 1;
+                false
+            },
+            _ => true,
+        }
+    });
+    lines.truncate(MAX_WRITTEN);
+    lines
 }
 
 const fn is_outline(kind: NodeKind) -> bool {

@@ -147,6 +147,7 @@ pub(super) async fn create(
             folder: body.folder_id,
             name: body.name,
             params: body.params,
+            ops: Vec::new(),
             author: api_author(),
             message: None,
         };

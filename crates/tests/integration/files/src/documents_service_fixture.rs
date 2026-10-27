@@ -171,6 +171,7 @@ pub(crate) fn create(template: &str, folder: Option<&DocumentFolderId>) -> Creat
         folder: folder.cloned(),
         name: unique("doc"),
         params: TemplateParams::default(),
+        ops: Vec::new(),
         author: api_author(),
         message: None,
     }

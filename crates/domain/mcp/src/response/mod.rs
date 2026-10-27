@@ -121,6 +121,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             McpError::internal_error("Serialization error", None)
         })?;
         let text_body = self.output.text_body();
+        let terse = self.output.terse_wire();
 
         let outcome = persist_artifact(
             ingest,
@@ -157,7 +158,12 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         // object, so a secret the scanner removed never reaches the model.
         let redacted = secret_redactions > 0;
         let typed_output = typed_structured(&structured_output, &artifact_type_str);
-        let wire_output = wire_output(redacted, redacted_body, &typed_output)?;
+        let wire_typed = if terse {
+            &structured_output
+        } else {
+            &typed_output
+        };
+        let wire_output = wire_output(redacted, redacted_body, wire_typed)?;
         let stored_body = if stored_body.is_null() {
             typed_output
         } else {
@@ -176,6 +182,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             client: &self.client,
             summary: summary_str,
             text_body: if redacted { None } else { text_body },
+            terse,
             structured_output: wire_output,
             metadata: &metadata,
         };

@@ -29,6 +29,7 @@ pub(super) struct WireShape<'a> {
     pub(super) client: &'a ClientProfile,
     pub(super) summary: String,
     pub(super) text_body: Option<String>,
+    pub(super) terse: bool,
     // JSON: MCP `structuredContent` — schema-less per the spec.
     pub(super) structured_output: JsonValue,
     pub(super) metadata: &'a ExecutionMetadata,
@@ -45,7 +46,9 @@ impl WireShape<'_> {
         let include_structured = self.client.supports_structured_content();
         let uri = artifact_resource_uri(&artifact.server_name, &artifact.artifact_id);
 
-        let mut content = vec![ContentBlock::text(self.text_block(include_ui))];
+        let mut content = vec![ContentBlock::text(
+            self.text_block(include_ui, include_structured),
+        )];
         if include_ui && let Some(block) = ui_resource_block(artifact, ctx, renderers, &uri) {
             content.push(block);
         }
@@ -65,8 +68,15 @@ impl WireShape<'_> {
         result
     }
 
-    fn text_block(&self, include_ui: bool) -> String {
+    fn text_block(&self, include_ui: bool, include_structured: bool) -> String {
         let summary = &self.summary;
+        if self.terse {
+            return if include_structured {
+                summary.clone()
+            } else {
+                format!("{summary}\n{}", self.structured_output)
+            };
+        }
         // Why: MCP 2025-06-18 says structuredContent SHOULD be mirrored as serialised
         // JSON in a text block; hosts such as OpenCode show the model only `content`.
         if include_ui {

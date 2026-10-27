@@ -40,6 +40,7 @@ fn input(view: ReadView) -> ReadInput {
         sheet: None,
         cells: None,
         revision_id: None,
+        verbose: false,
     }
 }
 
@@ -229,4 +230,27 @@ fn text_view_carries_headings_lists_cells_and_slides() {
     )
     .expect("outline");
     assert_eq!(outline.lines[1], rendered.lines[1]);
+}
+
+#[test]
+fn written_lines_are_the_nodes_a_revision_added_or_changed() {
+    let para = |id: &str, text: &str| node(id, NodeKind::Paragraph, Some(text), Vec::new());
+    let base = projection(vec![para("p[0]", "keep"), para("p[1]", "old")]);
+    let head = projection(vec![
+        para("p[0]", "keep"),
+        para("p[1]", "new"),
+        para("p[2]", "old"),
+        node("p[3]", NodeKind::Heading { level: 1 }, Some("Title"), Vec::new()),
+    ]);
+    assert_eq!(
+        systemprompt_runtime::documents::mcp::written_lines(Some(&base), &head),
+        vec![
+            format!("p[1]:{}| new", hash8("new")),
+            format!("p[3]:{}| # Title", hash8("Title")),
+        ]
+    );
+    assert_eq!(
+        systemprompt_runtime::documents::mcp::written_lines(None, &base).len(),
+        2
+    );
 }

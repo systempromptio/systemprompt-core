@@ -27,9 +27,9 @@ fn document_uri(document: &Document) -> DocumentUri {
     }
 }
 
-fn document_item(document: Document) -> DocumentItem {
+fn document_item(document: Document, verbose: bool) -> DocumentItem {
     DocumentItem {
-        uri: document_uri(&document),
+        uri: verbose.then(|| document_uri(&document)),
         document_id: document.id,
         folder_id: document.folder_id,
         name: document.name,
@@ -118,7 +118,7 @@ impl McpToolHandler for ListHandler<'_> {
                 .documents
                 .into_iter()
                 .filter(|d| name_matches(&d.name, query))
-                .map(document_item)
+                .map(|d| document_item(d, input.verbose))
                 .collect(),
             next_cursor: listing.next_cursor.map(|c| c.to_string()),
         };
@@ -146,7 +146,7 @@ impl McpToolHandler for SearchHandler<'_> {
 
     fn description(&self) -> &'static str {
         "Full-text search over the head revision of every document you may view. Each hit \
-         carries a snippet and a document:// URI to read next."
+         carries a snippet and the document and revision ids to read next."
     }
 
     fn read_only(&self) -> bool {
@@ -170,7 +170,6 @@ impl McpToolHandler for SearchHandler<'_> {
             .into_iter()
             .filter(|r| input.format.is_none_or(|f| f == r.document.format))
             .map(|r| SearchHit {
-                uri: DocumentUri::new(r.document.id.clone()).at_revision(r.hit.revision_id.clone()),
                 document_id: r.document.id,
                 revision_id: r.hit.revision_id,
                 name: r.document.name,
@@ -225,16 +224,17 @@ impl McpToolHandler for HistoryHandler<'_> {
             )
             .await
             .map_err(tool_error)?;
+        let verbose = input.verbose;
         let revisions: Vec<RevisionItem> = revisions
             .into_iter()
             .map(|r| RevisionItem {
-                uri: DocumentUri::new(r.document_id.clone()).at_revision(r.id.clone()),
+                uri: verbose.then(|| DocumentUri::new(r.document_id.clone()).at_revision(r.id.clone())),
                 revision_id: r.id,
-                parent_revision_id: r.parent_revision_id,
+                parent_revision_id: r.parent_revision_id.filter(|_| verbose),
                 author_user_id: r.author_user_id,
                 actor_kind: r.actor_kind,
                 message: r.message,
-                content_sha256: r.content_sha256,
+                content_sha256: verbose.then_some(r.content_sha256),
                 created_at: r.created_at,
             })
             .collect();

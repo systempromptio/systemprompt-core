@@ -48,7 +48,10 @@ pub use inputs::{
     CreateInput, EditInput, HistoryInput, ListInput, NodeRange, ReadInput, ReadView, RevisionInput,
     SearchInput, SetCellsInput, ShareInput, StrReplaceInput,
 };
-pub use lines::{MAX_LINES, RenderedLines, parse_cell, render, split_cell_id, structured_line};
+pub use lines::{
+    MAX_LINES, MAX_WRITTEN, RenderedLines, parse_cell, render, split_cell_id, structured_line,
+    written_lines,
+};
 pub use outputs::{
     CreateOutput, DocumentItem, DownloadOutput, EditOutput, FolderItem, HistoryOutput, ListOutput,
     PreviewOutput, ReadOutput, RevisionItem, SearchHit, SearchOutput, ShareOutput,

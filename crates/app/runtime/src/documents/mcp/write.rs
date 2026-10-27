@@ -3,8 +3,9 @@
 //!
 //! Every edit is a commit against the caller's `base_revision`, authored by
 //! an agent with the MCP execution as its origin. A base that is no longer
-//! the head is answered with the head's id, author and time so the agent can
-//! re-read and resend.
+//! the head is refused as `stale_base` with the head's id, author and time.
+//! Every write answers with the lines it wrote, diffed against the parent
+//! revision, so the next edit anchors on the ack.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,9 +13,8 @@
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommitOutcome, CommitRequest, CreateRequest};
-use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId, McpExecutionId};
+use systemprompt_identifiers::{DocumentId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
-use systemprompt_models::ApiPaths;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentUri, EditOp};
 use systemprompt_models::execution::context::RequestContext;
@@ -22,6 +22,7 @@ use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsMcpTools;
 use super::inputs::{CreateInput, EditInput, SetCellsInput, StrReplaceInput};
+use super::lines::written_lines;
 use super::outputs::{CreateOutput, EditOutput};
 use super::support::{agent_author, caller, stale_base, tool_error};
 
@@ -34,47 +35,35 @@ struct EditCall<'a> {
     base: DocumentRevisionId,
     ops: Vec<EditOp>,
     message: Option<String>,
+    verbose: bool,
 }
 
-fn touched(op: &EditOp) -> Option<DocumentNodeId> {
-    match op {
-        EditOp::SetCells { sheet, range, .. } => {
-            DocumentNodeId::try_new(format!("sheet[{sheet}]/{range}")).ok()
-        },
-        other => other.touches().cloned(),
-    }
-}
-
-fn reread_hint(ops: &[EditOp], revision: &DocumentRevisionId) -> Option<String> {
-    let structural = ops.iter().any(|op| {
-        matches!(
-            op,
-            EditOp::InsertAfter { .. } | EditOp::Delete { .. } | EditOp::InsertSlide { .. }
-        )
-    });
-    let rewritten = ops.iter().any(|op| {
-        matches!(
-            op,
-            EditOp::StrReplace { .. } | EditOp::SetHtml { .. } | EditOp::SetText { .. }
-        )
-    });
-    if structural {
-        Some(format!(
-            "nodes were inserted or deleted, so positional node ids after them may have shifted; \
-             read the outline of revision {revision} before the next anchored edit"
-        ))
-    } else if rewritten {
-        Some(format!(
-            "text was rewritten; read revision {revision} again for current node hashes"
-        ))
-    } else {
-        None
-    }
+async fn written(
+    call: &EditCall<'_>,
+    parent: Option<&DocumentRevisionId>,
+    revision: &DocumentRevisionId,
+) -> Result<Vec<String>, McpError> {
+    let service = call.tools.service();
+    let trace = call.ctx.trace_id();
+    let (_, head) = service
+        .project(call.who, &call.document, Some(revision), trace)
+        .await
+        .map_err(tool_error)?;
+    let base = match parent {
+        Some(parent) => Some(
+            service
+                .project(call.who, &call.document, Some(parent), trace)
+                .await
+                .map_err(tool_error)?
+                .1,
+        ),
+        None => None,
+    };
+    Ok(written_lines(base.as_ref(), &head))
 }
 
 async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
     let applied = call.ops.len();
-    let ops = call.ops.clone();
     let outcome = call
         .tools
         .service()
@@ -83,9 +72,9 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
             CommitRequest {
                 document_id: call.document.clone(),
                 base_revision: Some(call.base.clone()),
-                body: CommitBody::Ops(call.ops),
+                body: CommitBody::Ops(call.ops.clone()),
                 author: agent_author(call.exec_id),
-                message: call.message,
+                message: call.message.clone(),
                 lock_holder_id: None,
             },
             call.ctx.trace_id(),
@@ -99,21 +88,22 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
             return Err(stale_base(&call.document, &head, base.as_ref()));
         },
     };
-    let at = DocumentUri::new(call.document).at_revision(revision.id.clone());
-    let summary = format!("revision {} with {applied} edits", revision.id);
+    let written = written(&call, revision.parent_revision_id.as_ref(), &revision.id).await?;
+    let summary = format!(
+        "revision {}: {applied} ops, {} lines written",
+        revision.id,
+        written.len()
+    );
+    let verbose = call.verbose;
     Ok((
         EditOutput {
-            uri: at.clone(),
-            changed_nodes: ops
-                .iter()
-                .filter_map(touched)
-                .map(|node| at.clone().at_node(node))
-                .collect(),
-            reread_hint: reread_hint(&ops, &revision.id),
+            uri: verbose
+                .then(|| DocumentUri::new(call.document.clone()).at_revision(revision.id.clone())),
+            parent_revision_id: revision.parent_revision_id.filter(|_| verbose),
             revision_id: revision.id,
-            parent_revision_id: revision.parent_revision_id,
             applied,
             merged,
+            written,
         },
         summary,
     ))
@@ -135,7 +125,8 @@ impl McpToolHandler for CreateHandler<'_> {
     fn description(&self) -> &'static str {
         "Create a document from a template (for example blank-docx, blank-xlsx, blank-pptx, \
          blank-html, blank-markdown) in a folder, the root when folder_id is omitted. params \
-         fill the template's placeholders. The name gets the format's extension."
+         fill the template's placeholders; ops apply after instantiation in the same revision. \
+         The name gets the format's extension. Returns the written lines to anchor on."
     }
 
     async fn handle(
@@ -145,6 +136,7 @@ impl McpToolHandler for CreateHandler<'_> {
         exec_id: &McpExecutionId,
     ) -> Result<(CreateOutput, String), McpError> {
         let who = caller(ctx)?;
+        let applied = input.ops.len();
         let (document, revision) = self
             .tools
             .service()
@@ -157,6 +149,7 @@ impl McpToolHandler for CreateHandler<'_> {
                     params: TemplateParams {
                         values: input.params,
                     },
+                    ops: input.ops,
                     author: agent_author(exec_id),
                     message: input.message,
                 },
@@ -164,20 +157,26 @@ impl McpToolHandler for CreateHandler<'_> {
             )
             .await
             .map_err(tool_error)?;
-        let preview_url = format!(
-            "{}{}/{}/preview",
-            self.tools.api_external_url().trim_end_matches('/'),
-            ApiPaths::DOCUMENTS,
-            document.id
+        let (_, projection) = self
+            .tools
+            .service()
+            .project(who, &document.id, Some(&revision.id), ctx.trace_id())
+            .await
+            .map_err(tool_error)?;
+        let written = written_lines(None, &projection);
+        let summary = format!(
+            "created {} at revision {}: {applied} ops, {} lines written",
+            document.name,
+            revision.id,
+            written.len()
         );
-        let summary = format!("created {} at revision {}", document.name, revision.id);
         Ok((
             CreateOutput {
-                uri: DocumentUri::new(document.id.clone()).at_revision(revision.id.clone()),
                 document_id: document.id,
                 revision_id: revision.id,
                 format: document.format,
-                preview_url,
+                name: document.name,
+                written,
             },
             summary,
         ))
@@ -191,7 +190,8 @@ macro_rules! edit_handler {
         $name:literal,
         $description:literal,
         |$i:ident| $ops:expr,
-        $message:expr
+        $message:expr,
+        $verbose:expr
     ) => {
         #[derive(Debug, Clone, Copy)]
         pub struct $handler<'a> {
@@ -218,6 +218,7 @@ macro_rules! edit_handler {
             ) -> Result<(EditOutput, String), McpError> {
                 let who = caller(ctx)?;
                 let message = $message;
+                let verbose = $verbose;
                 commit_ops(EditCall {
                     tools: self.tools,
                     who,
@@ -227,6 +228,7 @@ macro_rules! edit_handler {
                     base: $i.base_revision.clone(),
                     ops: $ops,
                     message,
+                    verbose,
                 })
                 .await
             }
@@ -245,7 +247,8 @@ edit_handler!(
      insert_after on one node land in op order. insert_after kinds differ per format; a refusal \
      names accepted_kinds. All ops apply or none; message is kept in the history.",
     |input| input.ops.clone(),
-    input.message.clone()
+    input.message.clone(),
+    input.verbose
 );
 
 edit_handler!(
@@ -258,7 +261,8 @@ edit_handler!(
         old_str: input.old_str.clone(),
         new_str: input.new_str.clone(),
     }],
-    input.message.clone()
+    input.message.clone(),
+    false
 );
 
 edit_handler!(
@@ -273,5 +277,6 @@ edit_handler!(
         values: input.values.clone(),
         expected_hash: None,
     }],
-    input.message.clone()
+    input.message.clone(),
+    false
 );

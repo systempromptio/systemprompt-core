@@ -76,9 +76,11 @@ impl McpToolHandler for ReadHandler<'_> {
         );
         Ok((
             ReadOutput {
-                uri: DocumentUri::new(input.document_id).at_revision(revision.id.clone()),
+                uri: input
+                    .verbose
+                    .then(|| DocumentUri::new(input.document_id).at_revision(revision.id.clone())),
                 revision_id: revision.id,
-                content_sha256: projection.content_sha256,
+                content_sha256: input.verbose.then_some(projection.content_sha256),
                 format: projection.format,
                 lines: rendered.lines,
                 truncated: rendered.truncated,
@@ -161,7 +163,6 @@ impl McpToolHandler for DownloadUrlHandler<'_> {
         let summary = format!("download link valid until {}", expires_at.to_rfc3339());
         Ok((
             DownloadOutput {
-                uri: DocumentUri::new(input.document_id).at_revision(revision.clone()),
                 revision_id: revision,
                 url,
                 expires_at,
@@ -214,7 +215,6 @@ impl McpToolHandler for RenderPreviewHandler<'_> {
         let summary = format!("preview of revision {}", revision.id);
         Ok((
             PreviewOutput {
-                uri: DocumentUri::new(input.document_id).at_revision(revision.id.clone()),
                 revision_id: revision.id,
                 html,
                 ui_resource: preview_resource_uri(self.tools.server_name()),

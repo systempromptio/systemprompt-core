@@ -12,17 +12,15 @@ use crate::documents_mcp_support::{
 };
 
 #[tokio::test]
-async fn read_returns_hashlines_and_a_document_uri() {
+async fn read_returns_hashlines_and_terse_ids() {
     let h = harness().await;
     let owner = person("reader");
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta").await;
     let read = read_text(&h.tools, &ctx, &document).await;
     assert_eq!(read.revision_id, revision);
-    assert_eq!(
-        read.uri.to_string(),
-        format!("document://{document}@{revision}")
-    );
+    assert!(read.uri.is_none());
+    assert!(read.content_sha256.is_none());
     let (node, hash) = line_for(&read, "beta");
     assert!(node.starts_with("line["), "node {node}");
     assert_eq!(hash, systemprompt_models::documents::hash8("beta"));
@@ -47,6 +45,7 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
                     text: "gamma".to_owned(),
                 }],
                 message: None,
+                verbose: false,
             },
             &ctx,
             &exec(),
@@ -63,7 +62,7 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
 }
 
 #[tokio::test]
-async fn edit_records_an_agent_revision_with_changed_node_uris() {
+async fn edit_acknowledges_the_written_lines_and_records_the_message() {
     let h = harness().await;
     let owner = person("editor");
     let ctx = ctx_for(Some(&owner));
@@ -81,23 +80,28 @@ async fn edit_records_an_agent_revision_with_changed_node_uris() {
                     text: "gamma".to_owned(),
                 }],
                 message: Some("rename".to_owned()),
+                verbose: false,
             },
             &ctx,
             &exec(),
         )
         .await
         .expect("edit");
-    assert_eq!(edited.parent_revision_id.as_ref(), Some(&revision));
+    assert!(edited.parent_revision_id.is_none());
     assert_eq!(edited.applied, 1);
     assert_eq!(
-        edited.changed_nodes[0].to_string(),
-        format!("document://{document}@{}#{node}", edited.revision_id)
+        edited.written,
+        vec![format!(
+            "{node}:{}| gamma",
+            systemprompt_models::documents::hash8("gamma")
+        )]
     );
     let (history, _) = HistoryHandler { tools: &h.tools }
         .handle(
             HistoryInput {
                 document_id: document,
                 limit: None,
+                verbose: false,
             },
             &ctx,
             &exec(),
@@ -108,6 +112,8 @@ async fn edit_records_an_agent_revision_with_changed_node_uris() {
     assert_eq!(head.revision_id, edited.revision_id);
     assert_eq!(head.actor_kind, ActorKind::Agent);
     assert_eq!(head.author_user_id, owner.id);
+    assert_eq!(head.message.as_deref(), Some("rename"));
+    assert!(head.uri.is_none() && head.content_sha256.is_none());
 }
 
 #[tokio::test]
@@ -146,7 +152,11 @@ async fn str_replace_reports_the_match_count() {
         .handle(replace("beta"), &ctx, &exec())
         .await
         .expect("unique match");
-    assert!(once.reread_hint.is_some());
+    assert!(
+        once.written.iter().any(|line| line.ends_with("| omega")),
+        "{:?}",
+        once.written
+    );
 }
 
 #[tokio::test]
@@ -162,6 +172,7 @@ async fn stale_base_names_the_head_revision() {
             text: text.to_owned(),
         }],
         message: None,
+        verbose: false,
     };
     let handler = EditHandler { tools: &h.tools };
     let (first, _) = handler
@@ -198,6 +209,7 @@ async fn forbidden_names_the_needed_and_held_level() {
         sheet: None,
         cells: None,
         revision_id: None,
+        verbose: false,
     };
     let error = ReadHandler { tools: &h.tools }
         .handle(read(document.clone()), &ctx_for(Some(&stranger)), &exec())
@@ -238,6 +250,7 @@ async fn a_call_without_an_authenticated_user_is_refused() {
                 query: None,
                 cursor: None,
                 limit: None,
+                verbose: false,
             },
             &ctx_for(None),
             &exec(),
@@ -264,6 +277,7 @@ async fn list_shows_the_owners_root_document() {
                 query: Some("notes-".to_owned()),
                 cursor: None,
                 limit: Some(200),
+                verbose: false,
             },
             &ctx,
             &exec(),
@@ -304,4 +318,61 @@ async fn download_url_and_preview_address_the_revision() {
         .expect("preview");
     assert_eq!(preview.ui_resource, "ui://documents/document-preview");
     assert!(preview.html.contains("hello"), "{}", preview.html);
+}
+
+#[tokio::test]
+async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
+    use systemprompt_identifiers::DocumentTemplateId;
+    use systemprompt_models::documents::NodeKind;
+    use systemprompt_runtime::documents::mcp::{CreateHandler, CreateInput};
+    let h = harness().await;
+    let owner = person("creator");
+    let ctx = ctx_for(Some(&owner));
+    let (created, _) = CreateHandler { tools: &h.tools }
+        .handle(
+            CreateInput {
+                template_id: DocumentTemplateId::new("blank-html"),
+                folder_id: None,
+                name: "memo".to_owned(),
+                params: Default::default(),
+                ops: vec![
+                    EditOp::InsertAfter {
+                        node: DocumentNodeId::new("body/h1[1]"),
+                        kind: NodeKind::Paragraph,
+                        text: "first".to_owned(),
+                    },
+                    EditOp::InsertAfter {
+                        node: DocumentNodeId::new("body/h1[1]"),
+                        kind: NodeKind::Paragraph,
+                        text: "second".to_owned(),
+                    },
+                ],
+                message: Some("draft".to_owned()),
+            },
+            &ctx,
+            &exec(),
+        )
+        .await
+        .expect("create with ops");
+    let shown: Vec<&str> = created
+        .written
+        .iter()
+        .filter_map(|line| line.split_once("| ").map(|(_, text)| text))
+        .collect();
+    let first = shown.iter().position(|t| *t == "first").expect("first");
+    assert_eq!(shown.get(first + 1), Some(&"second"), "{shown:?}");
+    let (history, _) = HistoryHandler { tools: &h.tools }
+        .handle(
+            HistoryInput {
+                document_id: created.document_id,
+                limit: None,
+                verbose: false,
+            },
+            &ctx,
+            &exec(),
+        )
+        .await
+        .expect("history");
+    assert_eq!(history.revisions.len(), 1);
+    assert_eq!(history.revisions[0].message.as_deref(), Some("draft"));
 }
