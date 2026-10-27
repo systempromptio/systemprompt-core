@@ -20,6 +20,7 @@ fn a_one_op_edit_result_stays_under_400_bytes() {
         applied: 1,
         merged: false,
         replayed: false,
+        proposal_id: None,
         written: vec![format!(
             "body/p[3]:{}| Revenue grew 12% in the quarter.",
             hash8("Revenue grew 12% in the quarter.")

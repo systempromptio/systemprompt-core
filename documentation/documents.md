@@ -79,7 +79,7 @@ Each commit updates the per-document search index (full-text over the extracted 
 
 ## MCP tools
 
-Document tools are exposed through MCP and authorise as the calling user, never as the server. There are fifteen tools. Read-only tools are annotated as such.
+Document tools are exposed through MCP and authorise as the calling user, never as the server. There are seventeen tools. Read-only tools are annotated as such.
 
 | Tool | Purpose |
 |---|---|
@@ -90,6 +90,8 @@ Document tools are exposed through MCP and authorise as the calling user, never 
 | `documents_edit` | Apply edit operations as one revision on the head, guarded per node, optionally idempotent by `op_id`. `answering` records the revision on a comment; an edit that removes text a comment is anchored to is refused unless `allow_detach` is set. |
 | `documents_comment` | Create, list and resolve comment threads anchored to a node and, optionally, a quote inside it. |
 | `documents_history` | Revisions, newest first, with author, actor kind and message, and with `verbose` the session, context, trace, task and on-behalf-of user. |
+| `documents_proposals` | A document's proposals, optionally filtered by status (`open`, `accepted`, `rejected`, `superseded`). |
+| `documents_review` | Accept or reject a proposal, with an optional note. Needs edit access. |
 | `documents_share` | Grant a subject access to a document or a folder subtree, transfer a document's ownership, or revoke every grant on it. |
 | `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders, and the caller's level. |
 | `documents_copy` | A new document owned by the caller from another document's head, with its own history. |
@@ -97,7 +99,7 @@ Document tools are exposed through MCP and authorise as the calling user, never 
 | `documents_trash` | Move a document to the trash. |
 | `documents_restore_document` | Restore a trashed document. |
 | `documents_export` | A signed ten-minute download link, or the sanitised HTML preview for the document-preview app. |
-| `documents_guide` | Working detail by topic: `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle` and `refusal.<code>`. |
+| `documents_guide` | Working detail by topic: `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle`, `proposals` and `refusal.<code>`. |
 
 The server `instructions` carry the working contract: read the outline, edit by node id and hash or by quote with an `op_id`, anchor the next edit on the acknowledgement and resume later with the changes since your last revision, let the head edit win on a conflict and never resend the old text, and do not re-read between your own writes.
 
@@ -113,7 +115,11 @@ The server `instructions` carry the working contract: read the outline, edit by 
 
 **Results.** A result is a one-line summary plus structured content, sent once. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs, content hashes, each node id's positional path and the revision attribution. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read; a write landed on a moved head says `merged`, and a replayed `op_id` says `replayed`.
 
-**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` (`stale_base`, `guard_mismatch`, `find_none`, `unsupported_op`, `unsupported_format`, `template_failed`, `forbidden`, `not_found`, `locked`, `anchors_affected`, `invalid_params`) and the detail the failure knows: the head revision and who wrote it, a node's current text and hash, a match count, the accepted node kinds, the owner to ask for access, the comments an edit would detach, or that a document is in the trash. The text names what to do next.
+**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` (`stale_base`, `guard_mismatch`, `find_none`, `unsupported_op`, `unsupported_format`, `template_failed`, `forbidden`, `not_found`, `locked`, `anchors_affected`, `proposal_conflict`, `invalid_params`) and the detail the failure knows: the head revision and who wrote it, a node's current text and hash, a match count, the accepted node kinds, the owner to ask for access, the comments an edit would detach, or that a document is in the trash. The text names what to do next.
+
+**Proposals.** An edit either lands on the head or is written as a proposal: a revision whose parent is its base and which never becomes the head on its own. `documents_edit` and `POST /edits` take `mode: land | propose`. Without a mode, a caller holding `comment` but not `edit` access proposes, an agent proposes in a folder whose agent edit policy is `propose` (set on the folder or inherited from any folder above it; the root is `direct`), and everyone else lands. `mode: land` needs `edit` access. The acknowledgement carries the `proposal_id`, the proposed revision and its lines against the base. A newer proposal from the same proposer on the same document supersedes the open one.
+
+Accepting needs `edit` access. When the head is still the proposal's base, the proposed revision becomes the head by compare-and-swap and keeps the proposer as its author. When the head has moved, the proposal's operations are applied again on the head under the same node guards as any edit, as a revision by the reviewer on behalf of the proposer; a node the proposal touches that changed in between refuses as `proposal_conflict` with its current text, and the proposal stays open. Rejecting records the reviewer and note. Every transition emits `document.proposal.opened`, `accepted`, `rejected` or `superseded` to the owner, present users and the proposer. `DocumentService::reject_open_for_document` rejects every open proposal of a document; removing a document calls it.
 
 **Export.** `native` as a URL works for every format, and `html` as a preview works for every format. `md` or `html` as a URL is offered only for a document already in that format, and `pdf` is refused as `unsupported_format`.
 
@@ -134,19 +140,20 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `POST /api/v1/documents/{id}/transfer`, `DELETE /api/v1/documents/{id}/grants/all` | Ownership transfer; revoke every grant. |
 | `GET /api/v1/documents/subject-kinds` | The grant subject kinds this installation accepts. |
 | `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support. Replace the bytes with `If-Match: "<revision_id>"`; a stale base merges as described above or returns `409` with the head and base. `?op_id=` makes the write idempotent. |
-| `POST /api/v1/documents/{id}/edits` | Structured edit operations, with an optional base revision, `op_id`, `answering` and `allow_detach`. |
+| `POST /api/v1/documents/{id}/edits` | Structured edit operations, with an optional base revision, `op_id`, `answering`, `allow_detach` and `mode` (`land` or `propose`). A proposal answers `201` with the proposal and its revision. |
+| `GET /api/v1/documents/{id}/proposals` | Proposals, newest first; `?status=` filters. |
+| `GET /api/v1/documents/{id}/proposals/{pid}` | One proposal and the lines it changes against its base, in the changes-view form. |
+| `POST /api/v1/documents/{id}/proposals/{pid}/accept`, `/reject` | Review with an optional `note`. Accept answers the landed revision and whether it was rebased. |
 | `GET /api/v1/documents/{id}/revisions` | Revision history. |
 | `GET /api/v1/documents/{id}/projection`, `/preview` | Node projection and HTML preview. |
 | `GET`, `POST`, `DELETE /api/v1/documents/{id}/grants` | Grants. |
 | `PUT`, `GET /api/v1/documents/{id}/presence` | Presence beacons. |
 | `POST`, `DELETE /api/v1/documents/{id}/lock` | Lease lock. |
-| `GET`, `POST`, `PATCH /api/v1/document-folders` | Folders: list, create, rename, move. |
+| `GET`, `POST`, `PATCH /api/v1/document-folders` | Folders: list, create, rename, move, and set `agent_edit_policy` (`direct` or `propose`, needs `share` access). |
 
 With the `files-collab` facade feature (part of `full`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
 
-Errors map to `409` conflict and stale anchor, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
-
-A write records the request's session, trace and task, and the conversation named by an `x-context-id` header. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`. Errors map to `409` conflict and stale anchor, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
+A write records the request's session, trace and task, and the conversation named by an `x-context-id` header. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`. Errors map to `409` conflict, stale anchor, `proposal_conflict` and `proposal_closed`, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
 
 ## Live co-editing
 
@@ -191,7 +198,7 @@ The files extension ships native ES module Web Components for browsing, previewi
 | `sp-share-dialog` | `document-id` | `GET /{id}/access` and `GET /subject-kinds`, `POST` and `DELETE /{id}/grants`, `DELETE /{id}/grants/all` and `POST /{id}/transfer` |
 | `sp-history` | `document-id` | `GET /{id}/revisions`, a `restore` op on `POST /{id}/edits`, and `GET /{id}/read?view=changes` since a revision |
 | `sp-comments` | `document-id`, `anchor-node` | `/{id}/comments`; hidden when the install answers `404` |
-| `sp-proposal-list` | `document-id` | `/{id}/proposals`; hidden when the install answers `404` |
+| `sp-proposal-list` | `document-id` | `GET /{id}/proposals`, the changed lines from `GET /{id}/proposals/{pid}`, accept or reject with a note, `document.proposal.*` events; hidden when the install answers `404` |
 
 Every edit carries a fresh `op_id`, so a retried request replays its first acknowledgement. A refusal is shown with its error key. All components on a page share one AG-UI stream (`/api/v1/stream/agui`), because each user may hold at most ten streams.
 
@@ -201,7 +208,7 @@ The asset sources resolve inside the `systemprompt-files` crate, so they are dec
 
 ## Bridge Drive sync
 
-The bridge keeps `~/<workspace>/Drive` in step with the store. It talks to five endpoints under `/v1/bridge/drive/`, authenticated like the bridge heartbeat.
+The bridge keeps `~/<workspace>/Drive` in step with the store. It talks to six endpoints under `/v1/bridge/drive/`, authenticated like the bridge heartbeat.
 
 | Endpoint | Purpose |
 |---|---|
@@ -210,6 +217,7 @@ The bridge keeps `~/<workspace>/Drive` in step with the store. It talks to five 
 | `GET blob/{sha256}` | Bytes by hash. The bridge verifies the hash before it writes. |
 | `POST commit` | Multipart metadata and bytes with `If-Match` set to the base revision. Returns the new revision, the merged revision and its hash when the upload landed on a newer head, or a conflict naming the head. |
 | `PUT presence` | Editing beacons. |
+| `GET proposals` | Open proposals on the user's documents and the user's own open proposals. |
 
 Behaviour:
 
@@ -219,6 +227,8 @@ Behaviour:
 - A conflicting local edit is renamed to `<name> (conflict from <host>).<ext>` and the head is pulled, so neither version is lost.
 - A document deleted remotely moves into `Drive/.trash/<timestamp>/`. A local deletion is not propagated.
 - Presence is reported from file activity and from agent tool calls that touch a path inside the Drive folder.
+- A `document.shared` or `document.proposal.opened` event on the bridge stream raises a desktop notification.
+- Each sync refreshes the open proposals, which `bridge drive status` lists.
 - Status shows in the tray, the GUI and `bridge drive status|sync|conflicts`. The `[drive] enabled` setting turns the loop off.
 
 ## Configuration

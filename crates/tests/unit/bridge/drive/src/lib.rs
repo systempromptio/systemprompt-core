@@ -6,7 +6,11 @@ mod support;
 #[cfg(test)]
 mod enable;
 #[cfg(test)]
+mod notices;
+#[cfg(test)]
 mod presence;
+#[cfg(test)]
+mod proposals;
 #[cfg(test)]
 mod pull;
 #[cfg(test)]

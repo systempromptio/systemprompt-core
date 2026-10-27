@@ -58,6 +58,7 @@ async fn replace_line(
             EditInput {
                 document_id: document.clone(),
                 base_revision: None,
+                mode: None,
                 op_id,
                 answering: None,
                 allow_detach: false,
@@ -121,6 +122,7 @@ async fn a_repeated_op_id_replays_the_first_ack() {
             EditInput {
                 document_id: document.clone(),
                 base_revision: None,
+                mode: None,
                 op_id: Some(op_id),
                 answering: None,
                 allow_detach: false,

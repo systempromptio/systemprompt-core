@@ -81,7 +81,7 @@ impl McpToolHandler for ProposalsHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List a document's proposals (status open, accepted, rejected or superseded)."
+        "List a document's proposals."
     }
 
     fn read_only(&self) -> bool {
@@ -146,7 +146,7 @@ impl McpToolHandler for ReviewHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Accept or reject a proposal (needs edit access). See documents_guide topic proposals."
+        "Accept or reject a proposal."
     }
 
     async fn handle(

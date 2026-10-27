@@ -144,3 +144,19 @@ fn forbidden_names_the_owner_and_trash_and_anchors_carry_detail() {
     assert_eq!(data["comments"][0], comment.as_str());
     assert!(text.contains("allow_detach"), "{text}");
 }
+
+#[test]
+fn proposal_conflict_carries_the_node_and_its_current_text() {
+    let head = DocumentRevisionId::generate();
+    let (text, data) = refused(DocumentsError::ProposalConflict {
+        proposal_id: systemprompt_identifiers::DocumentProposalId::generate(),
+        head: head.clone(),
+        node: Some(DocumentNodeId::new("n-7")),
+        current_text: Some("owner wins".to_owned()),
+    });
+    assert_eq!(data["code"], "proposal_conflict");
+    assert_eq!(data["head_revision"], head.as_str());
+    assert_eq!(data["node"], "n-7");
+    assert_eq!(data["current_text"], "owner wins");
+    assert!(text.contains("owner wins"), "{text}");
+}

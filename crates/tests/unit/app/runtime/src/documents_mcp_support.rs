@@ -100,6 +100,7 @@ pub(crate) async fn create_text(
             EditInput {
                 document_id: created.document_id.clone(),
                 base_revision: Some(created.revision_id),
+                mode: None,
                 op_id: None,
                 answering: None,
                 allow_detach: false,

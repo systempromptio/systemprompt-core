@@ -18,6 +18,10 @@ mod documents_lifecycle;
 #[cfg(test)]
 mod documents_listing;
 #[cfg(test)]
+mod documents_proposals;
+#[cfg(test)]
+mod documents_proposals_review;
+#[cfg(test)]
 mod documents_repository;
 #[cfg(test)]
 mod documents_service;

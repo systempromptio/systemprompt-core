@@ -40,6 +40,7 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
             EditInput {
                 document_id: document,
                 base_revision: Some(revision),
+                mode: None,
                 op_id: None,
                 answering: None,
                 allow_detach: false,
@@ -79,6 +80,7 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
             EditInput {
                 document_id: document.clone(),
                 base_revision: Some(revision.clone()),
+                mode: None,
                 op_id: None,
                 answering: None,
                 allow_detach: false,
@@ -134,6 +136,7 @@ async fn str_replace_reports_the_match_count() {
     let replace = |old: &str| EditInput {
         document_id: document.clone(),
         base_revision: Some(revision.clone()),
+        mode: None,
         op_id: None,
         answering: None,
         allow_detach: false,
@@ -183,6 +186,7 @@ async fn stale_base_names_the_head_revision() {
     let set = |text: &str| EditInput {
         document_id: document.clone(),
         base_revision: Some(base.clone()),
+        mode: None,
         op_id: None,
         answering: None,
         allow_detach: false,
