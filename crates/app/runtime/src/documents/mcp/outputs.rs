@@ -239,7 +239,10 @@ pub struct ProposalItem {
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ProposalsOutput {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub proposals: Vec<ProposalItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reviewed: Option<ReviewOutput>,
 }
 documents_output_impl!(ProposalsOutput, "documents_proposals");
 
@@ -252,4 +255,3 @@ pub struct ReviewOutput {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub rebased: bool,
 }
-documents_output_impl!(ReviewOutput, "documents_review");

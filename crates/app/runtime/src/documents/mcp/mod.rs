@@ -61,7 +61,7 @@ pub use guide::GuideHandler;
 pub use inputs::{
     CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput, ExportAs,
     ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput, ListSortInput,
-    NodeRange, ProposalsInput, QuoteAnchor, ReadInput, ReadView, ReviewAction, ReviewInput,
+    NodeRange, ProposalAction, ProposalsInput, QuoteAnchor, ReadInput, ReadView,
     SearchInput, ShareInput, UpdateInput,
 };
 pub use lifecycle::{AccessHandler, CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
@@ -78,7 +78,7 @@ pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
     preview_template, preview_tool_meta, read_preview_resource,
 };
-pub use proposals::{ProposalsHandler, ReviewHandler};
+pub use proposals::ProposalsHandler;
 pub use read::{ReadHandler, read_view};
 pub use records::{
     AccessOutput, CommentAnchorItem, CommentItem, CommentOutput, DocumentAck, GrantItem,
@@ -91,7 +91,7 @@ pub use write::{CreateHandler, EditHandler};
 
 use crate::AppContext;
 
-pub const TOOL_NAMES: [&str; 17] = [
+pub const TOOL_NAMES: [&str; 16] = [
     "documents_list",
     "documents_search",
     "documents_create",
@@ -100,7 +100,6 @@ pub const TOOL_NAMES: [&str; 17] = [
     "documents_comment",
     "documents_history",
     "documents_proposals",
-    "documents_review",
     "documents_share",
     "documents_access",
     "documents_copy",
@@ -122,7 +121,7 @@ changed refuses. Pass op_id so a retry is safe.
 never resend your old text.
 5. Do not re-read between your own writes. Details: documents_guide.
 6. An edit may land as a proposal (proposal_id in the ack); a reviewer accepts it with \
-documents_review.";
+documents_proposals.";
 
 /// Why [`DocumentsMcpTools::from_context`] refused to build the tools.
 #[derive(Debug, thiserror::Error)]
@@ -152,7 +151,7 @@ pub struct DocumentsToolCall<'a> {
     pub client: &'a ClientProfile,
 }
 
-/// The seventeen document tools and the preview resource of one MCP server.
+/// The sixteen document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
@@ -245,7 +244,6 @@ impl DocumentsMcpTools {
             "documents_comment" => run(call, &CommentHandler { tools: self }).await,
             "documents_history" => run(call, &HistoryHandler { tools: self }).await,
             "documents_proposals" => run(call, &ProposalsHandler { tools: self }).await,
-            "documents_review" => run(call, &ReviewHandler { tools: self }).await,
             "documents_share" => run(call, &ShareHandler { tools: self }).await,
             "documents_access" => run(call, &AccessHandler { tools: self }).await,
             "documents_copy" => run(call, &CopyHandler { tools: self }).await,

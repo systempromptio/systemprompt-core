@@ -77,8 +77,7 @@ impl McpToolHandler for GuideHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Detail by topic: editing, formats, sheets, slides, sharing, comments, lifecycle, \
-         proposals, refusal.<code>."
+        "Detail by topic (editing, formats, proposals, refusal.<code>, ...)."
     }
 
     fn read_only(&self) -> bool {

@@ -1,5 +1,6 @@
-//! Proposal tools: an edit written as a proposal, `documents_proposals`
-//! and `documents_review`.
+//! Proposals over MCP: an edit written as a proposal, and
+//! `documents_proposals`, which lists a document's proposals or accepts or
+//! rejects one.
 //!
 //! A proposed edit acknowledges like any write: `revision_id` is the
 //! proposed revision and `written` its lines diffed against the base, plus
@@ -11,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
+use systemprompt_files::documents::models::DocumentProposal;
 use systemprompt_files::documents::service::{ProposeRequest, ReviewRequest};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
@@ -19,8 +21,9 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::acks::remember;
-use super::inputs::{ProposalsInput, ReviewAction, ReviewInput};
+use super::inputs::{ProposalAction, ProposalsInput};
 use super::outputs::{EditOutput, ProposalItem, ProposalsOutput, ReviewOutput};
+use super::refusal::{RefusalCode, refusal};
 use super::support::{agent_author, caller, tool_error};
 use super::write::{EditCall, written};
 
@@ -67,38 +70,45 @@ pub(super) async fn propose_ops(call: EditCall<'_>) -> Result<(EditOutput, Strin
     Ok((output, summary))
 }
 
+fn item(p: DocumentProposal) -> ProposalItem {
+    ProposalItem {
+        proposal_id: p.id,
+        status: p.status,
+        proposer: p.proposer_user_id,
+        actor_kind: p.actor_kind,
+        base_revision_id: p.base_revision_id,
+        proposed_revision_id: p.proposed_revision_id,
+        message: p.message,
+        created_at: p.created_at,
+    }
+}
+
+fn needs(field: &str, action: ProposalAction) -> McpError {
+    refusal(
+        RefusalCode::InvalidParams,
+        format!("documents_proposals action {action:?} needs {field}"),
+    )
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ProposalsHandler<'a> {
     pub tools: &'a DocumentsMcpTools,
 }
 
-impl McpToolHandler for ProposalsHandler<'_> {
-    type Input = ProposalsInput;
-    type Output = ProposalsOutput;
-
-    fn tool_name(&self) -> &'static str {
-        "documents_proposals"
-    }
-
-    fn description(&self) -> &'static str {
-        "List a document's proposals."
-    }
-
-    fn read_only(&self) -> bool {
-        true
-    }
-
-    async fn handle(
+impl ProposalsHandler<'_> {
+    async fn list(
         &self,
-        input: ProposalsInput,
+        input: &ProposalsInput,
         ctx: &RequestContext,
-        _exec_id: &McpExecutionId,
     ) -> Result<(ProposalsOutput, String), McpError> {
-        let who = caller(ctx)?;
+        let document = input
+            .document_id
+            .as_ref()
+            .ok_or_else(|| needs("document_id", ProposalAction::List))?;
         let proposals = self
             .tools
             .service()
-            .list_proposals(who, &input.document_id, input.status, ctx.trace_id())
+            .list_proposals(caller(ctx)?, document, None, ctx.trace_id())
             .await
             .map_err(tool_error)?;
         let summary = proposals
@@ -115,86 +125,90 @@ impl McpToolHandler for ProposalsHandler<'_> {
             })
             .collect::<Vec<_>>()
             .join("\n");
-        let proposals = proposals
-            .into_iter()
-            .map(|p| ProposalItem {
-                proposal_id: p.id,
-                status: p.status,
-                proposer: p.proposer_user_id,
-                actor_kind: p.actor_kind,
-                base_revision_id: p.base_revision_id,
-                proposed_revision_id: p.proposed_revision_id,
-                message: p.message,
-                created_at: p.created_at,
-            })
-            .collect();
-        Ok((ProposalsOutput { proposals }, summary))
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ReviewHandler<'a> {
-    pub tools: &'a DocumentsMcpTools,
-}
-
-impl McpToolHandler for ReviewHandler<'_> {
-    type Input = ReviewInput;
-    type Output = ReviewOutput;
-
-    fn tool_name(&self) -> &'static str {
-        "documents_review"
+        let output = ProposalsOutput {
+            proposals: proposals.into_iter().map(item).collect(),
+            reviewed: None,
+        };
+        Ok((output, summary))
     }
 
-    fn description(&self) -> &'static str {
-        "Accept or reject a proposal."
-    }
-
-    async fn handle(
+    async fn review(
         &self,
-        input: ReviewInput,
+        input: ProposalsInput,
         ctx: &RequestContext,
         exec_id: &McpExecutionId,
-    ) -> Result<(ReviewOutput, String), McpError> {
+    ) -> Result<(ProposalsOutput, String), McpError> {
         let who = caller(ctx)?;
+        let proposal_id = input
+            .proposal_id
+            .ok_or_else(|| needs("proposal_id", input.action))?;
         let request = ReviewRequest {
-            proposal_id: input.proposal_id,
+            proposal_id,
             note: input.note,
             reviewer: agent_author(ctx, exec_id),
         };
         let service = self.tools.service();
-        let output = match input.action {
-            ReviewAction::Accept => {
-                let accepted = service
-                    .accept_proposal(who, request, ctx.trace_id())
-                    .await
-                    .map_err(tool_error)?;
-                ReviewOutput {
-                    proposal_id: accepted.proposal.id,
-                    status: ProposalStatus::Accepted,
-                    revision_id: Some(accepted.revision.id),
-                    rebased: accepted.rebased,
-                }
-            },
-            ReviewAction::Reject => {
-                let rejected = service
-                    .reject_proposal(who, request, ctx.trace_id())
-                    .await
-                    .map_err(tool_error)?;
-                ReviewOutput {
-                    proposal_id: rejected.id,
-                    status: rejected.status,
-                    revision_id: None,
-                    rebased: false,
-                }
-            },
+        let reviewed = if input.action == ProposalAction::Accept {
+            let accepted = service
+                .accept_proposal(who, request, ctx.trace_id())
+                .await
+                .map_err(tool_error)?;
+            ReviewOutput {
+                proposal_id: accepted.proposal.id,
+                status: ProposalStatus::Accepted,
+                revision_id: Some(accepted.revision.id),
+                rebased: accepted.rebased,
+            }
+        } else {
+            let rejected = service
+                .reject_proposal(who, request, ctx.trace_id())
+                .await
+                .map_err(tool_error)?;
+            ReviewOutput {
+                proposal_id: rejected.id,
+                status: rejected.status,
+                revision_id: None,
+                rebased: false,
+            }
         };
-        let summary = match &output.revision_id {
+        let summary = match &reviewed.revision_id {
             Some(revision) => format!(
                 "proposal {} accepted: head is revision {revision}",
-                output.proposal_id
+                reviewed.proposal_id
             ),
-            None => format!("proposal {} {}", output.proposal_id, output.status),
+            None => format!("proposal {} {}", reviewed.proposal_id, reviewed.status),
+        };
+        let output = ProposalsOutput {
+            proposals: Vec::new(),
+            reviewed: Some(reviewed),
         };
         Ok((output, summary))
+    }
+}
+
+impl McpToolHandler for ProposalsHandler<'_> {
+    type Input = ProposalsInput;
+    type Output = ProposalsOutput;
+
+    fn tool_name(&self) -> &'static str {
+        "documents_proposals"
+    }
+
+    fn description(&self) -> &'static str {
+        "List proposals, or accept or reject one."
+    }
+
+    async fn handle(
+        &self,
+        input: ProposalsInput,
+        ctx: &RequestContext,
+        exec_id: &McpExecutionId,
+    ) -> Result<(ProposalsOutput, String), McpError> {
+        match input.action {
+            ProposalAction::List => self.list(&input, ctx).await,
+            ProposalAction::Accept | ProposalAction::Reject => {
+                self.review(input, ctx, exec_id).await
+            },
+        }
     }
 }

@@ -30,7 +30,7 @@ impl McpToolHandler for TrashHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Trash a document. Guide topic: lifecycle."
+        "Trash a document."
     }
 
     async fn handle(
@@ -116,7 +116,7 @@ impl McpToolHandler for CopyHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Copy a document's head into a new one you own."
+        "Copy a document."
     }
 
     async fn handle(
@@ -215,7 +215,7 @@ impl McpToolHandler for AccessHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Owner, grants, inherited grants and your access level."
+        "Owner, grants and your access."
     }
 
     fn read_only(&self) -> bool {

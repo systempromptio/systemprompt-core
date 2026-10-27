@@ -96,8 +96,8 @@ edit access. Without mode, a caller holding comment but not edit access proposes
 agent proposes in a folder whose agent edit policy (or an ancestor's) is propose. The ack \
 carries proposal_id; revision_id is the proposed revision and written its lines against the \
 base. A newer proposal of yours on the same document supersedes your open one. \
-documents_proposals {document_id, status?} lists them; documents_review {proposal_id, action: \
-accept | reject, note?} needs edit access. Accept makes the proposed revision the head when \
+documents_proposals {document_id} lists them; documents_proposals {action: accept | reject, \
+proposal_id, note?} reviews one and needs edit access. Accept makes the proposed revision the head when \
 the head is still its base; otherwise its ops apply again on the head, and a node changed in \
 between refuses as proposal_conflict.";
 

@@ -83,7 +83,7 @@ impl McpToolHandler for ListHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List documents by scope (folder, shared, mine, recent); pass next_cursor as cursor."
+        "List documents by scope; pass next_cursor as cursor."
     }
 
     fn read_only(&self) -> bool {
@@ -167,7 +167,7 @@ impl McpToolHandler for SearchHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Full-text search over the head revision of every document you may view."
+        "Full-text search of documents you may view."
     }
 
     fn read_only(&self) -> bool {
@@ -217,7 +217,7 @@ impl McpToolHandler for HistoryHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "A document's revisions, newest first, with author, actor kind and message."
+        "Revisions, newest first."
     }
 
     fn read_only(&self) -> bool {

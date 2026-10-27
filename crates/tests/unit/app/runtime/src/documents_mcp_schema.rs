@@ -9,7 +9,6 @@ const READ_ONLY: [&str; 7] = [
     "documents_read",
     "documents_history",
     "documents_access",
-    "documents_proposals",
     "documents_export",
     "documents_guide",
 ];

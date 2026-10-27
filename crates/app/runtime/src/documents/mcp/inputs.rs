@@ -13,7 +13,7 @@ use systemprompt_identifiers::{
     DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{
-    AccessLevel, DocumentFormat, EditMode, EditOp, ProposalStatus,
+    AccessLevel, DocumentFormat, EditMode, EditOp,
 };
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -266,24 +266,23 @@ where
     Option::<DocumentFolderId>::deserialize(deserializer).map(FolderMove::from_present)
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct ProposalsInput {
-    pub document_id: DocumentId,
-    #[serde(default)]
-    pub status: Option<ProposalStatus>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum ReviewAction {
+pub enum ProposalAction {
+    #[default]
+    List,
     Accept,
     Reject,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct ReviewInput {
-    pub proposal_id: DocumentProposalId,
-    pub action: ReviewAction,
+pub struct ProposalsInput {
+    #[serde(default)]
+    pub action: ProposalAction,
+    #[serde(default)]
+    pub document_id: Option<DocumentId>,
+    #[serde(default)]
+    pub proposal_id: Option<DocumentProposalId>,
     #[serde(default)]
     pub note: Option<String>,
 }

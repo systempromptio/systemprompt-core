@@ -21,7 +21,7 @@ use systemprompt_mcp::McpToolHandler;
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
     ExportHandler, GuideHandler, HistoryHandler, ListHandler, ProposalsHandler, ReadHandler,
-    RestoreHandler, ReviewHandler, SearchHandler, ShareHandler, TrashHandler, UpdateHandler,
+    RestoreHandler, SearchHandler, ShareHandler, TrashHandler, UpdateHandler,
     preview_tool_meta,
 };
 
@@ -178,7 +178,6 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
         compact(CommentHandler { tools }.tool_definition(server), false),
         compact(HistoryHandler { tools }.tool_definition(server), false),
         compact(ProposalsHandler { tools }.tool_definition(server), false),
-        compact(ReviewHandler { tools }.tool_definition(server), false),
         compact(ShareHandler { tools }.tool_definition(server), false),
         compact(AccessHandler { tools }.tool_definition(server), false),
         compact(CopyHandler { tools }.tool_definition(server), false),

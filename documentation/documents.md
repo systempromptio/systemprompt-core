@@ -79,7 +79,7 @@ Each commit updates the per-document search index (full-text over the extracted 
 
 ## MCP tools
 
-Document tools are exposed through MCP and authorise as the calling user, never as the server. There are seventeen tools. Read-only tools are annotated as such.
+Document tools are exposed through MCP and authorise as the calling user, never as the server. There are sixteen tools. Read-only tools are annotated as such.
 
 | Tool | Purpose |
 |---|---|
@@ -90,8 +90,7 @@ Document tools are exposed through MCP and authorise as the calling user, never 
 | `documents_edit` | Apply edit operations as one revision on the head, guarded per node, optionally idempotent by `op_id`. `answering` records the revision on a comment; an edit that removes text a comment is anchored to is refused unless `allow_detach` is set. |
 | `documents_comment` | Create, list and resolve comment threads anchored to a node and, optionally, a quote inside it. |
 | `documents_history` | Revisions, newest first, with author, actor kind and message, and with `verbose` the session, context, trace, task and on-behalf-of user. |
-| `documents_proposals` | A document's proposals, optionally filtered by status (`open`, `accepted`, `rejected`, `superseded`). |
-| `documents_review` | Accept or reject a proposal, with an optional note. Needs edit access. |
+| `documents_proposals` | A document's proposals with their status, or, with `action: accept` or `reject`, review one with an optional note (needs edit access). |
 | `documents_share` | Grant a subject access to a document or a folder subtree, transfer a document's ownership, or revoke every grant on it. |
 | `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders, and the caller's level. |
 | `documents_copy` | A new document owned by the caller from another document's head, with its own history. |
@@ -119,7 +118,7 @@ The server `instructions` carry the working contract: read the outline, edit by 
 
 **Proposals.** An edit either lands on the head or is written as a proposal: a revision whose parent is its base and which never becomes the head on its own. `documents_edit` and `POST /edits` take `mode: land | propose`. Without a mode, a caller holding `comment` but not `edit` access proposes, an agent proposes in a folder whose agent edit policy is `propose` (set on the folder or inherited from any folder above it; the root is `direct`), and everyone else lands. `mode: land` needs `edit` access. The acknowledgement carries the `proposal_id`, the proposed revision and its lines against the base. A newer proposal from the same proposer on the same document supersedes the open one.
 
-Accepting needs `edit` access. When the head is still the proposal's base, the proposed revision becomes the head by compare-and-swap and keeps the proposer as its author. When the head has moved, the proposal's operations are applied again on the head under the same node guards as any edit, as a revision by the reviewer on behalf of the proposer; a node the proposal touches that changed in between refuses as `proposal_conflict` with its current text, and the proposal stays open. Rejecting records the reviewer and note. Every transition emits `document.proposal.opened`, `accepted`, `rejected` or `superseded` to the owner, present users and the proposer. `DocumentService::reject_open_for_document` rejects every open proposal of a document; removing a document calls it.
+Accepting needs `edit` access. When the head is still the proposal's base, the proposed revision becomes the head by compare-and-swap and keeps the proposer as its author. When the head has moved, the proposal's operations are applied again on the head under the same node guards as any edit, as a revision by the reviewer on behalf of the proposer; a node the proposal touches that changed in between refuses as `proposal_conflict` with its current text, and the proposal stays open. Rejecting records the reviewer and note. Every transition emits `document.proposal.opened`, `accepted`, `rejected` or `superseded` to the owner, present users and the proposer. Moving a document to the trash rejects its open proposals.
 
 **Export.** `native` as a URL works for every format, and `html` as a preview works for every format. `md` or `html` as a URL is offered only for a document already in that format, and `pdf` is refused as `unsupported_format`.
 

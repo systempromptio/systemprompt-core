@@ -1,6 +1,6 @@
 //! The proposal surface of the documents tools: `documents_edit` with
 //! `mode: propose`, a comment-only caller's edit landing as a proposal,
-//! `documents_proposals` and `documents_review`.
+//! and `documents_proposals` listing, accepting and rejecting.
 
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::service::ShareRequest;
@@ -13,7 +13,7 @@ use systemprompt_models::documents::{
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
     DocumentsMcpTools, EditHandler, EditInput, EditOutput, GuideHandler, GuideInput,
-    ProposalsHandler, ProposalsInput, ReviewAction, ReviewHandler, ReviewInput,
+    ProposalAction, ProposalsHandler, ProposalsInput,
 };
 
 use crate::documents_mcp_support::{
@@ -36,6 +36,8 @@ async fn edit(
                 base_revision: None,
                 mode,
                 op_id: None,
+                answering: None,
+                allow_detach: false,
                 ops: vec![EditOp::ReplaceText {
                     node: NodeTarget::Id(DocumentNodeId::new(node)),
                     expected_hash: Some(hash.to_owned()),
@@ -100,8 +102,10 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
     let (listed, summary) = ProposalsHandler { tools: &h.tools }
         .handle(
             ProposalsInput {
-                document_id: document.clone(),
-                status: Some(ProposalStatus::Open),
+                action: ProposalAction::List,
+                document_id: Some(document.clone()),
+                proposal_id: None,
+                note: None,
             },
             &ctx,
             &exec(),
@@ -112,11 +116,12 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
     assert_eq!(listed.proposals[0].proposal_id, proposal);
     assert!(summary.contains("suggestion"), "{summary}");
 
-    let (reviewed, _) = ReviewHandler { tools: &h.tools }
+    let (output, _) = ProposalsHandler { tools: &h.tools }
         .handle(
-            ReviewInput {
-                proposal_id: proposal.clone(),
-                action: ReviewAction::Accept,
+            ProposalsInput {
+                action: ProposalAction::Accept,
+                document_id: None,
+                proposal_id: Some(proposal.clone()),
                 note: None,
             },
             &ctx,
@@ -124,6 +129,7 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
         )
         .await
         .expect("accept");
+    let reviewed = output.reviewed.expect("reviewed");
     assert_eq!(reviewed.status, ProposalStatus::Accepted);
     assert_eq!(reviewed.revision_id.as_ref(), Some(&ack.revision_id));
     let head = read_text(&h.tools, &ctx, &document).await;
@@ -145,11 +151,12 @@ async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
     let ack = edit(&h.tools, &commenter_ctx, &document, ("green", "blue"), None).await;
     let proposal = ack.proposal_id.expect("comment-only edit proposes");
 
-    let refused = ReviewHandler { tools: &h.tools }
+    let refused = ProposalsHandler { tools: &h.tools }
         .handle(
-            ReviewInput {
-                proposal_id: proposal.clone(),
-                action: ReviewAction::Accept,
+            ProposalsInput {
+                action: ProposalAction::Accept,
+                document_id: None,
+                proposal_id: Some(proposal.clone()),
                 note: None,
             },
             &ctx_for(Some(&viewer)),
@@ -159,11 +166,12 @@ async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
         .expect_err("a viewer cannot accept");
     assert!(refused.message.contains("forbidden"), "{}", refused.message);
 
-    let (rejected, _) = ReviewHandler { tools: &h.tools }
+    let (output, _) = ProposalsHandler { tools: &h.tools }
         .handle(
-            ReviewInput {
-                proposal_id: proposal,
-                action: ReviewAction::Reject,
+            ProposalsInput {
+                action: ProposalAction::Reject,
+                document_id: None,
+                proposal_id: Some(proposal),
                 note: Some("keep green".to_owned()),
             },
             &owner_ctx,
@@ -171,12 +179,13 @@ async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
         )
         .await
         .expect("reject");
+    let rejected = output.reviewed.expect("reviewed");
     assert_eq!(rejected.status, ProposalStatus::Rejected);
     assert!(rejected.revision_id.is_none());
 }
 
 #[tokio::test]
-async fn the_proposals_guide_topic_names_the_review_tool() {
+async fn the_proposals_guide_topic_names_the_review_actions() {
     let h = harness().await;
     let owner = person("mcp-guide");
     let (_, text) = GuideHandler { tools: &h.tools }
@@ -189,6 +198,6 @@ async fn the_proposals_guide_topic_names_the_review_tool() {
         )
         .await
         .expect("guide");
-    assert!(text.contains("documents_review"), "{text}");
+    assert!(text.contains("action: accept"), "{text}");
     assert!(text.contains("proposal_conflict"), "{text}");
 }
