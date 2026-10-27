@@ -288,7 +288,7 @@ async fn a_newer_proposal_supersedes_the_open_one_and_events_reach_the_owner() {
 }
 
 #[tokio::test]
-async fn trashing_hook_rejects_open_proposals() {
+async fn trashing_a_document_rejects_its_open_proposals() {
     let h = harness(allow(), GroupSource::new(&[])).await;
     let owner = person("trash-owner");
     let (document, _) = memo(&h, &owner, None).await;
@@ -296,22 +296,20 @@ async fn trashing_hook_rejects_open_proposals() {
     let proposed = propose(&h, &owner, &document, vec![rewrite(&before, "gamma", "G")])
         .await
         .expect("propose");
-    let row = h
+    h.service
+        .trash(&owner, &document, &trace())
+        .await
+        .expect("trash");
+    let stored = h
         .repos
-        .documents
-        .find(&document)
+        .proposals
+        .find(&proposed.proposal.id)
         .await
         .expect("find")
-        .expect("document");
-    let rejected = h
-        .service
-        .reject_open_for_document(&row, Some("document trashed".to_owned()))
-        .await
-        .expect("reject open");
-    assert_eq!(rejected.len(), 1);
-    assert_eq!(rejected[0].id, proposed.proposal.id);
-    assert_eq!(rejected[0].status, ProposalStatus::Rejected);
-    assert_eq!(rejected[0].note.as_deref(), Some("document trashed"));
+        .expect("proposal");
+    assert_eq!(stored.status, ProposalStatus::Rejected);
+    assert!(stored.note.is_some());
+    assert!(h.service.open_proposals_for(&owner).await.expect("open").is_empty());
 }
 
 #[tokio::test]

@@ -16,10 +16,11 @@
 
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use systemprompt_identifiers::{DocumentId, DocumentProposalId, UserId};
 use systemprompt_models::documents::{
     DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent,
+    DocumentSharedEvent,
 };
 use tokio::sync::mpsc;
 
@@ -32,8 +33,6 @@ pub enum DriveSignal {
     Presence(Box<DocumentPresenceEvent>),
     Notice(Box<DocumentNotice>),
 }
-
-pub const DOCUMENT_SHARED: &str = "document.shared";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -51,24 +50,17 @@ pub struct DocumentNotice {
     pub detail: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct SharedFrame {
-    document_id: DocumentId,
-    by: UserId,
-    level: String,
-}
-
 #[must_use]
 pub fn notice_for(name: &str, value: &str) -> Option<DocumentNotice> {
     match name {
-        DOCUMENT_SHARED => {
-            let shared: SharedFrame = decode_frame(name, value)?;
+        DocumentSharedEvent::NAME => {
+            let shared: DocumentSharedEvent = decode_frame(name, value)?;
             Some(DocumentNotice {
                 kind: NoticeKind::Shared,
                 document_id: shared.document_id,
                 from: shared.by,
                 proposal_id: None,
-                detail: Some(shared.level),
+                detail: Some(shared.level.to_string()),
             })
         },
         DocumentProposalEvent::OPENED => {

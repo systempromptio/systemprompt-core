@@ -4,7 +4,7 @@
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    Accepted, CommitOutcome, CommitRequest, ReviewRequest,
+    Accepted, CommentPolicy, CommitOutcome, CommitRequest, ReviewRequest,
 };
 use systemprompt_identifiers::{DocumentId, DocumentProposalId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -44,6 +44,7 @@ async fn owner_edit(h: &Harness, owner: &AuthenticatedUser, document: &DocumentI
                 author: api_author(),
                 message: None,
                 lock_holder_id: None,
+                comments: CommentPolicy::default(),
             },
             &trace(),
         )

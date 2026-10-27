@@ -2,7 +2,7 @@
 //! one metadata update (rename and move).
 //!
 //! A trashed document is hidden from listings, reads and writes until it is
-//! restored; `DocumentTrashPurgeJob` hard-deletes it, with its revisions and
+//! restored, and trashing rejects its open proposals; `DocumentTrashPurgeJob` hard-deletes it, with its revisions and
 //! node ids, after `trash_retention_days`. Restoring into a folder that
 //! no longer exists lands the document at the root, and a name taken in the
 //! meantime gains the first free ` (restored)`, ` (restored 2)`, …
@@ -74,6 +74,8 @@ impl FolderMove {
     }
 }
 
+const TRASHED_NOTE: &str = "the document was moved to the trash";
+
 impl DocumentService {
     pub async fn trash(
         &self,
@@ -81,7 +83,10 @@ impl DocumentService {
         document: &DocumentId,
         trace: &TraceId,
     ) -> Result<(), DocumentsError> {
-        self.authorized_document(who, document, DocumentAction::Delete, trace)
+        let trashed = self
+            .authorized_document(who, document, DocumentAction::Delete, trace)
+            .await?;
+        self.reject_open_for_document(&trashed, Some(TRASHED_NOTE.to_owned()))
             .await?;
         if !self.repos.documents.trash(document, &who.id).await? {
             return Err(DocumentsError::not_found("document", document));
