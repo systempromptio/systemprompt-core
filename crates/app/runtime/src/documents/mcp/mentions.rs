@@ -10,9 +10,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
+use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::service::CommentOrigin;
-use systemprompt_identifiers::UserId;
-use systemprompt_models::execution::context::RequestContext;
+use systemprompt_identifiers::{ActorKind, UserId};
+use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
 use systemprompt_users::{User, UserRepository, normalise_email};
 
 use super::refusal::refusal;
@@ -30,6 +31,22 @@ pub(super) fn agent_origin(ctx: &RequestContext) -> CommentOrigin {
     CommentOrigin {
         via_agent: Some(if valid { name } else { UNNAMED_AGENT }.to_owned()),
     }
+}
+
+/// The actor every documents tool call runs as: always an agent, since
+/// this surface is driven by one, named as [`agent_origin`] records it.
+/// `attended` is `false` for a headless call: a request marked
+/// non-interactive, or one whose actor is a scheduled job or the system.
+/// Nothing else marks a run headless today, so an agent run that reaches
+/// the tools with a user's token counts as attended.
+pub(super) fn document_actor(ctx: &RequestContext) -> DocumentActor {
+    let headless_mode =
+        ctx.settings.user_interaction_mode == Some(UserInteractionMode::NonInteractive);
+    let headless_actor = matches!(ctx.actor().kind, ActorKind::Job { .. } | ActorKind::System);
+    let name = agent_origin(ctx)
+        .via_agent
+        .unwrap_or_else(|| UNNAMED_AGENT.to_owned());
+    DocumentActor::agent(name, !(headless_mode || headless_actor))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

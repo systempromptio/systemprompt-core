@@ -17,6 +17,7 @@ use systemprompt_models::documents::{AccessLevel, DocumentAction};
 
 use super::DocumentService;
 use crate::documents::access::AccessTarget;
+use crate::documents::agents::EffectiveCap;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{
     Document, DocumentAccessRequest, DocumentFolder, DocumentGrant, DocumentGrantEvent, GrantTarget,
@@ -47,6 +48,8 @@ pub struct TargetAccess<T> {
     pub my_access: AccessLevel,
     pub history: Vec<DocumentGrantEvent>,
     pub requests: Vec<DocumentAccessRequest>,
+    /// The cap an agent caller acts under here, and why; `None` for a person.
+    pub agent_cap: Option<EffectiveCap>,
 }
 
 pub type DocumentAccess = TargetAccess<Document>;
@@ -73,6 +76,7 @@ impl DocumentService {
             .document
             .ok_or_else(|| DocumentsError::not_found("document", document))?;
         let mut access = TargetAccess::bare(current.owner_user_id.clone(), granted.level, current);
+        access.agent_cap = granted.agent_cap;
         if access.my_access < AccessLevel::Share {
             return Ok(access);
         }
@@ -108,6 +112,7 @@ impl DocumentService {
             .folder
             .ok_or_else(|| DocumentsError::not_found("folder", folder))?;
         let mut access = TargetAccess::bare(current.owner_user_id.clone(), granted.level, current);
+        access.agent_cap = granted.agent_cap;
         if access.my_access < AccessLevel::Share {
             return Ok(access);
         }
@@ -175,6 +180,7 @@ impl<T> TargetAccess<T> {
             my_access,
             history: Vec::new(),
             requests: Vec::new(),
+            agent_cap: None,
         }
     }
 }

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT agent_cap FROM documents WHERE id = $1::text::uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "agent_cap",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "agent_cap"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "9837b966c93b7677066fbbc044376fc9b30dd906ebbdf0ac8cead8c347a365c3"
+}

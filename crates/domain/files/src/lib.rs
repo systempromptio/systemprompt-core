@@ -43,6 +43,8 @@ pub(crate) mod repository;
 pub(crate) mod services;
 pub mod uploads;
 
+#[doc(hidden)]
+pub use ::inventory as __inventory;
 pub use error::{FilesError, FilesResult};
 pub use extension::FilesExtension;
 

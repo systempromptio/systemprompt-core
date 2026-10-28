@@ -52,8 +52,11 @@ impl McpToolHandler for AccessHandler<'_> {
         )
         .await
         .map_err(tool_error)?;
+        let agent_cap = access.agent_cap.as_ref().map_or_else(String::new, |cap| {
+            format!("; agent cap {}: {}", cap.cap, cap.reason)
+        });
         let summary = format!(
-            "owner {}, {} grants, {} inherited, {} open requests; you hold {}",
+            "owner {}, {} grants, {} inherited, {} open requests; you hold {}{agent_cap}",
             access.owner,
             access.grants.len(),
             access.inherited.len(),

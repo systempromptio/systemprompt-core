@@ -1,0 +1,108 @@
+//! [`AgentAccessPolicy`]: the seam an extension decides agent caps through.
+//!
+//! Core holds the mechanics; the policy is the extension's. An extension
+//! registers one with
+//! [`register_agent_access_policy!`](crate::register_agent_access_policy);
+//! with none registered, [`DefaultAgentAccessPolicy`] answers `edit` on every
+//! document and allows no [`AgentCapability`], which is today's behaviour
+//! plus the hard rules. When several are registered the one whose name sorts
+//! first wins and the rest are logged as ignored, so the choice does not
+//! depend on link order.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
+
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
+use systemprompt_models::documents::DocumentFormat;
+
+use super::actor::AgentActor;
+use super::cap::{AgentCap, AgentCapability};
+
+/// What a policy knows about the target: a document, or a folder when
+/// `document_id` is `None`. `folders` is the target's folder (or the folder
+/// itself) followed by every folder above it; empty at the root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentContext {
+    pub document_id: Option<DocumentId>,
+    pub folders: Vec<DocumentFolderId>,
+    pub owner: Option<UserId>,
+    pub name: Option<String>,
+    pub format: Option<DocumentFormat>,
+    pub on_behalf_of: UserId,
+}
+
+pub trait AgentAccessPolicy: Send + Sync + 'static {
+    /// A short stable name, shown in `documents_access` as the cap's source.
+    fn name(&self) -> &'static str;
+
+    /// The most `agent` may do on the target. The owner's override can only
+    /// lower it.
+    fn cap(&self, doc: &DocumentContext, agent: &AgentActor) -> AgentCap {
+        let _ = (doc, agent);
+        AgentCap::Edit
+    }
+
+    /// Whether `agent` may take `capability` on the target. Denied by
+    /// default.
+    fn allows(
+        &self,
+        capability: AgentCapability,
+        doc: &DocumentContext,
+        agent: &AgentActor,
+    ) -> bool {
+        let _ = (capability, doc, agent);
+        false
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DefaultAgentAccessPolicy;
+
+impl AgentAccessPolicy for DefaultAgentAccessPolicy {
+    fn name(&self) -> &'static str {
+        "default"
+    }
+}
+
+/// One registered policy, submitted through
+/// [`register_agent_access_policy!`](crate::register_agent_access_policy).
+#[derive(Debug, Clone, Copy)]
+pub struct AgentAccessPolicyRegistration {
+    pub name: &'static str,
+    pub build: fn() -> Arc<dyn AgentAccessPolicy>,
+}
+
+inventory::collect!(AgentAccessPolicyRegistration);
+
+#[macro_export]
+macro_rules! register_agent_access_policy {
+    ($name:expr, $build:expr $(,)?) => {
+        $crate::__inventory::submit! {
+            $crate::documents::agents::AgentAccessPolicyRegistration {
+                name: $name,
+                build: $build,
+            }
+        }
+    };
+}
+
+/// The policy in force: the registered one, or the default.
+#[must_use]
+pub fn registered_policy() -> Arc<dyn AgentAccessPolicy> {
+    let mut registered: Vec<&AgentAccessPolicyRegistration> =
+        inventory::iter::<AgentAccessPolicyRegistration>().collect();
+    registered.sort_by_key(|registration| registration.name);
+    let Some((chosen, ignored)) = registered.split_first() else {
+        return Arc::new(DefaultAgentAccessPolicy);
+    };
+    for other in ignored {
+        tracing::warn!(
+            chosen = chosen.name,
+            ignored = other.name,
+            "More than one agent access policy is registered; only the first by name applies"
+        );
+    }
+    (chosen.build)()
+}

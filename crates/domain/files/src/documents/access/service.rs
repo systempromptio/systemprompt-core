@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use systemprompt_governance::authz::{
-    AccessControlRepository, AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,
+    AccessControlRepository, AuthzContext, AuthzDecision, EntityRef, SharedAuthzHook,
 };
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -15,6 +15,9 @@ use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use uuid::Uuid;
 
 use super::SubjectDirectory;
+use super::agent::AgentGate;
+use super::request::{authz_request, not_found};
+use crate::documents::agents::{AgentAccessPolicy, EffectiveCap, registered_policy};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder, SubjectPairs};
 use crate::documents::repository::{
@@ -34,6 +37,8 @@ pub struct Granted {
     pub pairs: SubjectPairs,
     pub document: Option<Document>,
     pub folder: Option<DocumentFolder>,
+    /// The cap an agent caller acted under; `None` for a person.
+    pub agent_cap: Option<EffectiveCap>,
 }
 
 #[must_use]
@@ -72,6 +77,7 @@ pub(super) struct Resolved {
     pub(super) document: Option<Document>,
     pub(super) folder: Option<DocumentFolder>,
     pub(super) nearest_folder: Option<DocumentFolderId>,
+    pub(super) chain: Vec<DocumentFolderId>,
 }
 
 /// Decides whether a user may perform a [`DocumentAction`] on a document or
@@ -84,6 +90,7 @@ pub struct DocumentAccessService {
     pub(super) hook: SharedAuthzHook,
     pub(super) subjects: Arc<dyn SubjectAttributeSource>,
     pub(super) directory: Arc<dyn SubjectDirectory>,
+    pub(super) agents: Arc<dyn AgentAccessPolicy>,
 }
 
 impl std::fmt::Debug for DocumentAccessService {
@@ -115,7 +122,16 @@ impl DocumentAccessService {
             hook,
             subjects,
             directory,
+            agents: registered_policy(),
         }
+    }
+
+    /// Replaces the registered agent access policy, for a composition root
+    /// or a test that sets it explicitly.
+    #[must_use]
+    pub fn with_agent_policy(mut self, policy: Arc<dyn AgentAccessPolicy>) -> Self {
+        self.agents = policy;
+        self
     }
 
     pub async fn authorize(
@@ -206,7 +222,12 @@ impl DocumentAccessService {
             .as_ref()
             .map(|d| d.owner_user_id.clone())
             .or_else(|| resolved.folder.as_ref().map(|f| f.owner_user_id.clone()));
-        let level = match resolved.level {
+        let gate = self.agent_gate(who, &resolved).await?;
+        let held = match &gate {
+            Some(gate) => gate.held(&resolved, action)?,
+            None => resolved.level,
+        };
+        let level = match held {
             Some(level) if level >= needed => level,
             None if owner.is_some() => {
                 return Err(not_found(&resolved));
@@ -239,12 +260,21 @@ impl DocumentAccessService {
             HookMode::Probe => self.hook.probe(request).await,
         };
         match decision {
-            AuthzDecision::Allow => Ok(Granted {
-                level,
-                pairs,
-                document: resolved.document,
-                folder: resolved.folder,
-            }),
+            AuthzDecision::Allow => {
+                if mode == HookMode::Evaluate
+                    && let (Some(gate), Some(document)) = (&gate, &resolved.document)
+                {
+                    self.audit_agent_read(who, gate, document, action, trace)
+                        .await?;
+                }
+                Ok(Granted {
+                    level,
+                    pairs,
+                    document: resolved.document,
+                    folder: resolved.folder,
+                    agent_cap: gate.map(AgentGate::into_cap),
+                })
+            },
             AuthzDecision::Deny { reason, policy } => {
                 tracing::info!(
                     user_id = %who.id,
@@ -264,36 +294,5 @@ impl DocumentAccessService {
                 })
             },
         }
-    }
-}
-
-fn not_found(resolved: &Resolved) -> DocumentsError {
-    match (&resolved.document, &resolved.folder) {
-        (Some(document), _) => DocumentsError::not_found("document", &document.id),
-        (None, Some(folder)) => DocumentsError::not_found("folder", &folder.id),
-        (None, None) => DocumentsError::not_found("document", "root"),
-    }
-}
-
-fn authz_request(
-    who: &AuthenticatedUser,
-    entity: EntityRef,
-    context: AuthzContext,
-    trace: &TraceId,
-) -> AuthzRequest {
-    AuthzRequest {
-        entity,
-        user_id: who.id.clone(),
-        actor: None,
-        client_id: None,
-        access_scope: None,
-        roles: who.roles.clone(),
-        attributes: who.attributes.clone(),
-        trace_id: trace.clone(),
-        session_id: None,
-        context,
-        context_id: None,
-        task_id: None,
-        act_chain: Vec::new(),
     }
 }

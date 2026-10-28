@@ -336,6 +336,7 @@ Only the first source may be a base bundle. Every later source must own nothing 
 | `limits.maxCollabUpdateBytes` | integer | `4194304` (4 MiB) | 1 KiB to 64 MiB | One live co-editing update. |
 | `limits.maxCursorBytes` | integer | `4096` (4 KiB) | 256 B to 64 KiB | One editor cursor payload. |
 | `limits.pdfPages` | integer | `500` | 1 to 5,000 | Pages a PDF export may run to; a longer rendering is refused as `too_large`. |
+| `limits.agentEditsPerHour` | integer | `600` | 1 to 1,000,000 | Edit operations a user's agents may make per hour, per replica; more are refused as `agent_rate_limited`. |
 
 A request over any `limits.*` value or `maxUploadBytes` is refused with `too_large` (HTTP 413). The MCP server declaration (`services/mcp/<name>.yaml` `enabled:`) and the bridge's `[drive] enabled` setting are the two further switches that decide whether agents and devices use the store.
 

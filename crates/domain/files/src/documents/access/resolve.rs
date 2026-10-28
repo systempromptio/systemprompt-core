@@ -59,6 +59,7 @@ impl DocumentAccessService {
                     nearest_folder: document.folder_id.clone(),
                     document: Some(document),
                     folder: None,
+                    chain,
                 })
             },
             AccessTarget::Folder(Some(id)) => {
@@ -68,11 +69,11 @@ impl DocumentAccessService {
                     .await?
                     .filter(|f| f.trashed_at.is_none())
                     .ok_or_else(|| DocumentsError::not_found("folder", id))?;
+                let mut chain = vec![folder.id.clone()];
+                chain.extend(folder.ancestor_ids.iter().cloned());
                 let level = if folder.owner_user_id == who.id {
                     Some(AccessLevel::Own)
                 } else {
-                    let mut chain = vec![folder.id.clone()];
-                    chain.extend(folder.ancestor_ids.iter().cloned());
                     self.grants
                         .effective_level(&no_document(), &chain, pairs)
                         .await?
@@ -83,6 +84,7 @@ impl DocumentAccessService {
                     nearest_folder: Some(folder.id.clone()),
                     document: None,
                     folder: Some(folder),
+                    chain,
                 })
             },
             AccessTarget::Folder(None) => Ok(Resolved {
@@ -91,6 +93,7 @@ impl DocumentAccessService {
                 document: None,
                 folder: None,
                 nearest_folder: None,
+                chain: Vec::new(),
             }),
         }
     }

@@ -179,6 +179,9 @@ There are 23 codes (`RefusalCode::ALL` in `crates/app/runtime/src/documents/refu
 | `integrity_mismatch` | 422 | Uploaded bytes do not hash to the declared hash. | |
 | `op_id_mismatch` | 409 | The op id was used for a different request. | |
 | `self_review` | 403 | The reviewer proposed it. | |
+| `agent_forbidden` | 403 | An agent acting for the user is stopped by the document's agent cap, or by a rule agents meet on any cap (share, mention-grant, trash, move or transfer, restore, whole-file replace) that the agent access policy does not lift. | `owner` |
+| `agent_suggest_only` | 403 | The agent cap is `suggest`: write the change as a proposal. | |
+| `agent_rate_limited` | 429 | The user's agents passed `limits.agentEditsPerHour`. | |
 | `access_request_open` | 409 | The caller already has an open request on the document. | |
 | `access_request_not_needed` | 400 | The caller already holds a level on the document. | |
 | `access_request_closed` | 409 | The request was already granted or declined. | |
@@ -360,6 +363,7 @@ The store reads the `files.documents` section of `<services>/config/files.yaml`.
 | `limits.maxCollabUpdateBytes` | 4 MiB | 1 KiB to 64 MiB | One live co-editing update. |
 | `limits.maxCursorBytes` | 4 KiB | 256 B to 64 KiB | One editor cursor payload. |
 | `limits.pdfPages` | 500 | 1 to 5,000 | Pages a PDF export may run to; a longer rendering is refused as `too_large`. |
+| `limits.agentEditsPerHour` | 600 | 1 to 1,000,000 | Edit operations a user's agents may make per hour, per replica; more are refused as `agent_rate_limited`. |
 
 Config validation rejects values outside the bounds.
 

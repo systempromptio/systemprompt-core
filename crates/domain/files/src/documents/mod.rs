@@ -30,6 +30,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod access;
+pub mod agents;
 mod blob_adopt;
 pub mod blob_store;
 pub mod codecs;

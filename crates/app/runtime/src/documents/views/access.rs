@@ -8,6 +8,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Serialize;
+use systemprompt_files::documents::agents::EffectiveCap;
 use systemprompt_files::documents::models::{
     DocumentAccessRequest, DocumentGrant, DocumentGrantEvent, GrantTarget,
 };
@@ -148,6 +149,25 @@ impl From<DocumentAccessRequest> for AccessRequestItem {
     }
 }
 
+/// The cap the calling agent acts under on the target, and why.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct AgentCapItem {
+    /// none, read, comment, suggest or edit.
+    pub cap: String,
+    pub policy_cap: String,
+    pub reason: String,
+}
+
+impl From<EffectiveCap> for AgentCapItem {
+    fn from(effective: EffectiveCap) -> Self {
+        Self {
+            cap: effective.cap.as_str().to_owned(),
+            policy_cap: effective.policy_cap.as_str().to_owned(),
+            reason: effective.reason(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct AccessOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -163,6 +183,8 @@ pub struct AccessOutput {
     pub history: Vec<GrantEventItem>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub requests: Vec<AccessRequestItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_cap: Option<AgentCapItem>,
 }
 impl From<DocumentAccess> for AccessOutput {
     fn from(access: DocumentAccess) -> Self {
@@ -183,6 +205,7 @@ impl From<DocumentAccess> for AccessOutput {
                 .into_iter()
                 .map(AccessRequestItem::from)
                 .collect(),
+            agent_cap: access.agent_cap.map(AgentCapItem::from),
         }
     }
 }
@@ -202,6 +225,7 @@ impl From<FolderAccess> for AccessOutput {
                 .map(GrantEventItem::from)
                 .collect(),
             requests: Vec::new(),
+            agent_cap: access.agent_cap.map(AgentCapItem::from),
         }
     }
 }

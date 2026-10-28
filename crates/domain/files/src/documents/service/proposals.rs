@@ -5,7 +5,9 @@
 //! access; a caller holding `comment` but not `edit` always proposes; an
 //! agent proposes when the document's folder, or any folder above it, sets
 //! the `propose` agent edit policy, and an agent's explicit `land` there is
-//! refused, since the folder policy outranks the request. A proposed revision's
+//! refused, since the folder policy outranks the request. An agent whose
+//! cap on the document is `suggest` always proposes, even when it asked to
+//! land: the edit is converted, not refused. A proposed revision's
 //! parent is its base, its ops are applied under the same node guards as a
 //! commit on the head, and its node ids carry forward from the base; the head
 //! never moves. A newer proposal from the same proposer on the same document
@@ -26,6 +28,7 @@ use super::prepare::{Applied, Draft};
 use super::support::blocking;
 use super::{Author, CommentPolicy, DocumentService};
 use crate::documents::access::AccessTarget;
+use crate::documents::agents::AgentCap;
 use crate::documents::error::DocumentsError;
 use crate::documents::model::Media;
 use crate::documents::models::{
@@ -71,6 +74,13 @@ impl DocumentService {
                 trace,
             )
             .await?;
+        if granted
+            .agent_cap
+            .as_ref()
+            .is_some_and(|cap| cap.cap == AgentCap::Suggest)
+        {
+            return Ok(EditMode::Propose);
+        }
         let can_land = granted.level >= AccessLevel::Edit;
         let held = granted.level;
         let document = granted.document;
@@ -125,6 +135,7 @@ impl DocumentService {
             .resolve_revision(&document, request.base_revision.as_ref())
             .await?;
         self.check_ops_limits(&request.ops)?;
+        self.admit_agent_edits(who, request.ops.len())?;
         let applied = self.apply_proposed(&document, &base, request.ops).await?;
         let prepared = self
             .prepare(

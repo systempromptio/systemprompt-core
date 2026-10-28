@@ -27,6 +27,7 @@ use self::labels::{
     base_label, closest_label, comment_list, conflict_label, held_label, kinds_label, policy_label,
 };
 use super::access::SubjectDirectoryError;
+use super::agents::AgentRefusal;
 use super::blob_store::BlobStoreError;
 use super::models::{ListCursorError, LockHolderKind};
 use super::templates::TemplateError;
@@ -232,6 +233,8 @@ pub enum DocumentsError {
         proposal_id: DocumentProposalId,
         status: ProposalStatus,
     },
+    #[error(transparent)]
+    Agent(#[from] AgentRefusal),
     #[error("document codec failed")]
     Codec(#[source] CodecError),
     #[error("document template {template_id} failed: {source}")]

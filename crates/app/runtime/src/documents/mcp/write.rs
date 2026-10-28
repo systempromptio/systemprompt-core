@@ -11,7 +11,9 @@
 //! of the same request returns it with `replayed`. Every write answers with
 //! the lines it wrote, diffed against the parent revision, so the next edit
 //! anchors on the ack. An edit whose mode resolves to
-//! `propose` is written as a proposal instead (see `proposals`).
+//! `propose` is written as a proposal instead (see `proposals`), and when
+//! the caller did not ask for one (an agent capped at `suggest`) the summary
+//! says it was converted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,6 +41,10 @@ use super::refusal::refusal;
 use super::support::{agent_author, caller, stale_base, tool_error};
 use crate::documents::refusal::RefusalCode;
 use crate::documents::views::{EditOutput, edit_ack, written_lines};
+
+const CONVERTED: &str = "Written as a proposal, not landed: agents may only suggest on this \
+                         document (its agent cap is suggest, or its folder's agent edit policy \
+                         is propose), or you hold comment but not edit";
 
 pub(super) struct EditCall<'a> {
     pub(super) tools: &'a DocumentsMcpTools,
@@ -108,7 +114,12 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
         .await
         .map_err(tool_error)?;
     if mode == EditMode::Propose {
-        return propose_ops(call).await;
+        let asked = call.mode;
+        let (output, summary) = propose_ops(call).await?;
+        if asked == Some(EditMode::Propose) {
+            return Ok((output, summary));
+        }
+        return Ok((output, format!("{summary}. {CONVERTED}")));
     }
     let refs = image_refs(None, &call.ops);
     let media = resolve_media(call.tools, call.ctx, refs, Some(&call.document)).await?;

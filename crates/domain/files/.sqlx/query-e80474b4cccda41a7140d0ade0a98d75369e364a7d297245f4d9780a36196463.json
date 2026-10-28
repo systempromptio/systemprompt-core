@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: DocumentFolderId\", agent_cap AS \"agent_cap!\"\n               FROM document_folders\n               WHERE id = ANY($1::text[]::uuid[]) AND agent_cap IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentFolderId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "agent_cap!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "agent_cap"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      true
+    ]
+  },
+  "hash": "e80474b4cccda41a7140d0ade0a98d75369e364a7d297245f4d9780a36196463"
+}

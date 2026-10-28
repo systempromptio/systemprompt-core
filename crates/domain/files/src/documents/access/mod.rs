@@ -37,8 +37,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod agent;
 mod catalog;
 mod directory;
+mod request;
 mod resolve;
 mod search;
 mod service;

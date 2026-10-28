@@ -33,10 +33,13 @@ pub enum RefusalCode {
     AccessRequestOpen,
     AccessRequestNotNeeded,
     AccessRequestClosed,
+    AgentForbidden,
+    AgentSuggestOnly,
+    AgentRateLimited,
 }
 
 impl RefusalCode {
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 26] = [
         Self::StaleBase,
         Self::GuardMismatch,
         Self::FindNone,
@@ -60,6 +63,9 @@ impl RefusalCode {
         Self::AccessRequestOpen,
         Self::AccessRequestNotNeeded,
         Self::AccessRequestClosed,
+        Self::AgentForbidden,
+        Self::AgentSuggestOnly,
+        Self::AgentRateLimited,
     ];
 
     #[must_use]
@@ -88,6 +94,9 @@ impl RefusalCode {
             Self::AccessRequestOpen => "access_request_open",
             Self::AccessRequestNotNeeded => "access_request_not_needed",
             Self::AccessRequestClosed => "access_request_closed",
+            Self::AgentForbidden => "agent_forbidden",
+            Self::AgentSuggestOnly => "agent_suggest_only",
+            Self::AgentRateLimited => "agent_rate_limited",
         }
     }
 

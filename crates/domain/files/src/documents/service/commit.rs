@@ -23,6 +23,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, EditOp};
 use systemprompt_provider_contracts::documents::NodeFragment;
 
+use super::agent_rules::body_ops;
 use super::apply::AppliedOps;
 use super::commit_build::Conflicted;
 use super::landed::Pending;
@@ -84,18 +85,23 @@ impl DocumentService {
             .authorized_document(who, &request.document_id, DocumentAction::Edit, trace)
             .await?;
         self.check_body_limits(&request.body)?;
+        self.agent_write_rules(who, &document, &request.body)
+            .await?;
         let digest = super::acks::request_digest(request.base_revision.as_ref(), &request.body)?;
         let scope = Scope {
             document: &document,
             settles,
             digest: &digest,
         };
+        let ops = body_ops(&request.body);
         let Some(op_id) = request.op_id.clone() else {
+            self.admit_agent_edits(who, ops)?;
             return self.commit_document(who, request, scope).await;
         };
         if let Some(stored) = self.repos.write_acks.find(&document.id, &op_id).await? {
             return self.replay(who, &op_id, &digest, stored).await;
         }
+        self.admit_agent_edits(who, ops)?;
         let outcome = self.commit_document(who, request, scope).await;
         if matches!(outcome, Err(_) | Ok(CommitOutcome::Conflict { .. }))
             && let Some(stored) = self.repos.write_acks.find(&document.id, &op_id).await?

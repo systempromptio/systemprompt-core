@@ -19,6 +19,7 @@ mod codec;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::agents::AgentRefusal;
 use systemprompt_files::documents::models::DocumentRevision;
 use systemprompt_identifiers::{
     ContentHash, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
@@ -203,6 +204,17 @@ fn service_refusal(error: &DocumentsError) -> Option<Refusal> {
     })
 }
 
+const fn agent_code(refusal: &AgentRefusal) -> RefusalCode {
+    match refusal {
+        AgentRefusal::CapExceeded { .. } | AgentRefusal::HardRule { .. } => {
+            RefusalCode::AgentForbidden
+        },
+        AgentRefusal::SuggestOnly { .. } => RefusalCode::AgentSuggestOnly,
+        AgentRefusal::RateLimited { .. } => RefusalCode::AgentRateLimited,
+        AgentRefusal::OverrideLooser { .. } => RefusalCode::InvalidParams,
+    }
+}
+
 const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
     match error {
         DocumentsError::Conflict { .. } => Some(RefusalCode::StaleBase),
@@ -233,6 +245,7 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         DocumentsError::AccessRequestOpen { .. } => Some(RefusalCode::AccessRequestOpen),
         DocumentsError::AccessRequestNotNeeded { .. } => Some(RefusalCode::AccessRequestNotNeeded),
         DocumentsError::AccessRequestClosed { .. } => Some(RefusalCode::AccessRequestClosed),
+        DocumentsError::Agent(refusal) => Some(agent_code(refusal)),
         DocumentsError::InvalidParams { .. }
         | DocumentsError::ContentRefused { .. }
         | DocumentsError::GuardMissing { .. }

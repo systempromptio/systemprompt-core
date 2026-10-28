@@ -127,6 +127,18 @@ proposal_id, note?} reviews one and needs edit access; nobody accepts their own 
 the head is still its base; otherwise its ops apply again on the head, and a node changed in \
 between refuses as proposal_conflict.";
 
+pub(super) const AGENTS: &str = "\
+You act for your user, never above them, and each document caps what an agent may do there: \
+none (the document is invisible to you: lists, search and reads skip it), read, comment, \
+suggest (your edits are written as proposals for a person to accept; the ack says so) or \
+edit. Your level is the lower of your user's and the cap. The cap comes from the \
+deployment's agent policy and an owner's override on the document or a folder above it, \
+which can only tighten it; documents_access shows your agent_cap and why. Whatever the cap, \
+agents do not share or change grants, give access by mentioning someone (mention only people \
+who can already see the document), trash, untrash or delete, move or transfer, restore an \
+old revision, or replace a whole file, unless the policy allows it: ask your user. Agent \
+edits are limited per user per hour (agent_rate_limited).";
+
 pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
     match code {
         RefusalCode::StaleBase => {
@@ -229,6 +241,19 @@ const fn access_refusal_text(code: RefusalCode) -> &'static str {
         RefusalCode::AccessRequestClosed => {
             "access_request_closed: the request was already granted or declined; only an open \
              request can be answered."
+        },
+        RefusalCode::AgentForbidden => {
+            "agent_forbidden: your user may do this but agents may not here: the document's \
+             agent cap is below the action, or the action is one agents never take. Ask your \
+             user. See topic agents."
+        },
+        RefusalCode::AgentSuggestOnly => {
+            "agent_suggest_only: agents may only suggest on this document; resend the change \
+             with mode: propose and a person reviews it."
+        },
+        RefusalCode::AgentRateLimited => {
+            "agent_rate_limited: your user's agents have made the most edits allowed this \
+             hour; wait the seconds the message names, then retry with the same op_id."
         },
         _ => "",
     }

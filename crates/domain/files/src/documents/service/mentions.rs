@@ -12,6 +12,10 @@
 //! thread) in the comment's own statement, which needs the author to hold
 //! `share`; without it the comment is refused, and nothing is stored. The
 //! agent never holds more than its user: `who` is always the calling user.
+//! An agent's mention never grants unless the agent access policy allows
+//! `mention_grant`: mentioning someone without access is refused as
+//! `agent_forbidden`, and a mention of someone who has access only notifies.
+//! Once the policy allows it, the share check is the user's own.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,6 +30,7 @@ use systemprompt_models::documents::{
 use super::DocumentService;
 use super::ownership::{ShareCause, USER_SUBJECT};
 use crate::documents::access::AccessTarget;
+use crate::documents::agents::{AgentCapability, DocumentActor, act_as};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentComment, MentionGrants};
 
@@ -158,12 +163,15 @@ impl DocumentService {
             .collect();
         if !users.is_empty() {
             self.access
-                .authorize(
-                    who,
-                    AccessTarget::Document(document.id.clone()),
-                    DocumentAction::Share,
-                    trace,
-                )
+                .require_agent_capability(who, document, AgentCapability::MentionGrant)
+                .await?;
+            let share = self.access.authorize(
+                who,
+                AccessTarget::Document(document.id.clone()),
+                DocumentAction::Share,
+                trace,
+            );
+            act_as(DocumentActor::Human, share)
                 .await
                 .map_err(|_denied| DocumentsError::InvalidComment {
                     detail: "a mentioned user holds no access to the document, and sharing it \

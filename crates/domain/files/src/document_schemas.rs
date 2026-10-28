@@ -120,6 +120,11 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         &["id", "event", "target_kind", "target_id", "created_at"],
     ),
     (
+        "document_agent_reads",
+        include_str!("../schema/document_agent_reads.sql"),
+        &["id", "document_id", "user_id", "agent_name", "created_at"],
+    ),
+    (
         "document_access_requests",
         include_str!("../schema/document_access_requests.sql"),
         &["id", "document_id", "requester_user_id", "status"],

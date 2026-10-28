@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Files:** agent access caps on documents. A documents service call runs as a `DocumentActor` (`Human`, or `Agent { name, attended }` set with `documents::agents::act_as`; the MCP documents tools set it). An agent's level is the lower of the user's level and the document's `AgentCap` (`none`, `read`, `comment`, `suggest`, `edit`): `none` hides the document from lists, search and reads, and `suggest` turns edits into proposals. The cap comes from an `AgentAccessPolicy` registered with `register_agent_access_policy!` (core's default answers `edit`) and an owner-set override on a document or folder (`GET`/`PUT /api/v1/documents/{id}/agent-cap`, `/api/v1/document-folders/{id}/agent-cap`) that only tightens it. Agents cannot share, mention-grant, trash, move, transfer, restore a revision or replace a whole file unless the policy allows that `AgentCapability`. Agent reads under a cap below `edit` are audited in `document_agent_reads` (migration 024), agent edits are limited by `files.documents.limits.agentEditsPerHour`, and refusals use `agent_forbidden`, `agent_suggest_only` and `agent_rate_limited`. `documents_access` reports the caller's `agent_cap`, and `documents_guide` gains the `agents` topic.
+
+### Breaking
+
+- **Breaking:** **Files:** `DocumentsError` gains `Agent(AgentRefusal)`, `Granted` gains `agent_cap`, `TargetAccess` gains `agent_cap`, and `DocumentLimits` gains `agent_edits_per_hour`. Migrate by adding arms (or a wildcard) to exhaustive matches and the fields to struct literals (`..Default::default()` for `DocumentLimits`).
+
 ## [0.75.0] - 2026-10-27
 
 ### Breaking

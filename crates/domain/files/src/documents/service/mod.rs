@@ -22,6 +22,8 @@
 mod access_requests;
 mod access_view;
 mod acks;
+mod agent_caps;
+mod agent_rules;
 mod apply;
 mod byte_diff;
 mod comments;
@@ -67,6 +69,7 @@ pub use access_requests::{AccessDecision, AccessRequestInput, DecideRequest};
 pub use access_view::{
     DocumentAccess, FolderAccess, InheritedGrant, MAX_GRANT_HISTORY, TargetAccess,
 };
+pub use agent_caps::{AgentCapTarget, AgentCapView};
 pub use comments::{CommentRequest, ResolveCommentRequest};
 pub use comments_edit::{DeleteCommentRequest, EditCommentRequest};
 pub use comments_export::ExportedDocument;
@@ -89,6 +92,7 @@ pub use types::{
 };
 
 use super::access::DocumentAccessService;
+use super::agents::AgentRateLimiter;
 use super::blob_store::BlobStore;
 use super::codecs::CodecRegistry;
 use super::events::DocumentEvents;
@@ -108,6 +112,7 @@ pub struct DocumentService {
     events: Arc<DocumentEvents>,
     config: DocumentsConfig,
     uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
+    agent_edits: Arc<AgentRateLimiter>,
     #[cfg(feature = "collab")]
     collab: Arc<std::sync::OnceLock<std::sync::Weak<super::collab::CollabService>>>,
 }
@@ -134,6 +139,9 @@ impl DocumentService {
             templates: parts.templates,
             access: parts.access,
             events: parts.events,
+            agent_edits: Arc::new(AgentRateLimiter::new(
+                parts.config.limits.agent_edits_per_hour,
+            )),
             config: parts.config,
             uploads: Arc::default(),
             #[cfg(feature = "collab")]

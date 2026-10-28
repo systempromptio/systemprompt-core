@@ -1,5 +1,6 @@
 //! The `files.documents.limits` section: per-request input limits of the
-//! document store and the PDF export page cap, each with a floor and a
+//! document store, the PDF export page cap and the per-user ceiling on
+//! agent edits per hour, each with a floor and a
 //! ceiling an operator may set between.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -17,6 +18,7 @@ const COMMENT_BOUNDS: (u64, u64) = (256, MIB);
 const COLLAB_UPDATE_BOUNDS: (u64, u64) = (KIB, 64 * MIB);
 const CURSOR_BOUNDS: (u64, u64) = (256, 64 * KIB);
 const PDF_PAGES_BOUNDS: (u64, u64) = (1, 5_000);
+const AGENT_EDITS_BOUNDS: (u64, u64) = (1, 1_000_000);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -28,6 +30,7 @@ pub struct DocumentLimits {
     pub max_collab_update_bytes: u64,
     pub max_cursor_bytes: u64,
     pub pdf_pages: u64,
+    pub agent_edits_per_hour: u64,
 }
 
 impl Default for DocumentLimits {
@@ -40,13 +43,14 @@ impl Default for DocumentLimits {
             max_collab_update_bytes: 4 * MIB,
             max_cursor_bytes: 4 * KIB,
             pdf_pages: 500,
+            agent_edits_per_hour: 600,
         }
     }
 }
 
 impl DocumentLimits {
     #[must_use]
-    pub const fn bounded(&self) -> [(&'static str, u64, (u64, u64)); 7] {
+    pub const fn bounded(&self) -> [(&'static str, u64, (u64, u64)); 8] {
         [
             ("maxOpsPerCall", self.max_ops_per_call, OPS_PER_CALL_BOUNDS),
             ("maxOpTextBytes", self.max_op_text_bytes, OP_TEXT_BOUNDS),
@@ -59,6 +63,11 @@ impl DocumentLimits {
             ),
             ("maxCursorBytes", self.max_cursor_bytes, CURSOR_BOUNDS),
             ("pdfPages", self.pdf_pages, PDF_PAGES_BOUNDS),
+            (
+                "agentEditsPerHour",
+                self.agent_edits_per_hour,
+                AGENT_EDITS_BOUNDS,
+            ),
         ]
     }
 }

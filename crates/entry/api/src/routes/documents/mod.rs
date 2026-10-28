@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod access;
+mod agent_cap;
 mod caller;
 #[cfg(feature = "collab")]
 mod collab;
@@ -169,6 +170,10 @@ pub fn router(state: DocumentsState) -> Router {
         )
         .route("/{id}/export/docx", get(export::docx))
         .route("/{id}/access", get(access::access))
+        .route(
+            "/{id}/agent-cap",
+            get(agent_cap::get_document).put(agent_cap::put_document),
+        )
         .route("/{id}/transfer", post(access::transfer))
         .route("/{id}/grants/all", delete(access::revoke_all))
         .route("/{id}/untrash", post(lifecycle::untrash))
@@ -221,5 +226,9 @@ pub fn folders_router(state: DocumentsState) -> Router {
                 .delete(folder_sharing::revoke),
         )
         .route("/{id}/access", get(folder_sharing::access))
+        .route(
+            "/{id}/agent-cap",
+            get(agent_cap::get_folder).put(agent_cap::put_folder),
+        )
         .with_state(state)
 }

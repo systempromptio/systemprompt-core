@@ -48,6 +48,7 @@ use rmcp::model::{
     ReadResourceResult, Tool,
 };
 use systemprompt_files::documents::DocumentService;
+use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{ClientProfile, McpToolExecutor};
@@ -220,7 +221,13 @@ impl DocumentsMcpTools {
         listing::tool_list(self)
     }
 
+    /// Runs one tool as the agent the request context names: every service
+    /// call it makes is capped by the document's agent cap.
     pub async fn call(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
+        act_as(mentions::document_actor(call.context), self.dispatch(call)).await
+    }
+
+    async fn dispatch(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
         match call.request.name.as_ref() {
             "documents_list" => Box::pin(run(call, &ListHandler { tools: self })).await,
             "documents_search" => Box::pin(run(call, &SearchHandler { tools: self })).await,

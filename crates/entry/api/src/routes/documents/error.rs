@@ -5,7 +5,7 @@
 //! refusal's typed detail (the head and base revisions, the anchor's node,
 //! hash and current text, the accepted kinds, ...) under `detail`. The
 //! status stays per failure: 409 for conflicts and stale anchors, 403, 404,
-//! 413, 422, 423 and 400. A server-side failure is the fixed 5xx body with
+//! 413, 422, 423, 429 and 400. A server-side failure is the fixed 5xx body with
 //! its cause logged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -17,6 +17,7 @@ use axum::extract::rejection::JsonRejection;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::agents::AgentRefusal;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
 use systemprompt_provider_contracts::documents::CodecError;
@@ -150,6 +151,10 @@ fn locked(message: String) -> ApiError {
     ApiError::locked(message)
 }
 
+fn rate_limited(message: String) -> ApiError {
+    ApiError::rate_limited(message)
+}
+
 pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
     match error {
         DocumentsError::Conflict { .. }
@@ -171,6 +176,9 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
         | DocumentsError::CommentNotFound { .. } => not_found,
         DocumentsError::TooLarge { .. } => too_large,
         DocumentsError::LockHeld { .. } => locked,
+        DocumentsError::Agent(AgentRefusal::RateLimited { .. }) => rate_limited,
+        DocumentsError::Agent(AgentRefusal::OverrideLooser { .. }) => bad_request,
+        DocumentsError::Agent(_) => forbidden,
         DocumentsError::IntegrityMismatch { .. }
         | DocumentsError::Template { .. }
         | DocumentsError::ContentRefused { .. } => unprocessable,

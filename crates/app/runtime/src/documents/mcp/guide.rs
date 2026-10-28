@@ -16,7 +16,8 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::guide_model::model_topic;
 use super::guide_topics::{
-    COMMENTS, EDITING, LIFECYCLE, PROPOSALS, SHARING, SHEETS, SLIDES, UPLOADS, refusal_text,
+    AGENTS, COMMENTS, EDITING, LIFECYCLE, PROPOSALS, SHARING, SHEETS, SLIDES, UPLOADS,
+    refusal_text,
 };
 use super::inputs::GuideInput;
 use super::outputs::GuideOutput;
@@ -55,6 +56,7 @@ fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
         "proposals" => PROPOSALS.to_owned(),
         "model" => model_topic(),
         "uploads" => UPLOADS.to_owned(),
+        "agents" => AGENTS.to_owned(),
         other => RefusalCode::ALL
             .iter()
             .find(|code| other.strip_prefix("refusal.") == Some(code.as_str()))
@@ -62,7 +64,7 @@ fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
                 || {
                     format!(
                         "unknown topic; topics are editing, model, formats, uploads, sheets, \
-                         slides, sharing, comments, lifecycle, proposals and refusal.<code> for \
+                         slides, sharing, comments, lifecycle, proposals, agents and refusal.<code> for \
                          {}",
                         RefusalCode::ALL.map(RefusalCode::as_str).join(", ")
                     )

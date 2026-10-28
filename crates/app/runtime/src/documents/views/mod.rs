@@ -23,8 +23,8 @@ mod records;
 mod types;
 
 pub use access::{
-    AccessOutput, AccessRequestItem, GrantEventItem, GrantItem, InheritedFrom, access_view,
-    folder_access_view,
+    AccessOutput, AccessRequestItem, AgentCapItem, GrantEventItem, GrantItem, InheritedFrom,
+    access_view, folder_access_view,
 };
 pub use acks::edit_ack;
 pub use lines::{
