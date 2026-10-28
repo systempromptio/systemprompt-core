@@ -84,7 +84,6 @@ pub(super) fn new_block(
     Ok(block)
 }
 
-/// Gives every block inside a table or a section's running parts a fresh id.
 fn number_nested(kind: &mut BlockKind, fresh: &mut FreshIds) {
     for part in kind.nested_mut() {
         for block in &mut part.blocks {
@@ -94,7 +93,6 @@ fn number_nested(kind: &mut BlockKind, fresh: &mut FreshIds) {
     }
 }
 
-/// Whether any block, at any depth, is raw markup.
 fn holds_raw(blocks: &[Block]) -> bool {
     blocks.iter().any(|block| {
         matches!(block.kind, BlockKind::Raw { .. })
@@ -163,7 +161,6 @@ pub(super) fn update_table(
     Ok(())
 }
 
-/// `set_section`, `set_style` and `apply_theme`: the document's settings.
 pub(super) fn apply_document(
     model: &mut RichText,
     format: DocumentFormat,

@@ -22,7 +22,6 @@ pub struct MediaBlob {
 
 pub type Media = BTreeMap<String, MediaBlob>;
 
-/// Every image blob reference in `model` that needs its bytes resolved.
 #[must_use]
 pub fn media_refs(model: &RichText) -> Vec<String> {
     let mut refs = Vec::new();

@@ -118,7 +118,6 @@ pub(super) fn hex(value: &str) -> Option<String> {
         .then(|| digits.to_ascii_uppercase())
 }
 
-/// A point size as `w:sz` half-points.
 pub(super) fn half_points(value: &str) -> Option<u32> {
     let points = value.trim().parse::<f32>().ok()?;
     (1.0..=1638.0)

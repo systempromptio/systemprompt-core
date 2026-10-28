@@ -128,8 +128,6 @@ const RPR_ORDER: [&str; 40] = [
 ];
 
 struct Level<'o> {
-    /// Whether this is the style itself, whose `w:pPr` and `w:rPr` merge;
-    /// an `w:rPr` inside a `w:pPr` is not modelled and keeps its bytes.
     styles: bool,
     modelled: &'o [&'o str],
     merged: &'o [&'o str],
@@ -155,7 +153,6 @@ const RPR: Level<'static> = Level {
     order: &RPR_ORDER,
 };
 
-/// `ours` (a whole `w:style` the writer generated) over `base`.
 pub(super) fn merge_style(base: &str, ours: &str) -> String {
     let (Ok(held), Ok(given)) = (
         parse_xml("word/styles.xml", base),
@@ -228,7 +225,6 @@ fn nested(base: &str, held: &Element, ours: &str, given: Option<&Element>, name:
     format!("{open}{inner}</{name}>")
 }
 
-/// The base element with each of `theirs`'s attributes set over it.
 fn attrs_over(raw: &str, theirs: &Element) -> String {
     let mut out = raw.to_owned();
     for (key, value) in &theirs.attrs {

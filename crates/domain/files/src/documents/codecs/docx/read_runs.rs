@@ -227,7 +227,6 @@ fn extend(marks: &mut Vec<Mark>, start: usize, end: usize, kind: MarkKind) {
     }
 }
 
-/// A `w:sz` half-point value as points, `"11"` or `"10.5"`.
 pub(super) fn half_points(value: &str) -> Option<String> {
     let half = value.parse::<u32>().ok()?;
     Some(if half % 2 == 0 {

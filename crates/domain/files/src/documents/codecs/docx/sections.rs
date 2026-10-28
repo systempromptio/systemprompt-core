@@ -25,7 +25,6 @@ const R_NS: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relati
 const PART_TYPE: &str = "application/vnd.openxmlformats-officedocument.wordprocessingml";
 const SETTINGS: &str = "word/settings.xml";
 
-/// Elements `CT_Settings` orders after `w:evenAndOddHeaders`.
 const AFTER_EVEN_ODD: [&str; 12] = [
     "<w:bookFold",
     "<w:drawingGrid",
@@ -41,7 +40,6 @@ const AFTER_EVEN_ODD: [&str; 12] = [
     "<w:savePreviewPicture",
 ];
 
-/// Elements `CT_Settings` orders after `w:updateFields`.
 const AFTER_UPDATE_FIELDS: [&str; 12] = [
     "<w:hdrShapeDefaults",
     "<w:footnotePr",
@@ -144,8 +142,6 @@ pub(super) const fn wants_title_page(section: &Section) -> bool {
     section.title_page || section.first_page_header.is_some() || section.first_page_footer.is_some()
 }
 
-/// Writes `w:evenAndOddHeaders` and `w:updateFields` into the settings part
-/// when the written blocks need them.
 pub(super) fn finish_settings(ctx: &mut WriteCtx<'_>) -> Result<(), CodecError> {
     let mut wanted = Vec::new();
     if ctx.even_odd {

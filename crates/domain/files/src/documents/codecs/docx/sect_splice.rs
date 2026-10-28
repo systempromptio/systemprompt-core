@@ -22,7 +22,6 @@ use super::sections::{running_part, sect_pr, wants_title_page};
 use super::write::WriteCtx;
 use super::write_styles::set_attr;
 
-/// Children `CT_SectPr` orders after `w:pgSz`, `w:pgMar` and `w:titlePg`.
 const AFTER_SIZE: [&str; 15] = [
     "w:pgMar",
     "w:paperSrc",
@@ -199,7 +198,6 @@ fn margins(xml: &str, root: &Element, next: &Section) -> Vec<Edit> {
     vec![(element.start, element.inner_start.min(element.end), tag)]
 }
 
-/// The start tag `tag` with `name` set to `value`.
 fn with_attr(tag: &str, name: &str, value: &str) -> String {
     let Ok(element) = parse_xml("word/document.xml", tag) else {
         return tag.to_owned();
@@ -208,8 +206,6 @@ fn with_attr(tag: &str, name: &str, value: &str) -> String {
     format!("{}{rewritten}{}", &tag[..start], &tag[end..])
 }
 
-/// Where a child goes: before the first existing child named in
-/// `followers`, else at the end of the element's content.
 fn before_any(root: &Element, followers: &[&str]) -> usize {
     root.children
         .iter()

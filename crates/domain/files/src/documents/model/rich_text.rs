@@ -32,7 +32,6 @@ pub struct RichText {
 }
 
 impl RichText {
-    /// The headers and footers of the document's final section.
     #[must_use]
     pub fn running(&self) -> Vec<&Self> {
         self.document
@@ -95,7 +94,7 @@ pub enum BlockKind {
         ordered: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         numbering: Option<String>,
-        /// A task-list item's box: `Some(true)` ticked, `Some(false)` open.
+        #[schemars(description = "A task-list item's box: `Some(true)` ticked, `Some(false)` open.")]
         #[serde(default, skip_serializing_if = "Option::is_none")]
         checked: Option<bool>,
     },
@@ -125,7 +124,7 @@ pub enum BlockKind {
     Callout {
         tone: CalloutTone,
     },
-    /// A footnote's text; `footnote` marks in the body reference its label.
+    #[schemars(description = "A footnote's text; `footnote` marks in the body reference its label.")]
     Footnote {
         label: String,
     },
@@ -174,8 +173,6 @@ impl BlockKind {
         }
     }
 
-    /// The models nested in this block: a table's cells and a section
-    /// break's headers and footers.
     #[must_use]
     pub fn nested(&self) -> Vec<&RichText> {
         match self {

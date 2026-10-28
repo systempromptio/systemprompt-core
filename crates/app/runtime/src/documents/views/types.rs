@@ -73,7 +73,6 @@ pub struct ReadOutput {
     pub meta: Option<DocumentMeta>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
-    /// The `model` view: a `ModelViewV2` object.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<serde_json::Value>,
 }

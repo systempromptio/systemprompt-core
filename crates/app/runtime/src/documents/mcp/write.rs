@@ -57,10 +57,6 @@ pub(super) struct EditCall<'a> {
 const CONTENT_SHAPES: &str = "content is exactly {\"model\": <ModelViewV2>} or {\"markdown\": \
                               \"<text>\"} (schema: GET /api/v1/documents/schema)";
 
-/// The content model a create names. The input schema leaves `content`
-/// untyped to keep the tool list small, so the shape is checked here:
-/// an object with exactly one key, `model` (a `ModelViewV2`) or `markdown`
-/// (a string); anything else refuses with `invalid_params`.
 pub fn create_content(content: Option<serde_json::Value>) -> Result<Option<RichText>, McpError> {
     let invalid = |detail: String| refusal(RefusalCode::InvalidParams, detail);
     let Some(content) = content else {

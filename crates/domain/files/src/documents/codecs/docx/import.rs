@@ -62,7 +62,6 @@ pub(super) fn part_text(bytes: &[u8], name: &str) -> Result<Option<String>, Code
     Ok(read_part(bytes, name)?.and_then(|raw| String::from_utf8(raw).ok()))
 }
 
-/// The blocks of a header, footer or other container element.
 fn read_blocks(xml: &str, root: &Element, ctx: &ReadCtx) -> Vec<Block> {
     root.children
         .iter()
@@ -134,7 +133,6 @@ pub(super) fn insert_point(src: &str) -> usize {
     final_sect(src).map_or(close, |range| range.start)
 }
 
-/// The byte range of the body's own `w:sectPr`, the last child of `w:body`.
 pub(super) fn final_sect(src: &str) -> Option<Range<usize>> {
     let close = src.rfind("</w:body>")?;
     let start = src[..close].rfind("<w:sectPr")?;

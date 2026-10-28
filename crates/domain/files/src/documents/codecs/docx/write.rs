@@ -44,10 +44,7 @@ pub(super) struct WriteCtx<'a> {
     pub(super) in_part: bool,
     pub(super) even_odd: bool,
     pub(super) update_fields: bool,
-    /// The base `w:sectPr` of each section break, by block id, so an
-    /// edited break is spliced over its base rather than written fresh.
     pub(super) base_breaks: HashMap<String, (String, Section)>,
-    /// Saved uploads already looked up in the base package, by hash.
     pub(super) saved_uploads: HashMap<String, Option<(String, Option<(u32, u32)>)>>,
 }
 

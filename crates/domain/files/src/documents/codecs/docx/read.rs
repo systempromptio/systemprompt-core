@@ -22,9 +22,6 @@ use super::read_numbering::NumberingMap;
 use super::read_runs::Runs;
 use super::read_section::section;
 
-/// What a block reader needs beyond the element: the document part's
-/// relationships, its numbering, and the header and footer parts it
-/// references, already read as models.
 #[derive(Debug, Default)]
 pub(super) struct ReadCtx {
     pub(super) rels: HashMap<String, String>,
@@ -88,7 +85,6 @@ fn section_break(section: Section) -> Block {
     Block::new(String::new(), kind, "")
 }
 
-/// The block kind, and whether the style it came from is implied by it.
 fn kind_of(style: Option<&str>, ppr: Option<&Element>, ctx: &ReadCtx) -> (BlockKind, bool) {
     if let Some(num) = ppr.and_then(|ppr| ppr.child("w:numPr")) {
         let level = num
@@ -137,7 +133,6 @@ fn kind_of(style: Option<&str>, ppr: Option<&Element>, ctx: &ReadCtx) -> (BlockK
     }
 }
 
-/// `implied` is the style the kind already stands for, left out of attrs.
 fn with_attrs(mut block: Block, ppr: Option<&Element>, implied: Option<&str>) -> Block {
     if let Some(ppr) = ppr {
         block.attrs = para_attrs(ppr);
@@ -189,7 +184,6 @@ fn indent(ind: &Element) -> Option<Indent> {
     (indent != Indent::default()).then_some(indent)
 }
 
-/// A twips value as whole points.
 pub(super) fn points(twips: &str) -> Option<u32> {
     twips.parse::<u32>().ok().map(|t| t / 20)
 }

@@ -18,7 +18,7 @@ use super::rich_text::RichText;
 /// Paragraph-level formatting of a text block.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ParaAttrs {
-    /// A paragraph style id from the document's style catalogue.
+    #[schemars(description = "A paragraph style id from the document's style catalogue.")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -78,7 +78,7 @@ pub struct TableProps {
     pub header_rows: u32,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cells: Vec<Vec<CellProps>>,
-    /// A table style id from the document's style catalogue.
+    #[schemars(description = "A table style id from the document's style catalogue.")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
 }
@@ -111,7 +111,7 @@ pub struct Column {
 /// reads as 1.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct CellProps {
-    /// Background fill as a 6-digit hex colour.
+    #[schemars(description = "Background fill as a 6-digit hex colour.")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shade: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -173,7 +173,7 @@ pub struct Section {
     pub size: Option<PageSize>,
     #[serde(default, skip_serializing_if = "is_portrait")]
     pub orientation: Orientation,
-    /// Whether the first page has its own header and footer (`titlePg`).
+    #[schemars(description = "Whether the first page has its own header and footer (`titlePg`).")]
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub title_page: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -207,7 +207,6 @@ impl Section {
         .collect()
     }
 
-    /// Every header and footer this section defines.
     pub fn running_parts(&self) -> impl Iterator<Item = &RichText> {
         [
             &self.header,

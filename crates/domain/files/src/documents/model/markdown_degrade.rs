@@ -8,13 +8,6 @@ use super::layout::{ImageWrap, ParaAttrs, TableProps};
 use super::markdown_write::{REFUSED_MARKS, check_settings};
 use super::rich_text::{Block, BlockKind, RichText};
 
-/// The model with everything Markdown cannot hold taken out, and a warning
-/// for each thing taken: marks are dropped and their text kept, paragraph
-/// formatting, numbering bindings, table and image geometry are cleared,
-/// page and section breaks and a table of contents become dividers, and
-/// settings other than front matter are left out. A live checkpoint writes
-/// this, so a co-edited Markdown document always saves; an agent's create
-/// or edit is refused instead, since its caller can react.
 #[must_use]
 pub fn degrade(model: &RichText) -> (RichText, Vec<String>) {
     let mut warnings = Vec::new();

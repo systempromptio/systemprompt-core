@@ -68,7 +68,6 @@ pub struct CreateInput {
     pub name: String,
     #[serde(default)]
     pub params: std::collections::BTreeMap<String, String>,
-    /// Guide: model.
     #[serde(default)]
     pub content: Option<serde_json::Value>,
     #[serde(default)]

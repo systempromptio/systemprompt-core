@@ -26,13 +26,10 @@ use crate::documents::model::{BlockKind, Media, RichText, media_refs};
 use crate::documents::models::DocumentEditSession;
 use crate::documents::service::held_media_refs;
 
-/// A live model ready to write: images it may not place are placeholders.
 pub(super) struct LiveModel {
     pub(super) model: ModelView,
     pub(super) media: Media,
     held: Vec<String>,
-    /// The images saved as placeholders; the live document still holds
-    /// them, so a later checkpoint saves them once they are admitted.
     pub(super) refused: Vec<String>,
 }
 
@@ -85,8 +82,6 @@ impl CollabService {
         }
     }
 
-    /// Tells the session's editors which images a checkpoint saved as
-    /// placeholders; the live document itself is left as it is.
     pub(super) async fn notify_degraded(
         &self,
         session: &DocumentEditSession,
@@ -110,8 +105,6 @@ impl CollabService {
 
 const PLACEHOLDER: &str = "[image not available]";
 
-/// Replaces each image block whose blob is in `refused` with a paragraph
-/// saying so, keeping its id, at any depth; answers whether any changed.
 fn placeholders(model: &mut RichText, refused: &[String]) -> bool {
     if refused.is_empty() {
         return false;
@@ -137,10 +130,6 @@ fn placeholders(model: &mut RichText, refused: &[String]) -> bool {
     changed
 }
 
-/// A live materialise that never wedges a session on an image: when the
-/// write fails to resolve an image, the images that were neither admitted
-/// nor held become placeholders and the write is retried once. Any other
-/// failure is returned as it is.
 pub(super) fn materialise_or_strip(
     format: DocumentFormat,
     base: &[u8],

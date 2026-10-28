@@ -139,7 +139,6 @@ impl EditOp {
         )
     }
 
-    /// Whether this rich op acts on the whole document and names no node.
     #[must_use]
     pub const fn is_document_level(&self) -> bool {
         matches!(

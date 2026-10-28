@@ -43,8 +43,6 @@ pub fn import(body: &SegmentedBody) -> RichText {
     model
 }
 
-/// Numbers every block in document order, the blocks inside table cells
-/// and section headers and footers included.
 pub(crate) fn number(model: &mut RichText, ids: &mut IdSeq) {
     for block in &mut model.blocks {
         block.id = ids.next_id();
@@ -54,15 +52,12 @@ pub(crate) fn number(model: &mut RichText, ids: &mut IdSeq) {
     }
 }
 
-/// Numbers a model's blocks afresh, nested and running blocks included.
 pub(crate) fn renumber(model: &mut RichText) {
     let mut ids = IdSeq::default();
     number(model, &mut ids);
     number_running(model);
 }
 
-/// Numbers the blocks of the final section's headers and footers after
-/// every body block, so their ids never collide with the body's.
 pub(crate) fn number_running(model: &mut RichText) {
     let mut ids = IdSeq::default();
     let mut body = RichText::of(model.blocks.clone());
@@ -81,7 +76,6 @@ pub(crate) fn number_running(model: &mut RichText) {
     }
 }
 
-/// Whether two kinds are equal once their nested block ids are ignored.
 #[must_use]
 pub(crate) fn same_kind(a: &BlockKind, b: &BlockKind) -> bool {
     unnumbered(a) == unnumbered(b)
@@ -161,8 +155,6 @@ fn same_content(a: &Block, b: &Block) -> bool {
         && unnumbered(&a.kind) == unnumbered(&b.kind)
 }
 
-/// A kind with the ids of its nested blocks cleared, so a base segment
-/// (whose nested blocks were never numbered) matches its imported block.
 fn unnumbered(kind: &BlockKind) -> BlockKind {
     let mut kind = kind.clone();
     for nested in nested_mut(&mut kind) {

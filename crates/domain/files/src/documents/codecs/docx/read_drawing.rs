@@ -80,7 +80,6 @@ fn be32(bytes: &[u8], at: usize) -> Option<u32> {
     Some(u32::from_be_bytes(quad))
 }
 
-/// The pixel size of PNG, GIF or JPEG bytes, from their header.
 pub(super) fn pixel_size(bytes: &[u8]) -> Option<(u32, u32)> {
     if bytes.starts_with(b"\x89PNG") {
         return Some((be32(bytes, 16)?, be32(bytes, 20)?));
@@ -106,7 +105,6 @@ pub(super) fn pixel_size(bytes: &[u8]) -> Option<(u32, u32)> {
     None
 }
 
-/// The file extension and content type of PNG, GIF or JPEG bytes.
 pub(super) fn image_type(bytes: &[u8]) -> Option<(&'static str, &'static str)> {
     if bytes.starts_with(b"\x89PNG") {
         Some(("png", "image/png"))
@@ -119,15 +117,8 @@ pub(super) fn image_type(bytes: &[u8]) -> Option<(&'static str, &'static str)> {
     }
 }
 
-/// The largest picture part read to verify a saved upload; a larger part
-/// is never read and never counts as one.
 pub const MAX_PART_BYTES: u64 = 64 * 1024 * 1024;
 
-/// Of the uploads in `wanted`, those a package holds as
-/// `word/media/sp-<hash>.<ext>` whose bytes really hash to `<hash>`. A part
-/// named for someone else's upload but holding other bytes is not one, so
-/// it can never stand in for that upload. Only parts whose stem is a
-/// 64-hex hash in `wanted` are read, each at most `limit` bytes.
 pub fn saved_upload_hashes(bytes: &[u8], wanted: &[String], limit: u64) -> Vec<String> {
     let Ok(mut archive) = ZipArchive::new(Cursor::new(bytes)) else {
         return Vec::new();
@@ -151,9 +142,6 @@ pub fn saved_upload_hashes(bytes: &[u8], wanted: &[String], limit: u64) -> Vec<S
         .collect()
 }
 
-/// The picture part a package holds for upload `hash`, by its target
-/// relative to `word/`, and its bytes, when they hash to `hash` and are at
-/// most `limit` bytes.
 pub(super) fn saved_upload_part(bytes: &[u8], hash: &str, limit: u64) -> Option<(String, Vec<u8>)> {
     if !is_hash(hash) {
         return None;
@@ -167,7 +155,6 @@ pub(super) fn saved_upload_part(bytes: &[u8], hash: &str, limit: u64) -> Option<
     })
 }
 
-/// A part's bytes, or `None` when it holds more than `limit`.
 fn read_capped(file: impl Read, limit: u64) -> Option<Vec<u8>> {
     let mut content = Vec::new();
     file.take(limit.saturating_add(1))

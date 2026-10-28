@@ -85,8 +85,6 @@ impl Links {
         Some(id)
     }
 
-    /// The id of an internal relationship of type `{REL_BASE}/{kind}` to
-    /// `target`, reusing one the part already has.
     pub(super) fn part_id(&mut self, kind: &str, target: &str) -> Option<String> {
         self.rels.as_ref()?;
         let kind = format!("{REL_BASE}/{kind}");
@@ -106,7 +104,6 @@ impl Links {
         Some(id)
     }
 
-    /// Every relationship of the document part, id to target.
     pub(super) fn targets(bytes: &[u8]) -> Result<HashMap<String, String>, CodecError> {
         let Some(rels) = read_part(bytes, RELS)?.and_then(|raw| String::from_utf8(raw).ok()) else {
             return Ok(HashMap::new());
@@ -124,7 +121,6 @@ impl Links {
             .collect())
     }
 
-    /// Writes the relationships part into `edits` when anything was added.
     pub(super) fn finish_into(self, edits: &mut PartEdits) -> Result<(), CodecError> {
         let Some(rels) = self.rels.filter(|_| !self.added.is_empty()) else {
             return Ok(());

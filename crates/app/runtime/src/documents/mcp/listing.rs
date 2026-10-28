@@ -172,7 +172,6 @@ fn compact_input(schema: &Map<String, JsonValue>) -> Map<String, JsonValue> {
     schema
 }
 
-/// A create lists its ops as a plain array; `documents_edit` names them.
 fn plain_ops(mut tool: Tool) -> Tool {
     let mut schema = (*tool.input_schema).clone();
     if let Some(JsonValue::Object(properties)) = schema.get_mut("properties")

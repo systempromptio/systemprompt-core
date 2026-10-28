@@ -122,9 +122,7 @@ pub struct CreateRequest {
     pub ops: Vec<EditOp>,
     pub author: Author,
     pub message: Option<String>,
-    /// The body as a model, written over the template before `ops` apply.
     pub content: Option<RichText>,
-    /// Image bytes for the blob references the content and ops add.
     pub media: Media,
 }
 
@@ -162,8 +160,6 @@ pub struct CommitRequest {
     pub lock_holder_id: Option<String>,
     pub comments: CommentPolicy,
     pub op_id: Option<DocumentOpId>,
-    /// Image bytes for the blob references the ops add, resolved and
-    /// ownership-checked by the caller; empty for every other commit.
     pub media: Media,
 }
 

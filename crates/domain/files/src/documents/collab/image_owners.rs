@@ -30,8 +30,6 @@ pub struct ImageOwners {
 }
 
 impl ImageOwners {
-    /// Records `editor` as the owner of every image `after` holds that
-    /// `before` did not; an image already owned keeps its owner.
     pub fn record(&mut self, before: &RichText, after: &RichText, editor: &UserId) {
         let held = media_refs(before);
         for reference in media_refs(after) {
@@ -43,15 +41,11 @@ impl ImageOwners {
         }
     }
 
-    /// The editor who inserted `reference`, if the log recorded one.
     #[must_use]
     pub fn owner(&self, reference: &str) -> Option<&UserId> {
         self.by_ref.get(reference)
     }
 
-    /// A snapshot blob: the owners, then the engine snapshot. Owners that
-    /// do not serialise, or whose JSON exceeds a `u32` length, are refused
-    /// with a warning and the snapshot is written without them.
     #[must_use]
     pub fn seal(&self, snapshot: &[u8]) -> Vec<u8> {
         let owners = match serde_json::to_vec(self) {
@@ -76,7 +70,6 @@ impl ImageOwners {
         out
     }
 
-    /// The owners and the engine snapshot of a snapshot blob.
     #[must_use]
     pub fn open(blob: &[u8]) -> (Self, &[u8]) {
         let Some(rest) = blob.strip_prefix(MAGIC) else {

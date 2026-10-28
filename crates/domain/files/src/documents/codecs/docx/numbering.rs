@@ -54,8 +54,6 @@ impl Numbering {
         })
     }
 
-    /// The `numId` a list item with this definition (or none) is written
-    /// with; an unknown definition falls back to the built-in list.
     pub(super) fn num_id(
         &mut self,
         def: Option<&str>,

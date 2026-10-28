@@ -37,7 +37,6 @@ pub(super) struct AppliedOps {
 pub(super) struct HeadEdit {
     pub(super) ops: Vec<EditOp>,
     pub(super) fragments: Vec<NodeFragment>,
-    /// Image bytes the ops' blob references resolve to.
     pub(super) media: Media,
 }
 

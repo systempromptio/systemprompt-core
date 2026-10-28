@@ -27,14 +27,6 @@ pub struct AdmittedMedia {
     pub refused: Vec<String>,
 }
 
-/// The uploaded-image references a revision's bytes already hold. In
-/// Markdown and HTML that is a reference the text names. A docx holds a
-/// saved upload as its picture part `media/sp-<hash>.<ext>`, which counts
-/// only when the part's bytes hash to `<hash>`: a part named for another
-/// user's upload never stands in for it. A held image is placed from the
-/// document's own bytes and never read from the blob store.
-/// Only the references in `wanted` (what the write places) are looked
-/// for, and a picture part over `limit` bytes is never read.
 #[must_use]
 pub fn held_media_refs(
     format: DocumentFormat,
@@ -64,9 +56,6 @@ const fn saved_uploads(_bytes: &[u8], _wanted: &[String], _limit: u64) -> Vec<St
 }
 
 impl DocumentService {
-    /// `owners` answers, per reference, the users whose upload may place
-    /// it: the writer for an agent write, the inserting editor and every
-    /// session editor for a live checkpoint.
     pub async fn admit_media(
         &self,
         uploads: Option<&UploadService>,

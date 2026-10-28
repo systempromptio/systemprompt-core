@@ -94,8 +94,6 @@ pub fn materialise_rich_with(
     edits.write(base)
 }
 
-/// The body with its final `w:sectPr` rewritten when the model's final
-/// section differs from the base's.
 fn with_final_section(xml: String, base: &DocumentSettings, ctx: &mut WriteCtx<'_>) -> String {
     let Some(section) = ctx.settings.section.clone() else {
         return xml;
@@ -123,7 +121,6 @@ fn with_final_section(xml: String, base: &DocumentSettings, ctx: &mut WriteCtx<'
     }
 }
 
-/// Sections compare without the ids of their header and footer blocks.
 fn same_section(a: &Section, b: &Section) -> bool {
     let kind = |section: &Section| BlockKind::SectionBreak {
         section: Box::new(section.clone()),
@@ -131,8 +128,6 @@ fn same_section(a: &Section, b: &Section) -> bool {
     office::same_kind(&kind(a), &kind(b))
 }
 
-/// The base `w:sectPr` and section of every section-break block, by the id
-/// the import gives it.
 fn base_breaks(src: &str, body: &SegmentedBody) -> HashMap<String, (String, Section)> {
     let base = office::import(body);
     body.segments

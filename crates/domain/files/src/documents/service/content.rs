@@ -78,8 +78,6 @@ fn model_error(error: ModelError) -> DocumentsError {
     }
 }
 
-/// Rich and layout ops on a just-instantiated document, addressed by the
-/// codec's own projection.
 pub(super) fn apply_rich_on_new(
     codec: &dyn DocumentCodec,
     format: DocumentFormat,
@@ -99,9 +97,6 @@ pub(super) fn apply_rich_on_new(
 }
 
 impl super::DocumentService {
-    /// The bytes of an uploaded blob, for an image a model or op places.
-    /// The caller has already checked, through the uploads service, that
-    /// the user completed the upload that produced `blob`.
     pub async fn media_bytes(&self, blob: &ContentHash) -> Result<Vec<u8>, DocumentsError> {
         Ok(self
             .blobs

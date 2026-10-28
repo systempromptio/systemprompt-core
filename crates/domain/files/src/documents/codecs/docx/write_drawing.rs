@@ -63,7 +63,6 @@ pub(super) fn image_block(block: &Block, ctx: &mut WriteCtx<'_>) -> String {
     out
 }
 
-/// The picture's target relative to `word/`, and its pixel size.
 fn picture(blob: &str, ctx: &mut WriteCtx<'_>) -> Option<(String, Option<(u32, u32)>)> {
     if let Some(target) = blob.strip_prefix(MEDIA_SCHEME) {
         if !media_target_ok(target) {
@@ -114,9 +113,6 @@ fn picture(blob: &str, ctx: &mut WriteCtx<'_>) -> Option<(String, Option<(u32, u
     Some((target, pixel_size(&media.bytes)))
 }
 
-/// The drawing's extent in EMUs. Sizes are clamped to 1..=4096px (and a
-/// size the model leaves out comes from the picture, capped at the text
-/// width) before the EMU conversion, in 64-bit arithmetic.
 fn size(width: Option<u32>, height: Option<u32>, natural: Option<(u32, u32)>) -> (u64, u64) {
     let (nw, nh) = natural
         .filter(|(w, h)| *w > 0 && *h > 0)
@@ -170,8 +166,6 @@ fn drawing(rid: &str, id: u32, alt: &str, cx: u64, cy: u64, wrap: ImageWrap) -> 
     )
 }
 
-/// The highest drawing object id (`wp:docPr`, `pic:cNvPr`) in `xml`; a new
-/// drawing takes the next one, so ids stay unique in the part.
 pub(super) fn max_drawing_id(xml: &str) -> u32 {
     ["<wp:docPr", "<pic:cNvPr"]
         .iter()
@@ -185,8 +179,6 @@ pub(super) fn max_drawing_id(xml: &str) -> u32 {
         .unwrap_or(0)
 }
 
-/// A picture part the document may name: under `media/`, no `..`, and an
-/// image extension.
 fn media_target_ok(target: &str) -> bool {
     let lower = target.to_ascii_lowercase();
     let image = [

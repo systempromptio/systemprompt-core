@@ -25,16 +25,14 @@ pub struct SetParagraph {
     pub node: NodeTarget,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_hash: Option<String>,
-    /// Paragraph attributes: `style`, `align`, `indent`, `space_before`,
-    /// `space_after`, `keep_with_next`. Merged into the block's attributes;
-    /// a `null` value clears that attribute.
+    #[schemars(description = "Paragraph attributes: `style`, `align`, `indent`, `space_before`, `space_after`, `keep_with_next`. Merged into the block's attributes; a `null` value clears that attribute.")]
     pub attrs: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct InsertBlock {
     pub after: NodeTarget,
-    /// One `RichText` block of any type, without `id`.
+    #[schemars(description = "One `RichText` block of any type, without `id`.")]
     pub block: serde_json::Value,
 }
 
@@ -45,7 +43,7 @@ pub struct CellUpdate {
     pub col: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
-    /// Cell styling: `shade`, `align`, `valign`, `colspan`, `rowspan`.
+    #[schemars(description = "Cell styling: `shade`, `align`, `valign`, `colspan`, `rowspan`.")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub props: Option<serde_json::Value>,
 }
@@ -57,7 +55,7 @@ pub struct UpdateTable {
     pub expected_hash: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cells: Vec<CellUpdate>,
-    /// Column widths in points, one per column; `null` sizes to content.
+    #[schemars(description = "Column widths in points, one per column; `null` sizes to content.")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub widths: Option<Vec<Option<u32>>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -68,19 +66,18 @@ pub struct UpdateTable {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SetSection {
-    /// Page size, orientation, margins, headers and footers of the
-    /// document's last section.
+    #[schemars(description = "Page size, orientation, margins, headers and footers of the document's last section.")]
     pub section: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SetStyle {
-    /// One style definition, added or replacing the style with its `id`.
+    #[schemars(description = "One style definition, added or replacing the style with its `id`.")]
     pub style: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ApplyTheme {
-    /// `heading_font`, `body_font` and up to six `palette` colours.
+    #[schemars(description = "`heading_font`, `body_font` and up to six `palette` colours.")]
     pub theme: serde_json::Value,
 }

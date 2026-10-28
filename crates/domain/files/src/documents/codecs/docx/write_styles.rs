@@ -139,7 +139,6 @@ pub(super) fn finish_theme(ctx: &mut WriteCtx<'_>, read: &ReadCtx) -> Result<(),
     Ok(())
 }
 
-/// An edit rewriting one attribute of an element's start tag.
 pub(super) fn set_attr(
     xml: &str,
     element: &Element,

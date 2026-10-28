@@ -23,11 +23,8 @@ pub(super) const BUILTIN_DECIMAL: &str = "sp-decimal";
 
 #[derive(Debug, Default)]
 pub(super) struct NumberingMap {
-    /// `numId` to the definition it stands for.
     pub(super) by_num: HashMap<String, NumberingDef>,
-    /// Definition id to `numId`, for the writer.
     pub(super) num_of: HashMap<String, String>,
-    /// The highest abstract and concrete numbering ids in the part.
     pub(super) max_abstract: u32,
     pub(super) max_num: u32,
 }
@@ -75,8 +72,6 @@ impl NumberingMap {
         map
     }
 
-    /// Whether level `level` of `num_id` is ordered, and the definition id a
-    /// list item names (none for the built-in lists).
     pub(super) fn list(&self, num_id: &str, level: u8) -> (bool, Option<String>) {
         let Some(def) = self.by_num.get(num_id) else {
             return (false, None);
@@ -91,7 +86,6 @@ impl NumberingMap {
         (ordered, (!builtin).then(|| def.id.clone()))
     }
 
-    /// Every definition but the built-in lists, in `numId` order.
     pub(super) fn defs(&self) -> Vec<NumberingDef> {
         let mut nums: Vec<(&String, &NumberingDef)> = self.by_num.iter().collect();
         nums.sort_by_key(|(num, _)| num.parse::<u32>().unwrap_or(u32::MAX));

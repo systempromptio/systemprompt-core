@@ -23,7 +23,6 @@ use super::refusal::refusal;
 use super::support::{caller, tool_error};
 use crate::documents::refusal::RefusalCode;
 
-/// Every image reference in `model` and `ops` that needs its bytes.
 pub(super) fn image_refs(model: Option<&RichText>, ops: &[EditOp]) -> Vec<String> {
     let mut blocks = Vec::new();
     for op in ops {
@@ -56,9 +55,6 @@ pub(super) fn image_refs(model: Option<&RichText>, ops: &[EditOp]) -> Vec<String
     refs
 }
 
-/// The bytes of the images a write places, admitted for `document` (none
-/// for a create): each must be the caller's own upload or already held by
-/// the document's head. Anything else refuses the write, naming the image.
 pub(super) async fn resolve_media(
     tools: &DocumentsMcpTools,
     ctx: &RequestContext,

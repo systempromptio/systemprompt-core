@@ -91,8 +91,6 @@ impl CollabService {
         }
     }
 
-    /// The uploads service a checkpoint checks image ownership against;
-    /// without it only images the document already holds are placed.
     #[must_use]
     pub fn with_uploads(mut self, uploads: Arc<UploadService>) -> Self {
         self.uploads = Some(uploads);

@@ -32,14 +32,12 @@ impl PartEdits {
         self.parts.get(name).map(Vec::as_slice)
     }
 
-    /// Registers a new part's content type by its extension.
     pub(super) fn default_type(&mut self, extension: &str, mime: &str) {
         if !self.defaults.iter().any(|(ext, _)| ext == extension) {
             self.defaults.push((extension.to_owned(), mime.to_owned()));
         }
     }
 
-    /// Registers a new part's content type by its name.
     pub(super) fn override_type(&mut self, part: &str, content_type: &str) {
         self.overrides
             .push((format!("/{part}"), content_type.to_owned()));

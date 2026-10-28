@@ -97,7 +97,6 @@ pub(super) fn table(xml: &str, tbl: &Element, ctx: &ReadCtx) -> Option<BlockKind
     Some(BlockKind::Table { rows, props })
 }
 
-/// Adds one row to the span of the restarting cell above `column`.
 fn extend_rowspan(cells: &mut [Vec<CellProps>], column: usize) {
     for row in cells.iter_mut().rev() {
         if let Some(cell) = row.get_mut(column)

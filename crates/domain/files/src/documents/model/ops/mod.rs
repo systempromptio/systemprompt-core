@@ -49,7 +49,6 @@ pub fn apply_rich_ops(
     apply_rich_ops_with(format, bytes, ids, ops, &Media::new())
 }
 
-/// [`apply_rich_ops`] with the bytes of the images the ops add.
 pub fn apply_rich_ops_with(
     format: DocumentFormat,
     bytes: &[u8],
