@@ -27,7 +27,13 @@ const OFFICE_PREFIXES: [&str; 2] = [
 /// parsed, and served only as `application/octet-stream`. `None` means the
 /// declaration is not a MIME type at all.
 pub(crate) fn declared_kind(mime: &str) -> Option<Kind> {
-    let mime = mime.split(';').next().unwrap_or_default().trim();
+    let mime = mime
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    let mime = mime.as_str();
     if OFFICE_PREFIXES
         .iter()
         .any(|prefix| mime.starts_with(prefix))
@@ -99,6 +105,28 @@ fn utf8_prefix(head: &[u8]) -> Option<&str> {
             std::str::from_utf8(&head[..error.valid_up_to()]).ok()
         },
         Err(_) => None,
+    }
+}
+
+/// Whether the first bytes open a zip archive, whatever was declared.
+pub(crate) fn is_zip(head: &[u8]) -> bool {
+    head.starts_with(b"PK\x03\x04")
+}
+
+impl Kind {
+    /// The name recorded on the upload for the check this kind passed.
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Zip => "zip",
+            Self::Pdf => "pdf",
+            Self::Png => "png",
+            Self::Jpeg => "jpeg",
+            Self::Gif => "gif",
+            Self::Webp => "webp",
+            Self::Svg => "svg",
+            Self::Text => "text",
+            Self::Opaque => "opaque",
+        }
     }
 }
 

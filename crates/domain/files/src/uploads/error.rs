@@ -22,6 +22,7 @@ pub enum RefusalReason {
     ArchiveLimits,
     ImageLimits,
     UnsafeSvg,
+    UncheckedFormat,
 }
 
 impl RefusalReason {
@@ -34,6 +35,7 @@ impl RefusalReason {
             Self::ArchiveLimits => "archive_limits",
             Self::ImageLimits => "image_limits",
             Self::UnsafeSvg => "unsafe_svg",
+            Self::UncheckedFormat => "unchecked_format",
         }
     }
 }

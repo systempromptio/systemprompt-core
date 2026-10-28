@@ -3,6 +3,12 @@
 //! content-addressed blob; and [`UploadService::put_inline`], the one-call
 //! upload of a small body.
 //!
+//! A completion first claims the upload (`open` -> `completing`), so an
+//! abort or the expiry job cannot close it mid-assembly; a failure the
+//! caller may retry hands it back to `open`. If the claim is lost anyway (a
+//! crashed completion closed by the expiry job), a blob row this completion
+//! created is withdrawn again rather than left without its upload.
+//!
 //! The parts are streamed, in order, into one object while being hashed.
 //! A hash that differs from the declared one, or content the checks refuse,
 //! closes the session as `refused` and deletes everything it stored. Bytes
@@ -43,12 +49,26 @@ impl UploadService {
             });
         }
         let session = self.open_session(owner, id).await?;
+        if !self.uploads.claim(id).await? {
+            let status = self
+                .uploads
+                .find(id)
+                .await?
+                .map_or(UploadStatus::Expired, |current| current.status);
+            return Err(UploadError::Closed { status });
+        }
         match self.finish(&session).await {
             Err(UploadError::Refused { reason, detail }) => {
                 self.refuse(&session, reason, &detail).await?;
                 Err(UploadError::Refused { reason, detail })
             },
-            other => other,
+            Err(error) => {
+                if let Err(release) = self.uploads.release(id).await {
+                    tracing::warn!(upload_id = %id, error = %release, "Failed to release a claimed upload");
+                }
+                Err(error)
+            },
+            ok => ok,
         }
     }
 
@@ -110,11 +130,21 @@ impl UploadService {
         }
         let closed = self
             .uploads
-            .mark_completed(&session.id, &blob.hash, &inspected.detected_mime)
+            .mark_completed(
+                &session.id,
+                &blob.hash,
+                &inspected.detected_mime,
+                inspected.checked.as_str(),
+            )
             .await?;
         if !closed {
+            if blob.inserted
+                && let Some(object) = self.uploads.withdraw_blob(&blob.hash).await?
+            {
+                self.discard(&object.as_str().into()).await;
+            }
             return Err(UploadError::Closed {
-                status: UploadStatus::Aborted,
+                status: UploadStatus::Expired,
             });
         }
         tracing::info!(
@@ -145,7 +175,12 @@ impl UploadService {
         let refusal = format!("{reason}: {detail}");
         if self
             .uploads
-            .mark_closed(&session.id, UploadStatus::Refused, Some(&refusal))
+            .mark_closed(
+                &session.id,
+                UploadStatus::Completing,
+                UploadStatus::Refused,
+                Some(&refusal),
+            )
             .await?
         {
             self.remove_objects(session).await?;

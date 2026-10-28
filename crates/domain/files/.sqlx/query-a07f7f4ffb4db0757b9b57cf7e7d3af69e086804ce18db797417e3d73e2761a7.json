@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id::text AS \"id!: DocumentUploadId\",\n                      owner_user_id AS \"owner_user_id: UserId\", file_name, declared_mime,\n                      declared_size, declared_sha256 AS \"declared_sha256: ContentHash\",\n                      part_size, status, blob_sha256 AS \"blob_sha256: ContentHash\",\n                      detected_mime, refusal, trace_id AS \"trace_id: TraceId\", created_at,\n                      expires_at, finished_at\n               FROM document_uploads WHERE id = $1::text::uuid",
+  "query": "SELECT id::text AS \"id!: DocumentUploadId\",\n                      owner_user_id AS \"owner_user_id: UserId\", file_name, declared_mime,\n                      declared_size, declared_sha256 AS \"declared_sha256: ContentHash\",\n                      part_size, status, blob_sha256 AS \"blob_sha256: ContentHash\",\n                      detected_mime, checked_kind, refusal, trace_id AS \"trace_id: TraceId\", created_at,\n                      expires_at, finished_at\n               FROM document_uploads WHERE id = $1::text::uuid",
   "describe": {
     "columns": [
       {
@@ -110,6 +110,17 @@
       },
       {
         "ordinal": 10,
+        "name": "checked_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_uploads",
+            "name": "checked_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
         "name": "refusal",
         "type_info": "Text",
         "origin": {
@@ -120,7 +131,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "trace_id: TraceId",
         "type_info": "Text",
         "origin": {
@@ -131,7 +142,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -142,7 +153,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "expires_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -153,7 +164,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "finished_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -181,11 +192,12 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       false,
       true
     ]
   },
-  "hash": "08ece0f087483a952a524cdbce1d9882a4e54f684d8e46ae59e3fba07d002b2b"
+  "hash": "a07f7f4ffb4db0757b9b57cf7e7d3af69e086804ce18db797417e3d73e2761a7"
 }

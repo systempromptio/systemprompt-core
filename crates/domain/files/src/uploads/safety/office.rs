@@ -7,7 +7,15 @@
 //! declare, so a lying header gains nothing: the guard refuses more entries
 //! than allowed, a running total of decompressed bytes over the limit, or an
 //! entry (over 1 MiB) or a whole archive whose real ratio is past the limit.
-//! Zip64 sizes are read from the zip64 extra field. Encrypted entries,
+//! Zip64 sizes are read from the zip64 extra field.
+//!
+//! The central directory is read first (see `directory`), and the scan
+//! holds the local entries to it: each local header must start exactly at
+//! the offset its directory entry names, in order, each entry's data must
+//! take exactly the compressed bytes the directory names, and the last entry
+//! must end where the directory starts. Out-of-order, overlapping or
+//! unlisted entries, and gap bytes anywhere between them, are refused, so
+//! no bytes of the archive escape the guard. Encrypted entries,
 //! compression methods other than stored and deflate, and a stored entry of
 //! unknown length are refused. Inflating runs on a blocking thread fed by
 //! the storage stream.
@@ -23,13 +31,12 @@ use futures_util::StreamExt;
 use systemprompt_traits::{FileStorage, StoredFileId};
 use tokio::sync::mpsc;
 
+use super::directory::{self, Directory, refuse};
 use crate::config::UploadLimits;
-use crate::uploads::error::{RefusalReason, UploadError, UploadResult};
+use crate::uploads::error::{UploadError, UploadResult};
 
 const LOCAL_SIGNATURE: u32 = 0x0403_4b50;
 const CENTRAL_SIGNATURE: u32 = 0x0201_4b50;
-const END_SIGNATURE: u32 = 0x0605_4b50;
-const ZIP64_END_SIGNATURE: u32 = 0x0606_4b50;
 const DESCRIPTOR_SIGNATURE: u32 = 0x0807_4b50;
 const ZIP64_EXTRA: u16 = 0x0001;
 const FLAG_ENCRYPTED: u16 = 0x0001;
@@ -40,16 +47,13 @@ const RATIO_FLOOR_BYTES: u64 = 1024 * 1024;
 const READ_BUFFER: usize = 64 * 1024;
 const PIPE_DEPTH: usize = 8;
 
-fn refuse(detail: impl Into<String>) -> UploadError {
-    UploadError::refused(RefusalReason::ArchiveLimits, detail)
-}
-
 pub(crate) async fn check(
     storage: &dyn FileStorage,
     id: &StoredFileId,
     size: u64,
     limits: &UploadLimits,
 ) -> UploadResult<()> {
+    let expected = directory::read(storage, id, size, limits).await?;
     let mut body = storage.open(id, None).await?.body;
     let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(PIPE_DEPTH);
     let limits = *limits;
@@ -97,6 +101,38 @@ impl Read for Pipe {
         let n = out.len().min(self.current.len());
         out[..n].copy_from_slice(&self.current.split_to(n));
         Ok(n)
+    }
+}
+
+/// A buffered reader that counts the bytes consumed, so the scan knows the
+/// archive offset of every header it reads.
+struct Counted<R> {
+    inner: R,
+    position: u64,
+}
+
+impl<R: BufRead> Counted<R> {
+    const fn new(inner: R) -> Self {
+        Self { inner, position: 0 }
+    }
+}
+
+impl<R: BufRead> Read for Counted<R> {
+    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+        let n = self.inner.read(out)?;
+        self.position += n as u64;
+        Ok(n)
+    }
+}
+
+impl<R: BufRead> BufRead for Counted<R> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        self.inner.fill_buf()
+    }
+
+    fn consume(&mut self, amount: usize) {
+        self.inner.consume(amount);
+        self.position += amount as u64;
     }
 }
 
@@ -221,20 +257,33 @@ fn descriptor(reader: &mut impl Read, zip64: bool) -> io::Result<()> {
     skip(reader, rest)
 }
 
-fn scan<R: BufRead>(mut reader: R, size: u64, limits: &UploadLimits) -> UploadResult<()> {
-    let mut entries: u64 = 0;
+fn scan<R: BufRead>(
+    mut reader: Counted<R>,
+    size: u64,
+    limits: &UploadLimits,
+    directory: &Directory,
+) -> UploadResult<()> {
+    let mut entries = directory.entries.iter();
     let mut total: u64 = 0;
     loop {
+        let at = reader.position;
         match read_u32(&mut reader).map_err(unreadable)? {
             LOCAL_SIGNATURE => {},
-            CENTRAL_SIGNATURE | END_SIGNATURE | ZIP64_END_SIGNATURE => break,
-            _ => return Err(refuse("the archive is malformed")),
+            CENTRAL_SIGNATURE if at == directory.offset && entries.len() == 0 => break,
+            CENTRAL_SIGNATURE => {
+                return Err(refuse(
+                    "the local entries do not end where the central directory starts",
+                ));
+            },
+            _ => return Err(refuse("the archive has bytes no entry accounts for")),
         }
-        entries += 1;
-        if entries > limits.office_max_entries {
+        let expected = entries
+            .next()
+            .ok_or_else(|| refuse("the archive has a local entry its directory does not list"))?;
+        if expected.offset != at {
             return Err(refuse(format!(
-                "more than {} entries",
-                limits.office_max_entries
+                "a local entry starts at {at}, not at {} where the directory puts it",
+                expected.offset
             )));
         }
         let entry = local_entry(&mut reader).map_err(unreadable)?;
@@ -243,6 +292,12 @@ fn scan<R: BufRead>(mut reader: R, size: u64, limits: &UploadLimits) -> UploadRe
         }
         let budget = limits.office_max_uncompressed_bytes.saturating_sub(total);
         let (out, taken) = entry_bytes(&mut reader, &entry, budget)?;
+        if taken != expected.compressed {
+            return Err(refuse(format!(
+                "an entry takes {taken} compressed bytes, not the {} its directory lists",
+                expected.compressed
+            )));
+        }
         if out > RATIO_FLOOR_BYTES && out / taken.max(1) > limits.office_max_ratio {
             return Err(refuse(format!(
                 "an entry expands {out} bytes from {taken}, past the {}x ratio",
@@ -254,7 +309,7 @@ fn scan<R: BufRead>(mut reader: R, size: u64, limits: &UploadLimits) -> UploadRe
             descriptor(&mut reader, entry.zip64).map_err(unreadable)?;
         }
     }
-    if entries == 0 {
+    if directory.entries.is_empty() {
         return Err(refuse("the archive has no entries"));
     }
     if total > RATIO_FLOOR_BYTES && total / size.max(1) > limits.office_max_ratio {

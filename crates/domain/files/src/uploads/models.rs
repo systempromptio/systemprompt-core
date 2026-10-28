@@ -6,11 +6,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, TraceId, UserId};
+use systemprompt_models::documents::DocumentFormat;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UploadStatus {
     Open,
+    Completing,
     Completed,
     Refused,
     Aborted,
@@ -22,6 +24,7 @@ impl UploadStatus {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Open => "open",
+            Self::Completing => "completing",
             Self::Completed => "completed",
             Self::Refused => "refused",
             Self::Aborted => "aborted",
@@ -40,6 +43,7 @@ impl std::str::FromStr for UploadStatus {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "open" => Ok(Self::Open),
+            "completing" => Ok(Self::Completing),
             "completed" => Ok(Self::Completed),
             "refused" => Ok(Self::Refused),
             "aborted" => Ok(Self::Aborted),
@@ -67,6 +71,7 @@ pub struct UploadSession {
     pub status: UploadStatus,
     pub blob_sha256: Option<ContentHash>,
     pub detected_mime: Option<String>,
+    pub checked_kind: Option<String>,
     pub refusal: Option<String>,
     pub trace_id: TraceId,
     pub created_at: DateTime<Utc>,
@@ -132,6 +137,33 @@ impl UploadProgress {
                 })
             })
             .collect()
+    }
+}
+
+/// What a completed upload recorded about a blob: the MIME type it is
+/// served as and the content check it passed (`zip`, `pdf`, `png`, `jpeg`,
+/// `gif`, `webp`, `svg`, `text` or `opaque`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlobOrigin {
+    pub mime: String,
+    pub checked_kind: Option<String>,
+}
+
+impl BlobOrigin {
+    /// Whether the bytes passed the check a document of `format` must
+    /// pass before its codec parses them: the zip guard for an Office or
+    /// OpenDocument format, the text check for HTML, Markdown and text. A
+    /// `file` document is never parsed, so any blob may become one.
+    #[must_use]
+    pub fn admits(&self, format: DocumentFormat) -> bool {
+        let checked = self.checked_kind.as_deref();
+        if format.is_file() {
+            true
+        } else if format.is_office() {
+            checked == Some("zip")
+        } else {
+            checked == Some("text")
+        }
     }
 }
 

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_uploads\n             SET status = $2, refusal = $3, finished_at = CURRENT_TIMESTAMP\n             WHERE id = $1::text::uuid AND status = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3a3c981eed6d310cb9ee4046529c5d4204c9898ae95b4f224a7e0f08afd29f8d"
+}

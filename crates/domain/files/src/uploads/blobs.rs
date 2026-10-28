@@ -8,28 +8,31 @@
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, UserId};
 use systemprompt_traits::{ByteRange, StoredFileRead};
 
-use super::error::{UploadError, UploadResult};
-use super::models::{UploadSession, UploadStatus};
+use systemprompt_models::documents::DocumentFormat;
+
+use super::error::{RefusalReason, UploadError, UploadResult};
+use super::models::{BlobOrigin, UploadSession, UploadStatus};
 use super::service::UploadService;
 use crate::documents::blob_store::BlobStoreError;
 
 impl UploadService {
-    /// The MIME type `owner`'s upload recorded for `blob`; refuses unless
-    /// `owner` completed an upload that produced it, so a content hash alone
-    /// never opens bytes someone else uploaded.
+    /// What `owner`'s upload recorded for `blob`; refuses unless `owner`
+    /// completed an upload that produced it, so a content hash alone never
+    /// opens bytes someone else uploaded.
     pub async fn require_owned_blob(
         &self,
         owner: &UserId,
         blob: &ContentHash,
-    ) -> UploadResult<String> {
+    ) -> UploadResult<BlobOrigin> {
         self.uploads
-            .find_blob_mime(owner, blob)
+            .find_blob_origin(owner, blob)
             .await?
             .ok_or_else(|| UploadError::BlobNotOwned(blob.clone()))
     }
 
-    /// The bytes of a blob `owner` uploaded, whole, and its MIME type; a blob
-    /// past `max_bytes` is refused, never truncated.
+    /// The bytes of a blob `owner` uploaded, whole, after checking it passed
+    /// the content check `format` needs; a blob past `max_bytes` is refused,
+    /// never truncated.
     // TRACKED(phase-6 streaming import): the import parses a blob whole, so
     // `max_bytes` (files.documents.maxUploadBytes) bounds it in memory; a
     // streaming codec import lifts this bound.
@@ -37,14 +40,25 @@ impl UploadService {
         &self,
         owner: &UserId,
         blob: &ContentHash,
+        format: DocumentFormat,
         max_bytes: u64,
-    ) -> UploadResult<(Vec<u8>, String)> {
-        let mime = self.require_owned_blob(owner, blob).await?;
+    ) -> UploadResult<(Vec<u8>, BlobOrigin)> {
+        let origin = self.require_owned_blob(owner, blob).await?;
+        if !origin.admits(format) {
+            return Err(UploadError::refused(
+                RefusalReason::UncheckedFormat,
+                format!(
+                    "blob {blob} did not pass the content check a {format} document needs (it \
+                     passed {}); import it as a file, or name it for what it is",
+                    origin.checked_kind.as_deref().unwrap_or("none")
+                ),
+            ));
+        }
         match self.blobs.read_all_primary(blob, max_bytes).await {
             Err(BlobStoreError::TooLarge { size, limit }) => {
                 Err(UploadError::TooLarge { size, limit })
             },
-            other => Ok((other?, mime)),
+            other => Ok((other?, origin)),
         }
     }
 

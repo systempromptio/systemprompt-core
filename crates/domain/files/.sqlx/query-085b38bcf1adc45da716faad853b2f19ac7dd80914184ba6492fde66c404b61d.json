@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(SUM(declared_size), 0)::bigint AS \"total!\" FROM document_uploads\n               WHERE owner_user_id = $1 AND status IN ('open', 'completing', 'completed')\n                 AND created_at > now() - interval '1 day'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "085b38bcf1adc45da716faad853b2f19ac7dd80914184ba6492fde66c404b61d"
+}

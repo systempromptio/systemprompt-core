@@ -6,15 +6,18 @@ CREATE TABLE IF NOT EXISTS document_uploads (
     declared_size BIGINT NOT NULL CHECK (declared_size > 0),
     declared_sha256 TEXT NOT NULL CHECK (declared_sha256 ~ '^[0-9a-f]{64}$'),
     part_size BIGINT NOT NULL CHECK (part_size > 0),
-    status TEXT NOT NULL DEFAULT 'open'
-        CHECK (status IN ('open', 'completed', 'refused', 'aborted', 'expired')),
+    status TEXT NOT NULL DEFAULT 'open',
+    CONSTRAINT document_uploads_status_check
+        CHECK (status IN ('open', 'completing', 'completed', 'refused', 'aborted', 'expired')),
     blob_sha256 TEXT CHECK (blob_sha256 ~ '^[0-9a-f]{64}$'),
     detected_mime TEXT,
     refusal TEXT,
     trace_id TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ NOT NULL,
-    finished_at TIMESTAMPTZ
+    finished_at TIMESTAMPTZ,
+    checked_kind TEXT,
+    claimed_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_uploads_owner_created

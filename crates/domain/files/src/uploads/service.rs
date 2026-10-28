@@ -86,6 +86,10 @@ impl UploadService {
         request: NewUpload,
         trace: &TraceId,
     ) -> UploadResult<UploadSession> {
+        let request = NewUpload {
+            mime: request.mime.trim().to_ascii_lowercase(),
+            ..request
+        };
         self.admit(owner, &request).await?;
         let part_size = i64::try_from(self.limits.part_size_bytes)
             .map_err(|_| UploadError::Invalid("part size is out of range".to_owned()))?;
@@ -236,7 +240,7 @@ impl UploadService {
         let session = self.open_session(owner, id).await?;
         if self
             .uploads
-            .mark_closed(id, UploadStatus::Aborted, None)
+            .mark_closed(id, UploadStatus::Open, UploadStatus::Aborted, None)
             .await?
         {
             self.remove_objects(&session).await?;
@@ -255,7 +259,7 @@ impl UploadService {
             };
             if self
                 .uploads
-                .mark_closed(&id, UploadStatus::Expired, None)
+                .mark_closed(&id, session.status, UploadStatus::Expired, None)
                 .await?
             {
                 self.remove_objects(&session).await?;

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO document_uploads\n                   (owner_user_id, file_name, declared_mime, declared_size, declared_sha256,\n                    part_size, trace_id, expires_at)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int))\n               RETURNING id::text AS \"id!: DocumentUploadId\",\n                         owner_user_id AS \"owner_user_id: UserId\", file_name, declared_mime,\n                         declared_size, declared_sha256 AS \"declared_sha256: ContentHash\",\n                         part_size, status, blob_sha256 AS \"blob_sha256: ContentHash\",\n                         detected_mime, refusal, trace_id AS \"trace_id: TraceId\", created_at,\n                         expires_at, finished_at",
+  "query": "INSERT INTO document_uploads\n                   (owner_user_id, file_name, declared_mime, declared_size, declared_sha256,\n                    part_size, trace_id, expires_at)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int))\n               RETURNING id::text AS \"id!: DocumentUploadId\",\n                         owner_user_id AS \"owner_user_id: UserId\", file_name, declared_mime,\n                         declared_size, declared_sha256 AS \"declared_sha256: ContentHash\",\n                         part_size, status, blob_sha256 AS \"blob_sha256: ContentHash\",\n                         detected_mime, checked_kind, refusal, trace_id AS \"trace_id: TraceId\", created_at,\n                         expires_at, finished_at",
   "describe": {
     "columns": [
       {
@@ -110,6 +110,17 @@
       },
       {
         "ordinal": 10,
+        "name": "checked_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_uploads",
+            "name": "checked_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
         "name": "refusal",
         "type_info": "Text",
         "origin": {
@@ -120,7 +131,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "trace_id: TraceId",
         "type_info": "Text",
         "origin": {
@@ -131,7 +142,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -142,7 +153,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "expires_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -153,7 +164,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "finished_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -188,11 +199,12 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       false,
       true
     ]
   },
-  "hash": "aad452e3a63dc50a3b04c5945c874a9b3ce6d8bcf7d946bd89d2b8ef32d9c659"
+  "hash": "03990de6fee3c4670ed92f19a58a48d645ead63d598340fab2b025b5196594e9"
 }

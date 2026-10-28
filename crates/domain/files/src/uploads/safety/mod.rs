@@ -1,8 +1,11 @@
 //! The content checks an assembled upload passes before it becomes a blob.
 //!
 //! [`inspect`] sniffs the first bytes against the declared MIME type, then
-//! runs the kind's own check: the `office` zip-bomb guard, which inflates
-//! every entry into a counter as the archive streams past, the `image`
+//! runs the check the bytes call for, chosen from the bytes themselves: any
+//! upload that opens a zip archive passes the zip guard whatever it was
+//! declared as, and the kind of check passed is recorded on the upload so
+//! an import can insist on it. The checks: the `office` zip-bomb guard, which
+//! inflates every entry into a counter as the archive streams past, the `image`
 //! dimension cap and metadata strip, or the `svg` active-content refusal.
 //! Images and SVG are read whole, bounded by their own size limits; every
 //! other kind is checked without being buffered. A
@@ -11,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod directory;
 mod image;
 mod office;
 pub(crate) mod sniff;
@@ -19,7 +23,7 @@ mod svg;
 use futures_util::StreamExt;
 use systemprompt_traits::{ByteRange, FileStorage, StoredFileId};
 
-use self::sniff::{Kind, declared_kind, detected_mime, matches, sniff};
+use self::sniff::{Kind, declared_kind, detected_mime, is_zip, matches, sniff};
 use super::error::{RefusalReason, UploadError, UploadResult};
 use crate::config::UploadLimits;
 
@@ -30,6 +34,7 @@ const SNIFF_BYTES: u64 = 8 * 1024;
 #[derive(Debug)]
 pub(crate) struct Inspected {
     pub(crate) detected_mime: String,
+    pub(crate) checked: Kind,
     pub(crate) replacement: Option<Vec<u8>>,
 }
 
@@ -99,7 +104,8 @@ pub(crate) async fn inspect(
             ),
         ));
     }
-    let replacement = match expected {
+    let checked = if is_zip(&head) { Kind::Zip } else { expected };
+    let replacement = match checked {
         Kind::Zip => {
             office::check(subject.storage, subject.id, subject.size, limits).await?;
             None
@@ -107,7 +113,7 @@ pub(crate) async fn inspect(
         Kind::Png | Kind::Jpeg | Kind::Gif | Kind::Webp => {
             let bytes =
                 read_bounded(subject, limits.image_max_bytes, RefusalReason::ImageLimits).await?;
-            let stripped = image::sanitize(expected, &bytes, limits)?;
+            let stripped = image::sanitize(checked, &bytes, limits)?;
             (stripped != bytes).then_some(stripped)
         },
         Kind::Svg => {
@@ -120,6 +126,7 @@ pub(crate) async fn inspect(
     };
     Ok(Inspected {
         detected_mime: detected_mime(expected, subject.declared_mime).to_owned(),
+        checked,
         replacement,
     })
 }

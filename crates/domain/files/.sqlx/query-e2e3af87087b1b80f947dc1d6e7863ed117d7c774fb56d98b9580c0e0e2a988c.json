@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*)::bigint AS \"count!\" FROM document_uploads\n               WHERE owner_user_id = $1 AND status = 'open' AND expires_at > now()",
+  "query": "SELECT COUNT(*)::bigint AS \"count!\" FROM document_uploads\n               WHERE owner_user_id = $1 AND status IN ('open', 'completing')\n                 AND expires_at > now()",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       null
     ]
   },
-  "hash": "1bc695b6546a600966c3b2d98b34e22a97b0e509ed55ae09945e9aeb310d0301"
+  "hash": "e2e3af87087b1b80f947dc1d6e7863ed117d7c774fb56d98b9580c0e0e2a988c"
 }

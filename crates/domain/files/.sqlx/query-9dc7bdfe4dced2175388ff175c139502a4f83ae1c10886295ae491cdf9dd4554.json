@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_uploads\n             SET status = 'completed', blob_sha256 = $2, detected_mime = $3, checked_kind = $4,\n                 finished_at = CURRENT_TIMESTAMP\n             WHERE id = $1::text::uuid AND status = 'completing'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9dc7bdfe4dced2175388ff175c139502a4f83ae1c10886295ae491cdf9dd4554"
+}

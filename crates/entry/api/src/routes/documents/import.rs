@@ -5,7 +5,10 @@
 //! given; `.csv` imports as text). A blob of no editable format becomes a
 //! `file` document under the MIME type its upload recorded, listed and
 //! downloadable like any other. Only the user who uploaded a blob may
-//! import it. A blob past the
+//! import it, and an editable format is imported only from an upload that
+//! passed that format's content check (the zip guard for Office and
+//! OpenDocument, the text check for HTML, Markdown and text); anything
+//! else answers `422 unchecked_format`. A blob past the
 //! document upload limit is refused with `413`, never truncated, and the
 //! format's codec must parse it whole before the document is created.
 //!
@@ -48,16 +51,24 @@ pub(super) async fn import(
     let Json(body) = body?;
     let who = caller(&state, &req_ctx).await?;
     let limit = state.service.config().max_upload_bytes;
-    let (bytes, mime_type) = state
+    let format = body
+        .format
+        .or_else(|| {
+            body.name
+                .rsplit_once('.')
+                .and_then(|(_, extension)| DocumentFormat::from_extension(extension))
+        })
+        .unwrap_or(DocumentFormat::File);
+    let (bytes, origin) = state
         .uploads
-        .read_owned_blob(req_ctx.user_id(), &body.blob_ref, limit)
+        .read_owned_blob(req_ctx.user_id(), &body.blob_ref, format, limit)
         .await
         .map_err(ApiHttpError::from)?;
     let request = ImportRequest {
         folder: body.folder_id,
         name: body.name,
-        format: body.format,
-        mime_type: Some(mime_type),
+        format: Some(format),
+        mime_type: Some(origin.mime),
         bytes,
         author: api_author(&req_ctx, &headers),
     };

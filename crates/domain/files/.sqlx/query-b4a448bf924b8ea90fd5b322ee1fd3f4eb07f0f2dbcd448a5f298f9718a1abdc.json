@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_blobs b WHERE b.content_sha256 = $1\n                 AND NOT EXISTS (SELECT 1 FROM document_revisions r\n                                 WHERE r.content_sha256 = b.content_sha256)\n                 AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s\n                                 WHERE s.snapshot_sha256 = b.content_sha256)\n                 AND NOT EXISTS (SELECT 1 FROM document_uploads u\n                                 WHERE u.blob_sha256 = b.content_sha256\n                                   AND u.status = 'completed')\n               RETURNING b.storage_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "storage_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_blobs",
+            "name": "storage_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b4a448bf924b8ea90fd5b322ee1fd3f4eb07f0f2dbcd448a5f298f9718a1abdc"
+}

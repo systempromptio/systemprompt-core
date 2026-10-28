@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: DocumentUploadId\" FROM document_uploads\n               WHERE (status = 'open' AND expires_at < now())\n                  OR (status = 'completing' AND claimed_at < now() - interval '1 hour')\n               ORDER BY expires_at LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentUploadId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "7d3ad8c4b5643e4ca58eef2a25ad5825005df1ea113352edda04fd014d632ef0"
+}
