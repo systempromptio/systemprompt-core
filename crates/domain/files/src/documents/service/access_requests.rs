@@ -109,7 +109,7 @@ impl DocumentService {
             document_name: found.name.clone(),
             request_id: request.id.clone(),
             requester_user_id: who.id.clone(),
-            requested_by: who.username.clone(),
+            requester_display: who.username.clone(),
             level: request.level,
             message: request.message.clone(),
         };

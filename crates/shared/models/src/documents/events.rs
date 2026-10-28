@@ -225,7 +225,7 @@ pub struct DocumentAccessRequestedEvent {
     pub document_name: String,
     pub request_id: DocumentAccessRequestId,
     pub requester_user_id: UserId,
-    pub requested_by: String,
+    pub requester_display: String,
     pub level: AccessLevel,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
