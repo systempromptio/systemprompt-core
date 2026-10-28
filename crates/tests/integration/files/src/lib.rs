@@ -18,6 +18,8 @@ mod documents_comments;
 #[cfg(test)]
 mod documents_drive_paths;
 #[cfg(test)]
+mod documents_folders;
+#[cfg(test)]
 mod documents_lifecycle;
 #[cfg(test)]
 mod documents_listing;
