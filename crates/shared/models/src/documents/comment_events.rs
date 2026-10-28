@@ -37,6 +37,11 @@ impl DocumentCommentDeletedEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "the document event wire vocabulary names every reference document_id, comment_id, \
+              mentioned_user_id and author_id, as the sibling events do"
+)]
 pub struct DocumentCommentMentionedEvent {
     pub document_id: DocumentId,
     pub comment_id: DocumentCommentId,
