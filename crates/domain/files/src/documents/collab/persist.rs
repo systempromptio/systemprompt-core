@@ -16,7 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{ContentHash, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, DocumentAction};
 
@@ -26,7 +26,7 @@ use super::entry::{CollabEntry, model_error, utf8};
 use super::model::body_of;
 use super::{Checkpoint, CollabError, CollabService};
 use crate::documents::engine::ModelView;
-use crate::documents::model::{Media, carry_ids};
+use crate::documents::model::{Media, MediaBlob, carry_ids, media_refs};
 use crate::documents::models::RevisionAttribution;
 use crate::documents::repository::SnapshotMark;
 use crate::documents::revision::CommitBody;
@@ -64,6 +64,24 @@ impl CollabService {
         Ok(())
     }
 
+    /// The bytes of every uploaded image the live model places, read from
+    /// the blob store the same way an agent's commit reads them.
+    async fn live_media(&self, model: &ModelView) -> Result<Media, CollabError> {
+        let mut media = Media::new();
+        let ModelView::RichText(rich) = model else {
+            return Ok(media);
+        };
+        for reference in media_refs(rich) {
+            let Ok(hash) = ContentHash::try_new(&reference) else {
+                continue;
+            };
+            let bytes = self.documents.media_bytes(&hash).await?;
+            let mime = String::from("application/octet-stream");
+            media.insert(reference, MediaBlob { bytes, mime });
+        }
+        Ok(media)
+    }
+
     pub(super) async fn checkpoint(
         &self,
         entry: &mut CollabEntry,
@@ -79,11 +97,14 @@ impl CollabService {
         let base_bytes = self.revision_bytes(&base, limit).await?;
         let model = entry.doc.export_model();
         entry.checkpoint_due_from = None;
-        if unchanged_from(entry.format, &base_bytes, &model).map_err(model_error(&document_id))? {
+        let media = self.live_media(&model).await?;
+        if unchanged_from(entry.format, &base_bytes, &model, &media)
+            .map_err(model_error(&document_id))?
+        {
             return Ok(Checkpoint::Unchanged);
         }
-        let next =
-            materialise(entry.format, &base_bytes, &model).map_err(model_error(&document_id))?;
+        let next = materialise(entry.format, &base_bytes, &model, &media)
+            .map_err(model_error(&document_id))?;
         let outcome = self
             .documents
             .commit(
@@ -150,7 +171,9 @@ impl CollabService {
         let document_id = entry.session.document_id.clone();
         let limit = self.documents.config().max_upload_bytes;
         let base_bytes = self.revision_bytes(&base, limit).await?;
-        let body = materialise(entry.format, &base_bytes, &entry.doc.export_model())
+        let model = entry.doc.export_model();
+        let media = self.live_media(&model).await?;
+        let body = materialise(entry.format, &base_bytes, &model, &media)
             .map_err(model_error(&document_id))?;
         let proposed = self
             .documents
