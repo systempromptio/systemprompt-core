@@ -222,6 +222,13 @@ lint-repo-hygiene:
         exit 1
     fi
     echo "✓ no stray status/plan/report docs tracked"
+    build=$(git ls-files | grep -E '(^|/)target(-[^/]+)?/' || true)
+    if [ -n "$build" ]; then
+        echo "✗ cargo build output tracked ($(echo "$build" | wc -l) files):" >&2
+        echo "$build" | cut -d/ -f1-2 | sort -u | sed 's/^/    /' >&2
+        exit 1
+    fi
+    echo "✓ no cargo build output tracked"
 
 # Every source gate, then a workspace check
 check: check-gates
