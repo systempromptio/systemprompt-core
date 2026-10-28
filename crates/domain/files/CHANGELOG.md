@@ -1,11 +1,32 @@
 # Changelog
 
-## [Unreleased]
+## [0.75.0] - 2026-10-27
 
 ### Breaking
 
-- The `collab` feature links no CRDT crate: live sessions run over the new `documents::engine::DocumentEngine` seam (`EngineDoc`, `FormulaEngine`, `RenderEngine`, `ModelView`, `EngineError`), and `CollabService::new` takes `Option<Arc<dyn DocumentEngine>>`. The Loro implementation is `systemprompt-engine-loro`.
-- The vendored `loro-crdt` WebAssembly, `documents-collab.js` and `sp-document-editor` are removed; core ships no third-party frontend code.
+- The Loro CRDT moves out of `systemprompt-files` into the new `systemprompt-engine-loro` crate behind the `documents::engine::DocumentEngine` seam (with `FormulaEngine`, `RenderEngine` and the engine-agnostic `ModelView`); `systemprompt-files` links no CRDT crate. `CollabService::new` takes a third argument, `Option<Arc<dyn DocumentEngine>>`; with `None` every session call answers `CollabError::EngineUnavailable` (HTTP 503, `collab_engine_unavailable`). `CollabError::{Crdt, Encode, Reconcile}` collapse into `Engine(EngineError)`, and `InvalidUpdate`/`InvalidVersion` carry an `EngineError`. `collab::model::{BODY_CONTAINER, SEED_PEER, seed, body_text, replica_peer}` move to `systemprompt_engine_loro`. Migrate by passing `Some(Arc::new(LoroEngine))` and enabling the facade's `files-collab-loro` feature (`full` implies it); `files-collab` alone mounts the routes without an engine.
+- Core ships no third-party frontend code: the vendored `loro-crdt` WebAssembly (`assets/documents/wasm/*`), the `documents-collab.js` client and the `sp-document-editor` component are removed. Migrate by vendoring a Loro client in the installation that serves the editor, at `systemprompt_engine_loro::WIRE_VERSION`.
+- `DocumentAccessService::new` takes a fourth argument, `Arc<dyn SubjectDirectory>`, which resolves grant subjects to users. Migrate by passing `UserSubjectDirectory` from `systemprompt-runtime` or your own implementation.
+- `DocumentService::transfer_ownership` takes a `TransferRequest { to, to_display }`; a `to_display` of `None` is refused with `UnknownSubject`. Migrate by resolving the recipient with `active_user_display` and passing the result.
+- `DocumentsError` gains `UnknownSubject`, `OwnNotGrantable`, `ShareBelowExisting` and `Directory`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+- `own` is not a grantable level: `share` refuses it with `invalid_params` (`DocumentsError::OwnNotGrantable`), and a stored `own` grant confers `share`. Migrate by transferring ownership instead.
+- `collab::Left::checkpoint` is a `Checkpoint` (`Unchanged`, `Committed`, `Conflict { head, proposal }`) instead of `Option<DocumentRevisionId>`, and the leave route answers `{closed, checkpoint, checkpoint_revision, head_revision?, proposal_id?}`. Migrate by matching on `Checkpoint` or calling `Checkpoint::revision`.
+- `DocumentCollabRepository::append` returns `Option<i64>` (`None` for a closed session) and `set_snapshot` takes a `SnapshotMark`. Migrate by handling `None` and passing the snapshot's hash, sequence number and version vector.
+- `DocumentRepository::rename`, `move_to`, `trash` and `restore` take the document's path before and after the change (`PathMove`, or the single path a trash leaves or a restore returns to) and record it in `document_path_changes`. Migrate by passing the paths; `DocumentService` callers are unchanged.
+- `CommitRequest` gains `op_id`, and `CommitOutcome` becomes `Committed(Box<LandedCommit>)`, `Merged(Box<LandedCommit>)` or `Conflict { head: Box<DocumentRevision>, base }`; `LandedCommit` carries the revision, the stored `WriteAck`, the new head's projection and `replayed`. Migrate by passing `op_id: None` (or the caller's op id) and matching `Committed(landed)` / `Merged(landed)`, reading `landed.revision` and `landed.ack.merged_from`.
+- `DocumentService::find_write_ack` and `record_write_ack` are removed and `StoredWriteAck` holds `user_id`, `request_sha256` and a typed `WriteAck`. Migrate by passing the op id in `CommitRequest::op_id`; the commit claims and replays acknowledgements itself.
+- `DocumentRevision` gains `landed_at` and `NewRevision` gains `id`. Migrate struct literals by passing `DocumentRevisionId::generate()`; only revisions with `landed_at` resolve in reads, history, `restore` and `insert_from_revision`.
+- `DocumentRepository::set_head_if` is replaced by `begin` and `DocumentRepository::move_head(conn, HeadMove)`, `DocumentNodeIdRepository::insert` takes a connection and refuses a second write of a revision's ids, `max_counter` is replaced by `reserve`, `DocumentWriteAckRepository::insert` by `claim`, and `DocumentRevisionRepository` gains `insert_in` and `mark_landed`. Migrate by writing heads, ids and acknowledgements inside one transaction from `DocumentRepository::begin`.
+- `DocumentsError::TooLarge` gains `what`, and `DocumentsError` gains `OpIdMismatch`, `GuardMissing`, `SelfReview`, `InvalidAwareness` and `LiveSession`. Migrate by adding the field to patterns that bind it and arms (or a wildcard) to exhaustive matches.
+- `carry_forward` takes `&CarryHints` (retired and rewritten ids) instead of a retired id set. Migrate by passing `CarryHints { retired, ..CarryHints::default() }`.
+- `DocumentsConfig` gains `limits: DocumentLimits`. Migrate struct literals by adding `limits: DocumentLimits::default()`.
+- `LandedCommit::projection` is a `Projection` (a replay projects the acknowledged revision), `DocumentsError` gains `InvalidParams`, `DocumentFolder::deleted_at` is `trashed_at`, and a revision without node ids refuses `NotFound` on read instead of minting them. Migrate by dropping `Option` handling and running the `document_node_ids_backfill` job.
+- `SubjectDirectory` gains `search_users` and `roles`, and `UserSubjectDirectory::new` takes the extension-declared role names. Migrate implementations by adding both methods and construct the directory with `Vec::new()` or the registry's roles.
+- `DocumentService::access_of` takes a `history: bool`, and `DocumentAccess` is `TargetAccess<Document>` with `target`, `inherited: Vec<InheritedGrant>`, `history` and `requests`. Migrate by passing `false` and reading `access.target` and `inherited[..].grant`.
+- `ShareRequest` gains `message`, `NewGrant` gains `trace_id`, and `DocumentGrantRepository::delete` and `delete_for_document` take a `&GrantActor`. Migrate struct literals by adding the fields and pass the acting user and trace.
+- `share` refuses a subject that does not exist (an inactive or unknown user, a role outside the role catalogue, or a value a listing dimension does not list) with `UnknownSubject`. Migrate by sharing with existing subjects.
+- `DocumentRepository::set_owner` is removed; ownership moves through `DocumentGrantEventRepository::transfer_owner`. Migrate by calling `DocumentService::transfer_ownership`.
+- `DocumentsError` gains `AccessRequestOpen`, `AccessRequestNotNeeded` and `AccessRequestClosed`, and `DocumentsConfig` gains `access_requests`. Migrate by adding arms (or a wildcard) and `access_requests: false` to struct literals.
 
 ### Added
 
@@ -14,6 +35,50 @@
 - `docx` hyperlinks are native `w:hyperlink`s with an external relationship; new `docx` and `odt` tables are written natively.
 - `documents::model`: the `RichText` model, HTML and Markdown import and materialise, `validate` with `Limits` and `EditLevel`, `carry_ids`, `rich_text_schema`. Collab protocol v2 join fields, comment-mode joins, and server-side validation of every update on a fork (`CollabError::UpdateRejected`). `docx` and `odt` co-editing through `model::office` segments, with every untouched package part kept byte for byte.
 
+- `POST /api/v1/documents/{id}/collab/awareness` publishes a participant's `AwarenessState` (`color`, `mode`: `viewing`, `editing`, `commenting`, `cursor`, up to 16 `selection` ranges, `viewport`, `session_id`) through `DocumentService::publish_awareness`; `editing` needs edit access, the state lives on the presence row for `presenceTtlSecs`, and a malformed state is refused as `invalid_params`. `DocumentService::live_open` and `live_replay` back the channel.
+- The grant audit log: every grant change (`granted`, `changed`, `revoked`, `revoked_all`, `transferred`, `expired`) writes a `document_grant_events` row in the same statement, read by holders of `share` through `documents_access` `history: true` and `GET /{id}/access?history=true`, and reported by the `report_document_sharing` view.
+- Subject search, `GET /api/v1/documents/subjects?kind=&q=&limit=`, over users, the role catalogue and dimension values a provider can list.
+- Folder sharing over REST: `GET`, `POST`, `DELETE /api/v1/document-folders/{id}/grants` and `GET /api/v1/document-folders/{id}/access`; inherited grants carry `inherited_from { folder_id, name }`.
+- A share may carry a `message` (at most 1 KiB), sent on `document.shared` and shown in the bridge notification.
+- Access requests behind `files.documents.accessRequests` (off by default): `POST /{id}/access-requests`, `POST /{id}/access-requests/{rid}/grant|decline`, the `document.access_requested` event, open requests in access read-backs, and `can_request: true` on a signed-in caller's `not_found` for an existing document.
+- The share dialog searches subjects as a keyboard-navigable typeahead (`sp-subject-picker`), shows who has access read-only below `share`, names the folder of inherited grants, greys expired grants, confirms transfer and revoke-all, takes a message, lists access requests and shows the access history.
+- `DocumentGrant::is_expired`, and grant listings and access read-backs carry `expired: true` for a grant past its `valid_until`.
+- `DocumentService::propose_body` proposes a whole body on a base revision.
+- PDF export. `DocumentService::render_pdf` renders a revision to A4 PDF from its codec projection with the `documents::pdf` module (pure Rust, standard fonts, images omitted, deterministic for a revision), capped by the new `files.documents.limits.pdfPages` (`DocumentLimits::pdf_pages`, default 500, refused as `TooLarge` beyond it).
+- `collab::Joined::seq` and the join route's `seq` give the sequence number a client resumes from.
+- Migration `013_document_path_history` adds `document_path_changes`, the path history the drive change feed merges with revisions under one `(timestamp, id)` cursor.
+- `files.documents.limits` (`maxOpsPerCall`, `maxOpTextBytes`, `maxMarkdownBytes`, `maxCommentBytes`, `maxCollabUpdateBytes`, `maxCursorBytes`) with bounds validation; a request over a limit is refused as `too_large` (HTTP 413).
+- The `document_node_ids_backfill` job mints node ids for revisions written before ids existed, once per release under a release stamp.
+- Migration `011_document_revision_landing` adds `document_node_counters`, `document_revisions.landed_at` (backfilled along each head chain) and `document_write_acks.user_id` and `request_sha256`.
+- Migration `012_document_collab_session_seq` adds `document_edit_sessions.next_seq` and `snapshot_vv`, so live-edit sequence numbers are assigned per session under a row lock and a snapshot records the version vector it covers.
+- Migration `015_document_grant_events_and_access_requests` adds `document_grant_events` and `document_access_requests`.
+- `DocumentLimits::pdf_pages` is validated with the other limits at boot (`files.documents.limits.pdfPages`, 1 to 5,000).
+### Changed
+- A commit's revision, node ids, op id acknowledgement and head move commit in one transaction on the primary database, and the head's compare-and-swap also refuses a foreign lock.
+- An `op_id` replays only for the same user and the same request, over MCP and HTTP alike; a different request under a used op id is refused as `op_id_mismatch`.
+- `replace_text` and `delete` on a node id require `expected_hash`; a quote target resolves its own.
+- An agent's `mode: land` in a folder whose agent edit policy is `propose` is refused, and a proposer cannot accept their own proposal (`self_review`).
+- `insert_from_revision` copies Word paragraphs and tables and PowerPoint paragraphs with their formatting.
+- The drive change feed (`GET /v1/bridge/drive/changes`) reports `deleted` when a document is trashed, `created` with the head revision when it is restored, and `renamed { from }` when it is renamed or moved, merged with revisions under one `(timestamp, id)` cursor.
+### Fixed
+- Deleting, trashing, restoring, moving, transferring ownership and revoking every grant on a document are the owner's alone.
+- A share holder can no longer change a grant whose subject holds more than they do.
+- A caller with no access to a document or folder is answered `not_found` without the owner's id, and a caller below `share` reads back only the owner and their own level.
+- Transferring ownership requires an active recipient and notifies the previous owner and present users.
+- Revoking a grant, revoking every grant and grant expiry clear the affected users' presence and live editing state, and document events reach only present users who still hold access.
+- The presence sweep job deletes expired grants.
+- `document.shared` is emitted once per recipient user, with role subjects resolved to their active members, and never to the sharer.
+- Live-edit sequence numbers are assigned per session in commit order, so a replica catching up never skips an update and a snapshot prunes only updates it covers.
+- A live update is logged before any replica applies it, so a refused or failed update leaves the cache unchanged.
+- Leaving a session whose checkpoint conflicts with the head keeps the session open and keeps the live body as a proposal by the last editor; checkpoints run as the last editor and a leaving viewer never commits.
+- Trashing a document commits its live body, closes its edit session and clears its locks and presence.
+- The web editor advances its sent version only after the server accepts an update, retries transient failures, diffs at code-point boundaries and rejoins on a sequence gap; `postEdits` takes a caller-supplied `opId` so a retry is idempotent.
+- The drive change feed skips the revisions of a trashed document instead of failing the page.
+- Concurrent commits by one writer no longer mint the same node id, and a node id is never stored without its row.
+- A commit that loses the head race no longer leaves a revision that history, `restore` or `since_revision` would accept.
+- A block inserted where an unrelated block was deleted no longer inherits its id, and a moved block keeps its id.
+- A stale Office upload that changes a paragraph's formatting is reported as a conflict instead of landing without the formatting.
+- An accepted proposal records its landed revision in the landing transaction, and the presence sweep reopens an accept that never landed.
 ## [0.74.0] - 2026-10-27
 
 ### Breaking
