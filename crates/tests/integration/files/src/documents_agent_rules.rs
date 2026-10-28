@@ -4,6 +4,7 @@
 
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefusal};
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
@@ -205,6 +206,7 @@ async fn an_agents_set_text_is_a_whole_content_replace() {
         lock_holder_id: None,
         comments: CommentPolicy::default(),
         op_id: None,
+        media: Media::new(),
     };
     let refused = as_agent(h.service.commit(&owner, request, &trace()))
         .await

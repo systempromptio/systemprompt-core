@@ -44,8 +44,9 @@ pub struct ConflictNotice {
     pub detected_at: DateTime<Utc>,
 }
 
-/// A local edit the server took as a proposal for review, not a commit:
-/// the device acts as an agent that may only suggest on that document. The
+/// A local edit the server took as a proposal for review, not a commit.
+///
+/// The device acts as an agent that may only suggest on that document. The
 /// file stays as edited; the next pull replaces it once a reviewer accepts
 /// (or the head otherwise moves).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

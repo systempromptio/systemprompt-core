@@ -10,6 +10,7 @@ use systemprompt_files::documents::agents::{
     AgentAccessPolicy, AgentActor, AgentCap, AgentCapability, AgentRefusal, DocumentActor,
     DocumentContext, act_as,
 };
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommentPolicy, CommitOutcome, CommitRequest};
 use systemprompt_identifiers::DocumentId;
@@ -101,6 +102,7 @@ pub(crate) async fn edit(
         lock_holder_id: None,
         comments: CommentPolicy::default(),
         op_id: None,
+        media: Media::new(),
     };
     h.service.commit(who, request, &trace()).await
 }

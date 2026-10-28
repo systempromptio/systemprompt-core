@@ -1,7 +1,8 @@
-//! One Drive sync cycle: pull the server's changes, push local edits, refresh
-//! the open proposals and fold the outcome into the shared status; and the
-//! first-run check that creates the Drive folder once the server has
-//! documents for it.
+//! One Drive sync cycle and the first-run check.
+//!
+//! A cycle pulls the server's changes, pushes local edits, refreshes the open
+//! proposals and folds the outcome into the shared status. The first-run
+//! check creates the Drive folder once the server has documents for it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
