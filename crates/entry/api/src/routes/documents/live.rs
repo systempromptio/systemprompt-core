@@ -71,7 +71,7 @@ pub(super) async fn live(
         .service
         .live_open(&who.user, &document, &who.trace)
         .await?;
-    let receiver = state
+    let topic = state
         .service
         .events()
         .router()
@@ -89,7 +89,7 @@ pub(super) async fn live(
         Some(token) => Some(state.service.live_replay(&open, token).await?),
         None => None,
     };
-    let stream = channel(state, who, open, replay, receiver);
+    let stream = channel(state, who, open, replay, topic);
     Ok(Sse::new(stream)
         .keep_alive(standard_keep_alive())
         .into_response())
@@ -117,7 +117,7 @@ fn channel(
     who: Caller,
     open: LiveOpen,
     replay: Option<LiveReplay>,
-    mut receiver: tokio::sync::broadcast::Receiver<TopicEvent>,
+    mut topic: tokio::sync::broadcast::Receiver<TopicEvent>,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     async_stream::stream! {
         let document = open.document.id.clone();
@@ -151,7 +151,7 @@ fn channel(
         recheck.tick().await;
         loop {
             let step = tokio::select! {
-                received = receiver.recv() => Step::Received(received),
+                received = topic.recv() => Step::Received(received),
                 _ = recheck.tick() => Step::Recheck,
             };
             match step {
