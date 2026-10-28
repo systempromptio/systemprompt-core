@@ -9555,6 +9555,7 @@ dependencies = [
  "ammonia",
  "async-trait",
  "base64 0.23.1",
+ "bytes",
  "chrono",
  "diffy",
  "ego-tree",
@@ -10487,6 +10488,7 @@ name = "systemprompt-runtime"
 version = "0.74.0"
 dependencies = [
  "async-trait",
+ "base64 0.23.1",
  "chrono",
  "indicatif",
  "maxminddb",

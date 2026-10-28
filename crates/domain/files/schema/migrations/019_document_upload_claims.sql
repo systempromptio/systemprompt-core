@@ -7,7 +7,9 @@ ALTER TABLE document_uploads DROP CONSTRAINT IF EXISTS document_uploads_status_c
 
 ALTER TABLE document_uploads
     ADD CONSTRAINT document_uploads_status_check
-    CHECK (status IN ('open', 'completing', 'completed', 'refused', 'aborted', 'expired'));
+    CHECK (status IN ('open', 'completing', 'completed', 'refused', 'aborted', 'expired')) NOT VALID;
+
+ALTER TABLE document_uploads VALIDATE CONSTRAINT document_uploads_status_check;
 
 ALTER TABLE document_uploads
     ADD COLUMN IF NOT EXISTS checked_kind TEXT;
