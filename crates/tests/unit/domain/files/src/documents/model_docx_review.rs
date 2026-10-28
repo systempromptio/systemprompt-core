@@ -8,7 +8,7 @@ use systemprompt_files::documents::model::{
 use systemprompt_files::documents::service::held_media_refs;
 use systemprompt_provider_contracts::documents::DocumentFormat;
 
-use super::docx_fixture::{entries, fixture, part};
+use super::docx_fixture::{entries, fixture, package_with, part};
 use super::model_docx_roundtrip::{BLOB, media, written};
 
 fn raw_block(id: &str) -> Block {
@@ -164,4 +164,41 @@ fn a_second_drawing_takes_a_fresh_object_id() {
     unique.dedup();
     assert_eq!(ids.len(), 2);
     assert_eq!(unique.len(), ids.len());
+}
+
+const BREAK_XML: &str = concat!(
+    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>"#,
+    r#"<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>"#,
+    r#"<w:p><w:r><w:t>Intro</w:t></w:r></w:p>"#,
+    r#"<w:p><w:pPr><w:sectPr><w:headerReference w:type="default" r:id="rId77"/><w:type w:val="nextPage"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:num="2" w:space="708"/></w:sectPr></w:pPr></w:p>"#,
+    r#"<w:p><w:r><w:t>Body</w:t></w:r></w:p>"#,
+    r#"<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>"#,
+    "</w:body></w:document>",
+);
+
+#[test]
+fn an_edited_mid_body_break_keeps_its_untouched_children() {
+    let base = package_with(BREAK_XML);
+    let mut model = import_rich(&base).expect("import");
+    let section = model
+        .blocks
+        .iter_mut()
+        .find_map(|block| match &mut block.kind {
+            BlockKind::SectionBreak { section } => Some(section),
+            _ => None,
+        })
+        .expect("a section break");
+    section.margins = Some(Margins {
+        top: 36,
+        right: 72,
+        bottom: 72,
+        left: 72,
+    });
+    let out = materialise_rich(&base, &model).expect("materialise");
+    let xml = part(&out, "word/document.xml");
+    assert!(xml.contains("<w:headerReference w:type=\"default\" r:id=\"rId77\"/>"));
+    assert!(xml.contains("<w:type w:val=\"nextPage\"/>"));
+    assert!(xml.contains("<w:cols w:num=\"2\" w:space=\"708\"/>"));
+    assert!(xml.contains("w:top=\"720\" w:right=\"1440\""));
+    assert!(xml.contains("w:header=\"708\""));
 }

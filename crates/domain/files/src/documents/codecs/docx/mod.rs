@@ -59,6 +59,7 @@ mod style_merge;
 mod styles;
 mod write;
 mod write_drawing;
+mod write_runs;
 mod write_styles;
 mod write_table;
 

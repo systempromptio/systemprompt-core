@@ -12,18 +12,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use systemprompt_provider_contracts::documents::CodecError;
 
-use super::links::{Links, hyperlink};
+use super::links::Links;
 use super::markup::run;
 use super::numbering::Numbering;
 use super::package::PartEdits;
 use super::read::CALLOUT_STYLES;
+use super::sect_splice::splice_sect_pr;
 use super::write_drawing::image_block;
+use super::write_runs::runs;
 use super::write_table::table;
 use crate::documents::model::document::DocumentSettings;
-use crate::documents::model::layout::{Align, CalloutTone, ParaAttrs};
-use crate::documents::model::{Block, BlockKind, MarkKind, Media, segments};
+use crate::documents::model::layout::{Align, CalloutTone, ParaAttrs, Section};
+use crate::documents::model::{Block, BlockKind, Media, segments};
+
+pub(super) use super::write_runs::{escape_attr, half_points, hex};
 
 pub(super) struct WriteCtx<'a> {
     pub(super) base: &'a [u8],
@@ -38,6 +44,9 @@ pub(super) struct WriteCtx<'a> {
     pub(super) in_part: bool,
     pub(super) even_odd: bool,
     pub(super) update_fields: bool,
+    /// The base `w:sectPr` of each section break, by block id, so an
+    /// edited break is spliced over its base rather than written fresh.
+    pub(super) base_breaks: HashMap<String, (String, Section)>,
 }
 
 impl WriteCtx<'_> {
@@ -50,31 +59,12 @@ impl WriteCtx<'_> {
     }
 }
 
-const CODE_FONT: &str = "<w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/>";
+pub(super) const CODE_FONT: &str = "<w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/>";
 
 const DIVIDER: &str = "<w:p><w:pPr><w:pBdr><w:bottom w:val=\"single\" w:sz=\"6\" w:space=\"1\" \
     w:color=\"auto\"/></w:pBdr></w:pPr></w:p>";
 
 const PAGE_BREAK: &str = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
-
-const HIGHLIGHTS: [&str; 16] = [
-    "yellow",
-    "green",
-    "cyan",
-    "magenta",
-    "blue",
-    "red",
-    "darkBlue",
-    "darkCyan",
-    "darkGreen",
-    "darkMagenta",
-    "darkRed",
-    "darkYellow",
-    "darkGray",
-    "lightGray",
-    "black",
-    "white",
-];
 
 pub(super) fn write_block(block: &Block, ctx: &mut WriteCtx<'_>) -> String {
     write_in_cell(block, ctx, None)
@@ -92,7 +82,10 @@ pub(super) fn write_in_cell(
         BlockKind::PageBreak => PAGE_BREAK.to_owned(),
         BlockKind::Divider => DIVIDER.to_owned(),
         BlockKind::SectionBreak { section } => {
-            let sect = super::sections::sect_pr(section, ctx);
+            let sect = match ctx.base_breaks.get(&block.id).cloned() {
+                Some((xml, held)) => splice_sect_pr(&xml, &held, section, ctx),
+                None => super::sections::sect_pr(section, ctx),
+            };
             format!("<w:p><w:pPr>{sect}</w:pPr></w:p>")
         },
         BlockKind::Toc { levels } => {
@@ -202,82 +195,6 @@ const fn jc(align: Align) -> &'static str {
     }
 }
 
-pub(super) fn runs(text: &str, active: &[&MarkKind], ctx: &mut WriteCtx<'_>) -> String {
-    let mut link = None;
-    let mut field = None;
-    let mut rpr = String::new();
-    let mut font = None;
-    let (mut color, mut size, mut highlight, mut fill, mut vert) = (None, None, None, None, None);
-    let has = |key: &str| active.iter().any(|kind| kind.key() == key);
-    for kind in active {
-        match kind {
-            MarkKind::Link { href } => link = Some(href.as_str()),
-            MarkKind::Field { code } => field = Some(code.as_str()),
-            MarkKind::Font { value } => font = Some(value.as_str()),
-            MarkKind::Color { value } => color = hex(value),
-            MarkKind::Size { value } => size = half_points(value),
-            MarkKind::Highlight { value } if HIGHLIGHTS.contains(&value.as_str()) => {
-                highlight = Some(value.as_str());
-            },
-            MarkKind::Highlight { value } => fill = hex(value),
-            MarkKind::Superscript => vert = Some("superscript"),
-            MarkKind::Subscript => vert = Some("subscript"),
-            MarkKind::Footnote { .. } => vert = Some("superscript"),
-            _ => {},
-        }
-    }
-    if has("code") {
-        rpr.push_str(CODE_FONT);
-    } else if let Some(font) = font {
-        let font = escape_attr(font);
-        rpr.push_str(&format!("<w:rFonts w:ascii=\"{font}\" w:hAnsi=\"{font}\"/>"));
-    }
-    for (key, tag) in [
-        ("bold", "<w:b/>"),
-        ("italic", "<w:i/>"),
-        ("caps", "<w:caps/>"),
-        ("strike", "<w:strike/>"),
-    ] {
-        if has(key) {
-            rpr.push_str(tag);
-        }
-    }
-    match color {
-        Some(color) => rpr.push_str(&format!("<w:color w:val=\"{color}\"/>")),
-        None if link.is_some() => rpr.push_str("<w:color w:val=\"0563C1\"/>"),
-        None => {},
-    }
-    if let Some(size) = size {
-        rpr.push_str(&format!("<w:sz w:val=\"{size}\"/><w:szCs w:val=\"{size}\"/>"));
-    }
-    if let Some(name) = highlight {
-        rpr.push_str(&format!("<w:highlight w:val=\"{name}\"/>"));
-    }
-    if has("underline") || link.is_some() {
-        rpr.push_str("<w:u w:val=\"single\"/>");
-    }
-    if let Some(fill) = fill {
-        rpr.push_str(&format!("<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"{fill}\"/>"));
-    }
-    if let Some(vert) = vert {
-        rpr.push_str(&format!("<w:vertAlign w:val=\"{vert}\"/>"));
-    }
-    let props = (!rpr.is_empty()).then(|| format!("<w:rPr>{rpr}</w:rPr>"));
-    let mut piece = run(props.as_deref(), text);
-    if let Some(code) = field {
-        let code = escape_attr(code);
-        piece = format!("<w:fldSimple w:instr=\" {code} \">{piece}</w:fldSimple>");
-    }
-    let id = match link {
-        Some(href) if !ctx.in_part => ctx.links.id_for(href),
-        _ => None,
-    };
-    match id {
-        Some(id) => hyperlink(&id, &piece),
-        None => piece,
-    }
-}
-
 fn callout_style(tone: CalloutTone) -> String {
     CALLOUT_STYLES
         .iter()
@@ -307,22 +224,4 @@ fn toc(levels: u8) -> String {
          <w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>Update this field to build the \
          table of contents.</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>"
     )
-}
-
-pub(super) fn hex(value: &str) -> Option<String> {
-    let digits = value.strip_prefix('#').unwrap_or(value);
-    (digits.len() == 6 && digits.chars().all(|c| c.is_ascii_hexdigit()))
-        .then(|| digits.to_ascii_uppercase())
-}
-
-/// A point size as `w:sz` half-points.
-pub(super) fn half_points(value: &str) -> Option<u32> {
-    let points = value.trim().parse::<f32>().ok()?;
-    (1.0..=1638.0)
-        .contains(&points)
-        .then(|| (points * 2.0).round() as u32)
-}
-
-pub(super) fn escape_attr(value: &str) -> String {
-    quick_xml::escape::escape(value).into_owned()
 }

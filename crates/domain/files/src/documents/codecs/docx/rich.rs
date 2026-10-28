@@ -13,6 +13,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::import::{final_sect, insert_point, read_ctx, segments, settings};
@@ -26,6 +28,7 @@ use super::write::{WriteCtx, write_block};
 use super::write_drawing::max_drawing_id;
 use super::write_styles::{finish_styles, finish_theme};
 use crate::documents::model::layout::Section;
+use crate::documents::model::office::SegmentedBody;
 use crate::documents::model::{BlockKind, DocumentSettings, Media, RichText, office};
 
 pub fn import_rich(bytes: &[u8]) -> Result<RichText, CodecError> {
@@ -66,6 +69,7 @@ pub fn materialise_rich_with(
         in_part: false,
         even_odd: false,
         update_fields: false,
+        base_breaks: base_breaks(&src, &body),
     };
     let mut xml = office::splice(&src, &body, model, |block| write_block(block, &mut ctx));
     xml = with_final_section(xml, &base_settings, &mut ctx);
@@ -124,4 +128,23 @@ fn same_section(a: &Section, b: &Section) -> bool {
         section: Box::new(section.clone()),
     };
     office::same_kind(&kind(a), &kind(b))
+}
+
+/// The base `w:sectPr` and section of every section-break block, by the id
+/// the import gives it.
+fn base_breaks(src: &str, body: &SegmentedBody) -> HashMap<String, (String, Section)> {
+    let base = office::import(body);
+    body.segments
+        .iter()
+        .zip(&base.blocks)
+        .filter_map(|(segment, block)| {
+            let BlockKind::SectionBreak { section } = &block.kind else {
+                return None;
+            };
+            let xml = &src[segment.range.clone()];
+            let start = xml.find("<w:sectPr")?;
+            let end = xml.rfind("</w:sectPr>")? + "</w:sectPr>".len();
+            Some((block.id.clone(), (xml[start..end].to_owned(), (**section).clone())))
+        })
+        .collect()
 }
