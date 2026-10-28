@@ -45,8 +45,6 @@ pub fn extract_user_context(
     extract_user_context_for(keys, token, &ValidationPolicy::session_context(issuer))
 }
 
-/// [`extract_user_context`] under an explicit audience policy, for a route
-/// that accepts one dedicated credential (the Drive sync's).
 pub fn extract_user_context_for(
     keys: &SigningKeys,
     token: &str,

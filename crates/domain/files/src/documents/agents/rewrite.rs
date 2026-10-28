@@ -40,9 +40,6 @@ impl RewriteTracker {
         Self::default()
     }
 
-    /// Records that `agent` is rewriting `nodes` of `document` and returns
-    /// how many distinct nodes it has rewritten there within the hour, these
-    /// included.
     pub fn touch(
         &self,
         document: &DocumentId,
@@ -70,12 +67,14 @@ impl RewriteTracker {
             .entries
             .push_back((now, nodes.iter().map(|node| (*node).clone()).collect()));
         touches.used = Some(now);
-        touches
+        let distinct = touches
             .entries
             .iter()
             .flat_map(|(_, nodes)| nodes.iter())
             .collect::<HashSet<_>>()
-            .len()
+            .len();
+        drop(windows);
+        distinct
     }
 }
 

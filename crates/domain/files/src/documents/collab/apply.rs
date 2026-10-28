@@ -64,7 +64,7 @@ impl CollabService {
         let seq = self
             .log_update(&mut entry, &request.update, &who.id)
             .await?;
-        entry.record_activity(Some(who));
+        entry.record_activity(Some(who), self.documents.access().actor());
         let version = entry.doc.version();
         if entry.unsnapshotted >= self.tuning.snapshot_after_updates {
             self.snapshot(&mut entry).await?;

@@ -48,7 +48,6 @@ pub struct TargetAccess<T> {
     pub my_access: AccessLevel,
     pub history: Vec<DocumentGrantEvent>,
     pub requests: Vec<DocumentAccessRequest>,
-    /// The cap an agent caller acts under here, and why; `None` for a person.
     pub agent_cap: Option<EffectiveCap>,
 }
 

@@ -89,7 +89,6 @@ impl TokenExtractor {
         self.extract_with_method(headers).map(|(token, _)| token)
     }
 
-    /// [`Self::extract`], and which method of the chain found the token.
     pub fn extract_with_method(
         &self,
         headers: &HeaderMap,

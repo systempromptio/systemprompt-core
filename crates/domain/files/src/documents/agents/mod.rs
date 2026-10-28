@@ -35,16 +35,15 @@ mod policy;
 mod rate;
 mod rewrite;
 
-#[cfg(any(test, feature = "test-harness"))]
-pub use actor::set_unscoped_actor;
 pub use actor::{
-    AgentActor, AgentChannel, DocumentActor, UNNAMED_AGENT, act_as, current_actor, unscoped_actor,
+    AgentActor, AgentChannel, DocumentActor, UNNAMED_AGENT, act_as, current_actor, scoped_actor,
+    unscoped_actor,
 };
 pub use cap::{AgentCap, AgentCapability, CapSource, EffectiveCap};
 pub use error::AgentRefusal;
 pub use policy::{
     AgentAccessPolicy, AgentAccessPolicyRegistration, DefaultAgentAccessPolicy, DocumentContext,
-    MoveActor, registered_policy,
+    MoveActor, MoveRefused, registered_policy,
 };
 pub use rate::{AgentRateLimiter, MAX_TRACKED, Reservation};
 pub use rewrite::RewriteTracker;

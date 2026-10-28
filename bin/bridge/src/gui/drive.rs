@@ -28,8 +28,6 @@ pub(crate) fn tick(app: &mut GuiApp) {
     raise_reviews(app, &status);
 }
 
-/// One toast per local edit the server took as a proposal since the last
-/// tick: the edit is waiting for a reviewer and the local copy is kept.
 fn raise_reviews(app: &mut GuiApp, status: &DriveStatus) {
     let since = app.drive_review_since;
     for sent in status

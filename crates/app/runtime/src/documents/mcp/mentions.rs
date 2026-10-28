@@ -22,17 +22,12 @@ use crate::documents::refusal::RefusalCode;
 
 const MAX_MENTIONS: usize = 20;
 
-/// The agent a comment or grant records, named from the request's signed
-/// claims (see [`crate::documents::actor`]).
 pub(super) fn agent_origin(ctx: &RequestContext) -> CommentOrigin {
     CommentOrigin {
         via_agent: Some(signed_agent_name(ctx)),
     }
 }
 
-/// The actor every documents tool call runs as: an MCP call always carries
-/// a bearer token, so it is an agent, named and attended from its signed
-/// claims.
 pub(super) fn document_actor(ctx: &RequestContext) -> DocumentActor {
     request_actor(ctx)
 }

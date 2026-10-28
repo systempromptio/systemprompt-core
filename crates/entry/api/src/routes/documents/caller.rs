@@ -25,8 +25,6 @@ use crate::error::ApiHttpError;
 pub(crate) struct Caller {
     pub(crate) user: AuthenticatedUser,
     pub(crate) trace: TraceId,
-    /// The actor the request runs as, for work that outlives the handler's
-    /// scope (a live stream polled after the handler returned).
     pub(crate) actor: DocumentActor,
 }
 

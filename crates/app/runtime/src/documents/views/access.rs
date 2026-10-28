@@ -152,7 +152,6 @@ impl From<DocumentAccessRequest> for AccessRequestItem {
 /// The cap the calling agent acts under on the target, and why.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct AgentCapItem {
-    /// none, read, comment, suggest or edit.
     pub cap: String,
     pub policy_cap: String,
     pub reason: String,

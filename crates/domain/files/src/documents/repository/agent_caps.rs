@@ -39,7 +39,7 @@ pub struct AgentFacts {
 pub struct AgentReadRecord<'a> {
     pub document_id: &'a DocumentId,
     pub user_id: &'a UserId,
-    pub agent_name: &'a str,
+    pub agent: &'a str,
     pub attended: bool,
     pub action: &'a str,
     pub cap: AgentCap,
@@ -48,8 +48,6 @@ pub struct AgentReadRecord<'a> {
 }
 
 impl DocumentRepository {
-    /// Every override on `document` and on `folders`, and the agent that
-    /// created `document`; pass a nil document id for a folder target.
     pub async fn agent_facts(
         &self,
         document: &DocumentId,
@@ -92,7 +90,6 @@ impl DocumentRepository {
         Ok(facts)
     }
 
-    /// Records the agent that created `document`.
     pub async fn set_created_by_agent(&self, document: &DocumentId, agent: &str) -> RepoResult<()> {
         sqlx::query!(
             r#"UPDATE documents SET created_by_agent = $2 WHERE id = $1::text::uuid"#,
@@ -144,7 +141,7 @@ impl DocumentRepository {
                VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8)"#,
             record.document_id.as_str(),
             record.user_id.as_str(),
-            record.agent_name,
+            record.agent,
             record.attended,
             record.action,
             record.cap.as_str(),

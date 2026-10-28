@@ -178,8 +178,6 @@ impl ApiKeyKind {
         }
     }
 
-    /// The stored kind; anything unknown reads as `user`, the kind that
-    /// claims nothing.
     #[must_use]
     pub fn from_stored(value: &str) -> Self {
         if value == "device" {
@@ -209,9 +207,6 @@ pub struct UserApiKey {
 }
 
 impl UserApiKey {
-    /// Whether this key belongs to the interactive host a person installed:
-    /// minted by a bridge device enrolment and bound to no purpose. Only
-    /// such a key's bridge access is an attended session.
     #[must_use]
     pub const fn is_interactive_host(&self) -> bool {
         matches!(self.kind, ApiKeyKind::Device) && self.purpose.is_none()

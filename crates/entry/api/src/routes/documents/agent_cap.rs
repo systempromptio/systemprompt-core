@@ -77,8 +77,6 @@ pub(super) struct AgentCapJson {
     unattended: CapJson,
 }
 
-/// One case of the cap: for the agent with a person in its session, or
-/// without.
 #[derive(Debug, Serialize)]
 pub(super) struct CapJson {
     agent_cap: AgentCap,

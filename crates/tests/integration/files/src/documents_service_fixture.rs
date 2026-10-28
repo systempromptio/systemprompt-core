@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_files::DocumentsConfig;
-use systemprompt_files::documents::agents::{AgentAccessPolicy, DocumentActor, set_unscoped_actor};
+use systemprompt_files::documents::agents::{AgentAccessPolicy, DocumentActor};
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::codecs::CodecRegistry;
 use systemprompt_files::documents::model::Media;
@@ -248,7 +248,6 @@ pub(crate) fn harness_with_policy(
     config: DocumentsConfig,
     policy: Option<Arc<dyn AgentAccessPolicy>>,
 ) -> Harness {
-    set_unscoped_actor(DocumentActor::Human);
     let repos = Arc::new(DocumentRepositories::new(&db));
     let access_entities = Arc::new(AccessControlRepository::new(&db));
     let access = DocumentAccessService::new(
@@ -261,7 +260,8 @@ pub(crate) fn harness_with_policy(
         hook,
         Arc::new(subjects),
         Arc::new(directory),
-    );
+    )
+    .with_unscoped_actor(DocumentActor::Human);
     let access = Arc::new(match policy {
         Some(policy) => access.with_agent_policy(policy),
         None => access,

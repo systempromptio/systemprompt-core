@@ -21,7 +21,7 @@ use systemprompt_models::documents::DocumentAction;
 use super::DocumentService;
 use crate::documents::access::{AccessTarget, Granted};
 use crate::documents::agents::{
-    AgentActor, AgentCap, AgentChannel, AgentRefusal, EffectiveCap, current_actor,
+    AgentActor, AgentCap, AgentChannel, AgentRefusal, DocumentActor, EffectiveCap,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
@@ -48,15 +48,13 @@ impl AgentCapTarget {
 pub struct AgentCapView {
     pub target: AgentCapTarget,
     pub own_override: Option<AgentCap>,
-    /// For the agent asked about.
     pub effective: EffectiveCap,
-    /// For the same agent with a person in its session, and without.
     pub attended: EffectiveCap,
     pub unattended: EffectiveCap,
 }
 
-fn reported_agent() -> AgentActor {
-    current_actor().as_agent().cloned().unwrap_or(AgentActor {
+fn reported_agent(actor: &DocumentActor) -> AgentActor {
+    actor.as_agent().cloned().unwrap_or_else(|| AgentActor {
         name: GENERIC_AGENT.to_owned(),
         attended: true,
         channel: AgentChannel::Direct,
@@ -70,12 +68,10 @@ impl DocumentService {
         target: AgentCapTarget,
         trace: &TraceId,
     ) -> Result<AgentCapView, DocumentsError> {
-        self.agent_cap_as(who, target, reported_agent(), trace)
+        self.agent_cap_as(who, target, reported_agent(&self.access.actor()), trace)
             .await
     }
 
-    /// The cap `agent` would act under on `target`, for a person checking
-    /// what a named agent may do there.
     pub async fn agent_cap_as(
         &self,
         who: &AuthenticatedUser,
@@ -104,7 +100,7 @@ impl DocumentService {
         if let Some(requested) = cap {
             let policy_cap = self
                 .access
-                .agent_cap_for(who, &granted, &reported_agent())
+                .agent_cap_for(who, &granted, &reported_agent(&self.access.actor()))
                 .await?
                 .policy_cap;
             if requested > policy_cap {
@@ -136,12 +132,10 @@ impl DocumentService {
             trace_id = trace.as_str(),
             "Agent cap override set"
         );
-        self.cap_view(who, target, &granted, &reported_agent())
+        self.cap_view(who, target, &granted, &reported_agent(&self.access.actor()))
             .await
     }
 
-    /// Sets `cap` as the target's override, or keeps a stricter one already
-    /// there: what a move or a copy carries.
     pub(super) async fn pin_agent_cap(
         &self,
         target: &AgentCapTarget,
@@ -179,8 +173,6 @@ impl DocumentService {
         Ok(())
     }
 
-    /// A copy keeps its source's cap: `carried` is pinned on the new
-    /// document, then the policy's `on_copy` sees it.
     pub(super) async fn carry_cap(
         &self,
         who: &AuthenticatedUser,

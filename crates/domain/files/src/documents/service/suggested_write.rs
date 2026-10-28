@@ -17,7 +17,7 @@ use systemprompt_models::documents::DocumentAction;
 
 use super::{CommitOutcome, CommitRequest, DocumentService, ProposeBodyRequest, Proposed};
 use crate::documents::access::AccessTarget;
-use crate::documents::agents::{AgentCap, current_actor};
+use crate::documents::agents::AgentCap;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
 use crate::documents::revision::CommitBody;
@@ -32,9 +32,6 @@ pub enum ExternalWrite {
 }
 
 impl DocumentService {
-    /// [`DocumentService::commit_external`], except that an agent capped at
-    /// `suggest` writing whole-file bytes gets a proposal instead of
-    /// `agent_suggest_only`.
     pub async fn write_external(
         &self,
         who: &AuthenticatedUser,
@@ -52,8 +49,6 @@ impl DocumentService {
         ))
     }
 
-    /// The document, when `request` is an agent's byte write on a document
-    /// whose agent cap is `suggest`.
     async fn suggest_only(
         &self,
         who: &AuthenticatedUser,
@@ -61,7 +56,7 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<Option<Document>, DocumentsError> {
         let bytes = matches!(request.body, CommitBody::Bytes(_));
-        if !bytes || !current_actor().is_agent() {
+        if !bytes || !self.access.actor().is_agent() {
             return Ok(None);
         }
         let granted = self

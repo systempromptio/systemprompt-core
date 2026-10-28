@@ -69,8 +69,6 @@ pub struct UserJwtRequest {
     pub purpose: Option<String>,
     pub plugin_id: Option<PluginId>,
     pub interaction: Option<TokenInteraction>,
-    /// The first-party web login's session token; see
-    /// [`CustomClaims::browser_session`](super::CustomClaims::browser_session).
     pub browser_session: bool,
 }
 

@@ -16,8 +16,7 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::guide_model::model_topic;
 use super::guide_topics::{
-    AGENTS, COMMENTS, EDITING, LIFECYCLE, PROPOSALS, SHARING, SHEETS, SLIDES, UPLOADS,
-    refusal_text,
+    AGENTS, COMMENTS, EDITING, LIFECYCLE, PROPOSALS, SHARING, SHEETS, SLIDES, UPLOADS, refusal_text,
 };
 use super::inputs::GuideInput;
 use super::outputs::GuideOutput;

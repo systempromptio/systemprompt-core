@@ -19,6 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Duration, Utc};
+use systemprompt_files::documents::agents::UNNAMED_AGENT;
 use systemprompt_identifiers::{AccessTokenId, DocumentId, DocumentRevisionId, SessionId};
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, TokenAuthority, TokenError, UserJwtRequest,
@@ -38,8 +39,6 @@ pub fn download_purpose(document: &DocumentId, revision: &DocumentRevisionId) ->
 
 const AGENT_SUFFIX: &str = ";agent=";
 
-/// The signed purpose of a link an agent minted: the revision it opens and
-/// the agent's name, so the read at use runs under that agent's cap.
 #[must_use]
 pub fn agent_download_purpose(
     document: &DocumentId,
@@ -52,21 +51,18 @@ pub fn agent_download_purpose(
     )
 }
 
-/// Whether `purpose` opens this revision, and the agent named in it.
-/// `None` when it opens another revision; `Some(None)` for a link with no
-/// agent (still read as an unnamed agent: a link is a bearer credential).
 #[must_use]
 pub fn download_agent<'a>(
     purpose: &'a str,
     document: &DocumentId,
     revision: &DocumentRevisionId,
-) -> Option<Option<&'a str>> {
+) -> Option<&'a str> {
     let base = download_purpose(document, revision);
     let rest = purpose.strip_prefix(base.as_str())?;
     if rest.is_empty() {
-        return Some(None);
+        return Some(UNNAMED_AGENT);
     }
-    rest.strip_prefix(AGENT_SUFFIX).map(Some)
+    rest.strip_prefix(AGENT_SUFFIX)
 }
 
 /// Why a download link could not be signed.

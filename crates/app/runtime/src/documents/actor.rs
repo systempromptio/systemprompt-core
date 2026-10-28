@@ -17,18 +17,16 @@
 use std::future::Future;
 
 use systemprompt_files::documents::agents::{DocumentActor, UNNAMED_AGENT, act_as};
+use systemprompt_identifiers::ClientId;
 use systemprompt_models::auth::TokenInteraction;
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
 
 const MAX_AGENT_NAME: usize = 64;
 
-/// Runs `work` as the actor `ctx` proves: the one call an extension makes
-/// around document service calls it serves from its own routes.
 pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Output {
     act_as(request_actor(ctx), work).await
 }
 
-/// The actor document calls made for `ctx` run as.
 #[must_use]
 pub fn request_actor(ctx: &RequestContext) -> DocumentActor {
     let interaction = ctx.settings.user_interaction_mode;
@@ -44,34 +42,27 @@ pub fn request_actor(ctx: &RequestContext) -> DocumentActor {
     DocumentActor::agent(signed_agent_name(ctx), attended)
 }
 
-/// The agent a bearer token acts as, from its verified claims: for a
-/// surface that verifies the token itself (the bridge Drive routes).
 #[must_use]
 pub fn bearer_actor(
     purpose: Option<&str>,
-    client_id: Option<&str>,
+    client: Option<&ClientId>,
     interaction: Option<TokenInteraction>,
 ) -> DocumentActor {
     let attended = interaction == Some(TokenInteraction::Interactive) && purpose.is_none();
-    DocumentActor::agent(agent_name(purpose, client_id), attended)
+    DocumentActor::agent(name_from(purpose, client), attended)
 }
 
-/// The agent's name from signed claims: at most 64 chars of letters,
-/// digits, `-`, `_`, `.`, `:` or `/`, else `agent`.
 #[must_use]
 pub fn signed_agent_name(ctx: &RequestContext) -> String {
-    agent_name(
-        ctx.caller_purpose(),
-        ctx.client_id().map(|client| client.as_str()),
-    )
+    name_from(ctx.caller_purpose(), ctx.client_id())
 }
 
-fn agent_name(purpose: Option<&str>, client_id: Option<&str>) -> String {
+fn name_from(purpose: Option<&str>, client: Option<&ClientId>) -> String {
     let allowed = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
     let valid =
         |name: &str| !name.is_empty() && name.len() <= MAX_AGENT_NAME && name.chars().all(allowed);
     purpose
-        .or(client_id)
+        .or_else(|| client.map(ClientId::as_str))
         .filter(|name| valid(name))
         .unwrap_or(UNNAMED_AGENT)
         .to_owned()

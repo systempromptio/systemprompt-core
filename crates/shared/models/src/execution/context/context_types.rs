@@ -29,11 +29,8 @@ pub struct AuthContext {
     pub jti: Option<AccessTokenId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token_exp: Option<i64>,
-    /// The credential was a first-party browser session cookie, not a
-    /// bearer token.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub browser_session: bool,
-    /// The token arrived as the session cookie, whatever it claims.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub cookie_transport: bool,
 }

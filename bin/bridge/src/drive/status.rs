@@ -54,7 +54,6 @@ pub struct DriveStatus {
     pub conflicts: Vec<ConflictNotice>,
     pub editors: Vec<EditorPresence>,
     pub proposals: Vec<OpenProposal>,
-    /// Local edits the server took as proposals for review.
     pub sent_for_review: Vec<SentForReview>,
     pub shares: Vec<ReceivedShare>,
     pub notices: Vec<QueuedNotice>,

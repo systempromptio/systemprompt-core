@@ -22,7 +22,6 @@ pub struct BuildContextParams {
     pub task_id: Option<TaskId>,
     pub auth_token: Option<String>,
     pub user_type: UserType,
-    /// The token arrived as the session cookie rather than a bearer header.
     pub cookie_transport: bool,
 }
 
@@ -85,8 +84,6 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
     ctx
 }
 
-/// Whether the token the chain found came from the session cookie rather
-/// than a bearer header.
 #[must_use]
 pub fn is_cookie_transport(token_extractor: &TokenExtractor, headers: &HeaderMap) -> bool {
     matches!(

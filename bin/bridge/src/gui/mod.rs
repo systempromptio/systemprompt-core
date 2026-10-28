@@ -163,8 +163,6 @@ pub(crate) struct GuiApp {
     pub(crate) unattended_repairs: HashSet<systemprompt_models::bridge::host::HostKind>,
     pub(crate) drive_watch: tokio::sync::watch::Receiver<u64>,
     pub(crate) drive_notice_seq: u64,
-    // Only edits sent for review after the GUI started are toasted; earlier
-    // ones were already shown, or happened while no GUI ran.
     pub(crate) drive_review_since: chrono::DateTime<chrono::Utc>,
 }
 

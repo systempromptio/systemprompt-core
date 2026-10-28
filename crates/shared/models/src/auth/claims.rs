@@ -139,13 +139,8 @@ pub struct CustomClaims {
     pub act: Option<ActClaim>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<String>,
-    /// Set only on a token minted for a run no person is attached to (an
-    /// agent run's MCP token); absent means interactive.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interaction: Option<TokenInteraction>,
-    /// Minted by the first-party web login for the browser session cookie,
-    /// and by nothing else. Only such a token, sent as that cookie, acts on
-    /// documents as the person.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub browser_session: bool,
 }
@@ -154,7 +149,6 @@ pub struct CustomClaims {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TokenInteraction {
-    /// A live session a person is driving (the interactive bridge host).
     Interactive,
     NonInteractive,
 }

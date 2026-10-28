@@ -12,8 +12,8 @@
 //! thread) in the comment's own statement, which needs the author to hold
 //! `share`; without it the comment is refused, and nothing is stored. The
 //! agent never holds more than its user: `who` is always the calling user.
-//! An agent's mention never grants unless the agent access policy allows
-//! `mention_grant`: mentioning someone without access is refused as
+//! An agent's mention never grants unless the agent access policy allows the
+//! mention-grant capability. Mentioning someone without access is refused as
 //! `agent_forbidden`, and a mention of someone who has access only notifies.
 //! Once the policy allows it, the share check is the user's own.
 //!

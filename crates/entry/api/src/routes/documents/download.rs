@@ -15,7 +15,7 @@ use axum::extract::{Request, State};
 use axum::http::{HeaderMap, Method};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use systemprompt_files::documents::agents::{UNNAMED_AGENT, act_as};
+use systemprompt_files::documents::agents::act_as;
 use systemprompt_identifiers::{DocumentRevisionId, TraceId, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::JwtAudience;
@@ -111,7 +111,7 @@ async fn download(
             ApiHttpError::forbidden("download link is for another document revision").into(),
         );
     };
-    let actor = bearer_actor(Some(agent.unwrap_or(UNNAMED_AGENT)), None, None);
+    let actor = bearer_actor(Some(agent), None, None);
     let subject = UserId::try_new(claims.registered.sub).map_err(ApiError::from)?;
     let who = Caller {
         user: load(state.users.as_ref(), &subject).await?,

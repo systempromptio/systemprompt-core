@@ -245,6 +245,18 @@ const fn access_refusal_text(code: RefusalCode) -> &'static str {
             "access_request_closed: the request was already granted or declined; only an open \
              request can be answered."
         },
+        _ => agent_refusal_text(code),
+    }
+}
+
+pub(super) const UPLOADS: &str = "\
+documents_upload: send content_base64 (up to 5 MiB) and get a blob_ref back; for a larger file \
+declare size and sha256 and get signed part URLs and a token, then complete it for the \
+blob_ref; upload_id re-issues the token. Import a blob_ref as a document, or place it as an \
+image in a docx (guide topic model). A blob_ref is yours: another user's never resolves.";
+
+const fn agent_refusal_text(code: RefusalCode) -> &'static str {
+    match code {
         RefusalCode::AgentForbidden => {
             "agent_forbidden: your user may do this but agents may not here: the document's \
              agent cap is below the action, or the action is one agents never take. Ask your \
@@ -261,9 +273,3 @@ const fn access_refusal_text(code: RefusalCode) -> &'static str {
         _ => "",
     }
 }
-
-pub(super) const UPLOADS: &str = "\
-documents_upload: send content_base64 (up to 5 MiB) and get a blob_ref back; for a larger file \
-declare size and sha256 and get signed part URLs and a token, then complete it for the \
-blob_ref; upload_id re-issues the token. Import a blob_ref as a document, or place it as an \
-image in a docx (guide topic model). A blob_ref is yours: another user's never resolves.";

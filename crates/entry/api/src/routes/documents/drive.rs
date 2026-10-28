@@ -225,7 +225,11 @@ async fn commit(
         }
         meta.base_revision = Some(base);
     }
-    let outcome = act_as(actor, state.service.drive_commit(&who, meta, bytes, &trace)).await?;
+    let outcome = Box::pin(act_as(
+        actor,
+        state.service.drive_commit(&who, meta, bytes, &trace),
+    ))
+    .await?;
     let status = match outcome {
         DriveCommitResponse::Committed { .. } | DriveCommitResponse::Merged { .. } => {
             StatusCode::OK

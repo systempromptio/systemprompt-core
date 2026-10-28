@@ -26,7 +26,6 @@ const BATCH: i64 = 500;
 pub struct DocumentUploadExpiryJob;
 
 impl DocumentUploadExpiryJob {
-    /// The job's work, run as its named system actor by `execute`.
     async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         let started = std::time::Instant::now();
         let db_pool = ctx.get::<DbPool>()?;

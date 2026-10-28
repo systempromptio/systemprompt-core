@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentFolderId, TraceId};
+use systemprompt_identifiers::{DocumentFolderId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 
@@ -17,13 +17,11 @@ use super::request::not_found;
 use super::service::{AccessTarget, DocumentAccessService, Resolved, no_document};
 use crate::documents::agents::{
     AgentActor, AgentCap, AgentCapability, AgentRefusal, CapSource, DocumentContext, EffectiveCap,
-    current_actor,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder, SubjectPairs};
 use crate::documents::repository::{AgentReadRecord, CapOverride};
 
-/// An agent caller's cap on one target and what the policy was asked with.
 #[derive(Debug, Clone)]
 pub(super) struct AgentGate {
     agent: AgentActor,
@@ -32,7 +30,6 @@ pub(super) struct AgentGate {
 }
 
 impl AgentGate {
-    /// The level the agent holds for `action`, given the user's own level.
     pub(super) fn held(
         &self,
         resolved: &Resolved,
@@ -94,15 +91,13 @@ const CAPABILITIES: [AgentCapability; 9] = [
 ];
 
 impl DocumentAccessService {
-    /// The gate for the running call's actor on `resolved`; `None` for a
-    /// person.
     pub(super) async fn agent_gate(
         &self,
         who: &AuthenticatedUser,
         resolved: &Resolved,
         pairs: &SubjectPairs,
     ) -> Result<Option<AgentGate>, DocumentsError> {
-        let Some(agent) = current_actor().as_agent().cloned() else {
+        let Some(agent) = self.actor().as_agent().cloned() else {
             return Ok(None);
         };
         let mut context = context_of(who, resolved);
@@ -121,9 +116,6 @@ impl DocumentAccessService {
         }))
     }
 
-    /// The stricter of the policy's cap and every override on the target
-    /// and the folders above it. Fills `context.created_by_agent` from the
-    /// store before the policy is asked.
     pub(super) async fn effective_cap(
         &self,
         context: &mut DocumentContext,
@@ -139,11 +131,6 @@ impl DocumentAccessService {
         Ok(combine(policy_cap, self.agents.name(), facts.overrides))
     }
 
-    /// `effective` with a folder override's source replaced by
-    /// [`CapSource::InheritedOverride`] when the caller holds no grant on
-    /// that folder, so no reason or refusal echoes a folder id they cannot
-    /// view. Grants only: it never asks the hook or the agent gate, so it
-    /// cannot recurse.
     pub(super) async fn hide_unviewable(
         &self,
         who: &AuthenticatedUser,
@@ -168,8 +155,6 @@ impl DocumentAccessService {
         Ok(effective)
     }
 
-    /// The nearest-first folder chain of `document`: its folder, then each
-    /// folder above it.
     pub(super) async fn chain_of(
         &self,
         document: &Document,
@@ -187,10 +172,9 @@ impl DocumentAccessService {
         who: &AuthenticatedUser,
         gate: &AgentGate,
         document: &Document,
-        action: DocumentAction,
         trace: &TraceId,
     ) -> Result<(), DocumentsError> {
-        if gate.effective.cap >= AgentCap::Edit || action != DocumentAction::View {
+        if gate.effective.cap >= AgentCap::Edit {
             return Ok(());
         }
         let source = gate.effective.source.label();
@@ -198,7 +182,7 @@ impl DocumentAccessService {
             .insert_agent_read(AgentReadRecord {
                 document_id: &document.id,
                 user_id: &who.id,
-                agent_name: &gate.agent.name,
+                agent: &gate.agent.name,
                 attended: gate.agent.attended,
                 action: "view",
                 cap: gate.effective.cap,
@@ -210,7 +194,6 @@ impl DocumentAccessService {
     }
 }
 
-/// The stricter of `policy_cap` and every override, and which set it.
 pub(super) fn combine(
     policy_cap: AgentCap,
     policy: &'static str,
@@ -268,8 +251,39 @@ pub(super) fn folder_context(
 }
 
 fn context_of(who: &AuthenticatedUser, resolved: &Resolved) -> DocumentContext {
-    match &resolved.document {
-        Some(document) => document_context(who, document, resolved.chain.clone()),
-        None => folder_context(who, resolved.folder.as_ref(), resolved.chain.clone()),
+    resolved.document.as_ref().map_or_else(
+        || folder_context(who, resolved.folder.as_ref(), resolved.chain.clone()),
+        |document| document_context(who, document, resolved.chain.clone()),
+    )
+}
+
+pub(super) fn owner_of(resolved: &Resolved) -> Option<UserId> {
+    resolved
+        .document
+        .as_ref()
+        .map(|d| d.owner_user_id.clone())
+        .or_else(|| resolved.folder.as_ref().map(|f| f.owner_user_id.clone()))
+}
+
+pub(super) fn held_level(
+    gate: Option<&AgentGate>,
+    resolved: &Resolved,
+    action: DocumentAction,
+) -> Result<AccessLevel, DocumentsError> {
+    let needed = action.required_level();
+    let held = match gate {
+        Some(gate) => gate.held(resolved, action)?,
+        None => resolved.level,
+    };
+    match held {
+        Some(level) if level >= needed => Ok(level),
+        None if owner_of(resolved).is_some() => Err(not_found(resolved)),
+        held => Err(DocumentsError::Forbidden {
+            action,
+            needed,
+            held,
+            policy: None,
+            owner: owner_of(resolved),
+        }),
     }
 }

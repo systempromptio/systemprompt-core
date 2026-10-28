@@ -19,7 +19,6 @@ const BATCH: i64 = 1000;
 pub struct DocumentCollabUpdateSweepJob;
 
 impl DocumentCollabUpdateSweepJob {
-    /// The job's work, run as its named system actor by `execute`.
     async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         if !ctx
             .get::<Arc<FilesConfig>>()?

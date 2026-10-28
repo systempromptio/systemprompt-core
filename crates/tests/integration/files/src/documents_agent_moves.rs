@@ -135,11 +135,13 @@ impl systemprompt_files::documents::agents::AgentAccessPolicy for Hooks {
         _doc: &systemprompt_files::documents::agents::DocumentContext,
         to: &[systemprompt_identifiers::DocumentFolderId],
         mover: &systemprompt_files::documents::agents::MoveActor,
-    ) -> Result<(), String> {
+    ) -> Result<(), systemprompt_files::documents::agents::MoveRefused> {
         let blocked = self.blocked.lock().map(|b| b.clone()).unwrap_or_default();
         match to.first() {
             Some(folder) if blocked.contains(&folder.to_string()) => {
-                Err(format!("{} may not move here", mover.user))
+                Err(systemprompt_files::documents::agents::MoveRefused {
+                    reason: format!("{} may not move here", mover.user),
+                })
             },
             _ => Ok(()),
         }

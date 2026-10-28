@@ -31,18 +31,14 @@ use super::error::DocumentsResult;
 use crate::error::ApiHttpError;
 use crate::routes::gateway::messages::extract_credential;
 
-/// The longest a sync token lives; it is renewed by trading again.
 const MAX_TTL: Duration = Duration::hours(1);
 
-/// The audience the trade decodes with: the bridge's private device token
-/// alone, never the token hosts receive.
 fn device_audiences() -> [JwtAudience; 1] {
     [JwtAudience::Resource(BRIDGE_DEVICE_AUDIENCE.to_owned())]
 }
 
-/// The audience list the Drive routes decode with.
 #[must_use]
-pub fn drive_audiences() -> [JwtAudience; 1] {
+pub(super) fn drive_audiences() -> [JwtAudience; 1] {
     [JwtAudience::Resource(DRIVE_SYNC_AUDIENCE.to_owned())]
 }
 
@@ -99,9 +95,6 @@ pub(super) async fn issue(
     }))
 }
 
-/// The device's user and the agent it acts as, from the Drive sync token
-/// alone: a capped agent on the `drive_sync` channel. Any other token (a
-/// plain bridge token, a purposed or delegated one) is refused.
 pub(super) async fn device_user(
     state: &DriveState,
     headers: &HeaderMap,
@@ -121,7 +114,7 @@ pub(super) async fn device_user(
     }
     let actor = bearer_actor(
         claims.purpose.as_deref(),
-        claims.client_id.as_ref().map(|client| client.as_str()),
+        claims.client_id.as_ref(),
         claims.interaction,
     );
     Ok((authenticated(user), actor.on(AgentChannel::DriveSync)))

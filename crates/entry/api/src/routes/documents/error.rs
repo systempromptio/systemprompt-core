@@ -168,19 +168,19 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
         | DocumentsError::ProposalClosed { .. }
         | DocumentsError::AccessRequestOpen { .. }
         | DocumentsError::AccessRequestClosed { .. } => conflict,
+        DocumentsError::Agent(AgentRefusal::RateLimited { .. }) => rate_limited,
+        DocumentsError::Agent(
+            AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. },
+        ) => bad_request,
         DocumentsError::Forbidden { .. }
         | DocumentsError::ShareBelowExisting { .. }
-        | DocumentsError::SelfReview { .. } => forbidden,
+        | DocumentsError::SelfReview { .. }
+        | DocumentsError::Agent(_) => forbidden,
         DocumentsError::Trashed { .. }
         | DocumentsError::NotFound { .. }
         | DocumentsError::CommentNotFound { .. } => not_found,
         DocumentsError::TooLarge { .. } => too_large,
         DocumentsError::LockHeld { .. } => locked,
-        DocumentsError::Agent(AgentRefusal::RateLimited { .. }) => rate_limited,
-        DocumentsError::Agent(
-            AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. },
-        ) => bad_request,
-        DocumentsError::Agent(_) => forbidden,
         DocumentsError::IntegrityMismatch { .. }
         | DocumentsError::Template { .. }
         | DocumentsError::ContentRefused { .. } => unprocessable,

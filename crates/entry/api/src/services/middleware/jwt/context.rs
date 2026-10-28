@@ -163,9 +163,6 @@ impl JwtContextExtractor {
         extract_user_context(&self.keys, token, &self.issuer).ok()
     }
 
-    /// Decodes and validates a token that must carry one of `audiences`
-    /// (and nothing outside the first-party set is implied): the Drive
-    /// sync's dedicated credential.
     pub async fn decode_for_audiences(
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,

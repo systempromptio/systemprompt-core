@@ -178,14 +178,12 @@ impl DocumentService {
         request: CopyRequest,
         trace: &TraceId,
     ) -> Result<(Document, DocumentRevision), DocumentsError> {
-        let (source, bytes) = {
-            let source = self
-                .authorized_document(who, &request.source, DocumentAction::View, trace)
-                .await?;
-            let head = self.resolve_revision(&source, None).await?;
-            let bytes = self.revision_bytes(&head).await?;
-            (source, bytes)
-        };
+        let source = self
+            .authorized_document(who, &request.source, DocumentAction::View, trace)
+            .await?;
+        let bytes = self
+            .revision_bytes(&self.resolve_revision(&source, None).await?)
+            .await?;
         let carried = self.access.check_copy(who, &source).await?;
         let folder = request.folder.or_else(|| source.folder_id.clone());
         self.authorize_create(who, folder.as_ref(), trace).await?;

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_files::DocumentsConfig;
-use systemprompt_files::documents::agents::registered_policy;
+use systemprompt_files::documents::agents::{DocumentActor, registered_policy};
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::codecs::CodecRegistry;
 use systemprompt_files::documents::repository::DocumentRepositories;
@@ -40,6 +40,7 @@ pub struct DocumentsRuntimeParts {
     pub catalog: Vec<CatalogTemplate>,
     pub config: DocumentsConfig,
     pub background_tasks: BackgroundTasks,
+    pub unscoped_actor: Option<DocumentActor>,
 }
 
 impl std::fmt::Debug for DocumentsRuntimeParts {
@@ -81,21 +82,14 @@ impl DocumentsRuntime {
             catalog,
             config,
             background_tasks,
+            unscoped_actor,
         } = parts;
         let repositories = Arc::new(DocumentRepositories::new(&database));
-        let access = Arc::new(
-            DocumentAccessService::new(
-                DocumentAccessRepositories {
-                    grants: Arc::clone(&repositories.grants),
-                    folders: Arc::clone(&repositories.folders),
-                    documents: Arc::clone(&repositories.documents),
-                    access_entities,
-                },
-                authz_hook,
-                subjects,
-                directory,
-            )
-            .with_agent_policy(registered_policy(&database)),
+        let access = access_service(
+            &database,
+            &repositories,
+            (access_entities, authz_hook, subjects, directory),
+            unscoped_actor,
         );
         let blobs = Arc::new(BlobStore::new(
             Arc::clone(&file_storage),
@@ -169,4 +163,35 @@ impl DocumentsRuntime {
     pub async fn reconcile_folder_entities(&self) -> Result<u64, DocumentsError> {
         self.service.access().reconcile_folder_entities().await
     }
+}
+
+type AccessCollaborators = (
+    Arc<AccessControlRepository>,
+    SharedAuthzHook,
+    Arc<dyn SubjectAttributeSource>,
+    Arc<dyn SubjectDirectory>,
+);
+
+fn access_service(
+    database: &DbPool,
+    repositories: &DocumentRepositories,
+    (access_entities, authz_hook, subjects, directory): AccessCollaborators,
+    unscoped_actor: Option<DocumentActor>,
+) -> Arc<DocumentAccessService> {
+    let access = DocumentAccessService::new(
+        DocumentAccessRepositories {
+            grants: Arc::clone(&repositories.grants),
+            folders: Arc::clone(&repositories.folders),
+            documents: Arc::clone(&repositories.documents),
+            access_entities,
+        },
+        authz_hook,
+        subjects,
+        directory,
+    )
+    .with_agent_policy(registered_policy(database));
+    Arc::new(match unscoped_actor {
+        Some(actor) => access.with_unscoped_actor(actor),
+        None => access,
+    })
 }

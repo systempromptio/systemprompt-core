@@ -221,8 +221,6 @@ impl DocumentsMcpTools {
         listing::tool_list(self)
     }
 
-    /// Runs one tool as the agent the request context names: every service
-    /// call it makes is capped by the document's agent cap.
     pub async fn call(&self, call: DocumentsToolCall<'_>) -> Result<CallToolResult, McpError> {
         act_as(mentions::document_actor(call.context), self.dispatch(call)).await
     }

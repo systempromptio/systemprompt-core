@@ -14,13 +14,9 @@ use super::DocumentService;
 use crate::documents::access::{AccessCheck, AccessTarget};
 use crate::documents::error::DocumentsError;
 
-/// At most this many ids are checked in one call.
 pub const MAX_VISIBILITY_BATCH: usize = 500;
 
 impl DocumentService {
-    /// The ids in `documents` the caller may view, in the order given;
-    /// missing, trashed and refused ids are left out. Ids past
-    /// [`MAX_VISIBILITY_BATCH`] are refused as `invalid_params`.
     pub async fn visible_documents(
         &self,
         who: &AuthenticatedUser,

@@ -93,6 +93,8 @@ impl Default for JwtConfig {
             plugin_id: None,
             client_id: None,
             purpose: None,
+            interaction: None,
+            browser_session: false,
         }
     }
 }

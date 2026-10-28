@@ -55,7 +55,6 @@ struct FileProcessingContext<'a> {
 }
 
 impl FileIngestionJob {
-    /// The job's work, run as its named system actor by `execute`.
     async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
         tracing::info!("File ingestion job started");

@@ -24,10 +24,8 @@ use super::error::AgentRefusal;
 
 const WINDOW: Duration = Duration::from_secs(3600);
 
-/// Keys kept at most; the oldest are evicted past it.
 pub const MAX_TRACKED: usize = 10_000;
 
-/// The key of a user's all-agents window.
 const ALL_AGENTS: &str = "";
 
 type Key = (UserId, String);
@@ -82,8 +80,6 @@ pub struct AgentRateLimiter {
 }
 
 impl AgentRateLimiter {
-    /// `per_agent` edits per hour for one agent of a user, `per_user` for
-    /// all of that user's agents together.
     #[must_use]
     pub fn new(per_agent: u64, per_user: u64) -> Self {
         Self {
@@ -93,8 +89,6 @@ impl AgentRateLimiter {
         }
     }
 
-    /// Counts a batch of `ops` edits by `agent` for `user` against both
-    /// ceilings, or refuses it and counts nothing.
     pub fn reserve(
         &self,
         user: &UserId,
@@ -131,6 +125,7 @@ impl AgentRateLimiter {
             window.total = window.total.saturating_add(ops);
             window.used = Some(now);
         }
+        drop(windows);
         Ok(Reservation {
             user: user.clone(),
             agent: agent.to_owned(),
@@ -139,7 +134,6 @@ impl AgentRateLimiter {
         })
     }
 
-    /// Hands back a batch that did not land.
     pub fn refund(&self, reservation: &Reservation) {
         let mut windows = self.lock();
         for agent in [reservation.agent.as_str(), ALL_AGENTS] {
@@ -149,7 +143,6 @@ impl AgentRateLimiter {
         }
     }
 
-    /// How many windows are held, the per-user ones included.
     #[must_use]
     pub fn tracked(&self) -> usize {
         self.lock().len()

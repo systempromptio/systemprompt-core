@@ -27,7 +27,7 @@ use super::entry::{CollabEntry, model_error, utf8};
 use super::live_media::{LiveState, materialise_or_strip};
 use super::model::body_of;
 use super::{Checkpoint, CollabError, CollabService};
-use crate::documents::agents::{AgentChannel, act_as, current_actor};
+use crate::documents::agents::{AgentChannel, act_as};
 use crate::documents::engine::ModelView;
 use crate::documents::model::{Media, carry_ids};
 use crate::documents::models::RevisionAttribution;
@@ -90,7 +90,7 @@ impl CollabService {
         let actor = entry
             .last_actor
             .clone()
-            .unwrap_or_else(current_actor)
+            .unwrap_or_else(|| self.documents.access().actor())
             .on(AgentChannel::LiveCheckpoint);
         let commit = self.documents.commit(
             who,
@@ -107,7 +107,7 @@ impl CollabService {
             },
             trace,
         );
-        let outcome = act_as(actor.clone(), commit).await?;
+        let outcome = Box::pin(act_as(actor.clone(), commit)).await?;
         let revision = match outcome {
             CommitOutcome::Committed(landed) => landed.revision,
             CommitOutcome::Merged(landed) => {

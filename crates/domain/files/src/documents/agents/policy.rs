@@ -47,51 +47,62 @@ pub struct DocumentContext {
     pub on_behalf_of: UserId,
 }
 
+/// The seam an extension sets agent caps through. `#[async_trait]` keeps it
+/// dyn-compatible: the access service holds it as `Arc<dyn AgentAccessPolicy>`
+/// built from its inventory registration.
+///
+/// `cap` is the most an agent may do on a target (an owner override only
+/// lowers it); `allows` grants one [`AgentCapability`] (denied by default);
+/// `on_move` runs before a document or folder move commits and may refuse it;
+/// `on_copy` runs after every copy. A policy that cannot decide fails closed
+/// itself.
 #[async_trait]
 pub trait AgentAccessPolicy: Send + Sync + 'static {
-    /// A short stable name, shown in `documents_access` as the cap's source.
     fn name(&self) -> &'static str;
 
-    /// The most `agent` may do on the target. The owner's override can only
-    /// lower it.
-    async fn cap(&self, doc: &DocumentContext, agent: &AgentActor) -> AgentCap {
-        let _ = (doc, agent);
+    async fn cap(&self, _doc: &DocumentContext, _agent: &AgentActor) -> AgentCap {
         AgentCap::Edit
     }
 
-    /// Whether `agent` may take `capability` on the target. Denied by
-    /// default.
     async fn allows(
         &self,
-        capability: AgentCapability,
-        doc: &DocumentContext,
-        agent: &AgentActor,
+        _capability: AgentCapability,
+        _doc: &DocumentContext,
+        _agent: &AgentActor,
     ) -> bool {
-        let _ = (capability, doc, agent);
         false
     }
 
-    /// Called before a document or folder moves, by a person or an agent:
-    /// `doc` as it stands (for a folder, `document_id` is `None` and
-    /// `doc.folders[0]` is the folder itself) and `to`, the destination's
-    /// nearest-first chain, empty for the root. `Err` refuses the move with
-    /// `invalid_params` and the message. Core then pins the source's cap
-    /// when the destination would loosen it.
     async fn on_move(
         &self,
-        doc: &DocumentContext,
-        to: &[DocumentFolderId],
-        mover: &MoveActor,
-    ) -> Result<(), String> {
-        let _ = (doc, to, mover);
+        _doc: &DocumentContext,
+        _to: &[DocumentFolderId],
+        _mover: &MoveActor,
+    ) -> Result<(), MoveRefused> {
         Ok(())
     }
 
-    /// Called after a copy's row exists, on every copy path, by a person or
-    /// an agent. Core has already pinned the source's cap on the copy.
-    async fn on_copy(&self, source: &DocumentContext, copy: &DocumentId) {
-        let _ = (source, copy);
-    }
+    async fn on_copy(&self, _source: &DocumentContext, _copy: &DocumentId) {}
+}
+
+/// Who is moving a document or folder.
+///
+/// The user, whether they are an administrator, the agent acting for them
+/// (`None` for the person), and the reason the request gave (`None` when it
+/// gave none; core's move routes take none today).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MoveActor {
+    pub user: UserId,
+    pub is_admin: bool,
+    pub agent: Option<AgentActor>,
+    pub reason: Option<String>,
+}
+
+/// Why a policy refused a move; its reason is shown to the mover.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{reason}")]
+pub struct MoveRefused {
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -114,9 +125,6 @@ pub struct AgentAccessPolicyRegistration {
 
 inventory::collect!(AgentAccessPolicyRegistration);
 
-/// Registers an [`AgentAccessPolicy`]: `register_agent_access_policy!("name",
-/// build)` with `fn build(db: &DbPool) -> Arc<dyn AgentAccessPolicy>`. Through
-/// the facade it is `systemprompt::register_agent_access_policy!`.
 #[macro_export]
 macro_rules! register_agent_access_policy {
     ($name:expr, $build:expr $(,)?) => {
@@ -129,8 +137,6 @@ macro_rules! register_agent_access_policy {
     };
 }
 
-/// The policy in force, built over `db`: the registered one, or the
-/// default.
 #[must_use]
 pub fn registered_policy(db: &DbPool) -> Arc<dyn AgentAccessPolicy> {
     let mut registered: Vec<&AgentAccessPolicyRegistration> =

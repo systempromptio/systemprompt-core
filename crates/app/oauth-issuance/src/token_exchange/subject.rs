@@ -31,9 +31,6 @@ struct IssOnly {
 pub struct SubjectIdentity {
     pub scope: Vec<Permission>,
     pub prior_act: Option<ActClaim>,
-    /// The subject token's `interaction` claim, copied onto the exchanged
-    /// token so an unattended subject never yields an attended token. Only a
-    /// self-issued subject carries one; a federated issuer's is ignored.
     pub interaction: Option<TokenInteraction>,
     pub principal: Option<EnterprisePrincipal>,
     pub bound_resource: Option<String>,

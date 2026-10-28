@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 use super::document::{ModelError, import};
 use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
-use crate::documents::agents::{DocumentActor, current_actor};
+use crate::documents::agents::DocumentActor;
 use crate::documents::engine::{EngineDoc, ModelView};
 use crate::documents::error::DocumentsError;
 use crate::documents::model::RichText;
@@ -33,8 +33,6 @@ pub(super) struct CollabEntry {
     pub(super) snapshot_due_from: Option<Instant>,
     pub(super) checkpoint_due_from: Option<Instant>,
     pub(super) last_editor: Option<AuthenticatedUser>,
-    /// The actor the last editor's request ran as; a checkpoint commits
-    /// under it, so a timer or a trash settles as the editor did.
     pub(super) last_actor: Option<DocumentActor>,
     pub(super) touched: Instant,
     pub(super) images: ImageOwners,
@@ -50,14 +48,18 @@ impl CollabEntry {
             .or(self.session.base_revision_id.as_ref())
     }
 
-    pub(super) fn record_activity(&mut self, editor: Option<&AuthenticatedUser>) {
+    pub(super) fn record_activity(
+        &mut self,
+        editor: Option<&AuthenticatedUser>,
+        actor: DocumentActor,
+    ) {
         let now = Instant::now();
         self.unsnapshotted = self.unsnapshotted.saturating_add(1);
         self.snapshot_due_from.get_or_insert(now);
         self.checkpoint_due_from.get_or_insert(now);
         if let Some(editor) = editor {
             self.last_editor = Some(editor.clone());
-            self.last_actor = Some(current_actor());
+            self.last_actor = Some(actor);
         }
         self.touched = now;
     }

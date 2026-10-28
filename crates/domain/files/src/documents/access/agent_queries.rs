@@ -5,21 +5,81 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 
 use super::agent::{combine, document_context, folder_context};
 use super::service::{DocumentAccessService, Granted};
 use crate::documents::agents::{
-    AgentActor, AgentCap, AgentCapability, AgentRefusal, CapSource, EffectiveCap, current_actor,
+    AgentAccessPolicy, AgentActor, AgentCap, AgentCapability, AgentRefusal, CapSource,
+    DocumentActor, EffectiveCap, scoped_actor,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
 use crate::documents::repository::AgentReadRecord;
 
 impl DocumentAccessService {
-    /// `effective` with a folder override's source hidden when the caller
-    /// holds no grant on that folder: the reason then names no folder id.
+    pub async fn require_agent_capability(
+        &self,
+        who: &AuthenticatedUser,
+        document: &Document,
+        capability: AgentCapability,
+    ) -> Result<(), DocumentsError> {
+        let Some(agent) = self.actor().as_agent().cloned() else {
+            return Ok(());
+        };
+        let mut context = document_context(who, document, self.chain_of(document).await?);
+        self.effective_cap(&mut context, &agent).await?;
+        if self.agents.allows(capability, &context, &agent).await {
+            return Ok(());
+        }
+        Err(AgentRefusal::HardRule {
+            agent: agent.name,
+            capability,
+        }
+        .into())
+    }
+
+    pub async fn agent_cap_for(
+        &self,
+        who: &AuthenticatedUser,
+        granted: &Granted,
+        agent: &AgentActor,
+    ) -> Result<EffectiveCap, DocumentsError> {
+        let mut context = match (&granted.document, &granted.folder) {
+            (Some(document), _) => document_context(who, document, self.chain_of(document).await?),
+            (None, folder) => {
+                let chain = folder
+                    .iter()
+                    .flat_map(|f| {
+                        std::iter::once(f.id.clone()).chain(f.ancestor_ids.iter().rev().cloned())
+                    })
+                    .collect();
+                folder_context(who, folder.as_ref(), chain)
+            },
+        };
+        self.effective_cap(&mut context, agent).await
+    }
+
+    #[must_use]
+    pub fn with_unscoped_actor(mut self, actor: DocumentActor) -> Self {
+        self.unscoped = actor;
+        self
+    }
+
+    #[must_use]
+    pub fn actor(&self) -> DocumentActor {
+        scoped_actor().unwrap_or_else(|| self.unscoped.clone())
+    }
+
+    #[must_use]
+    pub fn with_agent_policy(mut self, policy: Arc<dyn AgentAccessPolicy>) -> Self {
+        self.agents = policy;
+        self
+    }
+
     pub async fn redact_source(
         &self,
         who: &AuthenticatedUser,
@@ -37,18 +97,13 @@ impl DocumentAccessService {
             .unwrap_or(fallback)
     }
 
-    /// [`Self::hidden_from_agent`] for a page of documents, in two
-    /// statements: the documents' own facts, and every folder's chain with
-    /// its overrides. Each listed document whose cap is below `edit` is
-    /// audited as a `list` read with `trace`. An error hides the whole page
-    /// from the agent.
     pub async fn hidden_from_agent_many(
         &self,
         who: &AuthenticatedUser,
         documents: &[&Document],
         trace: &TraceId,
     ) -> Vec<bool> {
-        let Some(agent) = current_actor().as_agent().cloned() else {
+        let Some(agent) = self.actor().as_agent().cloned() else {
             return vec![false; documents.len()];
         };
         match self.caps_of_many(who, documents, &agent).await {
@@ -60,7 +115,7 @@ impl DocumentAccessService {
                     let record = AgentReadRecord {
                         document_id: &document.id,
                         user_id: &who.id,
-                        agent_name: &agent.name,
+                        agent: &agent.name,
                         attended: agent.attended,
                         action: "list",
                         cap: *cap,
@@ -121,10 +176,8 @@ impl DocumentAccessService {
         Ok(caps)
     }
 
-    /// Whether an agent caller must not see `document` at all: its cap is
-    /// `none`. Always `false` for a person; an error hides it.
     pub async fn hidden_from_agent(&self, who: &AuthenticatedUser, document: &Document) -> bool {
-        let Some(agent) = current_actor().as_agent().cloned() else {
+        let Some(agent) = self.actor().as_agent().cloned() else {
             return false;
         };
         let cap = async {

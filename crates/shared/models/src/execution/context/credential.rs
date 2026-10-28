@@ -28,11 +28,19 @@ impl RequestContext {
         self
     }
 
-    /// The token arrived as the session cookie. Without
-    /// [`Self::is_browser_session`] it is a bearer-class token presented as a
-    /// cookie.
     #[must_use]
     pub const fn is_cookie_transport(&self) -> bool {
         self.auth.cookie_transport
+    }
+
+    #[must_use]
+    pub const fn with_token_exp(mut self, token_exp: i64) -> Self {
+        self.auth.token_exp = Some(token_exp);
+        self
+    }
+
+    #[must_use]
+    pub const fn token_exp(&self) -> Option<i64> {
+        self.auth.token_exp
     }
 }

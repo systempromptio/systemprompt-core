@@ -52,6 +52,7 @@ pub(super) fn build_documents(
         catalog,
         config: *inputs.files_config.documents_config(),
         background_tasks: inputs.background_tasks.clone(),
+        unscoped_actor: None,
     })))
 }
 

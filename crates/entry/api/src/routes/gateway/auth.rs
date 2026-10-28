@@ -39,8 +39,6 @@ pub struct AuthResponse {
     pub token: String,
     pub ttl: u64,
     pub headers: HashMap<String, String>,
-    /// The bridge's private device token; absent for a purposed or
-    /// non-bridge exchange.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_token: Option<String>,
 }
@@ -119,9 +117,6 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
     Ok(Json(result.into()))
 }
 
-/// Bridge access from a PAT: a device enrolment's PAT with no purpose is the
-/// interactive host a person installed, so its bridge JWT is attended; a
-/// user-created PAT or one bound to a purpose never is.
 fn bridge_access_from_pat<'a>(
     request: BridgeAccessRequest<'a>,
     record: &systemprompt_users::UserApiKey,

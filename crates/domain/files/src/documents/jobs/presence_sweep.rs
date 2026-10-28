@@ -27,7 +27,6 @@ const UNLANDED_ACCEPT_MINUTES: i32 = 5;
 pub struct DocumentPresenceSweepJob;
 
 impl DocumentPresenceSweepJob {
-    /// The job's work, run as its named system actor by `execute`.
     async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         if !ctx
             .get::<Arc<FilesConfig>>()?

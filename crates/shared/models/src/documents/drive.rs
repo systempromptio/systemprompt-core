@@ -103,9 +103,6 @@ pub enum DriveCommitResponse {
         head_content_sha256: ContentHash,
         base_revision_id: Option<DocumentRevisionId>,
     },
-    /// The device acts as an agent that may only suggest on this document:
-    /// the bytes were written as a proposal a person reviews, and the head
-    /// did not move.
     Proposed {
         proposal_id: DocumentProposalId,
         revision_id: DocumentRevisionId,
@@ -154,13 +151,8 @@ pub struct DriveProposals {
     pub proposals: Vec<DriveProposal>,
 }
 
-/// The audience of the Drive sync's own credential; the Drive routes accept
-/// only a token issued for it.
 pub const DRIVE_SYNC_AUDIENCE: &str = "bridge.drive_sync";
 
-/// The audience of the bridge device's private token: the only credential
-/// that may trade for a Drive sync token. The bridge never hands it to a
-/// host; what hosts receive is the derived token without this audience.
 pub const BRIDGE_DEVICE_AUDIENCE: &str = "bridge.device";
 
 /// The Drive sync's credential, traded for the device's bridge token.

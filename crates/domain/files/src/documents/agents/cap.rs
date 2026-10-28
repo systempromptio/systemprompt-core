@@ -44,9 +44,6 @@ impl AgentCap {
         }
     }
 
-    /// The highest level an agent holds under this cap; `None` hides the
-    /// document. `edit` leaves the user's level as it is, since the actions
-    /// above `edit` are gated by [`AgentCapability`] instead.
     #[must_use]
     pub fn cap_level(self, held: AccessLevel) -> Option<AccessLevel> {
         let ceiling = match self {
@@ -84,25 +81,14 @@ impl FromStr for AgentCap {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentCapability {
-    /// Share, change or revoke grants, and answer access requests.
     Share,
-    /// Grant `comment` to a person by mentioning them.
     MentionGrant,
-    /// Trash, restore from trash, or delete.
     Trash,
-    /// Move, transfer ownership, revoke every grant: the owner's actions.
     Administer,
-    /// Restore an earlier revision over the head.
     RestoreRevision,
-    /// Replace a document's whole content in one write: a whole-file body,
-    /// or a `set_text` or `set_html` op.
     ReplaceContent,
-    /// Accept or reject a proposal.
     ReviewProposal,
-    /// Copy a document whose cap is below `edit` into a new one.
     CopyOut,
-    /// Change a document template. Core has no template-editing path, so
-    /// nothing checks this today; it is reserved for one.
     EditTemplate,
 }
 
@@ -122,7 +108,6 @@ impl AgentCapability {
         }
     }
 
-    /// The capability an access check for `action` exercises, if any.
     #[must_use]
     pub const fn of_action(action: DocumentAction) -> Option<Self> {
         match action {
@@ -147,22 +132,13 @@ impl fmt::Display for AgentCapability {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CapSource {
-    Policy {
-        policy: &'static str,
-    },
-    DocumentOverride {
-        document_id: DocumentId,
-    },
-    FolderOverride {
-        folder_id: DocumentFolderId,
-    },
-    /// A folder override on a folder the caller cannot view.
+    Policy { policy: &'static str },
+    DocumentOverride { document_id: DocumentId },
+    FolderOverride { folder_id: DocumentFolderId },
     InheritedOverride,
 }
 
 impl CapSource {
-    /// The short form the read audit stores: `policy:<name>`,
-    /// `document:<id>` or `folder:<id>`.
     #[must_use]
     pub fn label(&self) -> String {
         match self {

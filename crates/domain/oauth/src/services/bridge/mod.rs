@@ -40,13 +40,9 @@ const DEFAULT_ACCESS_TTL_SECONDS: u64 = 3600;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BridgeAuthResult {
-    /// The token the bridge hands its hosts (gateway and MCP audiences).
     pub token: String,
     pub ttl: u64,
     pub headers: HashMap<String, String>,
-    /// The bridge's private device token (audience `bridge.device` alone),
-    /// the only credential that trades for a Drive sync token; minted only
-    /// for the bridge client with no purpose, and never handed to a host.
     pub device_token: Option<String>,
 }
 
@@ -60,8 +56,6 @@ pub struct BridgeAccessRequest<'a> {
     pub session_source: SessionSource,
     pub ttl_seconds: u64,
     pub purpose: Option<String>,
-    /// Minted for a live host session a person started (the exchange-code
-    /// flow); stamps `interaction: interactive` into the bridge JWT.
     pub interactive: bool,
 }
 
@@ -85,7 +79,6 @@ impl<'a> BridgeAccessRequest<'a> {
         }
     }
 
-    /// Marks the access as a person's live host session.
     #[must_use]
     pub const fn interactive(mut self) -> Self {
         self.interactive = true;
@@ -157,33 +150,24 @@ pub async fn issue_bridge_access(
 
     let ttl = ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(i64::MAX));
     let interaction = (interactive && purpose.is_none()).then_some(TokenInteraction::Interactive);
-    let device = (client_id == ClientId::bridge() && purpose.is_none()).then(|| JwtConfig {
-        audience: vec![JwtAudience::Resource(BRIDGE_DEVICE_AUDIENCE.to_owned())],
-        ..build_bridge_jwt_config(&auth_user, ttl, None, interaction)
-    });
+    let device_config = (client_id == ClientId::bridge() && purpose.is_none())
+        .then(|| device_jwt_config(&auth_user, ttl, interaction));
     let config = build_bridge_jwt_config(&auth_user, ttl, purpose, interaction);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
         keys,
     };
-    let token = generate_jwt(
-        &auth_user,
-        config,
-        AccessTokenId::generate(),
-        &session_id,
-        &signing,
-    )?;
-    let device_token = device
-        .map(|device| {
-            generate_jwt(
-                &auth_user,
-                device,
-                AccessTokenId::generate(),
-                &session_id,
-                &signing,
-            )
-        })
-        .transpose()?;
+    let mint = |config: JwtConfig| {
+        generate_jwt(
+            &auth_user,
+            config,
+            AccessTokenId::generate(),
+            &session_id,
+            &signing,
+        )
+    };
+    let token = mint(config)?;
+    let device_token = device_config.map(mint).transpose()?;
 
     let session_analytics = analytics.extract_analytics(
         request_headers,
@@ -220,6 +204,17 @@ pub async fn issue_bridge_access(
         headers: hdrs,
         device_token,
     })
+}
+
+fn device_jwt_config(
+    auth_user: &AuthenticatedUser,
+    ttl: ChronoDuration,
+    interaction: Option<TokenInteraction>,
+) -> JwtConfig {
+    JwtConfig {
+        audience: vec![JwtAudience::Resource(BRIDGE_DEVICE_AUDIENCE.to_owned())],
+        ..build_bridge_jwt_config(auth_user, ttl, None, interaction)
+    }
 }
 
 fn build_bridge_jwt_config(

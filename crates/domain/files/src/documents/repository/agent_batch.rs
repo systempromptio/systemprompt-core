@@ -23,8 +23,6 @@ pub struct FolderChain {
 }
 
 impl DocumentRepository {
-    /// The override and creating agent of each of `documents`; a document
-    /// without either is absent from the map.
     pub async fn agent_facts_of(
         &self,
         documents: &[DocumentId],
@@ -56,7 +54,6 @@ impl DocumentRepository {
         Ok(facts)
     }
 
-    /// The nearest-first chain of each of `folders` and the overrides on it.
     pub async fn folder_chains(
         &self,
         folders: &[DocumentFolderId],

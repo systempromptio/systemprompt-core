@@ -15,9 +15,11 @@ use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use uuid::Uuid;
 
 use super::SubjectDirectory;
-use super::agent::AgentGate;
-use super::request::{authz_request, not_found};
-use crate::documents::agents::{AgentAccessPolicy, DefaultAgentAccessPolicy, EffectiveCap};
+use super::agent::{AgentGate, held_level, owner_of};
+use super::request::authz_request;
+use crate::documents::agents::{
+    AgentAccessPolicy, DefaultAgentAccessPolicy, DocumentActor, EffectiveCap, unscoped_actor,
+};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder, SubjectPairs};
 use crate::documents::repository::{
@@ -37,7 +39,6 @@ pub struct Granted {
     pub pairs: SubjectPairs,
     pub document: Option<Document>,
     pub folder: Option<DocumentFolder>,
-    /// The cap an agent caller acted under; `None` for a person.
     pub agent_cap: Option<EffectiveCap>,
 }
 
@@ -91,6 +92,7 @@ pub struct DocumentAccessService {
     pub(super) subjects: Arc<dyn SubjectAttributeSource>,
     pub(super) directory: Arc<dyn SubjectDirectory>,
     pub(super) agents: Arc<dyn AgentAccessPolicy>,
+    pub(super) unscoped: DocumentActor,
 }
 
 impl std::fmt::Debug for DocumentAccessService {
@@ -123,16 +125,8 @@ impl DocumentAccessService {
             subjects,
             directory,
             agents: Arc::new(DefaultAgentAccessPolicy),
+            unscoped: unscoped_actor(),
         }
-    }
-
-    /// Sets the agent access policy; without it the service applies
-    /// [`DefaultAgentAccessPolicy`]. The composition root passes
-    /// [`registered_policy`](crate::documents::agents::registered_policy).
-    #[must_use]
-    pub fn with_agent_policy(mut self, policy: Arc<dyn AgentAccessPolicy>) -> Self {
-        self.agents = policy;
-        self
     }
 
     pub async fn authorize(
@@ -218,31 +212,9 @@ impl DocumentAccessService {
         } = check;
         let resolved = self.resolve(who, target, action, &pairs).await?;
         let needed = action.required_level();
-        let owner = resolved
-            .document
-            .as_ref()
-            .map(|d| d.owner_user_id.clone())
-            .or_else(|| resolved.folder.as_ref().map(|f| f.owner_user_id.clone()));
+        let owner = owner_of(&resolved);
         let gate = self.agent_gate(who, &resolved, &pairs).await?;
-        let held = match &gate {
-            Some(gate) => gate.held(&resolved, action)?,
-            None => resolved.level,
-        };
-        let level = match held {
-            Some(level) if level >= needed => level,
-            None if owner.is_some() => {
-                return Err(not_found(&resolved));
-            },
-            held => {
-                return Err(DocumentsError::Forbidden {
-                    action,
-                    needed,
-                    held,
-                    policy: None,
-                    owner,
-                });
-            },
-        };
+        let level = held_level(gate.as_ref(), &resolved, action)?;
         let document_id = resolved.document.as_ref().map(|d| d.id.clone());
         let entity = EntityRef::Folder(
             resolved
@@ -263,10 +235,10 @@ impl DocumentAccessService {
         match decision {
             AuthzDecision::Allow => {
                 if mode == HookMode::Evaluate
+                    && action == DocumentAction::View
                     && let (Some(gate), Some(document)) = (&gate, &resolved.document)
                 {
-                    self.audit_agent_read(who, gate, document, action, trace)
-                        .await?;
+                    self.audit_agent_read(who, gate, document, trace).await?;
                 }
                 Ok(Granted {
                     level,

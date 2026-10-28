@@ -275,10 +275,6 @@ pub mod files {
     pub use systemprompt_files::{register_agent_access_policy, *};
 }
 
-/// Registers the deployment's
-/// [`AgentAccessPolicy`](systemprompt_files::documents::agents::AgentAccessPolicy):
-/// `register_agent_access_policy!("name", build)` where
-/// `fn build(db: &DbPool) -> Arc<dyn AgentAccessPolicy>`.
 #[cfg(any(feature = "full", feature = "files-office"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "files-office"))))]
 pub use systemprompt_files::register_agent_access_policy;

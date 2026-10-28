@@ -1,7 +1,8 @@
 //! The middleware that runs every document and folder route as the actor
-//! the request's credential proves (see
-//! [`systemprompt_runtime::documents::actor`]): a first-party browser
-//! session is the person, any bearer token an agent. A request that reaches
+//! the request's credential proves.
+//!
+//! A first-party browser session is the person, any bearer token an agent
+//! (see [`systemprompt_runtime::documents::actor`]). A request that reaches
 //! the routes without a context runs unscoped, which the document service
 //! treats as an unnamed, unattended agent.
 //!
@@ -28,9 +29,6 @@ use systemprompt_runtime::documents::actor::request_actor;
 
 use crate::error::ApiHttpError;
 
-/// Mount with `axum::middleware::from_fn(scope)` as a `route_layer` on any
-/// router whose handlers call the document service, inside the auth layer
-/// that inserts the [`RequestContext`].
 pub async fn scope(request: Request, next: Next) -> Response {
     let Some(ctx) = request.extensions().get::<RequestContext>() else {
         return next.run(request).await;
@@ -49,9 +47,6 @@ pub async fn scope(request: Request, next: Next) -> Response {
     act_as(actor, next.run(request)).await
 }
 
-/// The origins this site's own pages are served from: the configured
-/// public URL (`api_external_url`) and `advertise_url` when set, as
-/// `scheme://host[:port]`. Empty without a `Config` extension.
 fn site_origins(request: &Request) -> Vec<String> {
     let Some(config) = request.extensions().get::<Arc<Config>>() else {
         return Vec::new();
@@ -68,11 +63,6 @@ fn site_origins(request: &Request) -> Vec<String> {
     .collect()
 }
 
-/// Whether the request came from this site's own pages: the browser's
-/// `Sec-Fetch-Site` is `same-origin` or `none` when sent, and an `Origin`,
-/// when sent, is one of `site_origins` (the configured public URLs, so a
-/// proxy rewriting `Host` cannot cause a false refusal). With no configured
-/// origin to compare against, the `Origin` host must match `Host`.
 #[must_use]
 pub fn same_origin(headers: &HeaderMap, site_origins: &[String]) -> bool {
     let fetch_site = headers

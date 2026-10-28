@@ -41,7 +41,6 @@ impl DocumentTrashPurgeJob {
 }
 
 impl DocumentTrashPurgeJob {
-    /// The job's work, run as its named system actor by `execute`.
     async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
         if !documents.is_enabled() {

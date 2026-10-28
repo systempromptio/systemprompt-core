@@ -22,7 +22,7 @@ use super::agent::{document_context, folder_context};
 use super::service::DocumentAccessService;
 use crate::documents::agents::{
     AgentActor, AgentCap, AgentCapability, AgentChannel, AgentRefusal, DocumentContext, MoveActor,
-    UNNAMED_AGENT, current_actor,
+    UNNAMED_AGENT,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder};
@@ -50,8 +50,6 @@ fn strictest_agent() -> AgentActor {
 }
 
 impl DocumentAccessService {
-    /// The nearest-first chain of `folder`: the folder itself, then each
-    /// folder above it; empty for the root.
     pub async fn chain_from(
         &self,
         folder: Option<&DocumentFolderId>,
@@ -79,8 +77,6 @@ impl DocumentAccessService {
         }
     }
 
-    /// The cap an unnamed, unattended agent holds on `target` where it
-    /// stands.
     pub async fn strictest_cap(
         &self,
         who: &AuthenticatedUser,
@@ -94,17 +90,14 @@ impl DocumentAccessService {
             .cap)
     }
 
-    /// Asks the policy about moving `target` under `to` (its `on_move` may
-    /// refuse, as `MoveRefused`, or pin its own override) and returns the
-    /// cap core pins after the move: the source's, when the destination
-    /// would loosen it.
     pub async fn check_move(
         &self,
         who: &AuthenticatedUser,
         target: MoveTarget<'_>,
         to: Option<&DocumentFolderId>,
     ) -> Result<Option<AgentCap>, DocumentsError> {
-        let judge = current_actor()
+        let judge = self
+            .actor()
             .as_agent()
             .cloned()
             .unwrap_or_else(strictest_agent);
@@ -115,20 +108,20 @@ impl DocumentAccessService {
         let mover = MoveActor {
             user: who.id.clone(),
             is_admin: who.is_admin(),
-            agent: current_actor().as_agent().cloned(),
+            agent: self.actor().as_agent().cloned(),
             reason: None,
         };
         self.agents
             .on_move(&source, &to_chain, &mover)
             .await
-            .map_err(|reason| AgentRefusal::MoveRefused { reason })?;
+            .map_err(|refused| AgentRefusal::MoveRefused {
+                reason: refused.reason,
+            })?;
         let mut landed = Self::context_at(who, target, to_chain);
         let after = self.strictest_of(&mut landed, &judge).await?;
         Ok((after > before).then_some(before))
     }
 
-    /// The stricter of the caps `agent` holds on `context` attended and
-    /// unattended: what a pin must keep whichever way the agent next comes.
     async fn strictest_of(
         &self,
         context: &mut DocumentContext,
@@ -145,7 +138,6 @@ impl DocumentAccessService {
         Ok(cap)
     }
 
-    /// Tells the policy a copy of `source` now exists as `copy`.
     pub async fn notify_copy(
         &self,
         who: &AuthenticatedUser,
@@ -159,9 +151,6 @@ impl DocumentAccessService {
         Ok(())
     }
 
-    /// Refuses an agent caller copying out of `source` when its cap is below
-    /// `edit` and the policy does not allow `copy_out`; returns the cap the
-    /// copy must carry, if any.
     pub async fn check_copy(
         &self,
         who: &AuthenticatedUser,

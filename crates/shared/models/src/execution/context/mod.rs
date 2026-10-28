@@ -146,19 +146,8 @@ impl RequestContext {
     }
 
     #[must_use]
-    pub const fn with_token_exp(mut self, token_exp: i64) -> Self {
-        self.auth.token_exp = Some(token_exp);
-        self
-    }
-
-    #[must_use]
     pub const fn jti(&self) -> Option<&AccessTokenId> {
         self.auth.jti.as_ref()
-    }
-
-    #[must_use]
-    pub const fn token_exp(&self) -> Option<i64> {
-        self.auth.token_exp
     }
 
     #[must_use]
