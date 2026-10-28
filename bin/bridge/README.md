@@ -208,6 +208,18 @@ fails loudly listing what it found rather than guessing.
 
 ---
 
+## Drive
+
+The bridge keeps `~/<workspace>/Drive` in step with the gateway's shared document store (`documentation/documents.md`). It is enabled when the Drive folder exists or the user's manifest is non-empty, and turned off with `[drive] enabled = false`. It talks to six endpoints under `/v1/bridge/drive/` with the device bearer: `GET manifest`, `GET changes?since=`, `GET blob/{sha256}`, `POST commit`, `PUT presence` and `GET proposals`. A gateway with the store off answers `404`; the bridge then shows Drive as disabled and checks again on its normal cadence.
+
+- **Upload.** A watcher debounces local writes by 1.5 s, ignores dot files, `~$` lock files, backup `~` files and `.tmp`/`.crdownload` partials, and commits the file as a revision with `If-Match` set to the base revision. A `merged` answer is recorded against the uploaded bytes, so the next pull writes the merged content. A `conflict` renames the local file to `<name> (conflict from <host>).<ext>` and pulls the head.
+- **Pull.** The change feed is polled every 20 s, or sooner when a `document.revision.created` event arrives on the bridge stream. Each change is one of `created`, `updated`, `renamed { from }` and `deleted`. A `renamed` change moves the local file and its sync state to the new path (a rename or a move between folders); a `deleted` change (a trash, alone or with its folder) moves the file into `Drive/.trash/<timestamp>/`; a restore arrives as `created` with the head revision and is pulled at the path it returned to. A `created` or `updated` change for a document the folder holds at another path moves the file first. Blobs are hash-verified before they are written; the local file is hashed again immediately before the downloaded head replaces it, and an edit made while the blob was downloading is kept beside it as a conflict sibling. A local deletion is not propagated.
+- **Presence.** Beacons are sent from file activity and from agent tool calls whose path is inside the Drive folder (PostToolUse forwards).
+- **Notices.** A `document.proposal.opened` event raises a desktop notification, and so does a `document.shared` event whose `recipient_user_id` is the device user; the toast names the document (by its Drive path once synced) and the sharer, and shows the share message when there is one. The owner is not notified of a co-sharer's share.
+- **Status.** `bridge drive status` shows the sync state, conflicts, open proposals (refreshed on each sync) and the documents shared with the user that the folder has not synced yet, recorded in `.drive-state.json` from `document.shared` notices and dropped once the document is on disk. `bridge drive sync` wakes the loop; `bridge drive conflicts` lists conflict siblings.
+
+---
+
 ## Plugin mount paths
 
 | OS | Path |

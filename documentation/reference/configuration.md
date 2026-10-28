@@ -317,6 +317,28 @@ Only the first source may be a base bundle. Every later source must own nothing 
 | `endpoint` | string | for `external` servers | — | Absolute URL, or a path relative to the gateway. |
 | `external_auth` | object | no | absent | Per-user bearer resolution for an `external` server (`token_endpoint`, `header`, `scheme`). |
 
+### Document store (`services/config/files.yaml`)
+
+`crates/domain/files/src/config/documents.rs` and `document_limits.rs`. The `files.documents` section of `services/config/files.yaml` configures the shared document store ([documents.md](../documents.md)). It is implementation configuration, so it lives in the services tree, not the profile. Every key is optional; the store is off by default and a value outside its bounds is a validation error at boot.
+
+| Key | Type | Default | Bounds | Meaning |
+|-----|------|---------|--------|---------|
+| `enabled` | bool | `false` | | Mounts `/api/v1/documents`, `/api/v1/document-folders` and `/v1/bridge/drive/*`, runs the document jobs and lets an MCP server compose the document tools. Off, every path answers `404` and the jobs return without work. |
+| `maxUploadBytes` | integer | `67108864` (64 MiB) | 1 MiB to 2 GiB | Largest accepted document body; the document router's body limit is this plus 64 KiB. |
+| `blobGcGraceHours` | integer | `24` | at least 1 | Age before an unreferenced blob may be deleted by `document_blob_gc`. |
+| `presenceTtlSecs` | integer | `90` | at least 1 | How long a presence beacon or awareness state stays valid. |
+| `trashRetentionDays` | integer | `30` | at least 1 | How long a trashed document is kept before `document_trash_purge` deletes it. |
+| `accessRequests` | bool | `false` | | Lets a signed-in user with no level request access from the owner, and adds `can_request: true` to that user's `not_found` refusals on an existing document (which discloses that the document exists). |
+| `limits.maxOpsPerCall` | integer | `200` | 1 to 10,000 | Edit operations in one call. |
+| `limits.maxOpTextBytes` | integer | `1048576` (1 MiB) | 1 KiB to 64 MiB | Text one operation carries. |
+| `limits.maxMarkdownBytes` | integer | `1048576` (1 MiB) | 1 KiB to 64 MiB | Markdown, HTML or whole-document text one operation carries. |
+| `limits.maxCommentBytes` | integer | `16384` (16 KiB) | 256 B to 1 MiB | A comment body. |
+| `limits.maxCollabUpdateBytes` | integer | `4194304` (4 MiB) | 1 KiB to 64 MiB | One live co-editing update. |
+| `limits.maxCursorBytes` | integer | `4096` (4 KiB) | 256 B to 64 KiB | One editor cursor payload. |
+| `limits.pdfPages` | integer | `500` | 1 to 5,000 | Pages a PDF export may run to; a longer rendering is refused as `too_large`. |
+
+A request over any `limits.*` value or `maxUploadBytes` is refused with `too_large` (HTTP 413). The MCP server declaration (`services/mcp/<name>.yaml` `enabled:`) and the bridge's `[drive] enabled` setting are the two further switches that decide whether agents and devices use the store.
+
 ## `extensions`
 
 `crates/shared/manifest/src/profile/mod.rs:58`

@@ -4,6 +4,18 @@ How systemprompt-core stores, versions, permissions and syncs documents: Word, E
 
 The document store lives in the `files` domain (`crates/domain/files/src/documents`). It adds folders, content-addressed revisions, grants, locks and presence on top of the existing `FileStorage` backend. Postgres holds metadata only. The bytes of every revision live in the configured storage backend (local, GCS or S3).
 
+## Guarantees and limits
+
+- **Stable ids.** Every block of a document has an opaque id (`<writer>.<counter>`) that names the same block in every revision until the block is deleted. A deleted id is never reused.
+- **Node guards.** An edit names the block it changes by id and by the hash of the text it read. It is refused only when that block changed at the head; edits elsewhere never conflict.
+- **Merge on the head.** Edit operations always apply to the head, whatever revision they were read from; a commit whose base moved is landed and marked merged. Whole-file uploads on a stale base merge three-way (text formats) or are diffed into guarded operations (Office formats), or are refused as a conflict that names the head and the base.
+- **Atomic landing.** A revision, its node ids, its op-id acknowledgement and the head move commit in one transaction on the primary database. A commit that loses a race leaves nothing behind.
+- **Idempotency.** A write carrying an `op_id` is applied once per user and request; a repeat answers the stored acknowledgement, a different request under the same `op_id` is refused.
+- **One refusal vocabulary.** Every client error, over MCP and HTTP, is one of 23 stable codes with the same typed detail on both surfaces.
+- **Fail-closed access.** A caller who holds no level on a document is answered `not_found` and learns nothing, not even the owner. Grants, folder policy and the authz hook must all allow; a provider error is a refusal.
+- **Bounded inputs.** Uploads, operation counts, text sizes, comment bodies, live-edit updates, cursors and PDF page counts are capped by `files.documents` configuration; a request over a cap is refused as `too_large` (HTTP 413).
+- **No outbound traffic.** Rendering, previews and PDF export fetch nothing remote and start no subprocess.
+
 ## Model
 
 - **Folders** form a tree. Each folder stores its materialised ancestors, so a grant on a folder covers its whole subtree. Folder names are unique within a parent.
@@ -65,7 +77,7 @@ A caller who holds no level on a document or folder is answered `not_found`, nev
 
 ### Sharing
 
-- `share` refuses level `own`, and refuses to change a grant whose subject already holds more than the caller (`forbidden` with `existing_level`).
+- `share` refuses level `own` (`invalid_params`), and refuses to change a grant whose subject already holds more than the caller (`forbidden` with `existing_level`).
 - Transferring ownership names an active user; any other recipient is refused with `unknown_subject`. The previous owner keeps `edit`.
 - Revoking a grant, revoking every grant and a grant's expiry remove the presence rows of the users it named, which also ends their live editing state. Role subjects are resolved to their active members; dimension subjects have no reverse index and rely on the recipient filter below.
 - A grant past its `valid_until` grants nothing. Until the presence sweep deletes it, listings and access read-backs mark it `expired: true`.
@@ -100,7 +112,9 @@ A caller with no level is still answered `not_found`. With access requests on, a
 - **Locks.** A lease held by another holder (bridge, editor or agent) refuses the commit.
 - **Size.** Uploads are bounded by `maxUploadBytes`, and requests by the input limits (see Configuration); a request over a limit is refused as `too_large` (HTTP 413).
 
-Each commit updates the per-document search index (full-text over the extracted plain text). Revisions, presence and locks emit `document.revision.created`, `document.presence`, `document.lock` and `document.conflict` events on the AgUi stream (`/api/v1/stream/agui`), delivered to the owner and to users with presence on the document who still hold `view` or better when the event is emitted. Comments emit `document.comment.created` and `document.comment.resolved` to the same users. A grant emits one `document.shared` per recipient: the user it names, or each active member of the role it names (at most 500, the truncation logged), never the sharer. Each carries `recipient_user_id`, `document_name`, `shared_by` and `level`. An ownership transfer emits `document.ownership_transferred` to the new owner, the previous owner and present users. Clients filter on the `document.` prefix.
+Each commit updates the per-document search index (full-text over the extracted plain text). Revisions, presence and locks emit `document.revision.created`, `document.presence`, `document.lock` and `document.conflict` events on the AgUi stream (`/api/v1/stream/agui`), delivered to the owner and to users with presence on the document who still hold `view` or better when the event is emitted. Comments emit `document.comment.created` and `document.comment.resolved` to the same users. A grant emits one `document.shared` per recipient: the user it names, or each active member of the role it names (at most 500, the truncation logged), never the sharer. Each carries `recipient_user_id`, `document_name`, `shared_by`, `level` and the share `message`. An ownership transfer emits `document.ownership_transferred` to the new owner, the previous owner and present users. Clients filter on the `document.` prefix.
+
+The fifteen document event names are `document.revision.created`, `document.presence`, `document.lock`, `document.conflict`, `document.collab.update`, `document.comment.created`, `document.comment.resolved`, `document.shared`, `document.ownership_transferred`, `document.proposal.opened`, `document.proposal.accepted`, `document.proposal.rejected`, `document.proposal.superseded`, `document.awareness` and `document.access_requested`. The document-scoped live channel (see [Live co-editing](#live-co-editing)) adds its own `document.live.ready`, `document.live.resync` and `document.live.closed` frames.
 
 ## MCP tools
 
@@ -123,9 +137,9 @@ Document tools are exposed through MCP and authorise as the calling user, never 
 | `documents_trash` | Move a document to the trash. |
 | `documents_untrash` | Bring a trashed document back. |
 | `documents_export` | A signed ten-minute download link, or the sanitised HTML preview for the document-preview app. |
-| `documents_guide` | Working detail by topic: `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle`, `proposals` and `refusal.<code>`. |
+| `documents_guide` | Working detail by topic: the eight topics `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle` and `proposals`, plus `refusal.<code>` for each of the 23 refusal codes. |
 
-The server `instructions` carry the working contract: read the outline, edit by node id and hash or by quote with an `op_id`, anchor the next edit on the acknowledgement and resume later with the changes since your last revision, let the head edit win on a conflict and never resend the old text, and do not re-read between your own writes.
+The server `instructions` carry the working contract in six points: read the outline first; edit by node id and hash or by quote in one call, with an `op_id` so a retry is safe; anchor the next edit on the acknowledgement and resume later with the changes since your last revision; on `guard_mismatch` or `stale_base` the head edit wins, so re-aim from the returned text and never resend the old text; do not re-read between your own writes; and an edit may land as a proposal, which a reviewer accepts with `documents_proposals`. The whole `tools/list` stays under 6144 bytes on the wire.
 
 **Reading.** A line is `<node>:<hash>| <text>`; a cell is `<sheet>!<cell>:<hash>| <value>`. The text shows structure as the outline does: `# ` by heading level, `- ` for a list item, `| ` for a table cell and `## slide N` at each slide. The outline folds a run of list items after three as `gap blocks=N`. `view: node` reads one node and its children, `view: search` the blocks containing a text, `view: meta` the name, place, access, head, size and who is present, and `view: changes` with `since_revision` the blocks changed since that revision, a `gap blocks=N` line for each run of unchanged blocks and a `gone <id>` line for each deleted block.
 
@@ -139,30 +153,37 @@ The server `instructions` carry the working contract: read the outline, edit by 
 
 **Results.** A result is a one-line summary plus structured content, sent once. Its `_meta` carries only `io.systemprompt/execution` with the `artifact_id` and `mcp_execution_id` a client correlates on (and the UI resource URI for a host that renders the preview app). A one-op edit stays under 400 bytes and a three-revision history under 800 bytes on the full wire. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs, content hashes, each node id's positional path and the revision attribution. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read; a write landed on a moved head says `merged`, and a replayed `op_id` says `replayed`.
 
-**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` and the detail the failure knows: the head revision, its content hash, the base sent and who wrote the head, a node's current text and hash, a match count, the accepted node kinds, the owner to ask for access, the comments an edit would detach, or that a document is in the trash. The text names what to do next. The HTTP API answers in the same vocabulary (see [Errors](#errors)).
+**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` and the detail the failure knows. The text names what to do next. The HTTP API answers in the same vocabulary, with the code as `error_key` and the same detail under `detail` (see [Errors](#errors)). A server-side failure (storage, database, authz hook, codec worker) is not a refusal: it is a protocol error with a fixed message, and its cause is logged.
 
-| Code | Meaning |
-|---|---|
-| `stale_base` | The base is no longer the head. |
-| `guard_mismatch` | A touched node changed since it was read. |
-| `find_none` | A quote matched no place, or more than one. |
-| `unsupported_op` | The format does not take the operation or node kind. |
-| `unsupported_format` | No codec handles the format. |
-| `template_failed` | The template could not be instantiated. |
-| `forbidden` | The caller lacks the access the action needs. |
-| `not_found` | The document, folder, revision, comment or node does not exist. |
-| `trashed` | The document is in the trash. |
-| `locked` | Another holder has the lock. |
-| `folder_not_empty` | The folder still holds documents or folders. |
-| `anchors_affected` | The edit removes text comments are anchored to. |
-| `proposal_conflict` | The proposal no longer applies at the head. |
-| `proposal_closed` | The proposal was already reviewed or superseded. |
-| `invalid_params` | The call is malformed. |
-| `unknown_subject` | No active subject has that id. |
-| `too_large` | The call exceeds an input limit. |
-| `integrity_mismatch` | Uploaded bytes do not hash to the declared hash. |
-| `op_id_mismatch` | The op id was used for a different request. |
-| `self_review` | The reviewer proposed it. |
+There are 23 codes (`RefusalCode::ALL` in `crates/app/runtime/src/documents/refusal/code.rs`). `documents_guide` explains each as `refusal.<code>`.
+
+| Code | HTTP | Meaning | Detail carried |
+|---|---|---|---|
+| `stale_base` | 409 | The base is no longer the head. | `head_revision`, `head_content_sha256`, `base_revision`, `written_by`, `actor_kind`, `at` |
+| `guard_mismatch` | 409 | A touched node changed since it was read. | `head_revision`, `node`, `hash`, `current_text` |
+| `find_none` | 409 for a node quote, 400 for an `old_str` quote | A quote matched no place, or more than one. | `matches` |
+| `unsupported_op` | 400 | The format does not take the operation or node kind. | `accepted_kinds` |
+| `unsupported_format` | 400 | No codec handles the format, or no rendition exists for it. | |
+| `template_failed` | 422 | The template could not be instantiated. | |
+| `forbidden` | 403 | The caller lacks the access the action needs, or a share would lower a grant above the caller's level. | `owner` (to holders of some level), `existing_level` |
+| `not_found` | 404; 409 for a node id | The document, folder, revision, comment or node does not exist, or the caller holds no level on it. | `can_request` when access requests are on |
+| `trashed` | 404 | The document is in the trash. | `trashed: true` |
+| `locked` | 423 | Another holder has the lock. | |
+| `folder_not_empty` | 409 | The folder still holds documents or folders. | |
+| `anchors_affected` | 409 | The edit removes text comments are anchored to. | `comments` |
+| `proposal_conflict` | 409 | The proposal no longer applies at the head. | `head_revision`, `node`, `current_text` |
+| `proposal_closed` | 409 | The proposal was already reviewed or superseded. | |
+| `invalid_params` | 400; 422 for a document that cannot be parsed | The call is malformed: a bad name, move, cursor, comment, awareness state, subject kind, or an `own` grant. | |
+| `unknown_subject` | 400 | No active user, catalogued role or listed dimension value has that id. | |
+| `too_large` | 413 | The call exceeds an input limit, or a PDF rendering exceeds `limits.pdfPages`. | |
+| `integrity_mismatch` | 422 | Uploaded bytes do not hash to the declared hash. | |
+| `op_id_mismatch` | 409 | The op id was used for a different request. | |
+| `self_review` | 403 | The reviewer proposed it. | |
+| `access_request_open` | 409 | The caller already has an open request on the document. | |
+| `access_request_not_needed` | 400 | The caller already holds a level on the document. | |
+| `access_request_closed` | 409 | The request was already granted or declined. | |
+
+The detail object (`Refusal`) has the optional fields `head_revision`, `head_content_sha256`, `base_revision`, `written_by`, `actor_kind`, `at`, `node`, `hash`, `current_text`, `matches`, `accepted_kinds`, `owner`, `existing_level`, `trashed` and `comments`; absent fields are omitted.
 
 **Proposals.** An edit either lands on the head or is written as a proposal: a revision whose parent is its base and which never becomes the head on its own. `documents_edit` and `POST /edits` take `mode: land | propose`. Without a mode, a caller holding `comment` but not `edit` access proposes, an agent proposes in a folder whose agent edit policy is `propose` (set on the folder or inherited from any folder above it; the root is `direct`), and everyone else lands. `mode: land` needs `edit` access, and an agent's `mode: land` in a `propose` folder is refused as `forbidden` with the policy named, since the folder policy outranks the request. The acknowledgement carries the `proposal_id`, the proposed revision and its lines against the base. A newer proposal from the same proposer on the same document supersedes the open one.
 
@@ -201,7 +222,8 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `GET`, `POST`, `DELETE /api/v1/document-folders/{id}/grants`, `GET /api/v1/document-folders/{id}/access` | Folder grants and access, in the same shapes as a document's. |
 | `PUT`, `GET /api/v1/documents/{id}/presence` | Presence beacons. |
 | `POST`, `DELETE /api/v1/documents/{id}/lock` | Lease lock. |
-| `GET`, `POST`, `PATCH /api/v1/document-folders` | Folders: list, create, rename, move, and set `agent_edit_policy` (`direct` or `propose`, needs `share` access). |
+| `GET`, `POST /api/v1/document-folders`, `PATCH`, `DELETE /api/v1/document-folders/{id}` | Folders: list, create, rename, move, and set `agent_edit_policy` (`direct` or `propose`, needs `share` access); delete, with `?recursive=true` for a folder that still has content (otherwise `folder_not_empty`). |
+| `GET /api/v1/documents/{id}/live`, `POST /api/v1/documents/{id}/collab/awareness` | The document's live channel and awareness state. See [Live channel and awareness](#live-channel-and-awareness). |
 
 With the `files-collab` facade feature (part of `full`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
 
@@ -215,6 +237,7 @@ A refused request answers the common error envelope ([reference/http-api.md](ref
 |---|---|
 | `409` | `stale_base`, `guard_mismatch`, `anchors_affected`, `find_none`, `proposal_conflict`, `proposal_closed`, `folder_not_empty`, `op_id_mismatch`, `access_request_open`, `access_request_closed`, and `not_found` for a node id |
 | `403` | `forbidden`, `self_review` |
+| `503` | `collab_engine_unavailable` (a live session route with `files-collab` and no engine) |
 | `404` | `not_found`, `trashed` |
 | `413` | `too_large` |
 | `422` | `integrity_mismatch`, `template_failed`, and `invalid_params` for a document that cannot be parsed |
@@ -235,6 +258,12 @@ HTML and Markdown documents can be edited by several people at once. A session h
 Binary values are standard base64: `snapshot_b64` is a Loro snapshot, `update_b64` a Loro update, `vv` a Loro version vector. `edit` needs edit access, `comment` comment access and `view` view access; join answers protocol `2`, the engine and `wire_version` the client must speak, the `model` (`rich_text`) and its `model_version`, and the caller's access `level`. Updates are accepted only from a user who joined in edit or comment mode (`403` otherwise). Each update is applied to a fork of the server's own copy and the result is checked before it is logged: block, mark and link-scheme allowlists, size and nesting limits, unique block ids, `raw` blocks that only the server may author, and the caller's level — a comment-level caller may change comment marks and nothing else. A refused update answers `400` with `update_rejected` and a `reason` (`too_large`, `bad_block_id`, `bad_block`, `bad_mark`, `raw_block_changed`, `beyond_access_level`); it is never logged or broadcast, and the client resyncs from a fresh join. An update for a session that is no longer open answers `409`, and the client joins again. When the posted `vv` lacks changes the server holds, `missing_b64` carries them.
 
 A document has at most one open edit session. Every accepted update is logged with a sequence number and sent as a `document.collab.update` event (`document_id`, `edit_session_id`, `seq`, `update_b64`, `author_id`) on the AG-UI stream of each user present on the document; there is no separate stream. Sequence numbers are per session, consecutive and assigned in commit order, starting after the `seq` returned by join; a client that receives an event whose `seq` skips one joins again and imports the new snapshot. An update is logged before any replica applies it, so a refused or failed update changes nothing. Joins and cursor moves send `document.presence`, with `cursor` when one was posted.
+
+### Live channel and awareness
+
+Beside the AG-UI stream, every document has its own server-sent-events channel, `GET /api/v1/documents/{id}/live`, mounted whenever the store is on and gated on `view` access. It opens with `document.live.ready` (`document_id`, the open `edit_session_id` if any, and the number of frames `replayed`) and the awareness states still alive, then carries every event published on the document: collab updates, awareness, comments, revisions, locks and presence. Each collab update's SSE id is `<session>:<seq>`; a client that reconnects with that `Last-Event-ID` header (or `?last_event_id=`) first receives the updates it missed, or a `document.live.resync` (`session_changed`, `updates_compacted` or `lagged`) asking it to re-join and load a fresh snapshot. Access is re-checked every 30 seconds; a caller whose access was revoked receives `document.live.closed` and the stream ends.
+
+`POST /api/v1/documents/{id}/collab/awareness` publishes a participant's state: `color` (a CSS colour of at most 32 characters), `mode` (`viewing`, `editing` or `commenting`), an optional `cursor`, up to 16 `selection` ranges, an optional `viewport` and the `session_id` it belongs to. `editing` needs edit access, the others view access; a malformed state is refused as `invalid_params`. The state is stored on the caller's presence row for `presenceTtlSecs` and sent as `document.awareness` (`user_id`, `display_name`, `state`, `expires_at`) to everyone on the channel; the response says whether it was `published` and when it `expires_at`.
 
 The server stores a snapshot 30 seconds after the first unsaved update or after 200 updates, and commits the body as a revision with origin `edit_session` after 2 minutes of activity and when the last editor leaves, which also closes the session. Checkpoints are attributed to the session's last editor; a viewer leaving never commits. `checkpoint` on leave is `unchanged`, `committed` (with `checkpoint_revision`) or `conflict` (with `head_revision`). On `conflict` the live body is kept as a proposal by the last editor (`proposal_id`) and the session stays open. Moving a document to the trash commits its live body the same way, closes its edit session and clears its locks and presence. For HTML the revision keeps the document around `<body>` from the revision the checkpoint is based on. A checkpoint that the revision engine merges with writes made outside the session re-imports the merged document, carries the live block ids over to the matching blocks, and writes it back into the live model. A session with no edits never commits: a checkpoint compares the materialised model with the materialised import of its base, so the normalisation a re-render applies is not mistaken for an edit. A session opened before the model existed still holds a flat `body` text and checkpoints as before.
 
@@ -338,14 +367,34 @@ Config validation rejects values outside the bounds.
 
 | Job | Schedule | Behaviour |
 |---|---|---|
-| `document_blob_gc` | daily | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
-| Presence sweep | every 60 seconds | Removes expired presence rows, grants past their `valid_until` (with the named user's presence on that document, and an `expired` audit row) and write acknowledgements older than seven days, and reopens accepted proposals that have not landed after five minutes. |
+| `document_blob_gc` | daily (03:15) | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
+| `document_presence_sweep` | every 60 seconds | Removes expired presence rows, grants past their `valid_until` (with the named user's presence on that document, and an `expired` audit row) and write acknowledgements older than seven days, and reopens accepted proposals that have not landed after five minutes. |
 | `document_collab_update_sweep` | every 5 minutes | Deletes the update log of closed edit sessions. |
 | `document_node_ids_backfill` | every 10 minutes, once per release | Mints stable node ids for revisions written before ids existed, oldest first so a child carries its parent's ids. Reads never mint: until then such a revision refuses `not_found`. It runs once per release across the cluster under a release stamp. |
-| `document_trash_purge` | daily | Deletes documents trashed longer than the retention period, with their revisions, node ids, grants and comments; the blob GC then collects their blobs. |
+| `document_trash_purge` | daily (02:45) | Deletes documents trashed longer than the retention period, with their revisions, node ids, grants and comments; the blob GC then collects their blobs. |
 
 All run once per cluster, and return without work while the store is disabled.
 
-## Planned
+## Data protection
 
-These items are designed and not part of the current release: the Web Components for browsing and editing, including the browser editor for live co-editing. Browser access today is the HTTP API.
+- **Where bytes live.** Revision bytes are content-addressed blobs in the configured `FileStorage` backend (local disk, GCS or S3) under `documents/blobs/`. Encryption at rest is the backend's: bucket-level encryption on GCS and S3, disk or volume encryption for `local`. Core does not encrypt blobs itself and holds no key. Postgres holds names, paths, hashes, grants, comments, proposals, the plain-text search index of each head revision and the audit rows.
+- **Who can reach bytes.** Blobs are never served by the static `/files/*` route. They are reached only through the authorised document routes, the bridge Drive routes (device bearer, the device user's grants) and a signed download link: a user JWT with audience `documents.download` and purpose `document_download:<document>@<revision>`, valid for ten minutes, that opens exactly that revision.
+- **Previews.** The HTML preview is sanitised server-side (`ammonia`) and served with `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:` and same-origin frame options, so a preview runs no script and loads nothing remote.
+- **Office files.** Codecs parse and rewrite package XML. Macros, embedded objects and external links are copied as opaque package entries and are never executed or followed.
+- **PDF export.** The renderer is pure Rust in-process (`pdf-writer`), uses the standard fonts, fetches no image and starts no subprocess.
+- **Purge finality.** A purged document, revision or blob is deleted from Postgres and from the storage backend; backups and object-store versioning are the operator's.
+
+## Retention and legal hold
+
+- A trashed document stays recoverable for `trashRetentionDays` (default 30), then `document_trash_purge` deletes it with its revisions, node ids, grants and comments, and `document_blob_gc` collects blobs no revision references after `blobGcGraceHours`.
+- Revisions on the head chain are never pruned: history is complete for the life of the document. To hold a document, keep it out of the trash, or raise `trashRetentionDays`.
+- Write acknowledgements are kept seven days; the update log of a closed live session is deleted by `document_collab_update_sweep`.
+- The governance trail records every document and folder authz-hook decision (`governance_decisions`), and the store's own tables record who wrote each revision and in which session, context, trace and task (`report_document_revisions`), every grant change (`report_document_sharing`) and every proposal review.
+
+## Data-subject deletion
+
+Document rows reference users by id without a foreign key, so a user purge removes the user's identity rows and leaves their documents, revisions, comments and grants in place; the reporting views hide rows whose author or actor no longer exists. Before purging a user, transfer the documents they own (`POST /{id}/transfer`) or trash them, and revoke the grants that name them (`DELETE /{id}/grants`); the audit log keeps the user id of past actions as a record of the action, not of the person.
+
+## Threat model pointers
+
+The document store's trust boundaries and controls are listed in [security/threat-model.md § Document store](security/threat-model.md#47-document-store) and [security/outbound-egress-controls.md](security/outbound-egress-controls.md). In short: Office content is parsed, never executed; previews are sanitised and sandboxed; download links are purpose-bound JWTs; PDF rendering and previews make no outbound request; and every access decision fails closed to `not_found`.
