@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM document_uploads\n                              WHERE owner_user_id = $1 AND blob_sha256 = $2\n                                AND status = 'completed') AS \"owned!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "owned!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "99ff248ba5939ce9b72cae5777454fc65a1223d151ea4878998fe4f5e6f32d7c"
+}

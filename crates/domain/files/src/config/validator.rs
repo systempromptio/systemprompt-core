@@ -14,6 +14,7 @@ use super::FilesConfig;
 use super::document_limits::DocumentLimits;
 use super::documents::{MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
 use super::types::FilesConfigYaml;
+use super::upload_limits::UploadLimits;
 
 const MAX_RECOMMENDED_FILE_SIZE: u64 = 2 * 1024 * 1024 * 1024;
 const MIN_VIDEO_FILE_SIZE: u64 = 100 * 1024 * 1024;
@@ -129,6 +130,7 @@ impl DomainConfig for FilesConfigValidator {
             ));
         }
         validate_limits(&mut report, &documents.limits);
+        validate_upload_limits(&mut report, &documents.uploads);
 
         Ok(report)
     }
@@ -139,6 +141,17 @@ fn validate_limits(report: &mut ValidationReport, limits: &DocumentLimits) {
         if !(low..=high).contains(&value) {
             report.add_error(ValidationIssue::new(
                 format!("files.documents.limits.{field}"),
+                format!("{field} must be between {low} and {high}"),
+            ));
+        }
+    }
+}
+
+fn validate_upload_limits(report: &mut ValidationReport, limits: &UploadLimits) {
+    for (field, value, (low, high)) in limits.bounded() {
+        if !(low..=high).contains(&value) {
+            report.add_error(ValidationIssue::new(
+                format!("files.documents.uploads.{field}"),
                 format!("{field} must be between {low} and {high}"),
             ));
         }

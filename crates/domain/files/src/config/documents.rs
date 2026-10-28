@@ -1,7 +1,8 @@
 //! The `files.documents` section: the document store's on/off switch
 //! (off by default), upload limit, blob
 //! garbage-collection grace, presence time-to-live, trash retention,
-//! per-request input limits and whether a user with no access may request it
+//! per-request input limits, the resumable upload limits (`uploads`) and
+//! whether a user with no access may request it
 //! (`accessRequests`, off by default).
 //!
 //! Turning `accessRequests` on tells a signed-in caller that a document they
@@ -14,6 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::document_limits::DocumentLimits;
+use super::upload_limits::UploadLimits;
 
 pub const MIN_DOCUMENT_UPLOAD_BYTES: u64 = 1024 * 1024;
 pub const MAX_DOCUMENT_UPLOAD_BYTES: u64 = 2 * 1024 * 1024 * 1024;
@@ -37,6 +39,8 @@ pub struct DocumentsConfig {
     pub trash_retention_days: u32,
     #[serde(default)]
     pub limits: DocumentLimits,
+    #[serde(default)]
+    pub uploads: UploadLimits,
     #[serde(default)]
     pub access_requests: bool,
 }
@@ -66,6 +70,7 @@ impl Default for DocumentsConfig {
             presence_ttl_secs: DEFAULT_PRESENCE_TTL_SECS,
             trash_retention_days: DEFAULT_TRASH_RETENTION_DAYS,
             limits: DocumentLimits::default(),
+            uploads: UploadLimits::default(),
             access_requests: false,
         }
     }

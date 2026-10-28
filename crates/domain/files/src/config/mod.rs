@@ -6,11 +6,13 @@
 mod document_limits;
 mod documents;
 mod types;
+mod upload_limits;
 mod validator;
 
 pub use document_limits::DocumentLimits;
 pub use documents::{DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
+pub use upload_limits::UploadLimits;
 pub use validator::FilesConfigValidator;
 
 use std::path::{Path, PathBuf};

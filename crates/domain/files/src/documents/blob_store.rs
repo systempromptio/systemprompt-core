@@ -6,6 +6,10 @@
 //! never served, and [`BlobStore::put`] removes an object it just stored
 //! when the row cannot be written.
 //!
+//! [`BlobStore::adopt`] registers an object already written elsewhere (an
+//! assembled upload) under its verified hash; when the hash already has a
+//! row, the adopted object is the duplicate and is removed.
+//!
 //! Garbage collection deletes the row first, because the repository refuses
 //! to delete a row a revision or edit session still references; only then is
 //! the object removed. A failed object delete leaves an orphaned object and
@@ -123,6 +127,59 @@ impl BlobStore {
                 Err(error.into())
             },
         }
+    }
+
+    pub async fn adopt(
+        &self,
+        hash: &ContentHash,
+        size: u64,
+        storage_id: &StoredFileId,
+    ) -> Result<StoredBlob, BlobStoreError> {
+        let size_column = i64::try_from(size)
+            .map_err(|source| BlobStoreError::SizeOutOfRange { size, source })?;
+        let inserted = self
+            .blobs
+            .upsert(hash, size_column, storage_id.as_str())
+            .await?;
+        if inserted {
+            return Ok(StoredBlob {
+                hash: hash.clone(),
+                size_bytes: size,
+                storage_id: storage_id.clone(),
+                inserted,
+            });
+        }
+        let row = self
+            .blobs
+            .find_on_primary(hash)
+            .await?
+            .ok_or_else(|| BlobStoreError::NotFound { hash: hash.clone() })?;
+        if row.storage_id != storage_id.as_str()
+            && let Err(error) = self.storage.delete(storage_id).await
+        {
+            tracing::warn!(
+                storage_id = %storage_id,
+                error = %error,
+                "Failed to remove a duplicate adopted blob"
+            );
+        }
+        Ok(StoredBlob {
+            hash: hash.clone(),
+            size_bytes: row.size_bytes.unsigned_abs(),
+            storage_id: StoredFileId::new(row.storage_id),
+            inserted,
+        })
+    }
+
+    pub async fn storage_id_of(
+        &self,
+        hash: &ContentHash,
+    ) -> Result<Option<StoredFileId>, BlobStoreError> {
+        Ok(self
+            .blobs
+            .find_on_primary(hash)
+            .await?
+            .map(|row| StoredFileId::new(row.storage_id)))
     }
 
     pub async fn open(

@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT part_number, size_bytes, sha256 AS \"sha256: ContentHash\", storage_id\n               FROM document_upload_parts WHERE upload_id = $1::text::uuid\n               ORDER BY part_number",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "part_number",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "document_upload_parts",
+            "name": "part_number"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "size_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_upload_parts",
+            "name": "size_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "sha256: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_upload_parts",
+            "name": "sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "storage_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_upload_parts",
+            "name": "storage_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "cef528bd00f6632b5657472fbfdb524583061423e6aee077f18c679d7f2ab17c"
+}

@@ -10,6 +10,8 @@
 //! - **Repositories** — `sqlx`-backed persistence for file rows and
 //!   content↔file associations.
 //! - **Services** — upload validation, content services, AI-persistence glue.
+//! - **Uploads** — resumable, content-checked uploads that end in a
+//!   content-addressed document blob ([`uploads`]).
 //! - **Jobs** — [`FileIngestionJob`] that scans the storage root and reconciles
 //!   on-disk image files with database rows.
 //!
@@ -39,6 +41,7 @@ pub(crate) mod jobs;
 pub(crate) mod models;
 pub(crate) mod repository;
 pub(crate) mod services;
+pub mod uploads;
 
 pub use error::{FilesError, FilesResult};
 pub use extension::FilesExtension;
@@ -46,7 +49,7 @@ pub use extension::FilesExtension;
 pub use config::{
     AllowedFileTypes, DocumentLimits, DocumentsConfig, FilePersistenceMode, FileUploadConfig,
     FilesConfig, FilesConfigValidator, FilesConfigYaml, MAX_DOCUMENT_UPLOAD_BYTES,
-    MIN_DOCUMENT_UPLOAD_BYTES,
+    MIN_DOCUMENT_UPLOAD_BYTES, UploadLimits,
 };
 pub use jobs::FileIngestionJob;
 pub use models::{

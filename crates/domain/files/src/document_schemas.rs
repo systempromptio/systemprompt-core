@@ -124,4 +124,20 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/document_access_requests.sql"),
         &["id", "document_id", "requester_user_id", "status"],
     ),
+    (
+        "document_uploads",
+        include_str!("../schema/document_uploads.sql"),
+        &[
+            "id",
+            "owner_user_id",
+            "declared_sha256",
+            "status",
+            "expires_at",
+        ],
+    ),
+    (
+        "document_upload_parts",
+        include_str!("../schema/document_upload_parts.sql"),
+        &["upload_id", "part_number", "size_bytes", "storage_id"],
+    ),
 ];
