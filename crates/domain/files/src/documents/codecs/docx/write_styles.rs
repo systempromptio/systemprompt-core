@@ -16,6 +16,7 @@ use super::import::{part_text, theme_part};
 use super::parts::{STYLES, malformed};
 use super::read::ReadCtx;
 use super::read_styles::{ACCENTS, read_styles, read_theme};
+use super::style_merge::merge_style;
 use super::write::{WriteCtx, escape_attr, half_points, hex, ppr};
 use crate::documents::codecs::xml_tree::{Element, parse_xml, splice};
 use crate::documents::model::document::{StyleDef, StyleKind};
@@ -36,7 +37,10 @@ pub(super) fn finish_styles(ctx: &mut WriteCtx<'_>) -> Result<(), CodecError> {
     for def in &ctx.settings.styles {
         match held.iter().find(|(base, _)| base.id == def.id) {
             Some((base, _)) if base == def => {},
-            Some((_, range)) => edits.push((range.start, range.end, style_xml(def))),
+            Some((_, range)) => {
+                let merged = merge_style(&xml[range.clone()], &style_xml(def));
+                edits.push((range.start, range.end, merged));
+            },
             None => edits.push((close, close, style_xml(def))),
         }
     }

@@ -55,6 +55,7 @@ mod rich;
 mod scan;
 mod sect_splice;
 mod sections;
+mod style_merge;
 mod styles;
 mod write;
 mod write_drawing;
