@@ -1,22 +1,29 @@
 //! The write rules an agent caller meets on top of its cap: no restore of
 //! an earlier revision and no whole-content replacement (a whole-file body,
-//! `set_text` or `set_html`) unless the agent
-//! access policy allows it, and a per-user ceiling on agent edits per hour
+//! `set_text` or `set_html`, or ops rewriting or deleting more than half the
+//! head's nodes) unless the agent
+//! access policy allows it, and a ceiling on agent edits per hour per user
+//! and agent
 //! (`files.documents.limits.agentEditsPerHour`). A person passes untouched.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashSet;
 use std::time::Instant;
 
+use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::EditOp;
 
-use super::DocumentService;
+use super::{CommitOutcome, DocumentService};
 use crate::documents::agents::{AgentCapability, current_actor};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
 use crate::documents::revision::CommitBody;
+
+/// Fewer touched nodes than this never count as a broad rewrite.
+const MIN_BROAD_REWRITE: usize = 3;
 
 impl DocumentService {
     pub(super) async fn agent_write_rules(
@@ -38,6 +45,9 @@ impl DocumentService {
             CommitBody::Ops(ops) if ops.iter().any(replaces) => {
                 Some(AgentCapability::ReplaceContent)
             },
+            CommitBody::Ops(ops) if self.rewrites_most(document, ops).await? => {
+                Some(AgentCapability::ReplaceContent)
+            },
             CommitBody::Ops(_) => None,
         };
         match capability {
@@ -50,18 +60,76 @@ impl DocumentService {
         }
     }
 
-    /// Counts `ops` agent edits for the calling user, or refuses them as
-    /// `agent_rate_limited`.
-    pub(super) fn admit_agent_edits(
+    /// Refuses a batch of `ops` agent edits that would pass the hourly
+    /// ceiling for the calling user and agent (`agent_rate_limited`).
+    pub(super) fn check_agent_edits(
         &self,
         who: &AuthenticatedUser,
         ops: usize,
     ) -> Result<(), DocumentsError> {
-        if !current_actor().is_agent() {
+        let Some(agent) = current_actor().as_agent().cloned() else {
             return Ok(());
-        }
+        };
         let ops = u64::try_from(ops).unwrap_or(u64::MAX);
-        Ok(self.agent_edits.admit(&who.id, ops, Instant::now())?)
+        Ok(self
+            .agent_edits
+            .check(&who.id, &agent.name, ops, Instant::now())?)
+    }
+
+    /// Records the batch when the commit landed; a refused, failed or
+    /// conflicted commit costs nothing.
+    pub(super) fn record_landed(
+        &self,
+        who: &AuthenticatedUser,
+        ops: usize,
+        outcome: &Result<CommitOutcome, DocumentsError>,
+    ) {
+        if matches!(
+            outcome,
+            Ok(CommitOutcome::Committed(_) | CommitOutcome::Merged(_))
+        ) {
+            self.record_agent_edits(who, ops);
+        }
+    }
+
+    /// Records a landed batch of `ops` agent edits.
+    pub(super) fn record_agent_edits(&self, who: &AuthenticatedUser, ops: usize) {
+        if let Some(agent) = current_actor().as_agent() {
+            let ops = u64::try_from(ops).unwrap_or(u64::MAX);
+            self.agent_edits
+                .record(&who.id, &agent.name, ops, Instant::now());
+        }
+    }
+}
+
+impl DocumentService {
+    /// Whether `ops` rewrite or delete more than half the head's nodes: an
+    /// agent rewriting most of a document node by node is replacing it.
+    async fn rewrites_most(
+        &self,
+        document: &Document,
+        ops: &[EditOp],
+    ) -> Result<bool, DocumentsError> {
+        let rewrites = |op: &&EditOp| {
+            matches!(
+                op,
+                EditOp::ReplaceText { .. }
+                    | EditOp::Delete { .. }
+                    | EditOp::SetMarks(_)
+                    | EditOp::SetBlockType(_)
+            )
+        };
+        let touched: HashSet<&DocumentNodeId> = ops
+            .iter()
+            .filter(rewrites)
+            .filter_map(EditOp::touches)
+            .collect();
+        if touched.len() < MIN_BROAD_REWRITE {
+            return Ok(false);
+        }
+        let head = self.resolve_revision(document, None).await?;
+        let nodes = self.projected(document, &head).await?.ids.nodes().count();
+        Ok(touched.len().saturating_mul(2) > nodes)
     }
 }
 

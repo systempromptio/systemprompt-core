@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod access;
+mod actor_scope;
 mod agent_cap;
 mod caller;
 #[cfg(feature = "collab")]
@@ -208,6 +209,7 @@ pub fn router(state: DocumentsState) -> Router {
             post(sharing::acquire_lock).delete(sharing::release_lock),
         )
         .layer(DefaultBodyLimit::max(limit))
+        .route_layer(axum::middleware::from_fn(actor_scope::scope))
         .with_state(state)
 }
 
@@ -230,5 +232,6 @@ pub fn folders_router(state: DocumentsState) -> Router {
             "/{id}/agent-cap",
             get(agent_cap::get_folder).put(agent_cap::put_folder),
         )
+        .route_layer(axum::middleware::from_fn(actor_scope::scope))
         .with_state(state)
 }

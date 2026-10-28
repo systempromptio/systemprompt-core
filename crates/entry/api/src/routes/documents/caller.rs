@@ -8,12 +8,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
+use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::models::RevisionAttribution;
 use systemprompt_files::documents::service::{Author, RevisionOrigin};
 use systemprompt_identifiers::{ContextId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, Permission};
 use systemprompt_models::documents::ActorKind;
+use systemprompt_runtime::documents::actor::request_actor;
 use systemprompt_traits::{AuthUser, UserProvider};
 
 use super::DocumentsState;
@@ -23,6 +25,9 @@ use crate::error::ApiHttpError;
 pub(crate) struct Caller {
     pub(crate) user: AuthenticatedUser,
     pub(crate) trace: TraceId,
+    /// The actor the request runs as, for work that outlives the handler's
+    /// scope (a live stream polled after the handler returned).
+    pub(crate) actor: DocumentActor,
 }
 
 pub(super) async fn caller(
@@ -33,6 +38,7 @@ pub(super) async fn caller(
     Ok(Caller {
         user,
         trace: req_ctx.trace_id().clone(),
+        actor: request_actor(req_ctx),
     })
 }
 

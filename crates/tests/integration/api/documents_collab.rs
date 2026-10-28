@@ -37,8 +37,9 @@ async fn post(
     uri: &str,
     body: &Value,
 ) -> Result<(StatusCode, Value)> {
-    let app: Router =
-        router(state.clone()).layer(Extension(request_context(user.user_id.as_str())));
+    let app: Router = router(state.clone()).layer(Extension(
+        request_context(user.user_id.as_str()).with_browser_session(),
+    ));
     let req = Request::builder()
         .method(Method::POST)
         .uri(uri)

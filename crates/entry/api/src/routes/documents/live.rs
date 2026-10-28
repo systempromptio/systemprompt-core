@@ -25,6 +25,7 @@ use axum::{Extension, Json};
 use futures_util::Stream;
 use serde::{Deserialize, Serialize};
 use systemprompt_events::{TopicEvent, standard_keep_alive};
+use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::documents::events::live_topic;
 use systemprompt_files::documents::live::{LiveOpen, LiveReplay, ResumeToken};
 use systemprompt_identifiers::DocumentEditSessionId;
@@ -165,7 +166,11 @@ fn channel(
                 },
                 Step::Received(Err(RecvError::Closed)) => break,
                 Step::Recheck => {
-                    let allowed = state.service.live_allowed(&who.user, &document, &who.trace).await;
+                    let allowed = act_as(
+                        who.actor.clone(),
+                        state.service.live_allowed(&who.user, &document, &who.trace),
+                    )
+                    .await;
                     if matches!(allowed, Ok(false)) {
                         yield Ok(frame(DocumentLiveClosedEvent::NAME, None, &DocumentLiveClosedEvent {
                             document_id: document.clone(),

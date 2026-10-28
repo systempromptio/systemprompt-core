@@ -16,6 +16,8 @@ mod documents_agent_context;
 #[cfg(test)]
 mod documents_agent_fixture;
 #[cfg(test)]
+mod documents_agent_moves;
+#[cfg(test)]
 mod documents_agent_rules;
 #[cfg(test)]
 mod documents_blob_store;

@@ -71,32 +71,56 @@ fn only_the_actions_above_edit_are_capabilities() {
 }
 
 #[tokio::test]
-async fn the_actor_is_a_person_outside_a_scope_and_the_agent_inside_one() {
-    assert_eq!(current_actor(), DocumentActor::Human);
-    let inside = act_as(DocumentActor::agent("claude", false), async {
+async fn outside_a_scope_the_actor_is_an_unnamed_unattended_agent() {
+    assert_eq!(current_actor(), DocumentActor::agent("agent", false));
+    let inside = act_as(DocumentActor::Human, async { current_actor() }).await;
+    assert_eq!(inside, DocumentActor::Human);
+    let agent = act_as(DocumentActor::agent("claude", true), async {
         current_actor()
     })
     .await;
-    assert_eq!(inside, DocumentActor::agent("claude", false));
-    assert_eq!(current_actor(), DocumentActor::Human);
+    assert_eq!(agent, DocumentActor::agent("claude", true));
+    assert_eq!(current_actor(), DocumentActor::agent("agent", false));
 }
 
 #[test]
-fn the_hourly_ceiling_refuses_past_the_limit_and_frees_after_an_hour() {
+fn the_hourly_ceiling_is_per_user_and_agent_and_frees_after_an_hour() {
     let limiter = AgentRateLimiter::new(3);
     let user = UserId::new("rate-user");
     let start = Instant::now();
-    limiter.admit(&user, 2, start).expect("first two");
-    limiter.admit(&user, 1, start).expect("third");
-    let refused = limiter.admit(&user, 1, start).expect_err("fourth");
+    limiter
+        .admit(&user, "claude", 2, start)
+        .expect("first batch");
+    limiter
+        .admit(&user, "claude", 1, start)
+        .expect("second batch");
+    let refused = limiter
+        .check(&user, "claude", 1, start)
+        .expect_err("past the ceiling");
     assert!(matches!(
         refused,
         AgentRefusal::RateLimited { limit: 3, .. }
     ));
     limiter
-        .admit(&UserId::new("other-user"), 3, start)
+        .admit(&user, "other-agent", 3, start)
+        .expect("another agent has its own window");
+    limiter
+        .admit(&UserId::new("other-user"), "claude", 3, start)
         .expect("another user has their own window");
     limiter
-        .admit(&user, 3, start + Duration::from_secs(3601))
-        .expect("the window slid past the first edits");
+        .admit(&user, "claude", 3, start + Duration::from_secs(3601))
+        .expect("the window slid past the first batches");
+}
+
+#[test]
+fn a_checked_batch_that_never_lands_costs_nothing() {
+    let limiter = AgentRateLimiter::new(2);
+    let user = UserId::new("unlanded-user");
+    let now = Instant::now();
+    for _ in 0..5 {
+        limiter
+            .check(&user, "claude", 2, now)
+            .expect("nothing recorded");
+    }
+    assert_eq!(limiter.tracked(), 0);
 }

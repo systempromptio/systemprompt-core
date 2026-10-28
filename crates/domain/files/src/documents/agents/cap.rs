@@ -99,6 +99,8 @@ pub enum AgentCapability {
     ReplaceContent,
     /// Accept or reject a proposal.
     ReviewProposal,
+    /// Copy a document whose cap is below `edit` into a new one.
+    CopyOut,
     /// Change a document template. Core has no template-editing path, so
     /// nothing checks this today; it is reserved for one.
     EditTemplate,
@@ -115,6 +117,7 @@ impl AgentCapability {
             Self::RestoreRevision => "restore_revision",
             Self::ReplaceContent => "replace_content",
             Self::ReviewProposal => "review_proposal",
+            Self::CopyOut => "copy_out",
             Self::EditTemplate => "edit_template",
         }
     }
@@ -144,9 +147,17 @@ impl fmt::Display for AgentCapability {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CapSource {
-    Policy { policy: &'static str },
-    DocumentOverride { document_id: DocumentId },
-    FolderOverride { folder_id: DocumentFolderId },
+    Policy {
+        policy: &'static str,
+    },
+    DocumentOverride {
+        document_id: DocumentId,
+    },
+    FolderOverride {
+        folder_id: DocumentFolderId,
+    },
+    /// A folder override on a folder the caller cannot view.
+    InheritedOverride,
 }
 
 impl CapSource {
@@ -158,6 +169,7 @@ impl CapSource {
             Self::Policy { policy } => format!("policy:{policy}"),
             Self::DocumentOverride { document_id } => format!("document:{document_id}"),
             Self::FolderOverride { folder_id } => format!("folder:{folder_id}"),
+            Self::InheritedOverride => "inherited".to_owned(),
         }
     }
 }
@@ -183,6 +195,10 @@ impl EffectiveCap {
             ),
             CapSource::FolderOverride { folder_id } => format!(
                 "folder {folder_id} caps agents at {} (policy allows {})",
+                self.cap, self.policy_cap
+            ),
+            CapSource::InheritedOverride => format!(
+                "a folder above this one caps agents at {} (policy allows {})",
                 self.cap, self.policy_cap
             ),
         }

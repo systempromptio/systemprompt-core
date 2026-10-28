@@ -8,8 +8,10 @@
 //! The content route verifies it with
 //! `verify_bearer(token, &[JwtAudience::Resource(DOWNLOAD_AUDIENCE)])`,
 //! checks the purpose against the requested path and then authorizes the
-//! read as the token's subject. A `format=pdf` query on the same URL serves
-//! the revision rendered as PDF under the same token.
+//! read as the token's subject, acting as the agent the purpose names
+//! (`;agent=<name>`), so the document's agent cap is checked again at use. A
+//! `format=pdf` query on the same URL serves the revision rendered as PDF under
+//! the same token.
 //!
 //! [`TokenAuthority`]: systemprompt_models::auth::TokenAuthority
 //!
@@ -32,6 +34,39 @@ pub const DOWNLOAD_TTL: Duration = Duration::minutes(10);
 #[must_use]
 pub fn download_purpose(document: &DocumentId, revision: &DocumentRevisionId) -> String {
     format!("document_download:{document}@{revision}")
+}
+
+const AGENT_SUFFIX: &str = ";agent=";
+
+/// The signed purpose of a link an agent minted: the revision it opens and
+/// the agent's name, so the read at use runs under that agent's cap.
+#[must_use]
+pub fn agent_download_purpose(
+    document: &DocumentId,
+    revision: &DocumentRevisionId,
+    agent: &str,
+) -> String {
+    format!(
+        "{}{AGENT_SUFFIX}{agent}",
+        download_purpose(document, revision)
+    )
+}
+
+/// Whether `purpose` opens this revision, and the agent named in it.
+/// `None` when it opens another revision; `Some(None)` for a link with no
+/// agent (still read as an unnamed agent: a link is a bearer credential).
+#[must_use]
+pub fn download_agent<'a>(
+    purpose: &'a str,
+    document: &DocumentId,
+    revision: &DocumentRevisionId,
+) -> Option<Option<&'a str>> {
+    let base = download_purpose(document, revision);
+    let rest = purpose.strip_prefix(base.as_str())?;
+    if rest.is_empty() {
+        return Some(None);
+    }
+    rest.strip_prefix(AGENT_SUFFIX).map(Some)
 }
 
 /// Why a download link could not be signed.
@@ -59,6 +94,7 @@ pub struct DownloadTarget<'a> {
     pub session_id: &'a SessionId,
     pub document: &'a DocumentId,
     pub revision: &'a DocumentRevisionId,
+    pub agent: &'a str,
 }
 
 pub fn signed_download_url(
@@ -73,7 +109,11 @@ pub fn signed_download_url(
         audience: vec![JwtAudience::Resource(DOWNLOAD_AUDIENCE.to_owned())],
         ttl: DOWNLOAD_TTL,
         client_id: None,
-        purpose: Some(download_purpose(target.document, target.revision)),
+        purpose: Some(agent_download_purpose(
+            target.document,
+            target.revision,
+            target.agent,
+        )),
         plugin_id: None,
         interaction: None,
     };

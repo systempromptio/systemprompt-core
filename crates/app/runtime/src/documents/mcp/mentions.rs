@@ -12,41 +12,29 @@
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::documents::service::CommentOrigin;
-use systemprompt_identifiers::{ActorKind, UserId};
-use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
+use systemprompt_identifiers::UserId;
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_users::{User, UserRepository, normalise_email};
 
 use super::refusal::refusal;
+use crate::documents::actor::{request_actor, signed_agent_name};
 use crate::documents::refusal::RefusalCode;
 
-const UNNAMED_AGENT: &str = "agent";
 const MAX_MENTIONS: usize = 20;
 
-const MAX_AGENT_NAME: usize = 64;
-
+/// The agent a comment or grant records, named from the request's signed
+/// claims (see [`crate::documents::actor`]).
 pub(super) fn agent_origin(ctx: &RequestContext) -> CommentOrigin {
-    let name = ctx.agent_name().as_str();
-    let allowed = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
-    let valid = !name.is_empty() && name.len() <= MAX_AGENT_NAME && name.chars().all(allowed);
     CommentOrigin {
-        via_agent: Some(if valid { name } else { UNNAMED_AGENT }.to_owned()),
+        via_agent: Some(signed_agent_name(ctx)),
     }
 }
 
-/// The actor every documents tool call runs as: always an agent, since
-/// this surface is driven by one, named as [`agent_origin`] records it.
-/// `attended` is `false` for a headless call: a request marked
-/// non-interactive (the MCP auth layer does so for a token carrying the
-/// `interaction: non_interactive` claim, which agent runs mint), or one whose
-/// actor is a scheduled job or the system.
+/// The actor every documents tool call runs as: an MCP call always carries
+/// a bearer token, so it is an agent, named and attended from its signed
+/// claims.
 pub(super) fn document_actor(ctx: &RequestContext) -> DocumentActor {
-    let headless_mode =
-        ctx.settings.user_interaction_mode == Some(UserInteractionMode::NonInteractive);
-    let headless_actor = matches!(ctx.actor().kind, ActorKind::Job { .. } | ActorKind::System);
-    let name = agent_origin(ctx)
-        .via_agent
-        .unwrap_or_else(|| UNNAMED_AGENT.to_owned());
-    DocumentActor::agent(name, !(headless_mode || headless_actor))
+    request_actor(ctx)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

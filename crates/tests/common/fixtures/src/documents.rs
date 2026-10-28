@@ -3,6 +3,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_files::DocumentsConfig;
+use systemprompt_files::documents::agents::{DocumentActor, set_unscoped_actor};
 use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
 };
@@ -64,6 +65,7 @@ pub fn fixture_documents_runtime_configured(
     background_tasks: BackgroundTasks,
     config: DocumentsConfig,
 ) -> Arc<DocumentsRuntime> {
+    set_unscoped_actor(DocumentActor::Human);
     Arc::new(DocumentsRuntime::new(DocumentsRuntimeParts {
         database: Arc::clone(pool),
         file_storage: Arc::clone(file_storage),

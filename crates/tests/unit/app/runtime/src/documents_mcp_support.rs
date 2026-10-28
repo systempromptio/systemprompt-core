@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_files::documents::agents::{DocumentActor, set_unscoped_actor};
 use systemprompt_users::UserRepository;
 
 use systemprompt_governance::authz::{AllowAllHook, SharedAuthzHook};
@@ -31,7 +32,11 @@ pub(crate) fn allow() -> SharedAuthzHook {
     Arc::new(AllowAllHook::null())
 }
 
+/// The tools driven through their handlers directly, as the person: these
+/// tests cover what each tool does, and the agent caps the MCP surface puts
+/// around them are covered in the files integration tests.
 pub(crate) async fn harness() -> McpHarness {
+    set_unscoped_actor(DocumentActor::Human);
     let pool = systemprompt_test_fixtures::test_db_pool().await;
     let storage = TempDir::new().expect("tempdir");
     let files: Arc<dyn FileStorage> = Arc::new(LocalFileStorage::new(storage.path().to_path_buf()));

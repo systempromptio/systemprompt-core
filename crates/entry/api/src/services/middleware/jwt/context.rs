@@ -24,7 +24,9 @@ use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{JwtUserContext, TokenExtractor, extract_user_context};
 use systemprompt_traits::{SessionProvider, UserProvider};
 
-use super::params::{BuildContextParams, build_context, extract_common_headers};
+use super::params::{
+    BuildContextParams, build_context, extract_common_headers, is_browser_session,
+};
 use super::revocation::JtiRevocationChecker;
 use super::validation::{UserCache, user_is_admin, validate_session_exists, validate_user_exists};
 
@@ -134,6 +136,7 @@ impl JwtContextExtractor {
             task_id,
             auth_token,
             user_type,
+            browser_session: is_browser_session(&self.token_extractor, headers),
         }))
     }
 
@@ -225,6 +228,7 @@ impl JwtContextExtractor {
             task_id,
             auth_token,
             user_type,
+            browser_session: is_browser_session(&self.token_extractor, &headers),
         });
 
         Ok((ctx, reconstructed_request))

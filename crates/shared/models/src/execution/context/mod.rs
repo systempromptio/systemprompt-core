@@ -7,6 +7,7 @@ mod call_source;
 mod caller_purpose;
 mod context_error;
 mod context_types;
+mod credential;
 mod propagation;
 
 pub use call_source::CallSource;
@@ -54,6 +55,7 @@ impl RequestContext {
                 act_chain: Vec::new(),
                 jti: None,
                 token_exp: None,
+                browser_session: false,
             },
             request: RequestMetadata {
                 session_id,

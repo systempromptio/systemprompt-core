@@ -38,6 +38,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod agent;
+mod agent_moves;
 mod agent_queries;
 mod catalog;
 mod directory;
@@ -47,6 +48,7 @@ mod search;
 mod service;
 mod subjects;
 
+pub use agent_moves::MoveTarget;
 pub use directory::{SubjectDirectory, SubjectDirectoryError, SubjectMatch};
 pub use search::{MAX_SUBJECT_SEARCH, SubjectSearch};
 pub use service::{

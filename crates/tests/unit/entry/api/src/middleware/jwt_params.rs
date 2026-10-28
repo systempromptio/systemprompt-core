@@ -26,6 +26,7 @@ fn jwt_context(user_id: &UserId, session_id: &SessionId) -> JwtUserContext {
         jti: Some(AccessTokenId::new("jti-123")),
         exp: 1_900_000_000,
         purpose: None,
+        interaction: None,
     }
 }
 
@@ -40,6 +41,7 @@ fn params(jwt: JwtUserContext) -> BuildContextParams {
         auth_token: None,
         user_type: UserType::User,
         jwt_context: jwt,
+        browser_session: false,
     }
 }
 

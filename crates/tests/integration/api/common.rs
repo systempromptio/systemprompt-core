@@ -7,6 +7,7 @@ use axum::body::Body;
 use axum::http::{Request, Response};
 use http_body_util::BodyExt;
 use systemprompt_database::DbPool;
+use systemprompt_files::documents::agents::{DocumentActor, set_unscoped_actor};
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
@@ -16,7 +17,10 @@ use systemprompt_test_fixtures::{
     test_db_pool,
 };
 
+/// Direct document service calls in these tests act as the person; the
+/// routes derive their actor from the request context instead.
 pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
+    set_unscoped_actor(DocumentActor::Human);
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &b.database_url);

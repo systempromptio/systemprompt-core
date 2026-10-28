@@ -58,7 +58,9 @@ async fn call(
 }
 
 fn docs(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
+    router(state.clone()).layer(Extension(
+        request_context(user.user_id.as_str()).with_browser_session(),
+    ))
 }
 
 async fn document(state: &DocumentsState, owner: &AuthedFixture) -> Result<String> {

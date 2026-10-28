@@ -216,6 +216,7 @@ fn test_jwt_config_custom() {
         plugin_id: None,
         client_id: None,
         purpose: None,
+        interaction: None,
     };
 
     assert_eq!(config.permissions.len(), 2);

@@ -8,7 +8,8 @@
 //! with the live block ids carried over and written back into the live
 //! model, logged and broadcast like any other update.
 //!
-//! A checkpoint always runs as the session's last editor. Settling a
+//! A checkpoint always runs as the session's last editor, under the actor
+//! that editor's request ran as. Settling a
 //! session that is being left or closed lands a conflicting body as a
 //! proposal on the checkpoint base, authored by that editor, so no live
 //! edit is lost.
@@ -26,6 +27,7 @@ use super::entry::{CollabEntry, model_error, utf8};
 use super::live_media::{LiveState, materialise_or_strip};
 use super::model::body_of;
 use super::{Checkpoint, CollabError, CollabService};
+use crate::documents::agents::{act_as, current_actor};
 use crate::documents::engine::ModelView;
 use crate::documents::model::{Media, carry_ids};
 use crate::documents::models::RevisionAttribution;
@@ -85,30 +87,29 @@ impl CollabService {
         };
         let next = materialise_or_strip(entry.format, &base_bytes, &live)
             .map_err(model_error(&document_id))?;
-        let outcome = self
-            .documents
-            .commit(
-                who,
-                CommitRequest {
-                    document_id: document_id.clone(),
-                    base_revision: Some(base),
-                    body: CommitBody::Bytes(next),
-                    author: session_author(entry, trace),
-                    message: Some(CHECKPOINT_MESSAGE.to_owned()),
-                    lock_holder_id: None,
-                    comments: CommentPolicy::detach(),
-                    op_id: None,
-                    media: Media::new(),
-                },
-                trace,
-            )
-            .await?;
+        let actor = entry.last_actor.clone().unwrap_or_else(current_actor);
+        let commit = self.documents.commit(
+            who,
+            CommitRequest {
+                document_id: document_id.clone(),
+                base_revision: Some(base),
+                body: CommitBody::Bytes(next),
+                author: session_author(entry, trace),
+                message: Some(CHECKPOINT_MESSAGE.to_owned()),
+                lock_holder_id: None,
+                comments: CommentPolicy::detach(),
+                op_id: None,
+                media: Media::new(),
+            },
+            trace,
+        );
+        let outcome = act_as(actor.clone(), commit).await?;
         let revision = match outcome {
             CommitOutcome::Committed(landed) => landed.revision,
             CommitOutcome::Merged(landed) => {
                 let revision = landed.revision;
                 let merged = self.revision_bytes(&revision.id, limit).await?;
-                self.reconcile(entry, who, &merged, trace).await?;
+                act_as(actor, self.reconcile(entry, who, &merged, trace)).await?;
                 revision
             },
             CommitOutcome::Conflict { head, .. } => {

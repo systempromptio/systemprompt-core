@@ -8,8 +8,8 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 
 use super::support::validate_name;
-use super::{DocumentService, NewFolderRequest};
-use crate::documents::access::AccessTarget;
+use super::{AgentCapTarget, DocumentService, NewFolderRequest};
+use crate::documents::access::{AccessTarget, MoveTarget};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{DocumentFolder, GrantTarget, NewFolder, NewGrant};
 
@@ -129,10 +129,19 @@ impl DocumentService {
                 trace,
             )
             .await?;
+        let moving = self.load_folder(folder).await?;
+        let pin = self
+            .access
+            .check_move(who, MoveTarget::Folder(&moving), parent)
+            .await?;
         if self.repos.folders.move_to(folder, parent).await? == 0 {
             return Err(DocumentsError::InvalidMove {
                 folder_id: folder.clone(),
             });
+        }
+        if let Some(cap) = pin {
+            self.pin_agent_cap(&AgentCapTarget::Folder(folder.clone()), cap)
+                .await?;
         }
         self.load_folder(folder).await
     }

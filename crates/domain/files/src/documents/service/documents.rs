@@ -15,8 +15,8 @@ use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 
 use super::content::{apply_content, apply_rich_on_new};
 use super::support::{apply_with, blocking, document_name, format_of_name, join_path};
-use super::{Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
-use crate::documents::access::AccessTarget;
+use super::{AgentCapTarget, Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
+use crate::documents::access::{AccessTarget, MoveTarget};
 use crate::documents::agents::current_actor;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewDocument};
@@ -265,6 +265,10 @@ impl DocumentService {
             .authorized_document(who, document, DocumentAction::Own, trace)
             .await?;
         self.authorize_create(who, folder, trace).await?;
+        let pin = self
+            .access
+            .check_move(who, MoveTarget::Document(&current), folder)
+            .await?;
         let from = self.document_path(&current).await?;
         let to = join_path(self.folder_path(folder).await?.as_deref(), &current.name);
         let paths = PathMove {
@@ -278,6 +282,10 @@ impl DocumentService {
             .await?
         {
             return Err(DocumentsError::not_found("document", document));
+        }
+        if let Some(cap) = pin {
+            self.pin_agent_cap(&AgentCapTarget::Document(document.clone()), cap)
+                .await?;
         }
         self.load_document(document).await
     }

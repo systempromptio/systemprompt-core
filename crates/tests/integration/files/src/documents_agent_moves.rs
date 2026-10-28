@@ -1,0 +1,118 @@
+//! A cap survives a copy or a move: a copy carries its source's cap, an
+//! agent needs `copy_out` to copy a capped document, and moving into a
+//! looser folder pins the cap the document had.
+
+use systemprompt_files::DocumentsConfig;
+use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefusal};
+use systemprompt_files::documents::service::{AgentCapTarget, CopyRequest, NewFolderRequest};
+use systemprompt_identifiers::DocumentId;
+use systemprompt_models::auth::AuthenticatedUser;
+
+use crate::documents_agent_fixture::{agent_harness, agent_refusal, as_agent, document};
+use crate::documents_service_fixture::{Harness, RoleDirectory, api_author, person, trace, unique};
+
+async fn own_cap(h: &Harness, owner: &AuthenticatedUser, id: &DocumentId) -> Option<AgentCap> {
+    h.service
+        .agent_cap(owner, AgentCapTarget::Document(id.clone()), &trace())
+        .await
+        .expect("cap")
+        .own_override
+}
+
+fn copy_of(id: &DocumentId) -> CopyRequest {
+    CopyRequest {
+        source: id.clone(),
+        name: None,
+        folder: None,
+        author: api_author(),
+    }
+}
+
+#[tokio::test]
+async fn a_copy_carries_the_cap_and_an_agent_needs_copy_out() {
+    let h = agent_harness(
+        AgentCap::Edit,
+        Vec::new(),
+        RoleDirectory::default(),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let owner = person("copy-owner");
+    let id = document(&h, &owner).await;
+    h.service
+        .set_agent_cap(
+            &owner,
+            AgentCapTarget::Document(id.clone()),
+            Some(AgentCap::Read),
+            &trace(),
+        )
+        .await
+        .expect("cap the source");
+
+    let (copied, _) = h
+        .service
+        .copy(&owner, copy_of(&id), &trace())
+        .await
+        .expect("the owner copies");
+    assert_eq!(own_cap(&h, &owner, &copied.id).await, Some(AgentCap::Read));
+
+    let refused = as_agent(h.service.copy(&owner, copy_of(&id), &trace()))
+        .await
+        .expect_err("an agent copying out of a capped document");
+    assert!(matches!(
+        agent_refusal(&refused),
+        Some(AgentRefusal::HardRule {
+            capability: AgentCapability::CopyOut,
+            ..
+        })
+    ));
+}
+
+#[tokio::test]
+async fn moving_into_a_looser_folder_pins_the_cap_it_had() {
+    let h = agent_harness(
+        AgentCap::Edit,
+        Vec::new(),
+        RoleDirectory::default(),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let owner = person("move-owner");
+    let folder = |name: &str| NewFolderRequest {
+        parent: None,
+        name: unique(name),
+    };
+    let strict = h
+        .service
+        .create_folder(&owner, folder("strict"), &trace())
+        .await
+        .expect("strict");
+    let open = h
+        .service
+        .create_folder(&owner, folder("open"), &trace())
+        .await
+        .expect("open");
+    h.service
+        .set_agent_cap(
+            &owner,
+            AgentCapTarget::Folder(strict.id.clone()),
+            Some(AgentCap::None),
+            &trace(),
+        )
+        .await
+        .expect("cap the folder");
+    let id = document(&h, &owner).await;
+    h.service
+        .move_to(&owner, &id, Some(&strict.id), &trace())
+        .await
+        .expect("into the capped folder");
+    assert_eq!(own_cap(&h, &owner, &id).await, None);
+    h.service
+        .move_to(&owner, &id, Some(&open.id), &trace())
+        .await
+        .expect("out to the open folder");
+    assert_eq!(own_cap(&h, &owner, &id).await, Some(AgentCap::None));
+    as_agent(h.service.get(&owner, &id, &trace()))
+        .await
+        .expect_err("still hidden from agents after the move");
+}

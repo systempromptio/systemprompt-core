@@ -149,6 +149,8 @@ pub struct CustomClaims {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TokenInteraction {
+    /// A live session a person is driving (the interactive bridge host).
+    Interactive,
     NonInteractive,
 }
 

@@ -149,6 +149,7 @@ pub async fn handle_token_exchange(
         plugin_id: None,
         client_id: Some(client_id.clone()),
         purpose: None,
+        interaction: None,
     };
     let signing = JwtSigningParams {
         issuer: &global.jwt_issuer,

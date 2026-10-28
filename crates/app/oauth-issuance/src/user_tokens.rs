@@ -142,6 +142,7 @@ async fn create_jwt_and_refresh_token(
         plugin_id: None,
         client_id: Some(params.client_id.clone()),
         purpose: None,
+        interaction: None,
     };
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,

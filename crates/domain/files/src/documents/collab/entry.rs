@@ -15,6 +15,7 @@ use tokio::sync::Mutex;
 use super::document::{ModelError, import};
 use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
+use crate::documents::agents::{DocumentActor, current_actor};
 use crate::documents::engine::{EngineDoc, ModelView};
 use crate::documents::error::DocumentsError;
 use crate::documents::model::RichText;
@@ -32,6 +33,9 @@ pub(super) struct CollabEntry {
     pub(super) snapshot_due_from: Option<Instant>,
     pub(super) checkpoint_due_from: Option<Instant>,
     pub(super) last_editor: Option<AuthenticatedUser>,
+    /// The actor the last editor's request ran as; a checkpoint commits
+    /// under it, so a timer or a trash settles as the editor did.
+    pub(super) last_actor: Option<DocumentActor>,
     pub(super) touched: Instant,
     pub(super) images: ImageOwners,
     pub(super) checkpoint_failures: u32,
@@ -53,6 +57,7 @@ impl CollabEntry {
         self.checkpoint_due_from.get_or_insert(now);
         if let Some(editor) = editor {
             self.last_editor = Some(editor.clone());
+            self.last_actor = Some(current_actor());
         }
         self.touched = now;
     }
@@ -80,6 +85,7 @@ impl CollabService {
             snapshot_due_from: None,
             checkpoint_due_from: None,
             last_editor: None,
+            last_actor: None,
             touched: Instant::now(),
             images,
             checkpoint_failures: 0,

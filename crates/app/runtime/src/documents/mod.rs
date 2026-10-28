@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod actor;
 mod directory;
 /// Signed, short-lived document download links.
 pub mod download;

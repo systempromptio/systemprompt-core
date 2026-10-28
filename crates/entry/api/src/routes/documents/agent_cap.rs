@@ -4,7 +4,8 @@
 //! own and takes `{"cap": "none" | "read" | "comment" | "suggest" | "edit"
 //! | null}`, where `null` clears the override. An override looser than the
 //! agent policy allows is refused. `GET ?agent=<name>&attended=<bool>`
-//! answers for that agent (default: an attended agent named `agent`); a
+//! answers for that agent (default: an attended agent named `agent`), and
+//! the answer always carries both the `attended` and `unattended` caps; a
 //! name outside 1 to 64 of letters, digits, `-`, `_`, `.`, `:` or `/` is
 //! refused.
 //!
@@ -15,7 +16,7 @@ use axum::extract::{Path, Query, State};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::agents::{AgentActor, AgentCap, CapSource};
+use systemprompt_files::documents::agents::{AgentActor, AgentCap, CapSource, EffectiveCap};
 use systemprompt_files::documents::service::{AgentCapTarget, AgentCapView};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 use systemprompt_models::RequestContext;
@@ -67,6 +68,29 @@ pub(super) struct AgentCapJson {
     policy_cap: AgentCap,
     source: CapSource,
     reason: String,
+    attended: CapJson,
+    unattended: CapJson,
+}
+
+/// One case of the cap: for the agent with a person in its session, or
+/// without.
+#[derive(Debug, Serialize)]
+pub(super) struct CapJson {
+    agent_cap: AgentCap,
+    policy_cap: AgentCap,
+    source: CapSource,
+    reason: String,
+}
+
+impl From<EffectiveCap> for CapJson {
+    fn from(effective: EffectiveCap) -> Self {
+        Self {
+            agent_cap: effective.cap,
+            policy_cap: effective.policy_cap,
+            reason: effective.reason(),
+            source: effective.source,
+        }
+    }
 }
 
 impl From<AgentCapView> for AgentCapJson {
@@ -83,6 +107,8 @@ impl From<AgentCapView> for AgentCapJson {
             policy_cap: view.effective.policy_cap,
             reason: view.effective.reason(),
             source: view.effective.source,
+            attended: view.attended.into(),
+            unattended: view.unattended.into(),
         }
     }
 }

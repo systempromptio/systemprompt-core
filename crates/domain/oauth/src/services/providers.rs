@@ -127,6 +127,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             plugin_id: None,
             client_id: None,
             purpose: None,
+            interaction: None,
         };
 
         let request = UserJwtRequest {

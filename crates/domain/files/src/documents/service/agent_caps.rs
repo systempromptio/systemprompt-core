@@ -8,6 +8,8 @@
 //! the effective cap is always the stricter of the two. The cap reported for
 //! a person is the one a generic attended agent named `agent` would act
 //! under, or the agent they name with [`DocumentService::agent_cap_as`].
+//! A move or a copy pins the cap the target carried, keeping any stricter
+//! override already set.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +22,7 @@ use super::DocumentService;
 use crate::documents::access::{AccessTarget, Granted};
 use crate::documents::agents::{AgentActor, AgentCap, AgentRefusal, EffectiveCap, current_actor};
 use crate::documents::error::DocumentsError;
+use crate::documents::models::{Document, DocumentRevision};
 
 const GENERIC_AGENT: &str = "agent";
 
@@ -43,7 +46,11 @@ impl AgentCapTarget {
 pub struct AgentCapView {
     pub target: AgentCapTarget,
     pub own_override: Option<AgentCap>,
+    /// For the agent asked about.
     pub effective: EffectiveCap,
+    /// For the same agent with a person in its session, and without.
+    pub attended: EffectiveCap,
+    pub unattended: EffectiveCap,
 }
 
 fn reported_agent() -> AgentActor {
@@ -77,7 +84,7 @@ impl DocumentService {
             .access
             .authorize(who, target.access_target(), DocumentAction::View, trace)
             .await?;
-        self.cap_view(who, target, &granted, &agent).await
+        self.cap_view(who, target, &granted, &agent, trace).await
     }
 
     pub async fn set_agent_cap(
@@ -126,8 +133,61 @@ impl DocumentService {
             trace_id = trace.as_str(),
             "Agent cap override set"
         );
-        self.cap_view(who, target, &granted, &reported_agent())
+        self.cap_view(who, target, &granted, &reported_agent(), trace)
             .await
+    }
+
+    /// Sets `cap` as the target's override, or keeps a stricter one already
+    /// there: what a move or a copy carries.
+    pub(super) async fn pin_agent_cap(
+        &self,
+        target: &AgentCapTarget,
+        cap: AgentCap,
+    ) -> Result<(), DocumentsError> {
+        let (document, folders) = match target {
+            AgentCapTarget::Document(id) => (id.clone(), Vec::new()),
+            AgentCapTarget::Folder(id) => {
+                (DocumentId::from_uuid(uuid::Uuid::nil()), vec![id.clone()])
+            },
+        };
+        let existing = self
+            .repos
+            .documents
+            .agent_facts(&document, &folders)
+            .await?
+            .overrides
+            .first()
+            .map(crate::documents::repository::CapOverride::cap);
+        let pinned = existing.map_or(cap, |own| own.min(cap));
+        match target {
+            AgentCapTarget::Document(id) => {
+                self.repos
+                    .documents
+                    .set_document_agent_cap(id, Some(pinned))
+                    .await?
+            },
+            AgentCapTarget::Folder(id) => {
+                self.repos
+                    .documents
+                    .set_folder_agent_cap(id, Some(pinned))
+                    .await?
+            },
+        };
+        Ok(())
+    }
+
+    /// A copy keeps its source's cap: `carried` is pinned on the new
+    /// document.
+    pub(super) async fn carry_cap(
+        &self,
+        copied: (Document, DocumentRevision),
+        carried: Option<AgentCap>,
+    ) -> Result<(Document, DocumentRevision), DocumentsError> {
+        if let Some(cap) = carried {
+            self.pin_agent_cap(&AgentCapTarget::Document(copied.0.id.clone()), cap)
+                .await?;
+        }
+        Ok(copied)
     }
 
     async fn cap_view(
@@ -136,8 +196,25 @@ impl DocumentService {
         target: AgentCapTarget,
         granted: &Granted,
         agent: &AgentActor,
+        trace: &TraceId,
     ) -> Result<AgentCapView, DocumentsError> {
-        let effective = self.access.agent_cap_for(who, granted, agent).await?;
+        let as_attended = |attended: bool| AgentActor {
+            name: agent.name.clone(),
+            attended,
+        };
+        let attended = self
+            .access
+            .agent_cap_for(who, granted, &as_attended(true))
+            .await?;
+        let unattended = self
+            .access
+            .agent_cap_for(who, granted, &as_attended(false))
+            .await?;
+        let effective = if agent.attended {
+            attended.clone()
+        } else {
+            unattended.clone()
+        };
         let (document, folders) = match &target {
             AgentCapTarget::Document(id) => (id.clone(), Vec::new()),
             AgentCapTarget::Folder(id) => {
@@ -155,7 +232,9 @@ impl DocumentService {
         Ok(AgentCapView {
             target,
             own_override,
-            effective,
+            effective: self.access.redact_source(who, effective, trace).await,
+            attended: self.access.redact_source(who, attended, trace).await,
+            unattended: self.access.redact_source(who, unattended, trace).await,
         })
     }
 }

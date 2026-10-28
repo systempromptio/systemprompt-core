@@ -142,7 +142,10 @@ impl DocumentService {
             }
         }
         let documents: Vec<&Document> = admitted.iter().map(&document_of).collect();
-        let hidden = self.access.hidden_from_agent_many(who, &documents).await;
+        let hidden = self
+            .access
+            .hidden_from_agent_many(who, &documents, trace)
+            .await;
         admitted
             .into_iter()
             .zip(hidden)

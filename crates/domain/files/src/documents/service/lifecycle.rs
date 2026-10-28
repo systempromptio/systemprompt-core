@@ -186,6 +186,7 @@ impl DocumentService {
             let bytes = self.revision_bytes(&head).await?;
             (source, bytes)
         };
+        let carried = self.access.check_copy(who, &source).await?;
         let folder = request.folder.or_else(|| source.folder_id.clone());
         self.authorize_create(who, folder.as_ref(), trace).await?;
         let explicit = request
@@ -213,6 +214,7 @@ impl DocumentService {
             match self.create_with_bytes(who, content).await {
                 Err(DocumentsError::Repository(error))
                     if attempt == 1 && explicit.is_none() && is_name_taken(&error) => {},
+                Ok(copied) => return self.carry_cap(copied, carried).await,
                 other => return other,
             }
         }

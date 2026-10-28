@@ -76,7 +76,10 @@ impl DocumentService {
             .document
             .ok_or_else(|| DocumentsError::not_found("document", document))?;
         let mut access = TargetAccess::bare(current.owner_user_id.clone(), granted.level, current);
-        access.agent_cap = granted.agent_cap;
+        access.agent_cap = match granted.agent_cap {
+            Some(cap) => Some(self.access.redact_source(who, cap, trace).await),
+            None => None,
+        };
         if access.my_access < AccessLevel::Share {
             return Ok(access);
         }
@@ -112,7 +115,10 @@ impl DocumentService {
             .folder
             .ok_or_else(|| DocumentsError::not_found("folder", folder))?;
         let mut access = TargetAccess::bare(current.owner_user_id.clone(), granted.level, current);
-        access.agent_cap = granted.agent_cap;
+        access.agent_cap = match granted.agent_cap {
+            Some(cap) => Some(self.access.redact_source(who, cap, trace).await),
+            None => None,
+        };
         if access.my_access < AccessLevel::Share {
             return Ok(access);
         }

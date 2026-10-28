@@ -19,6 +19,7 @@ use super::outputs::ExportOutput;
 use super::preview::preview_resource_uri;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
+use crate::documents::actor::signed_agent_name;
 use crate::documents::download::{DownloadTarget, Rendition, signed_download_url};
 use crate::documents::refusal::RefusalCode;
 
@@ -129,6 +130,7 @@ impl McpToolHandler for ExportHandler<'_> {
                         session_id: ctx.session_id(),
                         document: &input.document_id,
                         revision: &revision,
+                        agent: &signed_agent_name(ctx),
                     },
                 )
                 .map_err(|error| {

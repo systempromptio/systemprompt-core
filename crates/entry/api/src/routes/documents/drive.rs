@@ -10,6 +10,11 @@
 //! sent. A stale base answers 409 with the head revision and its content
 //! hash.
 //!
+//! The Drive sync is a bearer client, so every route runs as an agent named
+//! and attended from the bridge token's signed claims, under the document's
+//! agent cap; a whole-file commit is a `replace_content` write the agent
+//! access policy must allow.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -23,6 +28,7 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use serde::Deserialize;
 use systemprompt_files::documents::DocumentService;
+use systemprompt_files::documents::agents::{DocumentActor, act_as};
 use systemprompt_files::documents::service::parse_drive_cursor;
 use systemprompt_identifiers::{ContentHash, TraceId};
 use systemprompt_models::ApiPaths;
@@ -32,6 +38,7 @@ use systemprompt_models::documents::{
     DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposal,
     DriveProposals, PresenceBeacon,
 };
+use systemprompt_runtime::documents::actor::bearer_actor;
 
 use super::caller::authenticated;
 use super::error::DocumentsResult;
@@ -93,23 +100,32 @@ pub fn router(state: DriveState) -> Router {
         .with_state(state)
 }
 
+/// The device's user and the agent it acts as: the Drive sync is a bearer
+/// client, so every Drive call is capped like any agent.
 async fn device_user(
     state: &DriveState,
     headers: &HeaderMap,
-) -> DocumentsResult<AuthenticatedUser> {
-    let (_, user) = authenticate_bridge(&state.jwt, headers)
+) -> DocumentsResult<(AuthenticatedUser, DocumentActor)> {
+    let (claims, user) = authenticate_bridge(&state.jwt, headers)
         .await
         .map_err(crate::error::ApiHttpError::from)?;
-    Ok(authenticated(user))
+    let actor = bearer_actor(
+        claims.purpose.as_deref(),
+        claims.client_id.as_ref().map(|client| client.as_str()),
+        claims.interaction,
+    );
+    Ok((authenticated(user), actor))
 }
 
 async fn manifest(
     State(state): State<DriveState>,
     headers: HeaderMap,
 ) -> DocumentsResult<Json<DriveManifest>> {
-    let who = device_user(&state, &headers).await?;
+    let (who, actor) = device_user(&state, &headers).await?;
     let trace = TraceId::generate();
-    Ok(Json(state.service.drive_manifest(&who, &trace).await?))
+    Ok(Json(
+        act_as(actor, state.service.drive_manifest(&who, &trace)).await?,
+    ))
 }
 
 #[derive(Debug, Deserialize)]
@@ -123,7 +139,7 @@ async fn changes(
     headers: HeaderMap,
     Query(query): Query<ChangesQuery>,
 ) -> DocumentsResult<Json<DriveChanges>> {
-    let who = device_user(&state, &headers).await?;
+    let (who, actor) = device_user(&state, &headers).await?;
     let trace = TraceId::generate();
     let since = query
         .since
@@ -133,10 +149,11 @@ async fn changes(
         .transpose()?;
     let limit = query.limit.unwrap_or(DEFAULT_CHANGES);
     Ok(Json(
-        state
-            .service
-            .drive_changes(&who, since, limit, &trace)
-            .await?,
+        act_as(
+            actor,
+            state.service.drive_changes(&who, since, limit, &trace),
+        )
+        .await?,
     ))
 }
 
@@ -145,17 +162,20 @@ async fn blob(
     headers: HeaderMap,
     Path(sha256): Path<String>,
 ) -> DocumentsResult<Response> {
-    let who = device_user(&state, &headers).await?;
+    let (who, actor) = device_user(&state, &headers).await?;
     let trace = TraceId::generate();
     let hash = ContentHash::try_new(sha256).map_err(ApiError::from)?;
     let tag = etag(&hash);
     if none_match(&headers, &tag) {
         return Ok(StatusCode::NOT_MODIFIED.into_response());
     }
-    let read = state
-        .service
-        .drive_blob(&who, &hash, range(&headers), &trace)
-        .await?;
+    let read = act_as(
+        actor,
+        state
+            .service
+            .drive_blob(&who, &hash, range(&headers), &trace),
+    )
+    .await?;
     let status = if read.range.is_some() {
         StatusCode::PARTIAL_CONTENT
     } else {
@@ -184,7 +204,7 @@ async fn commit(
     headers: HeaderMap,
     form: Multipart,
 ) -> DocumentsResult<Response> {
-    let who = device_user(&state, &headers).await?;
+    let (who, actor) = device_user(&state, &headers).await?;
     let trace = TraceId::generate();
     let (mut meta, bytes) = read_commit(form).await?;
     if let Some(base) = base_revision(&headers)? {
@@ -200,10 +220,7 @@ async fn commit(
         }
         meta.base_revision = Some(base);
     }
-    let outcome = state
-        .service
-        .drive_commit(&who, meta, bytes, &trace)
-        .await?;
+    let outcome = act_as(actor, state.service.drive_commit(&who, meta, bytes, &trace)).await?;
     let status = match outcome {
         DriveCommitResponse::Committed { .. } | DriveCommitResponse::Merged { .. } => {
             StatusCode::OK
@@ -241,9 +258,9 @@ async fn presence(
     headers: HeaderMap,
     Json(beacon): Json<PresenceBeacon>,
 ) -> DocumentsResult<StatusCode> {
-    let who = device_user(&state, &headers).await?;
+    let (who, actor) = device_user(&state, &headers).await?;
     let trace = TraceId::generate();
-    state.service.touch_presence(&who, beacon, &trace).await?;
+    act_as(actor, state.service.touch_presence(&who, beacon, &trace)).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -251,8 +268,8 @@ async fn proposals(
     State(state): State<DriveState>,
     headers: HeaderMap,
 ) -> DocumentsResult<Json<DriveProposals>> {
-    let who = device_user(&state, &headers).await?;
-    let proposals = state.service.open_proposals_for(&who).await?;
+    let (who, actor) = device_user(&state, &headers).await?;
+    let proposals = act_as(actor, state.service.open_proposals_for(&who)).await?;
     Ok(Json(DriveProposals {
         proposals: proposals
             .into_iter()

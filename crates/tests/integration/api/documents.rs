@@ -56,7 +56,9 @@ pub(super) async fn send(app: Router, req: Request<Body>) -> Result<Reply> {
 }
 
 pub(super) fn app(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
+    router(state.clone()).layer(Extension(
+        request_context(user.user_id.as_str()).with_browser_session(),
+    ))
 }
 
 pub(super) fn request(method: Method, uri: &str) -> axum::http::request::Builder {
@@ -888,8 +890,9 @@ async fn patch_moves_into_a_folder_and_an_explicit_null_moves_to_the_root() -> R
     let (pool, _ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-move").await?;
     let id = id_of(&create_markdown(&state, &owner).await?);
-    let folders =
-        folders_router(state.clone()).layer(Extension(request_context(owner.user_id.as_str())));
+    let folders = folders_router(state.clone()).layer(Extension(
+        request_context(owner.user_id.as_str()).with_browser_session(),
+    ));
     let folder = send(
         folders,
         json_request(

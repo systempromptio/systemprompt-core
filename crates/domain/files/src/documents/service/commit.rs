@@ -95,14 +95,17 @@ impl DocumentService {
         };
         let ops = body_ops(&request.body);
         let Some(op_id) = request.op_id.clone() else {
-            self.admit_agent_edits(who, ops)?;
-            return self.commit_document(who, request, scope).await;
+            self.check_agent_edits(who, ops)?;
+            let outcome = self.commit_document(who, request, scope).await;
+            self.record_landed(who, ops, &outcome);
+            return outcome;
         };
         if let Some(stored) = self.repos.write_acks.find(&document.id, &op_id).await? {
             return self.replay(who, &op_id, &digest, stored).await;
         }
-        self.admit_agent_edits(who, ops)?;
+        self.check_agent_edits(who, ops)?;
         let outcome = self.commit_document(who, request, scope).await;
+        self.record_landed(who, ops, &outcome);
         if matches!(outcome, Err(_) | Ok(CommitOutcome::Conflict { .. }))
             && let Some(stored) = self.repos.write_acks.find(&document.id, &op_id).await?
         {

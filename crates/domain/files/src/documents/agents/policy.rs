@@ -24,7 +24,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
 use systemprompt_models::documents::DocumentFormat;
 
-use super::actor::AgentActor;
+use super::actor::{AgentActor, DocumentActor};
 use super::cap::{AgentCap, AgentCapability};
 
 /// What a policy knows about the target: a document, or a folder when
@@ -70,6 +70,33 @@ pub trait AgentAccessPolicy: Send + Sync + 'static {
         let _ = (capability, doc, agent);
         false
     }
+
+    /// Called before a document or folder moves, by a person or an agent.
+    /// Core already pins the source's cap when the destination would loosen
+    /// it; a policy may refuse the move or pin a stricter cap.
+    async fn on_move(&self, moving: &MoveContext<'_>) -> MoveDecision {
+        let _ = moving;
+        MoveDecision::Allow
+    }
+}
+
+/// A move about to happen: the target as it stands (`doc.folders` is its
+/// chain at the source), the destination's nearest-first chain (empty for
+/// the root) and who is moving it.
+#[derive(Debug, Clone, Copy)]
+pub struct MoveContext<'a> {
+    pub doc: &'a DocumentContext,
+    pub to: &'a [DocumentFolderId],
+    pub actor: &'a DocumentActor,
+}
+
+/// What a policy says about a move. `Pin` sets an override on the moved
+/// document or folder (it only ever tightens).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MoveDecision {
+    Allow,
+    Refuse { reason: String },
+    Pin(AgentCap),
 }
 
 #[derive(Debug, Clone, Copy, Default)]

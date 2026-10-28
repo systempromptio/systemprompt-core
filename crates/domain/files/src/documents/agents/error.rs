@@ -42,4 +42,6 @@ pub enum AgentRefusal {
         requested: AgentCap,
         policy_cap: AgentCap,
     },
+    #[error("the agent access policy refused this move: {reason}")]
+    MoveRefused { reason: String },
 }

@@ -22,7 +22,8 @@
 //! policy allows that capability; core's default allows none of them.
 //!
 //! The actor is set once per call with [`act_as`] by the surface that knows
-//! it (the MCP tools); code that never sets it acts as a person.
+//! the credential; code that never sets it acts as an unnamed, unattended
+//! agent, so a missed scope fails closed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,11 +34,14 @@ mod error;
 mod policy;
 mod rate;
 
-pub use actor::{AgentActor, DocumentActor, act_as, current_actor};
+pub use actor::{
+    AgentActor, DocumentActor, UNNAMED_AGENT, act_as, current_actor, set_unscoped_actor,
+    unscoped_actor,
+};
 pub use cap::{AgentCap, AgentCapability, CapSource, EffectiveCap};
 pub use error::AgentRefusal;
 pub use policy::{
     AgentAccessPolicy, AgentAccessPolicyRegistration, DefaultAgentAccessPolicy, DocumentContext,
-    registered_policy,
+    MoveContext, MoveDecision, registered_policy,
 };
 pub use rate::AgentRateLimiter;

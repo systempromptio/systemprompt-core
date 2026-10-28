@@ -5,18 +5,45 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentFolderId, DocumentId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_models::documents::DocumentAction;
 
 use super::agent::{combine, document_context, folder_context};
-use super::service::{DocumentAccessService, Granted};
+use super::service::{AccessTarget, DocumentAccessService, Granted};
 use crate::documents::agents::{
-    AgentActor, AgentCap, AgentCapability, AgentRefusal, EffectiveCap, current_actor,
+    AgentActor, AgentCap, AgentCapability, AgentRefusal, CapSource, EffectiveCap, current_actor,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
+use crate::documents::repository::AgentReadRecord;
 
 impl DocumentAccessService {
+    /// `effective` with a folder override's source hidden when the caller
+    /// cannot view that folder: the reason then names no folder id.
+    pub async fn redact_source(
+        &self,
+        who: &AuthenticatedUser,
+        effective: EffectiveCap,
+        trace: &TraceId,
+    ) -> EffectiveCap {
+        let CapSource::FolderOverride { folder_id } = &effective.source else {
+            return effective;
+        };
+        let target = AccessTarget::Folder(Some(folder_id.clone()));
+        if self
+            .probe(who, target, DocumentAction::View, trace)
+            .await
+            .is_ok()
+        {
+            return effective;
+        }
+        EffectiveCap {
+            source: CapSource::InheritedOverride,
+            ..effective
+        }
+    }
+
     /// Refuses `capability` to an agent caller on `document` unless the
     /// policy allows it; a person always passes.
     pub async fn require_agent_capability(
@@ -65,17 +92,44 @@ impl DocumentAccessService {
 
     /// [`Self::hidden_from_agent`] for a page of documents, in two
     /// statements: the documents' own facts, and every folder's chain with
-    /// its overrides. An error hides the whole page from the agent.
+    /// its overrides. Each listed document whose cap is below `edit` is
+    /// audited as a `list` read with `trace`. An error hides the whole page
+    /// from the agent.
     pub async fn hidden_from_agent_many(
         &self,
         who: &AuthenticatedUser,
         documents: &[&Document],
+        trace: &TraceId,
     ) -> Vec<bool> {
         let Some(agent) = current_actor().as_agent().cloned() else {
             return vec![false; documents.len()];
         };
         match self.caps_of_many(who, documents, &agent).await {
-            Ok(caps) => caps.into_iter().map(|cap| cap == AgentCap::None).collect(),
+            Ok(caps) => {
+                for (document, cap) in documents.iter().zip(&caps) {
+                    if *cap == AgentCap::None || *cap >= AgentCap::Edit {
+                        continue;
+                    }
+                    let record = AgentReadRecord {
+                        document_id: &document.id,
+                        user_id: &who.id,
+                        agent_name: &agent.name,
+                        attended: agent.attended,
+                        action: "list",
+                        cap: *cap,
+                        cap_source: "listing",
+                        trace_id: trace,
+                    };
+                    if let Err(error) = self.documents.insert_agent_read(record).await {
+                        tracing::warn!(
+                            document_id = %document.id,
+                            error = %error,
+                            "An agent listing read could not be audited"
+                        );
+                    }
+                }
+                caps.into_iter().map(|cap| cap == AgentCap::None).collect()
+            },
             Err(error) => {
                 tracing::warn!(
                     error = %error,

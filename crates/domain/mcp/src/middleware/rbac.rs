@@ -271,8 +271,11 @@ fn build_authenticated_context(
     if let Some(purpose) = claims.custom.purpose.clone() {
         context = context.with_caller_purpose(purpose);
     }
-    if claims.custom.interaction == Some(TokenInteraction::NonInteractive) {
-        context = context.with_interaction_mode(UserInteractionMode::NonInteractive);
+    if let Some(interaction) = claims.custom.interaction {
+        context = context.with_interaction_mode(match interaction {
+            TokenInteraction::Interactive => UserInteractionMode::Interactive,
+            TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
+        });
     }
 
     Ok(AuthenticatedRequestContext::new(context, token))

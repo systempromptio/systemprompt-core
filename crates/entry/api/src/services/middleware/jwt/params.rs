@@ -7,9 +7,9 @@ use axum::http::HeaderMap;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_models::auth::UserType;
-use systemprompt_models::execution::context::RequestContext;
-use systemprompt_security::{HeaderExtractor, JwtUserContext, TokenExtractor};
+use systemprompt_models::auth::{TokenInteraction, UserType};
+use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
+use systemprompt_security::{ExtractionMethod, HeaderExtractor, JwtUserContext, TokenExtractor};
 
 #[derive(Debug)]
 pub struct BuildContextParams {
@@ -22,6 +22,7 @@ pub struct BuildContextParams {
     pub task_id: Option<TaskId>,
     pub auth_token: Option<String>,
     pub user_type: UserType,
+    pub browser_session: bool,
 }
 
 pub fn build_context(params: BuildContextParams) -> RequestContext {
@@ -35,6 +36,7 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
         task_id,
         auth_token,
         user_type,
+        browser_session,
     } = params;
     let mut ctx = RequestContext::new(
         session_id,
@@ -64,7 +66,26 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
     if let Some(purpose) = jwt_context.purpose {
         ctx = ctx.with_caller_purpose(purpose);
     }
+    if let Some(interaction) = jwt_context.interaction {
+        ctx = ctx.with_interaction_mode(match interaction {
+            TokenInteraction::Interactive => UserInteractionMode::Interactive,
+            TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
+        });
+    }
+    if browser_session {
+        ctx = ctx.with_browser_session();
+    }
     ctx
+}
+
+/// Whether the token the chain found came from the browser session cookie
+/// rather than a bearer header.
+#[must_use]
+pub fn is_browser_session(token_extractor: &TokenExtractor, headers: &HeaderMap) -> bool {
+    matches!(
+        token_extractor.extract_with_method(headers),
+        Ok((_, ExtractionMethod::Cookie))
+    )
 }
 
 pub fn extract_common_headers(
