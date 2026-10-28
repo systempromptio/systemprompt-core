@@ -49,6 +49,7 @@ systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
+systemprompt-files = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-identifiers = { workspace = true }

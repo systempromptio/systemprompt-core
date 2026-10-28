@@ -124,6 +124,7 @@ fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> R
     crate::routes::documents::drive::router(crate::routes::documents::drive::DriveState::new(
         crate::routes::documents::document_service(ctx),
         Arc::clone(jwt_extractor),
+        ctx.token_authority(),
     ))
 }
 

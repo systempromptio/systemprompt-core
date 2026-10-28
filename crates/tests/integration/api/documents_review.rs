@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use systemprompt_api::routes::documents::{DocumentsState, folders_router};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_models::documents::content_hash;
-use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
+use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential, seed_drive_credential};
 use uuid::Uuid;
 
 use super::common::request_context;
@@ -629,7 +629,7 @@ async fn an_unsatisfiable_range_is_416_and_a_trashed_document_says_so() -> Resul
 async fn the_drive_serves_cached_and_ranged_blobs_and_refuses_bad_commits() -> Result<()> {
     let (pool, ctx) = super::common::setup_ctx().await?;
     let gateway = gateway_router(&ctx)?;
-    let device = seed_bridge_credential(&pool, "drive-review").await?;
+    let device = seed_drive_credential(&pool, "drive-review").await?;
     let path = format!("drive-{}.md", Uuid::new_v4().simple());
     let blob = b"# Drive blob body\n";
     let committed = drive_commit(
@@ -722,7 +722,7 @@ async fn the_drive_serves_cached_and_ranged_blobs_and_refuses_bad_commits() -> R
 async fn the_drive_records_presence_and_lists_open_proposals() -> Result<()> {
     let (pool, ctx, state) = fixture().await?;
     let gateway = gateway_router(&ctx)?;
-    let device = seed_bridge_credential(&pool, "drive-proposals").await?;
+    let device = seed_drive_credential(&pool, "drive-proposals").await?;
     let id = id_of(&create_markdown(&state, &device).await?);
 
     let beacon = json!({

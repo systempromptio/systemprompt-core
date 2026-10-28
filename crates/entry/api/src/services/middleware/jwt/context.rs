@@ -19,9 +19,13 @@ use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_identifiers::{ContextId, headers as sp_headers};
+use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
+use systemprompt_security::jwt::ValidationPolicy;
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_security::{JwtUserContext, TokenExtractor, extract_user_context};
+use systemprompt_security::{
+    JwtUserContext, TokenExtractor, extract_user_context, extract_user_context_for,
+};
 use systemprompt_traits::{SessionProvider, UserProvider};
 
 use super::params::{
@@ -157,6 +161,21 @@ impl JwtContextExtractor {
 
     pub fn verified_claims(&self, token: &str) -> Option<JwtUserContext> {
         extract_user_context(&self.keys, token, &self.issuer).ok()
+    }
+
+    /// Decodes and validates a token that must carry one of `audiences`
+    /// (and nothing outside the first-party set is implied): the Drive
+    /// sync's dedicated credential.
+    pub async fn decode_for_audiences(
+        &self,
+        jwt_token: &systemprompt_identifiers::JwtToken,
+        audiences: &[JwtAudience],
+    ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
+        let policy = ValidationPolicy::issuer_scoped(&self.issuer, audiences);
+        let jwt_context = extract_user_context_for(&self.keys, jwt_token.as_str(), &policy)
+            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
+        let user = self.validate(&jwt_context, "drive sync").await?;
+        Ok((jwt_context, user))
     }
 
     pub async fn decode_for_gateway(

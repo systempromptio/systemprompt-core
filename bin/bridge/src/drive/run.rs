@@ -16,7 +16,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::DriveDeviceId;
 
 use super::conflict::prune_resolved;
@@ -29,6 +29,7 @@ use super::status::DriveHandle;
 use super::upload::{UploadReport, upload};
 use super::{Cycle, DriveClient, DriveRoot, shares, watcher};
 use crate::config::SharedRuntimeConfig;
+use crate::ids::BearerToken;
 use crate::proxy::drive_signal::{DriveSignal, DriveSignalReceiver};
 use crate::proxy::token_cache::TokenCache;
 
@@ -97,6 +98,9 @@ impl std::fmt::Debug for DriveDeps {
     }
 }
 
+/// How long before its expiry the Drive sync token is traded again.
+const SYNC_TOKEN_MARGIN_SECS: i64 = 60;
+
 pub async fn run_loop(deps: DriveDeps) {
     let DriveDeps {
         handle,
@@ -118,6 +122,7 @@ pub async fn run_loop(deps: DriveDeps) {
         device_id: &device_id,
         host_name: &host_name,
         throttle: PresenceThrottle::default(),
+        sync_token: None,
     };
     let mut watch = None;
     let mut interval = tokio::time::interval(TICK);
@@ -169,6 +174,7 @@ struct Runner<'a> {
     device_id: &'a DriveDeviceId,
     host_name: &'a str,
     throttle: PresenceThrottle,
+    sync_token: Option<(BearerToken, DateTime<Utc>)>,
 }
 
 impl Runner<'_> {
@@ -215,7 +221,12 @@ impl Runner<'_> {
             },
             Err(error) => {
                 if let DriveError::Unauthorized { endpoint } = &error {
-                    self.token_cache.reject_upstream(endpoint).await;
+                    self.sync_token = None;
+                    let bridge_token_refused =
+                        *endpoint == systemprompt_models::ApiPaths::BRIDGE_DRIVE_TOKEN;
+                    if bridge_token_refused {
+                        self.token_cache.reject_upstream(endpoint).await;
+                    }
                 }
                 tracing::warn!(%error, root = %self.root.dir().display(), "drive sync cycle failed");
                 let message = error.to_string();
@@ -238,9 +249,10 @@ impl Runner<'_> {
             .current(AUTH_THRESHOLD_SECS)
             .await
             .map_err(DriveError::Token)?;
+        let sync = self.sync_bearer(&client, &token.token).await?;
         let cycle = Cycle {
             client: &client,
-            bearer: &token.token,
+            bearer: &sync,
             root: self.root,
             device_id: self.device_id,
             host_name: self.host_name,
@@ -250,6 +262,24 @@ impl Runner<'_> {
         }
         sync_once(cycle, self.handle).await?;
         self.beacon(cycle).await
+    }
+
+    /// The Drive sync token, traded again for the bridge token once it is
+    /// within a minute of expiry. A 401 on any Drive route drops it.
+    async fn sync_bearer(
+        &mut self,
+        client: &DriveClient,
+        bridge: &BearerToken,
+    ) -> DriveResult<BearerToken> {
+        if let Some((token, expires_at)) = &self.sync_token
+            && *expires_at - chrono::Duration::seconds(SYNC_TOKEN_MARGIN_SECS) > Utc::now()
+        {
+            return Ok(token.clone());
+        }
+        let issued = client.sync_token(bridge).await?;
+        let token = BearerToken::new(issued.token);
+        self.sync_token = Some((token.clone(), issued.expires_at));
+        Ok(token)
     }
 
     async fn beacon(&mut self, cycle: Cycle<'_>) -> DriveResult<()> {

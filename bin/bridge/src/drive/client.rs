@@ -1,7 +1,9 @@
 //! HTTP client for the bridge Drive routes under `/v1/bridge/drive/`.
 //!
 //! Each call takes the bearer it runs under, so the caller decides how a
-//! token is minted and what a 401 does to it. A downloaded blob is returned
+//! token is minted and what a 401 does to it. Every route but
+//! [`DriveClient::sync_token`] takes the Drive sync token that call trades
+//! the bridge token for. A downloaded blob is returned
 //! only after its digest matched the address it was requested by. A 404 from
 //! the manifest or changes route means the server runs with the document
 //! store disabled, and is reported as [`DriveError::ServerDisabled`].
@@ -16,7 +18,7 @@ use systemprompt_identifiers::{ContentHash, ValidatedUrl};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::documents::{
     DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposals,
-    PresenceBeacon,
+    DriveSyncToken, PresenceBeacon,
 };
 
 use super::error::{DriveError, DriveResult};
@@ -127,6 +129,25 @@ impl DriveClient {
             return decode(endpoint, response).await;
         }
         decode(endpoint, accept(endpoint, response).await?).await
+    }
+
+    /// Trades the device's bridge token for the Drive sync's own credential,
+    /// the only token the other Drive routes accept.
+    pub async fn sync_token(&self, bridge: &BearerToken) -> DriveResult<DriveSyncToken> {
+        let endpoint = ApiPaths::BRIDGE_DRIVE_TOKEN;
+        let request = self
+            .http
+            .post(self.url(endpoint))
+            .bearer_auth(bridge.expose());
+        decode(
+            endpoint,
+            accept(
+                endpoint,
+                store_enabled(endpoint, send(endpoint, request).await?)?,
+            )
+            .await?,
+        )
+        .await
     }
 
     pub async fn proposals(&self, bearer: &BearerToken) -> DriveResult<DriveProposals> {

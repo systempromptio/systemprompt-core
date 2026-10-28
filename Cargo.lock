@@ -6615,6 +6615,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
+ "systemprompt-files",
  "systemprompt-governance",
  "systemprompt-identifiers",
  "systemprompt-loader",

@@ -23,7 +23,9 @@ use systemprompt_database::DbPool;
 use systemprompt_models::RouteClassifier;
 use systemprompt_models::documents::content_hash;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
+use systemprompt_test_fixtures::{
+    AuthedFixture, seed_bridge_client_credential, seed_bridge_credential, seed_drive_credential,
+};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -481,7 +483,21 @@ async fn change_for(
 async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let gateway = gateway_router(&ctx)?;
-    let device = seed_bridge_credential(&pool, "drive-feed").await?;
+    let device = seed_drive_credential(&pool, "drive-feed").await?;
+    let plain_bridge = seed_bridge_credential(&pool, "drive-feed-plain").await?;
+
+    let plain = send(
+        gateway.clone(),
+        bridge(&plain_bridge, Method::GET, "/bridge/drive/manifest")
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await?;
+    assert_eq!(
+        plain.status,
+        StatusCode::UNAUTHORIZED,
+        "a plain bridge token is not the Drive sync credential"
+    );
 
     let unauthenticated = send(
         gateway.clone(),
@@ -541,7 +557,7 @@ async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()>
     assert_eq!(downloaded.status, StatusCode::OK);
     assert_eq!(downloaded.body, blob);
 
-    let other = seed_bridge_credential(&pool, "drive-other").await?;
+    let other = seed_drive_credential(&pool, "drive-other").await?;
     let foreign = send(
         gateway.clone(),
         bridge(
@@ -561,7 +577,7 @@ async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()>
 async fn a_stale_drive_commit_is_409_with_the_head_content_hash() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let gateway = gateway_router(&ctx)?;
-    let device = seed_bridge_credential(&pool, "drive-conflict").await?;
+    let device = seed_drive_credential(&pool, "drive-conflict").await?;
     let manifest = send(
         gateway.clone(),
         bridge(&device, Method::GET, "/bridge/drive/manifest")
@@ -967,5 +983,43 @@ async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
     )
     .await?;
     assert_eq!(manifest.status, StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+#[tokio::test]
+async fn only_the_bridge_clients_own_token_trades_for_a_drive_sync_token() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let gateway = gateway_router(&ctx)?;
+    let trade = |fixture: &AuthedFixture| {
+        bridge(fixture, Method::POST, "/bridge/drive/token")
+            .body(Body::empty())
+            .expect("request")
+    };
+
+    let device = seed_bridge_client_credential(&pool, "drive-trade", None).await?;
+    let traded = send(gateway.clone(), trade(&device)).await?;
+    assert_eq!(traded.status, StatusCode::OK, "{}", traded.json());
+    let sync = traded.json()["token"].as_str().expect("token").to_owned();
+    let manifest = send(
+        gateway.clone(),
+        request(Method::GET, "/bridge/drive/manifest")
+            .header(header::AUTHORIZATION, format!("Bearer {sync}"))
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await?;
+    assert_eq!(manifest.status, StatusCode::OK, "{}", manifest.json());
+
+    let run = seed_bridge_client_credential(&pool, "drive-trade-run", Some("farm:run-1")).await?;
+    let refused = send(gateway.clone(), trade(&run)).await?;
+    assert_eq!(refused.status, StatusCode::FORBIDDEN, "a purposed token");
+
+    let other_client = seed_bridge_credential(&pool, "drive-trade-other").await?;
+    let refused = send(gateway, trade(&other_client)).await?;
+    assert_eq!(
+        refused.status,
+        StatusCode::FORBIDDEN,
+        "not the bridge client"
+    );
     Ok(())
 }

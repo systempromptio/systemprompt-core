@@ -199,7 +199,7 @@ pub fn generate_anonymous_jwt_with_expiry(
         purpose: None,
         plugin_id: None,
         interaction: None,
-        browser_session: true,
+        browser_session: false,
     };
     Ok(authority.mint_user_jwt(&request)?)
 }

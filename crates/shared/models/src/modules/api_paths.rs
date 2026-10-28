@@ -108,6 +108,7 @@ impl ApiPaths {
     pub const BRIDGE_DRIVE_COMMIT: &'static str = "/v1/bridge/drive/commit";
     pub const BRIDGE_DRIVE_PRESENCE: &'static str = "/v1/bridge/drive/presence";
     pub const BRIDGE_DRIVE_PROPOSALS: &'static str = "/v1/bridge/drive/proposals";
+    pub const BRIDGE_DRIVE_TOKEN: &'static str = "/v1/bridge/drive/token";
     pub const DOCUMENTS: &'static str = "/api/v1/documents";
     pub const DOCUMENT_FOLDERS: &'static str = "/api/v1/document-folders";
     pub const UPLOADS: &'static str = "/api/v1/uploads";

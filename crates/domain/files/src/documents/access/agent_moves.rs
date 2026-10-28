@@ -1,11 +1,11 @@
 //! Caps that must survive a move or a copy, and the policy's hooks on
 //! both.
 //!
-//! A cap is judged for an unnamed, unattended agent, the strictest case a
-//! name-blind override can stand for, except that an attended agent moving
-//! something is judged as itself. Before a document or folder moves the
-//! policy's [`AgentAccessPolicy::on_move`] is asked and may refuse it;
-//! when the destination would loosen the cap, the source's cap is pinned on
+//! A cap is judged as the stricter of its attended and unattended cases, for
+//! the agent moving it (or an unnamed agent when a person moves it), so a
+//! pin holds whichever way an agent next comes. Before a document or folder
+//! moves the policy's [`AgentAccessPolicy::on_move`] is asked and may refuse
+//! it; when the destination would loosen the cap, the source's cap is pinned on
 //! the target as an override, so a move never launders a cap. A copy carries
 //! its source's cap the same way, and an agent copying out of a capped
 //! document needs `copy_out`; the policy's `on_copy` then sees the copy.
@@ -106,12 +106,11 @@ impl DocumentAccessService {
     ) -> Result<Option<AgentCap>, DocumentsError> {
         let judge = current_actor()
             .as_agent()
-            .filter(|agent| agent.attended)
             .cloned()
             .unwrap_or_else(strictest_agent);
         let from_chain = self.chain_from(parent_of(target).as_ref()).await?;
         let mut source = Self::context_at(who, target, from_chain);
-        let before = self.effective_cap(&mut source, &judge).await?.cap;
+        let before = self.strictest_of(&mut source, &judge).await?;
         let to_chain = self.chain_from(to).await?;
         let mover = MoveActor {
             user: who.id.clone(),
@@ -124,8 +123,26 @@ impl DocumentAccessService {
             .await
             .map_err(|reason| AgentRefusal::MoveRefused { reason })?;
         let mut landed = Self::context_at(who, target, to_chain);
-        let after = self.effective_cap(&mut landed, &judge).await?.cap;
+        let after = self.strictest_of(&mut landed, &judge).await?;
         Ok((after > before).then_some(before))
+    }
+
+    /// The stricter of the caps `agent` holds on `context` attended and
+    /// unattended: what a pin must keep whichever way the agent next comes.
+    async fn strictest_of(
+        &self,
+        context: &mut DocumentContext,
+        agent: &AgentActor,
+    ) -> Result<AgentCap, DocumentsError> {
+        let mut cap = AgentCap::Edit;
+        for attended in [true, false] {
+            let case = AgentActor {
+                attended,
+                ..agent.clone()
+            };
+            cap = cap.min(self.effective_cap(context, &case).await?.cap);
+        }
+        Ok(cap)
     }
 
     /// Tells the policy a copy of `source` now exists as `copy`.

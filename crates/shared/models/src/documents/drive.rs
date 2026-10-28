@@ -11,6 +11,10 @@
 //! applied. [`DriveProposals`] lists the open proposals on the user's
 //! documents and the user's own open proposals.
 //!
+//! The sync runs under its own credential: the device trades its bridge
+//! token for a [`DriveSyncToken`] (audience [`DRIVE_SYNC_AUDIENCE`]), and the
+//! Drive routes accept that token alone.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -147,4 +151,15 @@ pub struct DriveProposal {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DriveProposals {
     pub proposals: Vec<DriveProposal>,
+}
+
+/// The audience of the Drive sync's own credential; the Drive routes accept
+/// only a token issued for it.
+pub const DRIVE_SYNC_AUDIENCE: &str = "bridge.drive_sync";
+
+/// The Drive sync's credential, traded for the device's bridge token.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DriveSyncToken {
+    pub token: String,
+    pub expires_at: DateTime<Utc>,
 }

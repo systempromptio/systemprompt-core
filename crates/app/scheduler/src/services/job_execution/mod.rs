@@ -27,6 +27,7 @@ pub use report::{JobBatchReport, JobRunReport, JobSelection, parse_job_parameter
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use systemprompt_files::documents::agents::{DocumentActor, act_as};
 
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{Actor, JobName};
@@ -239,7 +240,8 @@ impl JobExecutionService {
         .with_enforce(enforce)
         .with_parameters(merged);
 
-        match runnable.as_job().execute(&job_ctx).await {
+        let actor = DocumentActor::system(runnable.as_job().name());
+        match act_as(actor, runnable.as_job().execute(&job_ctx)).await {
             Ok(result) => JobRunReport {
                 job_name: job_name.clone(),
                 success: result.success,

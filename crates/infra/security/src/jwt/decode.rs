@@ -42,7 +42,17 @@ pub fn extract_user_context(
     token: &str,
     issuer: &str,
 ) -> AuthResult<JwtUserContext> {
-    let claims = decode_session_claims(keys, token, &ValidationPolicy::session_context(issuer))?;
+    extract_user_context_for(keys, token, &ValidationPolicy::session_context(issuer))
+}
+
+/// [`extract_user_context`] under an explicit audience policy, for a route
+/// that accepts one dedicated credential (the Drive sync's).
+pub fn extract_user_context_for(
+    keys: &SigningKeys,
+    token: &str,
+    policy: &ValidationPolicy<'_>,
+) -> AuthResult<JwtUserContext> {
+    let claims = decode_session_claims(keys, token, policy)?;
 
     let session_id = claims
         .custom

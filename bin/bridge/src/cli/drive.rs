@@ -146,9 +146,10 @@ async fn sync_once(
         .map_err(DriveError::DeviceId)?;
     let host_name = crate::sysproc::host_name().unwrap_or_else(|| "this device".to_owned());
     let client = DriveClient::new(gateway, ctx.http.clone());
+    let sync = crate::ids::BearerToken::new(client.sync_token(&bearer).await?.token);
     let cycle = Cycle {
         client: &client,
-        bearer: &bearer,
+        bearer: &sync,
         root,
         device_id: &device_id,
         host_name: &host_name,

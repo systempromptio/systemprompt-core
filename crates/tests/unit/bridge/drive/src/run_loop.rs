@@ -110,6 +110,19 @@ async fn until(handle: &DriveHandle, what: &str, pred: impl Fn(&DriveStatus) -> 
     }
 }
 
+/// The Drive sync token the loop trades its bridge token for before any
+/// other Drive call.
+async fn serve_sync_token(server: &MockServer) {
+    Mock::given(method("POST"))
+        .and(path(ApiPaths::BRIDGE_DRIVE_TOKEN))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "token": "drive-sync",
+            "expires_at": "2999-01-01T00:00:00Z",
+        })))
+        .mount(server)
+        .await;
+}
+
 async fn serve(server: &MockServer, route: &'static str, status: u16, body: serde_json::Value) {
     Mock::given(method("GET"))
         .and(path(route))
@@ -126,6 +139,7 @@ fn the_loop_syncs_and_folds_proxy_signals_into_the_status() {
         let doc = DocumentId::generate();
         let rev = DocumentRevisionId::generate();
         fx.write("plan.md", b"# plan");
+        serve_sync_token(&server).await;
         serve(
             &server,
             ApiPaths::BRIDGE_DRIVE_MANIFEST,
@@ -232,6 +246,7 @@ fn a_server_without_the_document_store_turns_the_status_off_without_an_error() {
     sandboxed(async {
         let server = MockServer::start().await;
         let fx = Fixture::new(&server.uri());
+        serve_sync_token(&server).await;
         serve(
             &server,
             ApiPaths::BRIDGE_DRIVE_MANIFEST,
@@ -258,6 +273,7 @@ fn a_rejected_bearer_is_recorded_as_the_last_error() {
     sandboxed(async {
         let server = MockServer::start().await;
         let fx = Fixture::new(&server.uri());
+        serve_sync_token(&server).await;
         serve(
             &server,
             ApiPaths::BRIDGE_DRIVE_MANIFEST,
@@ -286,6 +302,49 @@ fn a_token_that_cannot_be_minted_is_recorded_and_no_request_is_sent() {
                 .await
                 .expect("recorded")
                 .is_empty()
+        );
+    });
+}
+
+#[test]
+fn the_drive_routes_run_under_the_traded_sync_token() {
+    sandboxed(async {
+        let server = MockServer::start().await;
+        let fx = Fixture::new(&server.uri());
+        serve_sync_token(&server).await;
+        Mock::given(method("GET"))
+            .and(path(ApiPaths::BRIDGE_DRIVE_MANIFEST))
+            .and(wiremock::matchers::header(
+                "authorization",
+                "Bearer drive-sync",
+            ))
+            .respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({})))
+            .mount(&server)
+            .await;
+
+        let _run = spawn(&fx, &server, token_ok());
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
+        let manifest = loop {
+            let requests = server.received_requests().await.expect("recorded");
+            if let Some(found) = requests
+                .into_iter()
+                .find(|r| r.url.path() == ApiPaths::BRIDGE_DRIVE_MANIFEST)
+            {
+                break found;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "the manifest was never asked for"
+            );
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        };
+        assert_eq!(
+            manifest
+                .headers
+                .get("authorization")
+                .and_then(|v| v.to_str().ok()),
+            Some("Bearer drive-sync"),
+            "not the bridge token"
         );
     });
 }

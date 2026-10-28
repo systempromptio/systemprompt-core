@@ -1,14 +1,15 @@
 //! The bridge Drive feed under `/v1/bridge/drive/`: manifest, change feed,
 //! blob download, commit, presence and open proposals.
 //!
-//! Every route takes the bridge bearer the heartbeat takes and answers 401
-//! when it is missing or rejected. Blobs are resolved through the document
-//! service, so a hash opens content only for a caller who can view a
-//! document holding it. A commit is `multipart/form-data` with a `meta`
-//! part ([`DriveCommitMeta`]) and a `blob` part; an `If-Match` header names
-//! the base revision and must agree with `meta.base_revision` when both are
-//! sent. A stale base answers 409 with the head revision and its content
-//! hash.
+//! Every route but `token` takes only the Drive sync token (audience
+//! `bridge.drive_sync`, see `drive_token`) and answers 401 for anything else,
+//! a plain bridge token included; `token` trades the bridge token for it. Blobs
+//! are resolved through the document service, so a hash opens content only for
+//! a caller who can view a document holding it. A commit is
+//! `multipart/form-data` with a `meta` part ([`DriveCommitMeta`]) and a `blob`
+//! part; an `If-Match` header names the base revision and must agree with
+//! `meta.base_revision` when both are sent. A stale base answers 409 with the
+//! head revision and its content hash.
 //!
 //! The Drive sync is a bearer client, so every route runs as an agent named
 //! and attended from the bridge token's signed claims, on the `drive_sync`
@@ -29,32 +30,31 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use serde::Deserialize;
 use systemprompt_files::documents::DocumentService;
-use systemprompt_files::documents::agents::{AgentChannel, DocumentActor, act_as};
+use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::documents::service::parse_drive_cursor;
 use systemprompt_identifiers::{ContentHash, TraceId};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::documents::{
     DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposal,
     DriveProposals, PresenceBeacon,
 };
-use systemprompt_runtime::documents::actor::bearer_actor;
 
-use super::caller::authenticated;
+use super::drive_token::device_user;
 use super::error::DocumentsResult;
 use super::headers::{base_revision, etag, none_match, range};
-use crate::routes::gateway::bridge_error::authenticate_bridge;
 use crate::services::middleware::JwtContextExtractor;
 
 const DEFAULT_CHANGES: i64 = 500;
 
-/// Router-scoped state of the bridge Drive routes: the document service and
-/// the bridge credential decoder.
+/// Router-scoped state of the bridge Drive routes: the document service,
+/// the credential decoder and the authority that mints sync tokens.
 #[derive(Clone)]
 pub struct DriveState {
     service: Arc<DocumentService>,
     jwt: Arc<JwtContextExtractor>,
+    tokens: Arc<dyn TokenAuthority>,
 }
 
 impl std::fmt::Debug for DriveState {
@@ -65,8 +65,24 @@ impl std::fmt::Debug for DriveState {
 
 impl DriveState {
     #[must_use]
-    pub const fn new(service: Arc<DocumentService>, jwt: Arc<JwtContextExtractor>) -> Self {
-        Self { service, jwt }
+    pub fn new(
+        service: Arc<DocumentService>,
+        jwt: Arc<JwtContextExtractor>,
+        tokens: Arc<dyn TokenAuthority>,
+    ) -> Self {
+        Self {
+            service,
+            jwt,
+            tokens,
+        }
+    }
+
+    pub(super) fn jwt(&self) -> &JwtContextExtractor {
+        &self.jwt
+    }
+
+    pub(super) fn tokens(&self) -> &dyn TokenAuthority {
+        self.tokens.as_ref()
     }
 }
 
@@ -94,6 +110,10 @@ pub fn router(state: DriveState) -> Router {
             put(presence),
         )
         .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_TOKEN),
+            post(super::drive_token::issue),
+        )
+        .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_PROPOSALS),
             get(proposals),
         )
@@ -101,22 +121,6 @@ pub fn router(state: DriveState) -> Router {
         .with_state(state)
 }
 
-/// The device's user and the agent it acts as: the Drive sync is a bearer
-/// client, so every Drive call is capped like any agent.
-async fn device_user(
-    state: &DriveState,
-    headers: &HeaderMap,
-) -> DocumentsResult<(AuthenticatedUser, DocumentActor)> {
-    let (claims, user) = authenticate_bridge(&state.jwt, headers)
-        .await
-        .map_err(crate::error::ApiHttpError::from)?;
-    let actor = bearer_actor(
-        claims.purpose.as_deref(),
-        claims.client_id.as_ref().map(|client| client.as_str()),
-        claims.interaction,
-    );
-    Ok((authenticated(user), actor.on(AgentChannel::DriveSync)))
-}
 
 async fn manifest(
     State(state): State<DriveState>,
