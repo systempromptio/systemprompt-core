@@ -8235,6 +8235,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
+ "systemprompt-files",
  "systemprompt-gateway",
  "systemprompt-governance",
  "systemprompt-identifiers",

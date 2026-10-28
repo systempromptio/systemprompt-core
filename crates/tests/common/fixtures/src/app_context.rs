@@ -16,7 +16,10 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
+use systemprompt_files::DocumentsConfig;
+use systemprompt_governance::authz::{
+    AllowAllHook, NullAuditSink, SharedAuthzHook, SubjectProviderSet,
+};
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
@@ -26,6 +29,7 @@ use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilt
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
+use systemprompt_traits::BackgroundTasks;
 use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};
@@ -181,7 +185,7 @@ pub fn fixture_app_context_with_extensions(
             user_repository,
             extension_registry: Arc::new(extension_registry),
             services: None,
-            documents_enabled: true,
+            documents: enabled_documents(),
         },
     )
 }
@@ -204,14 +208,46 @@ pub fn fixture_app_context_documents_disabled(
             user_repository,
             extension_registry: Arc::new(ExtensionRegistry::new()),
             services: None,
-            documents_enabled: false,
+            documents: DocumentsConfig::default(),
         },
     )
 }
 
-fn fixture_files_yaml(documents_enabled: bool) -> systemprompt_files::FilesConfigYaml {
+// Build a fixture context whose document store runs with the given
+// `files.documents` section, as an installation that enables access requests
+// or tunes its limits runs.
+pub fn fixture_app_context_documents_configured(
+    pool: &DbPool,
+    config: Config,
+    documents: DocumentsConfig,
+) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
+    fixture_app_context_assembled(
+        pool,
+        config,
+        tmp_paths(),
+        FixtureSeams {
+            marketplace_filter: Arc::new(AllowAllFilter),
+            authz_hook: hook,
+            user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
+            services: None,
+            documents,
+        },
+    )
+}
+
+fn enabled_documents() -> DocumentsConfig {
+    DocumentsConfig {
+        enabled: true,
+        ..DocumentsConfig::default()
+    }
+}
+
+fn fixture_files_yaml(documents: DocumentsConfig) -> systemprompt_files::FilesConfigYaml {
     let mut yaml = systemprompt_files::FilesConfigYaml::default();
-    yaml.documents.enabled = documents_enabled;
+    yaml.documents = documents;
     yaml
 }
 
@@ -223,7 +259,7 @@ struct FixtureSeams {
     user_repository: Arc<systemprompt_users::UserRepository>,
     extension_registry: Arc<ExtensionRegistry>,
     services: Option<systemprompt_loader::ServicesState>,
-    documents_enabled: bool,
+    documents: DocumentsConfig,
 }
 
 // Build a fixture context whose user repository is supplied by the test —
@@ -247,7 +283,7 @@ pub fn fixture_app_context_with_user_repository(
             user_repository,
             extension_registry: Arc::new(ExtensionRegistry::new()),
             services: None,
-            documents_enabled: true,
+            documents: enabled_documents(),
         },
     )
 }
@@ -287,7 +323,7 @@ fn fixture_app_context_full(
             user_repository,
             extension_registry: Arc::new(ExtensionRegistry::new()),
             services: None,
-            documents_enabled: true,
+            documents: enabled_documents(),
         },
     )
 }
@@ -339,7 +375,7 @@ pub fn fixture_app_context_on_bootstrap(
             user_repository,
             extension_registry: Arc::new(ExtensionRegistry::new()),
             services: None,
-            documents_enabled: true,
+            documents: enabled_documents(),
         },
     )
 }
@@ -369,7 +405,7 @@ pub fn fixture_app_context_on_bootstrap_with_paths(
             user_repository,
             extension_registry: Arc::new(ExtensionRegistry::new()),
             services: Some(services),
-            documents_enabled: true,
+            documents: enabled_documents(),
         },
     )
 }
@@ -387,7 +423,7 @@ fn fixture_app_context_assembled_on(
         user_repository,
         extension_registry,
         services,
-        documents_enabled,
+        documents,
     } = seams;
     let services = services.unwrap_or_else(|| bootstrap.services.clone());
     let governance = systemprompt_traits::ConfigWatch::new(
@@ -412,7 +448,15 @@ fn fixture_app_context_assembled_on(
         systemprompt_storage::build_file_storage(systemprompt_storage::FileStorageBackend::Local {
             root: app_paths.storage().root().to_path_buf(),
         });
-    let documents = crate::documents::fixture_documents_runtime(pool, &file_storage, &authz_hook);
+    let documents_config = documents;
+    let documents = crate::documents::fixture_documents_runtime_configured(
+        pool,
+        &file_storage,
+        &authz_hook,
+        Arc::new(SubjectProviderSet::default()),
+        BackgroundTasks::new(),
+        documents_config,
+    );
     let instance_id = config.instance_id.clone();
     let config = Arc::new(config);
     let fixture_boot = &bootstrap.boot;
@@ -476,7 +520,7 @@ fn fixture_app_context_assembled_on(
             config: Arc::clone(&config),
             files_config: Arc::new(systemprompt_files::FilesConfig::new(
                 app_paths.storage().root().to_path_buf(),
-                fixture_files_yaml(documents_enabled),
+                fixture_files_yaml(documents_config),
             )),
             app_paths,
             content_config: None,

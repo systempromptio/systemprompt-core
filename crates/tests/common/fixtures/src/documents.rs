@@ -42,6 +42,24 @@ pub fn fixture_documents_runtime_on(
     subjects: Arc<dyn SubjectAttributeSource>,
     background_tasks: BackgroundTasks,
 ) -> Arc<DocumentsRuntime> {
+    fixture_documents_runtime_configured(
+        pool,
+        file_storage,
+        hook,
+        subjects,
+        background_tasks,
+        DocumentsConfig::default(),
+    )
+}
+
+pub fn fixture_documents_runtime_configured(
+    pool: &DbPool,
+    file_storage: &Arc<dyn FileStorage>,
+    hook: &SharedAuthzHook,
+    subjects: Arc<dyn SubjectAttributeSource>,
+    background_tasks: BackgroundTasks,
+    config: DocumentsConfig,
+) -> Arc<DocumentsRuntime> {
     Arc::new(DocumentsRuntime::new(DocumentsRuntimeParts {
         database: Arc::clone(pool),
         file_storage: Arc::clone(file_storage),
@@ -54,7 +72,7 @@ pub fn fixture_documents_runtime_on(
         )),
         event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
         catalog: Vec::new(),
-        config: DocumentsConfig::default(),
+        config,
         background_tasks,
     }))
 }

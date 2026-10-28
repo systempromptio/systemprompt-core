@@ -43,9 +43,9 @@ pub use agent::{
 };
 pub use app_context::{
     default_governance_engine, default_governance_watch, fixture_analytics_repositories,
-    fixture_app_context_documents_disabled, fixture_app_context_on_bootstrap,
-    fixture_app_context_on_bootstrap_with_paths, fixture_app_context_with,
-    fixture_app_context_with_config, fixture_app_context_with_extensions,
+    fixture_app_context_documents_configured, fixture_app_context_documents_disabled,
+    fixture_app_context_on_bootstrap, fixture_app_context_on_bootstrap_with_paths,
+    fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
     fixture_app_context_with_hook, fixture_app_context_with_user_repository,
     fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_extension_context,
     fixture_fingerprint_repository, fixture_secret_store, fixture_services_state,
@@ -69,7 +69,8 @@ pub use credential::{
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
 pub use documents::{
-    fixture_documents_runtime, fixture_documents_runtime_on, fixture_documents_runtime_with,
+    fixture_documents_runtime, fixture_documents_runtime_configured, fixture_documents_runtime_on,
+    fixture_documents_runtime_with,
 };
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};

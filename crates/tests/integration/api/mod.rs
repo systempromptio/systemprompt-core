@@ -184,6 +184,7 @@ mod routes_agent_runs;
 
 #[cfg(test)]
 mod documents;
+mod documents_access_requests;
 #[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
