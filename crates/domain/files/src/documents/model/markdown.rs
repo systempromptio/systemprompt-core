@@ -22,7 +22,7 @@ use super::inline::InlineBuf;
 use super::layout::CalloutTone;
 use super::rich_text::{Block, BlockKind, MarkKind, RichText};
 
-pub use super::markdown_write::materialise;
+pub use super::markdown_write::{degrade, materialise};
 
 const OPTIONS: Options = Options::ENABLE_TABLES
     .union(Options::ENABLE_STRIKETHROUGH)

@@ -45,6 +45,22 @@ pub fn materialise_rich_text(
     materialise_rich_text_with(format, base, model, &Media::new())
 }
 
+/// The live-session materialise: like [`materialise_rich_text_with`], but a
+/// Markdown model is first degraded to what Markdown can hold, so a live
+/// checkpoint never fails on it; the warnings name what was left out.
+pub fn materialise_rich_text_live(
+    format: DocumentFormat,
+    base: &[u8],
+    model: &RichText,
+    media: &Media,
+) -> Result<(Vec<u8>, Vec<String>), ModelError> {
+    if format != DocumentFormat::Markdown {
+        return Ok((materialise_rich_text_with(format, base, model, media)?, Vec::new()));
+    }
+    let (degraded, warnings) = markdown::degrade(model);
+    Ok((markdown::materialise(&degraded)?.into_bytes(), warnings))
+}
+
 /// [`materialise_rich_text`] with the bytes of the images the model adds;
 /// see [`super::media_refs`]. Only `docx` embeds images, so only `docx`
 /// reads `media`.
