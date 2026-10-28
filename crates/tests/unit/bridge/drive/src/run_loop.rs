@@ -165,6 +165,8 @@ fn the_loop_syncs_and_folds_proxy_signals_into_the_status() {
                 kind: NoticeKind::ProposalOpened,
                 document_id: doc.clone(),
                 from: UserId::new("bob"),
+                from_name: None,
+                document_name: None,
                 proposal_id: None,
                 detail: Some("tighten".to_owned()),
             })));

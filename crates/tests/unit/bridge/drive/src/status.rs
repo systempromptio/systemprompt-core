@@ -10,6 +10,8 @@ fn notice(n: usize) -> DocumentNotice {
         kind: NoticeKind::Shared,
         document_id: DocumentId::generate(),
         from: UserId::new(format!("user-{n}")),
+        from_name: None,
+        document_name: None,
         proposal_id: None,
         detail: None,
     }

@@ -1,5 +1,5 @@
 use systemprompt_bridge::drive::pull::pull;
-use systemprompt_bridge::drive::run::{ensure_enabled, mark_server_disabled, sync_once};
+use systemprompt_bridge::drive::run::{ensure_enabled, sync_once};
 use systemprompt_bridge::drive::{DriveError, DriveHandle};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::ApiPaths;
@@ -148,20 +148,6 @@ async fn a_manifest_server_error_is_returned_not_swallowed() {
 
     assert!(!matches!(err, DriveError::ServerDisabled { .. }), "{err:?}");
     assert!(!fx.root.dir().exists());
-}
-
-#[test]
-fn marking_the_server_disabled_clears_the_error() {
-    let handle = DriveHandle::new();
-    handle.update(|s| {
-        s.enabled = true;
-        s.last_error = Some("boom".to_owned());
-    });
-
-    mark_server_disabled(&handle);
-
-    assert!(!handle.status().enabled);
-    assert_eq!(handle.status().last_error, None);
 }
 
 #[tokio::test]
