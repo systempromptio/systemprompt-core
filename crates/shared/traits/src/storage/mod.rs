@@ -9,6 +9,10 @@
 //! storage boundary. Errors are reported as [`FileStorageError`] so that
 //! callers can match on cause rather than parsing strings.
 //!
+//! [`FileStorage::store_stream`] writes an object from a byte stream; its
+//! default collects the stream and calls [`FileStorage::store`], so a backend
+//! that can write incrementally overrides it to keep memory flat.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -92,6 +96,19 @@ pub struct StoredFileMetadata {
 #[async_trait]
 pub trait FileStorage: Send + Sync {
     async fn store(&self, path: &Path, content: &[u8]) -> FileStorageResult<StoredFileId>;
+
+    async fn store_stream(
+        &self,
+        path: &Path,
+        mut body: FileByteStream,
+    ) -> FileStorageResult<StoredFileId> {
+        use futures::StreamExt;
+        let mut content = Vec::new();
+        while let Some(chunk) = body.next().await {
+            content.extend_from_slice(&chunk?);
+        }
+        self.store(path, &content).await
+    }
 
     async fn open(
         &self,

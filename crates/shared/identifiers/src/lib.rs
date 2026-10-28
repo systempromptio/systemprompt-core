@@ -137,7 +137,7 @@ pub use context::ContextId;
 pub use documents::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentEditSessionId,
     DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId, DocumentProposalId,
-    DocumentRevisionId, DocumentTemplateId, DriveDeviceId,
+    DocumentRevisionId, DocumentTemplateId, DocumentUploadId, DriveDeviceId,
 };
 pub use email::Email;
 pub use engagement::{AnalyticsEventId, EngagementEventId};

@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use futures::TryStreamExt;
 use systemprompt_traits::{
-    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
-    StoredFileRead,
+    ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, StoredFileId,
+    StoredFileMetadata, StoredFileRead,
 };
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
@@ -95,6 +95,28 @@ fn not_found(id: &StoredFileId, err: std::io::Error) -> FileStorageError {
     }
 }
 
+fn staging_path(full: &Path) -> PathBuf {
+    full.with_extension(format!(
+        "tmp-{}-{}",
+        std::process::id(),
+        uuid::Uuid::new_v4().simple()
+    ))
+}
+
+async fn discard(staging: &Path) {
+    if let Err(cleanup) = fs::remove_file(staging).await {
+        tracing::warn!(path = %staging.display(), error = %cleanup, "staging file left behind");
+    }
+}
+
+async fn publish(staging: &Path, full: &Path) -> FileStorageResult<()> {
+    if let Err(err) = fs::rename(staging, full).await {
+        discard(staging).await;
+        return Err(err.into());
+    }
+    Ok(())
+}
+
 #[async_trait]
 impl FileStorage for LocalFileStorage {
     async fn store(&self, path: &Path, content: &[u8]) -> FileStorageResult<StoredFileId> {
@@ -106,21 +128,42 @@ impl FileStorage for LocalFileStorage {
         // Why: the root may be a mount shared between replicas, and a reader
         // on another replica must never see a half-written file; the rename
         // is atomic on the same filesystem.
-        let staging = full.with_extension(format!(
-            "tmp-{}-{}",
-            std::process::id(),
-            uuid::Uuid::new_v4().simple()
-        ));
+        let staging = staging_path(&full);
         let mut file = fs::File::create(&staging).await?;
         file.write_all(content).await?;
         file.sync_all().await?;
         drop(file);
-        if let Err(err) = fs::rename(&staging, &full).await {
-            if let Err(cleanup) = fs::remove_file(&staging).await {
-                tracing::warn!(path = %staging.display(), error = %cleanup, "staging file left behind");
-            }
-            return Err(err.into());
+        publish(&staging, &full).await?;
+        Ok(id_for(relative))
+    }
+
+    async fn store_stream(
+        &self,
+        path: &Path,
+        mut body: FileByteStream,
+    ) -> FileStorageResult<StoredFileId> {
+        use futures::StreamExt;
+        let relative = relative_path(path)?;
+        let full = self.root.join(relative);
+        if let Some(parent) = full.parent() {
+            fs::create_dir_all(parent).await?;
         }
+        let staging = staging_path(&full);
+        let mut file = fs::File::create(&staging).await?;
+        while let Some(chunk) = body.next().await {
+            let written = match chunk {
+                Ok(chunk) => file.write_all(&chunk).await.map_err(FileStorageError::Io),
+                Err(err) => Err(err),
+            };
+            if let Err(err) = written {
+                drop(file);
+                discard(&staging).await;
+                return Err(err);
+            }
+        }
+        file.sync_all().await?;
+        drop(file);
+        publish(&staging, &full).await?;
         Ok(id_for(relative))
     }
 
