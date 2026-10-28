@@ -118,7 +118,7 @@ impl DocumentService {
         Ok((revision, bytes))
     }
 
-    async fn read(
+    pub(super) async fn read(
         &self,
         who: &AuthenticatedUser,
         document: &DocumentId,

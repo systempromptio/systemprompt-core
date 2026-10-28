@@ -1,6 +1,6 @@
 //! The `files.documents.limits` section: per-request input limits of the
-//! document store, each with a floor and a ceiling an operator may set
-//! between.
+//! document store and the PDF export page cap, each with a floor and a
+//! ceiling an operator may set between.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,13 +16,10 @@ const MARKDOWN_BOUNDS: (u64, u64) = (KIB, 64 * MIB);
 const COMMENT_BOUNDS: (u64, u64) = (256, MIB);
 const COLLAB_UPDATE_BOUNDS: (u64, u64) = (KIB, 64 * MIB);
 const CURSOR_BOUNDS: (u64, u64) = (256, 64 * KIB);
+const PDF_PAGES_BOUNDS: (u64, u64) = (1, 5_000);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "the field names are the documented profile keys"
-)]
 pub struct DocumentLimits {
     pub max_ops_per_call: u64,
     pub max_op_text_bytes: u64,
@@ -30,6 +27,7 @@ pub struct DocumentLimits {
     pub max_comment_bytes: u64,
     pub max_collab_update_bytes: u64,
     pub max_cursor_bytes: u64,
+    pub pdf_pages: u64,
 }
 
 impl Default for DocumentLimits {
@@ -41,13 +39,14 @@ impl Default for DocumentLimits {
             max_comment_bytes: 16 * KIB,
             max_collab_update_bytes: 4 * MIB,
             max_cursor_bytes: 4 * KIB,
+            pdf_pages: 500,
         }
     }
 }
 
 impl DocumentLimits {
     #[must_use]
-    pub const fn bounded(&self) -> [(&'static str, u64, (u64, u64)); 6] {
+    pub const fn bounded(&self) -> [(&'static str, u64, (u64, u64)); 7] {
         [
             ("maxOpsPerCall", self.max_ops_per_call, OPS_PER_CALL_BOUNDS),
             ("maxOpTextBytes", self.max_op_text_bytes, OP_TEXT_BOUNDS),
@@ -59,6 +58,7 @@ impl DocumentLimits {
                 COLLAB_UPDATE_BOUNDS,
             ),
             ("maxCursorBytes", self.max_cursor_bytes, CURSOR_BOUNDS),
+            ("pdfPages", self.pdf_pages, PDF_PAGES_BOUNDS),
         ]
     }
 }

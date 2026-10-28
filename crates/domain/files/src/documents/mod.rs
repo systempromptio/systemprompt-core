@@ -43,6 +43,7 @@ pub mod live;
 pub mod model;
 pub mod models;
 pub mod nodes;
+pub mod pdf;
 pub mod repository;
 pub mod revision;
 pub mod service;
