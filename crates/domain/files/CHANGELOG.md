@@ -6,6 +6,8 @@
 
 - Agent access caps on documents: `documents::agents` (`DocumentActor`, `act_as`, `AgentCap`, `AgentCapability`, the `AgentAccessPolicy` seam and `register_agent_access_policy!`), owner overrides on documents and folders that only tighten (migration 024), the `document_agent_reads` audit, and the `limits.agentEditsPerHour` ceiling.
 
+- The agent access policy is async and built from the database pool; `DocumentContext` carries `created_by_agent` and a nearest-first folder chain; `DocumentService::visible_documents` batch-checks view access; `sp-document-browser` gains `registerRowExtension` and `registerFolderMenuItem`.
+
 ### Breaking
 
 - `DocumentsError` gains `Agent(AgentRefusal)`, `Granted` and `TargetAccess` gain `agent_cap`, and `DocumentLimits` gains `agent_edits_per_hour`. Migrate by adding arms (or a wildcard) to exhaustive matches and the fields to struct literals.

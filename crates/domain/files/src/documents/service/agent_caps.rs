@@ -134,8 +134,9 @@ impl DocumentService {
         let own_override = self
             .repos
             .documents
-            .cap_overrides(&document, &folders)
+            .agent_facts(&document, &folders)
             .await?
+            .overrides
             .first()
             .map(crate::documents::repository::CapOverride::cap);
         Ok(AgentCapView {

@@ -8,6 +8,7 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
 use systemprompt_files::DocumentsConfig;
+use systemprompt_files::documents::agents::registered_policy;
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::codecs::CodecRegistry;
 use systemprompt_files::documents::repository::DocumentRepositories;
@@ -82,17 +83,20 @@ impl DocumentsRuntime {
             background_tasks,
         } = parts;
         let repositories = Arc::new(DocumentRepositories::new(&database));
-        let access = Arc::new(DocumentAccessService::new(
-            DocumentAccessRepositories {
-                grants: Arc::clone(&repositories.grants),
-                folders: Arc::clone(&repositories.folders),
-                documents: Arc::clone(&repositories.documents),
-                access_entities,
-            },
-            authz_hook,
-            subjects,
-            directory,
-        ));
+        let access = Arc::new(
+            DocumentAccessService::new(
+                DocumentAccessRepositories {
+                    grants: Arc::clone(&repositories.grants),
+                    folders: Arc::clone(&repositories.folders),
+                    documents: Arc::clone(&repositories.documents),
+                    access_entities,
+                },
+                authz_hook,
+                subjects,
+                directory,
+            )
+            .with_agent_policy(registered_policy(&database)),
+        );
         let blobs = Arc::new(BlobStore::new(
             Arc::clone(&file_storage),
             Arc::clone(&repositories.blobs),

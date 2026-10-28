@@ -4,6 +4,41 @@ import { attr, errorText, escapeHtml, formatBytes, formatTime } from "./document
 
 const SCOPES = [["mine", "Mine"], ["shared", "Shared with me"], ["recent", "Recent"]];
 
+const rowExtensions = [];
+const folderMenuItems = [];
+
+/**
+ * Adds to every row an installation renders: `extend({ kind, item })`, with
+ * kind "folder" or "document", returns `{ attrs, html }` or nothing. `attrs`
+ * keys must start with `data-` and are escaped here; `html` is the
+ * extension's own markup, placed in the row's `.sp-doc-browser__ext` slot,
+ * and the extension escapes what it interpolates.
+ */
+export function registerRowExtension(extend) {
+  rowExtensions.push(extend);
+}
+
+/**
+ * Adds an entry to the folder menu (the row's "More" button, or a right
+ * click on the row): `{ id, label, run({ folder, browser }) }`.
+ */
+export function registerFolderMenuItem(item) {
+  folderMenuItems.push(item);
+}
+
+function extensionsOf(kind, item) {
+  let attrs = "";
+  let html = "";
+  for (const extend of rowExtensions) {
+    const out = extend({ kind, item }) ?? {};
+    for (const [name, value] of Object.entries(out.attrs ?? {})) {
+      if (name.startsWith("data-")) { attrs += attr(name, value); }
+    }
+    html += out.html ?? "";
+  }
+  return { attrs, slot: html ? `<span class="sp-doc-browser__ext">${html}</span>` : "" };
+}
+
 export class SpDocumentBrowser extends DocumentsElement {
   onConnect() {
     this.scope = this.getAttribute("scope") ?? "mine";
@@ -18,10 +53,42 @@ export class SpDocumentBrowser extends DocumentsElement {
       bubbles: true,
       detail: { id: el.dataset.id, format: el.dataset.format, name: el.dataset.name },
     })));
+    this.menuFor = null;
+    this.on("action:folder-menu", (el) => this.toggleMenu(el.dataset.id));
+    this.on("action:folder-menu-item", (el) => this.runMenuItem(el.dataset.item));
+    this.addEventListener("contextmenu", (event) => {
+      const row = event.target.closest("[data-folder-row]");
+      if (row && folderMenuItems.length) {
+        event.preventDefault();
+        this.toggleMenu(row.dataset.folderRow);
+      }
+    });
     this.on("input:filter", (el) => { this.filter = el.value; this.invalidate(); });
     this.on("submit:search", () => this.load());
     this.onDocumentEvent((name) => { if (name === "document.revision.created") { this.load(); } });
     this.load();
+  }
+
+  toggleMenu(id) {
+    this.menuFor = this.menuFor === id ? null : id;
+    this.invalidate();
+  }
+
+  runMenuItem(itemId) {
+    const folder = (this.listing.folders ?? []).find((f) => f.id === this.menuFor);
+    const item = folderMenuItems.find((entry) => entry.id === itemId);
+    this.menuFor = null;
+    this.invalidate();
+    if (folder && item) { item.run({ folder, browser: this }); }
+  }
+
+  renderMenu(folder) {
+    if (!folderMenuItems.length) { return ""; }
+    const open = this.menuFor === folder.id;
+    const toggle = `<button type="button" class="sp-doc-browser__more" data-action="folder-menu"${attr("data-id", folder.id)}${attr("aria-expanded", String(open))} aria-label="More">⋯</button>`;
+    if (!open) { return toggle; }
+    const items = folderMenuItems.map((item) => `<li role="none"><button type="button" role="menuitem" class="sp-doc-browser__menu-item" data-action="folder-menu-item"${attr("data-item", item.id)}>${escapeHtml(item.label)}</button></li>`).join("");
+    return `${toggle}<ul class="sp-doc-browser__menu" role="menu">${items}</ul>`;
   }
 
   go({ scope = this.scope, path = this.path }) {
@@ -52,16 +119,18 @@ export class SpDocumentBrowser extends DocumentsElement {
   }
 
   renderFolder(folder) {
-    return `<li class="sp-doc-browser__row sp-doc-browser__row--folder"${attr("data-key", `f-${folder.id}`)}>
+    const ext = extensionsOf("folder", folder);
+    return `<li class="sp-doc-browser__row sp-doc-browser__row--folder"${attr("data-key", `f-${folder.id}`)}${attr("data-folder-row", folder.id)}${ext.attrs}>
       <button type="button" class="sp-doc-browser__link" data-action="folder"${attr("data-id", folder.id)}${attr("data-name", folder.name)}>${escapeHtml(folder.name)}/</button>
-      <span class="sp-doc-browser__meta">${escapeHtml(formatTime(folder.updated_at))}</span></li>`;
+      ${ext.slot}<span class="sp-doc-browser__meta">${escapeHtml(formatTime(folder.updated_at))}</span>${this.renderMenu(folder)}</li>`;
   }
 
   renderDocument(item) {
     const access = item.my_access ? `<span class="sp-doc-browser__badge">${escapeHtml(item.my_access)}</span>` : "";
-    return `<li class="sp-doc-browser__row"${attr("data-key", `d-${item.id}`)}>
+    const ext = extensionsOf("document", item);
+    return `<li class="sp-doc-browser__row"${attr("data-key", `d-${item.id}`)}${attr("data-document-row", item.id)}${ext.attrs}>
       <button type="button" class="sp-doc-browser__link" data-action="open"${attr("data-id", item.id)}${attr("data-format", item.format)}${attr("data-name", item.name)}>${escapeHtml(item.name)}</button>
-      ${access}<span class="sp-doc-browser__meta">${escapeHtml(formatBytes(item.size_bytes))}</span>
+      ${ext.slot}${access}<span class="sp-doc-browser__meta">${escapeHtml(formatBytes(item.size_bytes))}</span>
       <span class="sp-doc-browser__meta">${escapeHtml(formatTime(item.updated_at))}</span></li>`;
   }
 

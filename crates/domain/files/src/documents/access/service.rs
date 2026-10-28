@@ -17,7 +17,7 @@ use uuid::Uuid;
 use super::SubjectDirectory;
 use super::agent::AgentGate;
 use super::request::{authz_request, not_found};
-use crate::documents::agents::{AgentAccessPolicy, EffectiveCap, registered_policy};
+use crate::documents::agents::{AgentAccessPolicy, DefaultAgentAccessPolicy, EffectiveCap};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder, SubjectPairs};
 use crate::documents::repository::{
@@ -122,12 +122,13 @@ impl DocumentAccessService {
             hook,
             subjects,
             directory,
-            agents: registered_policy(),
+            agents: Arc::new(DefaultAgentAccessPolicy),
         }
     }
 
-    /// Replaces the registered agent access policy, for a composition root
-    /// or a test that sets it explicitly.
+    /// Sets the agent access policy; without it the service applies
+    /// [`DefaultAgentAccessPolicy`]. The composition root passes
+    /// [`registered_policy`](crate::documents::agents::registered_policy).
     #[must_use]
     pub fn with_agent_policy(mut self, policy: Arc<dyn AgentAccessPolicy>) -> Self {
         self.agents = policy;

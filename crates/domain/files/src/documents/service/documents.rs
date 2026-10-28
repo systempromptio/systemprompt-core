@@ -17,6 +17,7 @@ use super::content::{apply_content, apply_rich_on_new};
 use super::support::{apply_with, blocking, document_name, format_of_name, join_path};
 use super::{Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
 use crate::documents::access::AccessTarget;
+use crate::documents::agents::current_actor;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewDocument};
 use crate::documents::repository::PathMove;
@@ -173,6 +174,12 @@ impl DocumentService {
                 created_by: who.id.clone(),
             })
             .await?;
+        if let Some(agent) = current_actor().as_agent() {
+            self.repos
+                .documents
+                .set_created_by_agent(&document.id, &agent.name)
+                .await?;
+        }
         let revision = match self
             .first_revision(who, &document, blob.hash, &content)
             .await

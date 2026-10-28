@@ -12,6 +12,8 @@ mod documents_access_requests;
 #[cfg(test)]
 mod documents_agent_caps;
 #[cfg(test)]
+mod documents_agent_context;
+#[cfg(test)]
 mod documents_agent_fixture;
 #[cfg(test)]
 mod documents_agent_rules;

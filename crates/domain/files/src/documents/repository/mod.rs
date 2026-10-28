@@ -46,7 +46,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
 pub use access_requests::DocumentAccessRequestRepository;
-pub use agent_caps::{AgentReadRecord, CapOverride};
+pub use agent_caps::{AgentFacts, AgentReadRecord, CapOverride};
 pub use blobs::DocumentBlobRepository;
 pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository, SnapshotMark};
 pub use comments::DocumentCommentRepository;

@@ -1,10 +1,15 @@
 -- Agent caps: an owner-set override on a document or folder that only
--- tightens what the agent access policy allows agents, and an audit row for
--- every agent read made under a cap below edit.
+-- tightens what the agent access policy allows agents, the agent that
+-- created a document, and an audit row for every agent read made under a
+-- cap below edit.
 
 ALTER TABLE documents
     ADD COLUMN IF NOT EXISTS agent_cap TEXT
         CHECK (agent_cap IN ('none', 'read', 'comment', 'suggest', 'edit'));
+
+ALTER TABLE documents
+    ADD COLUMN IF NOT EXISTS created_by_agent TEXT
+        CHECK (created_by_agent IS NULL OR length(created_by_agent) BETWEEN 1 AND 64);
 
 ALTER TABLE document_folders
     ADD COLUMN IF NOT EXISTS agent_cap TEXT

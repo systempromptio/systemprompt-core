@@ -26,6 +26,14 @@ impl CapOverride {
     }
 }
 
+/// The overrides on a target and the folders above it, and the agent that
+/// created the document.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AgentFacts {
+    pub overrides: Vec<CapOverride>,
+    pub created_by_agent: Option<String>,
+}
+
 /// One agent read to audit.
 #[derive(Debug, Clone, Copy)]
 pub struct AgentReadRecord<'a> {
@@ -40,29 +48,31 @@ pub struct AgentReadRecord<'a> {
 }
 
 impl DocumentRepository {
-    /// Every override on `document` and on `folders`; pass a nil document
-    /// id for a folder target.
-    pub async fn cap_overrides(
+    /// Every override on `document` and on `folders`, and the agent that
+    /// created `document`; pass a nil document id for a folder target.
+    pub async fn agent_facts(
         &self,
         document: &DocumentId,
         folders: &[DocumentFolderId],
-    ) -> RepoResult<Vec<CapOverride>> {
-        let mut overrides = Vec::new();
-        let on_document = sqlx::query_scalar!(
-            r#"SELECT agent_cap FROM documents WHERE id = $1::text::uuid"#,
+    ) -> RepoResult<AgentFacts> {
+        let mut facts = AgentFacts::default();
+        let row = sqlx::query!(
+            r#"SELECT agent_cap, created_by_agent FROM documents WHERE id = $1::text::uuid"#,
             document.as_str(),
         )
         .fetch_optional(&*self.pools.read)
-        .await?
-        .flatten();
-        if let Some(cap) = on_document {
-            overrides.push(CapOverride::Document(
-                document.clone(),
-                parse("documents.agent_cap", &cap)?,
-            ));
+        .await?;
+        if let Some(row) = row {
+            facts.created_by_agent = row.created_by_agent;
+            if let Some(cap) = row.agent_cap {
+                facts.overrides.push(CapOverride::Document(
+                    document.clone(),
+                    parse("documents.agent_cap", &cap)?,
+                ));
+            }
         }
         if folders.is_empty() {
-            return Ok(overrides);
+            return Ok(facts);
         }
         let folder_ids: Vec<String> = folders.iter().map(|id| id.as_str().to_owned()).collect();
         let rows = sqlx::query!(
@@ -74,12 +84,24 @@ impl DocumentRepository {
         .fetch_all(&*self.pools.read)
         .await?;
         for row in rows {
-            overrides.push(CapOverride::Folder(
+            facts.overrides.push(CapOverride::Folder(
                 row.id,
                 parse("document_folders.agent_cap", &row.agent_cap)?,
             ));
         }
-        Ok(overrides)
+        Ok(facts)
+    }
+
+    /// Records the agent that created `document`.
+    pub async fn set_created_by_agent(&self, document: &DocumentId, agent: &str) -> RepoResult<()> {
+        sqlx::query!(
+            r#"UPDATE documents SET created_by_agent = $2 WHERE id = $1::text::uuid"#,
+            document.as_str(),
+            agent,
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(())
     }
 
     pub async fn set_document_agent_cap(

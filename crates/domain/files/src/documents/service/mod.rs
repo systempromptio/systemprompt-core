@@ -62,6 +62,7 @@ mod publish;
 mod reads;
 mod support;
 mod types;
+mod visibility;
 
 use std::sync::Arc;
 
@@ -90,6 +91,7 @@ pub use types::{
     CreateRequest, DocumentView, HistoryPage, ImportRequest, LandedCommit, ListFolderRequest,
     Listing, NewFolderRequest, RevisionOrigin, SearchResult, StreamRequest,
 };
+pub use visibility::MAX_VISIBILITY_BATCH;
 
 use super::access::DocumentAccessService;
 use super::agents::AgentRateLimiter;

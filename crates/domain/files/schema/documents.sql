@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS documents (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
     trashed_by VARCHAR(255),
-    agent_cap TEXT CHECK (agent_cap IN ('none', 'read', 'comment', 'suggest', 'edit'))
+    agent_cap TEXT CHECK (agent_cap IN ('none', 'read', 'comment', 'suggest', 'edit')),
+    created_by_agent TEXT CHECK (created_by_agent IS NULL OR length(created_by_agent) BETWEEN 1 AND 64)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_documents_folder_name

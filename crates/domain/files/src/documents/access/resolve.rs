@@ -1,5 +1,6 @@
 //! Grant resolution: the level a user holds on a target before the hook is
-//! asked.
+//! asked. The folder chain it resolves through is nearest-first: the
+//! target's folder (or the folder itself), then each folder above it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,7 +35,7 @@ impl DocumentAccessService {
                 let mut chain = Vec::new();
                 if let Some(folder) = &document.folder_id {
                     chain.push(folder.clone());
-                    chain.extend(self.folders.ancestors(folder).await?);
+                    chain.extend(self.folders.ancestors(folder).await?.into_iter().rev());
                 }
                 let level = if document.owner_user_id == who.id {
                     Some(AccessLevel::Own)
@@ -70,7 +71,7 @@ impl DocumentAccessService {
                     .filter(|f| f.trashed_at.is_none())
                     .ok_or_else(|| DocumentsError::not_found("folder", id))?;
                 let mut chain = vec![folder.id.clone()];
-                chain.extend(folder.ancestor_ids.iter().cloned());
+                chain.extend(folder.ancestor_ids.iter().rev().cloned());
                 let level = if folder.owner_user_id == who.id {
                     Some(AccessLevel::Own)
                 } else {

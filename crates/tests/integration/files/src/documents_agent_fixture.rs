@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{
@@ -26,16 +27,17 @@ pub(crate) struct FixedPolicy {
     pub(crate) allows: Vec<AgentCapability>,
 }
 
+#[async_trait]
 impl AgentAccessPolicy for FixedPolicy {
     fn name(&self) -> &'static str {
         "fixed"
     }
 
-    fn cap(&self, _doc: &DocumentContext, _agent: &AgentActor) -> AgentCap {
+    async fn cap(&self, _doc: &DocumentContext, _agent: &AgentActor) -> AgentCap {
         self.cap
     }
 
-    fn allows(
+    async fn allows(
         &self,
         capability: AgentCapability,
         _doc: &DocumentContext,

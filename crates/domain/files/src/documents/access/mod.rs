@@ -38,6 +38,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod agent;
+mod agent_queries;
 mod catalog;
 mod directory;
 mod request;
