@@ -50,6 +50,15 @@
 - **Breaking:** **CLI:** `DeployOrchestrator::deploy` takes the `DeployProvider` to deploy through as its first argument, `DeployRequest::credentials` is replaced by `platform_credentials: Option<CloudCredentials>`, `DeployOptions` gains `wait_ready`, and `AuthCommands` is no longer `Copy` (`Login` gains `issuer` and `client_id`). Migrate by passing `SystempromptCloud::new(client, tenant_id)` and `Some(credentials)`.
 - **Breaking:** **CLI:** `ExecutionTarget` gains `SelfManaged { hostname }`, returned for a `kubernetes` or `gke` tenant; `routing::authorize_target` exchanges it for a `Remote` target. Migrate by adding an arm to exhaustive matches.
 
+- **Breaking:** **Files:** `SubjectDirectory` gains `search_users` and `roles`, and `UserSubjectDirectory::new` takes the extension-declared role names. Migrate implementations by adding both methods and construct the directory with `Vec::new()` or the registry's roles.
+- **Breaking:** **Files:** `DocumentService::access_of` takes a `history: bool`, and `DocumentAccess` is `TargetAccess<Document>` with `target`, `inherited: Vec<InheritedGrant>`, `history` and `requests`. Migrate by passing `false` and reading `access.target` and `inherited[..].grant`.
+- **Breaking:** **Files:** `ShareRequest` gains `message`, `NewGrant` gains `trace_id`, and `DocumentGrantRepository::delete` and `delete_for_document` take a `&GrantActor`. Migrate struct literals by adding the fields and pass the acting user and trace.
+- **Breaking:** **Files:** `share` refuses a subject that does not exist (an inactive or unknown user, a role outside the role catalogue, or a value a listing dimension does not list) with `UnknownSubject`. Migrate by sharing with existing subjects.
+- **Breaking:** **Files:** `DocumentRepository::set_owner` is removed; ownership moves through `DocumentGrantEventRepository::transfer_owner`. Migrate by calling `DocumentService::transfer_ownership`.
+- **Breaking:** **Files:** `DocumentsError` gains `AccessRequestOpen`, `AccessRequestNotNeeded` and `AccessRequestClosed`, and `DocumentsConfig` gains `access_requests`. Migrate by adding arms (or a wildcard) and `access_requests: false` to struct literals.
+- **Breaking:** **Models:** `DocumentSharedEvent` gains `message` and `DocumentEventName` gains `AccessRequested`. Migrate struct literals by adding `message: None` and exhaustive matches by adding an arm.
+- **Breaking:** **Runtime:** `AccessOutput` carries `document_id` and `folder_id` as options plus `history` and `requests`, `GrantItem` gains `inherited_from`, and `documents_access` takes `AccessInput { document_id, history }`. Migrate by building `AccessOutput` with `From<DocumentAccess>` or `From<FolderAccess>`.
+
 ### Added
 
 - **Scheduler:** a report-only licence check-in. A profile with `licence.multi_tenant: true` runs the cluster-scoped `licence_checkin` job, which posts the licence id, tenant id, instance id, core version, hosting provider, external URL host and live replica count per `server.role` to `licence.endpoint` (default `https://api.systemprompt.io/api/v1/licence/checkin`) at most once per `licence.interval_secs` (default 21600, minimum 3600). The JSON body is signed with HMAC-SHA256 under the `licence_signing_secret` secret in `X-Systemprompt-Signature`, and the request goes through the guarded outbound client. The secret is required at boot when `multi_tenant` is set. A failed check-in is logged and recorded in `licence_checkin_state`; it never blocks a request or changes service behaviour. A profile without the block is unchanged.
@@ -68,6 +77,15 @@
 - **API:** `RouterExt::with_bearer_window` charges the database-backed per-user rate-limit window by the signature-verified bearer token on routers that authenticate inside their handlers; the gateway and bridge routes use it, so their per-user limits hold across replicas.
 - **CLI:** `cloud doctor --distributed` warns when `database_session_url` is unset or looks like a transaction-mode pooler (a `pooler` host or port 6432/5433), where LISTEN/NOTIFY would be silently dead.
 - **CI:** the `check-no-vendor` gate fails on any tracked `vendor/` or `node_modules/` directory, `package.json`, `.wasm` or externally loaded script, and the `build-no-engine` job builds the facade with `files-collab` and no engine crate.
+- **Files:** the grant audit log: every grant change (`granted`, `changed`, `revoked`, `revoked_all`, `transferred`, `expired`) writes a `document_grant_events` row in the same statement, read by holders of `share` through `documents_access` `history: true` and `GET /{id}/access?history=true`, and reported by the `report_document_sharing` view.
+- **Files:** subject search, `GET /api/v1/documents/subjects?kind=&q=&limit=`, over users, the role catalogue and dimension values a provider can list.
+- **Governance:** `SubjectAttributeProvider::known_values` and `SubjectAttributeSource::known_values`, defaulting to `None`, let a dimension list its values for sharing.
+- **Files:** folder sharing over REST: `GET`, `POST`, `DELETE /api/v1/document-folders/{id}/grants` and `GET /api/v1/document-folders/{id}/access`; inherited grants carry `inherited_from { folder_id, name }`.
+- **Files:** a share may carry a `message` (at most 1 KiB), sent on `document.shared` and shown in the bridge notification.
+- **Files:** access requests behind `files.documents.accessRequests` (off by default): `POST /{id}/access-requests`, `POST /{id}/access-requests/{rid}/grant|decline`, the `document.access_requested` event, open requests in access read-backs, and `can_request: true` on a signed-in caller's `not_found` for an existing document.
+- **Files:** the share dialog searches subjects as a keyboard-navigable typeahead (`sp-subject-picker`), shows who has access read-only below `share`, names the folder of inherited grants, greys expired grants, confirms transfer and revoke-all, takes a message, lists access requests and shows the access history.
+- **Users:** `UserRepository::search_active_by_prefix` and `list_active_roles`.
+- **Identifiers:** `DocumentAccessRequestId`.
 - **Users:** `UserRepository::list_active_ids_with_role`.
 - **Files:** `DocumentGrant::is_expired`, and grant listings and access read-backs carry `expired: true` for a grant past its `valid_until`.
 

@@ -69,6 +69,20 @@ A caller who holds no level on a document or folder is answered `not_found`, nev
 - Transferring ownership names an active user; any other recipient is refused with `unknown_subject`. The previous owner keeps `edit`.
 - Revoking a grant, revoking every grant and a grant's expiry remove the presence rows of the users it named, which also ends their live editing state. Role subjects are resolved to their active members; dimension subjects have no reverse index and rely on the recipient filter below.
 - A grant past its `valid_until` grants nothing. Until the presence sweep deletes it, listings and access read-backs mark it `expired: true`.
+- The subject must exist: an active user, a role in the role catalogue (the built-in `admin` and `user`, the roles extensions declare, and every role an active user holds), or a dimension value its provider lists. A dimension whose provider cannot list its values accepts any value. Anything else is refused with `unknown_subject`.
+- `GET /api/v1/documents/subjects?kind=&q=&limit=` searches subjects for a share dialog: users by display name, name or email prefix, roles from the catalogue, and dimension values from providers that can list them, up to 20. A kind that cannot be listed answers `searchable: false`.
+- A share may carry a `message` of at most 1 KiB, sent on `document.shared` and shown in the bridge notification.
+- Folders are shared the same way as documents, over MCP (`documents_share` with `folder_id`) and REST (`/api/v1/document-folders/{id}/grants`). An access read-back lists each inherited grant with `inherited_from: {folder_id, name}`.
+
+### Grant audit log
+
+Every grant change writes a `document_grant_events` row in the same statement: `granted`, `changed` (with the old and new level), `revoked`, `revoked_all`, `transferred` and `expired` (from the presence sweep, with no actor). Each row records the target, the subject, the levels, `valid_until`, the acting user and the request's trace id. Holders of `share` read the newest 100 rows with `documents_access` `history: true` or `GET /{id}/access?history=true` on a document or a folder; callers below `share` never see them. The `report_document_sharing` view exposes the log for reporting and hides rows whose acting user has since been deleted.
+
+### Access requests
+
+With `files.documents.accessRequests` on, a signed-in user who holds no level on a document can ask its owner for one: `POST /api/v1/documents/{id}/access-requests {level, message?}`. A user holds at most one open request per document; a second is refused with `access_request_open`. The owner receives `document.access_requested`. Holders of `share` see open requests in `documents_access` and `GET /{id}/access` (and in the share dialog), and answer with `POST /{id}/access-requests/{rid}/grant` or `/decline`. Granting shares the requested level with the requester under every sharing rule above and writes the audit log; a request already answered is refused with `access_request_closed`.
+
+A caller with no level is still answered `not_found`. With access requests on, a signed-in caller's refusal on a document that exists also carries `can_request: true`, which tells that caller the document exists. That is the trade-off of the setting, and why it is off by default: with it off, a document you cannot open is indistinguishable from one that does not exist.
 
 ## Revision engine
 
@@ -102,8 +116,8 @@ Document tools are exposed through MCP and authorise as the calling user, never 
 | `documents_comment` | Create, list and resolve comment threads anchored to a node and, optionally, a quote inside it. |
 | `documents_history` | Revisions, newest first, with author, actor kind and message, and with `verbose` the session, context, trace, task and on-behalf-of user. |
 | `documents_proposals` | A document's proposals with their status, or, with `action: accept` or `reject`, review one with an optional note (needs edit access). |
-| `documents_share` | Grant a subject access to a document or a folder subtree, transfer a document's ownership, or revoke every grant on it. |
-| `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders, and the caller's level. |
+| `documents_share` | Grant a subject access to a document or a folder subtree with an optional `message`, transfer a document's ownership, or revoke every grant on it. |
+| `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders with the folder named, and the caller's level; for holders of `share`, open access requests and, with `history: true`, the grant audit log. |
 | `documents_copy` | A new document owned by the caller from another document's head, with its own history. |
 | `documents_update` | Rename a document or move it to another folder; `folder_id: null` moves it to the root. |
 | `documents_trash` | Move a document to the trash. |
@@ -146,9 +160,11 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `POST /api/v1/documents/{id}/restore`, `/copy` | Restore from the trash; copy into a new document. |
 | `GET /api/v1/documents/{id}/read` | The `documents_read` views: `view=outline`, `text`, `changes` (`since_revision`), `node` (`node_id`), `search` (`text`) or `meta`, at `revision_id` or the head. |
 | `GET`, `POST /api/v1/documents/{id}/comments`, `POST /api/v1/documents/{id}/comments/{comment_id}/resolve` | Comment threads. |
-| `GET /api/v1/documents/{id}/access` | Owner, grants with display names, inherited grants and the caller's level. |
+| `GET /api/v1/documents/{id}/access` | Owner, grants with display names, inherited grants with `inherited_from`, the caller's level, open access requests for holders of `share`, and with `?history=true` the grant audit log. |
 | `POST /api/v1/documents/{id}/transfer`, `DELETE /api/v1/documents/{id}/grants/all` | Ownership transfer; revoke every grant. |
 | `GET /api/v1/documents/subject-kinds` | The grant subject kinds this installation accepts. |
+| `GET /api/v1/documents/subjects` | Subject search by `kind`, `q` (prefix) and `limit` (at most 20). |
+| `POST /api/v1/documents/{id}/access-requests`, `POST /api/v1/documents/{id}/access-requests/{rid}/grant`, `/decline` | Request access; answer a request (needs `share`). |
 | `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support. Replace the bytes with `If-Match: "<revision_id>"`; a stale base merges as described above or returns `409` with the head and base. `?op_id=` makes the write idempotent. |
 | `POST /api/v1/documents/{id}/edits` | Structured edit operations, with an optional base revision, `op_id`, `answering`, `allow_detach` and `mode` (`land` or `propose`). A proposal answers `201` with the proposal and its revision. |
 | `GET /api/v1/documents/{id}/proposals` | Proposals, newest first; `?status=` filters. |
@@ -156,14 +172,15 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `POST /api/v1/documents/{id}/proposals/{pid}/accept`, `/reject` | Review with an optional `note`. Accept answers the landed revision and whether it was rebased. |
 | `GET /api/v1/documents/{id}/revisions` | Revision history. |
 | `GET /api/v1/documents/{id}/projection`, `/preview` | Node projection and HTML preview. |
-| `GET`, `POST`, `DELETE /api/v1/documents/{id}/grants` | Grants. |
+| `GET`, `POST`, `DELETE /api/v1/documents/{id}/grants` | Grants; `POST` takes an optional `message`. |
+| `GET`, `POST`, `DELETE /api/v1/document-folders/{id}/grants`, `GET /api/v1/document-folders/{id}/access` | Folder grants and access, in the same shapes as a document's. |
 | `PUT`, `GET /api/v1/documents/{id}/presence` | Presence beacons. |
 | `POST`, `DELETE /api/v1/documents/{id}/lock` | Lease lock. |
 | `GET`, `POST`, `PATCH /api/v1/document-folders` | Folders: list, create, rename, move, and set `agent_edit_policy` (`direct` or `propose`, needs `share` access). |
 
 With the `files-collab` facade feature (part of `full`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
 
-A write records the request's session, trace and task, and the conversation named by an `x-context-id` header. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`. Errors map to `409` conflict, stale anchor, `proposal_conflict` and `proposal_closed`, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
+A write records the request's session, trace and task, and the conversation named by an `x-context-id` header. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`. Errors map to `409` conflict, stale anchor, `proposal_conflict`, `proposal_closed`, `access_request_open` and `access_request_closed`, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
 
 ## Live co-editing
 
@@ -194,7 +211,7 @@ The files extension ships native ES module Web Components for browsing, previewi
 |---|---|
 | `assets/documents/js/documents.js` | Entry module; importing it defines every component |
 | `assets/documents/js/*.js` | One module per component, plus the HTTP client, the event stream and helpers |
-| `assets/documents/css/documents.css`, `documents-panels.css` | Styles built on the install's `--sp-` design tokens |
+| `assets/documents/css/documents.css`, `documents-panels.css`, `documents-sharing.css` | Styles built on the install's `--sp-` design tokens |
 
 Core ships no third-party frontend code, so there is no live editor component: a live-session client vendors its own CRDT client at the engine's wire version (`systemprompt_engine_loro::WIRE_VERSION`) and speaks the collab routes above.
 
@@ -205,7 +222,8 @@ Core ships no third-party frontend code, so there is no live editor component: a
 | `sp-presence-bar` | `document-id` | `GET /{id}/presence`, `document.presence` events |
 | `sp-sheet-grid` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `set_cells` |
 | `sp-slide-text` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `replace_text` by node id and hash |
-| `sp-share-dialog` | `document-id` | `GET /{id}/access` and `GET /subject-kinds`, `POST` and `DELETE /{id}/grants`, `DELETE /{id}/grants/all` and `POST /{id}/transfer` |
+| `sp-share-dialog` | `document-id` | `GET /{id}/access` (with `history` when the history panel is open) and `GET /subject-kinds`, `POST` and `DELETE /{id}/grants`, `DELETE /{id}/grants/all`, `POST /{id}/transfer` and the access-request answers; below `share` it shows who has access read-only; transfer and revoke-all ask for confirmation |
+| `sp-subject-picker` | `kinds`, `label` | `GET /subjects` as a debounced, keyboard-navigable typeahead inside the share and transfer forms |
 | `sp-history` | `document-id` | `GET /{id}/revisions`, a `restore` op on `POST /{id}/edits`, and `GET /{id}/read?view=changes` since a revision |
 | `sp-comments` | `document-id`, `anchor-node` | `/{id}/comments`; hidden when the install answers `404` |
 | `sp-proposal-list` | `document-id` | `GET /{id}/proposals`, the changed lines from `GET /{id}/proposals/{pid}`, accept or reject with a note, `document.proposal.*` events; hidden when the install answers `404` |
@@ -237,7 +255,7 @@ Behaviour:
 - A document renamed or moved to another folder remotely is moved to its new path, with its sync state. A folder rename or move reaches the device when it next reconciles against the manifest.
 - The local file is hashed again just before a downloaded head replaces it. An edit made while the blob was downloading is kept as a conflict sibling.
 - Presence is reported from file activity and from agent tool calls that touch a path inside the Drive folder.
-- A `document.proposal.opened` event on the bridge stream raises a desktop notification, and so does a `document.shared` event whose `recipient_user_id` is the device user, naming the document and the sharer.
+- A `document.proposal.opened` event on the bridge stream raises a desktop notification, and so does a `document.shared` event whose `recipient_user_id` is the device user, naming the document, the sharer and the share message when there is one.
 - Each sync refreshes the open proposals, which `bridge drive status` lists with the documents shared with the user that the folder has not synced yet.
 - Status shows in the tray, the GUI and `bridge drive status|sync|conflicts`. The `[drive] enabled` setting turns the loop off.
 
@@ -266,6 +284,7 @@ The store reads the `files.documents` section of `<services>/config/files.yaml`.
 | `blobGcGraceHours` | 24 | at least 1 | Age before an unreferenced blob can be deleted. |
 | `presenceTtlSecs` | 90 | at least 1 | How long a presence beacon stays valid. |
 | `trashRetentionDays` | 30 | at least 1 | How long a trashed document is kept before it is deleted. |
+| `accessRequests` | `false` | | Lets a signed-in user with no level request access, and adds `can_request: true` to their `not_found` refusals. |
 | `limits.maxOpsPerCall` | 200 | 1 to 10,000 | Edit operations in one call. |
 | `limits.maxOpTextBytes` | 1 MiB | 1 KiB to 64 MiB | Text one operation carries. |
 | `limits.maxMarkdownBytes` | 1 MiB | 1 KiB to 64 MiB | Markdown, HTML or whole-document text one operation carries. |
@@ -280,7 +299,7 @@ Config validation rejects values outside the bounds.
 | Job | Schedule | Behaviour |
 |---|---|---|
 | `document_blob_gc` | daily | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
-| Presence sweep | every 60 seconds | Removes expired presence rows, grants past their `valid_until` (with the named user's presence on that document) and write acknowledgements older than seven days, and reopens accepted proposals that have not landed after five minutes. |
+| Presence sweep | every 60 seconds | Removes expired presence rows, grants past their `valid_until` (with the named user's presence on that document, and an `expired` audit row) and write acknowledgements older than seven days, and reopens accepted proposals that have not landed after five minutes. |
 | `document_collab_update_sweep` | every 5 minutes | Deletes the update log of closed edit sessions. |
 | `document_trash_purge` | daily | Deletes documents trashed longer than the retention period, with their revisions, node ids, grants and comments; the blob GC then collects their blobs. |
 
