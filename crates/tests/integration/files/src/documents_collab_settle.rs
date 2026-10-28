@@ -43,13 +43,14 @@ async fn write(c: &Collab, owner: &AuthenticatedUser, document: &DocumentId, fro
                 message: None,
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
+                op_id: None,
             },
             &trace(),
         )
         .await
         .expect("commit");
     assert!(
-        matches!(outcome, CommitOutcome::Committed { .. }),
+        matches!(outcome, CommitOutcome::Committed(_)),
         "{outcome:?}"
     );
 }
