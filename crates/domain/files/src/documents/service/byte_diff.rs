@@ -62,8 +62,7 @@ impl DocumentService {
         input: DiffInput,
     ) -> Result<Option<AppliedOps>, DocumentsError> {
         let base_revision = self.resolve_revision(document, base).await?;
-        let base = self.projected(document, &base_revision).await?;
-        let base_bytes = self.revision_bytes(&base_revision).await?;
+        let (base, base_bytes) = self.projected_with_bytes(document, &base_revision).await?;
         let codec = self.codec(document.format)?;
         let format = document.format;
         blocking(move || {

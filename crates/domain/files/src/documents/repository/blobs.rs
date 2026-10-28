@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContentHash;
 
@@ -43,6 +44,14 @@ impl DocumentBlobRepository {
     }
 
     pub async fn find(&self, hash: &ContentHash) -> RepoResult<Option<DocumentBlob>> {
+        Self::find_in(&self.pools.read, hash).await
+    }
+
+    pub async fn find_on_primary(&self, hash: &ContentHash) -> RepoResult<Option<DocumentBlob>> {
+        Self::find_in(&self.pools.write, hash).await
+    }
+
+    async fn find_in(pool: &PgPool, hash: &ContentHash) -> RepoResult<Option<DocumentBlob>> {
         Ok(sqlx::query_as!(
             DocumentBlob,
             r#"SELECT content_sha256 AS "content_sha256: ContentHash",
@@ -50,7 +59,7 @@ impl DocumentBlobRepository {
                FROM document_blobs WHERE content_sha256 = $1"#,
             hash.as_str(),
         )
-        .fetch_optional(&*self.pools.read)
+        .fetch_optional(pool)
         .await?)
     }
 

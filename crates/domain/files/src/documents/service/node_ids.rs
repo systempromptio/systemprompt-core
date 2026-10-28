@@ -45,7 +45,8 @@ impl DocumentService {
         document: &Document,
         revision: &DocumentRevision,
     ) -> Result<Projected, DocumentsError> {
-        Ok(self.projected_with_bytes(document, revision).await?.0)
+        let bytes = self.revision_bytes(revision).await?;
+        Ok(self.projected_from(document, revision, bytes).await?.0)
     }
 
     pub(super) async fn projected_with_bytes(
@@ -53,7 +54,16 @@ impl DocumentService {
         document: &Document,
         revision: &DocumentRevision,
     ) -> Result<(Projected, Vec<u8>), DocumentsError> {
-        let bytes = self.revision_bytes(revision).await?;
+        let bytes = self.parent_bytes(revision).await?;
+        self.projected_from(document, revision, bytes).await
+    }
+
+    async fn projected_from(
+        &self,
+        document: &Document,
+        revision: &DocumentRevision,
+        bytes: Vec<u8>,
+    ) -> Result<(Projected, Vec<u8>), DocumentsError> {
         let paths = self.project_paths(document.format, bytes.clone()).await?;
         let entries = self.node_ids(revision, &paths).await?;
         let projected = Projected {
@@ -126,7 +136,7 @@ impl DocumentService {
         let Some(parent) = self.repos.revisions.find(parent_id).await? else {
             return Ok(None);
         };
-        let bytes = self.revision_bytes(&parent).await?;
+        let bytes = self.parent_bytes(&parent).await?;
         let paths = self.project_paths(document.format, bytes).await?;
         Ok(Some(with_ids(paths, &stored)))
     }

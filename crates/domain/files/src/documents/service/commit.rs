@@ -214,7 +214,7 @@ impl DocumentService {
                 .resolve_revision(landing.document, Some(revision_id))
                 .await?;
             return Ok(Some((
-                CommitBody::Bytes(self.revision_bytes(&restored).await?),
+                CommitBody::Bytes(self.parent_bytes(&restored).await?),
                 Vec::new(),
             )));
         }

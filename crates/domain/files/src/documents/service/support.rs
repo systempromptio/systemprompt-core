@@ -132,6 +132,16 @@ impl DocumentService {
             .await?)
     }
 
+    pub(super) async fn parent_bytes(
+        &self,
+        revision: &DocumentRevision,
+    ) -> Result<Vec<u8>, DocumentsError> {
+        Ok(self
+            .blobs
+            .read_all_primary(&revision.content_sha256, self.config.max_upload_bytes)
+            .await?)
+    }
+
     pub(super) async fn plain_text_of(
         &self,
         format: DocumentFormat,

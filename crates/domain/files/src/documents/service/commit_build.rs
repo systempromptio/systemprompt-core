@@ -85,7 +85,7 @@ impl DocumentService {
         let base = self
             .resolve_revision(landing.document, landing.base)
             .await?;
-        let base_bytes = self.revision_bytes(&base).await?;
+        let base_bytes = self.parent_bytes(&base).await?;
         Ok(match three_way_bytes(&base_bytes, ours, head_bytes) {
             MergeOutcome::Clean(merged) => Built::stored(merged.into_bytes()),
             MergeOutcome::Conflicted => Built::Conflict,

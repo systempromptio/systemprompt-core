@@ -204,6 +204,7 @@
 - **Files:** The web editor advances its sent version only after the server accepts an update, retries transient failures, diffs at code-point boundaries and rejoins on a sequence gap; `postEdits` takes a caller-supplied `opId` so a retry is idempotent.
 - **Files:** the drive change feed skips the revisions of a trashed document instead of failing the page.
 - **Files:** concurrent commits by one writer no longer mint the same node id, and a node id is never stored without its row.
+- **Files:** a commit reads the bytes of the revision it builds on from the primary, so a read replica that has not yet seen a just-landed head cannot fail the next commit; history and content reads keep the read pool.
 - **Files:** a commit that loses the head race no longer leaves a revision that history, `restore` or `since_revision` would accept.
 - **Files:** a block inserted where an unrelated block was deleted no longer inherits its id, and a moved block keeps its id.
 - **Files:** a stale Office upload that changes a paragraph's formatting is reported as a conflict instead of landing without the formatting.

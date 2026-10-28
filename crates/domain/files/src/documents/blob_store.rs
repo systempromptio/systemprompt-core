@@ -25,6 +25,7 @@ use systemprompt_traits::{
     ByteRange, FileStorage, FileStorageError, RepositoryError, StoredFileId, StoredFileRead,
 };
 
+use super::models::DocumentBlob;
 use super::repository::DocumentBlobRepository;
 
 #[derive(Debug, thiserror::Error)]
@@ -145,11 +146,26 @@ impl BlobStore {
         hash: &ContentHash,
         max_bytes: u64,
     ) -> Result<Vec<u8>, BlobStoreError> {
-        let row = self
-            .blobs
-            .find(hash)
-            .await?
-            .ok_or_else(|| BlobStoreError::NotFound { hash: hash.clone() })?;
+        let row = self.blobs.find(hash).await?;
+        self.read_row(hash, row, max_bytes).await
+    }
+
+    pub async fn read_all_primary(
+        &self,
+        hash: &ContentHash,
+        max_bytes: u64,
+    ) -> Result<Vec<u8>, BlobStoreError> {
+        let row = self.blobs.find_on_primary(hash).await?;
+        self.read_row(hash, row, max_bytes).await
+    }
+
+    async fn read_row(
+        &self,
+        hash: &ContentHash,
+        row: Option<DocumentBlob>,
+        max_bytes: u64,
+    ) -> Result<Vec<u8>, BlobStoreError> {
+        let row = row.ok_or_else(|| BlobStoreError::NotFound { hash: hash.clone() })?;
         let declared = row.size_bytes.unsigned_abs();
         if declared > max_bytes {
             return Err(BlobStoreError::TooLarge {
