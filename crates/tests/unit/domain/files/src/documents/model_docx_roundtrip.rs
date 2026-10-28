@@ -202,4 +202,3 @@ fn an_image_without_uploaded_bytes_is_refused_by_name() {
     let error = materialise_rich(&base, &rich_model()).expect_err("refused");
     assert!(error.to_string().contains(BLOB));
 }
-
