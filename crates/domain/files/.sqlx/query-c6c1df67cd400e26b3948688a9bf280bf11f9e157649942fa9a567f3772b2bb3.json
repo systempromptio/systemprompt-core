@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_node_ids\n                   (document_id, revision_id, node_id, path, hash8, ordinal)\n               SELECT $1::text::uuid, $2::text::uuid, n, p, h, o\n               FROM UNNEST($3::text[], $4::text[], $5::text[], $6::int4[]) AS t(n, p, h, o)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c6c1df67cd400e26b3948688a9bf280bf11f9e157649942fa9a567f3772b2bb3"
+}

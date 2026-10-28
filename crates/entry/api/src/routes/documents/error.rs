@@ -222,9 +222,6 @@ fn api_error(error: DocumentsError, message: String) -> ApiError {
         DocumentsError::UnknownSubject { .. } => {
             ApiError::bad_request(message).with_error_key("unknown_subject")
         },
-        DocumentsError::OwnNotGrantable => {
-            ApiError::bad_request(message).with_error_key("invalid_params")
-        },
         DocumentsError::NotFound { .. } | DocumentsError::CommentNotFound { .. } => {
             ApiError::not_found(message)
         },
@@ -237,7 +234,7 @@ fn api_error(error: DocumentsError, message: String) -> ApiError {
         DocumentsError::SelfReview { .. } => {
             ApiError::forbidden(message).with_error_key("self_review")
         },
-        DocumentsError::GuardMissing { .. } => {
+        DocumentsError::GuardMissing { .. } | DocumentsError::OwnNotGrantable => {
             ApiError::bad_request(message).with_error_key("invalid_params")
         },
         DocumentsError::LockHeld { .. } => ApiError::locked(message).with_error_key("lock_held"),

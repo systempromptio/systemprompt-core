@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id::text AS \"id!: DocumentRevisionId\",\n                      document_id::text AS \"document_id!: DocumentId\",\n                      parent_revision_id::text AS \"parent_revision_id: DocumentRevisionId\",\n                      content_sha256 AS \"content_sha256: ContentHash\",\n                      author_user_id AS \"author_user_id: UserId\",\n                      actor_kind, origin_kind, origin_id, message, edit_ops,\n                      session_id AS \"session_id: SessionId\",\n                      context_id AS \"context_id: ContextId\",\n                      trace_id AS \"trace_id: TraceId\",\n                      task_id AS \"task_id: TaskId\",\n                      on_behalf_of AS \"on_behalf_of: UserId\",\n                      created_at\n               FROM document_revisions WHERE content_sha256 = $1\n             ORDER BY created_at DESC, id DESC\n             LIMIT $2",
+  "query": "SELECT id::text AS \"id!: DocumentRevisionId\",\n                      document_id::text AS \"document_id!: DocumentId\",\n                      parent_revision_id::text AS \"parent_revision_id: DocumentRevisionId\",\n                      content_sha256 AS \"content_sha256: ContentHash\",\n                      author_user_id AS \"author_user_id: UserId\",\n                      actor_kind, origin_kind, origin_id, message, edit_ops,\n                      session_id AS \"session_id: SessionId\",\n                      context_id AS \"context_id: ContextId\",\n                      trace_id AS \"trace_id: TraceId\",\n                      task_id AS \"task_id: TaskId\",\n                      on_behalf_of AS \"on_behalf_of: UserId\",\n                      created_at, landed_at\n               FROM document_revisions WHERE landed_at IS NOT NULL\n               AND ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))\n             ORDER BY created_at, id\n             LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -163,11 +163,23 @@
             "name": "created_at"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "landed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "landed_at"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Text",
+        "Timestamptz",
+        "Uuid",
         "Int8"
       ]
     },
@@ -187,8 +199,9 @@
       true,
       true,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "a012b486b538b49e93c9d2a040c7e86266b53d4c11042e6995fcb2fcf2d8e5d7"
+  "hash": "44388e144b891fb640616e9890b95bd7b1988cdf2f554511807dba1aaef2ae6c"
 }

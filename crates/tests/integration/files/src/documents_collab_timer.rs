@@ -124,6 +124,7 @@ async fn a_checkpoint_conflicting_with_an_outside_write_leaves_the_head_alone() 
                 message: None,
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
+                op_id: None,
             },
             &trace(),
         )

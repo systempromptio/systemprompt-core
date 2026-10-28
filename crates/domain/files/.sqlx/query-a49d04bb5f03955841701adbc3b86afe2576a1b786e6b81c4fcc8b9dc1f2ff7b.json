@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT user_id AS \"user_id: UserId\", request_sha256, ack\n               FROM document_write_acks\n               WHERE document_id = $1::text::uuid AND op_id = $2 AND user_id IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_write_acks",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_write_acks",
+            "name": "request_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ack",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "document_write_acks",
+            "name": "ack"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "a49d04bb5f03955841701adbc3b86afe2576a1b786e6b81c4fcc8b9dc1f2ff7b"
+}

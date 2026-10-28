@@ -34,6 +34,7 @@ mod records;
 mod refusal;
 mod share;
 mod support;
+mod tool_error;
 mod views;
 mod write;
 

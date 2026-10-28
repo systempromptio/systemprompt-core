@@ -15,7 +15,7 @@ use super::landing::{LandResult, Placement};
 use super::prepare::{Applied, Draft};
 use super::{Author, CommentPolicy, DocumentService, Proposed};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{NewProposal, ProposalReview};
+use crate::documents::models::{Document, DocumentProposal, NewProposal, ProposalReview};
 use crate::documents::nodes::CarryHints;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,6 +41,12 @@ impl DocumentService {
             .resolve_revision(&document, Some(&request.base_revision))
             .await?;
         let (projected, _) = self.projected_with_bytes(&document, &base).await?;
+        let ProposeBodyRequest {
+            bytes,
+            author,
+            message,
+            ..
+        } = request;
         let prepared = self
             .prepare(
                 who,
@@ -48,7 +54,7 @@ impl DocumentService {
                 Draft {
                     applied: Applied {
                         ops: AppliedOps {
-                            bytes: request.bytes,
+                            bytes,
                             hints: CarryHints::default(),
                         },
                         previous: Some(projected.ids),
@@ -56,13 +62,17 @@ impl DocumentService {
                         edit_ops: None,
                     },
                     parent: Some(base.id.clone()),
-                    message: request.message.clone(),
-                    author: &request.author,
+                    message: message.clone(),
+                    author: &author,
                 },
             )
             .await?;
         let revision = match self
-            .land(&document, prepared, Placement::proposal(&CommentPolicy::default()))
+            .land(
+                &document,
+                prepared,
+                Placement::proposal(&CommentPolicy::default()),
+            )
             .await?
         {
             LandResult::Landed(stored) => stored.revision,
@@ -70,12 +80,39 @@ impl DocumentService {
                 return Err(DocumentsError::not_found("proposed revision", &document.id));
             },
         };
+        let (proposal, superseded) = self
+            .record_proposal(
+                &document,
+                NewProposal {
+                    document_id: document.id.clone(),
+                    base_revision_id: base.id,
+                    proposed_revision_id: revision.id.clone(),
+                    proposer_user_id: who.id.clone(),
+                    actor_kind: author.actor_kind,
+                    origin_kind: author.origin.kind(),
+                    origin_id: author.origin.id(),
+                    message,
+                },
+            )
+            .await?;
+        Ok(Proposed {
+            proposal,
+            revision,
+            superseded,
+        })
+    }
+
+    async fn record_proposal(
+        &self,
+        document: &Document,
+        proposal: NewProposal,
+    ) -> Result<(DocumentProposal, Vec<DocumentProposal>), DocumentsError> {
         let superseded = self
             .repos
             .proposals
             .close_open(
                 &document.id,
-                Some(&who.id),
+                Some(&proposal.proposer_user_id),
                 &ProposalReview {
                     status: ProposalStatus::Superseded,
                     reviewer_user_id: None,
@@ -84,28 +121,11 @@ impl DocumentService {
                 },
             )
             .await?;
-        let proposal = self
-            .repos
-            .proposals
-            .insert(NewProposal {
-                document_id: document.id.clone(),
-                base_revision_id: base.id,
-                proposed_revision_id: revision.id.clone(),
-                proposer_user_id: who.id.clone(),
-                actor_kind: request.author.actor_kind,
-                origin_kind: request.author.origin.kind(),
-                origin_id: request.author.origin.id(),
-                message: request.message,
-            })
-            .await?;
+        let proposal = self.repos.proposals.insert(proposal).await?;
         for closed in &superseded {
-            self.announce_proposal(&document, closed).await;
+            self.announce_proposal(document, closed).await;
         }
-        self.announce_proposal(&document, &proposal).await;
-        Ok(Proposed {
-            proposal,
-            revision,
-            superseded,
-        })
+        self.announce_proposal(document, &proposal).await;
+        Ok((proposal, superseded))
     }
 }

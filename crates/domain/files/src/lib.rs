@@ -31,6 +31,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod config;
+mod document_schemas;
 pub mod documents;
 pub mod error;
 pub(crate) mod extension;

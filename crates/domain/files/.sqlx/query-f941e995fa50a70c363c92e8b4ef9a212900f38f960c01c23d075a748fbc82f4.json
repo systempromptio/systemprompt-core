@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) AS \"count!\" FROM document_revisions WHERE document_id = $1::text::uuid",
+  "query": "SELECT COUNT(*) AS \"count!\" FROM document_revisions WHERE document_id = $1::text::uuid AND landed_at IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       null
     ]
   },
-  "hash": "30371cc86e1bf0a7c1ead7a64d3b5185f42803a0bcf92a6455ec5e1976dc0cb6"
+  "hash": "f941e995fa50a70c363c92e8b4ef9a212900f38f960c01c23d075a748fbc82f4"
 }

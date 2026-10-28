@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id::text AS \"id!: DocumentRevisionId\",\n                      document_id::text AS \"document_id!: DocumentId\",\n                      parent_revision_id::text AS \"parent_revision_id: DocumentRevisionId\",\n                      content_sha256 AS \"content_sha256: ContentHash\",\n                      author_user_id AS \"author_user_id: UserId\",\n                      actor_kind, origin_kind, origin_id, message, edit_ops,\n                      session_id AS \"session_id: SessionId\",\n                      context_id AS \"context_id: ContextId\",\n                      trace_id AS \"trace_id: TraceId\",\n                      task_id AS \"task_id: TaskId\",\n                      on_behalf_of AS \"on_behalf_of: UserId\",\n                      created_at\n               FROM document_revisions WHERE id = (SELECT head_revision_id FROM documents WHERE id = $1::text::uuid)",
+  "query": "SELECT id::text AS \"id!: DocumentRevisionId\",\n                      document_id::text AS \"document_id!: DocumentId\",\n                      parent_revision_id::text AS \"parent_revision_id: DocumentRevisionId\",\n                      content_sha256 AS \"content_sha256: ContentHash\",\n                      author_user_id AS \"author_user_id: UserId\",\n                      actor_kind, origin_kind, origin_id, message, edit_ops,\n                      session_id AS \"session_id: SessionId\",\n                      context_id AS \"context_id: ContextId\",\n                      trace_id AS \"trace_id: TraceId\",\n                      task_id AS \"task_id: TaskId\",\n                      on_behalf_of AS \"on_behalf_of: UserId\",\n                      created_at, landed_at\n               FROM document_revisions WHERE id = (SELECT head_revision_id FROM documents WHERE id = $1::text::uuid)",
   "describe": {
     "columns": [
       {
@@ -163,6 +163,17 @@
             "name": "created_at"
           }
         }
+      },
+      {
+        "ordinal": 16,
+        "name": "landed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "landed_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -186,8 +197,9 @@
       true,
       true,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "c33963e66a88acf9ca69ce99371cbf03560cf02f6a565a43c9f40d61ca914d2c"
+  "hash": "1d88f437894151e4492fab433d8aaace93e4f48466765ee3dc3e8c12d3ea7dec"
 }

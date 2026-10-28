@@ -45,6 +45,7 @@ fn commit(document: &DocumentId, ops: Vec<EditOp>) -> CommitRequest {
         message: None,
         lock_holder_id: None,
         comments: CommentPolicy::default(),
+        op_id: None,
     }
 }
 

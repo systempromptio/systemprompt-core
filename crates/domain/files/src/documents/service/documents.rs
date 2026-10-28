@@ -9,9 +9,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{
-    DocumentFolderId, DocumentId, DocumentTemplateId, TraceId,
-};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 

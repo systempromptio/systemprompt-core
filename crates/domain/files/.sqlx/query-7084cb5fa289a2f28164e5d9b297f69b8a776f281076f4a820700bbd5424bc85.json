@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_proposals\n             SET landed_revision_id = $2::text::uuid, updated_at = now()\n             WHERE id = $1::text::uuid AND status = 'accepted' AND landed_revision_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7084cb5fa289a2f28164e5d9b297f69b8a776f281076f4a820700bbd5424bc85"
+}

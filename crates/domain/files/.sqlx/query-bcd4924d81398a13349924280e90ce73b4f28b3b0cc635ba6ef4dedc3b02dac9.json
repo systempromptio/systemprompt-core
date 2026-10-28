@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_write_acks\n                   (document_id, op_id, revision_id, ack, user_id, request_sha256)\n               VALUES ($1::text::uuid, $2, $3::text::uuid, $4, $5, $6)\n               ON CONFLICT (document_id, op_id) DO NOTHING\n               RETURNING 1 AS \"claimed!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "claimed!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "bcd4924d81398a13349924280e90ce73b4f28b3b0cc635ba6ef4dedc3b02dac9"
+}
