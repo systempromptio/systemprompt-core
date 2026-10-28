@@ -21,6 +21,7 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::Trashed { .. }
         | DocumentsError::AnchorsAffected { .. }
         | DocumentsError::InvalidComment { .. }
+        | DocumentsError::InvalidAwareness { .. }
         | DocumentsError::InvalidParams { .. }
         | DocumentsError::CommentNotFound { .. }
         | DocumentsError::LockHeld { .. }
@@ -118,6 +119,12 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
         ),
         (
             DocumentsError::InvalidParams { detail: "missing" },
+            RefusalCode::InvalidParams,
+        ),
+        (
+            DocumentsError::InvalidAwareness {
+                detail: "unknown field",
+            },
             RefusalCode::InvalidParams,
         ),
         (
