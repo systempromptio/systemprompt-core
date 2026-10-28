@@ -76,6 +76,7 @@ pub(crate) fn number_running(model: &mut RichText) {
     }
 }
 
+#[cfg(feature = "office")]
 #[must_use]
 pub(crate) fn same_kind(a: &BlockKind, b: &BlockKind) -> bool {
     unnumbered(a) == unnumbered(b)
