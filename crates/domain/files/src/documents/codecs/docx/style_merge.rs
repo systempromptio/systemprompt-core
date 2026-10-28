@@ -7,8 +7,11 @@
 //! their bytes. Modelled children are replaced by the model's, removed when
 //! the model no longer sets them, and merged attribute by attribute for
 //! `w:spacing`, `w:ind` and `w:rFonts`, so a line spacing or an East Asian
-//! font the model does not hold survives. Children are written in the
-//! order `CT_Style`, `CT_PPr` and `CT_RPr` require.
+//! font the model does not hold survives. Children are ranked by the
+//! complete `CT_Style`, `CT_PPrBase`/`CT_PPr` and `CT_RPr` child orders, so
+//! a child the model does not hold never moves a modelled one out of schema
+//! order; a child no schema list names keeps the rank of the one before it.
+//! The `w:rPr` inside a style's `w:pPr` is not modelled and keeps its bytes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,24 +45,46 @@ const STYLE_ORDER: [&str; 22] = [
     "w:tblStylePr",
 ];
 
-const PPR_ORDER: [&str; 14] = [
+const PPR_ORDER: [&str; 36] = [
     "w:pStyle",
     "w:keepNext",
     "w:keepLines",
     "w:pageBreakBefore",
+    "w:framePr",
     "w:widowControl",
     "w:numPr",
+    "w:suppressLineNumbers",
     "w:pBdr",
     "w:shd",
     "w:tabs",
+    "w:suppressAutoHyphens",
+    "w:kinsoku",
+    "w:wordWrap",
+    "w:overflowPunct",
+    "w:topLinePunct",
+    "w:autoSpaceDE",
+    "w:autoSpaceDN",
+    "w:bidi",
+    "w:adjustRightInd",
+    "w:snapToGrid",
     "w:spacing",
     "w:ind",
     "w:contextualSpacing",
+    "w:mirrorIndents",
+    "w:suppressOverlap",
     "w:jc",
+    "w:textDirection",
+    "w:textAlignment",
+    "w:textboxTightWrap",
     "w:outlineLvl",
+    "w:divId",
+    "w:cnfStyle",
+    "w:rPr",
+    "w:sectPr",
+    "w:pPrChange",
 ];
 
-const RPR_ORDER: [&str; 14] = [
+const RPR_ORDER: [&str; 40] = [
     "w:rStyle",
     "w:rFonts",
     "w:b",
@@ -69,30 +94,62 @@ const RPR_ORDER: [&str; 14] = [
     "w:caps",
     "w:smallCaps",
     "w:strike",
+    "w:dstrike",
+    "w:outline",
+    "w:shadow",
+    "w:emboss",
+    "w:imprint",
+    "w:noProof",
+    "w:snapToGrid",
+    "w:vanish",
+    "w:webHidden",
     "w:color",
     "w:spacing",
+    "w:w",
+    "w:kern",
+    "w:position",
     "w:sz",
     "w:szCs",
+    "w:highlight",
+    "w:u",
+    "w:effect",
+    "w:bdr",
+    "w:shd",
+    "w:fitText",
+    "w:vertAlign",
+    "w:rtl",
+    "w:cs",
+    "w:em",
     "w:lang",
+    "w:eastAsianLayout",
+    "w:specVanish",
+    "w:oMath",
+    "w:rPrChange",
 ];
 
 struct Level<'o> {
+    /// Whether this is the style itself, whose `w:pPr` and `w:rPr` merge;
+    /// an `w:rPr` inside a `w:pPr` is not modelled and keeps its bytes.
+    styles: bool,
     modelled: &'o [&'o str],
     merged: &'o [&'o str],
     order: &'o [&'o str],
 }
 
 const STYLE: Level<'static> = Level {
+    styles: true,
     modelled: &["w:name", "w:basedOn", "w:next"],
     merged: &[],
     order: &STYLE_ORDER,
 };
 const PPR: Level<'static> = Level {
+    styles: false,
     modelled: &["w:keepNext", "w:spacing", "w:ind", "w:jc"],
     merged: &["w:spacing", "w:ind"],
     order: &PPR_ORDER,
 };
 const RPR: Level<'static> = Level {
+    styles: false,
     modelled: &["w:rFonts", "w:b", "w:i", "w:color", "w:sz", "w:szCs"],
     merged: &["w:rFonts"],
     order: &RPR_ORDER,
@@ -123,7 +180,7 @@ fn merge(base: &str, held: &Element, ours: &str, given: &Element, level: &Level<
         let wanted = given.child(name);
         let raw = child.raw(base).to_owned();
         let written = match name {
-            "w:pPr" | "w:rPr" => Some(nested(base, child, ours, wanted, name)),
+            "w:pPr" | "w:rPr" if level.styles => Some(nested(base, child, ours, wanted, name)),
             _ if !level.modelled.contains(&name) => Some(raw),
             _ => match wanted {
                 Some(theirs) if level.merged.contains(&name) => Some(attrs_over(&raw, theirs)),
@@ -138,7 +195,8 @@ fn merge(base: &str, held: &Element, ours: &str, given: &Element, level: &Level<
     for child in &given.children {
         let name = child.name.as_str();
         let new = held.child(name).is_none()
-            && (level.modelled.contains(&name) || matches!(name, "w:pPr" | "w:rPr"));
+            && (level.modelled.contains(&name)
+                || (level.styles && matches!(name, "w:pPr" | "w:rPr")));
         if new {
             let at = position(level.order, name).unwrap_or(usize::MAX);
             items.push((at, child.raw(ours).to_owned()));

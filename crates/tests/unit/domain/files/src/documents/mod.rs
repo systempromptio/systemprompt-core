@@ -31,6 +31,7 @@ mod model_markdown_gfm;
 mod model_office;
 mod model_ops;
 mod model_rich_text;
+mod model_style_merge;
 mod node_ids;
 mod odf_fixture;
 mod pdf_render;
