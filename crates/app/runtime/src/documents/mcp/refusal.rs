@@ -1,9 +1,9 @@
 //! Refusals over MCP: a tool-level failure an agent can act on.
 //!
 //! A refusal is a tool result with `isError: true`, never a JSON-RPC error.
-//! Its `structuredContent` is the [`Refusal`]; the retry prose stays in
+//! Its `structuredContent` is the `Refusal`; the retry prose stays in
 //! `content[0].text`. Handlers raise a refusal as an [`McpError`] whose
-//! `data` is the serialised [`Refusal`]; [`refusal_result`] turns it back
+//! `data` is the serialised `Refusal`; [`refusal_result`] turns it back
 //! into the tool result at the dispatch boundary.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

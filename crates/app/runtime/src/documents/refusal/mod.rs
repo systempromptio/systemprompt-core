@@ -1,12 +1,12 @@
 //! Refusals: the one vocabulary both document surfaces answer a client
 //! error in.
 //!
-//! [`refusal_of`] maps every [`DocumentsError`] a client can act on to one
-//! [`RefusalCode`] and the typed detail the failure knows (the head revision
+//! [`refusal_of`] maps every `DocumentsError` a client can act on to one
+//! `RefusalCode` and the typed detail the failure knows (the head revision
 //! and who wrote it, a node's current text, the kinds a format accepts),
 //! with the service's Display text as the message. An infrastructure failure
 //! maps to none: each surface logs its cause and answers a fixed message.
-//! The MCP tools return the [`Refusal`] as a refused tool result's
+//! The MCP tools return the `Refusal` as a refused tool result's
 //! `structuredContent`; the HTTP routes return its code as the envelope's
 //! `error` key and the refusal under `detail`.
 //!

@@ -1,12 +1,12 @@
 //! Transport-neutral document views.
 //!
 //! Each view is assembled once here, as a plain struct or hashlines, and
-//! returns [`DocumentsError`](systemprompt_files::documents::DocumentsError):
+//! returns `DocumentsError`:
 //! the MCP tools and the HTTP routes both call it, so both surfaces answer
 //! alike. The read views are outline, text, changes, node, search, meta,
-//! range and cells; [`access_view`], [`folder_access_view`] and
-//! [`comments_view`] read sharing and comment threads; [`proposal_lines`]
-//! renders what a proposal changes; [`edit_ack`] renders a landed write's
+//! range and cells; `access_view`, `folder_access_view` and
+//! `comments_view` read sharing and comment threads; `proposal_lines`
+//! renders what a proposal changes; `edit_ack` renders a landed write's
 //! acknowledgement.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

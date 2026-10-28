@@ -3,7 +3,7 @@
 //!
 //! The URL carries a user JWT minted by the deployment's
 //! [`TokenAuthority`] for the caller, with the audience
-//! [`DOWNLOAD_AUDIENCE`], a ten-minute lifetime and a `purpose` naming the
+//! `DOWNLOAD_AUDIENCE`, a ten-minute lifetime and a `purpose` naming the
 //! one document revision it opens (`document_download:<document>@<revision>`).
 //! The content route verifies it with
 //! `verify_bearer(token, &[JwtAudience::Resource(DOWNLOAD_AUDIENCE)])`,
