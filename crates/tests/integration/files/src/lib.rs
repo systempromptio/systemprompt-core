@@ -27,6 +27,8 @@ mod documents_engine_review;
 #[cfg(test)]
 mod documents_folders;
 #[cfg(test)]
+mod documents_foreign_lock;
+#[cfg(test)]
 mod documents_lifecycle;
 #[cfg(test)]
 mod documents_listing;
@@ -36,6 +38,8 @@ mod documents_node_ids_backfill;
 mod documents_proposals;
 #[cfg(test)]
 mod documents_proposals_review;
+#[cfg(test)]
+mod documents_read_pool_lag;
 #[cfg(test)]
 mod documents_reads;
 #[cfg(test)]

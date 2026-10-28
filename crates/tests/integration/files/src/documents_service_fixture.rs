@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::blob_store::BlobStore;
@@ -222,6 +223,17 @@ pub(crate) async fn harness_configured(
     config: DocumentsConfig,
 ) -> Harness {
     let db = test_db_pool().await;
+    harness_on_db(db, hook, subjects, storage, directory, config)
+}
+
+pub(crate) fn harness_on_db(
+    db: DbPool,
+    hook: SharedAuthzHook,
+    subjects: GroupSource,
+    storage: Arc<TempDir>,
+    directory: RoleDirectory,
+    config: DocumentsConfig,
+) -> Harness {
     let repos = Arc::new(DocumentRepositories::new(&db));
     let access_entities = Arc::new(AccessControlRepository::new(&db));
     let access = Arc::new(DocumentAccessService::new(
