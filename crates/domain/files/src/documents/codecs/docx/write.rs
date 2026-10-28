@@ -265,6 +265,7 @@ pub(super) fn runs(text: &str, active: &[&MarkKind], ctx: &mut WriteCtx<'_>) -> 
     let props = (!rpr.is_empty()).then(|| format!("<w:rPr>{rpr}</w:rPr>"));
     let mut piece = run(props.as_deref(), text);
     if let Some(code) = field {
+        let code = escape_attr(code);
         piece = format!("<w:fldSimple w:instr=\" {code} \">{piece}</w:fldSimple>");
     }
     let id = match link {

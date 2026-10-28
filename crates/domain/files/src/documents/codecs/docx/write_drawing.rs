@@ -64,6 +64,10 @@ pub(super) fn image_block(block: &Block, ctx: &mut WriteCtx<'_>) -> String {
 /// The picture's target relative to `word/`, and its pixel size.
 fn picture(blob: &str, ctx: &mut WriteCtx<'_>) -> Option<(String, Option<(u32, u32)>)> {
     if let Some(target) = blob.strip_prefix(MEDIA_SCHEME) {
+        if !media_target_ok(target) {
+            ctx.fail(format!("image {blob} does not name a picture part under media/"));
+            return None;
+        }
         let natural = read_part(ctx.base, &format!("word/{target}"))
             .ok()
             .flatten()
@@ -79,17 +83,11 @@ fn picture(blob: &str, ctx: &mut WriteCtx<'_>) -> Option<(String, Option<(u32, u
         ctx.fail(format!("image {blob} is not a PNG, JPEG or GIF"));
         return None;
     };
-    let stem: String = blob
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .collect::<String>()
-        .chars()
-        .rev()
-        .take(24)
-        .collect();
+    let stem: String = blob.chars().filter(char::is_ascii_alphanumeric).collect();
     let target = format!("media/sp-{stem}.{extension}");
     let part = format!("word/{target}");
-    if ctx.edits.get(&part).is_none() {
+    let in_base = read_part(ctx.base, &part).ok().flatten().is_some();
+    if !in_base && ctx.edits.get(&part).is_none() {
         ctx.edits.put(&part, media.bytes.clone());
         ctx.edits.default_type(extension, mime);
     }
@@ -165,4 +163,14 @@ pub(super) fn max_drawing_id(xml: &str) -> u32 {
         })
         .max()
         .unwrap_or(0)
+}
+
+/// A picture part the document may name: under `media/`, no `..`, and an
+/// image extension.
+fn media_target_ok(target: &str) -> bool {
+    let lower = target.to_ascii_lowercase();
+    let image = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".emf", ".wmf"]
+        .iter()
+        .any(|ext| lower.ends_with(ext));
+    lower.starts_with("media/") && !lower.contains("..") && image
 }
