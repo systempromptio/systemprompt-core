@@ -6,6 +6,12 @@
 //! names one subject pair: `user`, `role` or a registered subject dimension;
 //! any other kind is refused rather than stored as a grant nobody can match.
 //!
+//! The subject must exist: an active user, a role in the role catalogue, or
+//! a value the dimension's provider lists (any value when it cannot list
+//! them). A share may carry a message of at most [`MAX_SHARE_MESSAGE_BYTES`]
+//! for the `document.shared` event. Every grant change writes a row to the
+//! grant audit log in the same statement.
+//!
 //! Removing a grant also removes the presence rows (and so the live editing
 //! state) of the users it named, so a revoked user stops receiving the
 //! document's events.
@@ -23,7 +29,7 @@ use super::DocumentService;
 use super::ownership::USER_SUBJECT;
 use crate::documents::access::{AccessTarget, Granted};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{DocumentGrant, GrantTarget, NewGrant};
+use crate::documents::models::{DocumentGrant, GrantActor, GrantTarget, NewGrant};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShareRequest {
@@ -33,7 +39,10 @@ pub struct ShareRequest {
     pub subject_display: Option<String>,
     pub level: AccessLevel,
     pub valid_until: Option<DateTime<Utc>>,
+    pub message: Option<String>,
 }
+
+pub const MAX_SHARE_MESSAGE_BYTES: usize = 1024;
 
 pub(super) fn owner_of(granted: &Granted) -> Option<UserId> {
     granted
@@ -43,7 +52,18 @@ pub(super) fn owner_of(granted: &Granted) -> Option<UserId> {
         .or_else(|| granted.folder.as_ref().map(|f| f.owner_user_id.clone()))
 }
 
-fn access_target(target: &GrantTarget) -> AccessTarget {
+pub(super) fn check_message(message: Option<&str>) -> Result<(), DocumentsError> {
+    match message {
+        Some(message) if message.len() > MAX_SHARE_MESSAGE_BYTES => Err(DocumentsError::TooLarge {
+            what: "share message",
+            size: u64::try_from(message.len()).unwrap_or(u64::MAX),
+            limit: MAX_SHARE_MESSAGE_BYTES as u64,
+        }),
+        _ => Ok(()),
+    }
+}
+
+pub(super) fn access_target(target: &GrantTarget) -> AccessTarget {
     match target {
         GrantTarget::Document(id) => AccessTarget::Document(id.clone()),
         GrantTarget::Folder(id) => AccessTarget::Folder(Some(id.clone())),
@@ -76,7 +96,11 @@ impl DocumentService {
         if request.level == AccessLevel::Own {
             return Err(DocumentsError::OwnNotGrantable);
         }
+        check_message(request.message.as_deref())?;
         let granted = self.authorize_share(who, &request.target, trace).await?;
+        self.access
+            .validate_subject(&request.subject_kind, &request.subject_value)
+            .await?;
         let existing = self
             .list_grants(&request.target)
             .await?
@@ -112,10 +136,12 @@ impl DocumentService {
                 access_level: request.level,
                 granted_by: who.id.clone(),
                 valid_until: request.valid_until,
+                trace_id: trace.clone(),
             })
             .await?;
         if let Some(document) = &granted.document {
-            self.announce_share(who, document, &grant).await;
+            self.announce_share(who, document, &grant, request.message)
+                .await;
         }
         Ok(grant)
     }
@@ -143,7 +169,11 @@ impl DocumentService {
                 owner: owner_of(&granted),
             });
         }
-        if !self.repos.grants.delete(grant_id).await? {
+        let actor = GrantActor {
+            user: who.id.clone(),
+            trace: trace.clone(),
+        };
+        if !self.repos.grants.delete(grant_id, &actor).await? {
             return Err(DocumentsError::not_found("grant", grant_id));
         }
         self.clear_presence(&grant, owner_of(&granted).as_ref())

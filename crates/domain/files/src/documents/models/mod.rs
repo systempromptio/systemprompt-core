@@ -17,6 +17,7 @@ mod node_id;
 mod proposal;
 mod revision;
 mod session;
+mod sharing;
 
 pub use comment::{CommentAnchor, DocumentComment, NewComment};
 pub use cursor::{ListCursor, ListCursorError, ListingCursor};
@@ -33,3 +34,6 @@ pub use node_id::{AckClaim, NodeIdEntry, StoredWriteAck, WriteAck};
 pub use proposal::{DocumentProposal, NewProposal, ProposalReview};
 pub use revision::{DocumentBlob, DocumentRevision, NewRevision, RevisionAttribution};
 pub use session::{DocumentEditSession, DocumentTextIndexRow, EditSessionOpen};
+pub use sharing::{
+    DocumentAccessRequest, DocumentGrantEvent, GrantActor, NewAccessRequest, OwnerTransfer,
+};

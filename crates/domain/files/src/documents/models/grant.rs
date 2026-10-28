@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId, UserId};
 use systemprompt_models::documents::AccessLevel;
 use uuid::Uuid;
 
@@ -45,6 +45,7 @@ pub struct NewGrant {
     pub access_level: AccessLevel,
     pub granted_by: UserId,
     pub valid_until: Option<DateTime<Utc>>,
+    pub trace_id: TraceId,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

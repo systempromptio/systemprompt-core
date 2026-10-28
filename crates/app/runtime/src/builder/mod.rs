@@ -247,6 +247,7 @@ impl AppContextBuilder {
             event_router: &router,
             files_config: &files_config,
             background_tasks: &background_tasks,
+            extensions: &plugins.extension_registry,
         })?;
         let subsystems = Subsystems {
             ai_service,

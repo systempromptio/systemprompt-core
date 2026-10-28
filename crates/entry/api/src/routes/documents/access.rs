@@ -1,41 +1,105 @@
-//! Reading access back, the install's grant subject kinds, ownership
-//! transfer and revoking every grant on a document.
+//! Reading access back (with the grant audit log on `?history=true`), the
+//! install's grant subject kinds and subject search, ownership transfer and
+//! revoking every grant on a document.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::response::Response;
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
+use systemprompt_files::documents::MAX_SUBJECT_SEARCH;
 use systemprompt_files::documents::service::TransferRequest;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::documents::active_user_display;
-use systemprompt_runtime::documents::mcp::{AccessOutput, GrantItem};
+use systemprompt_runtime::documents::mcp::AccessOutput;
 
 use crate::error::ApiHttpError;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::DocumentsResult;
+use super::error::{DocumentsHttpError, DocumentsResult};
 use super::items::document_id;
+use super::requests::with_request_hint;
 use super::views::DocumentJson;
+
+#[derive(Debug, Default, Deserialize)]
+pub(super) struct HistoryQuery {
+    #[serde(default)]
+    pub(super) history: bool,
+}
 
 pub(super) async fn access(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
-) -> DocumentsResult<Json<AccessOutput>> {
+    Query(query): Query<HistoryQuery>,
+) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    let access = state.service.access_of(&who.user, &id, &who.trace).await?;
-    Ok(Json(AccessOutput {
-        document_id: access.document.id,
-        owner: access.owner,
-        my_access: access.my_access,
-        grants: access.grants.into_iter().map(GrantItem::from).collect(),
-        inherited: access.inherited.into_iter().map(GrantItem::from).collect(),
+    let access = state
+        .service
+        .access_of(&who.user, &id, query.history, &who.trace)
+        .await
+        .map(|access| Json(AccessOutput::from(access)))
+        .map_err(DocumentsHttpError::from);
+    with_request_hint(&state, &who, &id, access).await
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct SubjectsQuery {
+    kind: String,
+    #[serde(default)]
+    q: String,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct SubjectJson {
+    value: String,
+    display_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    detail: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct SubjectsJson {
+    kind: String,
+    searchable: bool,
+    subjects: Vec<SubjectJson>,
+}
+
+pub(super) async fn subjects(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Query(query): Query<SubjectsQuery>,
+) -> DocumentsResult<Json<SubjectsJson>> {
+    caller(&state, &req_ctx).await?;
+    let found = state
+        .service
+        .access()
+        .search_subjects(
+            &query.kind,
+            &query.q,
+            query.limit.unwrap_or(MAX_SUBJECT_SEARCH),
+        )
+        .await?;
+    Ok(Json(SubjectsJson {
+        kind: found.kind,
+        searchable: found.searchable,
+        subjects: found
+            .matches
+            .into_iter()
+            .map(|subject| SubjectJson {
+                value: subject.value,
+                display_name: subject.display,
+                detail: subject.detail,
+            })
+            .collect(),
     }))
 }
 

@@ -40,10 +40,12 @@
 mod catalog;
 mod directory;
 mod resolve;
+mod search;
 mod service;
 mod subjects;
 
-pub use directory::{SubjectDirectory, SubjectDirectoryError};
+pub use directory::{SubjectDirectory, SubjectDirectoryError, SubjectMatch};
+pub use search::{MAX_SUBJECT_SEARCH, SubjectSearch};
 pub use service::{
     AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
     root_folder_entity,

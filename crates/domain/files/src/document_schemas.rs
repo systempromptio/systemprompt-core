@@ -114,4 +114,14 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/document_path_changes.sql"),
         &["id", "document_id", "from_path", "to_path", "changed_at"],
     ),
+    (
+        "document_grant_events",
+        include_str!("../schema/document_grant_events.sql"),
+        &["id", "event", "target_kind", "target_id", "created_at"],
+    ),
+    (
+        "document_access_requests",
+        include_str!("../schema/document_access_requests.sql"),
+        &["id", "document_id", "requester_user_id", "status"],
+    ),
 ];

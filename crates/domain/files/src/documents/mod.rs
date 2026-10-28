@@ -46,7 +46,7 @@ pub mod templates;
 
 pub use access::{
     AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
-    SubjectDirectory, SubjectDirectoryError,
+    MAX_SUBJECT_SEARCH, SubjectDirectory, SubjectDirectoryError, SubjectMatch, SubjectSearch,
 };
 pub use error::DocumentsError;
 pub use events::DocumentEvents;

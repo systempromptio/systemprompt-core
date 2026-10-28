@@ -1,4 +1,4 @@
-//! Outputs of the comment, access and lifecycle tools.
+//! Outputs of the comment and lifecycle tools.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,12 +6,9 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Serialize;
-use systemprompt_files::documents::models::{DocumentComment, DocumentGrant, GrantTarget};
-use systemprompt_identifiers::{
-    DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
-};
+use systemprompt_files::documents::models::DocumentComment;
+use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId};
 use systemprompt_mcp::McpOutputSchema;
-use systemprompt_models::documents::AccessLevel;
 
 use super::outputs::{DocumentItem, documents_output};
 
@@ -66,59 +63,6 @@ pub struct CommentOutput {
     pub comments: Vec<CommentItem>,
 }
 documents_output!(CommentOutput, "documents_comment");
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct GrantItem {
-    pub grant_id: String,
-    pub subject_kind: String,
-    pub subject_value: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_name: Option<String>,
-    pub level: AccessLevel,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub valid_until: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub expired: bool,
-    pub granted_by: UserId,
-    pub granted_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folder_id: Option<DocumentFolderId>,
-}
-
-impl From<DocumentGrant> for GrantItem {
-    fn from(grant: DocumentGrant) -> Self {
-        Self {
-            expired: grant.is_expired(Utc::now()),
-            grant_id: grant.id.to_string(),
-            folder_id: match grant.target {
-                GrantTarget::Folder(folder) => Some(folder),
-                GrantTarget::Document(_) => None,
-            },
-            display_name: Some(
-                grant
-                    .subject_display
-                    .unwrap_or_else(|| grant.subject_value.clone()),
-            ),
-            subject_kind: grant.subject_kind,
-            subject_value: grant.subject_value,
-            level: grant.access_level,
-            valid_until: grant.valid_until,
-            granted_by: grant.granted_by,
-            granted_at: grant.created_at,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct AccessOutput {
-    pub document_id: DocumentId,
-    pub owner: UserId,
-    pub my_access: AccessLevel,
-    pub grants: Vec<GrantItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub inherited: Vec<GrantItem>,
-}
-documents_output!(AccessOutput, "documents_access");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct DocumentAck {

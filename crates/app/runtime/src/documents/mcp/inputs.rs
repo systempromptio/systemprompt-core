@@ -164,6 +164,8 @@ pub struct ShareInput {
     pub transfer_to: Option<UserId>,
     #[serde(default)]
     pub revoke_all: bool,
+    #[serde(default)]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -236,6 +238,13 @@ pub struct CommentInput {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct DocumentInput {
     pub document_id: DocumentId,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AccessInput {
+    pub document_id: DocumentId,
+    #[serde(default)]
+    pub history: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

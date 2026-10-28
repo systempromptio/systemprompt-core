@@ -48,9 +48,10 @@ pub fn fixture_documents_runtime_on(
         access_entities: Arc::new(AccessControlRepository::new(pool)),
         authz_hook: Arc::clone(hook),
         subjects,
-        directory: Arc::new(UserSubjectDirectory::new(Arc::new(UserRepository::new(
-            pool,
-        )))),
+        directory: Arc::new(UserSubjectDirectory::new(
+            Arc::new(UserRepository::new(pool)),
+            Vec::new(),
+        )),
         event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
         catalog: Vec::new(),
         config: DocumentsConfig::default(),

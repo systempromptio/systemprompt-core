@@ -15,5 +15,6 @@ user_purge_tables!(
         ("document_presence", "user_id"),
         ("document_locks", "holder_user_id"),
         ("document_grants", "subject_value", "subject_kind = 'user'"),
+        ("document_access_requests", "requester_user_id"),
     ]
 );

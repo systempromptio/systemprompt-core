@@ -14,9 +14,9 @@ use systemprompt_models::execution::context::RequestContext;
 use crate::documents::{active_user_display, subject_display};
 
 use super::DocumentsMcpTools;
+use super::access_records::GrantItem;
 use super::inputs::ShareInput;
 use super::outputs::ShareOutput;
-use super::records::GrantItem;
 use super::refusal::{RefusalCode, refusal};
 use super::support::{caller, tool_error};
 
@@ -70,6 +70,7 @@ impl ShareHandler<'_> {
                     subject_display: Some(display),
                     level,
                     valid_until: input.valid_until,
+                    message: input.message,
                 },
                 ctx.trace_id(),
             )

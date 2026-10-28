@@ -14,6 +14,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod access;
+mod access_records;
 mod acks;
 mod browse;
 mod comment;
@@ -52,6 +54,10 @@ use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_users::UserRepository;
 
+pub use access::AccessHandler;
+pub use access_records::{
+    AccessOutput, AccessRequestItem, GrantEventItem, GrantItem, InheritedFrom,
+};
 pub use browse::{HistoryHandler, ListHandler, SearchHandler};
 pub use comment::CommentHandler;
 pub use download::{
@@ -61,12 +67,12 @@ pub use download::{
 pub use export::ExportHandler;
 pub use guide::GuideHandler;
 pub use inputs::{
-    CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput, ExportAs,
-    ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput, ListSortInput,
-    NodeRange, ProposalAction, ProposalsInput, QuoteAnchor, ReadInput, ReadView, SearchInput,
-    ShareInput, UpdateInput,
+    AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput,
+    ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput,
+    ListSortInput, NodeRange, ProposalAction, ProposalsInput, QuoteAnchor, ReadInput, ReadView,
+    SearchInput, ShareInput, UpdateInput,
 };
-pub use lifecycle::{AccessHandler, CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
+pub use lifecycle::{CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
 pub use lines::{
     MAX_LINES, MAX_WRITTEN, RenderedLines, parse_cell, render, split_cell_id, structured_line,
     written_lines,
@@ -82,9 +88,7 @@ pub use preview::{
 };
 pub use proposals::ProposalsHandler;
 pub use read::{ReadHandler, read_view};
-pub use records::{
-    AccessOutput, CommentAnchorItem, CommentItem, CommentOutput, DocumentAck, GrantItem,
-};
+pub use records::{CommentAnchorItem, CommentItem, CommentOutput, DocumentAck};
 pub use refusal::{Refusal, RefusalCode, refusal, refusal_code, refusal_result};
 pub use share::ShareHandler;
 pub use support::tool_error;

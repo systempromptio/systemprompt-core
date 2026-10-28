@@ -17,7 +17,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_mcp::McpOutputSchema;
 
-use super::records::GrantItem;
+use super::access_records::GrantItem;
 use systemprompt_models::documents::{
     AccessLevel, ActorKind, DocumentFormat, DocumentUri, PresenceSource, PresenceState,
     ProposalStatus,

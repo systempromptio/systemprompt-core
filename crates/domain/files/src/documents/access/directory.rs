@@ -2,16 +2,26 @@
 //!
 //! The document store keeps grants by subject pair and never reads the user
 //! table itself; the composition root supplies a directory backed by the
-//! user repository. It answers two questions: which roles an active user
-//! holds (to evaluate another user's level when filtering event recipients),
-//! and which active users a subject names (to address `document.shared` and
-//! to clear presence when a grant goes away).
+//! user repository. It answers which roles an active user holds (to evaluate
+//! another user's level when filtering event recipients), which active users
+//! a subject names (to address `document.shared` and to clear presence when
+//! a grant goes away), which active users match a name prefix and which
+//! roles exist (to search and validate grant subjects).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
+
+/// One subject a search found: the value a grant names, the name shown for
+/// it and, for a user, their email.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubjectMatch {
+    pub value: String,
+    pub display: String,
+    pub detail: Option<String>,
+}
 
 #[derive(Debug, thiserror::Error)]
 #[error("subject directory lookup failed")]
@@ -33,4 +43,12 @@ pub trait SubjectDirectory: Send + Sync {
         value: &str,
         limit: usize,
     ) -> Result<Vec<UserId>, SubjectDirectoryError>;
+
+    async fn search_users(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError>;
+
+    async fn roles(&self) -> Result<Vec<String>, SubjectDirectoryError>;
 }

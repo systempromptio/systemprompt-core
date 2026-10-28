@@ -1,8 +1,9 @@
 //! Extension registration for the files domain.
 //!
 //! Registers the `files`, `content_files` and document store schemas, and the
-//! `report_document_revisions` view, with the platform extension framework,
-//! and declares dependencies on the `users` and `content` extensions.
+//! `report_document_revisions` and `report_document_sharing` views, with the
+//! platform extension framework, and declares dependencies on the `users`
+//! and `content` extensions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -73,6 +74,16 @@ const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
         AssetType::JavaScript,
     ),
     (
+        "js/sp-subject-picker.js",
+        "assets/documents/js/sp-subject-picker.js",
+        AssetType::JavaScript,
+    ),
+    (
+        "js/documents-share-view.js",
+        "assets/documents/js/documents-share-view.js",
+        AssetType::JavaScript,
+    ),
+    (
         "js/sp-proposal-list.js",
         "assets/documents/js/sp-proposal-list.js",
         AssetType::JavaScript,
@@ -95,6 +106,11 @@ const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
     (
         "css/documents-panels.css",
         "assets/documents/css/documents-panels.css",
+        AssetType::Css,
+    ),
+    (
+        "css/documents-sharing.css",
+        "assets/documents/css/documents-sharing.css",
         AssetType::Css,
     ),
 ];
@@ -128,9 +144,13 @@ impl Extension for FilesExtension {
             SchemaDefinition::new(*table, *sql)
                 .with_required_columns(columns.iter().map(|c| (*c).into()).collect())
         }))
-        .chain(std::iter::once(SchemaDefinition::sql_only(include_str!(
-            "../schema/report_document_revisions.sql"
-        ))))
+        .chain(
+            [
+                include_str!("../schema/report_document_revisions.sql"),
+                include_str!("../schema/report_document_sharing.sql"),
+            ]
+            .map(SchemaDefinition::sql_only),
+        )
         .collect()
     }
 

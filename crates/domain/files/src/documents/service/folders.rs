@@ -41,7 +41,7 @@ impl DocumentService {
                 created_by: who.id.clone(),
             })
             .await?;
-        if let Err(error) = self.complete_folder(who, &folder).await {
+        if let Err(error) = self.complete_folder(who, &folder, trace).await {
             if let Err(undo) = self.repos.folders.soft_delete(&folder.id).await {
                 tracing::error!(
                     folder_id = %folder.id,
@@ -58,6 +58,7 @@ impl DocumentService {
         &self,
         who: &AuthenticatedUser,
         folder: &DocumentFolder,
+        trace: &TraceId,
     ) -> Result<(), DocumentsError> {
         self.access.register_folder_entity(&folder.id).await?;
         self.repos
@@ -70,6 +71,7 @@ impl DocumentService {
                 access_level: AccessLevel::Share,
                 granted_by: who.id.clone(),
                 valid_until: None,
+                trace_id: trace.clone(),
             })
             .await?;
         Ok(())

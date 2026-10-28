@@ -58,18 +58,6 @@ impl DocumentRepository {
         Ok(result.rows_affected() == 1)
     }
 
-    pub async fn set_owner(&self, id: &DocumentId, owner: &UserId) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE documents SET owner_user_id = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
-            owner.as_str(),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
     pub async fn rename_any(&self, id: &DocumentId, name: &str) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE documents SET name = $2, updated_at = now() WHERE id = $1::text::uuid",

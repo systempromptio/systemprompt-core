@@ -26,6 +26,7 @@ use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::error::DocumentsResult;
 use super::headers::etag;
+use super::requests::with_request_hint;
 use super::views::{CreatedJson, DocumentDetail};
 
 pub(super) fn document_id(raw: &str) -> DocumentsResult<DocumentId> {
@@ -174,7 +175,12 @@ pub(super) async fn get(
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    let view = state.service.get(&who.user, &id, &who.trace).await?;
+    let view = match state.service.get(&who.user, &id, &who.trace).await {
+        Ok(view) => view,
+        Err(error) => {
+            return with_request_hint::<Response>(&state, &who, &id, Err(error.into())).await;
+        },
+    };
     let tag = view.head.as_ref().map(|head| etag(&head.content_sha256));
     let mut response = if method == Method::HEAD {
         StatusCode::OK.into_response()

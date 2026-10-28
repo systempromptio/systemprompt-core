@@ -1,5 +1,5 @@
 //! [`DocumentService`]: folders, documents, the revision engine, locks,
-//! presence, sharing, search and the bridge Drive feed.
+//! presence, sharing, access requests, search and the bridge Drive feed.
 //!
 //! Every method authorizes through [`DocumentAccessService`] before it reads
 //! or writes, and returns [`DocumentsError`](super::error::DocumentsError).
@@ -19,6 +19,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod access_requests;
+mod access_view;
 mod acks;
 mod apply;
 mod byte_diff;
@@ -54,12 +56,16 @@ mod types;
 
 use std::sync::Arc;
 
+pub use access_requests::{AccessDecision, AccessRequestInput, DecideRequest};
+pub use access_view::{
+    DocumentAccess, FolderAccess, InheritedGrant, MAX_GRANT_HISTORY, TargetAccess,
+};
 pub use comments::{CommentRequest, ResolveCommentRequest};
 pub use drive::parse_drive_cursor;
 pub use drive_feed::CHANGE_LAG;
-pub use grants::ShareRequest;
+pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
-pub use ownership::{DocumentAccess, TransferRequest};
+pub use ownership::TransferRequest;
 pub use proposal_body::ProposeBodyRequest;
 pub use proposal_reads::ProposalView;
 pub use proposal_review::{Accepted, ReviewRequest};

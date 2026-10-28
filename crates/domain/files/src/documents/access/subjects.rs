@@ -14,8 +14,8 @@ use crate::documents::models::{Document, SubjectPairs};
 
 const MAX_SUBJECT_MEMBERS: usize = 500;
 
-const USER_KIND: &str = "user";
-const ROLE_KIND: &str = "role";
+pub(super) const USER_KIND: &str = "user";
+pub(super) const ROLE_KIND: &str = "role";
 
 impl DocumentAccessService {
     pub async fn subject_pairs(

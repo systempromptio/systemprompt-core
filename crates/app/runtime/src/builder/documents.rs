@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
+use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::templates::load_catalog;
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
@@ -28,6 +29,7 @@ pub(super) struct DocumentsInputs<'a> {
     pub(super) event_router: &'a EventRouter,
     pub(super) files_config: &'a FilesConfig,
     pub(super) background_tasks: &'a BackgroundTasks,
+    pub(super) extensions: &'a ExtensionRegistry,
 }
 
 pub(super) fn build_documents(
@@ -42,12 +44,22 @@ pub(super) fn build_documents(
         access_entities: Arc::new(AccessControlRepository::new(inputs.database)),
         authz_hook: Arc::clone(inputs.authz_hook),
         subjects,
-        directory: Arc::new(UserSubjectDirectory::new(Arc::new(UserRepository::new(
-            inputs.database,
-        )))),
+        directory: Arc::new(UserSubjectDirectory::new(
+            Arc::new(UserRepository::new(inputs.database)),
+            catalog_roles(inputs.extensions),
+        )),
         event_router: inputs.event_router.clone(),
         catalog,
         config: *inputs.files_config.documents_config(),
         background_tasks: inputs.background_tasks.clone(),
     })))
+}
+
+fn catalog_roles(extensions: &ExtensionRegistry) -> Vec<String> {
+    extensions
+        .extensions()
+        .iter()
+        .flat_map(|extension| extension.roles())
+        .map(|role| role.name)
+        .collect()
 }

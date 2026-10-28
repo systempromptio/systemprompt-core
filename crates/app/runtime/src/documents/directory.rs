@@ -6,14 +6,18 @@
 //! nobody: dimension values have no reverse index, so events addressed by
 //! dimension reach only users found another way (presence).
 //!
+//! The role catalogue is the built-in `admin` and `user` roles, the roles
+//! extensions declare, and every role an active user holds.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_files::documents::{SubjectDirectory, SubjectDirectoryError};
+use systemprompt_files::documents::{SubjectDirectory, SubjectDirectoryError, SubjectMatch};
 use systemprompt_identifiers::UserId;
+use systemprompt_models::auth::UserRole;
 use systemprompt_users::{User, UserError, UserRepository};
 
 use super::subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND};
@@ -22,12 +26,16 @@ use super::subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND};
 #[derive(Debug, Clone)]
 pub struct UserSubjectDirectory {
     users: Arc<UserRepository>,
+    catalog_roles: Vec<String>,
 }
 
 impl UserSubjectDirectory {
     #[must_use]
-    pub const fn new(users: Arc<UserRepository>) -> Self {
-        Self { users }
+    pub const fn new(users: Arc<UserRepository>, catalog_roles: Vec<String>) -> Self {
+        Self {
+            users,
+            catalog_roles,
+        }
     }
 }
 
@@ -65,5 +73,42 @@ impl SubjectDirectory for UserSubjectDirectory {
                 .map_err(lookup_failed),
             _ => Ok(Vec::new()),
         }
+    }
+
+    async fn search_users(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError> {
+        let users = self
+            .users
+            .search_active_by_prefix(query, i64::try_from(limit).unwrap_or(i64::MAX))
+            .await
+            .map_err(lookup_failed)?;
+        Ok(users
+            .into_iter()
+            .map(|user| SubjectMatch {
+                value: user.id.as_str().to_owned(),
+                detail: Some(user.email),
+                display: user.display_name.or(user.full_name).unwrap_or(user.name),
+            })
+            .collect())
+    }
+
+    async fn roles(&self) -> Result<Vec<String>, SubjectDirectoryError> {
+        let held = self
+            .users
+            .list_active_roles()
+            .await
+            .map_err(lookup_failed)?;
+        let mut roles: Vec<String> = [UserRole::Admin, UserRole::User]
+            .into_iter()
+            .map(|role| role.as_str().to_owned())
+            .chain(self.catalog_roles.iter().cloned())
+            .chain(held)
+            .collect();
+        roles.sort();
+        roles.dedup();
+        Ok(roles)
     }
 }

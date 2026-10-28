@@ -23,6 +23,7 @@ mod content;
 mod download;
 pub mod drive;
 mod error;
+mod folder_sharing;
 mod folders;
 mod headers;
 mod history;
@@ -32,6 +33,7 @@ mod listing;
 mod live;
 mod proposals;
 mod read;
+mod requests;
 mod sharing;
 mod views;
 
@@ -155,6 +157,13 @@ pub fn router(state: DocumentsState) -> Router {
         .route("/{id}/restore", post(lifecycle::restore))
         .route("/{id}/copy", post(lifecycle::copy))
         .route("/subject-kinds", get(access::subject_kinds))
+        .route("/subjects", get(access::subjects))
+        .route("/{id}/access-requests", post(requests::create))
+        .route("/{id}/access-requests/{rid}/grant", post(requests::grant))
+        .route(
+            "/{id}/access-requests/{rid}/decline",
+            post(requests::decline),
+        )
         .route("/{id}/revisions", get(history::revisions))
         .route("/{id}/proposals", get(proposals::list))
         .route("/{id}/proposals/{pid}", get(proposals::get))
@@ -191,5 +200,12 @@ pub fn folders_router(state: DocumentsState) -> Router {
             "/{id}",
             axum::routing::patch(folders::update).delete(folders::delete),
         )
+        .route(
+            "/{id}/grants",
+            get(folder_sharing::list_grants)
+                .post(folder_sharing::share)
+                .delete(folder_sharing::revoke),
+        )
+        .route("/{id}/access", get(folder_sharing::access))
         .with_state(state)
 }

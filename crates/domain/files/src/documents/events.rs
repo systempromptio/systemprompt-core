@@ -32,6 +32,7 @@ use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::documents::{
     DocumentAwarenessEvent, DocumentCollabUpdateEvent, DocumentCommentCreatedEvent,
+    DocumentAccessRequestedEvent, DocumentCollabUpdateEvent, DocumentCommentCreatedEvent,
     DocumentCommentResolvedEvent, DocumentConflictEvent, DocumentLockEvent,
     DocumentOwnershipTransferredEvent, DocumentPresenceEvent, DocumentProposalEvent,
     DocumentRevisionCreatedEvent, DocumentSharedEvent,
@@ -171,6 +172,15 @@ impl DocumentEvents {
         event: &DocumentSharedEvent,
     ) -> Result<(), DocumentsError> {
         self.emit(DocumentSharedEvent::NAME, to, event).await
+    }
+
+    pub async fn access_requested(
+        &self,
+        to: &[UserId],
+        event: &DocumentAccessRequestedEvent,
+    ) -> Result<(), DocumentsError> {
+        self.emit(DocumentAccessRequestedEvent::NAME, to, event)
+            .await
     }
 
     pub async fn ownership_transferred(

@@ -9,14 +9,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_events::RelayError;
-use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::{
-    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
-    DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
+    ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
+    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
+    UserId,
 };
 use systemprompt_models::authz::SubjectSourceError;
-use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat, ProposalStatus};
+use systemprompt_models::documents::{
+    AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
+};
 use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
 use systemprompt_traits::RepositoryError;
 
@@ -199,6 +200,26 @@ pub enum DocumentsError {
         head: DocumentRevisionId,
         node: Option<DocumentNodeId>,
         current_text: Option<String>,
+    },
+    #[error(
+        "you already have an open access request on document {document_id}; wait for the \
+         owner to answer it"
+    )]
+    AccessRequestOpen { document_id: DocumentId },
+    #[error(
+        "you already hold {held} access to document {document_id}; ask someone who holds share \
+         to raise it"
+    )]
+    AccessRequestNotNeeded {
+        document_id: DocumentId,
+        held: AccessLevel,
+    },
+    #[error(
+        "access request {request_id} is already {status}; only an open request can be answered"
+    )]
+    AccessRequestClosed {
+        request_id: DocumentAccessRequestId,
+        status: AccessRequestStatus,
     },
     #[error("proposal {proposal_id} is already {status}; only an open proposal can be reviewed")]
     ProposalClosed {

@@ -73,6 +73,9 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::InvalidName { .. }
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::OwnNotGrantable
+        | DocumentsError::AccessRequestOpen { .. }
+        | DocumentsError::AccessRequestNotNeeded { .. }
+        | DocumentsError::AccessRequestClosed { .. }
         | DocumentsError::FolderNotEmpty { .. }
         | DocumentsError::InvalidMove { .. }
         | DocumentsError::InvalidCursor { .. }
@@ -106,6 +109,9 @@ const fn plain_refusal(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::InvalidName { .. }
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::OwnNotGrantable
+        | DocumentsError::AccessRequestOpen { .. }
+        | DocumentsError::AccessRequestNotNeeded { .. }
+        | DocumentsError::AccessRequestClosed { .. }
         | DocumentsError::FolderNotEmpty { .. }
         | DocumentsError::InvalidMove { .. }
         | DocumentsError::InvalidCursor { .. }

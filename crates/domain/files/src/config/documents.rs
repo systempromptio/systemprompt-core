@@ -1,7 +1,12 @@
 //! The `files.documents` section: the document store's on/off switch
 //! (off by default), upload limit, blob
-//! garbage-collection grace, presence time-to-live, trash retention and
-//! per-request input limits.
+//! garbage-collection grace, presence time-to-live, trash retention,
+//! per-request input limits and whether a user with no access may request it
+//! (`accessRequests`, off by default).
+//!
+//! Turning `accessRequests` on tells a signed-in caller that a document they
+//! cannot open exists (the refusal carries `can_request: true`); with it off
+//! such a document is indistinguishable from a missing one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,6 +37,8 @@ pub struct DocumentsConfig {
     pub trash_retention_days: u32,
     #[serde(default)]
     pub limits: DocumentLimits,
+    #[serde(default)]
+    pub access_requests: bool,
 }
 
 const fn default_max_upload_bytes() -> u64 {
@@ -59,6 +66,7 @@ impl Default for DocumentsConfig {
             presence_ttl_secs: DEFAULT_PRESENCE_TTL_SECS,
             trash_retention_days: DEFAULT_TRASH_RETENTION_DAYS,
             limits: DocumentLimits::default(),
+            access_requests: false,
         }
     }
 }
