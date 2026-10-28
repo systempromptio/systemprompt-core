@@ -60,6 +60,7 @@ mod proposal_review;
 mod proposals;
 mod publish;
 mod reads;
+mod suggested_write;
 mod support;
 mod types;
 mod visibility;
@@ -86,6 +87,7 @@ pub use proposal_body::ProposeBodyRequest;
 pub use proposal_reads::ProposalView;
 pub use proposal_review::{Accepted, ReviewRequest};
 pub use proposals::{EditModeRequest, ProposeRequest, Proposed};
+pub use suggested_write::ExternalWrite;
 pub use types::{
     AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning,
     CreateRequest, DocumentView, HistoryPage, ImportRequest, LandedCommit, ListFolderRequest,

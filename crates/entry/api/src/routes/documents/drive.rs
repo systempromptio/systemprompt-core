@@ -226,6 +226,7 @@ async fn commit(
             StatusCode::OK
         },
         DriveCommitResponse::Conflict { .. } => StatusCode::CONFLICT,
+        DriveCommitResponse::Proposed { .. } => StatusCode::CREATED,
     };
     Ok((status, Json(outcome)).into_response())
 }

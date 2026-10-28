@@ -98,6 +98,13 @@ pub enum DriveCommitResponse {
         head_content_sha256: ContentHash,
         base_revision_id: Option<DocumentRevisionId>,
     },
+    /// The device acts as an agent that may only suggest on this document:
+    /// the bytes were written as a proposal a person reviews, and the head
+    /// did not move.
+    Proposed {
+        proposal_id: DocumentProposalId,
+        revision_id: DocumentRevisionId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]

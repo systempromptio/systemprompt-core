@@ -121,3 +121,48 @@ async fn the_batch_check_leaves_out_what_the_agent_cannot_see() {
         .expect("agent");
     assert!(agents.is_empty());
 }
+
+#[tokio::test]
+async fn a_suggest_capped_whole_file_write_becomes_a_proposal() {
+    use systemprompt_identifiers::DriveDeviceId;
+    use systemprompt_models::documents::{DriveCommitMeta, DriveCommitResponse, content_hash};
+
+    let h = agent_harness(
+        AgentCap::Suggest,
+        Vec::new(),
+        RoleDirectory::default(),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let owner = person("suggest-drive-owner");
+    let (document, revision) = h
+        .service
+        .create_from_template(&owner, create("blank-markdown", None), &trace())
+        .await
+        .expect("create");
+    let edited = b"# edited on a laptop\n".to_vec();
+    let meta = DriveCommitMeta {
+        document_id: Some(document.id.clone()),
+        path: document.name.clone(),
+        base_revision: Some(revision.id.clone()),
+        content_sha256: content_hash(&edited),
+        size_bytes: edited.len() as u64,
+        device_id: DriveDeviceId::new("laptop"),
+        message: None,
+    };
+    let response = as_agent(h.service.drive_commit(&owner, meta, edited, &trace()))
+        .await
+        .expect("a suggest-capped device write is proposed, not refused");
+    assert!(
+        matches!(response, DriveCommitResponse::Proposed { .. }),
+        "{response:?}"
+    );
+    let head = h
+        .service
+        .get(&owner, &document.id, &trace())
+        .await
+        .expect("get")
+        .head
+        .map(|r| r.id);
+    assert_eq!(head, Some(revision.id), "a proposal never moves the head");
+}

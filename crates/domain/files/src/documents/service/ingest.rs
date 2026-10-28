@@ -64,7 +64,7 @@ impl DocumentService {
         clippy::too_many_arguments,
         reason = "the caller, name, format, bytes, trace and allowance are each needed by the upload the check runs as"
     )]
-    async fn ingest(
+    pub(super) async fn ingest(
         &self,
         who: &AuthenticatedUser,
         name: &str,

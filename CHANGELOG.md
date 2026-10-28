@@ -17,8 +17,11 @@
 
 - **Users:** API keys carry a `kind` (`user` or `device`, migration 031); the PAT a bridge device enrolment mints is `device`. Bridge access from a device PAT with no purpose is stamped `interaction: interactive` (an attended host); a user-created or purposed PAT never is.
 
+- **Files:** a whole-file write (bridge Drive commit, REST byte write) by an agent capped at `suggest` is written as a whole-body proposal instead of refused: `DocumentService::write_external` returns `ExternalWrite::{Landed, Proposed}`, the Drive answers `DriveCommitResponse::Proposed { proposal_id, revision_id }` (`201`), and the REST write answers `201` with the proposal.
+
 ### Breaking
 
+- **Breaking:** **Files:** `DriveCommitResponse` gains `Proposed`. Migrate exhaustive matches, and have Drive clients treat `status: proposed` as accepted-for-review rather than an error.
 - **Breaking:** **Users:** `IssueApiKeyParams`, `CreateApiKeyParams` and `UserApiKey` gain `kind: ApiKeyKind`. Migrate struct literals with `kind: ApiKeyKind::User`.
 - **Breaking:** **Files:** a document service call outside an `act_as` scope is an unnamed, unattended agent, not the person. `RequestContext` `AuthContext` gains `browser_session`, `JwtUserContext` and `JwtConfig` gain `interaction`, `BridgeAccessRequest` gains `interactive`, `TokenInteraction` gains `Interactive`, `AgentRateLimiter::admit` takes the agent name, and download links name the minting agent in their purpose. Migrate struct literals with `browser_session: false` / `interaction: None` / `interactive: false`.
 - **Breaking:** **Auth:** `CustomClaims` and `UserJwtRequest` gain `interaction: Option<TokenInteraction>`. Migrate struct literals by adding `interaction: None`.

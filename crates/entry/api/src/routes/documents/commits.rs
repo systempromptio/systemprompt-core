@@ -6,7 +6,8 @@
 //! idempotent: the commit stores its acknowledgement in its own transaction,
 //! and a repeat of the same request (over REST or MCP) answers it with
 //! `replayed`; a different request under a used op id is refused 409
-//! `op_id_mismatch`.
+//! `op_id_mismatch`. A byte write by an agent capped at `suggest` is
+//! written as a proposal instead and answered `201` with it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,7 +23,8 @@ use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, LandedCommit, ProposeRequest,
+    CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ExternalWrite, LandedCommit,
+    ProposeRequest,
 };
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentOpId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
@@ -107,11 +109,14 @@ pub(super) async fn write(
         op_id: query.op_id,
         media: Media::new(),
     };
-    let outcome = state
+    match state
         .service
-        .commit_external(&who.user, request, &who.trace)
-        .await?;
-    Ok(outcome_response(outcome, &id))
+        .write_external(&who.user, request, &who.trace)
+        .await?
+    {
+        ExternalWrite::Landed(outcome) => Ok(outcome_response(outcome, &id)),
+        ExternalWrite::Proposed(proposed) => Ok(proposed_response(*proposed)),
+    }
 }
 
 #[derive(Debug, Deserialize)]

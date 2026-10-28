@@ -1,6 +1,8 @@
 //! Drive commits by path: a known document is committed with the client's
 //! base revision; an unknown path in a known folder imports a new document.
 //! Folders are never created from a path; an unknown folder is refused.
+//! A device acting as an agent capped at `suggest` gets a proposal instead
+//! of a commit ([`DriveCommitResponse::Proposed`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,8 +15,8 @@ use systemprompt_models::documents::{
 
 use super::support::validate_name;
 use super::{
-    Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService, ImportRequest,
-    RevisionOrigin,
+    Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService, ExternalWrite,
+    ImportRequest, RevisionOrigin,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::model::Media;
@@ -78,7 +80,16 @@ impl DocumentService {
             op_id: None,
             media: Media::new(),
         };
-        Ok(match self.commit_external(who, request, trace).await? {
+        let outcome = match self.write_external(who, request, trace).await? {
+            ExternalWrite::Landed(outcome) => outcome,
+            ExternalWrite::Proposed(proposed) => {
+                return Ok(DriveCommitResponse::Proposed {
+                    proposal_id: proposed.proposal.id,
+                    revision_id: proposed.revision.id,
+                });
+            },
+        };
+        Ok(match outcome {
             CommitOutcome::Committed(landed) => DriveCommitResponse::Committed {
                 revision_id: landed.revision.id,
             },
