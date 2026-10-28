@@ -57,6 +57,14 @@ pub enum CodecError {
     Malformed { detail: &'static str },
     #[error("the document cannot hold this content: {detail}")]
     Refused { detail: String },
+    #[error(
+        "{what} is not valid RichText v2 JSON: {source} (schema: GET /api/v1/documents/schema)"
+    )]
+    Payload {
+        what: &'static str,
+        #[source]
+        source: serde_json::Error,
+    },
 }
 
 /// A node copied out of one revision's bytes for insertion into another.

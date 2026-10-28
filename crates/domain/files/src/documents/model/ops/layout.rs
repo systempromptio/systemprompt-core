@@ -26,9 +26,11 @@ fn refused(detail: String) -> CodecError {
 }
 
 // JSON: an op payload, RichText v2 JSON parsed into the named model type.
-fn parse<T: DeserializeOwned>(what: &str, value: &serde_json::Value) -> Result<T, CodecError> {
-    serde_json::from_value(value.clone())
-        .map_err(|error| refused(format!("{what} is not valid RichText v2 JSON: {error}")))
+fn parse<T: DeserializeOwned>(
+    what: &'static str,
+    value: &serde_json::Value,
+) -> Result<T, CodecError> {
+    serde_json::from_value(value.clone()).map_err(|source| CodecError::Payload { what, source })
 }
 
 fn accepts(format: DocumentFormat, op: &'static str) -> Result<(), CodecError> {
@@ -50,8 +52,11 @@ pub(super) fn set_paragraph(
             block.id
         )));
     }
-    let mut merged = serde_json::to_value(&block.attrs)
-        .map_err(|error| refused(format!("the block's attributes did not serialise: {error}")))?;
+    let mut merged =
+        serde_json::to_value(&block.attrs).map_err(|source| CodecError::Payload {
+            what: "the block's attributes",
+            source,
+        })?;
     let (Some(held), Some(given)) = (merged.as_object_mut(), op.attrs.as_object()) else {
         return Err(refused("set_paragraph.attrs must be an object".to_owned()));
     };

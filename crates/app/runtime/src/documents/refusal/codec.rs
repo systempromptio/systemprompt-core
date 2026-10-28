@@ -62,6 +62,7 @@ pub(super) fn codec_refusal(error: &CodecError) -> Option<Refused> {
             Refusal::new(RefusalCode::InvalidParams)
         },
         CodecError::Refused { .. } => Refusal::new(RefusalCode::UnsupportedOp),
+        CodecError::Payload { .. } => Refusal::new(RefusalCode::InvalidParams),
         CodecError::Io(_) => return None,
     };
     Some(refusal.with_message(message))

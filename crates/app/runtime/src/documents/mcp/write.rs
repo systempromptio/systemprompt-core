@@ -17,7 +17,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::model::{ModelViewV2, RichText, markdown};
+use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::{ModelViewV2, RICH_TEXT_VERSION, RichText, markdown};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, CreateRequest, EditModeRequest,
@@ -27,7 +28,7 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_provider_contracts::documents::TemplateParams;
+use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
 use super::DocumentsMcpTools;
 use super::inputs::{CreateInput, EditInput};
@@ -72,12 +73,21 @@ pub fn create_content(content: Option<serde_json::Value>) -> Result<Option<RichT
             Ok(Some(markdown::import(markdown)))
         },
         Some((key, value)) if key == "model" => {
-            let view: ModelViewV2 = serde_json::from_value(value.clone()).map_err(|error| {
-                invalid(format!("content.model is not a valid model ({error}); {CONTENT_SHAPES}"))
-            })?;
-            view.into_model()
-                .map(Some)
-                .map_err(|detail| invalid(format!("{detail}; {CONTENT_SHAPES}")))
+            let view: ModelViewV2 =
+                serde_json::from_value(value.clone()).map_err(|source| {
+                    tool_error(DocumentsError::Codec(CodecError::Payload {
+                        what: "content.model",
+                        source,
+                    }))
+                })?;
+            if view.version > RICH_TEXT_VERSION || view.kind != "rich_text" {
+                return Err(invalid(format!(
+                    "content.model is {} v{}; this server reads rich_text up to v{RICH_TEXT_VERSION}; \
+                     {CONTENT_SHAPES}",
+                    view.kind, view.version
+                )));
+            }
+            Ok(Some(view.model))
         },
         _ => Err(invalid(CONTENT_SHAPES.to_owned())),
     }

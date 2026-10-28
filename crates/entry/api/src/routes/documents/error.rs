@@ -181,9 +181,10 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
 
 fn codec_status(codec: &CodecError) -> fn(String) -> ApiError {
     match codec {
-        CodecError::Parse { .. } | CodecError::Malformed { .. } | CodecError::Refused { .. } => {
-            unprocessable
-        },
+        CodecError::Parse { .. }
+        | CodecError::Malformed { .. }
+        | CodecError::Refused { .. }
+        | CodecError::Payload { .. } => unprocessable,
         CodecError::StaleAnchor { .. } | CodecError::UnknownNode { .. } => conflict,
         _ => bad_request,
     }
