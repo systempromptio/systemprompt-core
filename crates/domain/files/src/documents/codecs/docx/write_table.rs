@@ -57,7 +57,8 @@ pub(super) fn table(
         }
     }
     out.push_str("</w:tblGrid>");
-    let mut below = vec![(0u32, 1u32); columns];
+    let mut remaining = vec![0u32; columns];
+    let mut spans = vec![1u32; columns];
     for (r, row) in rows.iter().enumerate() {
         out.push_str("<w:tr>");
         if u32::try_from(r).is_ok_and(|r| r < props.header_rows) {
@@ -65,9 +66,11 @@ pub(super) fn table(
         }
         let mut c = 0;
         while c < columns {
-            let (left, span) = below[c];
-            if left > 0 {
-                below[c].0 -= 1;
+            if remaining[c] > 0 {
+                let span = spans[c].max(1);
+                for slot in remaining.iter_mut().skip(c).take(span as usize) {
+                    *slot = slot.saturating_sub(1);
+                }
                 let width = tc_width(&widths, c, span);
                 let grid = grid_span(span);
                 out.push_str(&format!(
@@ -79,7 +82,10 @@ pub(super) fn table(
             let cell = props.cell(r, c);
             let span = cell.colspan().min(u32::try_from(columns - c).unwrap_or(1)).max(1);
             if cell.rowspan() > 1 {
-                below[c] = (cell.rowspan() - 1, span);
+                for slot in remaining.iter_mut().skip(c).take(span as usize) {
+                    *slot = cell.rowspan() - 1;
+                }
+                spans[c] = span;
             }
             let mut tc_pr = tc_width(&widths, c, span) + &grid_span(span);
             if cell.rowspan() > 1 {
