@@ -24,6 +24,7 @@ mod guide_topics;
 mod inputs;
 mod lifecycle;
 mod listing;
+mod mentions;
 mod outputs;
 mod people;
 mod preview;

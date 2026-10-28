@@ -124,6 +124,7 @@ impl DocumentService {
                     document.format,
                     std::mem::take(bytes),
                     trace,
+                    Allowance::Save,
                 )
                 .await?;
             *bytes = checked;

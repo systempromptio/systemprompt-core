@@ -59,9 +59,10 @@ pub(crate) async fn check(
     let limits = *limits;
     let scanning = tokio::task::spawn_blocking(move || {
         scan(
-            BufReader::with_capacity(READ_BUFFER, Pipe::new(receiver)),
+            Counted::new(BufReader::with_capacity(READ_BUFFER, Pipe::new(receiver))),
             size,
             &limits,
+            &expected,
         )
     });
     while let Some(chunk) = body.next().await {

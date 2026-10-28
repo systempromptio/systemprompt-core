@@ -68,7 +68,9 @@ pub(super) async fn gate(
     let Some(token) = token(&request) else {
         return next.run(request).await;
     };
-    match authorize(&state.documents, &token, &request).await {
+    let method = request.method().clone();
+    let path = request.uri().path().to_owned();
+    match authorize(&state.documents, &token, &method, &path).await {
         Ok(uploader) => {
             request.extensions_mut().insert(TokenUploader(uploader));
             match state.tokened.oneshot(request).await {
@@ -83,7 +85,8 @@ pub(super) async fn gate(
 async fn authorize(
     state: &DocumentsState,
     token: &str,
-    request: &Request,
+    method: &Method,
+    path: &str,
 ) -> Result<Uploader, ApiHttpError> {
     let audience = [JwtAudience::Resource(UPLOAD_AUDIENCE.to_owned())];
     let claims = state
@@ -92,11 +95,10 @@ async fn authorize(
         .map_err(|source| {
             ApiError::unauthorized("upload link is invalid or has expired").with_source(source)
         })?;
-    let path = request.uri().path().trim_matches('/');
+    let path = path.trim_matches('/');
     let (id, rest) = path.split_once('/').unwrap_or((path, ""));
     let id = DocumentUploadId::try_new(id)?;
     let purpose = claims.custom.purpose.as_deref();
-    let method = request.method();
     let readable = matches!(*method, Method::GET | Method::HEAD) && rest == "content";
     let allowed = (writable(method, rest)
         && purpose == Some(upload_purpose(UploadGrant::Write, &id).as_str()))
