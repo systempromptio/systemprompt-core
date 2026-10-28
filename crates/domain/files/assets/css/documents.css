@@ -1,7 +1,9 @@
 /*
  * Document store components. Every value is an install `--sp-` token, so the
  * install's light and dark themes (and any white-label accent) apply as-is.
- * Panels (share, comments, proposals, history) live in documents-panels.css.
+ * Panels (share, comments, proposals, history) live in documents-panels.css;
+ * the share dialog's typeahead, confirmations and history in
+ * documents-sharing.css.
  */
 .sp-u-sr-only {
   position: absolute;

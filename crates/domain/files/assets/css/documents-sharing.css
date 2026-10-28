@@ -1,0 +1,66 @@
+.sp-share-dialog__heading {
+  margin: 0;
+  font-size: var(--sp-text-sm);
+}
+
+.sp-share-dialog__grant[data-expired] {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.sp-share-dialog__message {
+  flex-basis: 100%;
+  color: var(--sp-muted-strong);
+}
+
+.sp-share-dialog__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-2);
+  padding: var(--sp-space-2);
+  border: 1px solid var(--sp-danger);
+  border-radius: var(--sp-corners-sm);
+}
+
+.sp-share-dialog__field > textarea {
+  min-block-size: 3lh;
+  padding: var(--sp-space-1) var(--sp-space-2);
+  border: 1px solid var(--sp-line-control);
+  border-radius: var(--sp-corners-sm);
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  font: inherit;
+}
+
+sp-subject-picker {
+  position: relative;
+  display: contents;
+}
+
+.sp-subject-picker__options {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--sp-line-control);
+  border-radius: var(--sp-corners-sm);
+  background: var(--sp-bg-elev-2);
+  list-style: none;
+}
+
+.sp-subject-picker__option {
+  padding: var(--sp-space-1) var(--sp-space-2);
+  cursor: pointer;
+}
+
+.sp-subject-picker__option[aria-selected="true"] {
+  background: var(--sp-bg-elev-1);
+  outline: 2px solid var(--sp-line-control);
+}
+
+.sp-subject-picker__detail,
+.sp-subject-picker__hint {
+  margin: 0;
+  color: var(--sp-muted);
+  font-size: var(--sp-text-xs);
+}
