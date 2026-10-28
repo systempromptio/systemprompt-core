@@ -14,6 +14,7 @@ mod codecs_pending;
 mod codecs_pptx;
 mod codecs_pptx_edits;
 mod codecs_pptx_markdown;
+mod codecs_pptx_slides;
 mod codecs_text;
 mod codecs_xlsx;
 mod codecs_xlsx_paths;
@@ -26,6 +27,7 @@ mod pptx_fixture;
 mod registry;
 mod targets;
 mod templates;
+mod templates_catalog_errors;
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{

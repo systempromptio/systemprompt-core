@@ -14,6 +14,8 @@ mod documents_collab;
 #[cfg(test)]
 mod documents_collab_settle;
 #[cfg(test)]
+mod documents_collab_timer;
+#[cfg(test)]
 mod documents_comments;
 #[cfg(test)]
 mod documents_drive_paths;
@@ -27,6 +29,8 @@ mod documents_listing;
 mod documents_proposals;
 #[cfg(test)]
 mod documents_proposals_review;
+#[cfg(test)]
+mod documents_reads;
 #[cfg(test)]
 mod documents_repository;
 #[cfg(test)]
