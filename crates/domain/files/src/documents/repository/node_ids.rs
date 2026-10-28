@@ -6,11 +6,13 @@
 //! transaction that writes the revision; a second write of the same
 //! revision's ids is an error. Counters are reserved in blocks on the
 //! primary (`document_node_counters`), so two commits by one writer never
-//! mint the same id however far a replica lags.
+//! mint the same id however far a replica lags. [`Self::without_ids`] pages
+//! the revisions that have no ids, oldest first, for the backfill job.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId};
@@ -114,5 +116,31 @@ impl DocumentNodeIdRepository {
         .fetch_optional(conn)
         .await?
         .unwrap_or(false))
+    }
+
+    pub async fn without_ids(
+        &self,
+        after: Option<(DateTime<Utc>, &DocumentRevisionId)>,
+        limit: i64,
+    ) -> RepoResult<Vec<(DateTime<Utc>, DocumentRevisionId)>> {
+        let (after_at, after_id) =
+            after.map_or((None, None), |(at, id)| (Some(at), Some(id.as_str())));
+        Ok(sqlx::query!(
+            r#"SELECT r.created_at, r.id::text AS "id!: DocumentRevisionId"
+               FROM document_revisions r
+               WHERE NOT EXISTS (SELECT 1 FROM document_node_ids n WHERE n.revision_id = r.id)
+                 AND ($1::timestamptz IS NULL
+                      OR (r.created_at, r.id) > ($1::timestamptz, $2::text::uuid))
+               ORDER BY r.created_at, r.id
+               LIMIT $3"#,
+            after_at,
+            after_id,
+            limit,
+        )
+        .fetch_all(&*self.pools.write)
+        .await?
+        .into_iter()
+        .map(|row| (row.created_at, row.id))
+        .collect())
     }
 }

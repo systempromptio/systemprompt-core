@@ -1,11 +1,12 @@
-//! Stable node ids of revisions: read from the store, carried forward from
-//! the parent revision, or minted.
+//! Stable node ids of revisions: read from the store, never minted on a read.
 //!
-//! A commit records the new revision's ids in the transaction that moves
-//! its head, so a head always has ids. A revision written before ids existed
-//! gets them on first projection, carried from its parent when the parent
-//! has ids, in a transaction that locks the revision row: a second reader
-//! minting it at once waits, then reads the first reader's ids.
+//! A commit records the new revision's ids in the transaction that writes
+//! the revision, so every revision written since ids exist has them. A
+//! revision written before has none until the `document_node_ids_backfill`
+//! job mints them with [`DocumentService::backfill_node_ids`]: carried from
+//! its parent when the parent has ids, in a transaction that locks the
+//! revision row, so two minters never write it twice. Until then a
+//! projection of that revision refuses `not_found`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -54,7 +55,7 @@ impl DocumentService {
     ) -> Result<(Projected, Vec<u8>), DocumentsError> {
         let bytes = self.revision_bytes(revision).await?;
         let paths = self.project_paths(document.format, bytes.clone()).await?;
-        let entries = self.node_ids(document, revision, &paths).await?;
+        let entries = self.node_ids(revision, &paths).await?;
         let projected = Projected {
             ids: with_ids(paths.clone(), &entries),
             paths,
@@ -64,26 +65,38 @@ impl DocumentService {
 
     async fn node_ids(
         &self,
-        document: &Document,
         revision: &DocumentRevision,
         paths: &Projection,
     ) -> Result<Vec<NodeIdEntry>, DocumentsError> {
         let stored = self.repos.node_ids.list(&revision.id).await?;
-        if !stored.is_empty() {
-            return Ok(stored);
+        if stored.is_empty() && paths.nodes().next().is_some() {
+            return Err(DocumentsError::not_found("revision", &revision.id));
         }
-        let parent = self.parent_ids(document, revision).await?;
+        Ok(stored)
+    }
+
+    pub async fn backfill_node_ids(
+        &self,
+        revision: &DocumentRevision,
+    ) -> Result<usize, DocumentsError> {
+        let document = self
+            .repos
+            .documents
+            .find(&revision.document_id)
+            .await?
+            .ok_or_else(|| DocumentsError::not_found("document", &revision.document_id))?;
+        let bytes = self.revision_bytes(revision).await?;
+        let paths = self.project_paths(document.format, bytes).await?;
+        let parent = self.parent_ids(&document, revision).await?;
         let mut tx = self.repos.documents.begin().await?;
         if DocumentNodeIdRepository::lock_revision(&mut tx, &revision.id).await? {
-            drop(tx);
-            return Ok(self.repos.node_ids.list(&revision.id).await?);
+            return Ok(0);
         }
         let writer = writer_tag(revision.id.as_str());
         let count = i64::try_from(paths.nodes().count()).unwrap_or(i64::MAX);
         let first =
             DocumentNodeIdRepository::reserve(&mut tx, &document.id, &writer, count).await?;
         let mut minter = NodeIdMinter::new(writer, u64::try_from(first - 1).unwrap_or(0));
-        let paths = paths.clone();
         let entries = blocking(move || {
             Ok(match parent {
                 Some(parent) => carry_forward(&parent, &paths, &CarryHints::default(), &mut minter),
@@ -95,7 +108,7 @@ impl DocumentService {
         tx.commit()
             .await
             .map_err(|error| DocumentsError::Repository(RepositoryError::from(error)))?;
-        Ok(entries)
+        Ok(entries.len())
     }
 
     async fn parent_ids(
