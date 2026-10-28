@@ -96,7 +96,7 @@ pub use types::{
 pub use visibility::MAX_VISIBILITY_BATCH;
 
 use super::access::DocumentAccessService;
-use super::agents::AgentRateLimiter;
+use super::agents::{AgentRateLimiter, RewriteTracker};
 use super::blob_store::BlobStore;
 use super::codecs::CodecRegistry;
 use super::events::DocumentEvents;
@@ -117,6 +117,7 @@ pub struct DocumentService {
     config: DocumentsConfig,
     uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
     agent_edits: Arc<AgentRateLimiter>,
+    agent_rewrites: Arc<RewriteTracker>,
     #[cfg(feature = "collab")]
     collab: Arc<std::sync::OnceLock<std::sync::Weak<super::collab::CollabService>>>,
 }
@@ -145,7 +146,9 @@ impl DocumentService {
             events: parts.events,
             agent_edits: Arc::new(AgentRateLimiter::new(
                 parts.config.limits.agent_edits_per_hour,
+                parts.config.limits.agent_edits_per_hour_per_user,
             )),
+            agent_rewrites: Arc::new(RewriteTracker::new()),
             config: parts.config,
             uploads: Arc::default(),
             #[cfg(feature = "collab")]

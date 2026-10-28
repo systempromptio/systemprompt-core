@@ -4,7 +4,8 @@
 //! own and takes `{"cap": "none" | "read" | "comment" | "suggest" | "edit"
 //! | null}`, where `null` clears the override. An override looser than the
 //! agent policy allows is refused. `GET ?agent=<name>&attended=<bool>`
-//! answers for that agent (default: an attended agent named `agent`), and
+//! answers for that agent (default: an attended agent named `agent`) on
+//! `channel=direct|drive_sync|live_checkpoint` (default `direct`), and
 //! the answer always carries both the `attended` and `unattended` caps; a
 //! name outside 1 to 64 of letters, digits, `-`, `_`, `.`, `:` or `/` is
 //! refused.
@@ -16,7 +17,9 @@ use axum::extract::{Path, Query, State};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::agents::{AgentActor, AgentCap, CapSource, EffectiveCap};
+use systemprompt_files::documents::agents::{
+    AgentActor, AgentCap, AgentChannel, CapSource, EffectiveCap,
+};
 use systemprompt_files::documents::service::{AgentCapTarget, AgentCapView};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 use systemprompt_models::RequestContext;
@@ -36,6 +39,7 @@ pub(super) struct AgentCapBody {
 pub(super) struct AgentQuery {
     agent: Option<String>,
     attended: Option<bool>,
+    channel: Option<AgentChannel>,
 }
 
 const MAX_AGENT_NAME: usize = 64;
@@ -54,6 +58,7 @@ impl AgentQuery {
         Ok(AgentActor {
             name,
             attended: self.attended.unwrap_or(true),
+            channel: self.channel.unwrap_or_default(),
         })
     }
 }

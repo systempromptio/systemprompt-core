@@ -11,9 +11,10 @@
 //! hash.
 //!
 //! The Drive sync is a bearer client, so every route runs as an agent named
-//! and attended from the bridge token's signed claims, under the document's
-//! agent cap; a whole-file commit is a `replace_content` write the agent
-//! access policy must allow.
+//! and attended from the bridge token's signed claims, on the `drive_sync`
+//! channel, under the document's agent cap; a whole-file commit is a
+//! `replace_content` write the agent access policy must allow, and may allow
+//! for this channel alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,7 +29,7 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use serde::Deserialize;
 use systemprompt_files::documents::DocumentService;
-use systemprompt_files::documents::agents::{DocumentActor, act_as};
+use systemprompt_files::documents::agents::{AgentChannel, DocumentActor, act_as};
 use systemprompt_files::documents::service::parse_drive_cursor;
 use systemprompt_identifiers::{ContentHash, TraceId};
 use systemprompt_models::ApiPaths;
@@ -114,7 +115,7 @@ async fn device_user(
         claims.client_id.as_ref().map(|client| client.as_str()),
         claims.interaction,
     );
-    Ok((authenticated(user), actor))
+    Ok((authenticated(user), actor.on(AgentChannel::DriveSync)))
 }
 
 async fn manifest(

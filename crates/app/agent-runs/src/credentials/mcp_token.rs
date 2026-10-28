@@ -52,6 +52,7 @@ pub(super) async fn mint_mcp_token(
         purpose: Some(req.purpose.to_owned()),
         plugin_id: None,
         interaction: Some(TokenInteraction::NonInteractive),
+        browser_session: false,
     };
     let token =
         req.authority

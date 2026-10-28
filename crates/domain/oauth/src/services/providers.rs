@@ -128,6 +128,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             client_id: None,
             purpose: None,
             interaction: None,
+            browser_session: false,
         };
 
         let request = UserJwtRequest {
@@ -141,6 +142,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             purpose: None,
             plugin_id: None,
             interaction: None,
+            browser_session: false,
         };
         self.authority
             .mint_user_jwt(&request)

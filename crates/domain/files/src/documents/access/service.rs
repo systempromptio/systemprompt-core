@@ -223,7 +223,7 @@ impl DocumentAccessService {
             .as_ref()
             .map(|d| d.owner_user_id.clone())
             .or_else(|| resolved.folder.as_ref().map(|f| f.owner_user_id.clone()));
-        let gate = self.agent_gate(who, &resolved).await?;
+        let gate = self.agent_gate(who, &resolved, &pairs).await?;
         let held = match &gate {
             Some(gate) => gate.held(&resolved, action)?,
             None => resolved.level,

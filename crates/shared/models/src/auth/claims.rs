@@ -143,6 +143,11 @@ pub struct CustomClaims {
     /// agent run's MCP token); absent means interactive.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interaction: Option<TokenInteraction>,
+    /// Minted by the first-party web login for the browser session cookie,
+    /// and by nothing else. Only such a token, sent as that cookie, acts on
+    /// documents as the person.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub browser_session: bool,
 }
 
 /// The `interaction` claim: how the caller of a token is attended.

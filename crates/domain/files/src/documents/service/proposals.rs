@@ -135,8 +135,7 @@ impl DocumentService {
             .resolve_revision(&document, request.base_revision.as_ref())
             .await?;
         self.check_ops_limits(&request.ops)?;
-        let ops = request.ops.len();
-        self.check_agent_edits(who, ops)?;
+        let reserved = self.reserve_agent_edits(who, request.ops.len())?;
         let applied = self.apply_proposed(&document, &base, request.ops).await?;
         let prepared = self
             .prepare(
@@ -195,7 +194,7 @@ impl DocumentService {
             self.announce_proposal(&document, closed).await;
         }
         self.announce_proposal(&document, &proposal).await;
-        self.record_agent_edits(who, ops);
+        reserved.keep();
         Ok(Proposed {
             proposal,
             revision,

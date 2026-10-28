@@ -56,6 +56,7 @@ impl RequestContext {
                 jti: None,
                 token_exp: None,
                 browser_session: false,
+                cookie_transport: false,
             },
             request: RequestMetadata {
                 session_id,

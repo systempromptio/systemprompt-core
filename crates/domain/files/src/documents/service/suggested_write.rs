@@ -114,7 +114,7 @@ impl DocumentService {
             Some(base) => base,
             None => self.resolve_revision(document, None).await?.id,
         };
-        self.check_agent_edits(who, 1)?;
+        let reserved = self.reserve_agent_edits(who, 1)?;
         let proposed = self
             .propose_body(
                 who,
@@ -128,7 +128,7 @@ impl DocumentService {
                 trace,
             )
             .await?;
-        self.record_agent_edits(who, 1);
+        reserved.keep();
         Ok(proposed)
     }
 }

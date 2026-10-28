@@ -1,14 +1,15 @@
-//! [`AgentRateLimiter`]: a ceiling on agent edits per hour, per user and
-//! agent.
+//! [`AgentRateLimiter`]: ceilings on agent edits per hour, one per user and
+//! agent and one for all of a user's agents together.
 //!
 //! The window is a sliding hour of edit batches, each one entry with its op
-//! count, kept per `(user, agent)` in process memory: each replica limits on
-//! its own, so the effective ceiling across `n` replicas is up to `n` times
-//! the configured one. It bounds a runaway agent, not a determined one. A
-//! batch is checked before it is written and recorded only once it lands, so
-//! a refused or failed commit costs nothing. The map holds at most
-//! [`MAX_TRACKED`] keys; past that, windows with nothing left in the hour
-//! go first, then the least recently used.
+//! count, kept in process memory: each replica limits on its own, so the
+//! effective ceiling across `n` replicas is up to `n` times the configured
+//! one. It bounds a runaway agent, not a determined one. A batch is reserved
+//! against both ceilings under one lock before it is written, and refunded
+//! if it does not land, so concurrent writers cannot overshoot and a refused
+//! or failed commit costs nothing. The map holds at most [`MAX_TRACKED`]
+//! keys; past that, windows with nothing left in the hour go first, then
+//! the least recently used.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,6 +26,9 @@ const WINDOW: Duration = Duration::from_secs(3600);
 
 /// Keys kept at most; the oldest are evicted past it.
 pub const MAX_TRACKED: usize = 10_000;
+
+/// The key of a user's all-agents window.
+const ALL_AGENTS: &str = "";
 
 type Key = (UserId, String);
 
@@ -45,84 +49,110 @@ impl Window {
             self.total = self.total.saturating_sub(ops);
         }
     }
+
+    fn retry_after(&self, now: Instant) -> Duration {
+        self.batches.front().map_or(WINDOW, |(at, _)| {
+            WINDOW.saturating_sub(now.saturating_duration_since(*at))
+        })
+    }
+
+    fn remove(&mut self, at: Instant, ops: u64) {
+        if let Some(index) = self.batches.iter().position(|batch| *batch == (at, ops)) {
+            self.batches.remove(index);
+            self.total = self.total.saturating_sub(ops);
+        }
+    }
+}
+
+/// A batch counted against both ceilings; hand it back with
+/// [`AgentRateLimiter::refund`] when the write does not land.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reservation {
+    user: UserId,
+    agent: String,
+    ops: u64,
+    at: Instant,
 }
 
 #[derive(Debug)]
 pub struct AgentRateLimiter {
-    per_hour: u64,
+    per_agent: u64,
+    per_user: u64,
     windows: Mutex<HashMap<Key, Window>>,
 }
 
 impl AgentRateLimiter {
+    /// `per_agent` edits per hour for one agent of a user, `per_user` for
+    /// all of that user's agents together.
     #[must_use]
-    pub fn new(per_hour: u64) -> Self {
+    pub fn new(per_agent: u64, per_user: u64) -> Self {
         Self {
-            per_hour,
+            per_agent,
+            per_user: per_user.max(per_agent),
             windows: Mutex::new(HashMap::new()),
         }
     }
 
-    /// Refuses a batch of `ops` edits by `agent` for `user` that would pass
-    /// the hourly ceiling; records nothing.
-    pub fn check(
+    /// Counts a batch of `ops` edits by `agent` for `user` against both
+    /// ceilings, or refuses it and counts nothing.
+    pub fn reserve(
         &self,
         user: &UserId,
         agent: &str,
         ops: u64,
         now: Instant,
-    ) -> Result<(), AgentRefusal> {
+    ) -> Result<Reservation, AgentRefusal> {
+        let ops = ops.max(1);
+        let agent_key = (user.clone(), agent.to_owned());
+        let user_key = (user.clone(), ALL_AGENTS.to_owned());
         let mut windows = self.lock();
-        let Some(window) = windows.get_mut(&(user.clone(), agent.to_owned())) else {
-            return self.fits(0, ops, None);
-        };
-        window.expire(now);
-        let oldest = window.batches.front().map(|(at, _)| *at);
-        let retry = oldest.map(|at| WINDOW.saturating_sub(now.saturating_duration_since(at)));
-        self.fits(window.total, ops, retry)
-    }
-
-    /// Records a landed batch of `ops` edits by `agent` for `user`.
-    pub fn record(&self, user: &UserId, agent: &str, ops: u64, now: Instant) {
-        let mut windows = self.lock();
-        let key = (user.clone(), agent.to_owned());
-        if !windows.contains_key(&key) && windows.len() >= MAX_TRACKED {
-            evict(&mut windows, now);
+        for (key, limit) in [(&agent_key, self.per_agent), (&user_key, self.per_user)] {
+            if let Some(window) = windows.get_mut(key) {
+                window.expire(now);
+                if window.total.saturating_add(ops) > limit {
+                    return Err(AgentRefusal::RateLimited {
+                        limit,
+                        retry_after_secs: window.retry_after(now).as_secs().max(1),
+                    });
+                }
+            } else if ops > limit {
+                return Err(AgentRefusal::RateLimited {
+                    limit,
+                    retry_after_secs: WINDOW.as_secs(),
+                });
+            }
         }
-        let window = windows.entry(key).or_default();
-        window.expire(now);
-        window.batches.push_back((now, ops.max(1)));
-        window.total = window.total.saturating_add(ops.max(1));
-        window.used = Some(now);
+        for key in [agent_key, user_key] {
+            if !windows.contains_key(&key) && windows.len() >= MAX_TRACKED {
+                evict(&mut windows, now);
+            }
+            let window = windows.entry(key).or_default();
+            window.batches.push_back((now, ops));
+            window.total = window.total.saturating_add(ops);
+            window.used = Some(now);
+        }
+        Ok(Reservation {
+            user: user.clone(),
+            agent: agent.to_owned(),
+            ops,
+            at: now,
+        })
     }
 
-    /// [`Self::check`] then [`Self::record`], for a caller with nothing to
-    /// fail between them.
-    pub fn admit(
-        &self,
-        user: &UserId,
-        agent: &str,
-        ops: u64,
-        now: Instant,
-    ) -> Result<(), AgentRefusal> {
-        self.check(user, agent, ops, now)?;
-        self.record(user, agent, ops, now);
-        Ok(())
+    /// Hands back a batch that did not land.
+    pub fn refund(&self, reservation: &Reservation) {
+        let mut windows = self.lock();
+        for agent in [reservation.agent.as_str(), ALL_AGENTS] {
+            if let Some(window) = windows.get_mut(&(reservation.user.clone(), agent.to_owned())) {
+                window.remove(reservation.at, reservation.ops);
+            }
+        }
     }
 
-    /// How many `(user, agent)` windows are held.
+    /// How many windows are held, the per-user ones included.
     #[must_use]
     pub fn tracked(&self) -> usize {
         self.lock().len()
-    }
-
-    fn fits(&self, total: u64, ops: u64, retry: Option<Duration>) -> Result<(), AgentRefusal> {
-        if total.saturating_add(ops.max(1)) <= self.per_hour {
-            return Ok(());
-        }
-        Err(AgentRefusal::RateLimited {
-            limit: self.per_hour,
-            retry_after_secs: retry.unwrap_or(WINDOW).as_secs().max(1),
-        })
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<Key, Window>> {

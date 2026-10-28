@@ -56,6 +56,7 @@ fn mint_with(
             act,
             purpose: None,
             interaction: None,
+            browser_session: false,
         },
     };
 

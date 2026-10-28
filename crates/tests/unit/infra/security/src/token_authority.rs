@@ -31,6 +31,7 @@ fn request(audience: Vec<JwtAudience>, permissions: Vec<Permission>) -> UserJwtR
         purpose: Some("farm:run-1".to_owned()),
         plugin_id: None,
         interaction: None,
+        browser_session: false,
     }
 }
 

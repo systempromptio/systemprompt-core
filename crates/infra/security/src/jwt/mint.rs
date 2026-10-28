@@ -66,6 +66,7 @@ impl JwtService {
                 act: None,
                 purpose: None,
                 interaction: None,
+                browser_session: false,
             },
         };
 

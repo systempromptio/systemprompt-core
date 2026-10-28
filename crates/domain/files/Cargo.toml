@@ -67,6 +67,9 @@ umya-spreadsheet = { workspace = true, optional = true }
 [features]
 office = ["dep:zip", "dep:quick-xml", "dep:umya-spreadsheet"]
 collab = []
+# Lets a test harness drive the document service as a person without an
+# actor scope (`documents::agents::set_unscoped_actor`). Never for a server.
+test-harness = []
 
 [package.metadata.cargo-machete]
 # inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)

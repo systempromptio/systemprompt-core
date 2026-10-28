@@ -7,10 +7,9 @@
 
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::DocumentAction;
 
 use super::agent::{combine, document_context, folder_context};
-use super::service::{AccessTarget, DocumentAccessService, Granted};
+use super::service::{DocumentAccessService, Granted};
 use crate::documents::agents::{
     AgentActor, AgentCap, AgentCapability, AgentRefusal, CapSource, EffectiveCap, current_actor,
 };
@@ -20,74 +19,22 @@ use crate::documents::repository::AgentReadRecord;
 
 impl DocumentAccessService {
     /// `effective` with a folder override's source hidden when the caller
-    /// cannot view that folder: the reason then names no folder id.
+    /// holds no grant on that folder: the reason then names no folder id.
     pub async fn redact_source(
         &self,
         who: &AuthenticatedUser,
         effective: EffectiveCap,
-        trace: &TraceId,
     ) -> EffectiveCap {
-        let CapSource::FolderOverride { folder_id } = &effective.source else {
-            return effective;
-        };
-        let target = AccessTarget::Folder(Some(folder_id.clone()));
-        if self
-            .probe(who, target, DocumentAction::View, trace)
-            .await
-            .is_ok()
-        {
-            return effective;
-        }
-        EffectiveCap {
+        let fallback = EffectiveCap {
             source: CapSource::InheritedOverride,
-            ..effective
-        }
-    }
-
-    /// Refuses `capability` to an agent caller on `document` unless the
-    /// policy allows it; a person always passes.
-    pub async fn require_agent_capability(
-        &self,
-        who: &AuthenticatedUser,
-        document: &Document,
-        capability: AgentCapability,
-    ) -> Result<(), DocumentsError> {
-        let Some(agent) = current_actor().as_agent().cloned() else {
-            return Ok(());
+            ..effective.clone()
         };
-        let mut context = document_context(who, document, self.chain_of(document).await?);
-        self.effective_cap(&mut context, &agent).await?;
-        if self.agents.allows(capability, &context, &agent).await {
-            return Ok(());
-        }
-        Err(AgentRefusal::HardRule {
-            agent: agent.name,
-            capability,
-        }
-        .into())
-    }
-
-    /// The cap `agent` would act under on the document or folder `granted`
-    /// names; the root when it names neither.
-    pub async fn agent_cap_for(
-        &self,
-        who: &AuthenticatedUser,
-        granted: &Granted,
-        agent: &AgentActor,
-    ) -> Result<EffectiveCap, DocumentsError> {
-        let mut context = match (&granted.document, &granted.folder) {
-            (Some(document), _) => document_context(who, document, self.chain_of(document).await?),
-            (None, folder) => {
-                let chain = folder
-                    .iter()
-                    .flat_map(|f| {
-                        std::iter::once(f.id.clone()).chain(f.ancestor_ids.iter().rev().cloned())
-                    })
-                    .collect();
-                folder_context(who, folder.as_ref(), chain)
-            },
+        let Ok(pairs) = self.subject_pairs(who).await else {
+            return fallback;
         };
-        self.effective_cap(&mut context, agent).await
+        self.hide_unviewable(who, effective, &pairs)
+            .await
+            .unwrap_or(fallback)
     }
 
     /// [`Self::hidden_from_agent`] for a page of documents, in two

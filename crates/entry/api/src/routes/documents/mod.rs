@@ -14,7 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod access;
-mod actor_scope;
+pub mod actor_scope;
 mod agent_cap;
 mod caller;
 #[cfg(feature = "collab")]

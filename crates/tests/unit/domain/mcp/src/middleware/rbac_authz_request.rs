@@ -44,6 +44,7 @@ fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Valu
             act: None,
             purpose: None,
             interaction: None,
+            browser_session: false,
         },
     }
 }

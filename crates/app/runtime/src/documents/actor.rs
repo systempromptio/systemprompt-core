@@ -14,11 +14,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_files::documents::agents::{DocumentActor, UNNAMED_AGENT};
+use std::future::Future;
+
+use systemprompt_files::documents::agents::{DocumentActor, UNNAMED_AGENT, act_as};
 use systemprompt_models::auth::TokenInteraction;
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
 
 const MAX_AGENT_NAME: usize = 64;
+
+/// Runs `work` as the actor `ctx` proves: the one call an extension makes
+/// around document service calls it serves from its own routes.
+pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Output {
+    act_as(request_actor(ctx), work).await
+}
 
 /// The actor document calls made for `ctx` run as.
 #[must_use]

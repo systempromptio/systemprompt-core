@@ -27,6 +27,7 @@ fn jwt_context(user_id: &UserId, session_id: &SessionId) -> JwtUserContext {
         exp: 1_900_000_000,
         purpose: None,
         interaction: None,
+        browser_session: false,
     }
 }
 
@@ -41,7 +42,7 @@ fn params(jwt: JwtUserContext) -> BuildContextParams {
         auth_token: None,
         user_type: UserType::User,
         jwt_context: jwt,
-        browser_session: false,
+        cookie_transport: false,
     }
 }
 
@@ -114,4 +115,31 @@ fn extract_common_headers_defaults_when_absent() {
     assert!(task_id.is_none());
     assert!(token.is_none());
     assert_eq!(agent_name, AgentName::system());
+}
+
+#[test]
+fn only_a_web_login_token_sent_as_the_cookie_is_a_browser_session() {
+    let user_id = UserId::new("user-cookie");
+    let session_id = SessionId::generate();
+    let web_login = |claim: bool, cookie: bool| {
+        let mut jwt = jwt_context(&user_id, &session_id);
+        jwt.browser_session = claim;
+        BuildContextParams {
+            cookie_transport: cookie,
+            ..params(jwt)
+        }
+    };
+    let ctx = build_context(web_login(true, true));
+    assert!(ctx.is_browser_session() && ctx.is_cookie_transport());
+    let smuggled = build_context(web_login(false, true));
+    assert!(
+        !smuggled.is_browser_session(),
+        "a bearer token sent as the cookie"
+    );
+    assert!(smuggled.is_cookie_transport());
+    let bearer = build_context(web_login(true, false));
+    assert!(
+        !bearer.is_browser_session(),
+        "a web token sent as a bearer header"
+    );
 }

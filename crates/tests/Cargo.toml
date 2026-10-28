@@ -274,7 +274,7 @@ systemprompt-cloud = { path = "../infra/cloud" }
 systemprompt-loader = { path = "../infra/loader" }
 systemprompt-users = { path = "../domain/users" }
 systemprompt-oauth = { path = "../domain/oauth" }
-systemprompt-files = { path = "../domain/files" }
+systemprompt-files = { path = "../domain/files", features = ["test-harness"] }
 systemprompt-analytics = { path = "../domain/analytics" }
 maxminddb = "0.32"
 systemprompt-content = { path = "../domain/content" }

@@ -32,6 +32,7 @@ fn claims(scope: Vec<Permission>, aud: Vec<JwtAudience>) -> JwtClaims {
             act: None,
             purpose: None,
             interaction: None,
+            browser_session: false,
         },
     }
 }
@@ -246,6 +247,7 @@ mod jwt_claims_wire {
                 }),
                 purpose: Some("bridge".to_owned()),
                 interaction: None,
+                browser_session: false,
             },
         }
     }

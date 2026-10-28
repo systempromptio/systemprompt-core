@@ -13,6 +13,7 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
+use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::repository::{
     DocumentGrantRepository, DocumentPresenceRepository, DocumentProposalRepository,
     DocumentWriteAckRepository,
@@ -25,25 +26,9 @@ const UNLANDED_ACCEPT_MINUTES: i32 = 5;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DocumentPresenceSweepJob;
 
-#[async_trait]
-impl Job for DocumentPresenceSweepJob {
-    fn name(&self) -> &'static str {
-        "document_presence_sweep"
-    }
-
-    fn description(&self) -> &'static str {
-        "Removes expired document presence rows, expired grants and write acknowledgements, and reopens unlanded accepted proposals"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 * * * * *"
-    }
-
-    fn scope(&self) -> JobScope {
-        JobScope::Cluster
-    }
-
-    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+impl DocumentPresenceSweepJob {
+    /// The job's work, run as its named system actor by `execute`.
+    async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         if !ctx
             .get::<Arc<FilesConfig>>()?
             .documents_config()
@@ -79,6 +64,29 @@ impl Job for DocumentPresenceSweepJob {
         Ok(JobResult::success()
             .with_stats(swept, 0)
             .with_duration(duration_ms))
+    }
+}
+
+#[async_trait]
+impl Job for DocumentPresenceSweepJob {
+    fn name(&self) -> &'static str {
+        "document_presence_sweep"
+    }
+
+    fn description(&self) -> &'static str {
+        "Removes expired document presence rows, expired grants and write acknowledgements, and reopens unlanded accepted proposals"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "0 * * * * *"
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Cluster
+    }
+
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+        act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
 

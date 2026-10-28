@@ -35,6 +35,7 @@ fn make_claims(issuer: &str, aud: Vec<JwtAudience>) -> JwtClaims {
             act: None,
             purpose: None,
             interaction: None,
+            browser_session: false,
         },
     }
 }

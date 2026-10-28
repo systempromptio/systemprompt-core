@@ -67,3 +67,16 @@ fn a_token_with_a_purpose_is_never_attended() {
     assert_eq!(agent.name, "broker:svc");
     assert!(!agent.attended);
 }
+
+#[tokio::test]
+async fn an_extension_runs_its_document_calls_as_the_request_actor() {
+    use systemprompt_files::documents::agents::current_actor;
+    use systemprompt_runtime::documents::actor::act_as_request;
+
+    let browser = context().with_browser_session();
+    let inside = act_as_request(&browser, async { current_actor() }).await;
+    assert_eq!(inside, DocumentActor::Human);
+    let bearer = context().with_client_id(ClientId::bridge());
+    let inside = act_as_request(&bearer, async { current_actor() }).await;
+    assert!(inside.is_agent());
+}

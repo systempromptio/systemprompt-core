@@ -22,7 +22,8 @@ pub struct BuildContextParams {
     pub task_id: Option<TaskId>,
     pub auth_token: Option<String>,
     pub user_type: UserType,
-    pub browser_session: bool,
+    /// The token arrived as the session cookie rather than a bearer header.
+    pub cookie_transport: bool,
 }
 
 pub fn build_context(params: BuildContextParams) -> RequestContext {
@@ -36,7 +37,7 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
         task_id,
         auth_token,
         user_type,
-        browser_session,
+        cookie_transport,
     } = params;
     let mut ctx = RequestContext::new(
         session_id,
@@ -72,16 +73,22 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
             TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
         });
     }
-    if browser_session {
-        ctx = ctx.with_browser_session();
+    if cookie_transport {
+        ctx = ctx.with_cookie_transport();
+        // Why: only a token the first-party web login minted, sent as its
+        // cookie, is the person; a bridge, OAuth, MCP or PAT-derived token in
+        // the cookie stays an agent and the documents routes refuse it.
+        if jwt_context.browser_session {
+            ctx = ctx.with_browser_session();
+        }
     }
     ctx
 }
 
-/// Whether the token the chain found came from the browser session cookie
-/// rather than a bearer header.
+/// Whether the token the chain found came from the session cookie rather
+/// than a bearer header.
 #[must_use]
-pub fn is_browser_session(token_extractor: &TokenExtractor, headers: &HeaderMap) -> bool {
+pub fn is_cookie_transport(token_extractor: &TokenExtractor, headers: &HeaderMap) -> bool {
     matches!(
         token_extractor.extract_with_method(headers),
         Ok((_, ExtractionMethod::Cookie))

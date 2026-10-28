@@ -2,7 +2,8 @@
 //! both.
 //!
 //! A cap is judged for an unnamed, unattended agent, the strictest case a
-//! name-blind override can stand for. Before a document or folder moves the
+//! name-blind override can stand for, except that an attended agent moving
+//! something is judged as itself. Before a document or folder moves the
 //! policy's [`AgentAccessPolicy::on_move`] is asked and may refuse it;
 //! when the destination would loosen the cap, the source's cap is pinned on
 //! the target as an override, so a move never launders a cap. A copy carries
@@ -20,8 +21,8 @@ use systemprompt_models::auth::AuthenticatedUser;
 use super::agent::{document_context, folder_context};
 use super::service::DocumentAccessService;
 use crate::documents::agents::{
-    AgentActor, AgentCap, AgentCapability, AgentRefusal, DocumentContext, MoveActor, UNNAMED_AGENT,
-    current_actor,
+    AgentActor, AgentCap, AgentCapability, AgentChannel, AgentRefusal, DocumentContext, MoveActor,
+    UNNAMED_AGENT, current_actor,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder};
@@ -44,6 +45,7 @@ fn strictest_agent() -> AgentActor {
     AgentActor {
         name: UNNAMED_AGENT.to_owned(),
         attended: false,
+        channel: AgentChannel::Direct,
     }
 }
 
@@ -102,12 +104,14 @@ impl DocumentAccessService {
         target: MoveTarget<'_>,
         to: Option<&DocumentFolderId>,
     ) -> Result<Option<AgentCap>, DocumentsError> {
+        let judge = current_actor()
+            .as_agent()
+            .filter(|agent| agent.attended)
+            .cloned()
+            .unwrap_or_else(strictest_agent);
         let from_chain = self.chain_from(parent_of(target).as_ref()).await?;
         let mut source = Self::context_at(who, target, from_chain);
-        let before = self
-            .effective_cap(&mut source, &strictest_agent())
-            .await?
-            .cap;
+        let before = self.effective_cap(&mut source, &judge).await?.cap;
         let to_chain = self.chain_from(to).await?;
         let mover = MoveActor {
             user: who.id.clone(),
@@ -120,10 +124,7 @@ impl DocumentAccessService {
             .await
             .map_err(|reason| AgentRefusal::MoveRefused { reason })?;
         let mut landed = Self::context_at(who, target, to_chain);
-        let after = self
-            .effective_cap(&mut landed, &strictest_agent())
-            .await?
-            .cap;
+        let after = self.effective_cap(&mut landed, &judge).await?.cap;
         Ok((after > before).then_some(before))
     }
 

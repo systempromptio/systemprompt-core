@@ -16,9 +16,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
+#[cfg(any(test, feature = "test-harness"))]
 use std::sync::OnceLock;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 tokio::task_local! {
     static ACTOR: DocumentActor;
@@ -26,10 +27,36 @@ tokio::task_local! {
 
 /// An agent acting for the signed-in user. `attended` is `true` while a
 /// person is in the session that drives it, `false` for a headless run.
+/// `channel` is the path the call came in on, set by core's own routes, so a
+/// policy can allow a capability to one path (the Drive sync's whole-file
+/// saves) and not to the client that drives it generally.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AgentActor {
     pub name: String,
     pub attended: bool,
+    pub channel: AgentChannel,
+}
+
+/// The path an agent's call came in on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentChannel {
+    /// Tools, REST and anything else the agent drives itself.
+    #[default]
+    Direct,
+    /// The bridge Drive sync's manifest, feed, blob and commit routes.
+    DriveSync,
+    /// A live co-editing session's checkpoint of its edits.
+    LiveCheckpoint,
+}
+
+impl AgentActor {
+    /// The same agent on `channel`.
+    #[must_use]
+    pub fn on(mut self, channel: AgentChannel) -> Self {
+        self.channel = channel;
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -37,6 +64,12 @@ pub struct AgentActor {
 pub enum DocumentActor {
     Human,
     Agent(AgentActor),
+    /// Core's own background work (a scheduled job, an ingest), named for
+    /// its audit trail. Trusted like a person: never capped, never recorded
+    /// as an agent that created a document.
+    System {
+        name: String,
+    },
 }
 
 impl DocumentActor {
@@ -45,14 +78,29 @@ impl DocumentActor {
         Self::Agent(AgentActor {
             name: name.into(),
             attended,
+            channel: AgentChannel::Direct,
         })
+    }
+
+    #[must_use]
+    pub fn system(name: impl Into<String>) -> Self {
+        Self::System { name: name.into() }
     }
 
     #[must_use]
     pub const fn as_agent(&self) -> Option<&AgentActor> {
         match self {
-            Self::Human => None,
+            Self::Human | Self::System { .. } => None,
             Self::Agent(agent) => Some(agent),
+        }
+    }
+
+    /// This actor on `channel`; a person or the system is unchanged.
+    #[must_use]
+    pub fn on(self, channel: AgentChannel) -> Self {
+        match self {
+            Self::Agent(agent) => Self::Agent(agent.on(channel)),
+            other => other,
         }
     }
 
@@ -71,22 +119,26 @@ pub async fn act_as<F: Future>(actor: DocumentActor, work: F) -> F::Output {
 /// The name an agent goes by when nothing signed names it.
 pub const UNNAMED_AGENT: &str = "agent";
 
+#[cfg(any(test, feature = "test-harness"))]
 static UNSCOPED: OnceLock<DocumentActor> = OnceLock::new();
 
 /// The actor of a call outside any [`act_as`] scope: an unnamed,
-/// unattended agent, unless [`set_unscoped_actor`] said otherwise.
+/// unattended agent (a test harness may replace it with
+/// `set_unscoped_actor`, behind the `test-harness` feature).
 #[must_use]
 pub fn unscoped_actor() -> DocumentActor {
-    UNSCOPED
-        .get()
-        .cloned()
-        .unwrap_or_else(|| DocumentActor::agent(UNNAMED_AGENT, false))
+    #[cfg(any(test, feature = "test-harness"))]
+    if let Some(actor) = UNSCOPED.get() {
+        return actor.clone();
+    }
+    DocumentActor::agent(UNNAMED_AGENT, false)
 }
 
 /// Replaces the unscoped default, once per process. Only for a test harness
-/// that drives the document service directly as a person; a server never
-/// calls it, so its unscoped calls stay capped. Returns `false` when a
-/// default was already set.
+/// that drives the document service directly as a person: it exists only
+/// with the `test-harness` feature, which a server build never enables.
+/// Returns `false` when a default was already set.
+#[cfg(any(test, feature = "test-harness"))]
 pub fn set_unscoped_actor(actor: DocumentActor) -> bool {
     UNSCOPED.set(actor).is_ok()
 }

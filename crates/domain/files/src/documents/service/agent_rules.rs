@@ -17,7 +17,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::EditOp;
 
 use super::{CommitOutcome, DocumentService};
-use crate::documents::agents::{AgentCapability, current_actor};
+use crate::documents::agents::{AgentCapability, AgentRateLimiter, Reservation, current_actor};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
 use crate::documents::revision::CommitBody;
@@ -60,51 +60,36 @@ impl DocumentService {
         }
     }
 
-    /// Refuses a batch of `ops` agent edits that would pass the hourly
-    /// ceiling for the calling user and agent (`agent_rate_limited`).
-    pub(super) fn check_agent_edits(
+    /// Reserves a batch of `ops` agent edits against the hourly ceilings
+    /// for the calling user and agent, or refuses it (`agent_rate_limited`).
+    /// The reservation is handed back on drop unless it is kept, so any
+    /// early return refunds it.
+    pub(super) fn reserve_agent_edits(
         &self,
         who: &AuthenticatedUser,
         ops: usize,
-    ) -> Result<(), DocumentsError> {
-        let Some(agent) = current_actor().as_agent().cloned() else {
-            return Ok(());
+    ) -> Result<EditReservation<'_>, DocumentsError> {
+        let reservation = match current_actor().as_agent() {
+            Some(agent) => Some(self.agent_edits.reserve(
+                &who.id,
+                &agent.name,
+                u64::try_from(ops).unwrap_or(u64::MAX),
+                Instant::now(),
+            )?),
+            None => None,
         };
-        let ops = u64::try_from(ops).unwrap_or(u64::MAX);
-        Ok(self
-            .agent_edits
-            .check(&who.id, &agent.name, ops, Instant::now())?)
-    }
-
-    /// Records the batch when the commit landed; a refused, failed or
-    /// conflicted commit costs nothing.
-    pub(super) fn record_landed(
-        &self,
-        who: &AuthenticatedUser,
-        ops: usize,
-        outcome: &Result<CommitOutcome, DocumentsError>,
-    ) {
-        if matches!(
-            outcome,
-            Ok(CommitOutcome::Committed(_) | CommitOutcome::Merged(_))
-        ) {
-            self.record_agent_edits(who, ops);
-        }
-    }
-
-    /// Records a landed batch of `ops` agent edits.
-    pub(super) fn record_agent_edits(&self, who: &AuthenticatedUser, ops: usize) {
-        if let Some(agent) = current_actor().as_agent() {
-            let ops = u64::try_from(ops).unwrap_or(u64::MAX);
-            self.agent_edits
-                .record(&who.id, &agent.name, ops, Instant::now());
-        }
+        Ok(EditReservation {
+            limiter: &self.agent_edits,
+            reservation,
+        })
     }
 }
 
 impl DocumentService {
-    /// Whether `ops` rewrite or delete more than half the head's nodes: an
-    /// agent rewriting most of a document node by node is replacing it.
+    /// Whether this agent's rewrites of the document within the hour, these
+    /// `ops` included, touch more than half the head's nodes: an agent
+    /// rewriting most of a document node by node, in one commit or several,
+    /// is replacing it.
     async fn rewrites_most(
         &self,
         document: &Document,
@@ -124,12 +109,52 @@ impl DocumentService {
             .filter(rewrites)
             .filter_map(EditOp::touches)
             .collect();
-        if touched.len() < MIN_BROAD_REWRITE {
+        if touched.is_empty() {
+            return Ok(false);
+        }
+        let Some(agent) = current_actor().as_agent().cloned() else {
+            return Ok(false);
+        };
+        let cumulative =
+            self.agent_rewrites
+                .touch(&document.id, &agent.name, &touched, Instant::now());
+        if cumulative < MIN_BROAD_REWRITE {
             return Ok(false);
         }
         let head = self.resolve_revision(document, None).await?;
         let nodes = self.projected(document, &head).await?.ids.nodes().count();
-        Ok(touched.len().saturating_mul(2) > nodes)
+        Ok(cumulative.saturating_mul(2) > nodes)
+    }
+}
+
+/// A reserved batch of agent edits, refunded when dropped unless kept.
+pub(super) struct EditReservation<'a> {
+    limiter: &'a AgentRateLimiter,
+    reservation: Option<Reservation>,
+}
+
+impl EditReservation<'_> {
+    /// The batch landed: keep it counted.
+    pub(super) fn keep(mut self) {
+        self.reservation = None;
+    }
+
+    /// Keeps the batch when `outcome` landed (`Committed` or `Merged`).
+    pub(super) fn keep_if_landed(self, outcome: &Result<CommitOutcome, DocumentsError>) {
+        if matches!(
+            outcome,
+            Ok(CommitOutcome::Committed(_) | CommitOutcome::Merged(_))
+        ) {
+            self.keep();
+        }
+    }
+}
+
+impl Drop for EditReservation<'_> {
+    fn drop(&mut self) {
+        if let Some(reservation) = self.reservation.take() {
+            self.limiter.refund(&reservation);
+        }
     }
 }
 

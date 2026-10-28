@@ -16,6 +16,7 @@ use systemprompt_traits::{
 use super::super::repository::DocumentUploadRepository;
 use super::super::service::{UploadService, UploadServiceParts};
 use crate::FilesConfig;
+use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::blob_store::BlobStore;
 use crate::documents::repository::DocumentBlobRepository;
 
@@ -24,25 +25,9 @@ const BATCH: i64 = 500;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DocumentUploadExpiryJob;
 
-#[async_trait]
-impl Job for DocumentUploadExpiryJob {
-    fn name(&self) -> &'static str {
-        "document_upload_expiry"
-    }
-
-    fn description(&self) -> &'static str {
-        "Closes resumable uploads left open past their lifetime and deletes their parts"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 */15 * * * *"
-    }
-
-    fn scope(&self) -> JobScope {
-        JobScope::Cluster
-    }
-
-    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+impl DocumentUploadExpiryJob {
+    /// The job's work, run as its named system actor by `execute`.
+    async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         let started = std::time::Instant::now();
         let db_pool = ctx.get::<DbPool>()?;
         let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
@@ -72,6 +57,29 @@ impl Job for DocumentUploadExpiryJob {
             .with_stats(expired, 0)
             .with_message(format!("Expired: {expired}"))
             .with_duration(duration_ms))
+    }
+}
+
+#[async_trait]
+impl Job for DocumentUploadExpiryJob {
+    fn name(&self) -> &'static str {
+        "document_upload_expiry"
+    }
+
+    fn description(&self) -> &'static str {
+        "Closes resumable uploads left open past their lifetime and deletes their parts"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "0 */15 * * * *"
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Cluster
+    }
+
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+        act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
 

@@ -51,6 +51,7 @@ fn hook_claims(plugin_id: &str, subject: &str) -> JwtClaims {
             act: None,
             purpose: None,
             interaction: None,
+            browser_session: false,
         },
     }
 }

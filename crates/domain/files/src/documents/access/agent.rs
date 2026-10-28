@@ -14,13 +14,13 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 
 use super::request::not_found;
-use super::service::{DocumentAccessService, Resolved, no_document};
+use super::service::{AccessTarget, DocumentAccessService, Resolved, no_document};
 use crate::documents::agents::{
     AgentActor, AgentCap, AgentCapability, AgentRefusal, CapSource, DocumentContext, EffectiveCap,
     current_actor,
 };
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, DocumentFolder};
+use crate::documents::models::{Document, DocumentFolder, SubjectPairs};
 use crate::documents::repository::{AgentReadRecord, CapOverride};
 
 /// An agent caller's cap on one target and what the policy was asked with.
@@ -100,12 +100,14 @@ impl DocumentAccessService {
         &self,
         who: &AuthenticatedUser,
         resolved: &Resolved,
+        pairs: &SubjectPairs,
     ) -> Result<Option<AgentGate>, DocumentsError> {
         let Some(agent) = current_actor().as_agent().cloned() else {
             return Ok(None);
         };
         let mut context = context_of(who, resolved);
         let effective = self.effective_cap(&mut context, &agent).await?;
+        let effective = self.hide_unviewable(who, effective, pairs).await?;
         let mut allowed = Vec::new();
         for capability in CAPABILITIES {
             if self.agents.allows(capability, &context, &agent).await {
@@ -135,6 +137,35 @@ impl DocumentAccessService {
         context.created_by_agent = facts.created_by_agent;
         let policy_cap = self.agents.cap(context, agent).await;
         Ok(combine(policy_cap, self.agents.name(), facts.overrides))
+    }
+
+    /// `effective` with a folder override's source replaced by
+    /// [`CapSource::InheritedOverride`] when the caller holds no grant on
+    /// that folder, so no reason or refusal echoes a folder id they cannot
+    /// view. Grants only: it never asks the hook or the agent gate, so it
+    /// cannot recurse.
+    pub(super) async fn hide_unviewable(
+        &self,
+        who: &AuthenticatedUser,
+        mut effective: EffectiveCap,
+        pairs: &SubjectPairs,
+    ) -> Result<EffectiveCap, DocumentsError> {
+        let CapSource::FolderOverride { folder_id } = &effective.source else {
+            return Ok(effective);
+        };
+        let target = AccessTarget::Folder(Some(folder_id.clone()));
+        let visible = match self
+            .resolve(who, &target, DocumentAction::View, pairs)
+            .await
+        {
+            Ok(resolved) => resolved.level.is_some(),
+            Err(DocumentsError::NotFound { .. }) => false,
+            Err(other) => return Err(other),
+        };
+        if !visible {
+            effective.source = CapSource::InheritedOverride;
+        }
+        Ok(effective)
     }
 
     /// The nearest-first folder chain of `document`: its folder, then each

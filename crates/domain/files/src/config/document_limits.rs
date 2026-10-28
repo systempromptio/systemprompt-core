@@ -1,7 +1,7 @@
 //! The `files.documents.limits` section: per-request input limits of the
-//! document store, the PDF export page cap and the per-user ceiling on
-//! agent edits per hour, each with a floor and a
-//! ceiling an operator may set between.
+//! document store, the PDF export page cap and the ceilings on agent edits
+//! per hour (per agent of a user, and for all of a user's agents), each with a
+//! floor and a ceiling an operator may set between.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,6 +31,7 @@ pub struct DocumentLimits {
     pub max_cursor_bytes: u64,
     pub pdf_pages: u64,
     pub agent_edits_per_hour: u64,
+    pub agent_edits_per_hour_per_user: u64,
 }
 
 impl Default for DocumentLimits {
@@ -44,13 +45,14 @@ impl Default for DocumentLimits {
             max_cursor_bytes: 4 * KIB,
             pdf_pages: 500,
             agent_edits_per_hour: 600,
+            agent_edits_per_hour_per_user: 1_500,
         }
     }
 }
 
 impl DocumentLimits {
     #[must_use]
-    pub const fn bounded(&self) -> [(&'static str, u64, (u64, u64)); 8] {
+    pub const fn bounded(&self) -> [(&'static str, u64, (u64, u64)); 9] {
         [
             ("maxOpsPerCall", self.max_ops_per_call, OPS_PER_CALL_BOUNDS),
             ("maxOpTextBytes", self.max_op_text_bytes, OP_TEXT_BOUNDS),
@@ -66,6 +68,11 @@ impl DocumentLimits {
             (
                 "agentEditsPerHour",
                 self.agent_edits_per_hour,
+                AGENT_EDITS_BOUNDS,
+            ),
+            (
+                "agentEditsPerHourPerUser",
+                self.agent_edits_per_hour_per_user,
                 AGENT_EDITS_BOUNDS,
             ),
         ]

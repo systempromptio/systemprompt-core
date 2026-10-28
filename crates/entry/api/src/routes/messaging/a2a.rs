@@ -71,6 +71,7 @@ pub(super) fn mint_a2a_token(
         client_id: None,
         purpose: None,
         interaction: None,
+        browser_session: false,
     };
     let signing = JwtSigningParams {
         issuer: &ctx.config().jwt_issuer,

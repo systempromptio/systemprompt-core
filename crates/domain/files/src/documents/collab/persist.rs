@@ -27,7 +27,7 @@ use super::entry::{CollabEntry, model_error, utf8};
 use super::live_media::{LiveState, materialise_or_strip};
 use super::model::body_of;
 use super::{Checkpoint, CollabError, CollabService};
-use crate::documents::agents::{act_as, current_actor};
+use crate::documents::agents::{AgentChannel, act_as, current_actor};
 use crate::documents::engine::ModelView;
 use crate::documents::model::{Media, carry_ids};
 use crate::documents::models::RevisionAttribution;
@@ -87,7 +87,11 @@ impl CollabService {
         };
         let next = materialise_or_strip(entry.format, &base_bytes, &live)
             .map_err(model_error(&document_id))?;
-        let actor = entry.last_actor.clone().unwrap_or_else(current_actor);
+        let actor = entry
+            .last_actor
+            .clone()
+            .unwrap_or_else(current_actor)
+            .on(AgentChannel::LiveCheckpoint);
         let commit = self.documents.commit(
             who,
             CommitRequest {

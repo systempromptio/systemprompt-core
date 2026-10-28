@@ -21,6 +21,7 @@ use systemprompt_identifiers::FileId;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 use walkdir::WalkDir;
 
+use crate::documents::agents::{DocumentActor, act_as};
 use crate::{File, FileMetadata, FileRepository, FilesConfig};
 
 const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "svg", "ico"];
@@ -53,25 +54,9 @@ struct FileProcessingContext<'a> {
     images_dir: &'a Path,
 }
 
-#[async_trait]
-impl Job for FileIngestionJob {
-    fn name(&self) -> &'static str {
-        "file_ingestion"
-    }
-
-    fn description(&self) -> &'static str {
-        "Scans storage directory for image files and creates database entries"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 */30 * * * *"
-    }
-
-    fn scope(&self) -> JobScope {
-        JobScope::Node
-    }
-
-    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+impl FileIngestionJob {
+    /// The job's work, run as its named system actor by `execute`.
+    async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
         tracing::info!("File ingestion job started");
 
@@ -107,6 +92,29 @@ impl Job for FileIngestionJob {
                 stats.files_found, stats.files_inserted, stats.files_skipped, stats.errors
             ))
             .with_duration(duration_ms))
+    }
+}
+
+#[async_trait]
+impl Job for FileIngestionJob {
+    fn name(&self) -> &'static str {
+        "file_ingestion"
+    }
+
+    fn description(&self) -> &'static str {
+        "Scans storage directory for image files and creates database entries"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "0 */30 * * * *"
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Node
+    }
+
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+        act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
 

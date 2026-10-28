@@ -20,7 +20,9 @@ use systemprompt_models::documents::DocumentAction;
 
 use super::DocumentService;
 use crate::documents::access::{AccessTarget, Granted};
-use crate::documents::agents::{AgentActor, AgentCap, AgentRefusal, EffectiveCap, current_actor};
+use crate::documents::agents::{
+    AgentActor, AgentCap, AgentChannel, AgentRefusal, EffectiveCap, current_actor,
+};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 
@@ -57,6 +59,7 @@ fn reported_agent() -> AgentActor {
     current_actor().as_agent().cloned().unwrap_or(AgentActor {
         name: GENERIC_AGENT.to_owned(),
         attended: true,
+        channel: AgentChannel::Direct,
     })
 }
 
@@ -84,7 +87,7 @@ impl DocumentService {
             .access
             .authorize(who, target.access_target(), DocumentAction::View, trace)
             .await?;
-        self.cap_view(who, target, &granted, &agent, trace).await
+        self.cap_view(who, target, &granted, &agent).await
     }
 
     pub async fn set_agent_cap(
@@ -133,7 +136,7 @@ impl DocumentService {
             trace_id = trace.as_str(),
             "Agent cap override set"
         );
-        self.cap_view(who, target, &granted, &reported_agent(), trace)
+        self.cap_view(who, target, &granted, &reported_agent())
             .await
     }
 
@@ -199,11 +202,11 @@ impl DocumentService {
         target: AgentCapTarget,
         granted: &Granted,
         agent: &AgentActor,
-        trace: &TraceId,
     ) -> Result<AgentCapView, DocumentsError> {
         let as_attended = |attended: bool| AgentActor {
             name: agent.name.clone(),
             attended,
+            channel: agent.channel,
         };
         let attended = self
             .access
@@ -235,9 +238,9 @@ impl DocumentService {
         Ok(AgentCapView {
             target,
             own_override,
-            effective: self.access.redact_source(who, effective, trace).await,
-            attended: self.access.redact_source(who, attended, trace).await,
-            unattended: self.access.redact_source(who, unattended, trace).await,
+            effective: self.access.redact_source(who, effective).await,
+            attended: self.access.redact_source(who, attended).await,
+            unattended: self.access.redact_source(who, unattended).await,
         })
     }
 }

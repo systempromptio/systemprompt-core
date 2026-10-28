@@ -33,6 +33,9 @@ pub struct AuthContext {
     /// bearer token.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub browser_session: bool,
+    /// The token arrived as the session cookie, whatever it claims.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub cookie_transport: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

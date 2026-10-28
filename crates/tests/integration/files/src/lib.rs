@@ -20,6 +20,8 @@ mod documents_agent_moves;
 #[cfg(test)]
 mod documents_agent_rules;
 #[cfg(test)]
+mod documents_agent_visibility;
+#[cfg(test)]
 mod documents_blob_store;
 #[cfg(test)]
 mod documents_collab;

@@ -215,6 +215,7 @@ fn build_bridge_jwt_config(
         client_id: Some(ClientId::bridge()),
         purpose,
         interaction,
+        browser_session: false,
     }
 }
 

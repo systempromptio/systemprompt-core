@@ -65,6 +65,7 @@ fn base_claims() -> JwtClaims {
             act: None,
             purpose: None,
             interaction: None,
+            browser_session: false,
         },
     }
 }

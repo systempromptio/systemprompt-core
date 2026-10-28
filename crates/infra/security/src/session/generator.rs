@@ -73,6 +73,7 @@ impl SessionGenerator {
                 act: None,
                 purpose: None,
                 interaction: None,
+                browser_session: false,
             },
         };
 

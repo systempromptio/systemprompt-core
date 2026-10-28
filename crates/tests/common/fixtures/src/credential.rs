@@ -144,6 +144,7 @@ fn mint_jwt_internal(
             act: None,
             purpose: None,
             interaction: None,
+            browser_session: false,
         },
     };
     let mut header = Header::new(Algorithm::RS256);

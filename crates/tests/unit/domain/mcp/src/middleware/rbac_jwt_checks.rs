@@ -43,6 +43,7 @@ fn claims_for(audiences: Vec<JwtAudience>) -> JwtClaims {
             act: None,
             purpose: None,
             interaction: None,
+            browser_session: false,
         },
     }
 }

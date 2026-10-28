@@ -23,6 +23,7 @@ use systemprompt_identifiers::JobName;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
+use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::error::DocumentsError;
 use crate::documents::service::DocumentService;
 
@@ -69,25 +70,9 @@ impl DocumentNodeIdsBackfillJob {
     }
 }
 
-#[async_trait]
-impl Job for DocumentNodeIdsBackfillJob {
-    fn name(&self) -> &'static str {
-        "document_node_ids_backfill"
-    }
-
-    fn description(&self) -> &'static str {
-        "Mints stable node ids for document revisions written before ids existed, once per release"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 */10 * * * *"
-    }
-
-    fn scope(&self) -> JobScope {
-        JobScope::Cluster
-    }
-
-    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+impl DocumentNodeIdsBackfillJob {
+    /// The job's work, run as its named system actor by `execute`.
+    async fn run(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
         if !documents.is_enabled() {
             return Ok(JobResult::success().with_message("document store disabled"));
@@ -125,6 +110,29 @@ impl Job for DocumentNodeIdsBackfillJob {
                 JobResult::success().with_message("node ids already backfilled for this release")
             },
         })
+    }
+}
+
+#[async_trait]
+impl Job for DocumentNodeIdsBackfillJob {
+    fn name(&self) -> &'static str {
+        "document_node_ids_backfill"
+    }
+
+    fn description(&self) -> &'static str {
+        "Mints stable node ids for document revisions written before ids existed, once per release"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "0 */10 * * * *"
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Cluster
+    }
+
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+        act_as(DocumentActor::system(self.name()), self.run(ctx)).await
     }
 }
 

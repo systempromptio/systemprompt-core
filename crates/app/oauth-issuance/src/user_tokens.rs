@@ -143,6 +143,7 @@ async fn create_jwt_and_refresh_token(
         client_id: Some(params.client_id.clone()),
         purpose: None,
         interaction: None,
+        browser_session: *params.client_id == ClientId::web(),
     };
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
