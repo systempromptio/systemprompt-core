@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_comments\n             SET deleted_at = now(), updated_at = now()\n             WHERE id = $1::text::uuid AND document_id = $2::text::uuid AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d49a2de8f9f54496967a3ac98d3ec2eb7c6d7dd0e4a1d1634a52fe325a7b7cfe"
+}

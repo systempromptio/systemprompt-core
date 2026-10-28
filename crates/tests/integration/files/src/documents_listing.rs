@@ -187,6 +187,8 @@ async fn recent_orders_by_the_callers_last_touch() {
         .create_comment(
             &reader,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: commented.clone(),
                 anchor: Some(CommentAnchor {
                     node,

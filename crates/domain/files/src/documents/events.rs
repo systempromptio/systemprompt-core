@@ -3,7 +3,8 @@
 //! Each event is an AG-UI `CUSTOM` event named by the payload's `NAME`
 //! (`document.revision.created`, `document.presence`, `document.lock`,
 //! `document.conflict`, `document.collab.update`, `document.comment.created`,
-//! `document.comment.resolved`, `document.shared`,
+//! `document.comment.resolved`, `document.comment.{updated, deleted,
+//! mentioned}` (emitted from `comment_events`), `document.shared`,
 //! `document.ownership_transferred`, `document.proposal.*`) and routed to each
 //! recipient through the [`EventRouter`], which also relays it to other
 //! replicas. Clients filter the stream on the `document.` prefix.
@@ -200,7 +201,7 @@ impl DocumentEvents {
             .await
     }
 
-    async fn emit<T: Serialize + Sync>(
+    pub(crate) async fn emit<T: Serialize + Sync>(
         &self,
         name: &'static str,
         to: &[UserId],

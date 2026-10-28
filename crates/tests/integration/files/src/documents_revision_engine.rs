@@ -410,6 +410,8 @@ async fn inputs_over_the_limits_are_refused() {
         .create_comment(
             &owner,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: document.clone(),
                 anchor: None,
                 parent_id: None,

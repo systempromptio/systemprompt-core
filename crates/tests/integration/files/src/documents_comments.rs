@@ -84,6 +84,8 @@ async fn comment_on(
         .create_comment(
             owner,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: document.clone(),
                 anchor: Some(CommentAnchor {
                     node: node.id.clone(),
@@ -127,6 +129,8 @@ async fn comments_are_created_listed_replied_to_and_resolved_with_events() {
         .create_comment(
             &owner,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: document.clone(),
                 anchor: None,
                 body: "agreed".to_owned(),
@@ -186,6 +190,8 @@ async fn a_comment_needs_a_quote_the_node_contains() {
         .create_comment(
             &owner,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: document.clone(),
                 anchor: Some(CommentAnchor {
                     node: node.id,

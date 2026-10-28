@@ -1,10 +1,16 @@
 //! Comment rows: a thread entry anchored to a stable node id and,
-//! optionally, a quote inside that node.
+//! optionally, a quote inside that node and a range of engine cursors.
+//!
+//! The range is two cursors of the live document's CRDT engine, opaque to
+//! core: the editor resolves them, so the highlighted span follows
+//! concurrent edits. A comment may mention users by id; it can be edited by
+//! its author and is deleted softly, keeping its row for the thread.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
 };
@@ -19,26 +25,38 @@ pub struct CommentAnchor {
     pub nth: Option<i32>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommentRange {
+    pub start: String,
+    pub end: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentComment {
     pub id: DocumentCommentId,
     pub document_id: DocumentId,
     pub anchor: CommentAnchor,
+    pub range: Option<CommentRange>,
     pub author_user_id: UserId,
     pub body: String,
+    pub mentions: Vec<UserId>,
     pub parent_id: Option<DocumentCommentId>,
     pub resolved_at: Option<DateTime<Utc>>,
     pub resolved_by: Option<UserId>,
     pub answering_revision_id: Option<DocumentRevisionId>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub edited_at: Option<DateTime<Utc>>,
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct NewComment {
     pub document_id: DocumentId,
     pub anchor: CommentAnchor,
+    pub range: Option<CommentRange>,
     pub author_user_id: UserId,
     pub body: String,
+    pub mentions: Vec<UserId>,
     pub parent_id: Option<DocumentCommentId>,
 }

@@ -25,6 +25,8 @@ mod acks;
 mod apply;
 mod byte_diff;
 mod comments;
+mod comments_edit;
+mod comments_export;
 mod commit;
 mod commit_build;
 mod documents;
@@ -61,6 +63,8 @@ pub use access_view::{
     DocumentAccess, FolderAccess, InheritedGrant, MAX_GRANT_HISTORY, TargetAccess,
 };
 pub use comments::{CommentRequest, ResolveCommentRequest};
+pub use comments_edit::{DeleteCommentRequest, EditCommentRequest};
+pub use comments_export::ExportedDocument;
 pub use drive::parse_drive_cursor;
 pub use drive_feed::CHANGE_LAG;
 pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};

@@ -9,6 +9,7 @@
 
 ### Added
 
+- Comments v2: ranges of engine cursors, mentions, author edits and soft deletion (`edit_comment`, `delete_comment`, migration `016_document_comment_ranges`), the `document.comment.{updated, deleted, mentioned}` events, and `export_with_comments` writing open comments as native `w:comment`s in `docx` (`codecs::docx::with_comments`).
 - `documents::model::ops::apply_rich_ops`: the `set_marks`, `set_block_type`, `insert_table`, `table_insert_row`, `table_insert_col`, `table_delete` and `insert_image` edit ops, applied through the `RichText` model of `html`, `markdown`, `docx` and `odt` documents. `documents::model::{formats, html_body}` hold the per-format import and materialise and the `<body>` splice.
 - `docx` hyperlinks are native `w:hyperlink`s with an external relationship; new `docx` and `odt` tables are written natively.
 - `documents::model`: the `RichText` model, HTML and Markdown import and materialise, `validate` with `Limits` and `EditLevel`, `carry_ids`, `rich_text_schema`. Collab protocol v2 join fields, comment-mode joins, and server-side validation of every update on a fork (`CollabError::UpdateRejected`). `docx` and `odt` co-editing through `model::office` segments, with every untouched package part kept byte for byte.

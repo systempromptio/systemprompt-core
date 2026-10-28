@@ -6,13 +6,15 @@
 //! adds what only the store and its clients need: access levels, actions,
 //! grant audit events and access request states ([`access`]), the bridge
 //! drive sync protocol ([`drive`]), the AG-UI custom event payloads
-//! ([`events`]) and the `document://` URI ([`uri`]).
+//! ([`events`], with the comment edit, delete and mention payloads in
+//! [`comment_events`]) and the `document://` URI ([`uri`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod access;
 pub mod awareness;
+pub mod comment_events;
 pub mod drive;
 pub mod events;
 pub mod uri;
@@ -24,6 +26,9 @@ pub use access::{
 pub use awareness::{
     AwarenessCursor, AwarenessMode, AwarenessState, AwarenessViewport, DocumentAwarenessEvent,
     DocumentLiveClosedEvent, DocumentLiveReadyEvent, DocumentLiveResyncEvent, LiveResyncReason,
+};
+pub use comment_events::{
+    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
 };
 pub use drive::{
     DriveChange, DriveChangeKind, DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveEntry,

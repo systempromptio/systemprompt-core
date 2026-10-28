@@ -1,5 +1,7 @@
 //! Comments: threads anchored to a stable node id and, optionally, the
-//! `nth` occurrence of a quote inside that node.
+//! `nth` occurrence of a quote inside that node and a range of engine
+//! cursors. A comment may mention users (see `comments_edit`, with editing
+//! and deletion); a deleted comment leaves listings and anchor checks.
 //!
 //! Commenting needs `comment`; reading the thread needs `view`. A reply
 //! carries its parent's anchor. Because the anchor is a stable id, an edit
@@ -10,16 +12,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId, TraceId};
+use systemprompt_identifiers::{
+    DocumentCommentId, DocumentId, DocumentRevisionId, TraceId, UserId,
+};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
     DocumentAction, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent, Projection,
     ProjectionNode,
 };
 
+use super::comments_edit::check_range;
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{CommentAnchor, DocumentComment, NewComment};
+use crate::documents::models::{CommentAnchor, CommentRange, DocumentComment, NewComment};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolveCommentRequest {
@@ -32,7 +37,9 @@ pub struct ResolveCommentRequest {
 pub struct CommentRequest {
     pub document: DocumentId,
     pub anchor: Option<CommentAnchor>,
+    pub range: Option<CommentRange>,
     pub body: String,
+    pub mentions: Vec<UserId>,
     pub parent_id: Option<DocumentCommentId>,
 }
 
@@ -71,9 +78,14 @@ impl DocumentService {
             .authorized_document(who, &request.document, DocumentAction::Comment, trace)
             .await?;
         self.check_comment_limit(&request.body)?;
-        let anchor = match (&request.parent_id, request.anchor) {
-            (Some(parent), _) => self.comment_of(&document.id, parent).await?.anchor,
-            (None, Some(anchor)) => anchor,
+        check_range(request.range.as_ref())?;
+        let mentions = self.checked_mentions(&document, request.mentions).await?;
+        let (anchor, range) = match (&request.parent_id, request.anchor) {
+            (Some(parent), _) => {
+                let parent = self.comment_of(&document.id, parent).await?;
+                (parent.anchor, parent.range)
+            },
+            (None, Some(anchor)) => (anchor, request.range),
             (None, None) => {
                 return Err(DocumentsError::InvalidComment {
                     detail: "a comment needs a node anchor or a parent_id",
@@ -97,8 +109,10 @@ impl DocumentService {
             .insert(NewComment {
                 document_id: document.id.clone(),
                 anchor,
+                range,
                 author_user_id: who.id.clone(),
                 body: request.body,
+                mentions,
                 parent_id: request.parent_id,
             })
             .await?;
@@ -108,11 +122,14 @@ impl DocumentService {
             node_id: comment.anchor.node.clone(),
             parent_id: comment.parent_id.clone(),
             author_id: comment.author_user_id.clone(),
+            mentions: comment.mentions.clone(),
         };
         let to = self.recipients(&document).await;
         if let Err(error) = self.events.comment_created(&to, &event).await {
             tracing::warn!(document_id = %document.id, error = %error, "Comment event not relayed");
         }
+        self.notify_mentions(&document.id, &comment.id, &who.id, &comment.mentions)
+            .await;
         Ok(comment)
     }
 
@@ -124,7 +141,14 @@ impl DocumentService {
     ) -> Result<Vec<DocumentComment>, DocumentsError> {
         self.authorized_document(who, document, DocumentAction::View, trace)
             .await?;
-        Ok(self.repos.comments.list_for_document(document).await?)
+        Ok(self
+            .repos
+            .comments
+            .list_for_document(document)
+            .await?
+            .into_iter()
+            .filter(|comment| comment.deleted_at.is_none())
+            .collect())
     }
 
     pub async fn resolve_comment(
@@ -173,7 +197,7 @@ impl DocumentService {
         Ok(resolved)
     }
 
-    async fn comment_of(
+    pub(super) async fn comment_of(
         &self,
         document: &DocumentId,
         comment: &DocumentCommentId,
@@ -202,7 +226,9 @@ impl DocumentService {
             .list_for_document(document)
             .await?
             .into_iter()
-            .filter(|c| c.resolved_at.is_none() && !anchor_holds(ids, &c.anchor))
+            .filter(|c| {
+                c.resolved_at.is_none() && c.deleted_at.is_none() && !anchor_holds(ids, &c.anchor)
+            })
             .map(|c| c.id)
             .collect();
         if !affected.is_empty() && !policy.allow_detach {

@@ -25,6 +25,7 @@ mod content;
 mod download;
 pub mod drive;
 mod error;
+mod export;
 mod folder_sharing;
 mod folders;
 mod headers;
@@ -43,7 +44,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{delete, get, post, put};
+use axum::routing::{delete, get, patch, post, put};
 use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::CollabService;
@@ -153,6 +154,11 @@ pub fn router(state: DocumentsState) -> Router {
             "/{id}/comments/{comment_id}/resolve",
             post(comments::resolve),
         )
+        .route(
+            "/{id}/comments/{comment_id}",
+            patch(comments::edit).delete(comments::delete),
+        )
+        .route("/{id}/export/docx", get(export::docx))
         .route("/{id}/access", get(access::access))
         .route("/{id}/transfer", post(access::transfer))
         .route("/{id}/grants/all", delete(access::revoke_all))

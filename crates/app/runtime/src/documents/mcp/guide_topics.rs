@@ -90,7 +90,10 @@ answering_revision_id. {action: resolve, document_id, comment_id, answering?: re
 resolves it. Anchors are stable ids, so edits elsewhere never move them; an edit that deletes \
 the node or the quoted words refuses anchors_affected unless allow_detach: true, and a \
 detached comment keeps its node and drops its quote. documents_edit answering: <comment_id> \
-records the edit's revision on the comment.";
+records the edit's revision on the comment. mentions: [user_id] on create or edit notifies \
+users who hold access. {action: edit, document_id, comment_id, body, mentions?} rewrites your \
+own comment; {action: delete, document_id, comment_id} deletes yours (or any, with share \
+access) and returns the remaining threads.";
 
 pub(super) const LIFECYCLE: &str = "\
 documents_trash {document_id} moves a document to the trash: it leaves listings, and reads, \

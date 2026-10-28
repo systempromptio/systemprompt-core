@@ -15,6 +15,9 @@ use systemprompt_identifiers::{
 
 use super::access::{AccessLevel, ActorKind, ProposalStatus, RevisionOriginKind};
 use super::awareness::DocumentAwarenessEvent;
+use super::comment_events::{
+    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
+};
 use super::drive::{PresenceSource, PresenceState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -33,6 +36,12 @@ pub enum DocumentEventName {
     CommentCreated,
     #[serde(rename = "document.comment.resolved")]
     CommentResolved,
+    #[serde(rename = "document.comment.updated")]
+    CommentUpdated,
+    #[serde(rename = "document.comment.deleted")]
+    CommentDeleted,
+    #[serde(rename = "document.comment.mentioned")]
+    CommentMentioned,
     #[serde(rename = "document.shared")]
     Shared,
     #[serde(rename = "document.ownership_transferred")]
@@ -52,7 +61,7 @@ pub enum DocumentEventName {
 }
 
 impl DocumentEventName {
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 18] = [
         Self::RevisionCreated,
         Self::Presence,
         Self::Lock,
@@ -60,6 +69,9 @@ impl DocumentEventName {
         Self::CollabUpdate,
         Self::CommentCreated,
         Self::CommentResolved,
+        Self::CommentUpdated,
+        Self::CommentDeleted,
+        Self::CommentMentioned,
         Self::Shared,
         Self::OwnershipTransferred,
         Self::ProposalOpened,
@@ -80,6 +92,9 @@ impl DocumentEventName {
             Self::CollabUpdate => DocumentCollabUpdateEvent::NAME,
             Self::CommentCreated => DocumentCommentCreatedEvent::NAME,
             Self::CommentResolved => DocumentCommentResolvedEvent::NAME,
+            Self::CommentUpdated => DocumentCommentUpdatedEvent::NAME,
+            Self::CommentDeleted => DocumentCommentDeletedEvent::NAME,
+            Self::CommentMentioned => DocumentCommentMentionedEvent::NAME,
             Self::Shared => DocumentSharedEvent::NAME,
             Self::OwnershipTransferred => DocumentOwnershipTransferredEvent::NAME,
             Self::ProposalOpened => DocumentProposalEvent::OPENED,
@@ -184,6 +199,8 @@ pub struct DocumentCommentCreatedEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<DocumentCommentId>,
     pub author_id: UserId,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mentions: Vec<UserId>,
 }
 
 impl DocumentCommentCreatedEvent {

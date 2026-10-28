@@ -165,6 +165,8 @@ pub enum CommentAction {
     Create,
     List,
     Resolve,
+    Edit,
+    Delete,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -190,6 +192,8 @@ pub struct CommentInput {
     pub comment_id: Option<DocumentCommentId>,
     #[serde(default)]
     pub answering: Option<DocumentRevisionId>,
+    #[serde(default)]
+    pub mentions: Vec<UserId>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

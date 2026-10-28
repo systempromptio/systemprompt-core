@@ -19,6 +19,7 @@ mod documents_collab_settle;
 mod documents_collab_timer;
 #[cfg(test)]
 mod documents_comments;
+mod documents_comments_v2;
 #[cfg(test)]
 mod documents_drive_paths;
 #[cfg(test)]

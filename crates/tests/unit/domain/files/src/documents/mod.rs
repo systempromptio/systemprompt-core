@@ -1,6 +1,7 @@
 mod batch_order;
 mod blob_ids;
 mod codecs_docx;
+mod codecs_docx_comments;
 mod codecs_docx_edits;
 mod codecs_docx_inline;
 mod codecs_fragments;

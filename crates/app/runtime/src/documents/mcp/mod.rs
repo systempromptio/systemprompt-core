@@ -17,6 +17,7 @@
 mod access;
 mod browse;
 mod comment;
+mod comment_edit;
 mod export;
 mod guide;
 mod guide_topics;

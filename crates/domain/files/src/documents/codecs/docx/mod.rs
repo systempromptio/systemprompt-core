@@ -25,6 +25,7 @@
 
 mod apply;
 mod blank;
+mod comments;
 mod fragment;
 mod inline;
 mod insert;
@@ -39,6 +40,7 @@ mod rich;
 mod scan;
 mod styles;
 
+pub use comments::{NativeComment, with_comments};
 pub use rich::{import_rich, materialise_rich};
 
 use std::sync::Arc;

@@ -1,6 +1,7 @@
 //! Comment threads anchor to a stable node id and an optional quote inside
 //! it, so a thread survives edits elsewhere in the document and is detached,
-//! not lost, when its words go.
+//! not lost, when its words go. A comment may mention users; its author can
+//! edit it, and it can be deleted (`comment_edit`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -49,7 +50,9 @@ impl CommentHandler<'_> {
                 CommentRequest {
                     document: input.document_id,
                     anchor,
+                    range: None,
                     body,
+                    mentions: input.mentions,
                     parent_id: input.parent_id,
                 },
                 ctx.trace_id(),
@@ -99,7 +102,7 @@ impl McpToolHandler for CommentHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create, list or resolve anchored comments."
+        "Create, list, resolve, edit or delete anchored comments; mention users by id."
     }
 
     async fn handle(
@@ -112,6 +115,8 @@ impl McpToolHandler for CommentHandler<'_> {
         let output = match input.action {
             CommentAction::Create => self.create(who, input, ctx).await?,
             CommentAction::Resolve => self.resolve(who, input, ctx).await?,
+            CommentAction::Edit => self.edit(who, input, ctx).await?,
+            CommentAction::Delete => self.delete(who, input, ctx).await?,
             CommentAction::List => comments_view(
                 self.tools.service(),
                 who,

@@ -157,6 +157,8 @@ async fn comments_anchor_on_nested_text_and_refuse_bad_requests() {
         .create_comment(
             &owner,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: doc.clone(),
                 anchor: Some(CommentAnchor {
                     node: parent.id.clone(),
@@ -174,6 +176,8 @@ async fn comments_anchor_on_nested_text_and_refuse_bad_requests() {
 
     let request =
         |anchor: Option<CommentAnchor>, parent_id: Option<DocumentCommentId>| CommentRequest {
+            range: None,
+            mentions: Vec::new(),
             document: doc.clone(),
             anchor,
             body: "x".to_owned(),

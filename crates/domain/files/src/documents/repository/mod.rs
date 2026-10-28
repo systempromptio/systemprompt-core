@@ -15,6 +15,7 @@ mod documents;
 mod edit_sessions;
 
 mod comments;
+mod comments_write;
 mod folder_contents;
 mod folders;
 mod grant_events;

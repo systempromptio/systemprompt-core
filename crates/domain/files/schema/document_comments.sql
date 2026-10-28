@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS document_comments (
     answering_revision_id UUID REFERENCES document_revisions(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    anchor_start TEXT,
+    anchor_end TEXT,
+    mentions TEXT[] NOT NULL DEFAULT '{}',
+    edited_at TIMESTAMPTZ,
+    deleted_at TIMESTAMPTZ,
     CONSTRAINT document_comments_anchor_nth CHECK (anchor_nth IS NULL OR anchor_find IS NOT NULL)
 );
 
