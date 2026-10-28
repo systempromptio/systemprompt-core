@@ -19,8 +19,12 @@
 //! Execution provenance travels under the single reverse-DNS `_meta` key
 //! [`EXECUTION_META_KEY`](systemprompt_models::artifacts::EXECUTION_META_KEY);
 //! MCP reserves unprefixed `_meta` keys, so no bare field ever reaches the
-//! wire. Rendering is presentational: a renderer failure drops the embedded
-//! resource rather than failing the tool call.
+//! wire. An output that opts into the terse wire
+//! ([`McpOutputSchema::terse_wire`](crate::McpOutputSchema::terse_wire))
+//! carries only what a client correlates on: the artifact id and the MCP
+//! execution id ([`terse_execution_meta`]); every other output carries the
+//! full execution provenance. Rendering is presentational: a renderer failure
+//! drops the embedded resource rather than failing the tool call.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,6 +44,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::ExecutionMetadata;
 use systemprompt_models::mcp::{ClientProfile, ExecutionSource};
 
+pub use wire::terse_execution_meta;
 use wire::{RenderedArtifact, WireShape};
 
 pub const UI_RESOURCE_URI_META_KEY: &str = "io.systemprompt/ui-resource-uri";

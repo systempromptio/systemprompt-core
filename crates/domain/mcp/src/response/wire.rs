@@ -57,7 +57,16 @@ impl WireShape<'_> {
         if include_structured {
             result.structured_content = Some(self.structured_output);
         }
-        if include_ui || include_structured {
+        if self.terse {
+            let mut meta = terse_execution_meta(&artifact.artifact_id, &artifact.mcp_execution_id);
+            if include_ui {
+                meta.0.insert(
+                    UI_RESOURCE_URI_META_KEY.to_owned(),
+                    JsonValue::String(uri.clone()),
+                );
+            }
+            result = result.with_meta(Some(meta));
+        } else if include_ui || include_structured {
             result = result.with_meta(wire_meta(
                 self.metadata,
                 &artifact.artifact_id,
@@ -89,6 +98,22 @@ impl WireShape<'_> {
             .unwrap_or_else(|_| self.structured_output.to_string());
         format!("{summary}\n\n```json\n{pretty}\n```")
     }
+}
+
+#[must_use]
+pub fn terse_execution_meta(artifact_id: &ArtifactId, exec_id: &McpExecutionId) -> MetaObject {
+    let mut fields = serde_json::Map::new();
+    fields.insert(
+        "artifact_id".to_owned(),
+        JsonValue::String(artifact_id.to_string()),
+    );
+    fields.insert(
+        "mcp_execution_id".to_owned(),
+        JsonValue::String(exec_id.to_string()),
+    );
+    let mut meta = serde_json::Map::new();
+    meta.insert(EXECUTION_META_KEY.to_owned(), JsonValue::Object(fields));
+    MetaObject(meta)
 }
 
 fn wire_meta(
