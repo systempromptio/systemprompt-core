@@ -34,6 +34,7 @@
 pub mod anchors;
 pub mod file;
 mod html;
+mod line_nodes;
 mod lines;
 mod markdown;
 mod markdown_lowering;

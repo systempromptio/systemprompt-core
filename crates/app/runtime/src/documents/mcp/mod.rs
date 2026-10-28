@@ -16,6 +16,7 @@
 
 mod access;
 mod browse;
+mod catalog;
 mod comment;
 mod comment_edit;
 mod export;
@@ -56,6 +57,7 @@ use systemprompt_users::UserRepository;
 
 pub use access::AccessHandler;
 pub use browse::{HistoryHandler, ListHandler, SearchHandler};
+pub use catalog::{INSTRUCTIONS, TOOL_NAMES};
 pub use comment::CommentHandler;
 pub use export::ExportHandler;
 pub use guide::GuideHandler;
@@ -88,41 +90,6 @@ pub use write::{CreateHandler, EditHandler};
 use support::run;
 
 use crate::AppContext;
-
-pub const TOOL_NAMES: [&str; 18] = [
-    "documents_list",
-    "documents_search",
-    "documents_create",
-    "documents_read",
-    "documents_edit",
-    "documents_comment",
-    "documents_history",
-    "documents_proposals",
-    "documents_share",
-    "documents_access",
-    "documents_copy",
-    "documents_update",
-    "documents_trash",
-    "documents_untrash",
-    "documents_export",
-    "documents_upload",
-    "documents_guide",
-    "documents_people",
-];
-
-pub const INSTRUCTIONS: &str = "Shared documents (Word, Excel, PowerPoint, OpenDocument, HTML, \
-Markdown, text) you may view, edit and share.
-1. Read the outline first: documents_read view outline; lines are `<node>:<hash>| <text>` and \
-node ids are stable across revisions.
-2. Edit by node id and hash, or by quote, in one documents_edit call; only a touched node that \
-changed refuses. Pass op_id so a retry is safe.
-3. Anchor the next edit on the ack; resume later with view changes since your last revision.
-4. On guard_mismatch or stale_base the head edit wins: re-aim from the returned current text, \
-never resend your old text.
-5. Do not re-read between your own writes. Details: documents_guide.
-6. An edit may land as a proposal (proposal_id in the ack); a reviewer accepts it with \
-documents_proposals.
-7. To bring a file in, documents_upload it and import the returned blob_ref.";
 
 /// Why [`DocumentsMcpTools::from_context`] refused to build the tools.
 #[derive(Debug, thiserror::Error)]

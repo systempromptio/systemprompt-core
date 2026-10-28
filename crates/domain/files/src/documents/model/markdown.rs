@@ -12,17 +12,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use pulldown_cmark::{
-    BlockQuoteKind, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd,
-};
+use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 
 use super::document::DocumentSettings;
 use super::ids::IdSeq;
 use super::inline::InlineBuf;
 use super::layout::CalloutTone;
+use super::markdown_tags::{INLINE_TAGS, heading, tone};
 use super::rich_text::{Block, BlockKind, MarkKind, RichText};
 
-pub use super::markdown_write::{degrade, materialise};
+pub use super::markdown_degrade::degrade;
+pub use super::markdown_write::materialise;
 
 const OPTIONS: Options = Options::ENABLE_TABLES
     .union(Options::ENABLE_STRIKETHROUGH)
@@ -31,11 +31,6 @@ const OPTIONS: Options = Options::ENABLE_TABLES
     .union(Options::ENABLE_GFM)
     .union(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
 
-pub(super) const INLINE_TAGS: [(&str, &str); 3] = [
-    ("u", "underline"),
-    ("sup", "superscript"),
-    ("sub", "subscript"),
-];
 
 #[must_use]
 pub fn import(markdown: &str) -> RichText {
@@ -259,26 +254,5 @@ impl Builder {
     fn emit(&mut self, kind: BlockKind) {
         self.blocks
             .push(Block::new(self.ids.next_id(), kind, String::new()));
-    }
-}
-
-const fn tone(kind: BlockQuoteKind) -> CalloutTone {
-    match kind {
-        BlockQuoteKind::Note => CalloutTone::Note,
-        BlockQuoteKind::Tip => CalloutTone::Success,
-        BlockQuoteKind::Important => CalloutTone::Info,
-        BlockQuoteKind::Warning => CalloutTone::Warning,
-        BlockQuoteKind::Caution => CalloutTone::Danger,
-    }
-}
-
-const fn heading(level: HeadingLevel) -> u8 {
-    match level {
-        HeadingLevel::H1 => 1,
-        HeadingLevel::H2 => 2,
-        HeadingLevel::H3 => 3,
-        HeadingLevel::H4 => 4,
-        HeadingLevel::H5 => 5,
-        HeadingLevel::H6 => 6,
     }
 }

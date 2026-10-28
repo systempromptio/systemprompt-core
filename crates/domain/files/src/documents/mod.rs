@@ -35,6 +35,7 @@ pub mod blob_store;
 pub mod codecs;
 #[cfg(feature = "collab")]
 pub mod collab;
+mod collab_events;
 mod comment_events;
 pub mod engine;
 pub mod error;

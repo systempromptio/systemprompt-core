@@ -33,9 +33,8 @@ use systemprompt_events::{EventRouter, RelayOutcome, TopicEvent};
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::documents::{
-    DocumentAwarenessEvent, DocumentCollabDegradedEvent, DocumentCollabUpdateEvent,
-    DocumentConflictEvent, DocumentLockEvent, DocumentPresenceEvent, DocumentProposalEvent,
-    DocumentRevisionCreatedEvent,
+    DocumentAwarenessEvent, DocumentCollabUpdateEvent, DocumentConflictEvent, DocumentLockEvent,
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent,
 };
 
 use super::error::{DocumentsError, EventFailure};
@@ -144,15 +143,6 @@ impl DocumentEvents {
         event: &DocumentConflictEvent,
     ) -> Result<(), DocumentsError> {
         self.emit(DocumentConflictEvent::NAME, to, event).await
-    }
-
-    pub async fn collab_degraded(
-        &self,
-        to: &[UserId],
-        event: &DocumentCollabDegradedEvent,
-    ) -> Result<(), DocumentsError> {
-        self.emit(DocumentCollabDegradedEvent::NAME, to, event)
-            .await
     }
 
     pub async fn collab_update(

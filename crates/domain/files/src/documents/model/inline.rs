@@ -91,7 +91,7 @@ pub(crate) fn render_markdown(text: &str, marks: &[Mark]) -> String {
         } else {
             escape_markdown(&run)
         };
-        for (tag, key) in super::markdown::INLINE_TAGS {
+        for (tag, key) in super::markdown_tags::INLINE_TAGS {
             if has(key) {
                 piece = format!("<{tag}>{piece}</{tag}>");
             }

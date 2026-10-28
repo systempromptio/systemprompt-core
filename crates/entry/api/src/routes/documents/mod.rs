@@ -32,6 +32,7 @@ mod headers;
 mod history;
 mod import;
 mod items;
+mod items_multipart;
 mod lifecycle;
 mod listing;
 mod live;

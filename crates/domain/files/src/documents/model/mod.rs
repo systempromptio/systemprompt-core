@@ -26,6 +26,8 @@ mod inline;
 pub mod layout;
 mod mark_kind;
 pub mod markdown;
+mod markdown_degrade;
+mod markdown_tags;
 mod markdown_write;
 mod media;
 pub mod office;

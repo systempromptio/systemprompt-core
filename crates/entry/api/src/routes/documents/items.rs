@@ -21,7 +21,7 @@ use systemprompt_files::uploads::{Allowance, NewUpload};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::documents::{DocumentFormat, content_hash};
+use systemprompt_models::documents::content_hash;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsState;
@@ -29,11 +29,10 @@ use super::caller::{api_author, caller};
 use super::error::DocumentsResult;
 use super::headers::etag;
 use super::import::{ImportBody, import_blob};
+use super::items_multipart::read_file;
 use super::requests::with_request_hint;
 use super::views::{CreatedJson, DocumentDetail};
 use crate::error::ApiHttpError;
-
-const OPAQUE_MIME: &str = "application/octet-stream";
 
 pub(super) fn document_id(raw: &str) -> DocumentsResult<DocumentId> {
     Ok(DocumentId::try_new(raw)?)
@@ -160,55 +159,6 @@ pub(super) async fn create(
         revision: revision.into(),
     };
     Ok((StatusCode::CREATED, Json(created)).into_response())
-}
-
-struct MultipartFile {
-    name: String,
-    folder: Option<DocumentFolderId>,
-    format: Option<DocumentFormat>,
-    mime: String,
-    bytes: Vec<u8>,
-}
-
-async fn read_file(mut form: Multipart) -> DocumentsResult<MultipartFile> {
-    let mut name = None;
-    let mut folder = None;
-    let mut format = None;
-    let mut file: Option<(Option<String>, Vec<u8>)> = None;
-    let mut mime = None;
-    while let Some(field) = form.next_field().await? {
-        let part = field.name().unwrap_or_default().to_owned();
-        let file_name = field.file_name().map(str::to_owned);
-        if part == "file" {
-            mime = field.content_type().map(str::to_owned);
-        }
-        let bytes = field.bytes().await?;
-        let text = || String::from_utf8_lossy(&bytes).trim().to_owned();
-        match part.as_str() {
-            "file" => file = Some((file_name, bytes.to_vec())),
-            "name" => name = Some(text()),
-            "folder_id" => folder = folder_id(Some(&text()))?,
-            "format" => {
-                format = Some(text().parse::<DocumentFormat>().map_err(|source| {
-                    ApiError::bad_request("format is not a known document format")
-                        .with_source(source)
-                })?);
-            },
-            _ => {},
-        }
-    }
-    let (file_name, bytes) =
-        file.ok_or_else(|| ApiError::bad_request("multipart import needs a `file` part"))?;
-    let name = name
-        .or(file_name)
-        .ok_or_else(|| ApiError::bad_request("multipart import needs a `name`"))?;
-    Ok(MultipartFile {
-        name,
-        folder,
-        format,
-        mime: mime.unwrap_or_else(|| OPAQUE_MIME.to_owned()),
-        bytes,
-    })
 }
 
 pub(super) async fn get(

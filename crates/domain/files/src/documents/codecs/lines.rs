@@ -6,13 +6,14 @@
 
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode, hash8,
+    CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, Projection, ProjectionNode,
     required_hash,
 };
 
 use super::anchors::{str_replace_once, verify_anchor};
+use super::line_nodes::{line_index, line_node};
 use super::markdown_lowering::{lower, plain_lines};
-use super::pending::{intent_of_line, line_marker};
+use super::pending::line_marker;
 
 pub(crate) const BODY_ID: &str = "body";
 
@@ -157,24 +158,7 @@ impl LineDoc {
                 }
                 Ok(())
             },
-            EditOp::SetCells { .. }
-            | EditOp::InsertSlide { .. }
-            | EditOp::SetHtml { .. }
-            | EditOp::Restore { .. }
-            | EditOp::InsertFromRevision { .. }
-            | EditOp::SetMarks(_)
-            | EditOp::SetBlockType(_)
-            | EditOp::InsertTable(_)
-            | EditOp::TableInsertRow(_)
-            | EditOp::TableInsertCol(_)
-            | EditOp::TableDelete(_)
-            | EditOp::InsertImage(_)
-            | EditOp::SetParagraph(_)
-            | EditOp::InsertBlock(_)
-            | EditOp::UpdateTable(_)
-            | EditOp::SetSection(_)
-            | EditOp::SetStyle(_)
-            | EditOp::ApplyTheme(_) => Err(CodecError::UnsupportedOp {
+            _ => Err(CodecError::UnsupportedOp {
                 op: op.name(),
                 format,
             }),
@@ -265,40 +249,5 @@ impl LineDoc {
             .ok_or_else(|| CodecError::UnknownNode { node: node.clone() })?;
         verify_anchor(&line_node(index + 1, text), expected_hash)?;
         Ok(slot)
-    }
-}
-
-pub(crate) fn line_node(number: usize, text: &str) -> ProjectionNode {
-    let (kind, shown) =
-        intent_of_line(text).map_or((NodeKind::Text, text), |intent| (NodeKind::Pending, intent));
-    ProjectionNode {
-        id: DocumentNodeId::new(format!("line[{number}]")),
-        kind,
-        text: Some(shown.to_owned()),
-        hash8: hash8(text),
-        children: Vec::new(),
-        attrs: std::collections::BTreeMap::new(),
-    }
-}
-
-fn line_index(
-    node: &DocumentNodeId,
-    op: &EditOp,
-    format: DocumentFormat,
-    current: &Projection,
-) -> Result<usize, CodecError> {
-    let number = node
-        .as_str()
-        .strip_prefix("line[")
-        .and_then(|rest| rest.strip_suffix(']'))
-        .and_then(|digits| digits.parse::<usize>().ok())
-        .filter(|number| *number > 0);
-    match number {
-        Some(number) => Ok(number - 1),
-        None if current.find(node).is_some() => Err(CodecError::UnsupportedOp {
-            op: op.name(),
-            format,
-        }),
-        None => Err(CodecError::UnknownNode { node: node.clone() }),
     }
 }
