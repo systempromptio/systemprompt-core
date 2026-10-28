@@ -25,6 +25,8 @@ mod commit_plan;
 mod docx_fixture;
 mod engine_loro;
 mod live_resume;
+mod model_docx_roundtrip;
+mod model_markdown_gfm;
 mod model_office;
 mod model_ops;
 mod model_rich_text;
