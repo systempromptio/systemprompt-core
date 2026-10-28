@@ -14,7 +14,6 @@ use std::io::{Cursor, Read};
 use systemprompt_provider_contracts::documents::content_hash;
 use zip::ZipArchive;
 
-use super::parts::read_part;
 use super::read::ReadCtx;
 use crate::documents::codecs::xml_tree::Element;
 use crate::documents::model::BlockKind;
@@ -120,37 +119,63 @@ pub(super) fn image_type(bytes: &[u8]) -> Option<(&'static str, &'static str)> {
     }
 }
 
-/// The uploads a package holds as `word/media/sp-<hash>.<ext>` whose bytes
-/// really hash to `<hash>`. A part named for someone else's upload but
-/// holding other bytes is not one, so it can never stand in for that
-/// upload.
-pub fn saved_upload_hashes(bytes: &[u8]) -> Vec<String> {
+/// The largest picture part read to verify a saved upload; a larger part
+/// is never read and never counts as one.
+pub const MAX_PART_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Of the uploads in `wanted`, those a package holds as
+/// `word/media/sp-<hash>.<ext>` whose bytes really hash to `<hash>`. A part
+/// named for someone else's upload but holding other bytes is not one, so
+/// it can never stand in for that upload. Only parts whose stem is a
+/// 64-hex hash in `wanted` are read, each at most `limit` bytes.
+pub fn saved_upload_hashes(bytes: &[u8], wanted: &[String], limit: u64) -> Vec<String> {
     let Ok(mut archive) = ZipArchive::new(Cursor::new(bytes)) else {
         return Vec::new();
     };
-    let names: Vec<String> = archive
+    let names: Vec<(String, String)> = archive
         .file_names()
         .filter_map(Result::ok)
-        .filter(|name| name.starts_with("word/media/sp-"))
-        .map(std::borrow::Cow::into_owned)
+        .filter_map(|name| {
+            let stem = name.strip_prefix("word/media/sp-")?.split('.').next()?;
+            let wanted = is_hash(stem) && wanted.iter().any(|w| w == stem);
+            wanted.then(|| (name.to_string(), stem.to_owned()))
+        })
         .collect();
     names
         .into_iter()
-        .filter_map(|name| {
-            let stem = name.strip_prefix("word/media/sp-")?.split('.').next()?.to_owned();
-            let mut content = Vec::new();
-            archive.by_name(&name).ok()?.read_to_end(&mut content).ok()?;
+        .filter_map(|(name, stem)| {
+            let file = archive.by_name(&name).ok()?;
+            let content = read_capped(file, limit)?;
             (content_hash(&content).as_str() == stem).then_some(stem)
         })
         .collect()
 }
 
 /// The picture part a package holds for upload `hash`, by its target
-/// relative to `word/`, when the part's bytes hash to `hash`.
-pub(super) fn saved_upload_target(bytes: &[u8], hash: &str) -> Option<String> {
+/// relative to `word/`, and its bytes, when they hash to `hash` and are at
+/// most `limit` bytes.
+pub(super) fn saved_upload_part(bytes: &[u8], hash: &str, limit: u64) -> Option<(String, Vec<u8>)> {
+    if !is_hash(hash) {
+        return None;
+    }
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).ok()?;
     ["png", "jpeg", "gif"].iter().find_map(|extension| {
         let target = format!("media/sp-{hash}.{extension}");
-        let content = read_part(bytes, &format!("word/{target}")).ok()??;
-        (content_hash(&content).as_str() == hash).then_some(target)
+        let file = archive.by_name(&format!("word/{target}")).ok()?;
+        let content = read_capped(file, limit)?;
+        (content_hash(&content).as_str() == hash).then_some((target, content))
     })
+}
+
+/// A part's bytes, or `None` when it holds more than `limit`.
+fn read_capped(file: impl Read, limit: u64) -> Option<Vec<u8>> {
+    let mut content = Vec::new();
+    file.take(limit.saturating_add(1))
+        .read_to_end(&mut content)
+        .ok()?;
+    (u64::try_from(content.len()).ok()? <= limit).then_some(content)
+}
+
+fn is_hash(stem: &str) -> bool {
+    stem.len() == 64 && stem.chars().all(|c| c.is_ascii_hexdigit())
 }

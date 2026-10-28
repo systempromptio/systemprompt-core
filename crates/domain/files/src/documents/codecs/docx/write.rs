@@ -47,6 +47,8 @@ pub(super) struct WriteCtx<'a> {
     /// The base `w:sectPr` of each section break, by block id, so an
     /// edited break is spliced over its base rather than written fresh.
     pub(super) base_breaks: HashMap<String, (String, Section)>,
+    /// Saved uploads already looked up in the base package, by hash.
+    pub(super) saved_uploads: HashMap<String, Option<(String, Option<(u32, u32)>)>>,
 }
 
 impl WriteCtx<'_> {

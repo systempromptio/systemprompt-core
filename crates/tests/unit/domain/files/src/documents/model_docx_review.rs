@@ -1,5 +1,6 @@
 use systemprompt_files::documents::codecs::docx::{
-    blank_docx, import_rich, materialise_rich, materialise_rich_with, saved_upload_hashes,
+    MAX_PART_BYTES, blank_docx, import_rich, materialise_rich, materialise_rich_with,
+    saved_upload_hashes,
 };
 use systemprompt_files::documents::collab::ImageOwners;
 use systemprompt_files::documents::model::layout::{Margins, Section};
@@ -62,7 +63,12 @@ fn raw_markup_in_a_section_break_footer_is_refused() {
 fn a_document_already_holding_an_upload_lets_it_be_placed_again() {
     let markdown = format!("![chart]({BLOB})\n");
     assert_eq!(
-        held_media_refs(DocumentFormat::Markdown, markdown.as_bytes()),
+        held_media_refs(
+            DocumentFormat::Markdown,
+            markdown.as_bytes(),
+            &[BLOB.to_owned()],
+            MAX_PART_BYTES
+        ),
         vec![BLOB.to_owned()]
     );
 }
@@ -224,15 +230,29 @@ fn a_saved_docx_upload_counts_as_held() {
     let bytes = png(64, 32);
     let hash = content_hash(&bytes).as_str().to_owned();
     let saved = with_upload(&hash, bytes);
-    assert!(held_media_refs(DocumentFormat::Docx, &saved).contains(&hash));
+    let wanted = [hash.clone()];
+    assert!(held_media_refs(DocumentFormat::Docx, &saved, &wanted, MAX_PART_BYTES).contains(&hash));
+}
+
+#[test]
+fn an_oversized_saved_upload_part_is_skipped() {
+    let bytes = png(64, 32);
+    let hash = content_hash(&bytes).as_str().to_owned();
+    let saved = with_upload(&hash, bytes);
+    let wanted = [hash.clone()];
+    assert_eq!(saved_upload_hashes(&saved, &wanted, MAX_PART_BYTES), vec![hash.clone()]);
+    assert!(saved_upload_hashes(&saved, &wanted, 8).is_empty());
+    assert!(saved_upload_hashes(&saved, &[], MAX_PART_BYTES).is_empty());
 }
 
 #[test]
 fn a_part_named_for_another_upload_is_not_held() {
     let other = "1111111111111111111111111111111111111111111111111111111111111111";
     let crafted = with_upload(other, png(8, 8));
-    assert!(saved_upload_hashes(&crafted).is_empty());
-    assert!(!held_media_refs(DocumentFormat::Docx, &crafted).contains(&other.to_owned()));
+    let wanted = [other.to_owned()];
+    assert!(saved_upload_hashes(&crafted, &wanted, MAX_PART_BYTES).is_empty());
+    assert!(!held_media_refs(DocumentFormat::Docx, &crafted, &wanted, MAX_PART_BYTES)
+        .contains(&wanted[0]));
 }
 
 #[test]

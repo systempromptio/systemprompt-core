@@ -55,12 +55,14 @@ impl CollabService {
                 };
             },
         };
-        let held = held_media_refs(format, base_bytes);
+        let wanted = media_refs(&rich);
+        let limit = self.documents.config().max_upload_bytes;
+        let held = held_media_refs(format, base_bytes, &wanted, limit);
         let owners_of =
             |reference: &str| owners.owner(reference).cloned().into_iter().collect::<Vec<_>>();
         let admitted = self
             .documents
-            .admit_media(self.uploads.as_deref(), &owners_of, media_refs(&rich), &held)
+            .admit_media(self.uploads.as_deref(), &owners_of, wanted, &held)
             .await;
         for refused in &admitted.refused {
             tracing::warn!(

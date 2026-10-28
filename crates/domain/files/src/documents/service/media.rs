@@ -33,13 +33,20 @@ pub struct AdmittedMedia {
 /// only when the part's bytes hash to `<hash>`: a part named for another
 /// user's upload never stands in for it. A held image is placed from the
 /// document's own bytes and never read from the blob store.
+/// Only the references in `wanted` (what the write places) are looked
+/// for, and a picture part over `limit` bytes is never read.
 #[must_use]
-pub fn held_media_refs(format: DocumentFormat, bytes: &[u8]) -> Vec<String> {
+pub fn held_media_refs(
+    format: DocumentFormat,
+    bytes: &[u8],
+    wanted: &[String],
+    limit: u64,
+) -> Vec<String> {
     let mut held = import_rich_text(format, bytes)
         .map(|model| media_refs(&model))
         .unwrap_or_default();
     if format == DocumentFormat::Docx {
-        held.extend(saved_uploads(bytes));
+        held.extend(saved_uploads(bytes, wanted, limit));
     }
     held.sort();
     held.dedup();
@@ -47,12 +54,12 @@ pub fn held_media_refs(format: DocumentFormat, bytes: &[u8]) -> Vec<String> {
 }
 
 #[cfg(feature = "office")]
-fn saved_uploads(bytes: &[u8]) -> Vec<String> {
-    crate::documents::codecs::docx::saved_upload_hashes(bytes)
+fn saved_uploads(bytes: &[u8], wanted: &[String], limit: u64) -> Vec<String> {
+    crate::documents::codecs::docx::saved_upload_hashes(bytes, wanted, limit)
 }
 
 #[cfg(not(feature = "office"))]
-const fn saved_uploads(_bytes: &[u8]) -> Vec<String> {
+const fn saved_uploads(_bytes: &[u8], _wanted: &[String], _limit: u64) -> Vec<String> {
     Vec::new()
 }
 

@@ -14,7 +14,7 @@
 use super::markup::run;
 use super::parts::read_part;
 use super::read_drawing::{
-    EMU_PER_PX, MEDIA_SCHEME, image_type, pixel_size, saved_upload_target,
+    EMU_PER_PX, MAX_PART_BYTES, MEDIA_SCHEME, image_type, pixel_size, saved_upload_part,
 };
 use super::write::{WriteCtx, escape_attr, ppr};
 use crate::documents::model::{Block, BlockKind};
@@ -77,14 +77,19 @@ fn picture(blob: &str, ctx: &mut WriteCtx<'_>) -> Option<(String, Option<(u32, u
         return Some((target.to_owned(), natural));
     }
     let resolved = ctx.media;
-    if !resolved.contains_key(blob)
-        && let Some(target) = saved_upload_target(ctx.base, blob)
-    {
-        let natural = read_part(ctx.base, &format!("word/{target}"))
-            .ok()
-            .flatten()
-            .and_then(|bytes| pixel_size(&bytes));
-        return Some((target, natural));
+    if !resolved.contains_key(blob) {
+        let base = ctx.base;
+        let saved = ctx
+            .saved_uploads
+            .entry(blob.to_owned())
+            .or_insert_with(|| {
+                saved_upload_part(base, blob, MAX_PART_BYTES)
+                    .map(|(target, bytes)| (target, pixel_size(&bytes)))
+            })
+            .clone();
+        if saved.is_some() {
+            return saved;
+        }
     }
     let Some(media) = resolved.get(blob) else {
         ctx.fail(format!("image {blob} was not resolved; upload it and pass its blob_ref"));

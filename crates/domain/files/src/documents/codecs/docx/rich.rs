@@ -70,6 +70,7 @@ pub fn materialise_rich_with(
         even_odd: false,
         update_fields: false,
         base_breaks: base_breaks(&src, &body),
+        saved_uploads: HashMap::new(),
     };
     let mut xml = office::splice(&src, &body, model, |block| write_block(block, &mut ctx));
     xml = with_final_section(xml, &base_settings, &mut ctx);

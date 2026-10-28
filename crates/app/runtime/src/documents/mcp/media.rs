@@ -78,7 +78,7 @@ pub(super) async fn resolve_media(
                 .read_bytes(who, document, None, ctx.trace_id())
                 .await
                 .map_err(tool_error)?;
-            held_media_refs(format, &bytes)
+            held_media_refs(format, &bytes, &refs, service.config().max_upload_bytes)
         },
         None => Vec::new(),
     };

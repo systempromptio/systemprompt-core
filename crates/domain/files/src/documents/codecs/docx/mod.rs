@@ -64,7 +64,7 @@ mod write_styles;
 mod write_table;
 
 pub use comments::{NativeComment, with_comments};
-pub use read_drawing::saved_upload_hashes;
+pub use read_drawing::{MAX_PART_BYTES, saved_upload_hashes};
 pub use rich::{import_rich, materialise_rich, materialise_rich_with};
 
 use std::sync::Arc;
