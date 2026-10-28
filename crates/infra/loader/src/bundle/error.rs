@@ -89,6 +89,13 @@ pub enum BundleError {
         cause: Option<BundleCause>,
     },
 
+    #[error(
+        "server.role '{role}' reads the services composition a worker writes to {} and never \
+         fetches bundles itself; none is there yet (share services.cache_dir with the worker)",
+        cache.display()
+    )]
+    NoSharedComposition { role: &'static str, cache: PathBuf },
+
     #[error("{kind} {id} is claimed by both {first} and {second}")]
     Ownership {
         id: String,

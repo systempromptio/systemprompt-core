@@ -8,8 +8,9 @@ use systemprompt_cli::cloud::profile::profile_steps::{
 };
 use systemprompt_cli::cloud::profile::tenant_credentials::ensure_unmasked_credentials;
 use systemprompt_cli::cloud::profile::{ApiKeys, CreateArgs, TenantTypeArg};
-use systemprompt_cloud::{StoredTenant, TenantStore, TenantType};
+use systemprompt_cloud::{StoredTenant, TenantStore};
 use systemprompt_identifiers::TenantId;
+use systemprompt_manifest::HostingProvider;
 
 fn create_args(tenant: Option<&str>, tenant_type: TenantTypeArg) -> CreateArgs {
     CreateArgs {
@@ -72,7 +73,10 @@ fn resolve_tenant_from_args_rejects_type_mismatch() {
         &store_with(local_tenant("t1")),
     )
     .expect_err("type mismatch");
-    assert!(err.to_string().contains("is type Local"), "{err}");
+    assert!(
+        err.to_string().contains("has provider docker_local"),
+        "{err}"
+    );
 }
 
 #[test]
@@ -83,7 +87,7 @@ fn resolve_tenant_from_args_returns_matching_tenant() {
     )
     .expect("tenant resolved");
     assert_eq!(tenant.id.as_str(), "t1");
-    assert_eq!(tenant.tenant_type, TenantType::Local);
+    assert_eq!(tenant.provider, HostingProvider::DockerLocal);
 }
 
 #[test]
@@ -130,7 +134,7 @@ async fn ensure_unmasked_credentials_skips_refresh_for_unmasked_cloud_tenant() {
     let tenants_path = dir.path().join("tenants.json");
 
     let mut tenant = StoredTenant::new(TenantId::new("c1"), "c1".to_owned());
-    tenant.tenant_type = TenantType::Cloud;
+    tenant.provider = HostingProvider::Systemprompt;
     tenant.external_db_access = true;
     tenant.database_url = Some("postgres://user:realpw@db.example:5432/app".to_owned());
     tenant.internal_database_url = Some("postgres://user:realpw@internal:5432/app".to_owned());

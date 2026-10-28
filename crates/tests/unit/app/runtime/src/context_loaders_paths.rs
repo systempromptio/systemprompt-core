@@ -18,6 +18,7 @@ fn fixture_config(geoip: Option<String>) -> Config {
         metrics_port: None,
         max_concurrent_streams: 16,
         role: Default::default(),
+        advertise_url: None,
         max_in_flight: None,
         shutdown: Default::default(),
         sitename: "t".to_string(),

@@ -44,7 +44,7 @@ pub fn show_tenant(
     let output = TenantDetailOutput {
         id: tenant.id.clone(),
         name: tenant.name.clone(),
-        tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
+        provider: tenant.provider,
         app_id: tenant.app_id.clone().map(CloudAppId::new),
         hostname: tenant.hostname.clone(),
         region: tenant.region.clone(),
@@ -54,7 +54,7 @@ pub fn show_tenant(
     if !config.is_json_output() {
         CliService::section(&format!("Tenant: {}", tenant.name));
         CliService::key_value("ID", tenant.id.as_str());
-        CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
+        CliService::key_value("Provider", tenant.provider.as_str());
 
         if let Some(ref app_id) = tenant.app_id {
             CliService::key_value("App ID", app_id.as_str());

@@ -5,11 +5,12 @@
 
 use anyhow::{Result, bail};
 use std::sync::Arc;
+use systemprompt_extension::prelude::ChangeActor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
 use systemprompt_scheduler::services::{
-    ConfigReconcileService, RECONCILE_LOCK_WAIT, ReconcileTrigger, SchedulerHandle,
-    SchedulerService,
+    ConfigApplyService, ConfigReconcileService, RECONCILE_LOCK_WAIT, ReconcileTrigger,
+    SchedulerHandle, SchedulerService,
 };
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
@@ -51,7 +52,23 @@ async fn reconcile_config_planes(ctx: &AppContext) -> Result<()> {
         &Arc::new(ctx.clone()),
         (*crate::repository::config_plane_state(ctx.db_pool())).clone(),
     )?;
-    let report = service
+    let applier = ConfigApplyService::new(service);
+    let file_planes = applier
+        .apply_file_managed(
+            ChangeActor::Boot,
+            "file-authority planes applied at boot",
+            RECONCILE_LOCK_WAIT,
+        )
+        .await?;
+    if !file_planes.planes.is_empty() {
+        tracing::info!(
+            planes = file_planes.planes.len(),
+            written = file_planes.applied(),
+            "file-authority config planes applied at boot"
+        );
+    }
+    let report = applier
+        .reconcile()
         .reconcile_exclusive(ReconcileTrigger::Boot, RECONCILE_LOCK_WAIT)
         .await?;
     let failures: Vec<String> = report
@@ -68,7 +85,7 @@ async fn reconcile_config_planes(ctx: &AppContext) -> Result<()> {
     tracing::info!(
         planes = report.planes.len(),
         drift_rows = report.drift_rows(),
-        "config planes checked at boot; nothing applied"
+        "config planes checked at boot"
     );
     Ok(())
 }

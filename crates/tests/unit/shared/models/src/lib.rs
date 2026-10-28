@@ -117,6 +117,8 @@ mod profile_observability;
 #[cfg(test)]
 mod profile_server_capacity;
 #[cfg(test)]
+mod profile_server_role;
+#[cfg(test)]
 mod profile_server_shutdown;
 
 #[cfg(test)]

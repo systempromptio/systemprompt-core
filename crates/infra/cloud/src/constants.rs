@@ -51,6 +51,13 @@ pub mod tenants {
     pub const DEFAULT_FILE_NAME: &str = file_names::TENANTS;
 }
 
+pub mod operator {
+    use super::dir_names;
+
+    pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
+    pub const DEFAULT_FILE_NAME: &str = "operator_credentials.json";
+}
+
 pub mod cli_session {
     use super::{dir_names, file_names};
 
@@ -119,6 +126,8 @@ pub mod proxies {
 
     pub const FLY_PUBLIC_RANGES: &[&str] = &["66.241.64.0/18"];
 
+    pub const GOOGLE_LB_RANGES: &[&str] = &["35.191.0.0/16", "130.211.0.0/22"];
+
     pub const CLOUDFLARE_RANGES: &[&str] = &[
         "173.245.48.0/20",
         "103.21.244.0/22",
@@ -152,6 +161,7 @@ pub mod env_vars {
         systemprompt_models::subprocess::DEPLOYMENT_HOST_ENV,
         "FLY_APP_NAME",
         "FLY_MACHINE_ID",
+        "POD_NAME",
     ];
 
     pub const CLI_SYNCED: &[&str] = &[

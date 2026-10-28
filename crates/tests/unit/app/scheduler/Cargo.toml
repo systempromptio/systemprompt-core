@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-scheduler = { workspace = true }
+systemprompt-config = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-runtime = { workspace = true }
@@ -32,6 +33,7 @@ async-trait = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 opentelemetry-proto = { workspace = true }
 reqwest = { workspace = true }

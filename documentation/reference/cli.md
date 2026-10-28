@@ -155,7 +155,7 @@ systemprompt admin agents status my-agent
 |------------|--------------------------|---------|
 | `cloud auth` | `login`, `logout`, `whoami`, `admin-user` | Authenticate with systemprompt.io Cloud via OAuth; `admin-user` projects the authenticated cloud user as an admin into local profile databases. |
 | `cloud init` | `--force` | Initialize project structure. |
-| `cloud tenant` | `create`, `show`, `delete`, `edit`, `rotate-credentials`, `cancel` | Manage tenants (local or cloud). |
+| `cloud tenant` | `create`, `add`, `list`, `show`, `delete`, `edit`, `rotate-credentials` | Manage tenants: systemprompt.io-managed (synced from the control plane) or self-managed (`add --provider kubernetes\|gke\|docker_local`). |
 | `cloud profile` | — | Manage profiles. |
 | `cloud deploy` | `--skip-push`, `-p`/`--profile`, `--check` | Deploy to systemprompt.io Cloud. Runs the deploy preflight first and blocks on failure; `--check` runs the preflight only. Deploys replace the running container: runtime files created inside it are not preserved — run `cloud backup` first if you need a copy. |
 | `cloud backup` | `-p`/`--profile`, `-o`/`--output`, `--list` | Download the tenant's runtime `services/` tree to a standalone directory (never the project's own `services/`). `--list` shows the remote manifest without downloading. |

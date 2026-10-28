@@ -5,7 +5,8 @@
 //! the response back (with SSE keep-alive). For MCP it also maintains the
 //! persisted session identity so a session-only follow-up request can be
 //! enriched, on any replica, with the identity established on the
-//! authenticated initialize call.
+//! authenticated initialize call. A node that supervises no processes forwards
+//! to the owning replica instead (see [`owner`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +17,7 @@ mod external_sessions;
 pub mod fixed_arguments;
 mod handlers;
 pub mod mcp_session;
+pub mod owner;
 mod target;
 
 use axum::body::Body;
@@ -125,6 +127,10 @@ impl ProxyService {
             return self
                 .proxy_external_mcp(service_name, request, ctx, server_config)
                 .await;
+        }
+
+        if !ctx.config().role.supervises_processes() {
+            return self.forward_to_owner(service_name, request, &ctx).await;
         }
 
         let service = match ServiceResolver::resolve(service_name, &ctx).await {

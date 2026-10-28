@@ -3,8 +3,10 @@
 //! Resolves the active cloud profile and tenant, runs the `cloud doctor`
 //! preflight (deploys hard-block on a failing report), then hands the typed
 //! request to [`DeployOrchestrator`] in the [`pipeline`] module, which owns
-//! the image build/push, secret provisioning, and the deploy call. Rendering
-//! flows back through [`CliDeployProgress`].
+//! the image build/push, secret provisioning, and the rollout. The profile's
+//! hosting provider selects the deploy provider: the managed cloud for
+//! `systemprompt`, a registry push plus a `GitOps` digest commit for
+//! `kubernetes` and `gke`. Rendering flows back through [`CliDeployProgress`].
 //!
 //! Deploys are stateless container rebuilds: runtime files created inside the
 //! previous container are not preserved. Use `systemprompt cloud backup`
@@ -20,10 +22,20 @@ pub mod select;
 pub(in crate::commands::cloud) use progress::CliDeployProgress;
 pub(in crate::commands::cloud) use select::resolve_profile;
 
+use std::path::Path;
+use std::time::Duration;
+
 use anyhow::{Context, Result, anyhow, bail};
-use systemprompt_cloud::{CloudPath, ProfilePath, TenantStore, get_cloud_paths};
+use systemprompt_cloud::deploy::provider::{
+    DeployProviderKind, GitOpsDeploy, GitOpsDeployParams, SystempromptCloud,
+};
+use systemprompt_cloud::{
+    CloudApiClient, CloudError, CloudPath, DockerCli, ProfilePath, SystemCommandRunner,
+    TenantStore, get_cloud_paths,
+};
 use systemprompt_identifiers::{ProfileName, TenantId};
 use systemprompt_logging::CliService;
+use systemprompt_manifest::Profile;
 
 use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest, DeploySecretsSource};
 
@@ -32,10 +44,13 @@ use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
 use crate::shared::project::ProjectRoot;
 
+const GITOPS_ROLLOUT_TIMEOUT: Duration = Duration::from_mins(15);
+
 pub(super) struct DeployArgs {
     pub skip_push: bool,
     pub profile_name: Option<ProfileName>,
     pub check: bool,
+    pub wait: bool,
 }
 
 pub(super) async fn execute(
@@ -67,7 +82,7 @@ pub(super) async fn execute(
         return Ok(());
     }
 
-    let target = resolve_deploy_target(&profile)?;
+    let kind = DeployProviderKind::for_provider(profile.hosting_provider())?;
     let profile_name = ProfileName::try_new(profile.name.as_str()).with_context(|| {
         format!(
             "Profile name '{}' is not a valid profile name",
@@ -75,29 +90,95 @@ pub(super) async fn execute(
         )
     })?;
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
-
-    let request = DeployRequest {
-        tenant_id: target.tenant_id,
-        tenant_name: target.tenant_name,
-        profile_name,
-        project_root: project.as_path().to_path_buf(),
-        credentials: target.creds,
-        secrets: DeploySecretsSource::from_profile(
-            profile.secrets.as_ref(),
-            ProfilePath::Secrets.resolve(profile_dir),
-        ),
-        signing_key_path: super::doctor::resolve_signing_key_path(&profile, profile_dir),
-        options: DeployOptions {
-            skip_push: args.skip_push,
-        },
+    let options = DeployOptions {
+        skip_push: args.skip_push,
+        wait_ready: args.wait,
     };
-
+    let secrets = DeploySecretsSource::from_profile(
+        profile.secrets.as_ref(),
+        ProfilePath::Secrets.resolve(profile_dir),
+    );
+    let signing_key_path = super::doctor::resolve_signing_key_path(&profile, profile_dir);
     let progress = CliDeployProgress::new();
-    DeployOrchestrator::new()
-        .deploy(&request, &progress)
-        .await?;
+    let orchestrator = DeployOrchestrator::new();
+
+    match kind {
+        DeployProviderKind::SystempromptCloud => {
+            let target = resolve_deploy_target(&profile)?;
+            let client =
+                CloudApiClient::new(&target.creds.api_url, target.creds.api_token.as_str())?;
+            let provider = SystempromptCloud::new(client, target.tenant_id.clone());
+            let request = DeployRequest {
+                tenant_id: target.tenant_id,
+                tenant_name: target.tenant_name,
+                profile_name,
+                project_root: project.as_path().to_path_buf(),
+                platform_credentials: Some(target.creds),
+                secrets,
+                signing_key_path,
+                options,
+            };
+            orchestrator.deploy(&provider, &request, &progress).await?;
+        },
+        DeployProviderKind::GitOps => {
+            let (tenant_id, tenant_name, provider) = gitops_provider(&profile, project.as_path())?;
+            let request = DeployRequest {
+                tenant_id,
+                tenant_name,
+                profile_name,
+                project_root: project.as_path().to_path_buf(),
+                platform_credentials: None,
+                secrets,
+                signing_key_path,
+                options,
+            };
+            orchestrator.deploy(&provider, &request, &progress).await?;
+        },
+    }
 
     Ok(())
+}
+
+fn gitops_provider(
+    profile: &Profile,
+    project_root: &Path,
+) -> Result<(TenantId, String, GitOpsDeploy)> {
+    let cloud_config = profile
+        .cloud
+        .as_ref()
+        .ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
+    let deploy = cloud_config
+        .deploy
+        .clone()
+        .ok_or(CloudError::DeployNotConfigured {
+            provider: cloud_config.provider,
+        })?;
+    let tenant_id = cloud_config.tenant_id.clone().ok_or_else(|| {
+        anyhow!("No tenant configured. Add the tenant with 'systemprompt cloud tenant add'")
+    })?;
+    let tenants_path = get_cloud_paths().resolve(CloudPath::Tenants);
+    let tenant_store = TenantStore::load_from_path(&tenants_path)
+        .context("No tenant store. Add the tenant with 'systemprompt cloud tenant add'")?;
+    let tenant = tenant_store.find_tenant(&tenant_id).ok_or_else(|| {
+        anyhow!("Tenant {tenant_id} not found. Run 'systemprompt cloud tenant add'")
+    })?;
+    let hostname = tenant
+        .hostname
+        .clone()
+        .ok_or_else(|| anyhow!("Tenant {tenant_id} has no hostname"))?;
+    let provider = GitOpsDeploy::new(
+        GitOpsDeployParams {
+            provider: cloud_config.provider,
+            tenant_name: tenant.name.clone(),
+            hostname,
+            deploy,
+            project_root: project_root.to_path_buf(),
+            rollout_timeout: GITOPS_ROLLOUT_TIMEOUT,
+        },
+        DockerCli::new(),
+        Box::new(SystemCommandRunner),
+    )?;
+    Ok((tenant_id, tenant.name.clone(), provider))
 }
 
 #[derive(Debug)]
@@ -108,7 +189,7 @@ pub struct DeployTarget {
     pub creds: systemprompt_cloud::CloudCredentials,
 }
 
-pub fn resolve_deploy_target(profile: &systemprompt_manifest::Profile) -> Result<DeployTarget> {
+pub fn resolve_deploy_target(profile: &Profile) -> Result<DeployTarget> {
     let cloud_config = profile
         .cloud
         .as_ref()

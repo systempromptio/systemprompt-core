@@ -51,7 +51,7 @@ const GATEWAY_GROUPS: &[RouteGroup] = &[
     RouteGroup::Gateway,
 ];
 
-const ADMIN_GROUPS: &[RouteGroup] = &[
+const API_GROUPS: &[RouteGroup] = &[
     RouteGroup::Oauth,
     RouteGroup::Agent,
     RouteGroup::McpAndStream,
@@ -64,13 +64,20 @@ const ADMIN_GROUPS: &[RouteGroup] = &[
     RouteGroup::Static,
 ];
 
+const WORKER_GROUPS: &[RouteGroup] = &[
+    RouteGroup::Agent,
+    RouteGroup::McpAndStream,
+    RouteGroup::Probes,
+];
+
 const RUNNER_GROUPS: &[RouteGroup] = &[RouteGroup::Probes];
 
 pub const fn route_groups(role: NodeRole) -> &'static [RouteGroup] {
     match role {
         NodeRole::All => ALL_GROUPS,
         NodeRole::Gateway => GATEWAY_GROUPS,
-        NodeRole::Admin => ADMIN_GROUPS,
+        NodeRole::Api => API_GROUPS,
+        NodeRole::Worker => WORKER_GROUPS,
         NodeRole::Runner => RUNNER_GROUPS,
     }
 }
@@ -80,16 +87,33 @@ pub const fn route_groups(role: NodeRole) -> &'static [RouteGroup] {
 pub struct LifecyclePlan {
     pub reconcile_mcp: bool,
     pub reconcile_agents: bool,
+    pub process_ownership: ProcessOwnership,
     pub scheduler: bool,
     pub runner_services: bool,
 }
 
+/// How a node that supervises MCP and agent processes comes to own them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProcessOwnership {
+    None,
+    Local,
+    Leased,
+}
+
 pub const fn lifecycle_plan(role: NodeRole) -> LifecyclePlan {
-    let workers = role.runs_workers();
+    let supervises = role.supervises_processes();
+    let process_ownership = if !supervises {
+        ProcessOwnership::None
+    } else if role.shares_process_ownership() {
+        ProcessOwnership::Leased
+    } else {
+        ProcessOwnership::Local
+    };
     LifecyclePlan {
-        reconcile_mcp: workers,
-        reconcile_agents: workers,
-        scheduler: workers,
+        reconcile_mcp: supervises,
+        reconcile_agents: supervises,
+        process_ownership,
+        scheduler: role.runs_scheduler(),
         runner_services: role.runs_runner_services(),
     }
 }

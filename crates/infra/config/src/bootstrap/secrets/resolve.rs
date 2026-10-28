@@ -8,9 +8,10 @@
 //! 1. subprocess marker — the parent handed the child its secrets as env
 //! 2. `source: vault` / `source: external` — win even on deployment hosts, so a
 //!    container is not silently downgraded to whatever env happens to be set
-//! 3. deployment host — env, with or without a pepper already present
+//! 3. `source: env` on a deployment host — env
 //! 4. `source: env` locally — file first, env as fallback
-//! 5. `source: file`
+//! 5. `source: file` — the file, on every host; a mounted secrets file in a
+//!    container is read, never shadowed by whatever env the host carries
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -61,9 +62,6 @@ pub fn resolve_source(
             .map(ResolvedSource::External)
             .ok_or(SecretsBootstrapError::ExternalBlockMissing),
         SecretsSource::Env if is_deployment_host => Ok(ResolvedSource::DeploymentHostEnv),
-        SecretsSource::File if is_deployment_host && has_valid_pepper_in_env => {
-            Ok(ResolvedSource::DeploymentHostEnv)
-        },
         SecretsSource::Env => Ok(ResolvedSource::LocalEnvWithFileFallback(configured_path(
             config,
         )?)),

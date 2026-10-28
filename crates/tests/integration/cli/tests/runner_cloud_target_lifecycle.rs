@@ -84,7 +84,10 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
         .push("fc00::/7".parse().expect("valid cloud proxy range"));
     profile.cloud = Some(CloudConfig {
         tenant_id: Some(routed_tenant.clone()),
+        provider: systemprompt_manifest::HostingProvider::Systemprompt,
         validation: CloudValidationMode::Strict,
+        deploy: None,
+        operator: None,
     });
     fs::write(
         &fixture.profile_path,
@@ -129,7 +132,9 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
             assert_eq!(token.as_str(), "routed-token");
             assert_eq!(context.as_str(), routed_context.as_str());
         },
-        ExecutionTarget::Local => panic!("a complete cloud profile must not route locally"),
+        ExecutionTarget::Local | ExecutionTarget::SelfManaged { .. } => {
+            panic!("a complete managed cloud profile must route with its stored session")
+        },
     }
 
     TenantStore::new(vec![other.clone()])
@@ -185,6 +190,8 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
             assert_eq!(token.as_str(), "repaired-token");
             assert_eq!(context.as_str(), repaired_context.as_str());
         },
-        ExecutionTarget::Local => panic!("repaired cloud state must not route locally"),
+        ExecutionTarget::Local | ExecutionTarget::SelfManaged { .. } => {
+            panic!("repaired cloud state must route with its stored session")
+        },
     }
 }

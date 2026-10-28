@@ -42,6 +42,7 @@ sqlx = { workspace = true }
 
 # Core libs - scheduler only depends on infrastructure modules
 systemprompt-agent = { workspace = true }
+systemprompt-client = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-config = { workspace = true }
@@ -71,6 +72,8 @@ reqwest = { workspace = true }
 metrics = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
+hmac = { workspace = true }
+url = { workspace = true }
 
 # Panic isolation for spawned jobs
 futures = { workspace = true }

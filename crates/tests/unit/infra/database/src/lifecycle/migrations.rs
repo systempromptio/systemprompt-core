@@ -893,6 +893,7 @@ fn test_extension_migration_status_with_drift_and_pending() {
         slot_collisions: vec![],
         orphaned: vec![],
         tombstoned: vec![],
+        ahead: vec![],
     };
 
     assert_eq!(s.applied.len(), 1);
@@ -1920,6 +1921,7 @@ fn status_with_collisions(collisions: Vec<SlotCollision>) -> ExtensionMigrationS
         slot_collisions: collisions,
         orphaned: vec![],
         tombstoned: vec![],
+        ahead: vec![],
     }
 }
 

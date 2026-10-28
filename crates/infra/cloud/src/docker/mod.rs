@@ -19,76 +19,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::io;
-use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus, Output, Stdio};
+use std::path::Path;
+use std::process::{ExitStatus, Output};
 
 use crate::error::{CloudError, CloudResult};
 
-#[derive(Debug, Clone)]
-pub struct CommandSpec {
-    pub program: String,
-    pub args: Vec<String>,
-    pub current_dir: Option<PathBuf>,
-}
+mod command;
 
-impl CommandSpec {
-    pub fn docker<I, S>(args: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        Self {
-            program: "docker".to_owned(),
-            args: args.into_iter().map(Into::into).collect(),
-            current_dir: None,
-        }
-    }
-
-    #[must_use]
-    pub fn rendered(&self) -> String {
-        format!("{} {}", self.program, self.args.join(" "))
-    }
-}
-
-pub trait CommandRunner: Send + Sync {
-    fn output(&self, spec: &CommandSpec) -> io::Result<Output>;
-    fn status(&self, spec: &CommandSpec) -> io::Result<ExitStatus>;
-    fn status_with_stdin(&self, spec: &CommandSpec, stdin: &[u8]) -> io::Result<ExitStatus>;
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct SystemCommandRunner;
-
-impl SystemCommandRunner {
-    fn command(spec: &CommandSpec) -> Command {
-        let mut command = Command::new(&spec.program);
-        command.args(&spec.args);
-        if let Some(dir) = &spec.current_dir {
-            command.current_dir(dir);
-        }
-        command
-    }
-}
-
-impl CommandRunner for SystemCommandRunner {
-    fn output(&self, spec: &CommandSpec) -> io::Result<Output> {
-        Self::command(spec).output()
-    }
-
-    fn status(&self, spec: &CommandSpec) -> io::Result<ExitStatus> {
-        Self::command(spec).status()
-    }
-
-    fn status_with_stdin(&self, spec: &CommandSpec, stdin: &[u8]) -> io::Result<ExitStatus> {
-        let mut command = Self::command(spec);
-        command.stdin(Stdio::piped());
-        let mut child = command.spawn()?;
-        if let Some(mut handle) = child.stdin.take() {
-            io::Write::write_all(&mut handle, stdin)?;
-        }
-        child.wait()
-    }
-}
+pub use command::{CommandRunner, CommandSpec, SystemCommandRunner};
 
 fn configured_creds_store() -> String {
     let Some(config) = dirs::home_dir().map(|home| home.join(".docker").join("config.json")) else {
@@ -255,6 +193,32 @@ impl DockerCli {
         Ok(())
     }
 
+    pub fn repo_digest(&self, image: &str) -> CloudResult<String> {
+        let spec = CommandSpec::docker([
+            "image",
+            "inspect",
+            "--format",
+            "{{json .RepoDigests}}",
+            image,
+        ]);
+        let output = self.runner.output(&spec).map_err(|e| {
+            CloudError::docker_with(format!("Failed to run: {}", spec.rendered()), e)
+        })?;
+        if !output.status.success() {
+            return Err(CloudError::docker(format!(
+                "Command failed: {}: {}",
+                spec.rendered(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            )));
+        }
+        let digests: Vec<String> = serde_json::from_slice(&output.stdout)?;
+        select_repo_digest(image, &digests).ok_or_else(|| {
+            CloudError::docker(format!(
+                "Image {image} has no registry digest; push it before resolving the digest"
+            ))
+        })
+    }
+
     pub fn output(&self, args: &[&str]) -> io::Result<Output> {
         self.runner
             .output(&CommandSpec::docker(args.iter().copied()))
@@ -263,5 +227,23 @@ impl DockerCli {
     pub fn status(&self, args: &[&str]) -> io::Result<ExitStatus> {
         self.runner
             .status(&CommandSpec::docker(args.iter().copied()))
+    }
+}
+
+#[must_use]
+pub fn select_repo_digest(image: &str, repo_digests: &[String]) -> Option<String> {
+    let repository = image_repository(image);
+    repo_digests.iter().find_map(|entry| {
+        let (name, digest) = entry.split_once('@')?;
+        (name == repository).then(|| digest.to_owned())
+    })
+}
+
+#[must_use]
+pub fn image_repository(image: &str) -> &str {
+    let without_digest = image.split_once('@').map_or(image, |(name, _)| name);
+    match without_digest.rsplit_once(':') {
+        Some((name, tag)) if !tag.contains('/') => name,
+        _ => without_digest,
     }
 }

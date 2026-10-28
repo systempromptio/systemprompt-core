@@ -5,7 +5,9 @@
 //! the required keys and provider credentials, a
 //! `trusted_proxies` set that covers the Fly peer range — and probes
 //! database/hook reachability, and reports the profile's `unapplied_planes`
-//! mode with whether each runtime config plane has been applied. The preflight
+//! mode with whether each runtime config plane has been applied. It fails a
+//! database whose schema is newer than the binary and warns when a split-role
+//! deployment keeps files on node-local storage. The preflight
 //! runs automatically before `cloud deploy` builds an image, and is exposed
 //! standalone (`cloud doctor`) so an operator can check a profile without
 //! deploying. The profile-only checks (`profile_checks`) never fail a profile
@@ -18,6 +20,7 @@
 mod checks;
 pub mod distributed;
 mod plane_checks;
+pub mod restore_checks;
 pub mod vault_checks;
 
 pub(in crate::commands::cloud) use checks::resolve_signing_key_path;
@@ -138,6 +141,7 @@ pub fn profile_checks(profile: &Profile) -> Vec<CheckResult> {
         checks::check_governance_hook_url(profile),
         distributed::check_instance_id(profile),
         distributed::check_trusted_proxies(profile),
+        restore_checks::check_storage_backup(profile),
     ]
 }
 
@@ -165,6 +169,7 @@ pub(in crate::commands::cloud) async fn run(
     }
     checks.push(check_extension_configs(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
+    checks.push(restore_checks::check_schema_not_ahead(&secrets).await);
     checks.push(plane_checks::check_config_planes(profile, &secrets).await);
     checks.push(plane_checks::check_services_source(profile));
     if distributed {

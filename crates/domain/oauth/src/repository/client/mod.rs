@@ -1,13 +1,17 @@
-//! OAuth client repository: queries, mutations, relations, last-use stamping.
+//! OAuth client repository: queries, mutations, relations, last-use stamping
+//! and the identity plane's declared clients.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod declared;
 mod inserts;
 mod last_used;
 mod mutations;
 mod queries;
 mod relations;
+
+pub use declared::{DeclaredClientRow, DeclaredClientWrite};
 
 use sqlx::PgPool;
 use std::sync::Arc;

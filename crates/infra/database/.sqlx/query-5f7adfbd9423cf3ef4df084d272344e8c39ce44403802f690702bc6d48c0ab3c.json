@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO instance_presence (instance_id, role, heartbeat_at)\n            VALUES ($1, $2, CURRENT_TIMESTAMP)\n            ON CONFLICT (instance_id) DO UPDATE SET\n                role = EXCLUDED.role,\n                heartbeat_at = EXCLUDED.heartbeat_at\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5f7adfbd9423cf3ef4df084d272344e8c39ce44403802f690702bc6d48c0ab3c"
+}

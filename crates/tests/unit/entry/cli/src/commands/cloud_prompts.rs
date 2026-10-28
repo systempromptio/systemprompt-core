@@ -3,14 +3,15 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::cloud::profile::collect_api_keys;
 use systemprompt_cli::cloud::profile::create_tenant::{select_tenant, select_tenant_type};
+use systemprompt_cli::cloud::profile::{TenantTypeArg, collect_api_keys};
 use systemprompt_cli::cloud::tenant::{
     TenantCommands, choose_tenant_operation, select_tenant as select_tenant_menu,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cloud::{StoredTenant, TenantStore, TenantType};
+use systemprompt_cloud::{StoredTenant, TenantStore};
 use systemprompt_identifiers::TenantId;
+use systemprompt_manifest::HostingProvider;
 
 fn scripted(answers: &[&str]) -> ScriptedPrompter {
     ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))
@@ -26,7 +27,7 @@ fn local_tenant(id: &str, name: &str) -> StoredTenant {
 
 fn cloud_tenant(id: &str, name: &str) -> StoredTenant {
     let mut tenant = StoredTenant::new(TenantId::new(id), name.to_owned());
-    tenant.tenant_type = TenantType::Cloud;
+    tenant.provider = HostingProvider::Systemprompt;
     tenant
 }
 
@@ -125,14 +126,14 @@ fn select_tenant_menu_out_of_range_errors() {
 fn select_tenant_type_local_when_available() {
     let store = TenantStore::new(vec![local_tenant("a", "alpha")]);
     let chosen = select_tenant_type(&scripted(&["0"]), &store).expect("local");
-    assert_eq!(chosen, TenantType::Local);
+    assert_eq!(chosen, TenantTypeArg::Local);
 }
 
 #[test]
 fn select_tenant_type_cloud_when_available() {
     let store = TenantStore::new(vec![cloud_tenant("c", "cloudy")]);
     let chosen = select_tenant_type(&scripted(&["1"]), &store).expect("cloud");
-    assert_eq!(chosen, TenantType::Cloud);
+    assert_eq!(chosen, TenantTypeArg::Cloud);
 }
 
 #[test]

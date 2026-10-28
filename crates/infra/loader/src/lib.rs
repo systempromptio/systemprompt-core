@@ -25,6 +25,8 @@
 //! - [`services_state`] — [`ServicesState`], the owned services config, its
 //!   resolved catalog and the discovery report, built once at boot and handed
 //!   to every consumer.
+//! - [`tree_fingerprint`] — a size/mtime fingerprint of a services tree, so the
+//!   services watch notices an on-disk change.
 //! - [`error`] — public error types ([`ConfigLoadError`], [`ConfigWriteError`],
 //!   [`ExtensionLoadError`]).
 //!
@@ -42,6 +44,7 @@ pub mod module_loader;
 pub mod profile_loader;
 pub mod services_state;
 pub mod subprocess;
+pub mod tree_fingerprint;
 pub mod vertex_discovery;
 
 pub use boot::BootContext;
@@ -57,3 +60,4 @@ pub use extension_loader::{ExtensionLoader, ExtensionValidationResult};
 pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
 pub use services_state::{DiscoveryFuture, ServicesState, catalog_context};
+pub use tree_fingerprint::tree_fingerprint;

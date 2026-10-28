@@ -39,7 +39,7 @@ fn test_database_extension_dependencies() {
 fn test_database_extension_schemas() {
     let ext = DatabaseExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 11);
+    assert_eq!(schemas.len(), 13);
     assert!(
         schemas
             .iter()
@@ -74,6 +74,11 @@ fn test_database_extension_schemas() {
         schemas
             .iter()
             .any(|s| s.table.as_deref() == Some("instance_leases"))
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("instance_endpoints"))
     );
     assert!(
         schemas

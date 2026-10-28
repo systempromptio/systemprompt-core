@@ -152,6 +152,10 @@ impl JwtContextExtractor {
         .map(|validated| validated.user)
     }
 
+    pub fn verified_claims(&self, token: &str) -> Option<JwtUserContext> {
+        extract_user_context(&self.keys, token, &self.issuer).ok()
+    }
+
     pub async fn decode_for_gateway(
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,

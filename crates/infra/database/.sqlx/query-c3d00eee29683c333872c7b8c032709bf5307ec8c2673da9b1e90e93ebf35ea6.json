@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT s.instance_id AS \"instance_id: InstanceId\", e.advertise_url\n            FROM services s\n            JOIN instance_endpoints e ON e.instance_id = s.instance_id\n            WHERE s.name = $1\n              AND s.status = $2\n              AND s.instance_id <> $3\n              AND s.heartbeat_at\n                  >= CURRENT_TIMESTAMP - make_interval(secs => $4::double precision)\n              AND e.heartbeat_at\n                  >= CURRENT_TIMESTAMP - make_interval(secs => $4::double precision)\n            ORDER BY s.heartbeat_at DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "instance_id: InstanceId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "services",
+            "name": "instance_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "advertise_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instance_endpoints",
+            "name": "advertise_url"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c3d00eee29683c333872c7b8c032709bf5307ec8c2673da9b1e90e93ebf35ea6"
+}

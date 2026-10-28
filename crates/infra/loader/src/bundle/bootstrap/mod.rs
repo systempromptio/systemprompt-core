@@ -51,6 +51,9 @@ impl ServicesSourceBootstrap {
         }
 
         let cache = BundleCache::new(cache_root(profile));
+        if profile.server.role.reads_shared_services_composition() {
+            return shared_composition(profile, &cache);
+        }
         match Self::compose_sources(profile, &cache, &resolve_secret, core_version).await {
             Ok(active) => {
                 if let Err(error) = cache.clear_degraded() {
@@ -185,6 +188,32 @@ fn refuse_unloadable(
         ),
         error,
     ))
+}
+
+fn shared_composition(profile: &Profile, cache: &BundleCache) -> BundleResult<ActiveServicesRoot> {
+    let state = cache.read_state();
+    let Some(current) = cache
+        .current_root()
+        .filter(|_| !state.composed_hash.is_empty())
+    else {
+        return Err(BundleError::NoSharedComposition {
+            role: profile.server.role.as_str(),
+            cache: cache_root(profile),
+        });
+    };
+    let versions = state
+        .sources
+        .iter()
+        .map(|(name, source)| (name.clone(), source.version.clone()))
+        .collect();
+    Ok(ActiveServicesRoot {
+        path: current,
+        base: PathBuf::from(&profile.paths.services),
+        provenance: ServicesProvenance::Fetched {
+            composed_hash: state.composed_hash,
+            versions,
+        },
+    })
 }
 
 fn last_good(

@@ -1,7 +1,7 @@
 //! Logout cleanup of all locally persisted cloud state.
 //!
-//! Removes `credentials.json`, `tenants.json`, and every tenant-scoped CLI
-//! session while leaving local sessions untouched.
+//! Removes `credentials.json`, the operator sign-in, `tenants.json`, and every
+//! tenant-scoped CLI session while leaving local sessions untouched.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +15,7 @@ use crate::paths::{CloudPath, CloudPaths};
 #[derive(Debug, Clone, Default)]
 pub struct ClearedCloudState {
     pub credentials_path: Option<PathBuf>,
+    pub operator_credentials_path: Option<PathBuf>,
     pub tenants_path: Option<PathBuf>,
     pub tenant_sessions_removed: usize,
 }
@@ -26,6 +27,12 @@ pub fn clear_cloud_state(cloud_paths: &CloudPaths) -> CloudResult<ClearedCloudSt
     if credentials_path.exists() {
         std::fs::remove_file(&credentials_path)?;
         cleared.credentials_path = Some(credentials_path);
+    }
+
+    let operator_path = cloud_paths.resolve(CloudPath::OperatorCredentials);
+    if operator_path.exists() {
+        std::fs::remove_file(&operator_path)?;
+        cleared.operator_credentials_path = Some(operator_path);
     }
 
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);

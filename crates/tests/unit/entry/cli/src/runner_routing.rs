@@ -338,3 +338,71 @@ fn a_failed_route_never_falls_back_to_direct_database_access_for_a_destructive_c
     .expect("a non-destructive command keeps the external_db_access escape hatch");
     assert_eq!(decision, RoutingDecision::ContinueLocal);
 }
+
+#[test]
+fn a_cloud_profile_that_names_no_tenant_runs_a_mutating_job_in_place() {
+    let mut profile = cloud_profile();
+    profile.cloud = Some(systemprompt_manifest::profile::CloudConfig::default());
+
+    let target = determine_execution_target(&profile).expect("no tenant resolves a target");
+    assert!(matches!(target, ExecutionTarget::Local), "{target:?}");
+
+    let decision = decide_routing(
+        Ok(target),
+        &profile,
+        RoutingClass::Mutating,
+        DataImpact::Preserving,
+    )
+    .expect("an in-cluster job with no tenant runs against its own database");
+    assert_eq!(decision, RoutingDecision::ContinueLocal);
+}
+
+#[test]
+fn a_cloud_profile_that_names_a_tenant_still_refuses_a_local_mutation() {
+    let mut profile = cloud_profile();
+    profile.cloud = Some(systemprompt_manifest::profile::CloudConfig {
+        tenant_id: Some(TenantId::new("tenant_named_but_unrouted")),
+        ..Default::default()
+    });
+
+    let err = decide_routing(
+        Ok(ExecutionTarget::Local),
+        &profile,
+        RoutingClass::Mutating,
+        DataImpact::Preserving,
+    )
+    .expect_err("a tenant-bound profile must not write locally");
+    assert!(
+        message(&err).contains("requires remote execution"),
+        "{err:#}"
+    );
+}
+
+#[test]
+fn an_unexchanged_self_managed_target_never_mutates_locally() {
+    let mut profile = cloud_profile();
+    profile.cloud = Some(systemprompt_manifest::profile::CloudConfig {
+        tenant_id: Some(TenantId::new("tenant_gke")),
+        provider: systemprompt_manifest::HostingProvider::Gke,
+        ..Default::default()
+    });
+
+    let err = decide_routing(
+        Ok(ExecutionTarget::SelfManaged {
+            hostname: "acme.example.com".to_owned(),
+        }),
+        &profile,
+        RoutingClass::Mutating,
+        DataImpact::Destructive,
+    )
+    .expect_err("a self-managed tenant without an operator session must not fall back");
+    let text = message(&err);
+    assert!(text.contains("acme.example.com"), "{err:#}");
+    assert!(text.contains("cloud auth login --issuer"), "{err:#}");
+}
+
+#[test]
+fn operator_failures_point_at_the_operator_sign_in() {
+    assert!(remediation_for("No operator sign-in.").contains("--issuer"));
+    assert!(remediation_for("Operator token exchange with acme failed").contains("--issuer"));
+}

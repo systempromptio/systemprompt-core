@@ -45,6 +45,10 @@ impl CloudApiClient {
         self.handle_response(response).await
     }
 
+    pub async fn tenant_session_token(&self) -> CloudResult<String> {
+        self.tenant_access_token().await
+    }
+
     async fn tenant_access_token(&self) -> CloudResult<String> {
         {
             let cached = self.tenant_token_cache.lock().await;

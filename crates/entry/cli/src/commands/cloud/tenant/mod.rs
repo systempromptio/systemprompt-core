@@ -1,12 +1,14 @@
 //! `cloud tenant` subcommand: manage local and cloud tenants.
 //!
-//! Exposes [`TenantCommands`] (create, list, show, delete, edit, rotate
-//! credentials) with an interactive operation menu when no subcommand
-//! is supplied. Persists tenant records through the cloud `TenantStore`.
+//! Exposes [`TenantCommands`] (create, add a self-managed record, list,
+//! show, delete, edit, rotate credentials) with an interactive operation menu
+//! when no subcommand is supplied. Persists tenant records through the cloud
+//! `TenantStore`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod add;
 pub mod create;
 mod create_flow;
 pub(super) mod delete;
@@ -17,6 +19,7 @@ mod rotate;
 pub mod select;
 mod show;
 
+pub use add::{TenantAddArgs, add_tenant};
 pub use create::{create_external_tenant, create_local_tenant};
 pub use delete::delete_tenant;
 pub(in crate::commands::cloud) use docker::container::wait_for_postgres_healthy;
@@ -41,6 +44,13 @@ use create_flow::tenant_create;
 pub enum TenantCommands {
     #[command(about = "Create a new tenant")]
     Create,
+
+    #[command(
+        about = "Record a self-managed tenant (Kubernetes, GKE, local Docker)",
+        after_help = "EXAMPLES:\n  systemprompt cloud tenant add --id acme-prod --name \"Acme \
+                      Prod\" --hostname ai.acme.example --provider kubernetes"
+    )]
+    Add(TenantAddArgs),
 
     #[command(
         about = "List all tenants",
@@ -107,6 +117,11 @@ pub async fn execute(cmd: Option<TenantCommands>, ctx: &CommandContext) -> Resul
 async fn execute_command(cmd: TenantCommands, ctx: &CommandContext) -> Result<bool> {
     match cmd {
         TenantCommands::Create => tenant_create(ctx.prompter(), &ctx.cli).await.map(|()| true),
+        TenantCommands::Add(args) => {
+            let result = add_tenant(args, &ctx.cli)?;
+            render_result(&result, &ctx.cli);
+            Ok(false)
+        },
         TenantCommands::List => {
             let result = list_tenants(ctx.prompter(), &ctx.cli).await?;
             render_result(&result, &ctx.cli);

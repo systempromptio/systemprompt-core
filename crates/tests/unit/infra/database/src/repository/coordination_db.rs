@@ -423,3 +423,73 @@ async fn an_unreachable_database_fails_the_claim_as_a_repository_error() {
         "{err:?}"
     );
 }
+
+#[tokio::test]
+async fn the_process_owner_is_the_live_replica_running_it_with_an_advertised_endpoint() {
+    let db = db_pool().await;
+    let owner = replica(&db);
+    let api = replica(&db);
+    let name = ServiceName::new(unique("mcp"));
+
+    assert_eq!(
+        api.services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "no replica runs it yet"
+    );
+
+    owner
+        .services
+        .create_service(CreateServiceInput {
+            name: &name,
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Running,
+            port: 5556,
+            binary_mtime: None,
+        })
+        .await
+        .expect("register owner row");
+    assert_eq!(
+        api.services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "an owner that advertises no endpoint is unreachable"
+    );
+
+    owner
+        .services
+        .advertise_endpoint("http://10.0.0.7:8080")
+        .await
+        .expect("advertise");
+    let found = api
+        .services
+        .find_process_owner(&name)
+        .await
+        .expect("lookup")
+        .expect("owner found");
+    assert_eq!(&found.instance_id, owner.services.instance_id());
+    assert_eq!(found.advertise_url, "http://10.0.0.7:8080");
+    assert_eq!(
+        owner
+            .services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "a replica never forwards to itself"
+    );
+
+    age_heartbeat(&db, owner.services.instance_id()).await;
+    assert_eq!(
+        api.services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "a stale owner is never chosen"
+    );
+}

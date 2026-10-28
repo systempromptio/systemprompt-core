@@ -130,6 +130,7 @@ fn build_config(
         metrics_port: profile.server.metrics_port,
         max_concurrent_streams: profile.server.max_concurrent_streams,
         role: profile.server.role,
+        advertise_url: profile.server.advertise_url.clone(),
         max_in_flight: profile.server.max_in_flight,
         shutdown: profile.server.shutdown,
         sitename: profile.site.name.clone(),

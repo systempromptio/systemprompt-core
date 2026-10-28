@@ -7,9 +7,11 @@
 //! drift, and what both changed is recorded as a conflict for `/admin/sync`
 //! and left alone. One applier runs at a time across every replica (an
 //! advisory lock), so a rolling deploy cannot race itself. `--dry-run` rolls
-//! the whole apply back after computing it. The command exits non-zero when
-//! any conflict is open after the run, so a pipeline stops and a person
-//! decides.
+//! the whole apply back after computing it. A plane under `file` authority is
+//! managed in Git: the file overwrites the database and its open conflicts
+//! resolve to the file, so a `GitOps` post-sync job converges unattended. The
+//! command exits non-zero when any conflict is open after the run on a `db`
+//! plane, so a pipeline stops and a person decides.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,6 +42,7 @@ pub struct ApplyArgs {
 
     #[arg(
         long,
+        default_value = "declared configuration applied",
         help = "Why the declaration is being applied; recorded in the audit"
     )]
     pub reason: String,
@@ -58,6 +61,7 @@ pub struct ApplyArgs {
 #[derive(Debug, Serialize)]
 struct PlaneRow {
     plane: String,
+    file_wins: bool,
     adopted: bool,
     applied: usize,
     converged: usize,
@@ -105,6 +109,7 @@ fn render(report: &MergeReport) -> CommandOutput {
         .filter(|p| !p.undeclared)
         .map(|p| PlaneRow {
             plane: p.plane.clone(),
+            file_wins: p.file_wins,
             adopted: p.adopted,
             applied: p.applied.len(),
             converged: p.converged.len(),
@@ -122,6 +127,7 @@ fn render(report: &MergeReport) -> CommandOutput {
     CommandOutput::table_of(
         vec![
             "plane",
+            "file_wins",
             "adopted",
             "applied",
             "converged",

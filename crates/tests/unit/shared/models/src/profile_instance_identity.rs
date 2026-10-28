@@ -73,3 +73,18 @@ fn fly_machine_id_is_the_identity_when_hostname_is_absent_or_blank() {
 fn no_platform_identity_resolves_to_none() {
     assert_eq!(stable_instance_id(env(&[("FLY_MACHINE_ID", "")])), None);
 }
+
+#[test]
+fn pod_name_is_the_replica_identity_on_kubernetes() {
+    let id = stable_instance_id(env(&[
+        ("POD_NAME", "sp-worker-0"),
+        ("HOSTNAME", "custom-hostname"),
+    ]));
+    assert_eq!(id.as_deref(), Some("sp-worker-0"));
+}
+
+#[test]
+fn a_blank_pod_name_falls_through_to_hostname() {
+    let id = stable_instance_id(env(&[("POD_NAME", " "), ("HOSTNAME", "node-a")]));
+    assert_eq!(id.as_deref(), Some("node-a"));
+}

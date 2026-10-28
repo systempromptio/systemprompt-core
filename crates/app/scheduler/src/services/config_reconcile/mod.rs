@@ -3,11 +3,13 @@
 //! [`ConfigReconcileService`] walks every registered
 //! [`systemprompt_provider_contracts::ConfigPlane`] in dependency order (see
 //! [`ConfigPlaneSet`]), diffs each declaration against the database and
-//! reports the drift. It never writes a plane's rows: at runtime the database
-//! is authoritative and the only way a declaration reaches it is an explicit
-//! apply ([`crate::services::ConfigApplyService`], `config apply` in the
-//! deploy pipeline or `/admin/sync`) or the operator's `admin config planes
-//! apply`. A plane with no declaration file is reported as `undeclared`.
+//! reports the drift. It never writes a plane's rows itself: a `db`-authority
+//! declaration reaches the database only through an explicit apply
+//! ([`crate::services::ConfigApplyService`], `config apply` in the deploy
+//! pipeline or `/admin/sync`) or the operator's `admin config planes apply`,
+//! and a `file`-authority plane is overwritten from its file by
+//! [`crate::services::ConfigApplyService::apply_file_managed`] just before
+//! each pass. A plane with no declaration file is reported as `undeclared`.
 //!
 //! The pass runs at boot (a plane whose declaration does not load fails the
 //! boot) and as the `config_reconcile` job. Each pass rewrites
@@ -66,6 +68,7 @@ impl ConfigReconcileService {
         let dependencies = Dependencies::new()
             .with(Arc::clone(ctx.db_pool()))
             .with(ctx.services_state().view())
+            .with(ctx.secrets().get())
             .with(Arc::clone(ctx));
         Ok(Self::new(ctx.config_planes()?, repository, dependencies))
     }

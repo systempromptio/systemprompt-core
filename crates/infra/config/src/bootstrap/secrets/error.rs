@@ -63,6 +63,13 @@ pub enum SecretsBootstrapError {
     )]
     SigningKeyPemRequired,
 
+    #[error(
+        "licence_signing_secret is required when licence.multi_tenant is true: it signs the \
+         licence check-in. Add it to secrets.json, or with `secrets.source: env` list it in \
+         SYSTEMPROMPT_CUSTOM_SECRETS."
+    )]
+    LicenceSigningSecretRequired,
+
     #[error("manifest_signing_secret_seed is invalid: {0}")]
     ManifestSeedInvalid(#[source] KeyMaterialError),
 

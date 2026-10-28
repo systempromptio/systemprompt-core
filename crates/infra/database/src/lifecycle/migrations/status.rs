@@ -81,6 +81,7 @@ pub struct ExtensionMigrationStatus {
     pub slot_collisions: Vec<SlotCollision>,
     pub orphaned: Vec<OrphanedMigration>,
     pub tombstoned: Vec<TombstonedSlot>,
+    pub ahead: Vec<u32>,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -160,6 +161,7 @@ impl MigrationService<'_> {
             tombstoned,
         } = slots;
 
+        let ahead = super::ahead_versions(&applied, &defined);
         let orphaned = super::orphaned_versions(&applied, &defined)
             .into_iter()
             .map(|version| OrphanedMigration {
@@ -180,6 +182,7 @@ impl MigrationService<'_> {
             slot_collisions,
             orphaned,
             tombstoned,
+            ahead,
         })
     }
 

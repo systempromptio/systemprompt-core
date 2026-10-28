@@ -9,7 +9,7 @@ use super::fake_plane::{FakePlane, unique_plane_name};
 use super::plane_set;
 
 #[test]
-fn a_declared_plane_defaults_to_file_managed_and_refuses_a_writer() {
+fn a_declared_file_authority_plane_is_file_managed_and_refuses_a_writer() {
     let root = tempfile::tempdir().expect("tempdir");
     let plane = Arc::new(FakePlane::new(unique_plane_name("guard_file"), &[]));
     plane.write_declaration(root.path(), &[("a", "1")]);
@@ -88,4 +88,18 @@ fn plane_errors_map_to_stable_http_classes() {
     }
     .into();
     assert!(matches!(unsupported.code, ErrorCode::BadRequest));
+}
+
+#[test]
+fn a_declared_plane_the_profile_does_not_name_runs_under_db_authority() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let plane = Arc::new(FakePlane::new(unique_plane_name("guard_unset"), &[]));
+    plane.write_declaration(root.path(), &[("a", "1")]);
+    let planes: Vec<Arc<dyn ConfigPlane>> = vec![Arc::clone(&plane) as Arc<dyn ConfigPlane>];
+    let set = ConfigPlaneSet::new(planes, BTreeMap::new(), root.path().to_path_buf()).expect("set");
+
+    assert_eq!(
+        set.writer(plane.name).expect("writable").authority(),
+        EffectiveAuthority::Db
+    );
 }

@@ -33,25 +33,31 @@ pub const API_SERVER_SERVICE: &str = "api";
 pub const DEPLOYMENT_HOST_ENV: &str = "SYSTEMPROMPT_DEPLOYMENT_HOST";
 
 // Why: Fly injects `FLY_APP_NAME` into deployed machines.
-const FLY_HOST_ENV: &str = "FLY_APP_NAME";
+pub const FLY_APP_NAME_ENV: &str = "FLY_APP_NAME";
 
-pub fn deployment_host(lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
-    [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV].iter().find_map(|name| {
+pub const ANY_DEPLOYMENT_HOST_MARKERS: &[&str] = &[DEPLOYMENT_HOST_ENV, FLY_APP_NAME_ENV];
+
+pub fn deployment_host(
+    markers: &[&str],
+    lookup: impl Fn(&str) -> Option<String>,
+) -> Option<String> {
+    markers.iter().find_map(|name| {
         lookup(name)
             .map(|value| value.trim().to_owned())
             .filter(|value| !value.is_empty())
     })
 }
 
-pub fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
-    deployment_host(lookup).is_some()
+pub fn is_deployment_host(markers: &[&str], lookup: impl Fn(&str) -> Option<String>) -> bool {
+    deployment_host(markers, lookup).is_some()
 }
 
 pub fn inherited_parent_env(lookup: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
     let mut env: Vec<(String, String)> = [
         DEPLOYMENT_HOST_ENV,
-        FLY_HOST_ENV,
+        FLY_APP_NAME_ENV,
         "HOSTNAME",
+        "POD_NAME",
         "FLY_MACHINE_ID",
         "PATH",
         "HOME",

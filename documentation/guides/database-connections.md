@@ -18,7 +18,7 @@ Each node also holds two long-lived sessions whatever its pool size: the replica
 
 ## 2. Size the pool per role
 
-`database.pool.max_connections` sets the ceiling for every node. `database.pool.max_connections_by_role` overrides it for the node's `server.role`, so one profile can keep a horizontally scaled gateway small and the single admin node larger:
+`database.pool.max_connections` sets the ceiling for every node. `database.pool.max_connections_by_role` overrides it for the node's `server.role`, so one profile can keep the horizontally scaled gateway and api pools small and the worker pool larger:
 
 ```yaml
 database:
@@ -27,7 +27,8 @@ database:
     max_connections: 30
     max_connections_by_role:
       gateway: 15
-      admin: 30
+      api: 15
+      worker: 30
 ```
 
 Each value must be between 1 and 500; the profile is rejected at bootstrap otherwise. A role that is not listed uses `max_connections`, and the engine default is 50.
@@ -40,11 +41,12 @@ Postgres refuses connections beyond its `max_connections` (100 by default, also 
 
 ```
 max_connections(Postgres) >= gateway_max_replicas × (pools × gateway_pool + 2)
-                           + admin_replicas      × (pools × admin_pool   + 2 + concurrent_jobs)
+                           + api_max_replicas     × (pools × api_pool     + 2)
+                           + worker_replicas      × (pools × worker_pool  + 2 + concurrent_jobs)
                            + migration job + operator sessions + headroom
 ```
 
-`pools` is 1 with a single URL and 2 when `database_write_url` points somewhere other than `database_url` (each pool takes the full `max_connections`). Example: 12 gateway replicas at 15, one admin at 30, a single URL, a few concurrent jobs: `12 × 17 + 1 × 35 + 10 ≈ 250`.
+`pools` is 1 with a single URL and 2 when `database_write_url` points somewhere other than `database_url` (each pool takes the full `max_connections`). Example: 12 gateway replicas at 15, 3 api replicas at 15, two workers at 30, a single URL, a few concurrent jobs: `12 × 17 + 3 × 17 + 2 × 35 + 10 ≈ 335`.
 
 ## 4. Put a transaction-mode pooler in front
 
@@ -54,7 +56,7 @@ A transaction-mode pooler hands a server connection to a client for one transact
 - Session advisory locks — the replica-identity claim and the scheduler job locks would be held by a backend another client then uses.
 - The migration lock — the migration runner holds it for the whole run.
 
-Point `database_url` (and `database_write_url`, if used) at the pooler and set the secret `database_session_url` (`DATABASE_SESSION_URL` with the `env` secrets source) to a direct connection to the primary. The session pool, the event listener, every advisory lock and the migration runner then use the direct connection, and everything else goes through the pooler. Budget the direct connections as `2 + concurrent_jobs` per admin node and `2` per gateway node, plus one for a migration run. The session pool is capped by `database.pool.session_max_connections` (default 10), independent of `max_connections`; raise it on an admin node that runs more concurrent cluster jobs than that.
+Point `database_url` (and `database_write_url`, if used) at the pooler and set the secret `database_session_url` (`DATABASE_SESSION_URL` with the `env` secrets source) to a direct connection to the primary. The session pool, the event listener, every advisory lock and the migration runner then use the direct connection, and everything else goes through the pooler. Budget the direct connections as `2 + concurrent_jobs` per worker node and `2` per gateway or api node, plus one for a migration run. The session pool is capped by `database.pool.session_max_connections` (default 10), independent of `max_connections`; raise it on a worker node that runs more concurrent cluster jobs than that. On CloudNativePG, point `database_session_url` at the cluster's `-rw` Service and `database_url` at the Pooler; `cloud doctor --distributed` warns when `database_session_url` is unset or looks like a transaction-mode pooler, because LISTEN/NOTIFY would then be silently dead.
 
 Configure the pooler as follows:
 

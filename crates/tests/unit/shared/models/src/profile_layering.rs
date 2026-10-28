@@ -281,6 +281,33 @@ fn save_overlay_writes_only_changed_keys_and_never_the_base() {
     assert_eq!(Profile::load_from_path(&path).unwrap().server.port, 9999);
 }
 
+#[cfg(unix)]
+#[test]
+fn save_overlay_into_a_read_only_directory_is_refused_and_leaves_the_file_whole() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let tree = Tree::new(Some(BASE), "local", Some("name: local\n"));
+    let path = tree.overlay("local");
+    let dir = path.parent().unwrap().to_path_buf();
+    let mut profile = Profile::load_from_path(&path).unwrap();
+    profile.server.port = 9999;
+
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let result = profile.save_overlay(&path, None);
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let err = result.expect_err("a read-only profile directory refuses the write");
+    assert!(matches!(err, ProfileError::ReadOnly { .. }), "{err:?}");
+    assert!(err.to_string().contains("edit it in Git"), "{err}");
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "name: local\n");
+    let leftovers: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_name() != "profile.yaml")
+        .collect();
+    assert!(leftovers.is_empty(), "{leftovers:?}");
+}
+
 #[test]
 fn committed_gate_refuses_absolute_temp_paths() {
     let errors = committed_source_errors("paths:\n  system: /tmp/abc/sys\n  bin: bin\n");

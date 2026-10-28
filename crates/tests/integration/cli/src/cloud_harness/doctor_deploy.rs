@@ -159,6 +159,7 @@ fn deploy_cmd(profile: Option<&str>, check: bool) -> CloudCommands {
         skip_push: false,
         profile: profile.map(str::to_owned),
         check,
+        wait: false,
     }
 }
 
@@ -505,6 +506,7 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
                 skip_push: true,
                 profile: Some(name.to_owned()),
                 check: false,
+                wait: false,
             },
             &json_ctx(),
         ),
@@ -766,6 +768,7 @@ async fn run_failure_deploy(name: &str) -> Result<(), String> {
                 skip_push: true,
                 profile: Some(name.to_owned()),
                 check: false,
+                wait: false,
             },
             &json_ctx(),
         ),
@@ -994,6 +997,7 @@ async fn deployment_logs_in_with_stdin_pushes_exact_image_then_provisions() {
                 skip_push: false,
                 profile: Some(name.to_owned()),
                 check: false,
+                wait: false,
             },
             &json_ctx(),
         ),

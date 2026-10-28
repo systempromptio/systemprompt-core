@@ -22,8 +22,8 @@ pub mod scheduling;
 mod service_management;
 
 pub use config_apply::{
-    APPLY_MODE, ApplyOptions, ConfigApplyService, EntityMerge, MergeReport, PlaneMerge, PlanePatch,
-    Verdict, merge_plane, verdict,
+    APPLY_MODE, ApplyOptions, ConfigApplyService, EntityMerge, FILE_WINS_MODE, MergeReport,
+    PlaneMerge, PlanePatch, Verdict, file_wins_verdict, merge_plane, verdict,
 };
 pub use config_reconcile::{
     AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneOutcome, PlaneReport,

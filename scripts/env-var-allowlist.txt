@@ -11,7 +11,7 @@ crates/infra/config/src/bootstrap/profile.rs  # SYSTEMPROMPT_PROFILE boot variab
 crates/infra/config/src/bootstrap/secrets/mod.rs  # deployment-host detection for the secrets bootstrap (SYSTEMPROMPT_* subprocess vars)
 crates/infra/config/src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection; OAUTH_AT_REST_PEPPER presence for `resolve_source`; Vault credentials from the secrets `env` source
 crates/infra/config/src/bootstrap/secrets/sources/env.rs  # the secrets `env` source itself
-crates/infra/config/src/config_loader.rs  # SYSTEMPROMPT_SYSTEM_ADMIN cloud-boot variable; HOSTNAME / FLY_MACHINE_ID replica identity when server.instance_id is absent
+crates/infra/config/src/config_loader.rs  # SYSTEMPROMPT_SYSTEM_ADMIN cloud-boot variable; POD_NAME (Kubernetes downward API) / HOSTNAME / FLY_MACHINE_ID replica identity when server.instance_id is absent
 crates/infra/loader/src/config_loader/mod.rs  # SYSTEMPROMPT_SERVICES_PATH / SKILLS_PATH / CONFIG_PATH subprocess boot variables
 crates/infra/database/src/lifecycle/migrations/budget.rs  # SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS — the attended-operator escape hatch from the per-migration statement timeout; it applies to one run of an already-deployed image, which a profile field cannot express, and migrations are awaited before the profile-driven server binds
 crates/entry/cli/src/env_overrides.rs  # the single CLI reader of SYSTEMPROMPT_* overrides (EnvOverrides)
@@ -21,7 +21,7 @@ crates/shared/extension/src/build/mod.rs  # cargo build-script environment (OUT_
 crates/infra/cloud/src/credentials_bootstrap/mod.rs  # deployment-host detection for cloud credentials; SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS tenant-pod boot bypass (deployment host only, audited)
 crates/shared/manifest/src/env.rs  # read_env_optional: the one primitive behind `${VAR}` profile interpolation, the secrets `env` source and cloud credentials bootstrap
 crates/shared/models/src/net/mod.rs  # SYSTEMPROMPT_TRUSTED_HTTP_HOSTS — documented operator SSRF opt-in (documentation/security/outbound-egress-controls.md), forwarded to subprocesses by inherited_parent_env
-crates/domain/agent/src/services/agent_orchestration/process/command.rs  # env lookup closure for inherited_parent_env (deployment-host vars, HOSTNAME, PATH, HOME, SYSTEMPROMPT_TRUSTED_HTTP_HOSTS) after env_clear on the agent child
+crates/domain/agent/src/services/agent_orchestration/process/command.rs  # env lookup closure for inherited_parent_env (deployment-host vars, HOSTNAME, POD_NAME, PATH, HOME, SYSTEMPROMPT_TRUSTED_HTTP_HOSTS) after env_clear on the agent child
 crates/domain/mcp/src/services/process/spawner.rs  # env lookup closure passing the operator-named `env_vars` of an MCP service config into the child after env_clear
 crates/entry/cli/src/commands/admin/config/secret_check.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection and OAUTH_AT_REST_PEPPER presence for resolve_source (secrets `env` source)
 crates/entry/cli/src/commands/cloud/deploy/pipeline/orchestrator.rs  # collect_bootstrap_env lookup closure for the operator-listed --bootstrap-env variables pushed to Vault

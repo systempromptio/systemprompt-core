@@ -56,7 +56,7 @@ tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 | `db_type` | `type` | string | yes | — | Database backend selector. PostgreSQL is the supported backend. |
 | `external_db_access` | `external_db_access` | bool | no | `false` | When `true`, the platform uses `external_database_url` from the secrets document if present (`secrets.rs:85`). |
 
-| `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `admin`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `session_max_connections` (1–500, default 10; sizes the pool `database_session_url` opens), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
+| `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `api`, `worker`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `session_max_connections` (1–500, default 10; sizes the pool `database_session_url` opens), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
 
 The connection string itself is never in `profile.yaml`; it lives in the secrets document as `database_url` (see [Secrets envelope](#secrets-envelope)).
 
@@ -77,6 +77,8 @@ Derived, never stated (`crates/shared/manifest/src/profile/derived.rs`): `api_se
 | `instance_id` | string | no (required on `cloud` unless `HOSTNAME` is set) | `HOSTNAME`, else a random id on local targets | Stable replica identifier. Keys the service registry, event outbox origin and node-scoped scheduler runs; stamped on logs, `ai_requests`, metrics and `x-served-by`. A cloud profile that resolves to neither refuses to boot. |
 | `metrics_port` | u16 | no | unset | Serve `GET /metrics` on a second listener bound to `host:metrics_port`. Unset means no metrics endpoint. Must differ from `port`. |
 | `max_concurrent_streams` | usize | no | `256` | Global cap on concurrent A2A SSE streams for this replica (`config/mod.rs:34`). |
+| `role` | `all` \| `gateway` \| `api` \| `worker` \| `runner` | no | `all` | Which surfaces and background work the node runs; see [deploy-production.md §3.1](../guides/deploy-production.md). `admin` is not a role: a profile that names it is refused with an error naming `api` and `worker`. `api` and `worker` with `storage.backend: local` require `storage.shared: true`. |
+| `advertise_url` | string | required on `worker` | unset | Absolute `http(s)` URL peers use to reach this node (e.g. `http://${POD_IP}:8080`). A worker records it with every registry heartbeat; `api` replicas forward MCP and agent traffic to the worker that owns the process through it. |
 | `trusted_proxies` | list of CIDR string | required on `cloud` | `[]` | Peer CIDRs allowed to set `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`. Empty means every connection is treated as direct and those headers are ignored. A bare address without `/` is read as `/32` (IPv4) or `/128` (IPv6). |
 | `shutdown` | object | no | see below | Shutdown deadlines. |
 

@@ -1,6 +1,9 @@
-//! The explicit apply of declared configuration to the database
-//! (credential.md §3.1 rule 3): `config apply` in the deploy pipeline and the
-//! apply on `/admin/sync`. Boot never runs it.
+//! The explicit apply of declared configuration to the database.
+//!
+//! This is `config apply` in the deploy pipeline and the apply on
+//! `/admin/sync`, plus the file-wins pass the scheduler node runs
+//! for `file`-authority planes at boot and on every `config_reconcile` tick
+//! ([`ConfigApplyService::apply_file_managed`]).
 //!
 //! [`ConfigApplyService::apply`] takes the same advisory lock the reconcile
 //! pass takes, so one applier runs at a time across every replica; a second
@@ -11,7 +14,11 @@
 //! written entity is audited in `config_change_audit` with mode `merge`,
 //! entities both sides changed are recorded in `config_conflicts` and left
 //! alone, the base moves for every entity the apply settled, and the plane's
-//! `last_apply_*` columns are stamped. Every plane the apply ran, declared or
+//! `last_apply_*` columns are stamped. A plane under effective `file`
+//! authority merges with `file_wins` instead: the database is overwritten
+//! with the declaration (audited with mode `overwrite`), and every open
+//! conflict on an entity it writes is resolved as `file`, so the apply
+//! converges without an operator. Every plane the apply ran, declared or
 //! not, is recorded in `config_plane_applied`, so its runtime reader serves a
 //! declared absence instead of failing closed as unapplied. A dry run does all
 //! of that and rolls it back.
@@ -32,9 +39,10 @@ use crate::error::{SchedulerError, SchedulerResult};
 use crate::services::ConfigReconcileService;
 
 pub use export::PlanePatch;
-pub use merge::{EntityMerge, Verdict, merge_plane, verdict};
+pub use merge::{EntityMerge, Verdict, file_wins_verdict, merge_plane, verdict};
 
 pub const APPLY_MODE: &str = "merge";
+pub const FILE_WINS_MODE: &str = "overwrite";
 
 /// What an apply runs over and on whose behalf.
 #[derive(Debug, Clone)]
@@ -60,6 +68,7 @@ pub struct PlaneMerge {
     pub unchanged: usize,
     pub outcome: ApplyOutcome,
     pub undeclared: bool,
+    pub file_wins: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -108,6 +117,32 @@ impl ConfigApplyService {
         let report = self.apply_locked(options).await;
         guard.release().await;
         report
+    }
+
+    pub async fn apply_file_managed(
+        &self,
+        actor: ChangeActor,
+        reason: &str,
+        wait: Duration,
+    ) -> SchedulerResult<MergeReport> {
+        let set = self.reconcile.planes();
+        let planes: Vec<String> = set
+            .planes()
+            .iter()
+            .filter(|p| set.authority_of(p.as_ref()).is_file_managed())
+            .map(|p| p.name().to_owned())
+            .collect();
+        if planes.is_empty() {
+            return Ok(MergeReport::default());
+        }
+        self.apply(&ApplyOptions {
+            planes: &planes,
+            actor,
+            reason,
+            dry_run: false,
+            wait,
+        })
+        .await
     }
 
     async fn apply_locked(&self, options: &ApplyOptions<'_>) -> SchedulerResult<MergeReport> {

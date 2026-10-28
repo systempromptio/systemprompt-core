@@ -1,18 +1,20 @@
-//! Topology-correct `server.trusted_proxies` defaults and coverage checks.
+//! Topology-correct `server.trusted_proxies` presets and coverage checks.
 //!
-//! Cloud deployments always sit behind Cloudflare → Fly, so a generated cloud
-//! profile must trust the private/Fly/Cloudflare ranges — omitting the Fly
-//! peer range makes every request resolve to the proxy's private address and
-//! silently discards forwarded client-IP headers. Traffic that enters through
-//! Fly's *public* edge rather than the private mesh appends a further hop from
-//! [`proxies::FLY_PUBLIC_RANGES`], so that range must be trusted too or the
-//! same misattribution returns. Local profiles trust loopback and RFC1918 so a
-//! local reverse proxy works out of the box.
+//! The preset follows the profile's [`HostingProvider`]. The managed cloud
+//! sits behind Cloudflare → Fly, so it trusts the private/Fly/Cloudflare
+//! ranges — omitting the Fly peer range makes every request resolve to the
+//! proxy's private address and silently discards forwarded client-IP headers.
+//! Traffic that enters through Fly's *public* edge rather than the private
+//! mesh appends a further hop from [`proxies::FLY_PUBLIC_RANGES`], so that
+//! range must be trusted too. GKE adds Google's load-balancer ranges;
+//! Kubernetes and local Docker trust loopback and RFC1918 only, so a
+//! self-managed ingress is never silently granted a third party's ranges.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use ipnet::IpNet;
+use systemprompt_manifest::HostingProvider;
 
 use crate::constants::proxies;
 
@@ -30,17 +32,18 @@ fn parse_ranges(ranges: &[&str]) -> Vec<IpNet> {
 }
 
 #[must_use]
-pub fn default_cloud_trusted_proxies() -> Vec<IpNet> {
+pub fn default_trusted_proxies(provider: HostingProvider) -> Vec<IpNet> {
     let mut nets = parse_ranges(proxies::PRIVATE_RANGES);
-    nets.extend(parse_ranges(proxies::FLY_PRIVATE_RANGES));
-    nets.extend(parse_ranges(proxies::FLY_PUBLIC_RANGES));
-    nets.extend(parse_ranges(proxies::CLOUDFLARE_RANGES));
+    match provider {
+        HostingProvider::Systemprompt => {
+            nets.extend(parse_ranges(proxies::FLY_PRIVATE_RANGES));
+            nets.extend(parse_ranges(proxies::FLY_PUBLIC_RANGES));
+            nets.extend(parse_ranges(proxies::CLOUDFLARE_RANGES));
+        },
+        HostingProvider::Gke => nets.extend(parse_ranges(proxies::GOOGLE_LB_RANGES)),
+        HostingProvider::Kubernetes | HostingProvider::DockerLocal => {},
+    }
     nets
-}
-
-#[must_use]
-pub fn default_local_trusted_proxies() -> Vec<IpNet> {
-    parse_ranges(proxies::PRIVATE_RANGES)
 }
 
 #[must_use]

@@ -8,20 +8,26 @@
 //! - `claim` — exclusive boot-time claim on this replica's instance id.
 //! - `maintenance` — heartbeat, stale-row cleanup and dead-instance reaping.
 //! - `liveness` — the [`systemprompt_traits::InstanceRegistry`] answer.
+//! - `endpoint` — advertised replica addresses and process-owner lookup.
+//! - `presence` — per-replica role heartbeat and live counts by role.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod claim;
+mod endpoint;
 mod listing;
 mod liveness;
 mod maintenance;
 mod model;
+mod presence;
 mod repo;
 
 pub use claim::{CLAIM_DEAD_PEER_SECS, INSTANCE_CLAIM_CLASS, InstanceClaim, InstanceClaimError};
+pub use endpoint::ProcessOwner;
 pub use liveness::INSTANCE_DEAD_AFTER_SECS;
 pub use maintenance::{Reaped, ReapedService};
 pub use model::{CreateServiceInput, ServiceConfig, UpsertServiceProcessInput};
+pub use presence::RoleCount;
 pub use repo::ServiceRepository;
 pub use systemprompt_manifest::services::{ServiceModule, ServiceStatus};

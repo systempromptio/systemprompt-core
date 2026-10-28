@@ -23,6 +23,10 @@
 //! being overwritten, while a declared entity the database lacks is still
 //! inserted and a database-only row is still kept.
 //!
+//! A `file`-authority plane merges with `file_wins`: there is no third side
+//! to weigh, so every entity whose file and database sides differ is applied
+//! (a database-only row is deleted) and nothing is kept as drift or conflict.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -57,7 +61,15 @@ pub fn verdict(base: Option<&str>, file: Option<&str>, db: Option<&str>) -> Verd
     }
 }
 
-/// One entity's three sides and the verdict they give.
+#[must_use]
+pub fn file_wins_verdict(base: Option<&str>, file: Option<&str>, db: Option<&str>) -> Verdict {
+    match (file == db, base == file) {
+        (false, _) => Verdict::Apply,
+        (true, true) => Verdict::Unchanged,
+        (true, false) => Verdict::Converged,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EntityMerge {
     pub entity: String,
@@ -74,6 +86,7 @@ pub fn merge_plane(
     current: &PlaneSnapshot,
     base: &BTreeMap<String, String>,
     adopt: bool,
+    file_wins: bool,
 ) -> Vec<EntityMerge> {
     let entities: BTreeSet<&String> = declared
         .keys()
@@ -85,15 +98,20 @@ pub fn merge_plane(
         .map(|entity| {
             let file_hash = declared.get(entity).map(|d| d.hash.clone());
             let db_hash = current.get(entity).map(|value| entity_hash(value));
-            let adopted = adopt && file_hash.is_some() && db_hash.is_some();
+            let adopted = adopt && !file_wins && file_hash.is_some() && db_hash.is_some();
             let base_hash = if adopted {
                 file_hash.clone()
             } else {
                 base.get(entity).cloned()
             };
+            let decide = if file_wins {
+                file_wins_verdict
+            } else {
+                verdict
+            };
             EntityMerge {
                 entity: entity.clone(),
-                verdict: verdict(
+                verdict: decide(
                     base_hash.as_deref(),
                     file_hash.as_deref(),
                     db_hash.as_deref(),

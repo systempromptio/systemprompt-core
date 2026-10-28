@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE oauth_clients\n            SET declared_source = NULL, declared_secret_key = NULL, is_active = false,\n                updated_at = $2\n            WHERE client_id = $1 AND declared_source IS NOT NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "42de6dd829fcf759069441b49e5f0685a69a460b7c4b12063865448ff7550001"
+}

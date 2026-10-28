@@ -17,6 +17,9 @@
 //!   delegated `act` chain and issues ID-JAGs from upstream OIDC tokens.
 //! - [`user_tokens`] mints the access/refresh pair for user-bound grants.
 //!
+//! - [`identity`] is the `identity` config plane: users, their roles, service
+//!   accounts and static OAuth clients declared under `services/identity/`.
+//!
 //! Every failure is an [`IssuanceError`], partitioned by RFC 6749 error code.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -27,6 +30,8 @@ pub use ::inventory as __inventory;
 
 pub mod client_credentials;
 pub mod error;
+mod extension;
+pub mod identity;
 pub mod orchestrator;
 mod repository;
 pub mod request;
@@ -38,6 +43,8 @@ pub mod validation;
 
 pub use client_credentials::{ClientCredentialsError, ClientTokenOptions, generate_client_tokens};
 pub use error::{IssuanceError, IssuanceResult};
+pub use extension::IdentityExtension;
+pub use identity::{IDENTITY_PLANE, IdentityPlane};
 pub use orchestrator::TokenIssuanceOrchestrator;
 pub use request::{RequestOrigin, TokenRequest, TokenResponse};
 pub use token_exchange::{

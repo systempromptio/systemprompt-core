@@ -39,6 +39,40 @@ impl TenantStore {
         Self::new(tenants)
     }
 
+    pub fn merge_control_plane(&mut self, infos: &[CloudTenantInfo]) {
+        for info in infos {
+            match self.tenants.iter_mut().find(|t| t.id == info.id) {
+                Some(existing) if existing.is_systemprompt_managed() => {
+                    existing.update_from_tenant_info(info);
+                },
+                Some(existing) => {
+                    tracing::warn!(
+                        tenant_id = %existing.id,
+                        provider = %existing.provider,
+                        "control plane lists a tenant id held by a self-managed record; keeping the local record"
+                    );
+                },
+                None => self.tenants.push(StoredTenant::from_tenant_info(info)),
+            }
+        }
+        self.synced_at = Utc::now();
+    }
+
+    pub fn insert_self_managed(&mut self, tenant: StoredTenant) -> CloudResult<()> {
+        if tenant.is_systemprompt_managed() {
+            return Err(CloudError::TenantNotSelfManaged {
+                tenant_id: tenant.id,
+            });
+        }
+        if self.find_tenant(&tenant.id).is_some() {
+            return Err(CloudError::TenantAlreadyExists {
+                tenant_id: tenant.id,
+            });
+        }
+        self.tenants.push(tenant);
+        Ok(())
+    }
+
     pub fn load_from_path(path: &Path) -> CloudResult<Self> {
         if !path.exists() {
             return Err(CloudError::TenantsNotSynced);

@@ -1,16 +1,19 @@
-//! Deployment building blocks: Dockerfile rendering and validation.
+//! Deployment building blocks: Dockerfile rendering and validation, and the
+//! per-provider deploy seam.
 //!
 //! [`DockerfileBuilder`] renders the runtime-image Dockerfile from the
 //! discovered extensions and services config; the validation helpers assert a
 //! profile's Dockerfile copies the expected MCP binaries and carries no stale
 //! ones. [`find_services_config`] locates the project's services config, the
-//! shared input to both. Everything here is filesystem-read-only — writing the
-//! rendered Dockerfile is the caller's concern.
+//! shared input to both; writing the rendered Dockerfile is the caller's
+//! concern. [`provider`] holds [`provider::DeployProvider`] and its managed
+//! cloud and `GitOps` implementations.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod dockerfile;
+pub mod provider;
 mod validation;
 
 pub use dockerfile::DockerfileBuilder;

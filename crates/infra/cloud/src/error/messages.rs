@@ -15,6 +15,8 @@ impl CloudError {
             Self::TenantsNotSynced => "Tenants not synced locally",
             Self::TenantsStoreCorrupted { .. } => "Tenants store is corrupted",
             Self::TenantsStoreInvalid { .. } => "Tenants store is invalid",
+            Self::TenantAlreadyExists { .. } => "Tenant already exists",
+            Self::TenantNotSelfManaged { .. } => "Tenant is managed by systemprompt.io",
             Self::ApiError { .. } => "API request failed",
             Self::Network(_) => "Network error communicating with cloud",
             Self::Io(_) => "File system error",
@@ -30,6 +32,15 @@ impl CloudError {
             Self::Docker { .. } => "Docker command failed",
             Self::Unauthorized => "Cloud API rejected this token",
             Self::HttpStatus { .. } => "Cloud API returned a non-success status",
+            Self::ProviderNotDeployable { .. } => "This provider has no deploy pipeline",
+            Self::DeployNotConfigured { .. } => "Deploy target is not configured",
+            Self::GitOps { .. } => "GitOps update failed",
+            Self::ValuesFile { .. } => "Values file could not be updated",
+            Self::TenantUnready { .. } => "Tenant did not become ready",
+            Self::OperatorAuth { .. }
+            | Self::OperatorEndpoint { .. }
+            | Self::OperatorEmail { .. } => "Operator sign-in failed",
+            Self::OperatorNotAuthenticated => "Not signed in as an operator",
         }
     }
 
@@ -45,6 +56,12 @@ impl CloudError {
             | Self::TenantsStoreCorrupted { .. }
             | Self::TenantsStoreInvalid { .. } => {
                 "Run 'systemprompt cloud auth login' to sync tenants"
+            },
+            Self::TenantAlreadyExists { .. } => {
+                "Choose another id, or remove the existing record first"
+            },
+            Self::TenantNotSelfManaged { .. } => {
+                "Use 'systemprompt cloud tenant delete' for systemprompt.io tenants"
             },
             Self::ApiError { .. } | Self::HttpStatus { .. } | Self::ApiValidationFailed { .. } => {
                 "Check the error message and try again"
@@ -65,6 +82,24 @@ impl CloudError {
             },
             Self::Docker { .. } => "Check that Docker is installed and running",
             Self::Deploy { .. } => "Inspect the error message and try again",
+            Self::ProviderNotDeployable { .. } => {
+                "Run the tenant locally with 'systemprompt infra services start'"
+            },
+            Self::DeployNotConfigured { .. } => {
+                "Add cloud.deploy (registry, repository, gitops) to the profile"
+            },
+            Self::GitOps { .. } | Self::ValuesFile { .. } => {
+                "Check the ops repository working copy and cloud.deploy.gitops settings"
+            },
+            Self::TenantUnready { .. } => {
+                "Check the rollout in the cluster, then run 'systemprompt cloud status'"
+            },
+            Self::OperatorAuth { .. }
+            | Self::OperatorEndpoint { .. }
+            | Self::OperatorEmail { .. }
+            | Self::OperatorNotAuthenticated => {
+                "Run 'systemprompt cloud auth login --issuer <url> --client-id <id>'"
+            },
         }
     }
 

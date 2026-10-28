@@ -19,6 +19,7 @@ const IDENTITY_SECRETS: [&str; 3] = [
     "signing_key_pem",
 ];
 const REPLICA_LAG_WARN_SECS: f64 = 5.0;
+const POOLER_PORTS: [u16; 2] = [6432, 5433];
 const READYZ_TIMEOUT: Duration = Duration::from_secs(5);
 
 fn fingerprint(value: &str) -> String {
@@ -60,7 +61,8 @@ pub fn check_instance_id(profile: &Profile) -> CheckResult {
     match (&profile.server.instance_id, profile.target.is_cloud()) {
         (None, true) => CheckResult::pass(
             "instance-id",
-            "replica identity comes from HOSTNAME, or FLY_MACHINE_ID on Fly, at boot",
+            "replica identity comes from the platform at boot (POD_NAME, HOSTNAME or \
+             FLY_MACHINE_ID)",
         ),
         (Some(id), true) => CheckResult::fail(
             "instance-id",
@@ -71,8 +73,8 @@ pub fn check_instance_id(profile: &Profile) -> CheckResult {
         ),
         (None, false) => CheckResult::warn(
             "instance-id",
-            "server.instance_id is not set; the replica falls back to HOSTNAME, which must be \
-             stable across restarts on this platform",
+            "server.instance_id is not set; the replica falls back to POD_NAME or HOSTNAME, \
+             which must be stable across restarts on this platform",
         ),
         (Some(id), false) => CheckResult::pass("instance-id", format!("server.instance_id = {id}")),
     }
@@ -99,6 +101,42 @@ pub fn check_trusted_proxies(profile: &Profile) -> CheckResult {
                 profile.server.trusted_proxies.len()
             ),
         )
+    }
+}
+
+pub fn looks_like_transaction_pooler(database_url: &str) -> bool {
+    let Ok(url) = url::Url::parse(database_url) else {
+        return false;
+    };
+    let pooler_host = url
+        .host_str()
+        .is_some_and(|host| host.to_ascii_lowercase().contains("pooler"));
+    let pooler_port = url.port().is_some_and(|port| POOLER_PORTS.contains(&port));
+    pooler_host || pooler_port
+}
+
+pub fn check_session_url<S: BuildHasher>(secrets: &HashMap<String, String, S>) -> CheckResult {
+    match secrets
+        .get("database_session_url")
+        .filter(|v| !v.is_empty())
+    {
+        None => CheckResult::warn(
+            "session-url",
+            "database_session_url is not set; LISTEN/NOTIFY, advisory locks and the instance \
+             claim run on database_url, and if that is a transaction-mode pooler cross-replica \
+             events are silently dead — set it to a direct session connection to the primary \
+             (on CloudNativePG, the -rw service)",
+        ),
+        Some(url) if looks_like_transaction_pooler(url) => CheckResult::warn(
+            "session-url",
+            "database_session_url looks like a transaction-mode pooler (a 'pooler' host or \
+             port 6432/5433); LISTEN/NOTIFY and session advisory locks do not survive one, so \
+             cross-replica events would be silently dead — point it at the primary directly",
+        ),
+        Some(_) => CheckResult::pass(
+            "session-url",
+            "database_session_url is a direct session connection",
+        ),
     }
 }
 
@@ -205,6 +243,7 @@ pub async fn run<S: BuildHasher + Sync>(
 ) -> Vec<CheckResult> {
     vec![
         check_identity_fingerprints(secrets),
+        check_session_url(secrets),
         check_write_primary(secrets).await,
         check_replica_lag(secrets).await,
         check_readyz(profile).await,

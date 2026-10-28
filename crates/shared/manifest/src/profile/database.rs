@@ -19,8 +19,8 @@ use super::NodeRole;
 ///
 /// `max_connections_by_role` overrides `max_connections` for the node's
 /// `server.role`, so one profile can size a horizontally scaled gateway pool
-/// small and the single admin node's pool larger. A Postgres primary must
-/// admit `gateway_replicas × (gateway pool + 2) + admin × (admin pool + 2)`
+/// and `api` pools small and the worker pool larger. A Postgres primary must
+/// admit `Σ replicas(role) × (pool(role) + 2)` over every role
 /// plus migration and operator sessions; the `+ 2` are the replica-identity
 /// claim and the event listener sessions every node holds.
 /// `session_max_connections` sizes the separate session pool a
@@ -74,7 +74,10 @@ pub struct RoleMaxConnections {
     pub gateway: Option<u32>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub admin: Option<u32>,
+    pub api: Option<u32>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker: Option<u32>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runner: Option<u32>,
@@ -85,16 +88,18 @@ impl RoleMaxConnections {
         match role {
             NodeRole::All => self.all,
             NodeRole::Gateway => self.gateway,
-            NodeRole::Admin => self.admin,
+            NodeRole::Api => self.api,
+            NodeRole::Worker => self.worker,
             NodeRole::Runner => self.runner,
         }
     }
 
-    pub const fn entries(&self) -> [(NodeRole, Option<u32>); 4] {
+    pub const fn entries(&self) -> [(NodeRole, Option<u32>); 5] {
         [
             (NodeRole::All, self.all),
             (NodeRole::Gateway, self.gateway),
-            (NodeRole::Admin, self.admin),
+            (NodeRole::Api, self.api),
+            (NodeRole::Worker, self.worker),
             (NodeRole::Runner, self.runner),
         ]
     }

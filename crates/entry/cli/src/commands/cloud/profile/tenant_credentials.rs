@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use anyhow::Result;
-use systemprompt_cloud::{CloudApiClient, StoredTenant, TenantStore, TenantType};
+use systemprompt_cloud::{CloudApiClient, StoredTenant, TenantStore};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
@@ -38,7 +38,7 @@ pub async fn ensure_unmasked_credentials(
     tenant: StoredTenant,
     tenants_path: &Path,
 ) -> Result<StoredTenant> {
-    if tenant.tenant_type != TenantType::Cloud {
+    if !tenant.is_systemprompt_managed() {
         return Ok(tenant);
     }
 

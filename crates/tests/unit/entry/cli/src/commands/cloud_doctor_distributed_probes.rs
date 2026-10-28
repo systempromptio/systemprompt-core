@@ -264,6 +264,7 @@ async fn run_reports_every_distributed_check_exactly_once() {
         names,
         vec![
             "identity-fingerprints",
+            "session-url",
             "write-primary",
             "replica-lag",
             "readyz",

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO licence_checkin_state (id, last_attempt_at, attempts_total)\n            VALUES (TRUE, NOW(), 1)\n            ON CONFLICT (id) DO UPDATE SET\n                last_attempt_at = NOW(),\n                attempts_total = licence_checkin_state.attempts_total + 1,\n                updated_at = NOW()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "7ae8544fb5ab125cc3419a634f559de6c88f46639a01bd8eeaebc458a0cd3433"
+}

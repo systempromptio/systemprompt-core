@@ -1,11 +1,15 @@
 //! Per-plane authority for declared configuration planes.
 //!
-//! Every plane an extension registers is `file`-authoritative unless the
-//! profile names it under `config_planes.authority` as `db`. A file-authority
-//! plane whose declaration exists is reconciled to that file at boot and by
-//! the `config_reconcile` job, and console writers refuse to edit it. A
-//! `db`-authority plane is seeded from its file only while its projection is
-//! empty; afterwards drift is reported and never written.
+//! Every plane an extension registers is `db`-authoritative unless the
+//! profile names it under `config_planes.authority` as `file`. A `db` plane is
+//! changed by console edits and by `config apply`, which merges the
+//! declaration three ways against the last applied base and records the
+//! entities both sides changed as conflicts. A `file` plane whose declaration
+//! exists is managed in Git: console and API writers refuse to edit it, and
+//! `config apply`, the scheduler node's boot and the `config_reconcile` job
+//! overwrite the database with the file, audited, resolving any open
+//! conflicts in the file's favour. A plane whose declaration is absent is
+//! undeclared and never file-managed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

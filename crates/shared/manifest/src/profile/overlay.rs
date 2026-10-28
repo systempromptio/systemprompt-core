@@ -85,16 +85,51 @@ fn write_document(
 ) -> ProfileResult<()> {
     let yaml = serde_yaml::to_string(document).map_err(ProfileError::SerializeYaml)?;
     let content = header.map_or_else(|| yaml.clone(), |h| format!("{h}\n\n{yaml}"));
-    if let Some(parent) = overlay_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|source| ProfileError::WriteFile {
-            path: parent.to_path_buf(),
-            source,
+    let parent = overlay_path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent).map_err(|source| write_error(parent, source))?;
+    let file_name = overlay_path
+        .file_name()
+        .ok_or_else(|| ProfileError::InvalidProfilePath {
+            path: overlay_path.to_path_buf(),
         })?;
+    let mut staged_name = std::ffi::OsString::from(".");
+    staged_name.push(file_name);
+    staged_name.push(format!(".{}.tmp", std::process::id()));
+    let staged = parent.join(staged_name);
+    if let Err(source) = std::fs::write(&staged, content) {
+        discard_staged(&staged);
+        return Err(write_error(overlay_path, source));
     }
-    std::fs::write(overlay_path, content).map_err(|source| ProfileError::WriteFile {
-        path: overlay_path.to_path_buf(),
-        source,
+    std::fs::rename(&staged, overlay_path).map_err(|source| {
+        discard_staged(&staged);
+        write_error(overlay_path, source)
     })
+}
+
+fn discard_staged(staged: &Path) {
+    if let Err(error) = std::fs::remove_file(staged)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::warn!(path = %staged.display(), error = %error, "staged profile write not removed");
+    }
+}
+
+fn write_error(path: &Path, source: std::io::Error) -> ProfileError {
+    match source.kind() {
+        std::io::ErrorKind::ReadOnlyFilesystem | std::io::ErrorKind::PermissionDenied => {
+            ProfileError::ReadOnly {
+                path: path.to_path_buf(),
+                source,
+            }
+        },
+        _ => ProfileError::WriteFile {
+            path: path.to_path_buf(),
+            source,
+        },
+    }
 }
 
 impl Profile {

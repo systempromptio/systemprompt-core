@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow, bail};
-use systemprompt_cloud::{CloudApiClient, CloudPath, TenantStore, TenantType, get_cloud_paths};
+use systemprompt_cloud::{CloudApiClient, CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
@@ -37,8 +37,8 @@ pub async fn rotate_credentials(
         .find(|t| t.id == tenant_id)
         .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id))?;
 
-    if tenant.tenant_type != TenantType::Cloud {
-        bail!("Credential rotation is only available for cloud tenants");
+    if !tenant.is_systemprompt_managed() {
+        bail!("Credential rotation is only available for systemprompt.io tenants");
     }
 
     if !skip_confirm && !confirm_rotation(prompter, &tenant.name)? {

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM instance_presence\n            WHERE heartbeat_at < CURRENT_TIMESTAMP - make_interval(secs => $1::double precision)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e387a0d6fd38d863bd373f536a001706df54fd897d7b22774216f23066c70413"
+}

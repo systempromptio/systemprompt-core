@@ -23,13 +23,17 @@ pub const DEFAULT_MAX_CONCURRENT_STREAMS: usize = 256;
 
 #[must_use]
 pub fn stable_instance_id(lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
-    // Why: Fly does not export HOSTNAME to application processes; FLY_MACHINE_ID
-    // is the stable per-machine identity it does export.
-    ["HOSTNAME", "FLY_MACHINE_ID"].iter().find_map(|name| {
-        lookup(name)
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty())
-    })
+    // Why: Kubernetes exposes the pod name through the downward API as
+    // POD_NAME, which survives a `hostname:` override in the pod spec; Fly does
+    // not export HOSTNAME to application processes, and FLY_MACHINE_ID is the
+    // stable per-machine identity it does export.
+    ["POD_NAME", "HOSTNAME", "FLY_MACHINE_ID"]
+        .iter()
+        .find_map(|name| {
+            lookup(name)
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty())
+        })
 }
 
 #[must_use]
@@ -55,6 +59,7 @@ pub struct Config {
     pub metrics_port: Option<u16>,
     pub max_concurrent_streams: usize,
     pub role: crate::profile::NodeRole,
+    pub advertise_url: Option<String>,
     pub max_in_flight: Option<std::num::NonZeroU32>,
     pub shutdown: crate::profile::ShutdownConfig,
     pub sitename: String,
@@ -115,6 +120,7 @@ impl std::fmt::Debug for Config {
             .field("metrics_port", &self.metrics_port)
             .field("max_concurrent_streams", &self.max_concurrent_streams)
             .field("role", &self.role)
+            .field("advertise_url", &self.advertise_url)
             .field("max_in_flight", &self.max_in_flight)
             .field("shutdown", &self.shutdown)
             .field("sitename", &self.sitename)

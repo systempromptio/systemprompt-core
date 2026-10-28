@@ -38,6 +38,16 @@ pub enum ProfileError {
     },
 
     #[error(
+        "Profile {path} is read-only (a managed deployment mounts it); edit it in Git and roll \
+         the deployment instead"
+    )]
+    ReadOnly {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error(
         "Profile overlay {path} does not exist. A profile is profiles/<env>/profile.yaml, \
          optionally layered over profiles/base.yaml"
     )]

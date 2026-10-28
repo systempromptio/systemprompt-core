@@ -32,12 +32,18 @@ fn spinner_message_is_none_for_terminal_events() {
     assert_eq!(spinner_message(&DeployEvent::BuildFinished), None);
     assert_eq!(spinner_message(&DeployEvent::PushFinished), None);
     assert_eq!(spinner_message(&DeployEvent::ProfilePathConfigured), None);
+    assert_eq!(
+        spinner_message(&DeployEvent::TenantReady { version: None }),
+        None
+    );
+    assert!(spinner_message(&DeployEvent::ReadinessWaitStarted).is_some());
 }
 
 #[test]
 fn event_renders_every_variant_without_panic() {
     let binary = Path::new("/tmp/bin");
     let dockerfile = Path::new("/tmp/Dockerfile");
+    let external_keys = vec!["JWT_SECRET".to_owned(), "SYSTEMPROMPT_PROFILE".to_owned()];
 
     let events = vec![
         DeployEvent::ArtifactsResolved {
@@ -60,11 +66,23 @@ fn event_renders_every_variant_without_panic() {
         DeployEvent::CredentialsSyncStarted,
         DeployEvent::CredentialsSynced { count: 5 },
         DeployEvent::ProfilePathConfigured,
+        DeployEvent::SecretsExternal {
+            keys: &external_keys,
+        },
         DeployEvent::DeployStarted,
+        DeployEvent::RolloutCommitted {
+            commit: "abc123",
+            image: "registry.example/acme@sha256:00",
+        },
         DeployEvent::Deployed {
             status: "running",
             app_url: Some("https://example.com"),
         },
+        DeployEvent::ReadinessWaitStarted,
+        DeployEvent::TenantReady {
+            version: Some("0.75.0"),
+        },
+        DeployEvent::TenantReady { version: None },
         DeployEvent::Deployed {
             status: "running",
             app_url: None,

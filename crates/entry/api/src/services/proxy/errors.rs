@@ -19,6 +19,9 @@ pub enum ProxyError {
     #[error("Service '{service}' not found in inventory")]
     ServiceNotFound { service: String },
 
+    #[error("No live replica owns '{service}'; no worker is running it")]
+    NoLiveOwner { service: String },
+
     #[error("Service '{service}' is not running (status: {status})")]
     ServiceNotRunning { service: String, status: String },
 
@@ -138,9 +141,9 @@ impl ProxyError {
     pub fn to_status_code(&self) -> StatusCode {
         match self {
             Self::ServiceNotFound { .. } => StatusCode::NOT_FOUND,
-            Self::ServiceNotRunning { .. } | Self::RestartFailed { .. } => {
-                StatusCode::SERVICE_UNAVAILABLE
-            },
+            Self::ServiceNotRunning { .. }
+            | Self::RestartFailed { .. }
+            | Self::NoLiveOwner { .. } => StatusCode::SERVICE_UNAVAILABLE,
             Self::ConnectionFailed { .. }
             | Self::InvalidResponse { .. }
             | Self::ExternalResolveFailed { .. } => StatusCode::BAD_GATEWAY,
@@ -167,6 +170,7 @@ impl ProxyError {
         match self {
             Self::ServiceNotFound { .. } => "service_not_found",
             Self::ServiceNotRunning { .. } => "service_not_running",
+            Self::NoLiveOwner { .. } => "no_live_owner",
             Self::RestartFailed { .. } => "restart_failed",
             Self::ConnectionFailed { .. } => "connection_failed",
             Self::Timeout { .. } => "timeout",

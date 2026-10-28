@@ -111,7 +111,7 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
         AgentsCommands::Registry(args) => registry::execute(args, ctx)
             .await
             .context("Failed to get agent registry")?,
-        AgentsCommands::Message(args) => message::execute(args, ctx)
+        AgentsCommands::Message(args) => Box::pin(message::execute(args, ctx))
             .await
             .context("Failed to send message to agent")?,
         AgentsCommands::Task(args) => task::execute(args, ctx)

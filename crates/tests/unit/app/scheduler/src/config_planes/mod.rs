@@ -18,10 +18,13 @@ use systemprompt_runtime::ConfigPlaneSet;
 use fake_plane::FakePlane;
 
 fn plane_set(root: &Path, planes: &[Arc<FakePlane>], db: &[&str]) -> ConfigPlaneSet {
-    let authority: BTreeMap<String, PlaneAuthority> = db
+    let mut authority: BTreeMap<String, PlaneAuthority> = planes
         .iter()
-        .map(|name| ((*name).to_owned(), PlaneAuthority::Db))
+        .map(|p| (p.name.to_owned(), PlaneAuthority::File))
         .collect();
+    for name in db {
+        authority.insert((*name).to_owned(), PlaneAuthority::Db);
+    }
     let planes: Vec<Arc<dyn ConfigPlane>> = planes
         .iter()
         .map(|p| Arc::clone(p) as Arc<dyn ConfigPlane>)

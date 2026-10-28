@@ -112,6 +112,7 @@ fn the_writer_is_refused_for_a_file_managed_plane_and_minted_otherwise() {
     std::fs::create_dir_all(root.path().join("planes")).expect("mkdir");
     std::fs::write(root.path().join("planes/stub.yaml"), "a: 1\n").expect("write");
     let mut authority = BTreeMap::new();
+    authority.insert("file_plane".to_owned(), PlaneAuthority::File);
     authority.insert("db_plane".to_owned(), PlaneAuthority::Db);
     let set = ConfigPlaneSet::new(
         vec![plane("file_plane", &[]), plane("db_plane", &[])],

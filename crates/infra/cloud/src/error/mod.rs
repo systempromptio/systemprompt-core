@@ -45,6 +45,19 @@ pub enum CloudError {
         source: serde_json::Error,
     },
 
+    #[error("Tenant {tenant_id} is already in the tenant store")]
+    TenantAlreadyExists {
+        tenant_id: systemprompt_identifiers::TenantId,
+    },
+
+    #[error(
+        "Tenant {tenant_id} is managed by systemprompt.io; it is synced from the control plane, \
+         not added or removed locally"
+    )]
+    TenantNotSelfManaged {
+        tenant_id: systemprompt_identifiers::TenantId,
+    },
+
     #[error("Tenants store invalid: {source}")]
     TenantsStoreInvalid {
         #[source]
@@ -129,6 +142,61 @@ pub enum CloudError {
 
     #[error("Request failed with status {status}: {body}")]
     HttpStatus { status: u16, body: String },
+
+    #[error(
+        "Provider '{provider}' has no deploy pipeline; deploy a docker_local tenant with \
+         'systemprompt infra services start'"
+    )]
+    ProviderNotDeployable {
+        provider: systemprompt_manifest::HostingProvider,
+    },
+
+    #[error("Profile has no cloud.deploy section; provider '{provider}' deploys through GitOps")]
+    DeployNotConfigured {
+        provider: systemprompt_manifest::HostingProvider,
+    },
+
+    #[error("{message}")]
+    GitOps {
+        message: String,
+        #[source]
+        source: Option<std::io::Error>,
+    },
+
+    #[error("Values file {path} could not be updated")]
+    ValuesFile {
+        path: String,
+        #[source]
+        source: crate::deploy::provider::ValuesFileError,
+    },
+
+    #[error("Tenant at {url} did not become ready within {waited_secs}s (last: {last})")]
+    TenantUnready {
+        url: String,
+        waited_secs: u64,
+        last: String,
+    },
+
+    #[error("Operator sign-in failed: {message}")]
+    OperatorAuth { message: String },
+
+    #[error("Operator issuer endpoint {endpoint} was refused")]
+    OperatorEndpoint {
+        endpoint: String,
+        #[source]
+        source: systemprompt_models::net::OutboundUrlError,
+    },
+
+    #[error("Operator ID token email is not a valid address")]
+    OperatorEmail {
+        #[source]
+        source: systemprompt_identifiers::error::IdValidationError,
+    },
+
+    #[error(
+        "No operator sign-in.\n\nRun: systemprompt cloud auth login --issuer <url> --client-id <id>"
+    )]
+    OperatorNotAuthenticated,
 }
 
 impl CloudError {
@@ -163,6 +231,26 @@ impl CloudError {
         Self::Docker {
             message: message.into(),
             source: Some(source),
+        }
+    }
+
+    pub fn gitops(message: impl Into<String>) -> Self {
+        Self::GitOps {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn gitops_with(message: impl Into<String>, source: std::io::Error) -> Self {
+        Self::GitOps {
+            message: message.into(),
+            source: Some(source),
+        }
+    }
+
+    pub fn operator_auth(message: impl Into<String>) -> Self {
+        Self::OperatorAuth {
+            message: message.into(),
         }
     }
 

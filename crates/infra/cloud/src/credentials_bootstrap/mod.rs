@@ -87,7 +87,10 @@ impl CredentialsBootstrap {
     }
 
     fn is_deployment_host() -> bool {
-        systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok())
+        systemprompt_models::subprocess::is_deployment_host(
+            systemprompt_models::subprocess::ANY_DEPLOYMENT_HOST_MARKERS,
+            |name| std::env::var(name).ok(),
+        )
     }
 
     fn allow_unvalidated() -> bool {

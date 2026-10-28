@@ -10,7 +10,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::{ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType};
+use systemprompt_cloud::{ProfilePath, ProjectContext, StoredTenant, TenantStore};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
@@ -19,12 +19,12 @@ use systemprompt_identifiers::ProfileName;
 
 use systemprompt_manifest::profile::TrustedIssuer;
 
+use super::CreateArgs;
 use super::api_keys::ApiKeys;
 use super::templates::{
     DatabaseUrls, existing_geoip_database, get_services_path, save_dockerfile, save_dockerignore,
     save_entrypoint, save_profile, save_secrets, update_ai_config_default_provider,
 };
-use super::{CreateArgs, TenantTypeArg};
 use crate::interactive::Prompter;
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
 
@@ -128,7 +128,7 @@ pub fn write_profile_secrets(
         &db_urls,
         api_keys,
         &secrets_path,
-        tenant.tenant_type == TenantType::Cloud,
+        tenant.is_systemprompt_managed(),
     )?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
     Ok(())
@@ -140,35 +140,38 @@ fn build_tenant_profile(
     control_plane_api_url: Option<&str>,
     profile_path: &Path,
 ) -> Result<Profile> {
-    Ok(match tenant.tenant_type {
-        TenantType::Local => {
-            let services_path = get_services_path()?;
-            LocalProfileBuilder::new(name, "./secrets.json", &services_path)
-                .with_tenant_id(tenant.id.clone())
-                .build()?
-        },
-        TenantType::Cloud => {
-            let mut builder = CloudProfileBuilder::new(name)
-                .with_tenant_id(tenant.id.clone())
-                .with_external_db_access(tenant.external_db_access)
-                .with_secrets_path("./secrets.json")
-                .with_geoip_database(existing_geoip_database(profile_path));
-            if let Some(hostname) = &tenant.hostname {
-                builder = builder.with_external_url(format!("https://{}", hostname));
-            }
-            if let Some(api_url) = control_plane_api_url {
-                let trimmed = api_url.trim_end_matches('/').to_owned();
-                builder = builder.with_trusted_issuer(TrustedIssuer {
-                    issuer: trimmed.clone(),
-                    jwks_uri: format!("{}/.well-known/jwks.json", trimmed),
-                    audience: tenant.id.as_str().to_owned(),
-                    typ_allowlist: Vec::new(),
-                    allowed_client_ids: Vec::new(),
-                    can_issue_id_jag: false,
-                });
-            }
-            builder.build()?
-        },
+    Ok(if tenant.is_local() {
+        let services_path = get_services_path()?;
+        LocalProfileBuilder::new(name, "./secrets.json", &services_path)
+            .with_tenant_id(tenant.id.clone())
+            .build()?
+    } else {
+        let mut builder = CloudProfileBuilder::new(name)
+            .with_tenant_id(tenant.id.clone())
+            .with_provider(tenant.provider)
+            .with_external_db_access(tenant.external_db_access)
+            .with_secrets_path("./secrets.json")
+            .with_geoip_database(existing_geoip_database(profile_path));
+        if let Some(hostname) = &tenant.hostname {
+            builder = builder.with_external_url(format!("https://{}", hostname));
+        }
+        if tenant.is_self_managed() {
+            builder = builder.with_trusted_proxies(
+                systemprompt_cloud::trusted_proxies::default_trusted_proxies(tenant.provider),
+            );
+        }
+        if let Some(api_url) = control_plane_api_url.filter(|_| tenant.is_systemprompt_managed()) {
+            let trimmed = api_url.trim_end_matches('/').to_owned();
+            builder = builder.with_trusted_issuer(TrustedIssuer {
+                issuer: trimmed.clone(),
+                jwks_uri: format!("{}/.well-known/jwks.json", trimmed),
+                audience: tenant.id.as_str().to_owned(),
+                typ_allowlist: Vec::new(),
+                allowed_client_ids: Vec::new(),
+                can_issue_id_jag: false,
+            });
+        }
+        builder.build()?
     })
 }
 
@@ -214,16 +217,11 @@ pub fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Resul
         )
     })?;
 
-    let expected_type: TenantType = match args.tenant_type {
-        TenantTypeArg::Local => TenantType::Local,
-        TenantTypeArg::Cloud => TenantType::Cloud,
-    };
-
-    if tenant.tenant_type != expected_type {
+    if !args.tenant_type.admits(tenant) {
         bail!(
-            "Tenant '{}' is type {:?}, but --tenant-type {:?} was specified",
+            "Tenant '{}' has provider {}, but --tenant-type {:?} was specified",
             tenant_id,
-            tenant.tenant_type,
+            tenant.provider,
             args.tenant_type
         );
     }

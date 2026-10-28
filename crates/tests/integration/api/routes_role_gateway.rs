@@ -75,8 +75,8 @@ async fn gateway_node_serves_the_gateway_and_refuses_admin_surfaces() -> anyhow:
 }
 
 #[tokio::test]
-async fn admin_node_refuses_the_gateway_and_serves_admin_surfaces() -> anyhow::Result<()> {
-    let app = router_for(NodeRole::Admin).await?;
+async fn api_node_refuses_the_gateway_and_serves_api_surfaces() -> anyhow::Result<()> {
+    let app = router_for(NodeRole::Api).await?;
 
     assert!(!is_mounted(&app, "/v1/models").await?);
     assert_eq!(
@@ -94,7 +94,7 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
     let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = RateLimitsConfig::disabled();
-    config.role = NodeRole::Admin;
+    config.role = NodeRole::Api;
     let ctx = fixture_app_context_with_config(&pool, config)?;
 
     let gateway = configure_routes_for_role(

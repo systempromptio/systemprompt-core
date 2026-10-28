@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO instance_endpoints (instance_id, advertise_url, heartbeat_at)\n            VALUES ($1, $2, CURRENT_TIMESTAMP)\n            ON CONFLICT (instance_id) DO UPDATE SET\n                advertise_url = EXCLUDED.advertise_url,\n                heartbeat_at = EXCLUDED.heartbeat_at\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4aa21ec7a45b8efb1ceefdb069d43fe2c368a27a41f8663179390ef46714acbb"
+}

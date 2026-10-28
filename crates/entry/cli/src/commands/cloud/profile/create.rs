@@ -11,7 +11,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{
-    CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType, get_cloud_paths,
+    CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, get_cloud_paths,
 };
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
@@ -82,7 +82,7 @@ pub(super) async fn execute(
     write_docker_assets(&ctx, name)?;
     report_profile_validation(&built_profile);
 
-    if tenant.tenant_type == TenantType::Local {
+    if tenant.is_local() {
         let db_url = tenant
             .get_local_database_url()
             .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
@@ -141,23 +141,26 @@ fn build_tenant_profile(
     let services_path = get_services_path()?;
     let relative_secrets_path = "./secrets.json";
 
-    Ok(match tenant.tenant_type {
-        TenantType::Local => {
-            LocalProfileBuilder::new(name.as_str(), relative_secrets_path, &services_path)
-                .with_tenant_id(tenant.id.clone())
-                .build()?
-        },
-        TenantType::Cloud => {
-            let mut builder = CloudProfileBuilder::new(name.as_str())
-                .with_tenant_id(tenant.id.clone())
-                .with_external_db_access(tenant.external_db_access)
-                .with_secrets_path(relative_secrets_path)
-                .with_geoip_database(existing_geoip_database(profile_path));
-            if let Some(hostname) = &tenant.hostname {
-                builder = builder.with_external_url(format!("https://{}", hostname));
-            }
-            builder.build()?
-        },
+    Ok(if tenant.is_local() {
+        LocalProfileBuilder::new(name.as_str(), relative_secrets_path, &services_path)
+            .with_tenant_id(tenant.id.clone())
+            .build()?
+    } else {
+        let mut builder = CloudProfileBuilder::new(name.as_str())
+            .with_tenant_id(tenant.id.clone())
+            .with_provider(tenant.provider)
+            .with_external_db_access(tenant.external_db_access)
+            .with_secrets_path(relative_secrets_path)
+            .with_geoip_database(existing_geoip_database(profile_path));
+        if let Some(hostname) = &tenant.hostname {
+            builder = builder.with_external_url(format!("https://{}", hostname));
+        }
+        if tenant.is_self_managed() {
+            builder = builder.with_trusted_proxies(
+                systemprompt_cloud::trusted_proxies::default_trusted_proxies(tenant.provider),
+            );
+        }
+        builder.build()?
     })
 }
 
@@ -168,8 +171,15 @@ fn render_next_steps(tenant: &StoredTenant, profile_path: &Path) {
         profile_path.display()
     ));
 
-    match tenant.tenant_type {
-        TenantType::Local => CliService::info("  systemprompt infra services start"),
-        TenantType::Cloud => CliService::info("  systemprompt cloud deploy"),
+    if tenant.is_local() {
+        CliService::info("  systemprompt infra services start");
+    } else if tenant.is_systemprompt_managed() {
+        CliService::info("  systemprompt cloud deploy");
+    } else {
+        CliService::info(&format!(
+            "  review server.trusted_proxies (seeded with the {} preset), then roll the profile \
+             out through your deployment pipeline",
+            tenant.provider
+        ));
     }
 }

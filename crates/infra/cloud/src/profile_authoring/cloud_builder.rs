@@ -3,13 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use ipnet::IpNet;
 use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_manifest::profile::{
-    ProfileResult, SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
+    ProfileError, ProfileResult, SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
-    CloudConfig, CloudValidationMode, ExtensionsConfig, PathsConfig, Profile,
+    CloudConfig, CloudValidationMode, ExtensionsConfig, HostingProvider, PathsConfig, Profile,
     ProfileDatabaseConfig, ProfileType, RateLimitsConfig, ServerConfig, SiteConfig,
 };
 
@@ -25,6 +26,8 @@ pub struct CloudProfileBuilder {
     secrets_path: Option<String>,
     trusted_issuers: Vec<TrustedIssuer>,
     geoip_database: Option<String>,
+    provider: HostingProvider,
+    trusted_proxies: Option<Vec<IpNet>>,
 }
 
 impl CloudProfileBuilder {
@@ -37,7 +40,21 @@ impl CloudProfileBuilder {
             secrets_path: None,
             trusted_issuers: Vec::new(),
             geoip_database: None,
+            provider: HostingProvider::Systemprompt,
+            trusted_proxies: None,
         }
+    }
+
+    #[must_use]
+    pub const fn with_provider(mut self, provider: HostingProvider) -> Self {
+        self.provider = provider;
+        self
+    }
+
+    #[must_use]
+    pub fn with_trusted_proxies(mut self, trusted_proxies: Vec<IpNet>) -> Self {
+        self.trusted_proxies = Some(trusted_proxies);
+        self
     }
 
     #[must_use]
@@ -77,6 +94,7 @@ impl CloudProfileBuilder {
     }
 
     pub fn build(self) -> ProfileResult<Profile> {
+        let trusted_proxies = self.resolve_trusted_proxies()?;
         let display_name = generate_display_name(&self.name);
         let external = self
             .external_url
@@ -86,6 +104,7 @@ impl CloudProfileBuilder {
             storage: systemprompt_manifest::profile::StorageConfig::default(),
             observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
             config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
+            licence: systemprompt_manifest::profile::LicenceConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Cloud,
@@ -104,7 +123,7 @@ impl CloudProfileBuilder {
                 let mut server =
                     ServerConfig::new(consts::CLOUD_HOST, consts::DEFAULT_PORT, external);
                 server.role = systemprompt_manifest::profile::NodeRole::All;
-                server.trusted_proxies = crate::trusted_proxies::default_cloud_trusted_proxies();
+                server.trusted_proxies = trusted_proxies;
                 server
             },
             paths: cloud_paths(self.geoip_database),
@@ -112,7 +131,10 @@ impl CloudProfileBuilder {
             runtime: cloud_runtime_config(),
             cloud: Some(CloudConfig {
                 tenant_id: self.tenant_id,
+                provider: self.provider,
                 validation: CloudValidationMode::Strict,
+                deploy: None,
+                operator: None,
             }),
             secrets: Some(SecretsConfig {
                 secrets_path: self.secrets_path,
@@ -134,6 +156,24 @@ impl CloudProfileBuilder {
         };
         profile.derive_fields()?;
         Ok(profile)
+    }
+
+    fn resolve_trusted_proxies(&self) -> ProfileResult<Vec<IpNet>> {
+        match (&self.trusted_proxies, self.provider) {
+            (Some(nets), provider) if !nets.is_empty() || provider.is_systemprompt() => {
+                Ok(nets.clone())
+            },
+            (None, HostingProvider::Systemprompt) => Ok(
+                crate::trusted_proxies::default_trusted_proxies(HostingProvider::Systemprompt),
+            ),
+            (_, provider) => Err(ProfileError::Validation {
+                name: self.name.clone(),
+                errors: vec![format!(
+                    "server.trusted_proxies is required for a {provider} profile: list the \
+                     ingress and load-balancer ranges in front of the pods"
+                )],
+            }),
+        }
     }
 }
 

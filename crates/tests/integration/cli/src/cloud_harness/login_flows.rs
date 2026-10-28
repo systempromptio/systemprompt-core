@@ -30,6 +30,8 @@ async fn login_requires_interactive_mode() {
     let err = cloud::execute(
         CloudCommands::Auth(AuthCommands::Login {
             environment: Environment::Production,
+            issuer: None,
+            client_id: None,
         }),
         &json_ctx(),
     )

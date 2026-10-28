@@ -62,7 +62,8 @@ impl ConfigApplyService {
             .map(|(k, d)| (k.clone(), d.value.clone()))
             .collect();
         let mut entities = Vec::new();
-        for merge in merge_plane(&declared, &current, &base, adopt) {
+        let file_wins = set.authority_of(plane).is_file_managed();
+        for merge in merge_plane(&declared, &current, &base, adopt, file_wins) {
             if !matches!(merge.verdict, Verdict::Drift | Verdict::Conflict) {
                 continue;
             }
