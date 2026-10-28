@@ -58,7 +58,7 @@ fn garbage_is_refused_as_an_update_and_as_a_version() {
 }
 
 fn rich(blocks: Vec<Block>) -> ModelView {
-    ModelView::RichText(RichText { blocks })
+    ModelView::RichText(RichText::of(blocks))
 }
 
 #[test]

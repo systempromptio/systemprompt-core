@@ -78,10 +78,17 @@ fn mark_of(spec: &MarkSpec) -> Result<MarkKind, CodecError> {
         MarkKind::Comment { .. } => Err(malformed(
             "comment marks are added through comments, not set_marks",
         )),
-        MarkKind::Link { .. } | MarkKind::Color { .. } | MarkKind::Highlight { .. }
+        MarkKind::Link { .. }
+        | MarkKind::Color { .. }
+        | MarkKind::Highlight { .. }
+        | MarkKind::Font { .. }
+        | MarkKind::Size { .. }
+        | MarkKind::Field { .. }
             if value.is_empty() =>
         {
-            Err(malformed("link, color and highlight marks need a value"))
+            Err(malformed(
+                "valued marks (link, color, highlight, font, size, field) need a value",
+            ))
         },
         kind => Ok(kind),
     }

@@ -52,7 +52,7 @@ impl Fresh<'_> {
 fn collect_ids<'a>(model: &'a RichText, into: &mut HashSet<&'a str>) {
     for block in &model.blocks {
         into.insert(&block.id);
-        if let BlockKind::Table { rows } = &block.kind {
+        if let BlockKind::Table { rows, .. } = &block.kind {
             for cell in rows.iter().flatten() {
                 collect_ids(cell, into);
             }
@@ -92,7 +92,7 @@ fn carry(live: &RichText, next: &mut RichText, fresh: &mut Fresh<'_>) {
         } else {
             block.id = fresh.next_id();
         }
-        if let BlockKind::Table { rows } = &mut block.kind {
+        if let BlockKind::Table { rows, .. } = &mut block.kind {
             carry_cells(matched.map(|(_, old)| &old.kind), rows, fresh);
         }
     }
@@ -101,7 +101,7 @@ fn carry(live: &RichText, next: &mut RichText, fresh: &mut Fresh<'_>) {
 fn carry_cells(old: Option<&BlockKind>, rows: &mut [Vec<RichText>], fresh: &mut Fresh<'_>) {
     let empty = RichText::default();
     let old_rows = match old {
-        Some(BlockKind::Table { rows }) => rows.as_slice(),
+        Some(BlockKind::Table { rows, .. }) => rows.as_slice(),
         _ => &[],
     };
     for (r, row) in rows.iter_mut().enumerate() {

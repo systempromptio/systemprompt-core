@@ -25,13 +25,20 @@ mod inline;
 pub mod markdown;
 pub mod office;
 pub mod ops;
+pub mod document;
+pub mod layout;
+mod mark_kind;
 mod rich_text;
 mod validate;
+mod view;
 
 pub use ids::carry_ids;
 pub use inline::segments;
+pub use document::DocumentSettings;
+pub use mark_kind::FIELD_CODES;
 pub use rich_text::{Block, BlockKind, Mark, MarkKind, RICH_TEXT_VERSION, RichText};
 pub use validate::{EditLevel, Limits, ModelRejection, validate};
+pub use view::{ModelViewV2, model_view_schema};
 
 #[must_use]
 pub fn rich_text_schema() -> schemars::Schema {

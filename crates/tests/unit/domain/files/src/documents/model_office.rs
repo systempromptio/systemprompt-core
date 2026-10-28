@@ -36,7 +36,8 @@ fn a_docx_body_imports_headings_lists_marks_and_raw_objects() {
         kinds[2],
         &BlockKind::ListItem {
             level: 0,
-            ordered: false
+            ordered: false,
+            numbering: None,
         }
     );
     assert!(

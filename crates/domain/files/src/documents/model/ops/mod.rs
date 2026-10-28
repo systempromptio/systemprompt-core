@@ -135,9 +135,8 @@ fn set_block_type(
             BlockKind::Heading { level: *level }
         },
         TextBlockType::Heading { .. } => return Err(malformed("a heading level is 1 to 6")),
-        TextBlockType::ListItem { level, ordered } if *level <= 8 => BlockKind::ListItem {
-            level: *level,
-            ordered: *ordered,
+        TextBlockType::ListItem { level, ordered } if *level <= 8 => {
+            BlockKind::list_item(*level, *ordered)
         },
         TextBlockType::ListItem { .. } => return Err(malformed("a list level is 0 to 8")),
         TextBlockType::Quote | TextBlockType::Code { .. } if office => {
@@ -171,7 +170,7 @@ fn new_table(fresh: &mut FreshIds, op: &InsertTable) -> Result<Block, CodecError
                 .collect()
         })
         .collect();
-    Ok(Block::new(fresh.next_id(), BlockKind::Table { rows }, ""))
+    Ok(Block::new(fresh.next_id(), BlockKind::table(rows), ""))
 }
 
 fn new_image(
@@ -179,7 +178,10 @@ fn new_image(
     format: DocumentFormat,
     op: &InsertImage,
 ) -> Result<Block, CodecError> {
-    if !matches!(format, DocumentFormat::Html | DocumentFormat::Markdown) {
+    if !matches!(
+        format,
+        DocumentFormat::Html | DocumentFormat::Markdown | DocumentFormat::Docx
+    ) {
         return Err(CodecError::UnsupportedOp {
             op: "insert_image",
             format,
@@ -188,10 +190,7 @@ fn new_image(
     if op.blob.is_empty() {
         return Err(malformed("insert_image needs a blob"));
     }
-    let kind = BlockKind::Image {
-        blob: op.blob.clone(),
-        alt: op.alt.clone(),
-    };
+    let kind = BlockKind::image(op.blob.clone(), op.alt.clone());
     Ok(Block::new(fresh.next_id(), kind, ""))
 }
 
@@ -221,7 +220,7 @@ impl FreshIds {
 fn collect_ids(model: &RichText, into: &mut HashSet<String>) {
     for block in &model.blocks {
         into.insert(block.id.clone());
-        if let BlockKind::Table { rows } = &block.kind {
+        if let BlockKind::Table { rows, .. } = &block.kind {
             for cell in rows.iter().flatten() {
                 collect_ids(cell, into);
             }

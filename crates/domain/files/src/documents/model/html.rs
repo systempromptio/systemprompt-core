@@ -27,9 +27,7 @@ pub fn import(body: &str) -> RichText {
     let mut reader = Reader::default();
     reader.children(fragment.root_element(), 0);
     reader.flush_loose();
-    RichText {
-        blocks: reader.blocks,
-    }
+    RichText::of(reader.blocks)
 }
 
 #[derive(Default)]
@@ -74,10 +72,7 @@ impl Reader {
             "hr" => return self.push(BlockKind::Divider, InlineBuf::default()),
             "img" => {
                 let attr = |key| element.value().attr(key).unwrap_or_default().to_owned();
-                let kind = BlockKind::Image {
-                    blob: attr("src"),
-                    alt: attr("alt"),
-                };
+                let kind = BlockKind::image(attr("src"), attr("alt"));
                 return self.push(kind, InlineBuf::default());
             },
             "table" => return self.table(element),
@@ -122,10 +117,7 @@ impl Reader {
             }
         }
         self.push(
-            BlockKind::ListItem {
-                level: depth,
-                ordered,
-            },
+            BlockKind::list_item(depth, ordered),
             buf,
         );
         for nested in item
@@ -153,14 +145,12 @@ impl Reader {
                     let mut block =
                         Block::new(self.ids.next_id(), BlockKind::Paragraph, text.trim());
                     block.marks = marks;
-                    RichText {
-                        blocks: vec![block],
-                    }
+                    RichText::of(vec![block])
                 })
                 .collect();
             rows.push(cells);
         }
-        self.push(BlockKind::Table { rows }, InlineBuf::default());
+        self.push(BlockKind::table(rows), InlineBuf::default());
     }
 
     fn push(&mut self, kind: BlockKind, mut buf: InlineBuf) {

@@ -26,12 +26,13 @@ pub(super) fn cell(fresh: &mut FreshIds, text: Option<&String>) -> RichText {
             BlockKind::Paragraph,
             text.cloned().unwrap_or_default(),
         )],
+        document: None,
     }
 }
 
 const fn rows_mut(block: &mut Block) -> Result<&mut Vec<Vec<RichText>>, CodecError> {
     match &mut block.kind {
-        BlockKind::Table { rows } => Ok(rows),
+        BlockKind::Table { rows, .. } => Ok(rows),
         BlockKind::Raw { .. } => Err(malformed(
             "this table is native markup the model keeps verbatim; it can only be deleted whole",
         )),

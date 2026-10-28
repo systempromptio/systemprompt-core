@@ -48,6 +48,7 @@ pub fn import(body: &SegmentedBody) -> RichText {
                 block
             })
             .collect(),
+        document: None,
     }
 }
 
@@ -101,5 +102,5 @@ fn find_same(segments: &[Segment], cursor: usize, block: &Block) -> Option<usize
 }
 
 fn same_content(a: &Block, b: &Block) -> bool {
-    a.kind == b.kind && a.text == b.text && a.marks == b.marks
+    a.kind == b.kind && a.attrs == b.attrs && a.text == b.text && a.marks == b.marks
 }

@@ -25,9 +25,7 @@ pub fn import(markdown: &str) -> RichText {
     ) {
         builder.event(event);
     }
-    RichText {
-        blocks: builder.blocks,
-    }
+    RichText::of(builder.blocks)
 }
 
 #[derive(Default)]
@@ -93,7 +91,7 @@ impl Builder {
             Tag::Item => {
                 let level = u8::try_from(self.lists.len().saturating_sub(1)).unwrap_or(u8::MAX);
                 let ordered = self.lists.last().copied().unwrap_or(false);
-                self.kind = Some(BlockKind::ListItem { level, ordered });
+                self.kind = Some(BlockKind::list_item(level, ordered));
             },
             Tag::Table(_) => self.table = true,
             Tag::TableRow | Tag::TableHead => self.rows.push(Vec::new()),
@@ -105,10 +103,7 @@ impl Builder {
             }),
             Tag::Image { dest_url, .. } => {
                 self.flush();
-                self.kind = Some(BlockKind::Image {
-                    blob: dest_url.to_string(),
-                    alt: String::new(),
-                });
+                self.kind = Some(BlockKind::image(dest_url.to_string(), String::new()));
             },
             _ => {},
         }
@@ -122,7 +117,7 @@ impl Builder {
             TagEnd::Image => {
                 let alt = self.inline.take().0;
                 if let Some(BlockKind::Image { blob, .. }) = self.kind.take() {
-                    self.emit(BlockKind::Image { blob, alt });
+                    self.emit(BlockKind::image(blob, alt));
                 }
             },
             TagEnd::BlockQuote(_) => self.quote = self.quote.saturating_sub(1),
@@ -134,13 +129,13 @@ impl Builder {
                 let mut cell = Block::new(self.ids.next_id(), BlockKind::Paragraph, text);
                 cell.marks = marks;
                 if let Some(row) = self.rows.last_mut() {
-                    row.push(RichText { blocks: vec![cell] });
+                    row.push(RichText::of(vec![cell]));
                 }
             },
             TagEnd::Table => {
                 self.table = false;
                 let rows = std::mem::take(&mut self.rows);
-                self.emit(BlockKind::Table { rows });
+                self.emit(BlockKind::table(rows));
             },
             TagEnd::Emphasis => self.inline.close_key("italic"),
             TagEnd::Strong => self.inline.close_key("bold"),
@@ -214,7 +209,7 @@ fn write_block(out: &mut String, block: &Block) {
             out.push(' ');
             out.push_str(&inline());
         },
-        BlockKind::ListItem { level, ordered } => {
+        BlockKind::ListItem { level, ordered, .. } => {
             out.push_str(&"  ".repeat(usize::from(*level)));
             out.push_str(if *ordered { "1. " } else { "- " });
             out.push_str(&inline());
@@ -230,9 +225,16 @@ fn write_block(out: &mut String, block: &Block) {
             out.push_str(&block.text);
             out.push_str("\n```");
         },
-        BlockKind::Table { rows } => write_table(out, rows),
-        BlockKind::Image { blob, alt } => out.push_str(&format!("![{alt}]({blob})")),
-        BlockKind::Divider | BlockKind::PageBreak => out.push_str("---"),
+        BlockKind::Table { rows, .. } => write_table(out, rows),
+        BlockKind::Image { blob, alt, .. } => out.push_str(&format!("![{alt}]({blob})")),
+        BlockKind::Callout { .. } => {
+            out.push_str("> ");
+            out.push_str(&inline().replace('\n', "\n> "));
+        },
+        BlockKind::Divider
+        | BlockKind::PageBreak
+        | BlockKind::SectionBreak { .. }
+        | BlockKind::Toc { .. } => out.push_str("---"),
         BlockKind::Raw { source } => out.push_str(source),
     }
 }

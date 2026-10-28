@@ -12,10 +12,12 @@ use loro::LoroDoc;
 use systemprompt_files::documents::model::RichText;
 
 use crate::rich::{
-    WriteError, block_map, blocks, insert_block, kind_json, string_of, sync_text, text_of,
+    WriteError, block_map, blocks, insert_block, kind_json, string_of, sync_attrs, sync_settings,
+    sync_text, text_of,
 };
 
 pub fn write_model(doc: &LoroDoc, target: &RichText) -> Result<(), WriteError> {
+    sync_settings(doc, target.document.as_deref())?;
     let list = blocks(doc);
     let wanted: HashSet<&str> = target
         .blocks
@@ -52,6 +54,7 @@ pub fn write_model(doc: &LoroDoc, target: &RichText) -> Result<(), WriteError> {
         if string_of(&map, "kind").as_deref() != Some(kind.as_str()) {
             map.insert("kind", kind)?;
         }
+        sync_attrs(&map, &block.attrs)?;
         let text = match text_of(&map) {
             Some(text) => text,
             None => map.insert_container("text", loro::LoroText::new())?,

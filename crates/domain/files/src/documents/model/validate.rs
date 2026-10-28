@@ -121,14 +121,30 @@ fn check_blocks<'a>(
             return Err(ModelRejection::BadBlockId(block.id.clone()));
         }
         check_block(block, limits)?;
-        if let BlockKind::Table { rows } = &block.kind {
-            let cells: usize = rows.iter().map(Vec::len).sum();
-            if depth + 1 > limits.depth || cells > limits.table_cells {
-                return Err(ModelRejection::TableTooLarge);
-            }
-            for cell in rows.iter().flatten() {
-                check_blocks(cell, limits, depth + 1, ids)?;
-            }
+        match &block.kind {
+            BlockKind::Table { rows, props } => {
+                let cells: usize = rows.iter().map(Vec::len).sum();
+                if depth + 1 > limits.depth || cells > limits.table_cells {
+                    return Err(ModelRejection::TableTooLarge);
+                }
+                let shades_ok = props
+                    .cells
+                    .iter()
+                    .flatten()
+                    .all(|cell| cell.shade.as_deref().is_none_or(is_color));
+                if !shades_ok || props.cells.len() > rows.len() {
+                    return Err(ModelRejection::BadAttribute(block.id.clone()));
+                }
+                for cell in rows.iter().flatten() {
+                    check_blocks(cell, limits, depth + 1, ids)?;
+                }
+            },
+            BlockKind::SectionBreak { section } => {
+                for part in section.running_parts() {
+                    check_blocks(part, limits, depth + 1, ids)?;
+                }
+            },
+            _ => {},
         }
     }
     Ok(())
@@ -143,17 +159,23 @@ fn check_block(block: &Block, limits: &Limits) -> Result<(), ModelRejection> {
         BlockKind::Heading { level } => (1..=6).contains(level),
         BlockKind::ListItem { level, .. } => *level <= 8,
         BlockKind::Code { language } => language.as_deref().map_or(0, str::len) <= 64,
-        BlockKind::Image { blob, alt } => {
+        BlockKind::Image {
+            blob, alt, caption, ..
+        } => {
             blob.len() <= limits.attr_chars
                 && alt.len() <= limits.attr_chars
-                && is_safe_url(blob, &["https:", "http:"])
+                && caption.as_deref().map_or(0, str::len) <= limits.attr_chars
+                && is_safe_url(blob, &["https:", "http:", "blob:", "docx-media:"])
         },
         BlockKind::Raw { source } => source.len() <= limits.block_chars,
+        BlockKind::Toc { levels } => (1..=9).contains(levels),
         BlockKind::Paragraph
         | BlockKind::Quote
+        | BlockKind::Callout { .. }
         | BlockKind::Table { .. }
         | BlockKind::Divider
-        | BlockKind::PageBreak => true,
+        | BlockKind::PageBreak
+        | BlockKind::SectionBreak { .. } => true,
     };
     if !attrs_ok {
         return Err(ModelRejection::BadAttribute(id()));
@@ -187,11 +209,19 @@ fn check_mark(
     let allowed = match &mark.kind {
         MarkKind::Link { href } => is_safe_url(href, &LINK_SCHEMES),
         MarkKind::Color { value } | MarkKind::Highlight { value } => is_color(value),
+        MarkKind::Size { value } => value
+            .parse::<f32>()
+            .is_ok_and(|pt| (1.0..=1638.0).contains(&pt)),
+        MarkKind::Field { code } => super::FIELD_CODES.contains(&code.as_str()),
+        MarkKind::Font { value } => !value.is_empty() && !value.contains(['<', '>', '"']),
         MarkKind::Bold
         | MarkKind::Italic
         | MarkKind::Underline
         | MarkKind::Strike
         | MarkKind::Code
+        | MarkKind::Superscript
+        | MarkKind::Subscript
+        | MarkKind::Caps
         | MarkKind::Comment { .. } => true,
     };
     if allowed {
@@ -237,7 +267,7 @@ fn collect_raw<'a>(model: &'a RichText, into: &mut HashSet<(&'a str, &'a str)>) 
             BlockKind::Raw { source } => {
                 into.insert((&block.id, source));
             },
-            BlockKind::Table { rows } => {
+            BlockKind::Table { rows, .. } => {
                 for cell in rows.iter().flatten() {
                     collect_raw(cell, into);
                 }
@@ -257,7 +287,7 @@ fn strip_comments(model: &RichText) -> RichText {
                 block
                     .marks
                     .retain(|mark| !matches!(mark.kind, MarkKind::Comment { .. }));
-                if let BlockKind::Table { rows } = &mut block.kind {
+                if let BlockKind::Table { rows, .. } = &mut block.kind {
                     for cell in rows.iter_mut().flatten() {
                         *cell = strip_comments(cell);
                     }
@@ -265,5 +295,6 @@ fn strip_comments(model: &RichText) -> RichText {
                 block
             })
             .collect(),
+        document: model.document.clone(),
     }
 }

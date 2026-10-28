@@ -6,17 +6,46 @@
 //! id that comments, agents and MCP reads address it by; it survives every
 //! edit of the block and is never reused within a document.
 //!
+//! Version 2 adds paragraph attributes ([`ParaAttrs`]), numbered lists bound
+//! to a numbering definition, table geometry and cell styling, image
+//! placement and captions, callouts, sections, a table of contents and the
+//! document-level [`DocumentSettings`]. Every addition is optional, so a
+//! version 1 model reads as the same version 2 model.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const RICH_TEXT_VERSION: u32 = 1;
+use super::document::DocumentSettings;
+use super::layout::{CalloutTone, ImageWrap, ParaAttrs, Section, TableProps};
+pub use super::mark_kind::MarkKind;
+
+pub const RICH_TEXT_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RichText {
     pub blocks: Vec<Block>,
+    /// Styles, theme, numbering and final page setup. Only a document's
+    /// top-level model carries it; a table cell or header never does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub document: Option<Box<DocumentSettings>>,
+}
+
+impl RichText {
+    #[must_use]
+    pub const fn of(blocks: Vec<Block>) -> Self {
+        Self {
+            blocks,
+            document: None,
+        }
+    }
+
+    #[must_use]
+    pub fn settings(&self) -> DocumentSettings {
+        self.document.as_deref().cloned().unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -24,15 +53,18 @@ pub struct Block {
     pub id: String,
     #[serde(flatten)]
     pub kind: BlockKind,
+    #[serde(default, skip_serializing_if = "ParaAttrs::is_default")]
+    pub attrs: ParaAttrs,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub text: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub marks: Vec<Mark>,
 }
 
-/// A block's type and attributes. Only paragraph, heading, list item, quote
-/// and code blocks carry text; `Raw` is native markup the model does not
-/// own, kept verbatim and never authored by a live update.
+/// A block's type and attributes. Paragraph, heading, list item, quote,
+/// code and callout blocks carry text; `Raw` is native markup the model
+/// does not own, kept verbatim and never authored by a live update. A
+/// `section_break` ends a section and carries that section's page setup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BlockKind {
@@ -43,6 +75,10 @@ pub enum BlockKind {
     ListItem {
         level: u8,
         ordered: bool,
+        /// A numbering definition id from the document settings; `None`
+        /// uses the built-in bullet or decimal list.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        numbering: Option<String>,
     },
     Quote,
     Code {
@@ -51,20 +87,70 @@ pub enum BlockKind {
     },
     Table {
         rows: Vec<Vec<RichText>>,
+        #[serde(default, skip_serializing_if = "TableProps::is_default")]
+        props: TableProps,
     },
     Image {
         blob: String,
         #[serde(default, skip_serializing_if = "String::is_empty")]
         alt: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        width: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        height: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        caption: Option<String>,
+        #[serde(default, skip_serializing_if = "is_inline")]
+        wrap: ImageWrap,
+    },
+    Callout {
+        tone: CalloutTone,
     },
     Divider,
     PageBreak,
+    SectionBreak {
+        section: Box<Section>,
+    },
+    /// A table of contents over headings up to `levels`.
+    Toc {
+        #[serde(default = "toc_levels")]
+        levels: u8,
+    },
     Raw {
         source: String,
     },
 }
 
 impl BlockKind {
+    #[must_use]
+    pub fn table(rows: Vec<Vec<RichText>>) -> Self {
+        Self::Table {
+            rows,
+            props: TableProps::default(),
+        }
+    }
+
+    #[must_use]
+    pub const fn image(blob: String, alt: String) -> Self {
+        Self::Image {
+            blob,
+            alt,
+            width: None,
+            height: None,
+            caption: None,
+            wrap: ImageWrap::Inline,
+        }
+    }
+
+    #[must_use]
+    pub const fn list_item(level: u8, ordered: bool) -> Self {
+        Self::ListItem {
+            level,
+            ordered,
+            numbering: None,
+        }
+    }
+
     #[must_use]
     pub const fn has_text(&self) -> bool {
         matches!(
@@ -74,8 +160,17 @@ impl BlockKind {
                 | Self::ListItem { .. }
                 | Self::Quote
                 | Self::Code { .. }
+                | Self::Callout { .. }
         )
     }
+}
+
+const fn is_inline(wrap: &ImageWrap) -> bool {
+    matches!(wrap, ImageWrap::Inline)
+}
+
+const fn toc_levels() -> u8 {
+    3
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -86,85 +181,13 @@ pub struct Mark {
     pub kind: MarkKind,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
-)]
-#[serde(tag = "mark", rename_all = "snake_case")]
-pub enum MarkKind {
-    Bold,
-    Italic,
-    Underline,
-    Strike,
-    Code,
-    Link { href: String },
-    Color { value: String },
-    Highlight { value: String },
-    Comment { thread: String },
-}
-
-impl MarkKind {
-    #[must_use]
-    pub const fn key(&self) -> &'static str {
-        match self {
-            Self::Bold => "bold",
-            Self::Italic => "italic",
-            Self::Underline => "underline",
-            Self::Strike => "strike",
-            Self::Code => "code",
-            Self::Link { .. } => "link",
-            Self::Color { .. } => "color",
-            Self::Highlight { .. } => "highlight",
-            Self::Comment { .. } => "comment",
-        }
-    }
-
-    #[must_use]
-    pub fn value(&self) -> &str {
-        match self {
-            Self::Link { href: v }
-            | Self::Color { value: v }
-            | Self::Highlight { value: v }
-            | Self::Comment { thread: v } => v,
-            Self::Bold | Self::Italic | Self::Underline | Self::Strike | Self::Code => "",
-        }
-    }
-
-    #[must_use]
-    pub fn from_key(key: &str, value: &str) -> Option<Self> {
-        let owned = || value.to_owned();
-        Some(match key {
-            "bold" => Self::Bold,
-            "italic" => Self::Italic,
-            "underline" => Self::Underline,
-            "strike" => Self::Strike,
-            "code" => Self::Code,
-            "link" => Self::Link { href: owned() },
-            "color" => Self::Color { value: owned() },
-            "highlight" => Self::Highlight { value: owned() },
-            "comment" => Self::Comment { thread: owned() },
-            _ => return None,
-        })
-    }
-
-    pub const KEYS: [&'static str; 9] = [
-        "bold",
-        "italic",
-        "underline",
-        "strike",
-        "code",
-        "link",
-        "color",
-        "highlight",
-        "comment",
-    ];
-}
-
 impl Block {
     #[must_use]
     pub fn new(id: impl Into<String>, kind: BlockKind, text: impl Into<String>) -> Self {
         Self {
             id: id.into(),
             kind,
+            attrs: ParaAttrs::default(),
             text: text.into(),
             marks: Vec::new(),
         }

@@ -141,6 +141,23 @@ pub(crate) fn render_html(text: &str, marks: &[Mark]) -> String {
                         escape_html(thread)
                     )
                 },
+                MarkKind::Font { value } => format!(
+                    "<span style=\"font-family:{}\">{piece}</span>",
+                    escape_html(value)
+                ),
+                MarkKind::Size { value } => format!(
+                    "<span style=\"font-size:{}pt\">{piece}</span>",
+                    escape_html(value)
+                ),
+                MarkKind::Superscript => format!("<sup>{piece}</sup>"),
+                MarkKind::Subscript => format!("<sub>{piece}</sub>"),
+                MarkKind::Caps => {
+                    format!("<span style=\"text-transform:uppercase\">{piece}</span>")
+                },
+                MarkKind::Field { code } => format!(
+                    "<span data-field=\"{}\">{piece}</span>",
+                    escape_html(code)
+                ),
             };
         }
         out.push_str(&piece);

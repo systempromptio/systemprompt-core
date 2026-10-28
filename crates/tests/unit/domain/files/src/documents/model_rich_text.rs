@@ -29,11 +29,13 @@ fn markdown_imports_blocks_and_marks_with_deterministic_ids() {
             BlockKind::Paragraph,
             BlockKind::ListItem {
                 level: 0,
-                ordered: false
+                ordered: false,
+                numbering: None,
             },
             BlockKind::ListItem {
                 level: 1,
-                ordered: false
+                ordered: false,
+                numbering: None,
             },
         ]
     );
@@ -72,7 +74,8 @@ fn html_round_trips_blocks_and_keeps_unknown_markup_verbatim() {
     assert!(model.blocks.iter().any(|b| b.kind
         == BlockKind::ListItem {
             level: 1,
-            ordered: false
+            ordered: false,
+            numbering: None,
         }));
     let again = html::import(&html::materialise(&model));
     assert_eq!(again, model);
@@ -82,9 +85,11 @@ fn html_round_trips_blocks_and_keeps_unknown_markup_verbatim() {
 fn a_valid_edit_passes_and_a_disallowed_link_is_rejected() {
     let before = RichText {
         blocks: vec![para("b1", "hello")],
+        document: None,
     };
     let ok = RichText {
         blocks: vec![marked(para("b1", "hello"), 0, 5, MarkKind::Bold)],
+        document: None,
     };
     assert!(check(&before, &ok, EditLevel::Edit).is_ok());
     let evil = RichText {
@@ -96,6 +101,7 @@ fn a_valid_edit_passes_and_a_disallowed_link_is_rejected() {
                 href: "javascript:alert(1)".into(),
             },
         )],
+        document: None,
     };
     assert_eq!(
         check(&before, &evil, EditLevel::Edit).map_err(|e| e.reason()),
@@ -108,6 +114,7 @@ fn duplicate_ids_marks_past_the_text_and_oversize_models_are_rejected() {
     let empty = RichText::default();
     let twice = RichText {
         blocks: vec![para("b1", "a"), para("b1", "b")],
+        document: None,
     };
     assert_eq!(
         check(&empty, &twice, EditLevel::Edit).map_err(|e| e.reason()),
@@ -115,6 +122,7 @@ fn duplicate_ids_marks_past_the_text_and_oversize_models_are_rejected() {
     );
     let past = RichText {
         blocks: vec![marked(para("b1", "ab"), 0, 9, MarkKind::Italic)],
+        document: None,
     };
     assert_eq!(
         check(&empty, &past, EditLevel::Edit).map_err(|e| e.reason()),
@@ -126,6 +134,7 @@ fn duplicate_ids_marks_past_the_text_and_oversize_models_are_rejected() {
     };
     let many = RichText {
         blocks: vec![para("b1", "a"), para("b2", "b")],
+        document: None,
     };
     assert_eq!(
         validate(&empty, &many, EditLevel::Edit, &limits).map_err(|e| e.reason()),
@@ -144,6 +153,7 @@ fn a_live_update_cannot_author_raw_markup() {
             },
             "",
         )],
+        document: None,
     };
     assert_eq!(
         check(&empty, &raw, EditLevel::Edit).map_err(|e| e.reason()),
@@ -156,6 +166,7 @@ fn a_live_update_cannot_author_raw_markup() {
 fn a_comment_level_caller_may_only_change_comment_marks() {
     let before = RichText {
         blocks: vec![para("b1", "hello")],
+        document: None,
     };
     let commented = RichText {
         blocks: vec![marked(
@@ -166,10 +177,12 @@ fn a_comment_level_caller_may_only_change_comment_marks() {
                 thread: "t1".into(),
             },
         )],
+        document: None,
     };
     assert!(check(&before, &commented, EditLevel::Comment).is_ok());
     let rewritten = RichText {
         blocks: vec![para("b1", "goodbye")],
+        document: None,
     };
     assert_eq!(
         check(&before, &rewritten, EditLevel::Comment),
@@ -181,6 +194,7 @@ fn a_comment_level_caller_may_only_change_comment_marks() {
 fn a_reimport_carries_the_live_ids_and_never_reuses_one() {
     let live = RichText {
         blocks: vec![para("u.1", "one"), para("u.2", "two"), para("u.3", "three")],
+        document: None,
     };
     let mut next = RichText {
         blocks: vec![
@@ -189,6 +203,7 @@ fn a_reimport_carries_the_live_ids_and_never_reuses_one() {
             para("b3", "new"),
             para("b4", "three"),
         ],
+        document: None,
     };
     carry_ids(&live, &mut next);
     let ids: Vec<_> = next.blocks.iter().map(|b| b.id.as_str()).collect();

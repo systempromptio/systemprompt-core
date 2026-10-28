@@ -103,7 +103,7 @@ fn write_block(block: &Block) -> String {
             )
         },
         BlockKind::Raw { source } => source.clone(),
-        BlockKind::Table { rows } => table_xml(rows),
+        BlockKind::Table { rows, .. } => table_xml(rows),
         _ => format!("<text:p>{text}</text:p>"),
     }
 }

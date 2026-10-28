@@ -91,10 +91,7 @@ fn para_block(src: &str, para: &Para) -> Block {
         NodeKind::Heading { level } => BlockKind::Heading {
             level: level.min(6),
         },
-        NodeKind::ListItem => BlockKind::ListItem {
-            level: 0,
-            ordered: false,
-        },
+        NodeKind::ListItem => BlockKind::list_item(0, false),
         _ => BlockKind::Paragraph,
     };
     let mut block = Block::new(String::new(), kind, para.text());
@@ -142,7 +139,7 @@ fn write_block(block: &Block, links: &mut Links) -> String {
             "<w:pPr><w:numPr><w:ilvl w:val=\"{level}\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr>"
         ),
         BlockKind::Raw { source } => return source.clone(),
-        BlockKind::Table { rows } => return table_xml(rows, links),
+        BlockKind::Table { rows, .. } => return table_xml(rows, links),
         BlockKind::PageBreak => return "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>".to_owned(),
         BlockKind::Divider => return DIVIDER.to_owned(),
         _ => String::new(),

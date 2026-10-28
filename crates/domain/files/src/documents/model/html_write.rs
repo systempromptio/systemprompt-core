@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::inline::{escape_html, render_html};
+use super::layout::CalloutTone;
 use super::rich_text::{Block, BlockKind, RichText};
 
 #[must_use]
@@ -15,7 +16,7 @@ pub fn materialise(model: &RichText) -> String {
     let mut lists: Vec<bool> = Vec::new();
     for block in &model.blocks {
         let target = match block.kind {
-            BlockKind::ListItem { level, ordered } => Some((usize::from(level) + 1, ordered)),
+            BlockKind::ListItem { level, ordered, .. } => Some((usize::from(level) + 1, ordered)),
             _ => None,
         };
         let depth = target.map_or(0, |(depth, _)| depth);
@@ -48,16 +49,25 @@ fn write_block(out: &mut String, block: &Block) {
         BlockKind::ListItem { .. } => format!("<li>{inline}</li>"),
         BlockKind::Quote => format!("<blockquote>{inline}</blockquote>"),
         BlockKind::Code { .. } => format!("<pre>{}</pre>", escape_html(&block.text)),
-        BlockKind::Table { rows } => table_html(rows),
-        BlockKind::Image { blob, alt } => {
+        BlockKind::Table { rows, .. } => table_html(rows),
+        BlockKind::Image { blob, alt, .. } => {
             format!(
                 "<img src=\"{}\" alt=\"{}\">",
                 escape_html(blob),
                 escape_html(alt)
             )
         },
+        BlockKind::Callout { tone } => {
+            format!(
+                "<aside class=\"callout callout-{}\">{inline}</aside>",
+                tone_name(*tone)
+            )
+        },
         BlockKind::Divider => "<hr>".to_owned(),
-        BlockKind::PageBreak => "<hr style=\"page-break-after:always\">".to_owned(),
+        BlockKind::PageBreak | BlockKind::SectionBreak { .. } => {
+            "<hr style=\"page-break-after:always\">".to_owned()
+        },
+        BlockKind::Toc { .. } => "<nav class=\"toc\"></nav>".to_owned(),
         BlockKind::Raw { source } => source.clone(),
     };
     out.push_str(&line);
@@ -80,4 +90,14 @@ fn table_html(rows: &[Vec<RichText>]) -> String {
     }
     out.push_str("</table>");
     out
+}
+
+const fn tone_name(tone: CalloutTone) -> &'static str {
+    match tone {
+        CalloutTone::Info => "info",
+        CalloutTone::Success => "success",
+        CalloutTone::Warning => "warning",
+        CalloutTone::Danger => "danger",
+        CalloutTone::Note => "note",
+    }
 }
