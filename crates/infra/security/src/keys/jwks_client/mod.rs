@@ -2,12 +2,12 @@
 //! and a per-deployment host allowlist.
 //!
 //! The client is keyed on issuer URL and caches the parsed
-//! [`super::jwks::Jwks`] together with an expiry derived from the response's
-//! `Cache-Control: max-age=` header (clamped between [`MIN_CACHE_TTL`] and
-//! [`MAX_CACHE_TTL`]; falls back to [`DEFAULT_CACHE_TTL`] when the header is
-//! missing or unparseable). Callers resolve a `(issuer, kid)` pair to a
-//! concrete [`super::jwks::Jwk`]; a cache miss for the `kid` forces a refresh
-//! in case the issuer rotated keys mid-window.
+//! [`super::jwks::VerificationKeySet`] together with an expiry derived from the
+//! response's `Cache-Control: max-age=` header (clamped between
+//! [`MIN_CACHE_TTL`] and [`MAX_CACHE_TTL`]; falls back to [`DEFAULT_CACHE_TTL`]
+//! when the header is missing or unparseable). Callers resolve a `(issuer,
+//! kid)` pair to a concrete [`super::jwks::VerificationKey`]; a cache miss for
+//! the `kid` forces a refresh in case the issuer rotated keys mid-window.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -11,7 +11,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission};
@@ -84,11 +84,17 @@ pub async fn validate_subject_token(
         .await
         .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;
 
-    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
-        IssuanceError::malformed("subject_token", "invalid RSA components in JWK", e)
+    if header.alg != jwk.algorithm() {
+        return Err(IssuanceError::InvalidRequest {
+            field: "subject_token".to_owned(),
+            message: format!("algorithm {:?} does not match the issuer key", header.alg),
+        });
+    }
+    let decoding_key = jwk.decoding_key().map_err(|e| {
+        IssuanceError::malformed("subject_token", "invalid key components in JWK", e)
     })?;
 
-    let mut validation = Validation::new(Algorithm::RS256);
+    let mut validation = Validation::new(jwk.algorithm());
     validation.set_issuer(&[&trusted.issuer]);
     validation.set_audience(&[&trusted.audience]);
     validation.set_required_spec_claims(&REQUIRED_CLAIMS);

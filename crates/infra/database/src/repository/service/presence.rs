@@ -1,10 +1,12 @@
 //! Per-replica role presence: every replica records its `server.role` with
 //! each registry heartbeat, so the live replica count per role is readable
-//! cluster-wide, including for roles that register no process.
+//! cluster-wide, including for roles that register no process, and the live
+//! members of one role are listable for spreading work across them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::profile::NodeRole;
 
 use super::liveness::INSTANCE_DEAD_AFTER_SECS;
@@ -50,6 +52,31 @@ impl ServiceRepository {
             INSTANCE_DEAD_AFTER_SECS as f64
         )
         .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn list_reachable_instances(
+        &self,
+        role: NodeRole,
+        fresh_within_secs: i64,
+    ) -> DatabaseResult<Vec<InstanceId>> {
+        let rows = sqlx::query_scalar!(
+            r#"
+            SELECT p.instance_id AS "instance_id!: InstanceId"
+            FROM instance_presence p
+            JOIN instance_endpoints e ON e.instance_id = p.instance_id
+            WHERE p.role = $1
+              AND p.heartbeat_at
+                  >= CURRENT_TIMESTAMP - make_interval(secs => $2::double precision)
+              AND e.heartbeat_at
+                  >= CURRENT_TIMESTAMP - make_interval(secs => $2::double precision)
+            ORDER BY p.instance_id
+            "#,
+            role.as_str(),
+            fresh_within_secs as f64
+        )
+        .fetch_all(&*self.write_pool)
         .await?;
         Ok(rows)
     }

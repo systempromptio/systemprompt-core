@@ -3,9 +3,11 @@
 //! Each fixture keeps the provider's member set — Entra ID's `x5t` / `x5c` /
 //! `issuer` / `cloud_instance_name` with no `alg`, Google's `alg` + `use`,
 //! Okta's and Auth0's extras, and sets mixing `EC` / `OKP` / encryption keys —
-//! and asserts the set parses to exactly the keys an RS256 verifier may use.
+//! and asserts the set parses to exactly the keys an RS256 or ES256 verifier
+//! may use.
 
-use systemprompt_security::keys::{Jwk, Jwks, JwksClient};
+use jsonwebtoken::Algorithm;
+use systemprompt_security::keys::{Jwk, JwksClient, VerificationKey, VerificationKeySet};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -15,8 +17,8 @@ fn rsa_parts() -> (String, String) {
     (jwk.n, jwk.e)
 }
 
-fn kids(jwks: &Jwks) -> Vec<&str> {
-    jwks.keys.iter().map(|k| k.kid.as_str()).collect()
+fn kids(jwks: &VerificationKeySet) -> Vec<&str> {
+    jwks.keys.iter().map(VerificationKey::kid).collect()
 }
 
 fn entra_jwks(n: &str, e: &str) -> serde_json::Value {
@@ -50,16 +52,13 @@ fn entra_jwks(n: &str, e: &str) -> serde_json::Value {
 #[test]
 fn entra_jwks_without_alg_parses_every_key() {
     let (n, e) = rsa_parts();
-    let jwks: Jwks = serde_json::from_value(entra_jwks(&n, &e)).expect("Entra JWKS parses");
+    let jwks: VerificationKeySet =
+        serde_json::from_value(entra_jwks(&n, &e)).expect("Entra JWKS parses");
     assert_eq!(
         kids(&jwks),
         ["JYhAcTPMZ_LX6DBlOWQ7Hn0NeXE", "L1KfKFI_jnXbwWc22xZxw1sUHH0"]
     );
-    assert!(
-        jwks.keys
-            .iter()
-            .all(|k| k.alg == "RS256" && k.use_ == "sig")
-    );
+    assert!(jwks.keys.iter().all(|k| k.algorithm() == Algorithm::RS256));
 }
 
 #[test]
@@ -71,7 +70,7 @@ fn google_jwks_parses() {
             {"e": e, "kty": "RSA", "kid": "g-2", "n": n, "alg": "RS256", "use": "sig"}
         ]
     });
-    let jwks: Jwks = serde_json::from_value(doc).expect("Google JWKS parses");
+    let jwks: VerificationKeySet = serde_json::from_value(doc).expect("Google JWKS parses");
     assert_eq!(kids(&jwks), ["g-1", "g-2"]);
 }
 
@@ -87,8 +86,8 @@ fn okta_and_auth0_jwks_parse() {
             "x5t": "abc", "x5c": ["MIIDDTCCAfWgAwIBAgIJ"], "alg": "RS256"
         }]
     });
-    let okta: Jwks = serde_json::from_value(okta).expect("Okta JWKS parses");
-    let auth0: Jwks = serde_json::from_value(auth0).expect("Auth0 JWKS parses");
+    let okta: VerificationKeySet = serde_json::from_value(okta).expect("Okta JWKS parses");
+    let auth0: VerificationKeySet = serde_json::from_value(auth0).expect("Auth0 JWKS parses");
     assert_eq!(kids(&okta), ["okta-1"]);
     assert_eq!(kids(&auth0), ["auth0-1"]);
 }
@@ -109,16 +108,28 @@ fn non_rsa_and_non_signing_keys_are_dropped_not_fatal() {
             {"kty": "RSA", "use": "sig", "n": n, "e": e},
             {"kty": "RSA", "kid": "no-modulus", "e": e},
             {"kty": "RSA", "kid": "rsa-ok", "key_ops": ["verify"], "n": n, "e": e},
+            {"kty": "EC", "crv": "P-384", "kid": "p384", "use": "sig",
+             "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+             "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"},
+            {"kty": "EC", "crv": "P-256", "kid": "ec-es384", "alg": "ES384",
+             "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+             "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"},
+            {"kty": "EC", "crv": "P-256", "kid": "ec-no-y",
+             "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU"},
+            {"kty": "RSA", "alg": "ES256", "kid": "rsa-es256", "n": n, "e": e},
             "not even an object"
         ]
     });
-    let jwks: Jwks = serde_json::from_value(doc).expect("mixed JWKS parses");
-    assert_eq!(kids(&jwks), ["rsa-ok"]);
+    let jwks: VerificationKeySet = serde_json::from_value(doc).expect("mixed JWKS parses");
+    assert_eq!(kids(&jwks), ["ec-1", "rsa-ok"]);
+    let algorithms: Vec<_> = jwks.keys.iter().map(VerificationKey::algorithm).collect();
+    assert_eq!(algorithms, [Algorithm::ES256, Algorithm::RS256]);
+    assert!(jwks.keys.iter().all(|k| k.decoding_key().is_ok()));
 }
 
 #[test]
 fn a_document_without_keys_is_still_an_error() {
-    assert!(serde_json::from_value::<Jwks>(serde_json::json!({"kids": []})).is_err());
+    assert!(serde_json::from_value::<VerificationKeySet>(serde_json::json!({"kids": []})).is_err());
 }
 
 #[test]
@@ -126,8 +137,22 @@ fn published_jwks_round_trips() {
     let signing = systemprompt_test_fixtures::next_test_key();
     let jwks = signing.jwks();
     let wire = serde_json::to_string(&jwks).expect("serialize");
-    let parsed: Jwks = serde_json::from_str(&wire).expect("parse");
-    assert_eq!(parsed, jwks);
+    let parsed: VerificationKeySet = serde_json::from_str(&wire).expect("parse");
+    assert_eq!(parsed, VerificationKeySet::from(&jwks));
+}
+
+#[test]
+fn published_rsa_jwk_serialises_in_the_fixed_member_order() {
+    let signing = systemprompt_test_fixtures::next_test_key();
+    let jwk = Jwk::from_rsa_public_key(signing.public_key(), "kid-1".to_owned());
+    let wire = serde_json::to_string(&jwk).expect("serialize");
+    assert_eq!(
+        wire,
+        format!(
+            r#"{{"kty":"RSA","alg":"RS256","use":"sig","kid":"kid-1","n":"{}","e":"{}"}}"#,
+            jwk.n, jwk.e
+        )
+    );
 }
 
 #[tokio::test]
@@ -153,5 +178,5 @@ async fn jwks_client_resolves_a_kid_from_an_entra_shaped_document() {
         )
         .await
         .expect("Entra kid resolves");
-    assert_eq!(jwk.n, n);
+    assert!(matches!(jwk, VerificationKey::Rsa { n: ref got, .. } if *got == n));
 }

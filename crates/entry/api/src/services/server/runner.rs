@@ -2,8 +2,8 @@
 //!
 //! Phases follow `server.role` ([`super::routes::role::lifecycle_plan`]): a
 //! gateway or api node runs no MCP servers, agents or scheduler; an `all` node
-//! supervises them itself; a worker supervises them only while it holds the
-//! process supervisor lease ([`super::lifecycle::process_ownership`]); a
+//! supervises them all itself; a worker supervises the processes whose
+//! per-process leases it holds ([`super::lifecycle::process_ownership`]); a
 //! runner node starts each extension's [`systemprompt_traits::RunnerService`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -161,12 +161,6 @@ async fn serve_until_shutdown(
     serve_result
 }
 
-pub(super) async fn supervise_processes(ctx: &AppContext) -> Result<()> {
-    let mcp_orchestrator = create_mcp_orchestrator(ctx)?;
-    reconcile_system_services(ctx, &mcp_orchestrator, None).await?;
-    run_agents_phase(ctx, None).await
-}
-
 fn start_runner_services(ctx: &AppContext) {
     let shared = Arc::new(ctx.clone());
     let mut started = 0usize;
@@ -197,7 +191,7 @@ fn start_runner_services(ctx: &AppContext) {
     tracing::info!(started, "runner services started");
 }
 
-fn create_mcp_orchestrator(
+pub(in crate::services::server) fn create_mcp_orchestrator(
     ctx: &AppContext,
 ) -> Result<Arc<systemprompt_mcp::services::McpOrchestrator>> {
     use systemprompt_mcp::services::McpOrchestrator;

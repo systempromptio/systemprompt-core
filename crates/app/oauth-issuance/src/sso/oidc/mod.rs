@@ -41,9 +41,9 @@ use uuid::Uuid;
 pub use config::{CONFIG_FILE, OidcClaimMapping, OidcConfig, OidcConfigError};
 pub use discovery::OidcDiscovery;
 pub use error::OidcProviderError;
-pub use verify::{ALLOWED_ALGORITHMS, identity_from_claims, validate_id_token};
+pub use verify::{identity_from_claims, validate_id_token};
 
-use super::registry::SsoHookContext;
+use super::registry::{SsoHookContext, SsoProviderError};
 use discovery::DiscoveryCache;
 use token::{CodeRedemption, redeem_code};
 
@@ -129,21 +129,15 @@ pub fn build(ctx: &SsoHookContext) -> Result<Option<OidcProvider>, OidcConfigErr
     OidcProvider::new(cfg, Arc::clone(&ctx.secrets), &ctx.config.api_external_url).map(Some)
 }
 
-fn factory(ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
-    match build(ctx) {
-        Ok(Some(provider)) => {
-            tracing::info!(
-                issuer = provider.cfg.issuer(),
-                "Generic OIDC SSO provider enabled"
-            );
-            Some(Arc::new(provider))
-        },
-        Ok(None) => None,
-        Err(error) => {
-            tracing::error!(%error, file = CONFIG_FILE, "Generic OIDC SSO config rejected; provider off");
-            None
-        },
-    }
+fn factory(ctx: &SsoHookContext) -> Result<Option<Arc<dyn SsoProvider>>, SsoProviderError> {
+    let Some(provider) = build(ctx).map_err(|source| SsoProviderError::config(ID, source))? else {
+        return Ok(None);
+    };
+    tracing::info!(
+        issuer = provider.cfg.issuer(),
+        "Generic OIDC SSO provider enabled"
+    );
+    Ok(Some(Arc::new(provider)))
 }
 
 crate::register_sso_provider!(factory);

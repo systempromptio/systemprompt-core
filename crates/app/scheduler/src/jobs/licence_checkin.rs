@@ -15,20 +15,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use hmac::{Hmac, KeyInit, Mac};
-use serde::Serialize;
-use sha2::Sha256;
 use systemprompt_client::{GuardedClientConfig, guarded_client};
 use systemprompt_config::LoadedProfile;
 use systemprompt_database::{DbPool, RoleCount};
-use systemprompt_identifiers::{EnterpriseLicenseId, InstanceId, TenantId};
+use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::profile::{LICENCE_SIGNING_SECRET, LicenceConfig, Profile};
+use systemprompt_models::licence::{
+    CHECKIN_SIGNATURE_HEADER, CHECKIN_TENANT_HEADER, LicenceCheckin, sign_checkin,
+};
 use systemprompt_models::net::validate_outbound_url;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
@@ -38,48 +37,30 @@ use crate::repository::LicenceCheckinRepository;
 use crate::services::scheduling::job_app_context;
 
 pub const JOB_NAME: &str = "licence_checkin";
-pub const SIGNATURE_HEADER: &str = "X-Systemprompt-Signature";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 
-type HmacSha256 = Hmac<Sha256>;
-
-/// The signed body of one licence check-in.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct LicenceCheckin {
-    pub licence_id: Option<EnterpriseLicenseId>,
-    pub tenant_id: Option<TenantId>,
-    pub instance_id: InstanceId,
-    pub core_version: String,
-    pub hosting_provider: String,
-    pub external_host: Option<String>,
-    pub instances_by_role: BTreeMap<String, i64>,
-    pub timestamp: DateTime<Utc>,
-}
-
-impl LicenceCheckin {
-    #[must_use]
-    pub fn build(
-        profile: &Profile,
-        instance_id: InstanceId,
-        roles: &[RoleCount],
-        timestamp: DateTime<Utc>,
-    ) -> Self {
-        let external_host = url::Url::parse(&profile.server.external_url)
-            .ok()
-            .and_then(|url| url.host_str().map(str::to_owned));
-        Self {
-            licence_id: profile.licence.licence_id.clone(),
-            tenant_id: profile.cloud.as_ref().and_then(|c| c.tenant_id.clone()),
-            instance_id,
-            core_version: env!("CARGO_PKG_VERSION").to_owned(),
-            hosting_provider: profile.hosting_provider().as_str().to_owned(),
-            external_host,
-            instances_by_role: roles
-                .iter()
-                .map(|r| (r.role.clone(), r.instances))
-                .collect(),
-            timestamp,
-        }
+#[must_use]
+pub fn build_checkin(
+    profile: &Profile,
+    instance_id: InstanceId,
+    roles: &[RoleCount],
+    timestamp: DateTime<Utc>,
+) -> LicenceCheckin {
+    let external_host = url::Url::parse(&profile.server.external_url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_owned));
+    LicenceCheckin {
+        licence_id: profile.licence.licence_id.clone(),
+        tenant_id: profile.cloud.as_ref().and_then(|c| c.tenant_id.clone()),
+        instance_id,
+        core_version: env!("CARGO_PKG_VERSION").to_owned(),
+        hosting_provider: profile.hosting_provider().as_str().to_owned(),
+        external_host,
+        instances_by_role: roles
+            .iter()
+            .map(|r| (r.role.clone(), r.instances))
+            .collect(),
+        timestamp,
     }
 }
 
@@ -87,8 +68,6 @@ impl LicenceCheckin {
 pub enum LicenceCheckinError {
     #[error("licence_signing_secret is not set")]
     MissingSecret,
-    #[error("licence signing key rejected: {0}")]
-    SigningKey(#[source] hmac::digest::InvalidLength),
     #[error("licence check-in body could not be encoded: {0}")]
     Encode(#[source] serde_json::Error),
     #[error("licence endpoint refused: {0}")]
@@ -107,13 +86,6 @@ impl LicenceCheckinError {
             _ => None,
         }
     }
-}
-
-pub fn sign_body(secret: &[u8], body: &[u8]) -> Result<String, LicenceCheckinError> {
-    let mut mac =
-        <HmacSha256 as KeyInit>::new_from_slice(secret).map_err(LicenceCheckinError::SigningKey)?;
-    mac.update(body);
-    Ok(hex::encode(mac.finalize().into_bytes()))
 }
 
 #[must_use]
@@ -185,7 +157,7 @@ impl Job for LicenceCheckinJob {
                 Vec::new()
             },
         };
-        let checkin = LicenceCheckin::build(
+        let checkin = build_checkin(
             profile,
             app.config().instance_id.clone(),
             &roles,
@@ -229,15 +201,16 @@ async fn post_checkin(
     let secret = secret.ok_or(LicenceCheckinError::MissingSecret)?;
     let url = validate_outbound_url(&config.endpoint).map_err(LicenceCheckinError::Endpoint)?;
     let body = serde_json::to_vec(checkin).map_err(LicenceCheckinError::Encode)?;
-    let signature = sign_body(secret.as_bytes(), &body)?;
+    let signature = sign_checkin(&body, secret.as_bytes());
     let client = guarded_client(&GuardedClientConfig::default().with_timeout(REQUEST_TIMEOUT))?;
-    let response = client
+    let mut request = client
         .post(url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .header(SIGNATURE_HEADER, signature)
-        .body(body)
-        .send()
-        .await?;
+        .header(CHECKIN_SIGNATURE_HEADER, signature);
+    if let Some(tenant_id) = &checkin.tenant_id {
+        request = request.header(CHECKIN_TENANT_HEADER, tenant_id.as_str());
+    }
+    let response = request.body(body).send().await?;
     let status = response.status();
     if status.is_success() {
         return Ok(status.as_u16());

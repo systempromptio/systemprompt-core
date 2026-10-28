@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use p256::pkcs8::{EncodePrivateKey, LineEnding};
 use serde_json::{Value, json};
 use systemprompt_oauth_issuance::sso::oidc::{
     OidcConfig, OidcConfigError, OidcDiscovery, OidcProvider, OidcProviderError,
@@ -120,6 +123,36 @@ fn claims(issuer: &str, nonce: &str) -> Value {
     })
 }
 
+const EC_KID: &str = "ec-p256";
+
+fn ec_secret() -> p256::SecretKey {
+    p256::SecretKey::from_slice(&[7u8; 32]).unwrap()
+}
+
+fn ec_jwk() -> Value {
+    let point = ec_secret().public_key().to_encoded_point(false);
+    json!({
+        "kty": "EC",
+        "crv": "P-256",
+        "use": "sig",
+        "kid": EC_KID,
+        "x": URL_SAFE_NO_PAD.encode(point.x().unwrap()),
+        "y": URL_SAFE_NO_PAD.encode(point.y().unwrap()),
+    })
+}
+
+fn sign_ec(claims: &Value, kid: &str) -> String {
+    let mut header = Header::new(Algorithm::ES256);
+    header.kid = Some(kid.to_owned());
+    let pem = ec_secret().to_pkcs8_pem(LineEnding::LF).unwrap();
+    encode(
+        &header,
+        claims,
+        &EncodingKey::from_ec_pem(pem.as_bytes()).unwrap(),
+    )
+    .unwrap()
+}
+
 fn sign(claims: &Value, alg: Algorithm) -> String {
     let key = test_key(2);
     let mut header = Header::new(alg);
@@ -138,7 +171,8 @@ async fn keycloak() -> (MockServer, String) {
     Mock::given(method("GET"))
         .and(path("/realms/acme/protocol/openid-connect/certs"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_json(json!({"keys": [test_key(2).jwk()]})),
+            ResponseTemplate::new(200)
+                .set_body_json(json!({"keys": [test_key(2).jwk(), ec_jwk()]})),
         )
         .mount(&server)
         .await;
@@ -368,6 +402,47 @@ async fn id_token_with_disallowed_algorithm_is_refused() {
     assert!(matches!(
         validate_id_token(&token, &cfg, &discovery(&issuer), &jwks_for(&cfg), NONCE).await,
         Err(OidcProviderError::Algorithm(Algorithm::RS384))
+    ));
+}
+
+#[tokio::test]
+async fn es256_id_token_validates_against_a_p256_key() {
+    let (_server, issuer) = keycloak().await;
+    let cfg = config(&issuer);
+    let token = sign_ec(&claims(&issuer, NONCE), EC_KID);
+    let identity = validate_id_token(&token, &cfg, &discovery(&issuer), &jwks_for(&cfg), NONCE)
+        .await
+        .unwrap();
+    assert_eq!(identity.subject, "kc-user-1");
+}
+
+#[tokio::test]
+async fn es256_header_naming_an_rsa_kid_is_refused() {
+    let (_server, issuer) = keycloak().await;
+    let cfg = config(&issuer);
+    let token = sign_ec(&claims(&issuer, NONCE), test_key(2).kid());
+    assert!(matches!(
+        validate_id_token(&token, &cfg, &discovery(&issuer), &jwks_for(&cfg), NONCE).await,
+        Err(OidcProviderError::Algorithm(Algorithm::ES256))
+    ));
+}
+
+#[tokio::test]
+async fn rs256_header_naming_an_ec_kid_is_refused() {
+    let (_server, issuer) = keycloak().await;
+    let cfg = config(&issuer);
+    let key = test_key(2);
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some(EC_KID.to_owned());
+    let token = encode(
+        &header,
+        &claims(&issuer, NONCE),
+        &EncodingKey::from_rsa_pem(key.to_pkcs8_pem().unwrap().as_bytes()).unwrap(),
+    )
+    .unwrap();
+    assert!(matches!(
+        validate_id_token(&token, &cfg, &discovery(&issuer), &jwks_for(&cfg), NONCE).await,
+        Err(OidcProviderError::Algorithm(Algorithm::RS256))
     ));
 }
 

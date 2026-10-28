@@ -89,7 +89,12 @@ pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
     );
     let rate_config = &ctx.config().rate_limits;
     let oauth_state = create_oauth_state(ctx)?;
-    let sso_state = crate::routes::sso::SsoRouteState::build(ctx, &oauth_state);
+    let sso_state = crate::routes::sso::SsoRouteState::build(ctx, &oauth_state).map_err(|e| {
+        LoaderError::InitializationStepFailed {
+            extension: ExtensionId::new("sso"),
+            source: Box::new(e),
+        }
+    })?;
     let sso = crate::routes::sso::router(sso_state)
         .with_rate_limit(limits, rate_config.oauth_public_per_second, "sso")?
         .with_auth(*public_middleware, AuthzPolicy::public());

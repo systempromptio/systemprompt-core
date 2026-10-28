@@ -149,6 +149,9 @@ mod ai_tool_model_config;
 mod text_utils;
 
 #[cfg(test)]
+mod licence_checkin;
+
+#[cfg(test)]
 mod mime;
 
 #[cfg(test)]

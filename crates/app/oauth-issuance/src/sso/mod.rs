@@ -26,7 +26,9 @@ mod start;
 pub use cookie::{BINDER_COOKIE_NAME, CookieSpec, binder_from_cookie_header};
 pub use driver::{FinishOutcome, SsoDriver, StartOutcome};
 pub use finish::SsoCallback;
-pub use registry::{AuthEventSinkRegistration, SsoHookContext, SsoProviderRegistration};
+pub use registry::{
+    AuthEventSinkRegistration, SsoHookContext, SsoProviderError, SsoProviderRegistration,
+};
 pub use resolve::{ResolutionPlan, ResolvedUser, plan_resolution};
 pub use roles::{DirectoryOnlyRoleResolver, RoleResolver, RoleResolverRegistration};
 pub use session::{

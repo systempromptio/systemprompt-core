@@ -13,7 +13,7 @@ use std::time::Duration;
 use systemprompt_security::keys::jwks_client::{
     MAX_CACHE_TTL, MIN_CACHE_TTL, clamp_ttl, parse_max_age,
 };
-use systemprompt_security::keys::{Jwk, Jwks, JwksClient, JwksClientError};
+use systemprompt_security::keys::{Jwk, Jwks, JwksClient, JwksClientError, VerificationKey};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -55,9 +55,8 @@ async fn fetch_resolves_matching_kid() {
         .fetch(&server.uri(), "kid-1")
         .await
         .expect("fetch matching kid");
-    assert_eq!(resolved.kid, "kid-1");
-    assert_eq!(resolved.n, jwk.n);
-    assert_eq!(resolved.e, jwk.e);
+    assert_eq!(resolved.kid(), "kid-1");
+    assert_eq!(resolved, VerificationKey::from(&jwk));
 }
 
 #[tokio::test]
@@ -78,7 +77,7 @@ async fn fetch_keeps_the_issuer_path() {
         .fetch(&issuer, "realm-kid")
         .await
         .expect("an issuer with a path resolves its JWKS under that path");
-    assert_eq!(resolved.kid, "realm-kid");
+    assert_eq!(resolved.kid(), "realm-kid");
 }
 
 #[tokio::test]
@@ -157,7 +156,7 @@ async fn fetch_at_uses_explicit_jwks_uri() {
         .fetch_at("https://issuer.example", &jwks_uri, "explicit")
         .await
         .expect("fetch_at explicit uri");
-    assert_eq!(resolved.kid, "explicit");
+    assert_eq!(resolved.kid(), "explicit");
 }
 
 #[tokio::test]
@@ -241,7 +240,7 @@ async fn fetch_at_second_call_is_served_from_cache() {
         .fetch_at("https://issuer.example", &jwks_uri, "cached")
         .await
         .expect("second fetch_at served from cache");
-    assert_eq!(resolved.kid, "cached");
+    assert_eq!(resolved.kid(), "cached");
     // `expect(1)` proves the explicit-URI path also short-circuits on a cache
     // hit rather than re-fetching.
 }
@@ -319,7 +318,7 @@ async fn http_loopback_issuer_is_accepted() {
         .fetch(&server.uri(), "kid-loopback")
         .await
         .expect("loopback http fetch");
-    assert_eq!(resolved.kid, "kid-loopback");
+    assert_eq!(resolved.kid(), "kid-loopback");
 }
 
 #[test]

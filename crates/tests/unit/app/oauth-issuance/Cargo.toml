@@ -20,6 +20,7 @@ systemprompt-models = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+p256 = { version = "0.13", default-features = false, features = ["arithmetic", "pem", "pkcs8"] }
 async-trait = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }

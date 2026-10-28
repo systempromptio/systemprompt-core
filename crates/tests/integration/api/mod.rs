@@ -625,3 +625,7 @@ mod gateway_principal_parity;
 #[cfg(test)]
 #[path = "gateway_api_key_session_binding.rs"]
 mod gateway_api_key_session_binding;
+
+#[cfg(test)]
+#[path = "process_leases.rs"]
+mod process_leases;

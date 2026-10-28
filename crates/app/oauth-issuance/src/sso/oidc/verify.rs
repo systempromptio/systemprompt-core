@@ -2,9 +2,10 @@
 //! registered claims, the nonce and the authorized party, then the mapping of
 //! the configured claims onto an [`ExternalIdentity`].
 //!
-//! Only RS256 is accepted: the algorithm is pinned before a key is looked up
-//! and never taken from the key. No issuer-specific claim is required, so a
-//! Keycloak realm, Entra ID or any conforming issuer validates the same way.
+//! RS256 and ES256 are accepted: the key named by `kid` pins the algorithm,
+//! and a header naming any other algorithm is refused before verification. No
+//! issuer-specific claim is required, so a Keycloak realm, Entra ID or any
+//! conforming issuer validates the same way.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +13,7 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::{DateTime, Utc};
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{Validation, decode, decode_header};
 // JSON: the claim set is issuer-defined and the configured claim names are
 // read from it by name; `ExternalIdentity::raw_claims` keeps it as issued.
 use serde_json::Value;
@@ -25,8 +26,6 @@ use super::config::OidcConfig;
 use super::discovery::OidcDiscovery;
 use super::error::OidcProviderError;
 
-pub const ALLOWED_ALGORITHMS: [Algorithm; 1] = [Algorithm::RS256];
-
 pub async fn validate_id_token(
     id_token: &str,
     cfg: &OidcConfig,
@@ -38,18 +37,20 @@ pub async fn validate_id_token(
     if header.crit.is_some() {
         return Err(OidcProviderError::CriticalHeader);
     }
-    if !ALLOWED_ALGORITHMS.contains(&header.alg) {
-        return Err(OidcProviderError::Algorithm(header.alg));
-    }
     let kid = header.kid.ok_or(OidcProviderError::NoKid)?;
     let jwk = jwks
         .fetch_at(cfg.issuer(), &discovery.jwks_uri, &kid)
         .await
         .map_err(OidcProviderError::SigningKey)?;
-    let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
+    // Why: RFC 8725 §3.1: the algorithm comes from the key, never the header.
+    if header.alg != jwk.algorithm() {
+        return Err(OidcProviderError::Algorithm(header.alg));
+    }
+    let key = jwk
+        .decoding_key()
         .map_err(OidcProviderError::KeyComponents)?;
 
-    let mut validation = Validation::new(header.alg);
+    let mut validation = Validation::new(jwk.algorithm());
     validation.set_issuer(&[cfg.issuer()]);
     validation.set_audience(&[cfg.client_id.as_str()]);
     validation.set_required_spec_claims(&["exp", "iss", "aud", "sub"]);

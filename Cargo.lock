@@ -6413,6 +6413,7 @@ dependencies = [
  "chrono",
  "futures",
  "hex",
+ "hmac 0.13.0",
  "http",
  "indexmap",
  "regex",

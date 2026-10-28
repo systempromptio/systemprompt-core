@@ -11,7 +11,7 @@
 use std::str::FromStr;
 
 use chrono::{TimeZone, Utc};
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::Permission;
@@ -111,29 +111,32 @@ async fn verify_id_jag_signature(
     reject_critical_header(&header)
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG crit header unsupported", e))?;
     validate_typ(header.typ.as_deref()).map_err(IssuanceError::IdJagRejected)?;
-    if header.alg != Algorithm::RS256 {
-        return Err(IssuanceError::InvalidGrant {
-            reason: "ID-JAG must be RS256-signed".to_owned(),
-        });
-    }
     let kid = header.kid.ok_or_else(|| IssuanceError::InvalidGrant {
         reason: "ID-JAG missing `kid` header".to_owned(),
     })?;
 
     let declared_iss = peek_issuer(token)?;
 
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_issuer(&[declared_iss.as_str()]);
-    validation.set_audience(&[global.jwt_issuer.as_str()]);
-    validation.set_required_spec_claims(&REQUIRED_CLAIMS);
+    let validation = |alg: Algorithm| {
+        let mut validation = Validation::new(alg);
+        validation.set_issuer(&[declared_iss.as_str()]);
+        validation.set_audience(&[global.jwt_issuer.as_str()]);
+        validation.set_required_spec_claims(&REQUIRED_CLAIMS);
+        validation
+    };
 
     if declared_iss == global.jwt_issuer {
+        if header.alg != Algorithm::RS256 {
+            return Err(IssuanceError::InvalidGrant {
+                reason: "ID-JAG must be RS256-signed".to_owned(),
+            });
+        }
         let key = keys
             .decoding_key_for_kid(&kid)
             .ok_or_else(|| IssuanceError::InvalidGrant {
                 reason: format!("unknown `kid` `{kid}`"),
             })?;
-        let data = decode::<IdJagClaims>(token, key, &validation)
+        let data = decode::<IdJagClaims>(token, key, &validation(Algorithm::RS256))
             .map_err(|e| IssuanceError::rejected_grant("ID-JAG rejected", e))?;
         return Ok((data.claims, Vec::new()));
     }
@@ -150,9 +153,18 @@ async fn verify_id_jag_signature(
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG JWKS resolution failed", e))?;
-    let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
-        .map_err(|e| IssuanceError::rejected_grant("invalid RSA components in JWK", e))?;
-    let data = decode::<IdJagClaims>(token, &key, &validation)
+    if header.alg != jwk.algorithm() {
+        return Err(IssuanceError::InvalidGrant {
+            reason: format!(
+                "ID-JAG algorithm {:?} does not match the issuer key",
+                header.alg
+            ),
+        });
+    }
+    let key = jwk
+        .decoding_key()
+        .map_err(|e| IssuanceError::rejected_grant("invalid key components in JWK", e))?;
+    let data = decode::<IdJagClaims>(token, &key, &validation(jwk.algorithm()))
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG rejected", e))?;
     Ok((data.claims, trusted.allowed_client_ids.clone()))
 }

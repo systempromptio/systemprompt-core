@@ -11,7 +11,7 @@ use systemprompt_traits::Lease;
 fn lease_held_by(owner: &str) -> Lease {
     let now = Utc::now();
     Lease {
-        key: LeaseKey::new("process-supervisor"),
+        key: LeaseKey::new("mcp:files"),
         owner: InstanceId::new(owner),
         acquired_at: now,
         expires_at: now,

@@ -10,6 +10,7 @@ use systemprompt_database::{
     ServiceRepository, ServiceStatus,
 };
 use systemprompt_identifiers::{AdvisoryLockKey, InstanceId, LeaseKey, ServiceName};
+use systemprompt_manifest::profile::NodeRole;
 use systemprompt_test_fixtures::test_database_url;
 use systemprompt_traits::{AdvisoryLocks, CoordinationError, InstanceRegistry, LeaseRepository};
 
@@ -465,6 +466,30 @@ async fn the_process_owner_is_the_live_replica_running_it_with_an_advertised_end
         .advertise_endpoint("http://10.0.0.7:8080")
         .await
         .expect("advertise");
+    owner
+        .services
+        .touch_presence(NodeRole::Worker)
+        .await
+        .expect("presence");
+    assert_eq!(
+        api.services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "a worker that does not hold the process lease is not its owner"
+    );
+
+    owner
+        .coordination
+        .leases
+        .claim(
+            &LeaseKey::new(format!("mcp:{}", name.as_str())),
+            Duration::from_secs(45),
+        )
+        .await
+        .expect("claim")
+        .expect("lease won");
     let found = api
         .services
         .find_process_owner(&name)

@@ -44,7 +44,10 @@ impl std::fmt::Debug for SsoRouteState {
 }
 
 impl SsoRouteState {
-    pub fn build(ctx: &AppContext, oauth: &OAuthState) -> Self {
+    pub fn build(
+        ctx: &AppContext,
+        oauth: &OAuthState,
+    ) -> Result<Self, systemprompt_oauth_issuance::sso::SsoProviderError> {
         let session_service = SessionCreationService::new(
             Arc::clone(oauth.session_provider()),
             Arc::clone(oauth.user_provider()),
@@ -63,11 +66,11 @@ impl SsoRouteState {
             },
             oauth.oauth_repository().clone(),
             Arc::new(session_service),
-        );
-        Self {
+        )?;
+        Ok(Self {
             driver,
             analytics: Arc::clone(oauth.analytics_provider()),
-        }
+        })
     }
 }
 

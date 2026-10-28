@@ -5,7 +5,7 @@ use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::LicenceConfig;
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_scheduler::jobs::licence_checkin::{
-    JOB_NAME, LicenceCheckin, LicenceCheckinJob, checkin_due, sign_body,
+    JOB_NAME, LicenceCheckinJob, build_checkin, checkin_due,
 };
 use systemprompt_traits::Job;
 
@@ -13,22 +13,6 @@ fn fixture_profile() -> Profile {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let yaml = std::fs::read_to_string(&boot.profile_path).unwrap();
     serde_yaml::from_str(&yaml).unwrap()
-}
-
-#[test]
-fn signature_is_hmac_sha256_hex_over_the_body() {
-    let signature = sign_body(b"Jefe", b"what do ya want for nothing?").unwrap();
-    assert_eq!(
-        signature,
-        "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
-    );
-}
-
-#[test]
-fn signature_changes_with_the_body() {
-    let a = sign_body(b"secret", br#"{"a":1}"#).unwrap();
-    let b = sign_body(b"secret", br#"{"a":2}"#).unwrap();
-    assert_ne!(a, b);
 }
 
 #[test]
@@ -107,7 +91,7 @@ fn payload_carries_tenant_provider_host_and_role_counts() {
     ];
     let at = Utc.with_ymd_and_hms(2026, 10, 28, 12, 0, 0).unwrap();
 
-    let checkin = LicenceCheckin::build(&profile, InstanceId::new("node-a"), &roles, at);
+    let checkin = build_checkin(&profile, InstanceId::new("node-a"), &roles, at);
 
     assert_eq!(
         checkin.licence_id.as_ref().map(|l| l.as_str()),

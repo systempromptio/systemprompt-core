@@ -7,6 +7,7 @@
 mod analytics_detection;
 mod health;
 mod process_ownership;
+mod process_rendezvous;
 mod proxy_audit;
 mod proxy_fixed_arguments;
 mod proxy_oauth_challenge;

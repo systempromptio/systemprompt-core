@@ -22,7 +22,7 @@ use systemprompt_users::PostgresAuthEventSink;
 use crate::repository::SsoRepositories;
 
 use super::cookie::CookieSpec;
-use super::registry::{SsoHookContext, discover_providers, discover_sinks};
+use super::registry::{SsoHookContext, SsoProviderError, discover_providers, discover_sinks};
 use super::roles::{RoleResolver, discover_role_resolver};
 
 /// Where `start` sends the browser, and the binder cookie to set first.
@@ -77,7 +77,7 @@ impl SsoDriver {
         ctx: &SsoHookContext,
         oauth: OAuthRepository,
         session_service: Arc<SessionCreationService>,
-    ) -> Self {
+    ) -> Result<Self, SsoProviderError> {
         let db = &ctx.db;
         let config = Arc::clone(&ctx.config);
         let SsoRepositories {
@@ -87,7 +87,7 @@ impl SsoDriver {
         let mut sinks: Vec<Arc<dyn AuthEventSink>> =
             vec![Arc::new(PostgresAuthEventSink::new(login_events))];
         sinks.extend(discover_sinks(ctx));
-        let providers = discover_providers(ctx);
+        let providers = discover_providers(ctx)?;
         let roles = discover_role_resolver(ctx);
         if !providers.is_empty() {
             tracing::info!(
@@ -95,7 +95,7 @@ impl SsoDriver {
                 "SSO providers registered"
             );
         }
-        Self {
+        Ok(Self {
             inner: Arc::new(DriverInner {
                 providers,
                 replay: Arc::new(PostgresReplayGuard::new(repo.clone())),
@@ -105,7 +105,7 @@ impl SsoDriver {
                 session_service,
                 config,
             }),
-        }
+        })
     }
 
     #[must_use]

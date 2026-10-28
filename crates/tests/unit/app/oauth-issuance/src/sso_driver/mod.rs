@@ -3,6 +3,7 @@
 //! correlates it, enforces replay and the identity policy, resolves or
 //! provisions the local user, mints the session and audits every outcome.
 
+mod boot;
 mod flow;
 mod identity;
 mod providers;
@@ -51,7 +52,8 @@ fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
             },
             systemprompt_test_fixtures::oauth_fixture_repository(db),
             Arc::new(service),
-        ),
+        )
+        .expect("fake providers discover"),
         users,
         sessions,
     }

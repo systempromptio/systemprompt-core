@@ -9,10 +9,10 @@ use url::{Host, Url};
 
 use super::cache::{CacheProbe, CachedJwks};
 use super::{JwksClient, JwksClientError, WELLKNOWN_JWKS_PATH, parse_max_age};
-use crate::keys::jwks::{Jwk, Jwks};
+use crate::keys::jwks::{VerificationKey, VerificationKeySet};
 
 impl JwksClient {
-    pub async fn fetch(&self, issuer: &str, kid: &str) -> Result<Jwk, JwksClientError> {
+    pub async fn fetch(&self, issuer: &str, kid: &str) -> Result<VerificationKey, JwksClientError> {
         match self.lookup(issuer, kid) {
             CacheProbe::Hit(jwk) => return Ok(jwk),
             CacheProbe::KidMissRecentlyFetched => {
@@ -33,7 +33,7 @@ impl JwksClient {
         issuer: &str,
         jwks_uri: &str,
         kid: &str,
-    ) -> Result<Jwk, JwksClientError> {
+    ) -> Result<VerificationKey, JwksClientError> {
         match self.lookup(issuer, kid) {
             CacheProbe::Hit(jwk) => return Ok(jwk),
             CacheProbe::KidMissRecentlyFetched => {
@@ -54,10 +54,10 @@ impl JwksClient {
         issuer: &str,
         url: &Url,
         kid: &str,
-    ) -> Result<Jwk, JwksClientError> {
+    ) -> Result<VerificationKey, JwksClientError> {
         let (jwks, ttl) = self.fetch_remote(url).await?;
         let now = Instant::now();
-        let kid_present = jwks.keys.iter().any(|k| k.kid == kid);
+        let kid_present = jwks.keys.iter().any(|k| k.kid() == kid);
         let cached = CachedJwks {
             jwks: jwks.clone(),
             expires_at: now + ttl,
@@ -69,7 +69,7 @@ impl JwksClient {
 
         jwks.keys
             .into_iter()
-            .find(|k| k.kid == kid)
+            .find(|k| k.kid() == kid)
             .ok_or_else(|| JwksClientError::KeyNotFound {
                 issuer: issuer.to_owned(),
                 kid: kid.to_owned(),
@@ -107,7 +107,10 @@ impl JwksClient {
         Ok(parsed)
     }
 
-    async fn fetch_remote(&self, url: &Url) -> Result<(Jwks, Duration), JwksClientError> {
+    async fn fetch_remote(
+        &self,
+        url: &Url,
+    ) -> Result<(VerificationKeySet, Duration), JwksClientError> {
         let http = self
             .http
             .as_ref()
@@ -139,7 +142,7 @@ impl JwksClient {
             });
 
         let jwks = response
-            .json::<Jwks>()
+            .json::<VerificationKeySet>()
             .await
             .map_err(|source| JwksClientError::Decode {
                 url: url.to_string(),
