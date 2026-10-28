@@ -29,21 +29,21 @@ use uuid::Uuid;
 
 use super::common::{request_context, setup_ctx};
 
-const BOUNDARY: &str = "sp-documents-test-boundary";
+pub(super) const BOUNDARY: &str = "sp-documents-test-boundary";
 
-struct Reply {
-    status: StatusCode,
-    headers: HeaderMap,
-    body: Vec<u8>,
+pub(super) struct Reply {
+    pub(super) status: StatusCode,
+    pub(super) headers: HeaderMap,
+    pub(super) body: Vec<u8>,
 }
 
 impl Reply {
-    fn json(&self) -> Value {
+    pub(super) fn json(&self) -> Value {
         serde_json::from_slice(&self.body).unwrap_or(Value::Null)
     }
 }
 
-async fn send(app: Router, req: Request<Body>) -> Result<Reply> {
+pub(super) async fn send(app: Router, req: Request<Body>) -> Result<Reply> {
     let resp = app.oneshot(req).await?;
     let status = resp.status();
     let headers = resp.headers().clone();
@@ -55,28 +55,31 @@ async fn send(app: Router, req: Request<Body>) -> Result<Reply> {
     })
 }
 
-fn app(state: &DocumentsState, user: &AuthedFixture) -> Router {
+pub(super) fn app(state: &DocumentsState, user: &AuthedFixture) -> Router {
     router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
 }
 
-fn request(method: Method, uri: &str) -> axum::http::request::Builder {
+pub(super) fn request(method: Method, uri: &str) -> axum::http::request::Builder {
     Request::builder().method(method).uri(uri)
 }
 
-fn json_request(method: Method, uri: &str, body: &Value) -> Request<Body> {
+pub(super) fn json_request(method: Method, uri: &str, body: &Value) -> Request<Body> {
     request(method, uri)
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from(body.to_string()))
         .expect("request")
 }
 
-async fn fixture() -> Result<(DbPool, Arc<AppContext>, DocumentsState)> {
+pub(super) async fn fixture() -> Result<(DbPool, Arc<AppContext>, DocumentsState)> {
     let (pool, ctx) = setup_ctx().await?;
     let state = DocumentsState::build(&ctx)?;
     Ok((pool, ctx, state))
 }
 
-async fn create_markdown(state: &DocumentsState, owner: &AuthedFixture) -> Result<Value> {
+pub(super) async fn create_markdown(
+    state: &DocumentsState,
+    owner: &AuthedFixture,
+) -> Result<Value> {
     let body = json!({
         "template_id": "blank-markdown",
         "name": format!("notes-{}.md", Uuid::new_v4().simple()),
@@ -87,18 +90,18 @@ async fn create_markdown(state: &DocumentsState, owner: &AuthedFixture) -> Resul
     Ok(reply.json())
 }
 
-fn id_of(created: &Value) -> String {
+pub(super) fn id_of(created: &Value) -> String {
     created["document"]["id"].as_str().expect("id").to_owned()
 }
 
-fn head_of(created: &Value) -> String {
+pub(super) fn head_of(created: &Value) -> String {
     created["revision"]["id"]
         .as_str()
         .expect("revision")
         .to_owned()
 }
 
-async fn put_content(
+pub(super) async fn put_content(
     state: &DocumentsState,
     owner: &AuthedFixture,
     id: &str,
@@ -212,7 +215,7 @@ async fn a_put_against_a_stale_base_is_409_with_head_and_base() -> Result<()> {
     Ok(())
 }
 
-fn first_text_node(nodes: &Value) -> Option<Value> {
+pub(super) fn first_text_node(nodes: &Value) -> Option<Value> {
     nodes.as_array()?.iter().find_map(|node| {
         let has_text = node["text"].as_str().is_some_and(|text| !text.is_empty());
         if has_text {
@@ -383,7 +386,7 @@ async fn presence_lists_the_editor_until_its_ttl() -> Result<()> {
     Ok(())
 }
 
-fn multipart(meta: &Value, blob: &[u8]) -> Vec<u8> {
+pub(super) fn multipart(meta: &Value, blob: &[u8]) -> Vec<u8> {
     let mut body = Vec::new();
     body.extend_from_slice(
         format!(
@@ -398,14 +401,18 @@ fn multipart(meta: &Value, blob: &[u8]) -> Vec<u8> {
     body
 }
 
-fn bridge(token: &AuthedFixture, method: Method, uri: &str) -> axum::http::request::Builder {
+pub(super) fn bridge(
+    token: &AuthedFixture,
+    method: Method,
+    uri: &str,
+) -> axum::http::request::Builder {
     request(method, uri).header(
         header::AUTHORIZATION,
         format!("Bearer {}", token.jwt.as_str()),
     )
 }
 
-async fn drive_commit(
+pub(super) async fn drive_commit(
     gateway: &Router,
     device: &AuthedFixture,
     meta: &Value,
@@ -427,7 +434,7 @@ async fn drive_commit(
     .await
 }
 
-fn commit_meta(path: &str, blob: &[u8], document: Option<&str>) -> Value {
+pub(super) fn commit_meta(path: &str, blob: &[u8], document: Option<&str>) -> Value {
     json!({
         "document_id": document,
         "path": path,
