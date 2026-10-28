@@ -12,7 +12,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
+    DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, TraceId, UserId,
 };
 
 /// Where a comment points: a node, and optionally the `nth` (0-based)
@@ -59,4 +59,17 @@ pub struct NewComment {
     pub body: String,
     pub mentions: Vec<UserId>,
     pub parent_id: Option<DocumentCommentId>,
+    pub via_agent: Option<String>,
+}
+
+/// The users a comment shares the document with because it mentions them
+/// while they hold no access: each gets a `comment` grant in the comment's
+/// own statement, audited as granted by `granted_by` with the comment as
+/// the reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MentionGrants {
+    pub users: Vec<UserId>,
+    pub granted_by: UserId,
+    pub trace_id: TraceId,
+    pub via_agent: Option<String>,
 }

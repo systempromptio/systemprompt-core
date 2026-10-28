@@ -3,9 +3,9 @@
 //! document), and the checks a range and a mention list pass before a
 //! comment stores them.
 //!
-//! A range is two engine cursors, kept opaque and bounded in size. A mention
-//! names a user who holds access to the document; each newly mentioned user
-//! receives `document.comment.mentioned`. Edits and deletions are announced
+//! A range is two engine cursors, kept opaque and bounded in size. Mentions
+//! are checked, shared with and announced in `mentions`; only a user newly
+//! mentioned by an edit is told. Edits and deletions are announced
 //! as `document.comment.updated` and `document.comment.deleted` to the
 //! document's recipients and its live topic.
 //!
@@ -15,16 +15,15 @@
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    DocumentAction, DocumentCommentDeletedEvent, DocumentCommentMentionedEvent,
-    DocumentCommentUpdatedEvent,
+    DocumentAction, DocumentCommentDeletedEvent, DocumentCommentUpdatedEvent,
 };
 
 use super::DocumentService;
+use super::mentions::{CommentOrigin, MentionInput};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{CommentRange, Document, DocumentComment};
+use crate::documents::models::{CommentRange, DocumentComment};
 use crate::documents::repository::CommentBodyEdit;
 
-const MAX_MENTIONS: usize = 20;
 const MAX_CURSOR_CHARS: usize = 1_024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +59,17 @@ impl DocumentService {
         request: EditCommentRequest,
         trace: &TraceId,
     ) -> Result<DocumentComment, DocumentsError> {
+        self.edit_comment_from(who, request, &CommentOrigin::default(), trace)
+            .await
+    }
+
+    pub async fn edit_comment_from(
+        &self,
+        who: &AuthenticatedUser,
+        request: EditCommentRequest,
+        origin: &CommentOrigin,
+        trace: &TraceId,
+    ) -> Result<DocumentComment, DocumentsError> {
         let document = self
             .authorized_document(who, &request.document, DocumentAction::Comment, trace)
             .await?;
@@ -70,20 +80,40 @@ impl DocumentService {
                 detail: "only a comment's author can edit it",
             });
         }
-        let mentions = self.checked_mentions(&document, request.mentions).await?;
-        let updated = self
-            .repos
-            .comments
-            .update_body(
-                &document.id,
-                CommentBodyEdit {
-                    comment: &request.comment,
-                    author: &who.id,
-                    body: &request.body,
-                    mentions: &mentions,
-                },
-            )
+        let input = MentionInput {
+            body: &request.body,
+            passed: &request.mentions,
+            existing: &before.mentions,
+        };
+        let plan = self
+            .plan_mentions(who, &document, input, (origin, trace))
             .await?;
+        let mentions = plan.mentions.clone();
+        let updated = if plan.grants.users.is_empty() {
+            self.repos
+                .comments
+                .update_body(
+                    &document.id,
+                    CommentBodyEdit {
+                        comment: &request.comment,
+                        author: &who.id,
+                        body: &request.body,
+                        mentions: &mentions,
+                    },
+                )
+                .await?
+        } else {
+            self.repos
+                .comments
+                .update_body_granting(
+                    &document.id,
+                    &request.comment,
+                    &request.body,
+                    &mentions,
+                    &plan.grants,
+                )
+                .await?
+        };
         if !updated {
             return Err(missing(&document.id, &request.comment));
         }
@@ -101,9 +131,10 @@ impl DocumentService {
             .into_iter()
             .filter(|user| !before.mentions.contains(user))
             .collect();
-        self.notify_mentions(&document.id, &request.comment, &who.id, &fresh)
+        let edited = self.comment_of(&document.id, &request.comment).await?;
+        self.announce_mentions(who, &document, &edited, &fresh, &plan.grants)
             .await;
-        self.comment_of(&document.id, &request.comment).await
+        Ok(edited)
     }
 
     pub async fn delete_comment(
@@ -138,56 +169,6 @@ impl DocumentService {
             tracing::warn!(document_id = %document.id, error = %error, "Comment event not relayed");
         }
         Ok(())
-    }
-
-    pub(super) async fn checked_mentions(
-        &self,
-        document: &Document,
-        mentions: Vec<UserId>,
-    ) -> Result<Vec<UserId>, DocumentsError> {
-        let mut unique: Vec<UserId> = Vec::with_capacity(mentions.len());
-        for user in mentions {
-            if !unique.contains(&user) {
-                unique.push(user);
-            }
-        }
-        if unique.len() > MAX_MENTIONS {
-            return Err(DocumentsError::InvalidComment {
-                detail: "a comment mentions at most 20 users",
-            });
-        }
-        for user in &unique {
-            if self.access.level_of(document, user).await?.is_none() {
-                return Err(DocumentsError::InvalidComment {
-                    detail: "a mentioned user holds no access to the document",
-                });
-            }
-        }
-        Ok(unique)
-    }
-
-    pub(super) async fn notify_mentions(
-        &self,
-        document: &DocumentId,
-        comment: &DocumentCommentId,
-        author: &UserId,
-        mentioned: &[UserId],
-    ) {
-        for user in mentioned {
-            let event = DocumentCommentMentionedEvent {
-                document_id: document.clone(),
-                comment_id: comment.clone(),
-                mentioned_user_id: user.clone(),
-                author_id: author.clone(),
-            };
-            if let Err(error) = self
-                .events
-                .comment_mentioned(std::slice::from_ref(user), &event)
-                .await
-            {
-                tracing::warn!(document_id = %document, error = %error, "Mention event not relayed");
-            }
-        }
     }
 
     async fn live_comment(

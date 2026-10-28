@@ -25,6 +25,7 @@ mod inputs;
 mod lifecycle;
 mod listing;
 mod outputs;
+mod people;
 mod preview;
 mod proposals;
 mod read;
@@ -58,15 +59,16 @@ pub use guide::GuideHandler;
 pub use inputs::{
     AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput,
     ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput,
-    ListSortInput, ProposalAction, ProposalsInput, QuoteAnchor, SearchInput, ShareInput,
-    UpdateInput,
+    ListSortInput, PeopleInput, ProposalAction, ProposalsInput, QuoteAnchor, SearchInput,
+    ShareInput, UpdateInput,
 };
 pub use lifecycle::{CopyHandler, TrashHandler, UntrashHandler, UpdateHandler};
 pub use outputs::{
     CreateOutput, DocumentItem, ExportOutput, FolderItem, GuideOutput, HistoryOutput, ListOutput,
-    ProposalItem, ProposalsOutput, ReviewOutput, RevisionAttributionItem, RevisionItem, SearchHit,
-    SearchOutput, ShareOutput,
+    PeopleOutput, PersonItem, ProposalItem, ProposalsOutput, ReviewOutput,
+    RevisionAttributionItem, RevisionItem, SearchHit, SearchOutput, ShareOutput,
 };
+pub use people::PeopleHandler;
 pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
     preview_template, preview_tool_meta, read_preview_resource,
@@ -84,7 +86,7 @@ use support::run;
 
 use crate::AppContext;
 
-pub const TOOL_NAMES: [&str; 17] = [
+pub const TOOL_NAMES: [&str; 18] = [
     "documents_list",
     "documents_search",
     "documents_create",
@@ -102,6 +104,7 @@ pub const TOOL_NAMES: [&str; 17] = [
     "documents_export",
     "documents_upload",
     "documents_guide",
+    "documents_people",
 ];
 
 pub const INSTRUCTIONS: &str = "Shared documents (Word, Excel, PowerPoint, OpenDocument, HTML, \
@@ -148,7 +151,7 @@ pub struct DocumentsToolCall<'a> {
     pub client: &'a ClientProfile,
 }
 
-/// The seventeen document tools and the preview resource of one MCP server.
+/// The eighteen document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
@@ -266,6 +269,7 @@ impl DocumentsMcpTools {
             "documents_export" => Box::pin(run(call, &ExportHandler { tools: self })).await,
             "documents_upload" => Box::pin(run(call, &UploadHandler { tools: self })).await,
             "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
+            "documents_people" => Box::pin(run(call, &PeopleHandler { tools: self })).await,
             other => Err(McpError::invalid_params(
                 format!(
                     "Unknown tool: '{other}'. This server exposes: {}.",

@@ -1,7 +1,8 @@
 //! Comments: threads anchored to a stable node id and, optionally, the
 //! `nth` occurrence of a quote inside that node and a range of engine
-//! cursors. A comment may mention users (see `comments_edit`, with editing
-//! and deletion); a deleted comment leaves listings and anchor checks.
+//! cursors. A comment may mention users, and shares the document with a
+//! mentioned user who cannot see it (`mentions`); editing and deletion live
+//! in `comments_edit`. A deleted comment leaves listings and anchor checks.
 //!
 //! Commenting needs `comment`; reading the thread needs `view`. A reply
 //! carries its parent's anchor. Because the anchor is a stable id, an edit
@@ -22,6 +23,7 @@ use systemprompt_models::documents::{
 };
 
 use super::comments_edit::check_range;
+use super::mentions::{CommentOrigin, MentionInput};
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{CommentAnchor, CommentRange, DocumentComment, NewComment};
@@ -74,12 +76,32 @@ impl DocumentService {
         request: CommentRequest,
         trace: &TraceId,
     ) -> Result<DocumentComment, DocumentsError> {
+        self.create_comment_from(who, request, &CommentOrigin::default(), trace)
+            .await
+    }
+
+    /// Creates a comment as `who`, written by `origin`; a mentioned user
+    /// without access is shared with in the same statement (`mentions`).
+    pub async fn create_comment_from(
+        &self,
+        who: &AuthenticatedUser,
+        request: CommentRequest,
+        origin: &CommentOrigin,
+        trace: &TraceId,
+    ) -> Result<DocumentComment, DocumentsError> {
         let document = self
             .authorized_document(who, &request.document, DocumentAction::Comment, trace)
             .await?;
         self.check_comment_limit(&request.body)?;
         check_range(request.range.as_ref())?;
-        let mentions = self.checked_mentions(&document, request.mentions).await?;
+        let input = MentionInput {
+            body: &request.body,
+            passed: &request.mentions,
+            existing: &[],
+        };
+        let plan = self
+            .plan_mentions(who, &document, input, (origin, trace))
+            .await?;
         let (anchor, range) = match (&request.parent_id, request.anchor) {
             (Some(parent), _) => {
                 let parent = self.comment_of(&document.id, parent).await?;
@@ -103,19 +125,24 @@ impl DocumentService {
                 closest: None,
             });
         }
-        let comment = self
-            .repos
-            .comments
-            .insert(NewComment {
-                document_id: document.id.clone(),
-                anchor,
-                range,
-                author_user_id: who.id.clone(),
-                body: request.body,
-                mentions,
-                parent_id: request.parent_id,
-            })
-            .await?;
+        let new = NewComment {
+            document_id: document.id.clone(),
+            anchor,
+            range,
+            author_user_id: who.id.clone(),
+            body: request.body,
+            mentions: plan.mentions,
+            parent_id: request.parent_id,
+            via_agent: origin.via_agent.clone(),
+        };
+        let comment = if plan.grants.users.is_empty() {
+            self.repos.comments.insert(new).await?
+        } else {
+            self.repos
+                .comments
+                .insert_granting(new, &plan.grants)
+                .await?
+        };
         let event = DocumentCommentCreatedEvent {
             document_id: document.id.clone(),
             comment_id: comment.id.clone(),
@@ -128,7 +155,7 @@ impl DocumentService {
         if let Err(error) = self.events.comment_created(&to, &event).await {
             tracing::warn!(document_id = %document.id, error = %error, "Comment event not relayed");
         }
-        self.notify_mentions(&document.id, &comment.id, &who.id, &comment.mentions)
+        self.announce_mentions(who, &document, &comment, &comment.mentions, &plan.grants)
             .await;
         Ok(comment)
     }

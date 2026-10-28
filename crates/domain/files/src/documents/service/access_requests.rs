@@ -161,6 +161,7 @@ impl DocumentService {
                         level: open.level,
                         valid_until: None,
                         message: None,
+                        via_agent: None,
                     },
                     trace,
                 )

@@ -21,25 +21,25 @@ pub struct DocumentCommentRepository {
     pub(super) pools: Pools,
 }
 
-struct CommentRow {
-    id: DocumentCommentId,
-    document_id: DocumentId,
-    node_id: DocumentNodeId,
-    anchor_find: Option<String>,
-    anchor_nth: Option<i32>,
-    anchor_start: Option<String>,
-    anchor_end: Option<String>,
-    author_user_id: UserId,
-    body: String,
-    mentions: Vec<String>,
-    parent_id: Option<DocumentCommentId>,
-    resolved_at: Option<DateTime<Utc>>,
-    resolved_by: Option<UserId>,
-    answering_revision_id: Option<DocumentRevisionId>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    edited_at: Option<DateTime<Utc>>,
-    deleted_at: Option<DateTime<Utc>>,
+pub(super) struct CommentRow {
+    pub(super) id: DocumentCommentId,
+    pub(super) document_id: DocumentId,
+    pub(super) node_id: DocumentNodeId,
+    pub(super) anchor_find: Option<String>,
+    pub(super) anchor_nth: Option<i32>,
+    pub(super) anchor_start: Option<String>,
+    pub(super) anchor_end: Option<String>,
+    pub(super) author_user_id: UserId,
+    pub(super) body: String,
+    pub(super) mentions: Vec<String>,
+    pub(super) parent_id: Option<DocumentCommentId>,
+    pub(super) resolved_at: Option<DateTime<Utc>>,
+    pub(super) resolved_by: Option<UserId>,
+    pub(super) answering_revision_id: Option<DocumentRevisionId>,
+    pub(super) created_at: DateTime<Utc>,
+    pub(super) updated_at: DateTime<Utc>,
+    pub(super) edited_at: Option<DateTime<Utc>>,
+    pub(super) deleted_at: Option<DateTime<Utc>>,
 }
 
 impl From<CommentRow> for DocumentComment {
@@ -89,8 +89,8 @@ impl DocumentCommentRepository {
             CommentRow,
             r#"INSERT INTO document_comments
                    (document_id, node_id, anchor_find, anchor_nth, anchor_start, anchor_end,
-                    author_user_id, body, mentions, parent_id)
-               VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid)
+                    author_user_id, body, mentions, parent_id, via_agent)
+               VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11)
                RETURNING id::text AS "id!: DocumentCommentId",
                          document_id::text AS "document_id!: DocumentId",
                          node_id AS "node_id: DocumentNodeId",
@@ -110,6 +110,7 @@ impl DocumentCommentRepository {
             request.body,
             &mentions,
             request.parent_id.as_ref().map(DocumentCommentId::as_str),
+            request.via_agent,
         )
         .fetch_one(&*self.pools.write)
         .await?;

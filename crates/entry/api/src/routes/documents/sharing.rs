@@ -99,6 +99,7 @@ pub(super) async fn share_on(
         level: body.level,
         valid_until: body.valid_until,
         message: body.message,
+        via_agent: None,
     };
     let grant = state.service.share(&who.user, request, &who.trace).await?;
     Ok((StatusCode::CREATED, Json(GrantJson::from(grant))).into_response())

@@ -50,6 +50,7 @@ async fn share(
                 level,
                 valid_until: None,
                 message: None,
+                via_agent: None,
             },
             &trace(),
         )

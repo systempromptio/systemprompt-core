@@ -75,6 +75,39 @@ impl DocumentAccessService {
             .map(granted_ceiling))
     }
 
+    /// [`Self::level_of`] for many users at once: their subject pairs are
+    /// resolved per user, the grants are read in one query.
+    pub async fn levels_of(
+        &self,
+        document: &Document,
+        users: &[UserId],
+    ) -> Result<Vec<Option<AccessLevel>>, DocumentsError> {
+        let mut pairs = Vec::with_capacity(users.len());
+        for user in users {
+            pairs.push(self.pairs_of(user).await?.unwrap_or_default());
+        }
+        let mut chain = Vec::new();
+        if let Some(folder) = &document.folder_id {
+            chain.push(folder.clone());
+            chain.extend(self.folders.ancestors(folder).await?);
+        }
+        let levels = self
+            .grants
+            .effective_levels(&document.id, &chain, &pairs)
+            .await?;
+        Ok(users
+            .iter()
+            .zip(levels)
+            .map(|(user, level)| {
+                if document.owner_user_id == *user {
+                    Some(AccessLevel::Own)
+                } else {
+                    level.map(granted_ceiling)
+                }
+            })
+            .collect())
+    }
+
     pub async fn subject_members(
         &self,
         kind: &str,

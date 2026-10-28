@@ -66,6 +66,7 @@ async fn share(
                 level,
                 valid_until: None,
                 message: None,
+                via_agent: None,
             },
             &trace(),
         )
@@ -338,6 +339,7 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
                 level: AccessLevel::Comment,
                 valid_until: None,
                 message: None,
+                via_agent: None,
             },
             &trace(),
         )

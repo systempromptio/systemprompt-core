@@ -196,6 +196,15 @@ pub struct CommentInput {
     pub mentions: Vec<UserId>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
+pub struct PeopleInput {
+    pub query: String,
+    #[serde(default)]
+    pub document_id: Option<DocumentId>,
+    #[serde(default)]
+    pub limit: Option<i64>,
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct DocumentInput {
     pub document_id: DocumentId,

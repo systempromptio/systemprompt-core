@@ -156,6 +156,24 @@ pub struct ShareOutput {
 }
 documents_output_impl!(ShareOutput, "documents_share");
 
+/// `access` is the level held on the asked document, absent for none or
+/// when no document was asked.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct PersonItem {
+    pub user_id: UserId,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access: Option<AccessLevel>,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct PeopleOutput {
+    pub people: Vec<PersonItem>,
+}
+documents_output_impl!(PeopleOutput, "documents_people");
+
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ExportOutput {
     pub revision_id: DocumentRevisionId,

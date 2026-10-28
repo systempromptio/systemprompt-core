@@ -15,6 +15,7 @@ use crate::documents::{active_user_display, subject_display};
 
 use super::DocumentsMcpTools;
 use super::inputs::ShareInput;
+use super::mentions::agent_origin;
 use super::outputs::ShareOutput;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
@@ -72,6 +73,7 @@ impl ShareHandler<'_> {
                     level,
                     valid_until: input.valid_until,
                     message: input.message,
+                    via_agent: agent_origin(ctx).via_agent,
                 },
                 ctx.trace_id(),
             )

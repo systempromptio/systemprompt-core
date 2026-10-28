@@ -12,6 +12,7 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::comment::CommentHandler;
 use super::inputs::CommentInput;
+use super::mentions::{agent_origin, resolve_mentions};
 use super::refusal::refusal;
 use super::support::tool_error;
 use crate::documents::refusal::RefusalCode;
@@ -31,17 +32,19 @@ impl CommentHandler<'_> {
             .body
             .filter(|b| !b.trim().is_empty())
             .ok_or_else(|| refusal(RefusalCode::InvalidParams, "edit needs a non-empty body"))?;
+        let resolved = resolve_mentions(self.tools.users(), input.mentions, body).await?;
         let edited = self
             .tools
             .service()
-            .edit_comment(
+            .edit_comment_from(
                 who,
                 EditCommentRequest {
                     document: input.document_id,
                     comment,
-                    body,
-                    mentions: input.mentions,
+                    body: resolved.body,
+                    mentions: resolved.ids,
                 },
+                &agent_origin(ctx),
                 ctx.trace_id(),
             )
             .await

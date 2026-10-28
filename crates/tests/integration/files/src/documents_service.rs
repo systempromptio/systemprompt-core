@@ -335,6 +335,7 @@ async fn a_group_folder_grant_reaches_members_only() {
                 level: AccessLevel::View,
                 valid_until: None,
                 message: None,
+                via_agent: None,
             },
             &trace(),
         )
@@ -399,6 +400,7 @@ async fn sharing_above_the_held_level_is_forbidden() {
         level,
         valid_until: None,
         message: None,
+        via_agent: None,
     };
     h.service
         .share(

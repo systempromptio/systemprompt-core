@@ -1,7 +1,8 @@
 //! Comment threads anchor to a stable node id and an optional quote inside
 //! it, so a thread survives edits elsewhere in the document and is detached,
-//! not lost, when its words go. A comment may mention users; its author can
-//! edit it, and it can be deleted (`comment_edit`).
+//! not lost, when its words go. A comment may mention users by id or email
+//! (`mentions`), which shares the document with any of them who cannot see
+//! it; its author can edit it, and it can be deleted (`comment_edit`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +17,7 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::inputs::{CommentAction, CommentInput};
+use super::mentions::{agent_origin, resolve_mentions};
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
 use crate::documents::refusal::RefusalCode;
@@ -42,19 +44,21 @@ impl CommentHandler<'_> {
             find: input.anchor.as_ref().map(|a| a.find.clone()),
             nth: input.anchor.as_ref().and_then(|a| a.nth),
         });
+        let resolved = resolve_mentions(self.tools.users(), input.mentions, body).await?;
         let comment = self
             .tools
             .service()
-            .create_comment(
+            .create_comment_from(
                 who,
                 CommentRequest {
                     document: input.document_id,
                     anchor,
                     range: None,
-                    body,
-                    mentions: input.mentions,
+                    body: resolved.body,
+                    mentions: resolved.ids,
                     parent_id: input.parent_id,
                 },
+                &agent_origin(ctx),
                 ctx.trace_id(),
             )
             .await
@@ -102,7 +106,7 @@ impl McpToolHandler for CommentHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create, list, resolve, edit or delete anchored comments; mention users by id."
+        "Create, list, resolve, edit or delete anchored comments; mention users by id or email."
     }
 
     async fn handle(

@@ -1,7 +1,8 @@
 //! Searching and validating grant subjects.
 //!
 //! Users are matched by name, display name or email prefix through the
-//! [`SubjectDirectory`](super::SubjectDirectory); roles come from the role
+//! [`SubjectDirectory`](super::SubjectDirectory), people only: a service
+//! account is never a user subject. Roles come from the role
 //! catalogue the directory holds; a dimension's values come from its
 //! provider when the provider can enumerate them. A dimension that cannot is
 //! reported as not searchable, and sharing then accepts any value for it.
@@ -67,11 +68,7 @@ impl DocumentAccessService {
 
     pub async fn validate_subject(&self, kind: &str, value: &str) -> Result<(), DocumentsError> {
         let known = match kind {
-            USER_KIND => self
-                .directory
-                .roles_of(&UserId::new(value))
-                .await?
-                .is_some(),
+            USER_KIND => self.directory.is_person(&UserId::new(value)).await?,
             ROLE_KIND => self
                 .directory
                 .roles()

@@ -1,6 +1,7 @@
 //! The comment edit, delete and mention events, emitted through
-//! [`DocumentEvents`] like every other document event: routed to each
-//! recipient and published once on the document's live topic.
+//! [`DocumentEvents`]: routed to each recipient, and the edit and delete
+//! events also published once on the document's live topic; the mention
+//! reaches its recipient only.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +12,7 @@ use systemprompt_models::documents::{
 };
 
 use super::error::DocumentsError;
-use super::events::DocumentEvents;
+use super::events::{Audience, DocumentEvents};
 
 impl DocumentEvents {
     pub async fn comment_updated(
@@ -37,7 +38,12 @@ impl DocumentEvents {
         to: &[UserId],
         event: &DocumentCommentMentionedEvent,
     ) -> Result<(), DocumentsError> {
-        self.emit(DocumentCommentMentionedEvent::NAME, to, event)
-            .await
+        self.emit_to(
+            DocumentCommentMentionedEvent::NAME,
+            to,
+            event,
+            Audience::Recipients,
+        )
+        .await
     }
 }

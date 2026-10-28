@@ -9,9 +9,10 @@
 //! recipient through the [`EventRouter`], which also relays it to other
 //! replicas. Clients filter the stream on the `document.` prefix.
 //!
-//! Every event is also published once on the document's live topic
-//! ([`live_topic`]) and relayed to other replicas, so the document-scoped
-//! live channel sees it whoever the recipients were; a collab update carries
+//! Every event except the per-recipient ones (`document.shared`,
+//! `document.comment.mentioned`) is also published once on the document's
+//! live topic ([`live_topic`]) and relayed to other replicas, so the
+//! document-scoped live channel sees it whoever the recipients were; a collab update carries
 //! `<session>:<seq>` as its resume id. Awareness goes to the topic only, at
 //! most once per [`AWARENESS_INTERVAL`] per participant.
 //!
@@ -51,6 +52,15 @@ type AwarenessGate = HashMap<(DocumentId, UserId), Instant>;
 #[must_use]
 pub fn live_topic(document: &DocumentId) -> String {
     format!("{LIVE_TOPIC_PREFIX}{document}")
+}
+
+/// Who an event reaches. A per-recipient event (a share, a mention) names
+/// one person and may carry a private message, so it never goes to the
+/// document's live topic, where every viewer of the document would see it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Audience {
+    Recipients,
+    RecipientsAndTopic,
 }
 
 /// Builds and routes the document AG-UI events; held by `DocumentService`.
@@ -171,7 +181,8 @@ impl DocumentEvents {
         to: &[UserId],
         event: &DocumentSharedEvent,
     ) -> Result<(), DocumentsError> {
-        self.emit(DocumentSharedEvent::NAME, to, event).await
+        self.emit_to(DocumentSharedEvent::NAME, to, event, Audience::Recipients)
+            .await
     }
 
     pub async fn access_requested(
@@ -207,11 +218,23 @@ impl DocumentEvents {
         to: &[UserId],
         payload: &T,
     ) -> Result<(), DocumentsError> {
+        self.emit_to(name, to, payload, Audience::RecipientsAndTopic)
+            .await
+    }
+
+    pub(crate) async fn emit_to<T: Serialize + Sync>(
+        &self,
+        name: &'static str,
+        to: &[UserId],
+        payload: &T,
+        audience: Audience,
+    ) -> Result<(), DocumentsError> {
         let value = serde_json::to_value(payload).map_err(|source| DocumentsError::Events {
             event: name,
             source: EventFailure::Serialize(source),
         })?;
-        if let Some(actor) = to.first()
+        if audience == Audience::RecipientsAndTopic
+            && let Some(actor) = to.first()
             && let Err(error) = self.publish_topic(name, actor, value.clone()).await
         {
             tracing::warn!(event = name, error = %error, "Document event not published on its live topic");

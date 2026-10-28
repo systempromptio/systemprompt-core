@@ -46,6 +46,10 @@ pub struct NewGrant {
     pub granted_by: UserId,
     pub valid_until: Option<DateTime<Utc>>,
     pub trace_id: TraceId,
+    /// Why the grant was made, written to its audit row.
+    pub reason: Option<String>,
+    /// The agent that made the grant for `granted_by`, on the audit row.
+    pub via_agent: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

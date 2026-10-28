@@ -87,12 +87,18 @@ impl SubjectDirectory for UserSubjectDirectory {
             .map_err(lookup_failed)?;
         Ok(users
             .into_iter()
+            .filter(|user| !user.is_service_account())
             .map(|user| SubjectMatch {
                 value: user.id.as_str().to_owned(),
                 detail: Some(user.email),
                 display: user.display_name.or(user.full_name).unwrap_or(user.name),
             })
             .collect())
+    }
+
+    async fn is_person(&self, user: &UserId) -> Result<bool, SubjectDirectoryError> {
+        let found = self.users.find_by_id(user).await.map_err(lookup_failed)?;
+        Ok(found.is_some_and(|u| u.is_active() && !u.is_service_account()))
     }
 
     async fn roles(&self) -> Result<Vec<String>, SubjectDirectoryError> {

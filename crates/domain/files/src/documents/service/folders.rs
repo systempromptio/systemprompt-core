@@ -72,6 +72,8 @@ impl DocumentService {
                 granted_by: who.id.clone(),
                 valid_until: None,
                 trace_id: trace.clone(),
+                reason: None,
+                via_agent: None,
             })
             .await?;
         Ok(())

@@ -18,7 +18,7 @@ use crate::documents::models::{DocumentGrant, GrantActor, GrantTarget, NewGrant,
 
 #[derive(Debug, Clone)]
 pub struct DocumentGrantRepository {
-    pools: Pools,
+    pub(super) pools: Pools,
 }
 
 impl DocumentGrantRepository {
@@ -54,12 +54,12 @@ impl DocumentGrantRepository {
                RETURNING *),
                e AS (INSERT INTO document_grant_events
                    (event, target_kind, target_id, subject_kind, subject_value, old_level,
-                    new_level, valid_until, actor_user_id, trace_id)
+                    new_level, valid_until, actor_user_id, trace_id, reason, via_agent)
                SELECT CASE WHEN EXISTS (SELECT 1 FROM prev) THEN 'changed' ELSE 'granted' END,
                       CASE WHEN g.document_id IS NULL THEN 'folder' ELSE 'document' END,
                       COALESCE(g.document_id, g.folder_id), g.subject_kind, g.subject_value,
                       (SELECT access_level FROM prev), g.access_level, g.valid_until,
-                      $7, $9
+                      $7, $9, $10, $11
                FROM g)
                SELECT g.id AS "id!", g.document_id::text AS "document_id: DocumentId",
                       g.folder_id::text AS "folder_id: DocumentFolderId",
@@ -78,6 +78,8 @@ impl DocumentGrantRepository {
             request.granted_by.as_str(),
             request.valid_until,
             request.trace_id.as_str(),
+            request.reason,
+            request.via_agent,
         )
         .fetch_one(&*self.pools.write)
         .await?;

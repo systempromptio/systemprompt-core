@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS document_grant_events (
     valid_until TIMESTAMPTZ,
     actor_user_id VARCHAR(255),
     trace_id TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reason TEXT,
+    via_agent TEXT CHECK (via_agent IS NULL OR length(via_agent) BETWEEN 1 AND 64)
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_grant_events_target

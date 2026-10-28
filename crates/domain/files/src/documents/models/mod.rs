@@ -19,7 +19,7 @@ mod revision;
 mod session;
 mod sharing;
 
-pub use comment::{CommentAnchor, CommentRange, DocumentComment, NewComment};
+pub use comment::{CommentAnchor, CommentRange, DocumentComment, MentionGrants, NewComment};
 pub use cursor::{ListCursor, ListCursorError, ListingCursor};
 pub use document::{
     Document, DocumentSearchHit, ListScope, ListSort, ListedDocument, NewDocument, ScopedListing,

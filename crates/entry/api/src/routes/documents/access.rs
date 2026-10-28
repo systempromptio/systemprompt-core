@@ -1,5 +1,6 @@
 //! Reading access back (with the grant audit log on `?history=true`), the
-//! install's grant subject kinds and subject search, ownership transfer and
+//! install's grant subject kinds and subject search (with each user's level
+//! on one document when `document_id` is given), ownership transfer and
 //! revoking every grant on a document.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,8 +13,9 @@ use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_files::documents::MAX_SUBJECT_SEARCH;
 use systemprompt_files::documents::service::TransferRequest;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::RequestContext;
+use systemprompt_models::documents::AccessLevel;
 use systemprompt_runtime::documents::active_user_display;
 use systemprompt_runtime::documents::views::access_view;
 
@@ -54,6 +56,8 @@ pub(super) struct SubjectsQuery {
     q: String,
     #[serde(default)]
     limit: Option<usize>,
+    #[serde(default)]
+    document_id: Option<DocumentId>,
 }
 
 #[derive(Debug, Serialize)]
@@ -62,6 +66,10 @@ pub(super) struct SubjectJson {
     display_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     detail: Option<String>,
+    /// With `document_id` on a user search: the level the user holds on that
+    /// document, or `none`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access_level: Option<&'static str>,
 }
 
 #[derive(Debug, Serialize)]
@@ -76,7 +84,7 @@ pub(super) async fn subjects(
     Extension(req_ctx): Extension<RequestContext>,
     Query(query): Query<SubjectsQuery>,
 ) -> DocumentsResult<Json<SubjectsJson>> {
-    caller(&state, &req_ctx).await?;
+    let who = caller(&state, &req_ctx).await?;
     let found = state
         .service
         .access()
@@ -86,16 +94,36 @@ pub(super) async fn subjects(
             query.limit.unwrap_or(MAX_SUBJECT_SEARCH),
         )
         .await?;
+    let levels = match query.document_id.as_ref().filter(|_| found.kind == "user") {
+        Some(document) => {
+            let users: Vec<UserId> = found
+                .matches
+                .iter()
+                .map(|subject| UserId::new(subject.value.clone()))
+                .collect();
+            let levels = state
+                .service
+                .levels_on(&who.user, document, &users, &who.trace)
+                .await?;
+            levels
+                .into_iter()
+                .map(|level| Some(level.map_or("none", AccessLevel::as_str)))
+                .collect()
+        },
+        None => vec![None; found.matches.len()],
+    };
     Ok(Json(SubjectsJson {
         kind: found.kind,
         searchable: found.searchable,
         subjects: found
             .matches
             .into_iter()
-            .map(|subject| SubjectJson {
+            .zip(levels)
+            .map(|(subject, access_level)| SubjectJson {
                 value: subject.value,
                 display_name: subject.display,
                 detail: subject.detail,
+                access_level,
             })
             .collect(),
     }))

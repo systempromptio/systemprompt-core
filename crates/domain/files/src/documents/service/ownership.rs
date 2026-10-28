@@ -14,10 +14,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentId, TraceId, UserId};
+use systemprompt_identifiers::{DocumentCommentId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    DocumentAction, DocumentOwnershipTransferredEvent, DocumentSharedEvent,
+    DocumentAction, DocumentOwnershipTransferredEvent, DocumentSharedEvent, SHARED_EVENT_VERSION,
 };
 
 use super::DocumentService;
@@ -25,6 +25,14 @@ use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentGrant, GrantActor, OwnerTransfer};
 
 pub(super) const USER_SUBJECT: &str = "user";
+
+/// What made a share, beyond its actor: the agent that acted for them and,
+/// for a share made by a mention, the comment.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(super) struct ShareCause {
+    pub(super) via_agent: Option<String>,
+    pub(super) comment_id: Option<DocumentCommentId>,
+}
 
 /// The new owner of a document. `to_display` is `None` when the caller
 /// layer could not resolve `to` to an active user; the transfer is then
@@ -114,6 +122,7 @@ impl DocumentService {
         document: &Document,
         grant: &DocumentGrant,
         message: Option<String>,
+        cause: &ShareCause,
     ) {
         let recipients = if grant.subject_kind == USER_SUBJECT {
             vec![UserId::new(grant.subject_value.clone())]
@@ -141,6 +150,10 @@ impl DocumentService {
                 by: grant.granted_by.clone(),
                 shared_by: who.username.clone(),
                 message: message.clone(),
+                v: SHARED_EVENT_VERSION,
+                via_agent: cause.via_agent.clone(),
+                comment_id: cause.comment_id.clone(),
+                created_at: Some(grant.updated_at),
             };
             if let Err(error) = self
                 .events

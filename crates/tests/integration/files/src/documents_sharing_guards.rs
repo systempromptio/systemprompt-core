@@ -47,6 +47,7 @@ fn grant(document: &DocumentId, kind: &str, value: &str, level: AccessLevel) -> 
         valid_until: None,
         message: None,
     }
+    via_agent: None,
 }
 
 async fn legacy_own_grant(h: &Harness, document: &DocumentId, owner: &UserId, user: &UserId) {
@@ -61,6 +62,8 @@ async fn legacy_own_grant(h: &Harness, document: &DocumentId, owner: &UserId, us
             granted_by: owner.clone(),
             valid_until: None,
             trace_id: systemprompt_identifiers::TraceId::generate(),
+            reason: None,
+            via_agent: None,
         })
         .await
         .expect("insert own grant");

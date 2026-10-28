@@ -29,6 +29,7 @@ pub use awareness::{
 };
 pub use comment_events::{
     DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
+    MENTION_EVENT_VERSION, MENTION_EXCERPT_CHARS,
 };
 pub use drive::{
     DriveChange, DriveChangeKind, DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveEntry,
@@ -38,7 +39,7 @@ pub use events::{
     DocumentAccessRequestedEvent, DocumentCollabUpdateEvent, DocumentCommentCreatedEvent,
     DocumentCommentResolvedEvent, DocumentConflictEvent, DocumentEventName, DocumentLockEvent,
     DocumentOwnershipTransferredEvent, DocumentPresenceEvent, DocumentProposalEvent,
-    DocumentRevisionCreatedEvent, DocumentSharedEvent,
+    DocumentRevisionCreatedEvent, DocumentSharedEvent, SHARED_EVENT_VERSION,
 };
 pub use systemprompt_provider_contracts::documents::{
     CellValue, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,

@@ -3,7 +3,7 @@ use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, TOOL_NAMES, previe
 
 use crate::documents_mcp_support::{SERVER, harness};
 
-const READ_ONLY: [&str; 7] = [
+const READ_ONLY: [&str; 8] = [
     "documents_list",
     "documents_search",
     "documents_read",
@@ -11,6 +11,7 @@ const READ_ONLY: [&str; 7] = [
     "documents_access",
     "documents_export",
     "documents_guide",
+    "documents_people",
 ];
 
 #[tokio::test]

@@ -4,7 +4,7 @@ use systemprompt_files::documents::service::{
     CommentRequest, DeleteCommentRequest, EditCommentRequest,
 };
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{EditOp, Projection};
+use systemprompt_models::documents::{AccessLevel, EditOp, Projection};
 
 use crate::documents_service_fixture::{
     GroupSource, Harness, allow, create, harness, person, trace,
@@ -34,6 +34,14 @@ async fn text_document(
     (document, projection)
 }
 
+fn tokens(text: &str, mentions: &[systemprompt_identifiers::UserId]) -> String {
+    let mut body = text.to_owned();
+    for user in mentions {
+        body.push_str(&format!(" @[Someone](user:{user})"));
+    }
+    body
+}
+
 fn request(
     document: &systemprompt_identifiers::DocumentId,
     projection: &Projection,
@@ -54,7 +62,7 @@ fn request(
             start: "cursor-start".to_owned(),
             end: "cursor-end".to_owned(),
         }),
-        body: "look here".to_owned(),
+        body: tokens("look here", &mentions),
         mentions,
         parent_id: None,
     }
@@ -121,18 +129,39 @@ async fn a_comment_keeps_its_range_and_mentions_and_is_edited_then_deleted() {
 }
 
 #[tokio::test]
-async fn mentioning_a_user_without_access_is_refused() {
+async fn mentioning_a_user_without_access_shares_the_document_as_comment() {
     let h = harness(allow(), GroupSource::new(&[])).await;
     let owner = person("comment-v2-mentioner");
     let stranger = person("comment-v2-stranger");
     let (document, projection) = text_document(&h, &owner, "alpha beta\n").await;
-    let error = h
+    let comment = h
         .service
         .create_comment(
             &owner,
             request(&document, &projection, vec![stranger.id.clone()]),
             &trace(),
         )
+        .await
+        .expect("comment");
+    assert_eq!(comment.mentions, vec![stranger.id.clone()]);
+    let levels = h
+        .service
+        .levels_on(&owner, &document, &[stranger.id.clone()], &trace())
+        .await
+        .expect("levels");
+    assert_eq!(levels, vec![Some(AccessLevel::Comment)]);
+}
+
+#[tokio::test]
+async fn a_mention_id_missing_from_the_body_is_refused() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("comment-v2-untokened");
+    let (document, projection) = text_document(&h, &owner, "alpha beta\n").await;
+    let mut untokened = request(&document, &projection, Vec::new());
+    untokened.mentions = vec![owner.id.clone()];
+    let error = h
+        .service
+        .create_comment(&owner, untokened, &trace())
         .await
         .expect_err("refused");
     assert!(matches!(error, DocumentsError::InvalidComment { .. }));

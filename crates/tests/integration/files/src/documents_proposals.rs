@@ -101,6 +101,7 @@ pub(crate) async fn grant(
                 level,
                 valid_until: None,
                 message: None,
+                via_agent: None,
             },
             &trace(),
         )

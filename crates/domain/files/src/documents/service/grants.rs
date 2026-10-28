@@ -26,7 +26,7 @@ use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use uuid::Uuid;
 
 use super::DocumentService;
-use super::ownership::USER_SUBJECT;
+use super::ownership::{ShareCause, USER_SUBJECT};
 use crate::documents::access::{AccessTarget, Granted};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{DocumentGrant, GrantActor, GrantTarget, NewGrant};
@@ -40,9 +40,14 @@ pub struct ShareRequest {
     pub level: AccessLevel,
     pub valid_until: Option<DateTime<Utc>>,
     pub message: Option<String>,
+    /// The agent sharing for the caller, when one is; recorded on the grant's
+    /// audit row and carried on `document.shared`.
+    pub via_agent: Option<String>,
 }
 
 pub const MAX_SHARE_MESSAGE_BYTES: usize = 1024;
+
+const AGENT_SHARE: &str = "shared by agent";
 
 pub(super) fn owner_of(granted: &Granted) -> Option<UserId> {
     granted
@@ -137,10 +142,16 @@ impl DocumentService {
                 granted_by: who.id.clone(),
                 valid_until: request.valid_until,
                 trace_id: trace.clone(),
+                reason: request.via_agent.as_ref().map(|_| AGENT_SHARE.to_owned()),
+                via_agent: request.via_agent.clone(),
             })
             .await?;
         if let Some(document) = &granted.document {
-            self.announce_share(who, document, &grant, request.message)
+            let cause = ShareCause {
+                via_agent: request.via_agent,
+                comment_id: None,
+            };
+            self.announce_share(who, document, &grant, request.message, &cause)
                 .await;
         }
         Ok(grant)

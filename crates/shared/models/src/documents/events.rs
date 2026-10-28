@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
@@ -225,7 +226,18 @@ pub struct DocumentSharedEvent {
     pub shared_by: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+    #[serde(default)]
+    pub v: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via_agent: Option<String>,
+    /// Set when a mention in this comment shared the document.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comment_id: Option<DocumentCommentId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<DateTime<Utc>>,
 }
+
+pub const SHARED_EVENT_VERSION: u32 = 1;
 
 impl DocumentSharedEvent {
     pub const NAME: &'static str = "document.shared";
