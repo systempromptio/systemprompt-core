@@ -5,7 +5,7 @@ use systemprompt_scheduler::jobs::{
     AiRequestToolFlagRollupJob, AnalyticsEventLinkFactsRollupJob, BackfillRollupsJob,
     BackfillSessionGeoJob, InventoryRefreshJob, InventoryRefreshMemo, LogSummaryRollupJob,
     SessionBotTypeRollupJob, ToolRowFactsRollupJob, TraceFactsRollupJob,
-    UserContextCountersRollupJob,
+    UserContextCountersRollupJob, VertexDiscoveryJob,
 };
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
@@ -107,4 +107,17 @@ async fn inventory_refresh_runs_twice_with_a_shared_memo() {
     let second = job.execute(&context).await.expect("second refresh");
     assert!(second.success);
     assert_eq!(job.name(), "managed_inventory_refresh");
+}
+
+#[tokio::test]
+async fn vertex_discovery_with_no_vertex_endpoints_scans_nothing() {
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    let context = ctx(&pool, &url);
+    let result = VertexDiscoveryJob
+        .execute(&context)
+        .await
+        .expect("discovery runs");
+    assert!(result.success);
+    assert_eq!(result.items_processed, Some(0));
 }

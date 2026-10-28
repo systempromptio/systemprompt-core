@@ -449,3 +449,121 @@ async fn a_failing_schema_statement_rolls_back_and_names_the_statement() {
         "the failed phase rolled its table back"
     );
 }
+
+fn unreachable_provider() -> PostgresProvider {
+    PostgresProvider::from_pool(Arc::new(
+        sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(std::time::Duration::from_millis(250))
+            .connect_lazy("postgres://nobody:nobody@127.0.0.1:1/does-not-exist")
+            .expect("lazy pool"),
+    ))
+}
+
+fn step_context(err: &LoaderError) -> String {
+    match err {
+        LoaderError::MigrationStepFailed { context, .. } => context.clone(),
+        other => panic!("expected a migration step failure, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn an_unreachable_database_names_the_migration_step_that_failed() {
+    let provider = unreachable_provider();
+    let service = MigrationService::new(&provider);
+    let ext_id = systemprompt_identifiers::ExtensionId::new("unreachable_ext");
+
+    let applied = service
+        .get_applied_migrations(&ext_id)
+        .await
+        .expect_err("no database");
+    assert_eq!(step_context(&applied), "Failed to query applied migrations");
+
+    let ledger = service
+        .breaking_versions(&ext_id)
+        .await
+        .expect_err("no database");
+    assert_eq!(
+        step_context(&ledger),
+        "Failed to look up the migration compatibility ledger"
+    );
+
+    let ext = StubExtension {
+        id: "unreachable_ext",
+        schemas: vec![],
+        seeds: vec![],
+        migrations: vec![Migration::new(1, "one", "SELECT 1;")],
+    };
+    let run = service
+        .run_pending_migrations(&ext)
+        .await
+        .expect_err("no database");
+    assert_eq!(
+        step_context(&run),
+        "Failed to ensure migrations table exists"
+    );
+}
+
+#[tokio::test]
+async fn reverting_zero_migrations_touches_nothing() {
+    let provider = unreachable_provider();
+    let ext = StubExtension {
+        id: "revert_none",
+        schemas: vec![],
+        seeds: vec![],
+        migrations: vec![],
+    };
+
+    let result = MigrationService::new(&provider)
+        .run_down_migrations(&ext, 0)
+        .await
+        .expect("a zero-count revert needs no database");
+
+    assert_eq!(result.migrations_run, 0);
+}
+
+#[tokio::test]
+async fn schema_residue_on_an_unreachable_database_is_an_error() {
+    let provider = unreachable_provider();
+
+    let err = systemprompt_database::audit_schema_residue(&provider, &["t".to_owned()], &[])
+        .await
+        .expect_err("no database");
+
+    match err {
+        LoaderError::SchemaInstallationStepFailed { context, .. } => {
+            assert_eq!(context, "could not list live tables");
+        },
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn a_cross_extension_table_nobody_owns_is_refused() {
+    let (provider, _db) = provider_and_db().await;
+    let ext_id = unique_id("cross_unowned");
+    let table = unique_id("cross_unowned_t");
+    let phantom = unique_id("cross_phantom_t");
+    let ext = OwnedExtension {
+        id: ext_id,
+        schemas: vec![SchemaDefinition::new(
+            table,
+            format!("CREATE TABLE IF NOT EXISTS {table} (id BIGINT PRIMARY KEY);"),
+        )],
+        cross: vec![phantom],
+        migrations: vec![],
+    };
+    let mut registry = systemprompt_extension::ExtensionRegistry::new();
+    registry.register(Arc::new(ext)).expect("register");
+
+    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+        .await
+        .expect_err("phantom cross-extension table");
+
+    match err {
+        LoaderError::CrossExtensionTableNotOwned { table: refused, .. } => {
+            assert_eq!(refused, phantom);
+        },
+        other => panic!("unexpected error: {other:?}"),
+    }
+}

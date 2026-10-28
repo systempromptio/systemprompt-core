@@ -423,3 +423,38 @@ fn context_events_carry_their_inner_timestamp() {
     let event = ContextEvent::from(inner);
     assert_eq!(event.timestamp(), stamp);
 }
+
+#[test]
+fn revision_files_refuse_empty_oversized_and_untyped_sets() {
+    use systemprompt_models::managed::{AssetDigest, AssetFile, RevisionFiles};
+
+    assert!(RevisionFiles::default().validate().is_err());
+
+    let file = |bytes: Vec<u8>, media_type: &str| AssetFile {
+        bytes,
+        media_type: media_type.to_owned(),
+        executable: false,
+    };
+    let mut oversized = RevisionFiles::default();
+    oversized.0.insert(
+        "a.bin".to_owned(),
+        file(vec![0; 5 * 1024 * 1024], "application/octet-stream"),
+    );
+    oversized.0.insert(
+        "b.bin".to_owned(),
+        file(vec![0; 4 * 1024 * 1024], "application/octet-stream"),
+    );
+    assert!(oversized.validate().is_err());
+
+    let mut untyped = RevisionFiles::default();
+    untyped
+        .0
+        .insert("a.txt".to_owned(), file(b"x".to_vec(), ""));
+    assert!(untyped.validate().is_err());
+
+    let rendered = format!("{:?}", file(vec![1, 2, 3], "text/plain"));
+    assert!(rendered.contains("bytes: 3"), "{rendered}");
+
+    assert!(AssetDigest::try_from("ABC".to_owned()).is_err());
+    assert!(AssetDigest::try_from("A".repeat(64)).is_err());
+}

@@ -153,3 +153,55 @@ async fn the_status_column_refuses_values_outside_the_vocabulary() {
         "{db_err}"
     );
 }
+
+#[tokio::test]
+async fn a_running_row_with_a_negative_pid_is_reaped_as_pid_zero() {
+    let db = test_db_pool().await;
+    let repo = ServiceRepository::new(&db, InstanceId::new(unique("negpid")));
+    let name = seed(
+        &repo,
+        "neg",
+        ServiceModule::Mcp,
+        ServiceStatus::Running,
+        Some(-7),
+    )
+    .await;
+
+    let reaped = repo.reap_stale(&LivePids::of([7])).await.expect("reap");
+
+    assert_eq!(reaped.dead.len(), 1);
+    assert_eq!(reaped.dead[0].name, name);
+    assert_eq!(reaped.dead[0].pid, 0);
+    assert!(repo.find_service_by_name(&name).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn an_unknown_module_name_stops_the_reap_with_a_decode_error() {
+    let db = test_db_pool().await;
+    let instance = unique("badmod");
+    let repo = ServiceRepository::new(&db, InstanceId::new(instance.clone()));
+    let name = unique("badmod_svc");
+    sqlx::query(
+        "INSERT INTO services (instance_id, name, module_name, pid, port, status) VALUES ($1, $2, \
+         'not-a-module', 55, 7000, 'running')",
+    )
+    .bind(&instance)
+    .bind(&name)
+    .execute(&*db.write_pool())
+    .await
+    .expect("seed row");
+
+    let err = repo
+        .reap_stale(&LivePids::of([]))
+        .await
+        .expect_err("undecodable module");
+
+    assert!(
+        format!("{err:?}").contains("services.module_name"),
+        "{err:?}"
+    );
+    let _ = sqlx::query("DELETE FROM services WHERE instance_id = $1")
+        .bind(&instance)
+        .execute(&*db.write_pool())
+        .await;
+}

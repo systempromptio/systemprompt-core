@@ -384,3 +384,42 @@ async fn dropping_an_advisory_lock_frees_it() {
         .expect("a dropped lock's session is closed, freeing it");
     next.release().await;
 }
+
+#[tokio::test]
+async fn a_held_claim_reports_its_instance_and_session() {
+    let db = db_pool().await;
+    let target = replica(&db);
+    let claim = target.services.claim_instance().await.expect("claim");
+
+    assert_eq!(claim.instance_id(), target.services.instance_id());
+    let rendered = format!("{claim:?}");
+    assert!(rendered.contains("held: true"), "{rendered}");
+    assert!(
+        rendered.contains(target.services.instance_id().as_str()),
+        "{rendered}"
+    );
+    claim.release().await;
+}
+
+#[tokio::test]
+async fn an_unreachable_database_fails_the_claim_as_a_repository_error() {
+    let dead = Arc::new(
+        sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(Duration::from_millis(250))
+            .connect_lazy("postgres://nobody:nobody@127.0.0.1:1/does-not-exist")
+            .expect("lazy pool"),
+    );
+    let db: DbPool = Arc::new(Database::from_pools(Arc::clone(&dead), Some(dead)));
+    let repo = ServiceRepository::new(&db, InstanceId::new(unique("dead")));
+
+    let err = repo.claim_instance().await.expect_err("no database");
+
+    assert!(
+        matches!(
+            err,
+            systemprompt_database::InstanceClaimError::Repository(_)
+        ),
+        "{err:?}"
+    );
+}
