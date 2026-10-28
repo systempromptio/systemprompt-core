@@ -47,7 +47,7 @@ pub(super) fn image_block(block: &Block, ctx: &mut WriteCtx<'_>) -> String {
         return String::new();
     };
     let (cx, cy) = size(*width, *height, natural);
-    ctx.drawing_id += 1;
+    ctx.drawing_id = ctx.drawing_id.saturating_add(1);
     let drawing = drawing(&rid, ctx.drawing_id, alt, cx, cy, *wrap);
     let props = ppr(&block.attrs, None, None, "", None);
     let mut out = format!("<w:p>{props}<w:r><w:drawing>{drawing}</w:drawing></w:r></w:p>");
@@ -142,4 +142,19 @@ fn drawing(rid: &str, id: u32, alt: &str, cx: u64, cy: u64, wrap: ImageWrap) -> 
          {extent}<wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>{wrap_xml}{doc_pr}{graphic}\
          </wp:anchor>"
     )
+}
+
+/// The highest drawing object id (`wp:docPr`, `pic:cNvPr`) in `xml`; a new
+/// drawing takes the next one, so ids stay unique in the part.
+pub(super) fn max_drawing_id(xml: &str) -> u32 {
+    ["<wp:docPr", "<pic:cNvPr"]
+        .iter()
+        .flat_map(|tag| xml.match_indices(tag).map(|(at, _)| &xml[at..]))
+        .filter_map(|from| {
+            let tag = from.split('>').next()?;
+            let value = tag.split(" id=\"").nth(1)?.split('"').next()?;
+            value.parse::<u32>().ok()
+        })
+        .max()
+        .unwrap_or(0)
 }

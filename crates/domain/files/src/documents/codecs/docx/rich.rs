@@ -23,6 +23,7 @@ use super::parts::{DOCUMENT, read_document};
 use super::sect_splice::splice_sect_pr;
 use super::sections::{finish_settings, sect_pr};
 use super::write::{WriteCtx, write_block};
+use super::write_drawing::max_drawing_id;
 use super::write_styles::{finish_styles, finish_theme};
 use crate::documents::model::layout::Section;
 use crate::documents::model::{BlockKind, DocumentSettings, Media, RichText, office};
@@ -60,7 +61,7 @@ pub fn materialise_rich_with(
         media,
         edits: PartEdits::default(),
         error: None,
-        drawing_id: 10_000 + u32::try_from(src.matches("<wp:docPr").count()).unwrap_or(0),
+        drawing_id: max_drawing_id(&src),
         part_seq: 0,
         in_part: false,
         even_odd: false,
