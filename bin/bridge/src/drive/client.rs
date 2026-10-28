@@ -131,14 +131,14 @@ impl DriveClient {
         decode(endpoint, accept(endpoint, response).await?).await
     }
 
-    /// Trades the device's bridge token for the Drive sync's own credential,
-    /// the only token the other Drive routes accept.
-    pub async fn sync_token(&self, bridge: &BearerToken) -> DriveResult<DriveSyncToken> {
+    /// Trades the bridge's private device token for the Drive sync's own
+    /// credential, the only token the other Drive routes accept.
+    pub async fn sync_token(&self, device: &BearerToken) -> DriveResult<DriveSyncToken> {
         let endpoint = ApiPaths::BRIDGE_DRIVE_TOKEN;
         let request = self
             .http
             .post(self.url(endpoint))
-            .bearer_auth(bridge.expose());
+            .bearer_auth(device.expose());
         decode(
             endpoint,
             accept(

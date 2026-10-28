@@ -31,6 +31,7 @@ fn token_ok() -> RefreshFn {
                 token: BearerToken::new("loop-bearer"),
                 ttl: 3600,
                 headers: Default::default(),
+                device_token: Some(BearerToken::new("device-bearer")),
             })
         })
     })
@@ -115,6 +116,10 @@ async fn until(handle: &DriveHandle, what: &str, pred: impl Fn(&DriveStatus) -> 
 async fn serve_sync_token(server: &MockServer) {
     Mock::given(method("POST"))
         .and(path(ApiPaths::BRIDGE_DRIVE_TOKEN))
+        .and(wiremock::matchers::header(
+            "authorization",
+            "Bearer device-bearer",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "token": "drive-sync",
             "expires_at": "2999-01-01T00:00:00Z",

@@ -266,6 +266,22 @@ pub async fn seed_bridge_client_credential(
     Ok(fixture)
 }
 
+/// A bridge device's private device token, as a bridge exchange mints it
+/// beside the host token: the bridge client, audience `bridge.device` alone.
+pub async fn seed_bridge_device_credential(
+    pool: &DbPool,
+    email_base: &str,
+) -> Result<AuthedFixture> {
+    let mut fixture = seed_bridge_credential(pool, email_base).await?;
+    fixture.jwt = mint_edited(&fixture, |claims| {
+        claims.registered.aud = vec![JwtAudience::Resource(
+            systemprompt_models::documents::BRIDGE_DEVICE_AUDIENCE.to_owned(),
+        )];
+        claims.custom.client_id = Some(systemprompt_identifiers::ClientId::bridge());
+    });
+    Ok(fixture)
+}
+
 /// A bridge device's Drive sync credential, as `POST /bridge/drive/token`
 /// issues it: the bridge client, audience `bridge.drive_sync`, no purpose.
 pub async fn seed_drive_credential(pool: &DbPool, email_base: &str) -> Result<AuthedFixture> {

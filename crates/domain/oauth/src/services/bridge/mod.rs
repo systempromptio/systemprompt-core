@@ -26,6 +26,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenInteraction};
+use systemprompt_models::documents::BRIDGE_DEVICE_AUDIENCE;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,
@@ -39,9 +40,14 @@ const DEFAULT_ACCESS_TTL_SECONDS: u64 = 3600;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BridgeAuthResult {
+    /// The token the bridge hands its hosts (gateway and MCP audiences).
     pub token: String,
     pub ttl: u64,
     pub headers: HashMap<String, String>,
+    /// The bridge's private device token (audience `bridge.device` alone),
+    /// the only credential that trades for a Drive sync token; minted only
+    /// for the bridge client with no purpose, and never handed to a host.
+    pub device_token: Option<String>,
 }
 
 #[derive(Debug)]
@@ -151,6 +157,10 @@ pub async fn issue_bridge_access(
 
     let ttl = ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(i64::MAX));
     let interaction = (interactive && purpose.is_none()).then_some(TokenInteraction::Interactive);
+    let device = (client_id == ClientId::bridge() && purpose.is_none()).then(|| JwtConfig {
+        audience: vec![JwtAudience::Resource(BRIDGE_DEVICE_AUDIENCE.to_owned())],
+        ..build_bridge_jwt_config(&auth_user, ttl, None, interaction)
+    });
     let config = build_bridge_jwt_config(&auth_user, ttl, purpose, interaction);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
@@ -163,6 +173,17 @@ pub async fn issue_bridge_access(
         &session_id,
         &signing,
     )?;
+    let device_token = device
+        .map(|device| {
+            generate_jwt(
+                &auth_user,
+                device,
+                AccessTokenId::generate(),
+                &session_id,
+                &signing,
+            )
+        })
+        .transpose()?;
 
     let session_analytics = analytics.extract_analytics(
         request_headers,
@@ -197,6 +218,7 @@ pub async fn issue_bridge_access(
         token,
         ttl: ttl_seconds,
         headers: hdrs,
+        device_token,
     })
 }
 

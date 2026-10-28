@@ -23,7 +23,7 @@
 
 - **Bridge:** the Drive sync treats a commit answered `status: proposed` as sent for review. It keeps the local file, records it so it is not uploaded again, lists it in `drive status`, prints it after `drive sync`, and the desktop app raises a "Sent for review" notice (`drive-review-title`, `drive-review-body`). The next pull brings the reviewed content once the head moves.
 
-- **Bridge:** the Drive sync runs under its own credential. The device trades its bridge token at `POST /v1/bridge/drive/token` for a short token with the audience `bridge.drive_sync`; only the bridge client's own token with no purpose can trade, and the new token copies the bridge token's `interaction` claim. The Drive routes accept that token alone, and only it is stamped with the `drive_sync` channel. The scheduler runs every job, extension jobs included, as `DocumentActor::System`. A move pins the stricter of the attended and unattended caps.
+- **Bridge:** the Drive sync runs under its own credential. A bridge exchange now also returns a private `device_token` (audience `bridge.device`, only for the bridge client with no purpose). The bridge keeps it in its own token cache and never hands it to a host: `apiKeyHelper` output, the MCP proxy and managed settings get the host token. Only the device token trades at `POST /v1/bridge/drive/token` for a short token with the audience `bridge.drive_sync`, which copies the device token's `interaction` claim. The Drive routes accept that token alone, and only it is stamped with the `drive_sync` channel. The scheduler runs every job, extension jobs included, as `DocumentActor::System`. A move pins the stricter of the attended and unattended caps.
 
 ### Breaking
 

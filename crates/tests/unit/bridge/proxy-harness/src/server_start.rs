@@ -62,6 +62,7 @@ fn authenticated_parts(uri: &str) -> ServerParts {
                 token: BearerToken::new("upstream-jwt"),
                 ttl: 3600,
                 headers: Default::default(),
+                device_token: None,
             })
         })
     })));

@@ -43,6 +43,8 @@ pub enum DriveError {
     ServerDisabled { endpoint: &'static str },
     #[error("gateway rejected the credential at {endpoint}")]
     Unauthorized { endpoint: &'static str },
+    #[error("this sign-in carries no device token for Drive sync; sign in again on this device")]
+    DeviceTokenMissing,
     #[error("gateway answered {status} at {endpoint}: {rejection}")]
     Rejected {
         endpoint: &'static str,

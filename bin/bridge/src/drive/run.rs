@@ -249,7 +249,11 @@ impl Runner<'_> {
             .current(AUTH_THRESHOLD_SECS)
             .await
             .map_err(DriveError::Token)?;
-        let sync = self.sync_bearer(&client, &token.token).await?;
+        let device = token
+            .device_token
+            .as_ref()
+            .ok_or(DriveError::DeviceTokenMissing)?;
+        let sync = self.sync_bearer(&client, device).await?;
         let cycle = Cycle {
             client: &client,
             bearer: &sync,
@@ -264,19 +268,19 @@ impl Runner<'_> {
         self.beacon(cycle).await
     }
 
-    /// The Drive sync token, traded again for the bridge token once it is
-    /// within a minute of expiry. A 401 on any Drive route drops it.
+    /// The Drive sync token, traded again for the private device token once
+    /// it is within a minute of expiry. A 401 on any Drive route drops it.
     async fn sync_bearer(
         &mut self,
         client: &DriveClient,
-        bridge: &BearerToken,
+        device: &BearerToken,
     ) -> DriveResult<BearerToken> {
         if let Some((token, expires_at)) = &self.sync_token
             && *expires_at - chrono::Duration::seconds(SYNC_TOKEN_MARGIN_SECS) > Utc::now()
         {
             return Ok(token.clone());
         }
-        let issued = client.sync_token(bridge).await?;
+        let issued = client.sync_token(device).await?;
         let token = BearerToken::new(issued.token);
         self.sync_token = Some((token.clone(), issued.expires_at));
         Ok(token)

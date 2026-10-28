@@ -30,6 +30,10 @@ pub struct AuthResponse {
     pub ttl: u64,
     #[serde(default, with = "header_map_serde")]
     pub headers: HashMap<http::HeaderName, http::HeaderValue>,
+    /// The private device token: only the bridge's Drive sync uses it, to
+    /// trade for a Drive sync token. Never handed to a host.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_token: Option<BearerToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +42,22 @@ pub struct HelperOutput {
     pub ttl: u64,
     #[serde(default, with = "header_map_serde")]
     pub headers: HashMap<http::HeaderName, http::HeaderValue>,
+    /// Kept in the bridge's 0600 token cache for the Drive sync's trade;
+    /// [`HelperOutput::for_host`] strips it before anything reaches a host.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_token: Option<BearerToken>,
+}
+
+impl HelperOutput {
+    /// This output as a host may see it: the host token and its headers,
+    /// never the private device token.
+    #[must_use]
+    pub fn for_host(&self) -> Self {
+        Self {
+            device_token: None,
+            ..self.clone()
+        }
+    }
 }
 
 impl From<AuthResponse> for HelperOutput {
@@ -46,6 +66,7 @@ impl From<AuthResponse> for HelperOutput {
             token: r.token,
             ttl: r.ttl,
             headers: r.headers,
+            device_token: r.device_token,
         }
     }
 }

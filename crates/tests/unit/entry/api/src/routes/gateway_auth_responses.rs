@@ -41,6 +41,7 @@ fn auth_response_serializes_token_ttl_headers() {
         token: "jwt-value".to_owned(),
         ttl: 3600,
         headers,
+        device_token: None,
     };
     let v = serde_json::to_value(&resp).expect("serialize");
     assert_eq!(v["token"], "jwt-value");
@@ -56,6 +57,7 @@ fn auth_response_from_bridge_result_maps_fields() {
         token: "tok".to_owned(),
         ttl: 900,
         headers: headers.clone(),
+        device_token: None,
     };
     let resp = AuthResponse::from(bridge);
     assert_eq!(resp.token, "tok");
@@ -69,6 +71,7 @@ fn auth_response_from_bridge_result_preserves_empty_headers() {
         token: "t".to_owned(),
         ttl: 0,
         headers: HashMap::new(),
+        device_token: None,
     };
     let resp = AuthResponse::from(bridge);
     assert!(resp.headers.is_empty());

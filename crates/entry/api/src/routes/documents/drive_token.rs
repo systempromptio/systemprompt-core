@@ -1,13 +1,15 @@
 //! `POST /v1/bridge/drive/token`: the Drive sync's own credential.
 //!
-//! The device trades its bridge token for a short token whose only
-//! audience is [`DRIVE_SYNC_AUDIENCE`]; the Drive routes accept that token
-//! and nothing else, and only it is stamped with the `drive_sync` channel.
-//! The trade takes a plain bridge token (the bridge client, no purpose): an
-//! agent run's purposed token or any other client's token is refused, so no
-//! other credential can act as the sync. The new token carries the bridge
-//! token's user, session and `interaction` claim, never more, and expires no
-//! later than it.
+//! The device trades its private device token (audience
+//! [`BRIDGE_DEVICE_AUDIENCE`] alone) for a short token whose only audience is
+//! [`DRIVE_SYNC_AUDIENCE`]; the Drive routes accept that token and nothing
+//! else, and only it is stamped with the `drive_sync` channel. The device
+//! token is minted beside the bridge token for the bridge client with no
+//! purpose and kept by the bridge; what Claude Code, the MCP proxy and every
+//! other host receive is the bridge token, which has no device audience and
+//! so cannot trade. A purposed or delegated token is refused too. The new
+//! token carries the device token's user, session and `interaction` claim,
+//! never more, and expires no later than it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,18 +22,23 @@ use systemprompt_files::documents::agents::{AgentChannel, DocumentActor};
 use systemprompt_identifiers::{AccessTokenId, ClientId, JwtToken};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, UserJwtRequest};
-use systemprompt_models::documents::{DRIVE_SYNC_AUDIENCE, DriveSyncToken};
+use systemprompt_models::documents::{BRIDGE_DEVICE_AUDIENCE, DRIVE_SYNC_AUDIENCE, DriveSyncToken};
 use systemprompt_runtime::documents::actor::bearer_actor;
 
 use super::caller::authenticated;
 use super::drive::DriveState;
 use super::error::DocumentsResult;
 use crate::error::ApiHttpError;
-use crate::routes::gateway::bridge_error::authenticate_bridge;
 use crate::routes::gateway::messages::extract_credential;
 
 /// The longest a sync token lives; it is renewed by trading again.
 const MAX_TTL: Duration = Duration::hours(1);
+
+/// The audience the trade decodes with: the bridge's private device token
+/// alone, never the token hosts receive.
+fn device_audiences() -> [JwtAudience; 1] {
+    [JwtAudience::Resource(BRIDGE_DEVICE_AUDIENCE.to_owned())]
+}
 
 /// The audience list the Drive routes decode with.
 #[must_use]
@@ -43,9 +50,16 @@ pub(super) async fn issue(
     State(state): State<DriveState>,
     headers: HeaderMap,
 ) -> DocumentsResult<Json<DriveSyncToken>> {
-    let (claims, user) = authenticate_bridge(state.jwt(), &headers)
+    let credential = extract_credential(&headers)
+        .ok_or_else(|| ApiHttpError::unauthorized("the trade takes the bridge device token"))?;
+    let (claims, user) = state
+        .jwt()
+        .decode_for_audiences(&JwtToken::new(credential), &device_audiences())
         .await
-        .map_err(ApiHttpError::from)?;
+        .map_err(|error| {
+            ApiError::unauthorized("only the bridge device token trades for a Drive sync token")
+                .with_source(error)
+        })?;
     let bridge_client = claims.client_id.as_ref() == Some(&ClientId::bridge());
     if !bridge_client || claims.purpose.is_some() || !claims.act_chain.is_empty() {
         return Err(ApiHttpError::forbidden(

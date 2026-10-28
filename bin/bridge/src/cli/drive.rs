@@ -138,15 +138,16 @@ async fn sync_once(
     let cfg = crate::config::load().map_err(DriveError::Config)?;
     let gateway = crate::config::gateway_url_or_default(&cfg);
     let session_id = crate::auth::session_identity::stable_session_id(&cfg);
-    let bearer = crate::auth::obtain_live_token(&cfg, &session_id, &ctx.http)
+    let device = crate::auth::obtain_live_token(&cfg, &session_id, &ctx.http)
         .await
         .map_err(DriveError::Credential)?
-        .token;
+        .device_token
+        .ok_or(DriveError::DeviceTokenMissing)?;
     let device_id = systemprompt_identifiers::DriveDeviceId::try_new(ctx.install_id().as_str())
         .map_err(DriveError::DeviceId)?;
     let host_name = crate::sysproc::host_name().unwrap_or_else(|| "this device".to_owned());
     let client = DriveClient::new(gateway, ctx.http.clone());
-    let sync = crate::ids::BearerToken::new(client.sync_token(&bearer).await?.token);
+    let sync = crate::ids::BearerToken::new(client.sync_token(&device).await?.token);
     let cycle = Cycle {
         client: &client,
         bearer: &sync,

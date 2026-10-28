@@ -64,7 +64,8 @@ pub use bootstrap::{
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_client_credential, seed_bridge_credential,
-    seed_drive_credential, seed_fixture_system_admin, seed_user_row,
+    seed_bridge_device_credential, seed_drive_credential, seed_fixture_system_admin,
+    seed_user_row,
     seed_user_row_with_roles, seed_user_session, AuthedFixture,
 };
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};

@@ -1404,6 +1404,7 @@ fn seed_stale_cache(dirs: &SandboxDirs, gateway: &str) {
                     token: systemprompt_bridge::ids::BearerToken::new(STALE_TOKEN),
                     ttl: 3600,
                     headers: std::collections::HashMap::new(),
+                    device_token: None,
                 },
                 &binding,
             )

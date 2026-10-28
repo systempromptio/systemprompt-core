@@ -39,6 +39,10 @@ pub struct AuthResponse {
     pub token: String,
     pub ttl: u64,
     pub headers: HashMap<String, String>,
+    /// The bridge's private device token; absent for a purposed or
+    /// non-bridge exchange.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_token: Option<String>,
 }
 
 impl From<BridgeAuthResult> for AuthResponse {
@@ -47,6 +51,7 @@ impl From<BridgeAuthResult> for AuthResponse {
             token: r.token,
             ttl: r.ttl,
             headers: r.headers,
+            device_token: r.device_token,
         }
     }
 }

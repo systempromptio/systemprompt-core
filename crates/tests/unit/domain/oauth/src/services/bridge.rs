@@ -67,6 +67,7 @@ fn bridge_auth_result_round_trips_through_serde() {
         token: "jwt.token.value".to_string(),
         ttl: 3600,
         headers,
+        device_token: None,
     };
 
     let json = serde_json::to_string(&result).expect("serialize bridge auth result");
@@ -85,6 +86,7 @@ fn bridge_auth_result_clone_preserves_fields() {
         token: "tok".to_string(),
         ttl: 60,
         headers,
+        device_token: None,
     };
     let cloned = original.clone();
 

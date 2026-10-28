@@ -24,7 +24,8 @@ use systemprompt_models::RouteClassifier;
 use systemprompt_models::documents::content_hash;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, seed_bridge_client_credential, seed_bridge_credential, seed_drive_credential,
+    AuthedFixture, seed_bridge_client_credential, seed_bridge_credential,
+    seed_bridge_device_credential, seed_drive_credential,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -987,7 +988,7 @@ async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
 }
 
 #[tokio::test]
-async fn only_the_bridge_clients_own_token_trades_for_a_drive_sync_token() -> Result<()> {
+async fn only_the_private_device_token_trades_for_a_drive_sync_token() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let gateway = gateway_router(&ctx)?;
     let trade = |fixture: &AuthedFixture| {
@@ -996,7 +997,7 @@ async fn only_the_bridge_clients_own_token_trades_for_a_drive_sync_token() -> Re
             .expect("request")
     };
 
-    let device = seed_bridge_client_credential(&pool, "drive-trade", None).await?;
+    let device = seed_bridge_device_credential(&pool, "drive-trade").await?;
     let traded = send(gateway.clone(), trade(&device)).await?;
     assert_eq!(traded.status, StatusCode::OK, "{}", traded.json());
     let sync = traded.json()["token"].as_str().expect("token").to_owned();
@@ -1010,16 +1011,16 @@ async fn only_the_bridge_clients_own_token_trades_for_a_drive_sync_token() -> Re
     .await?;
     assert_eq!(manifest.status, StatusCode::OK, "{}", manifest.json());
 
-    let run = seed_bridge_client_credential(&pool, "drive-trade-run", Some("farm:run-1")).await?;
-    let refused = send(gateway.clone(), trade(&run)).await?;
-    assert_eq!(refused.status, StatusCode::FORBIDDEN, "a purposed token");
-
-    let other_client = seed_bridge_credential(&pool, "drive-trade-other").await?;
-    let refused = send(gateway, trade(&other_client)).await?;
+    let host = seed_bridge_client_credential(&pool, "drive-trade-host", None).await?;
+    let refused = send(gateway.clone(), trade(&host)).await?;
     assert_eq!(
         refused.status,
-        StatusCode::FORBIDDEN,
-        "not the bridge client"
+        StatusCode::UNAUTHORIZED,
+        "the token Claude Code is handed cannot trade"
     );
+
+    let run = seed_bridge_client_credential(&pool, "drive-trade-run", Some("farm:run-1")).await?;
+    let refused = send(gateway, trade(&run)).await?;
+    assert_eq!(refused.status, StatusCode::UNAUTHORIZED, "a purposed token");
     Ok(())
 }

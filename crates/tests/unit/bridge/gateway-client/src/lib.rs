@@ -5,6 +5,8 @@ mod auth_endpoints;
 #[cfg(test)]
 mod catalog;
 #[cfg(test)]
+mod device_token;
+#[cfg(test)]
 mod conditional;
 #[cfg(test)]
 mod gateway_client;

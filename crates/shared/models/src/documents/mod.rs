@@ -34,9 +34,9 @@ pub use comment_events::{
     MENTION_EVENT_VERSION, MENTION_EXCERPT_CHARS,
 };
 pub use drive::{
-    DRIVE_SYNC_AUDIENCE, DriveChange, DriveChangeKind, DriveChanges, DriveCommitMeta,
-    DriveCommitResponse, DriveEntry, DriveManifest, DriveProposal, DriveProposals, DriveSyncToken,
-    PresenceBeacon, PresenceSource, PresenceState,
+    BRIDGE_DEVICE_AUDIENCE, DRIVE_SYNC_AUDIENCE, DriveChange, DriveChangeKind, DriveChanges,
+    DriveCommitMeta, DriveCommitResponse, DriveEntry, DriveManifest, DriveProposal, DriveProposals,
+    DriveSyncToken, PresenceBeacon, PresenceSource, PresenceState,
 };
 pub use events::{
     DocumentAccessRequestedEvent, DocumentCollabDegradedEvent, DocumentCollabUpdateEvent,

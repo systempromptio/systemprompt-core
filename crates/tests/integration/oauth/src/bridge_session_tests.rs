@@ -115,6 +115,11 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     )
     .await
     .expect("mint bridge access");
+    assert!(
+        result.device_token.is_some(),
+        "a bridge client's own exchange carries the private device token"
+    );
+    assert_ne!(result.device_token.as_deref(), Some(result.token.as_str()));
 
     let session_id = SessionId::new(
         result
@@ -277,4 +282,27 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     .await
     .expect("count query");
     assert_eq!(count, Some(1), "re-mint must reuse the single session row");
+}
+
+#[tokio::test]
+async fn a_purposed_exchange_gets_no_device_token() {
+    let config = test_config();
+    let db = setup_test_db().await;
+    let user_id = create_test_user(&db).await;
+    let analytics = AnalyticsService::new(
+        None,
+        None,
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&db).expect("repositories"),
+    );
+    let result = issue_bridge_access(
+        &systemprompt_test_fixtures::test_signing_keys(),
+        &analytics,
+        &**analytics.session_store(),
+        &user_provider(&db),
+        BridgeAccessRequest::bridge(&config, &exchange_request_headers(), None, &user_id)
+            .with_purpose(Some("farm:run-1".to_owned())),
+    )
+    .await
+    .expect("mint bridge access");
+    assert!(result.device_token.is_none());
 }
