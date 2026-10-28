@@ -21,6 +21,7 @@
 - **Breaking:** **Files:** `DocumentsError` gains `UnknownSubject`, `OwnNotGrantable`, `ShareBelowExisting` and `Directory`. Migrate by adding arms (or a wildcard) to exhaustive matches.
 - **Breaking:** **Models:** `DocumentSharedEvent` gains `document_name`, `recipient_user_id` and `shared_by`. Migrate struct literals by adding the fields.
 - **Breaking:** **Runtime:** `RefusalCode` gains `UnknownSubject` (`unknown_subject`) and `Refusal` gains `existing_level`. Migrate by adding an arm (or a wildcard) to exhaustive matches and `existing_level: None` to struct literals.
+- **Breaking:** **Runtime:** `DownloadTarget` gains `rendition: Rendition`, and **Files:** `DocumentLimits` gains `pdf_pages`. Migrate struct literals by adding `rendition: Rendition::Native` and `pdf_pages: 500`, or `..DocumentLimits::default()`.
 - **Breaking:** **Files:** `own` is no longer a grantable level: `share` refuses it with `invalid_params`, and a stored `own` grant confers `share`. Migrate by transferring ownership instead.
 
 - **Breaking:** **Files:** `collab::Left::checkpoint` is a `Checkpoint` (`Unchanged`, `Committed`, `Conflict { head, proposal }`) instead of `Option<DocumentRevisionId>`, and the leave route answers `{closed, checkpoint, checkpoint_revision, head_revision?, proposal_id?}`. Migrate by matching on `Checkpoint` or calling `Checkpoint::revision`.
@@ -111,6 +112,9 @@
 - **Files:** `DocumentGrant::is_expired`, and grant listings and access read-backs carry `expired: true` for a grant past its `valid_until`.
 
 - **Files:** `DocumentService::propose_body` proposes a whole body on a base revision.
+- **Files:** PDF export. `DocumentService::render_pdf` renders a revision to A4 PDF from its codec projection with the `documents::pdf` module (pure Rust, standard fonts, images omitted, deterministic for a revision), capped by the new `files.documents.limits.pdfPages` (`DocumentLimits::pdf_pages`, default 500, refused as `TooLarge` beyond it).
+- **Runtime:** `documents_export {format: pdf, as: url}` returns a signed download link for every format; `Rendition`, `DOWNLOAD_FORMAT_QUERY` and `DOWNLOAD_FORMAT_PDF` in `documents::mcp`.
+- **API:** `GET /api/v1/documents/{id}/content?format=pdf` serves the revision rendered as `application/pdf`, with and without a signed download token.
 - **Files:** `collab::Joined::seq` and the join route's `seq` give the sequence number a client resumes from.
 - **Files:** migration `013_document_path_history` adds `document_path_changes`, the path history the drive change feed merges with revisions under one `(timestamp, id)` cursor.
 - **Bridge:** `bridge drive status` lists the documents shared with the user that the Drive folder has not synced yet, recorded in `.drive-state.json` from `document.shared` notices.

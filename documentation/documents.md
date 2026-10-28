@@ -168,7 +168,7 @@ The server `instructions` carry the working contract: read the outline, edit by 
 
 Accepting needs `edit` access, and nobody accepts their own proposal (`self_review`). When the head is still the proposal's base, the proposed revision becomes the head by compare-and-swap and keeps the proposer as its author. When the head has moved, the proposal's operations are applied again on the head under the same node guards as any edit, as a revision by the reviewer on behalf of the proposer; a node the proposal touches that changed in between refuses as `proposal_conflict` with its current text, and the proposal stays open. The landing transaction records the landed revision on the proposal, so an accepted proposal always names its revision; an accept interrupted before it landed is reopened by the presence sweep after five minutes. Rejecting records the reviewer and note. Every transition emits `document.proposal.opened`, `accepted`, `rejected` or `superseded` to the owner, present users and the proposer. Moving a document to the trash rejects its open proposals.
 
-**Export.** `native` as a URL works for every format, and `html` as a preview works for every format. `md` or `html` as a URL is offered only for a document already in that format, and `pdf` is refused as `unsupported_format`.
+**Export.** `native` as a URL works for every format, and `html` as a preview works for every format. `md` or `html` as a URL is offered only for a document already in that format. `pdf` as a URL works for every format: the link serves the revision rendered to A4 PDF by core's own renderer, with no external binary, subprocess or network call. The rendering is built from the outline, so it carries headings by level, paragraphs, list items with markers and nesting, tables as ruled grids with wrapped cell text, one section per sheet with a grid of its used range (row numbers and column letters), one page per slide with its title and body text, and pending blocks in italics; plain-text documents are set in Courier. It omits images (never fetched), embedded objects, fonts, colours, run-level bold and italic, slide layouts, cell formulas (the shown value is rendered) and, in Markdown, fenced code blocks and tables, which the outline does not carry. Text is drawn with the standard PDF fonts in `WinAnsiEncoding`, so a character outside Latin-1 renders as `?`. The PDF title is the document name, the subject names the revision, the producer is `systemprompt`, the creation date is the revision's, and each page carries the name and a `Page N of M` footer; the same revision always renders to the same bytes. A rendering longer than `limits.pdfPages` is refused as `too_large`, and `pdf` as a preview is refused as `unsupported_format`.
 
 The tool handlers are composed by an extension's MCP server binary; core provides the handlers and the service behind them.
 
@@ -190,7 +190,7 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 | `GET /api/v1/documents/subject-kinds` | The grant subject kinds this installation accepts. |
 | `GET /api/v1/documents/subjects` | Subject search by `kind`, `q` (prefix) and `limit` (at most 20). |
 | `POST /api/v1/documents/{id}/access-requests`, `POST /api/v1/documents/{id}/access-requests/{rid}/grant`, `/decline` | Request access; answer a request (needs `share`). |
-| `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support. Replace the bytes with `If-Match: "<revision_id>"`; a stale base merges as described above or returns `409` `stale_base` with the head, its content hash and the base under `detail`. `?op_id=` makes the write idempotent. |
+| `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support; `?format=pdf` serves the revision rendered as PDF (`application/pdf`, whole body, the rendering's hash as `ETag`, the document name with a `.pdf` extension in `Content-Disposition`). Replace the bytes with `If-Match: "<revision_id>"`; a stale base merges as described above or returns `409` with the head and base. `?op_id=` makes the write idempotent. |
 | `POST /api/v1/documents/{id}/edits` | Structured edit operations, with an optional base revision, `op_id`, `answering`, `allow_detach` and `mode` (`land` or `propose`). A proposal answers `201` with the proposal and its revision. |
 | `GET /api/v1/documents/{id}/proposals` | Proposals, newest first; `?status=` filters. |
 | `GET /api/v1/documents/{id}/proposals/{pid}` | One proposal and the lines it changes against its base, in the changes-view form. |
@@ -330,6 +330,7 @@ The store reads the `files.documents` section of `<services>/config/files.yaml`.
 | `limits.maxCommentBytes` | 16 KiB | 256 B to 1 MiB | A comment body. |
 | `limits.maxCollabUpdateBytes` | 4 MiB | 1 KiB to 64 MiB | One live co-editing update. |
 | `limits.maxCursorBytes` | 4 KiB | 256 B to 64 KiB | One editor cursor payload. |
+| `limits.pdfPages` | 500 | 1 to 5,000 | Pages a PDF export may run to; a longer rendering is refused as `too_large`. |
 
 Config validation rejects values outside the bounds.
 

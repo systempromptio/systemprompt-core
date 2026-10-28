@@ -351,6 +351,7 @@ These areas are mounted by `mount_content_and_misc` (`protocol.rs:149`).
 | Base path | Auth | Purpose |
 |-----------|------|---------|
 | `/api/v1/content` | Public + User | Content query and link resolution. |
+| `/api/v1/documents`, `/api/v1/document-folders` | User | The document store (see [Documents](../documents.md)). `GET /api/v1/documents/{id}/content?revision=<id>` streams a revision; with `format=pdf` it serves the revision rendered as PDF. A signed `access_token` query from `documents_export` opens the same route without a session. |
 | `/api/v1/sync` | Restricted (Service) | Cloud sync of files. |
 | `/api/v1/marketplace` | Public | Marketplace catalog. |
 | `/api/v1/analytics` | Admin | Analytics events and streams. |
