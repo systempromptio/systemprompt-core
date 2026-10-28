@@ -15,7 +15,7 @@
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::import::part_text;
-use super::parts::malformed;
+use super::parts::{malformed, read_part};
 use super::write::{WriteCtx, write_block};
 use crate::documents::model::RichText;
 use crate::documents::model::layout::{Orientation, Section};
@@ -107,8 +107,15 @@ pub(super) fn sect_pr(section: &Section, ctx: &mut WriteCtx<'_>) -> String {
 }
 
 fn running_part(model: &RichText, tag: &str, ctx: &mut WriteCtx<'_>) -> Option<String> {
-    ctx.part_seq += 1;
-    let name = format!("sp-{tag}{}.xml", ctx.part_seq);
+    let name = loop {
+        ctx.part_seq = ctx.part_seq.saturating_add(1);
+        let name = format!("sp-{tag}{}.xml", ctx.part_seq);
+        let part = format!("word/{name}");
+        let in_base = read_part(ctx.base, &part).ok().flatten().is_some();
+        if !in_base && ctx.edits.get(&part).is_none() {
+            break name;
+        }
+    };
     let outer = std::mem::replace(&mut ctx.in_part, true);
     let mut body: String = model.blocks.iter().map(|b| write_block(b, ctx)).collect();
     ctx.in_part = outer;
