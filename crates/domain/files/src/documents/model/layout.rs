@@ -18,6 +18,7 @@ use super::rich_text::RichText;
 /// Paragraph-level formatting of a text block.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ParaAttrs {
+    /// A paragraph style id from the document's style catalogue.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -77,6 +78,7 @@ pub struct TableProps {
     pub header_rows: u32,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cells: Vec<Vec<CellProps>>,
+    /// A table style id from the document's style catalogue.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
 }
@@ -109,6 +111,7 @@ pub struct Column {
 /// reads as 1.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct CellProps {
+    /// Background fill as a 6-digit hex colour.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shade: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -187,6 +190,21 @@ pub struct Section {
 }
 
 impl Section {
+    pub fn running_parts_mut(&mut self) -> Vec<&mut RichText> {
+        [
+            &mut self.header,
+            &mut self.footer,
+            &mut self.first_page_header,
+            &mut self.first_page_footer,
+            &mut self.even_header,
+            &mut self.even_footer,
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+
+    /// Every header and footer this section defines.
     pub fn running_parts(&self) -> impl Iterator<Item = &RichText> {
         [
             &self.header,

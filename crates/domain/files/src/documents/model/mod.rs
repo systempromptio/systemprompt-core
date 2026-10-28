@@ -32,6 +32,8 @@ pub mod office;
 pub mod ops;
 mod rich_text;
 mod validate;
+mod validate_bounds;
+mod validate_walk;
 mod view;
 
 pub use document::DocumentSettings;

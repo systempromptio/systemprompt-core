@@ -254,10 +254,11 @@ impl FreshIds {
 fn collect_ids(model: &RichText, into: &mut HashSet<String>) {
     for block in &model.blocks {
         into.insert(block.id.clone());
-        if let BlockKind::Table { rows, .. } = &block.kind {
-            for cell in rows.iter().flatten() {
-                collect_ids(cell, into);
-            }
+        for nested in block.kind.nested() {
+            collect_ids(nested, into);
         }
+    }
+    for part in model.running() {
+        collect_ids(part, into);
     }
 }

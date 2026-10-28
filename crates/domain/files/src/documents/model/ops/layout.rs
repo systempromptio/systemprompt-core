@@ -64,7 +64,7 @@ pub(super) fn new_block(
         object.insert("id".to_owned(), serde_json::Value::String(String::new()));
     }
     let mut block = parse::<Block>("insert_block.block", &value)?;
-    if matches!(block.kind, BlockKind::Raw { .. }) {
+    if holds_raw(std::slice::from_ref(&block)) {
         return Err(refused("insert_block cannot author raw markup".to_owned()));
     }
     block.id = fresh.next_id();
@@ -74,12 +74,7 @@ pub(super) fn new_block(
 
 /// Gives every block inside a table or a section's running parts a fresh id.
 fn number_nested(kind: &mut BlockKind, fresh: &mut FreshIds) {
-    let mut parts: Vec<&mut RichText> = match kind {
-        BlockKind::Table { rows, .. } => rows.iter_mut().flatten().collect(),
-        BlockKind::SectionBreak { section } => running_mut(section),
-        _ => Vec::new(),
-    };
-    for part in &mut parts {
+    for part in kind.nested_mut() {
         for block in &mut part.blocks {
             block.id = fresh.next_id();
             number_nested(&mut block.kind, fresh);
@@ -87,18 +82,16 @@ fn number_nested(kind: &mut BlockKind, fresh: &mut FreshIds) {
     }
 }
 
-fn running_mut(section: &mut Section) -> Vec<&mut RichText> {
-    [
-        &mut section.header,
-        &mut section.footer,
-        &mut section.first_page_header,
-        &mut section.first_page_footer,
-        &mut section.even_header,
-        &mut section.even_footer,
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+/// Whether any block, at any depth, is raw markup.
+fn holds_raw(blocks: &[Block]) -> bool {
+    blocks.iter().any(|block| {
+        matches!(block.kind, BlockKind::Raw { .. })
+            || block
+                .kind
+                .nested()
+                .into_iter()
+                .any(|nested| holds_raw(&nested.blocks))
+    })
 }
 
 pub(super) fn update_table(
@@ -165,15 +158,19 @@ pub(super) fn apply_document(
             format,
         });
     }
+    let mut fresh = FreshIds::new(model);
+    let fresh = &mut fresh;
     let settings = model.document.get_or_insert_with(Default::default);
     match op {
         EditOp::SetSection(op) => {
             let mut section = parse::<Section>("set_section.section", &op.section)?;
-            let mut n = 0;
-            for part in running_mut(&mut section) {
+            if section.running_parts().any(|part| holds_raw(&part.blocks)) {
+                return Err(refused("set_section cannot author raw markup".to_owned()));
+            }
+            for part in section.running_parts_mut() {
                 for block in &mut part.blocks {
-                    n += 1;
-                    block.id = format!("sec{n}");
+                    block.id = fresh.next_id();
+                    number_nested(&mut block.kind, fresh);
                 }
             }
             settings.section = Some(section);

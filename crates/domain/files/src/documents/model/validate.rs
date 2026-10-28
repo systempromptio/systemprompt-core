@@ -13,6 +13,8 @@
 use std::collections::HashSet;
 
 use super::rich_text::{Block, BlockKind, Mark, MarkKind, RichText};
+use super::validate_bounds as bounds;
+use super::validate_walk::{check_raw, strip_comments};
 
 /// What a caller may change in a live document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,6 +102,14 @@ pub fn validate(
 ) -> Result<(), ModelRejection> {
     let mut ids = HashSet::new();
     check_blocks(next, limits, 0, &mut ids)?;
+    if let Some(settings) = next.document.as_deref()
+        && !bounds::settings_ok(settings)
+    {
+        return Err(ModelRejection::BadAttribute("document".to_owned()));
+    }
+    for part in next.running() {
+        check_blocks(part, limits, 1, &mut ids)?;
+    }
     check_raw(before, next)?;
     if level == EditLevel::Comment && strip_comments(before) != strip_comments(next) {
         return Err(ModelRejection::BeyondCommentLevel);
@@ -121,30 +131,29 @@ fn check_blocks<'a>(
             return Err(ModelRejection::BadBlockId(block.id.clone()));
         }
         check_block(block, limits)?;
-        match &block.kind {
+        let shape_ok = match &block.kind {
             BlockKind::Table { rows, props } => {
                 let cells: usize = rows.iter().map(Vec::len).sum();
                 if depth + 1 > limits.depth || cells > limits.table_cells {
                     return Err(ModelRejection::TableTooLarge);
                 }
-                let bad_shade = props
+                props
                     .cells
                     .iter()
                     .flatten()
-                    .any(|cell| cell.shade.as_deref().is_some_and(|shade| !is_color(shade)));
-                if bad_shade || props.cells.len() > rows.len() {
-                    return Err(ModelRejection::BadAttribute(block.id.clone()));
-                }
-                for cell in rows.iter().flatten() {
-                    check_blocks(cell, limits, depth + 1, ids)?;
-                }
+                    .all(|cell| cell.shade.as_deref().is_none_or(is_color))
+                    && bounds::table_ok(rows, props)
             },
             BlockKind::SectionBreak { section } => {
-                for part in section.running_parts() {
-                    check_blocks(part, limits, depth + 1, ids)?;
-                }
+                depth < limits.depth && bounds::section_ok(section)
             },
-            _ => {},
+            _ => true,
+        };
+        if !shape_ok {
+            return Err(ModelRejection::BadAttribute(block.id.clone()));
+        }
+        for nested in block.kind.nested() {
+            check_blocks(nested, limits, depth + 1, ids)?;
         }
     }
     Ok(())
@@ -160,12 +169,17 @@ fn check_block(block: &Block, limits: &Limits) -> Result<(), ModelRejection> {
         BlockKind::ListItem { level, .. } => *level <= 8,
         BlockKind::Code { language } => language.as_deref().map_or(0, str::len) <= 64,
         BlockKind::Image {
-            blob, alt, caption, ..
+            blob,
+            alt,
+            caption,
+            width,
+            height,
+            ..
         } => {
             blob.len() <= limits.attr_chars
                 && alt.len() <= limits.attr_chars
                 && caption.as_deref().map_or(0, str::len) <= limits.attr_chars
-                && is_safe_url(blob, &["https:", "http:", "blob:", "docx-media:"])
+                && bounds::image_ok(blob, *width, *height)
         },
         BlockKind::Raw { source } => source.len() <= limits.block_chars,
         BlockKind::Toc { levels } => (1..=9).contains(levels),
@@ -178,7 +192,7 @@ fn check_block(block: &Block, limits: &Limits) -> Result<(), ModelRejection> {
         | BlockKind::PageBreak
         | BlockKind::SectionBreak { .. } => true,
     };
-    if !attrs_ok {
+    if !attrs_ok || !bounds::attrs_ok(&block.attrs) {
         return Err(ModelRejection::BadAttribute(id()));
     }
     let len = block.len();
@@ -250,53 +264,4 @@ fn is_color(value: &str) -> bool {
         || (!value.is_empty()
             && value.len() <= 32
             && value.chars().all(|c| c.is_ascii_alphabetic()))
-}
-
-fn check_raw(before: &RichText, next: &RichText) -> Result<(), ModelRejection> {
-    let mut held = HashSet::new();
-    collect_raw(before, &mut held);
-    let mut now = HashSet::new();
-    collect_raw(next, &mut now);
-    match now.difference(&held).next() {
-        Some((id, _)) => Err(ModelRejection::RawChanged((*id).to_owned())),
-        None => Ok(()),
-    }
-}
-
-fn collect_raw<'a>(model: &'a RichText, into: &mut HashSet<(&'a str, &'a str)>) {
-    for block in &model.blocks {
-        match &block.kind {
-            BlockKind::Raw { source } => {
-                into.insert((&block.id, source));
-            },
-            BlockKind::Table { rows, .. } => {
-                for cell in rows.iter().flatten() {
-                    collect_raw(cell, into);
-                }
-            },
-            _ => {},
-        }
-    }
-}
-
-fn strip_comments(model: &RichText) -> RichText {
-    RichText {
-        blocks: model
-            .blocks
-            .iter()
-            .map(|block| {
-                let mut block = block.clone();
-                block
-                    .marks
-                    .retain(|mark| !matches!(mark.kind, MarkKind::Comment { .. }));
-                if let BlockKind::Table { rows, .. } = &mut block.kind {
-                    for cell in rows.iter_mut().flatten() {
-                        *cell = strip_comments(cell);
-                    }
-                }
-                block
-            })
-            .collect(),
-        document: model.document.clone(),
-    }
 }

@@ -32,6 +32,24 @@ pub struct RichText {
 }
 
 impl RichText {
+    /// The headers and footers of the document's final section.
+    #[must_use]
+    pub fn running(&self) -> Vec<&Self> {
+        self.document
+            .as_deref()
+            .and_then(|settings| settings.section.as_ref())
+            .map(|section| section.running_parts().collect())
+            .unwrap_or_default()
+    }
+
+    pub fn running_mut(&mut self) -> Vec<&mut Self> {
+        self.document
+            .as_deref_mut()
+            .and_then(|settings| settings.section.as_mut())
+            .map(Section::running_parts_mut)
+            .unwrap_or_default()
+    }
+
     #[must_use]
     pub const fn of(blocks: Vec<Block>) -> Self {
         Self {
@@ -153,6 +171,26 @@ impl BlockKind {
             ordered,
             numbering: None,
             checked: None,
+        }
+    }
+
+    /// The models nested in this block: a table's cells and a section
+    /// break's headers and footers.
+    #[must_use]
+    pub fn nested(&self) -> Vec<&RichText> {
+        match self {
+            Self::Table { rows, .. } => rows.iter().flatten().collect(),
+            Self::SectionBreak { section } => section.running_parts().collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn nested_mut(&mut self) -> Vec<&mut RichText> {
+        match self {
+            Self::Table { rows, .. } => rows.iter_mut().flatten().collect(),
+            Self::SectionBreak { section } => section.running_parts_mut(),
+            _ => Vec::new(),
         }
     }
 
