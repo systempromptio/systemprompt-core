@@ -214,7 +214,7 @@ impl DocumentService {
             match self.create_with_bytes(who, content).await {
                 Err(DocumentsError::Repository(error))
                     if attempt == 1 && explicit.is_none() && is_name_taken(&error) => {},
-                Ok(copied) => return self.carry_cap(copied, carried).await,
+                Ok(copied) => return self.carry_cap(who, &source, copied, carried).await,
                 other => return other,
             }
         }

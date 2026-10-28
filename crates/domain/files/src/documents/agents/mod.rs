@@ -42,6 +42,6 @@ pub use cap::{AgentCap, AgentCapability, CapSource, EffectiveCap};
 pub use error::AgentRefusal;
 pub use policy::{
     AgentAccessPolicy, AgentAccessPolicyRegistration, DefaultAgentAccessPolicy, DocumentContext,
-    MoveContext, MoveDecision, registered_policy,
+    MoveActor, registered_policy,
 };
 pub use rate::AgentRateLimiter;

@@ -116,3 +116,91 @@ async fn moving_into_a_looser_folder_pins_the_cap_it_had() {
         .await
         .expect_err("still hidden from agents after the move");
 }
+
+/// Refuses every move into a folder named in `blocked`, and counts copies.
+#[derive(Default)]
+struct Hooks {
+    blocked: std::sync::Mutex<Vec<String>>,
+    copies: std::sync::atomic::AtomicUsize,
+}
+
+#[async_trait::async_trait]
+impl systemprompt_files::documents::agents::AgentAccessPolicy for Hooks {
+    fn name(&self) -> &'static str {
+        "hooks"
+    }
+
+    async fn on_move(
+        &self,
+        _doc: &systemprompt_files::documents::agents::DocumentContext,
+        to: &[systemprompt_identifiers::DocumentFolderId],
+        mover: &systemprompt_files::documents::agents::MoveActor,
+    ) -> Result<(), String> {
+        let blocked = self.blocked.lock().map(|b| b.clone()).unwrap_or_default();
+        match to.first() {
+            Some(folder) if blocked.contains(&folder.to_string()) => {
+                Err(format!("{} may not move here", mover.user))
+            },
+            _ => Ok(()),
+        }
+    }
+
+    async fn on_copy(
+        &self,
+        _source: &systemprompt_files::documents::agents::DocumentContext,
+        _copy: &DocumentId,
+    ) {
+        self.copies
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+#[tokio::test]
+async fn the_policy_can_refuse_a_move_and_sees_every_copy() {
+    let hooks = std::sync::Arc::new(Hooks::default());
+    let h = crate::documents_service_fixture::harness_with_policy(
+        systemprompt_test_fixtures::test_db_pool().await,
+        (
+            crate::documents_service_fixture::allow(),
+            crate::documents_service_fixture::GroupSource::new(&[]),
+            RoleDirectory::default(),
+        ),
+        std::sync::Arc::new(tempfile::TempDir::new().expect("tempdir")),
+        DocumentsConfig::default(),
+        Some(std::sync::Arc::clone(&hooks)
+            as std::sync::Arc<
+                dyn systemprompt_files::documents::agents::AgentAccessPolicy,
+            >),
+    );
+    let owner = person("hook-owner");
+    let fenced = h
+        .service
+        .create_folder(
+            &owner,
+            NewFolderRequest {
+                parent: None,
+                name: unique("fenced"),
+            },
+            &trace(),
+        )
+        .await
+        .expect("folder");
+    if let Ok(mut blocked) = hooks.blocked.lock() {
+        blocked.push(fenced.id.to_string());
+    }
+    let id = document(&h, &owner).await;
+    let refused = h
+        .service
+        .move_to(&owner, &id, Some(&fenced.id), &trace())
+        .await
+        .expect_err("the policy refuses the move");
+    assert!(matches!(
+        agent_refusal(&refused),
+        Some(AgentRefusal::MoveRefused { .. })
+    ));
+    h.service
+        .copy(&owner, copy_of(&id), &trace())
+        .await
+        .expect("copy");
+    assert_eq!(hooks.copies.load(std::sync::atomic::Ordering::SeqCst), 1);
+}

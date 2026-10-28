@@ -1,27 +1,27 @@
-//! Caps that must survive a move or a copy, and the policy's say over a
-//! move.
+//! Caps that must survive a move or a copy, and the policy's hooks on
+//! both.
 //!
 //! A cap is judged for an unnamed, unattended agent, the strictest case a
 //! name-blind override can stand for. Before a document or folder moves the
-//! policy's [`AgentAccessPolicy::on_move`] is asked and may refuse or pin;
+//! policy's [`AgentAccessPolicy::on_move`] is asked and may refuse it;
 //! when the destination would loosen the cap, the source's cap is pinned on
 //! the target as an override, so a move never launders a cap. A copy carries
 //! its source's cap the same way, and an agent copying out of a capped
-//! document needs `copy_out`.
+//! document needs `copy_out`; the policy's `on_copy` then sees the copy.
 //!
 //! [`AgentAccessPolicy::on_move`]: crate::documents::agents::AgentAccessPolicy::on_move
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::DocumentFolderId;
+use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 
 use super::agent::{document_context, folder_context};
 use super::service::DocumentAccessService;
 use crate::documents::agents::{
-    AgentActor, AgentCap, AgentCapability, AgentRefusal, DocumentContext, MoveContext,
-    MoveDecision, UNNAMED_AGENT, current_actor,
+    AgentActor, AgentCap, AgentCapability, AgentRefusal, DocumentContext, MoveActor, UNNAMED_AGENT,
+    current_actor,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder};
@@ -92,10 +92,10 @@ impl DocumentAccessService {
             .cap)
     }
 
-    /// Asks the policy about moving `target` under `to` and returns the cap
-    /// to pin on it after the move, if any: the policy's pin, or the
-    /// source's cap when the destination would loosen it. A refusal is
-    /// `MoveRefused`.
+    /// Asks the policy about moving `target` under `to` (its `on_move` may
+    /// refuse, as `MoveRefused`, or pin its own override) and returns the
+    /// cap core pins after the move: the source's, when the destination
+    /// would loosen it.
     pub async fn check_move(
         &self,
         who: &AuthenticatedUser,
@@ -109,31 +109,36 @@ impl DocumentAccessService {
             .await?
             .cap;
         let to_chain = self.chain_from(to).await?;
-        let actor = current_actor();
-        let decision = self
-            .agents
-            .on_move(&MoveContext {
-                doc: &source,
-                to: &to_chain,
-                actor: &actor,
-            })
-            .await;
-        let mut pin = match decision {
-            MoveDecision::Refuse { reason } => {
-                return Err(AgentRefusal::MoveRefused { reason }.into());
-            },
-            MoveDecision::Pin(cap) => Some(cap),
-            MoveDecision::Allow => None,
+        let mover = MoveActor {
+            user: who.id.clone(),
+            is_admin: who.is_admin(),
+            agent: current_actor().as_agent().cloned(),
+            reason: None,
         };
+        self.agents
+            .on_move(&source, &to_chain, &mover)
+            .await
+            .map_err(|reason| AgentRefusal::MoveRefused { reason })?;
         let mut landed = Self::context_at(who, target, to_chain);
         let after = self
             .effective_cap(&mut landed, &strictest_agent())
             .await?
             .cap;
-        if after > before {
-            pin = Some(pin.map_or(before, |cap| cap.min(before)));
-        }
-        Ok(pin)
+        Ok((after > before).then_some(before))
+    }
+
+    /// Tells the policy a copy of `source` now exists as `copy`.
+    pub async fn notify_copy(
+        &self,
+        who: &AuthenticatedUser,
+        source: &Document,
+        copy: &DocumentId,
+    ) -> Result<(), DocumentsError> {
+        let chain = self.chain_from(source.folder_id.as_ref()).await?;
+        let mut context = document_context(who, source, chain);
+        self.effective_cap(&mut context, &strictest_agent()).await?;
+        self.agents.on_copy(&context, copy).await;
+        Ok(())
     }
 
     /// Refuses an agent caller copying out of `source` when its cap is below

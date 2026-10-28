@@ -177,7 +177,9 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
         DocumentsError::TooLarge { .. } => too_large,
         DocumentsError::LockHeld { .. } => locked,
         DocumentsError::Agent(AgentRefusal::RateLimited { .. }) => rate_limited,
-        DocumentsError::Agent(AgentRefusal::OverrideLooser { .. }) => bad_request,
+        DocumentsError::Agent(
+            AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. },
+        ) => bad_request,
         DocumentsError::Agent(_) => forbidden,
         DocumentsError::IntegrityMismatch { .. }
         | DocumentsError::Template { .. }

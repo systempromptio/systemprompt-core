@@ -177,9 +177,11 @@ impl DocumentService {
     }
 
     /// A copy keeps its source's cap: `carried` is pinned on the new
-    /// document.
+    /// document, then the policy's `on_copy` sees it.
     pub(super) async fn carry_cap(
         &self,
+        who: &AuthenticatedUser,
+        source: &Document,
         copied: (Document, DocumentRevision),
         carried: Option<AgentCap>,
     ) -> Result<(Document, DocumentRevision), DocumentsError> {
@@ -187,6 +189,7 @@ impl DocumentService {
             self.pin_agent_cap(&AgentCapTarget::Document(copied.0.id.clone()), cap)
                 .await?;
         }
+        self.access.notify_copy(who, source, &copied.0.id).await?;
         Ok(copied)
     }
 

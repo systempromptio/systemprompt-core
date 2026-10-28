@@ -10,6 +10,13 @@
 //! issuer (`farm:<run_id>`, `workflow:<id>`); the broker reads it from the
 //! credential, never from a client header. `None` issues an unpurposed key.
 //!
+//! These are the only credentials a run's sandbox holds: the host's
+//! environment is cleared to an allowlist and its `HOME` is the run's own,
+//! so no user PAT or bridge JWT of the operator reaches it. Each is a bearer
+//! token with no `interaction: interactive` claim, so whatever the run does
+//! through them reaches documents as an unattended agent, and the MCP token
+//! says so explicitly with `interaction: non_interactive`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

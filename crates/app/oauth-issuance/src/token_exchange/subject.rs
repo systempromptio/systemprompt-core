@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
-use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission};
+use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission, TokenInteraction};
 use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_security::jwt::reject_critical_header;
 use systemprompt_security::keys::{JwksClient, SigningKeys};
@@ -31,6 +31,10 @@ struct IssOnly {
 pub struct SubjectIdentity {
     pub scope: Vec<Permission>,
     pub prior_act: Option<ActClaim>,
+    /// The subject token's `interaction` claim, copied onto the exchanged
+    /// token so an unattended subject never yields an attended token. Only a
+    /// self-issued subject carries one; a federated issuer's is ignored.
+    pub interaction: Option<TokenInteraction>,
     pub principal: Option<EnterprisePrincipal>,
     pub bound_resource: Option<String>,
 }
@@ -110,6 +114,7 @@ pub async fn validate_subject_token(
     Ok(SubjectIdentity {
         scope: data.claims.custom.scope,
         prior_act: data.claims.custom.act,
+        interaction: None,
         principal: None,
         bound_resource: None,
     })
@@ -171,6 +176,7 @@ fn validate_self_issued(
     Ok(SubjectIdentity {
         scope: data.claims.custom.scope,
         prior_act: data.claims.custom.act,
+        interaction: data.claims.custom.interaction,
         principal: None,
         bound_resource: None,
     })

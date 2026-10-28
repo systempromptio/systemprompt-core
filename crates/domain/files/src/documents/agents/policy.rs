@@ -24,7 +24,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
 use systemprompt_models::documents::DocumentFormat;
 
-use super::actor::{AgentActor, DocumentActor};
+use super::actor::AgentActor;
 use super::cap::{AgentCap, AgentCapability};
 
 /// What a policy knows about the target: a document, or a folder when
@@ -71,32 +71,27 @@ pub trait AgentAccessPolicy: Send + Sync + 'static {
         false
     }
 
-    /// Called before a document or folder moves, by a person or an agent.
-    /// Core already pins the source's cap when the destination would loosen
-    /// it; a policy may refuse the move or pin a stricter cap.
-    async fn on_move(&self, moving: &MoveContext<'_>) -> MoveDecision {
-        let _ = moving;
-        MoveDecision::Allow
+    /// Called before a document or folder moves, by a person or an agent:
+    /// `doc` as it stands (for a folder, `document_id` is `None` and
+    /// `doc.folders[0]` is the folder itself) and `to`, the destination's
+    /// nearest-first chain, empty for the root. `Err` refuses the move with
+    /// `invalid_params` and the message. Core then pins the source's cap
+    /// when the destination would loosen it.
+    async fn on_move(
+        &self,
+        doc: &DocumentContext,
+        to: &[DocumentFolderId],
+        mover: &MoveActor,
+    ) -> Result<(), String> {
+        let _ = (doc, to, mover);
+        Ok(())
     }
-}
 
-/// A move about to happen: the target as it stands (`doc.folders` is its
-/// chain at the source), the destination's nearest-first chain (empty for
-/// the root) and who is moving it.
-#[derive(Debug, Clone, Copy)]
-pub struct MoveContext<'a> {
-    pub doc: &'a DocumentContext,
-    pub to: &'a [DocumentFolderId],
-    pub actor: &'a DocumentActor,
-}
-
-/// What a policy says about a move. `Pin` sets an override on the moved
-/// document or folder (it only ever tightens).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MoveDecision {
-    Allow,
-    Refuse { reason: String },
-    Pin(AgentCap),
+    /// Called after a copy's row exists, on every copy path, by a person or
+    /// an agent. Core has already pinned the source's cap on the copy.
+    async fn on_copy(&self, source: &DocumentContext, copy: &DocumentId) {
+        let _ = (source, copy);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]

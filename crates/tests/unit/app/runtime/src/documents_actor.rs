@@ -54,3 +54,16 @@ fn the_name_and_attendance_come_from_signed_claims_not_headers() {
     assert!(agent.attended);
     assert_ne!(agent.name, "header-name");
 }
+
+#[test]
+fn a_token_with_a_purpose_is_never_attended() {
+    let purposed = context()
+        .with_client_id(ClientId::bridge())
+        .with_interaction_mode(UserInteractionMode::Interactive)
+        .with_caller_purpose("broker:svc".to_owned());
+    let DocumentActor::Agent(agent) = request_actor(&purposed) else {
+        panic!("a bearer token is an agent");
+    };
+    assert_eq!(agent.name, "broker:svc");
+    assert!(!agent.attended);
+}

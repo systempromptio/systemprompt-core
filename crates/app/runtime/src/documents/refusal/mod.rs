@@ -211,8 +211,9 @@ const fn agent_code(refusal: &AgentRefusal) -> RefusalCode {
         },
         AgentRefusal::SuggestOnly { .. } => RefusalCode::AgentSuggestOnly,
         AgentRefusal::RateLimited { .. } => RefusalCode::AgentRateLimited,
-        AgentRefusal::OverrideLooser { .. } => RefusalCode::InvalidParams,
-        AgentRefusal::MoveRefused { .. } => RefusalCode::Forbidden,
+        AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. } => {
+            RefusalCode::InvalidParams
+        },
     }
 }
 

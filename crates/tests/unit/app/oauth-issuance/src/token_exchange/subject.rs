@@ -8,13 +8,17 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{AccessTokenId, SessionId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
+use systemprompt_models::auth::{
+    AuthenticatedUser, Permission, TokenAuthority, TokenInteraction, UserJwtRequest,
+};
 use systemprompt_oauth_issuance::token_exchange::subject::{
     jwks_host_allowlist, validate_subject_token,
 };
 use systemprompt_oauth_issuance::{IssuanceError, JwksCache};
+use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_test_fixtures::{fixture_config, mint_admin_jwt};
 
 const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
@@ -208,6 +212,54 @@ async fn accepts_a_self_issued_token_and_returns_its_scope() {
         identity.prior_act.is_none(),
         "a directly-issued token has no prior delegation chain"
     );
+}
+
+fn minted_with(config: &Config, interaction: Option<TokenInteraction>) -> String {
+    let authority = DeploymentTokenAuthority::new(
+        systemprompt_test_fixtures::test_signing_keys(),
+        &config.jwt_issuer,
+    );
+    let user = AuthenticatedUser::new(
+        UserId::new("00000000-0000-4000-8000-0000000007e6"),
+        "subject".to_owned(),
+        "subject@exchange.invalid".to_owned(),
+        vec![Permission::User],
+    );
+    authority
+        .mint_user_jwt(&UserJwtRequest {
+            permissions: vec![Permission::User],
+            user,
+            session_id: SessionId::generate(),
+            jti: AccessTokenId::generate(),
+            audience: config.jwt_audiences.clone(),
+            ttl: chrono::Duration::hours(1),
+            client_id: None,
+            purpose: None,
+            plugin_id: None,
+            interaction,
+        })
+        .expect("mint subject")
+}
+
+#[tokio::test]
+async fn the_subject_interaction_claim_carries_through_and_is_never_invented() {
+    let config = config();
+    for interaction in [
+        None,
+        Some(TokenInteraction::NonInteractive),
+        Some(TokenInteraction::Interactive),
+    ] {
+        let identity = validate_subject_token(
+            &systemprompt_test_fixtures::test_signing_keys(),
+            &minted_with(&config, interaction),
+            ACCESS_TOKEN_TYPE,
+            &config,
+            &JwksCache::new(),
+        )
+        .await
+        .expect("a token this issuer signed must validate");
+        assert_eq!(identity.interaction, interaction);
+    }
 }
 
 fn trusted(jwks_uri: &str) -> TrustedIssuer {

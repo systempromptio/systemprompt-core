@@ -90,6 +90,7 @@ pub async fn validate_id_jag_subject(
     Ok(SubjectIdentity {
         scope,
         prior_act: None,
+        interaction: None,
         principal: Some(EnterprisePrincipal {
             issuer: claims.iss,
             sub: claims.sub,
