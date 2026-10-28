@@ -55,7 +55,7 @@ pub fn materialise_rich_text_with(
     media: &Media,
 ) -> Result<Vec<u8>, ModelError> {
     match format {
-        DocumentFormat::Markdown => Ok(markdown::materialise(model).into_bytes()),
+        DocumentFormat::Markdown => Ok(markdown::materialise(model)?.into_bytes()),
         DocumentFormat::Html => {
             let base = std::str::from_utf8(base)?;
             Ok(splice_body(format, base, &html::materialise(model)).into_bytes())

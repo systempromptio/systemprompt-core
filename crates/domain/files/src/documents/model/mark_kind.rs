@@ -3,7 +3,8 @@
 //! Flag marks (`bold`, `superscript`, …) carry no value; valued marks carry
 //! one string: a link's href, a hex colour, a font family, a size in points
 //! (`"10.5"`), a comment thread id, or a field code (`PAGE`, `NUMPAGES`,
-//! `DATE`) whose marked text is the field's cached result.
+//! `DATE`) whose marked text is the field's cached result, or a footnote
+//! label whose marked text is the reference.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,6 +32,7 @@ pub enum MarkKind {
     Subscript,
     Caps,
     Field { code: String },
+    Footnote { label: String },
 }
 
 impl MarkKind {
@@ -52,6 +54,7 @@ impl MarkKind {
             Self::Subscript => "subscript",
             Self::Caps => "caps",
             Self::Field { .. } => "field",
+            Self::Footnote { .. } => "footnote",
         }
     }
 
@@ -64,7 +67,8 @@ impl MarkKind {
             | Self::Comment { thread: v }
             | Self::Font { value: v }
             | Self::Size { value: v }
-            | Self::Field { code: v } => v,
+            | Self::Field { code: v }
+            | Self::Footnote { label: v } => v,
             Self::Bold
             | Self::Italic
             | Self::Underline
@@ -110,11 +114,12 @@ impl MarkKind {
             "subscript" => Self::Subscript,
             "caps" => Self::Caps,
             "field" => Self::Field { code: owned() },
+            "footnote" => Self::Footnote { label: owned() },
             _ => return None,
         })
     }
 
-    pub const KEYS: [&'static str; 15] = [
+    pub const KEYS: [&'static str; 16] = [
         "bold",
         "italic",
         "underline",
@@ -130,6 +135,7 @@ impl MarkKind {
         "subscript",
         "caps",
         "field",
+        "footnote",
     ];
 }
 

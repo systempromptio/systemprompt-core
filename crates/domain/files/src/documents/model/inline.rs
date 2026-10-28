@@ -82,11 +82,20 @@ pub(crate) fn render_markdown(text: &str, marks: &[Mark]) -> String {
     let mut out = String::new();
     for (run, active) in segments(text, marks) {
         let has = |key: &str| active.iter().any(|kind| kind.key() == key);
+        if let Some(MarkKind::Footnote { label }) = active.iter().find(|k| k.key() == "footnote") {
+            out.push_str(&format!("[^{label}]"));
+            continue;
+        }
         let mut piece = if has("code") {
             format!("`{run}`")
         } else {
             escape_markdown(&run)
         };
+        for (tag, key) in super::markdown::INLINE_TAGS {
+            if has(key) {
+                piece = format!("<{tag}>{piece}</{tag}>");
+            }
+        }
         for (key, fence) in [("strike", "~~"), ("italic", "*"), ("bold", "**")] {
             if has(key) {
                 piece = format!("{fence}{piece}{fence}");
@@ -154,6 +163,10 @@ pub(crate) fn render_html(text: &str, marks: &[Mark]) -> String {
                 MarkKind::Caps => {
                     format!("<span style=\"text-transform:uppercase\">{piece}</span>")
                 },
+                MarkKind::Footnote { label } => format!(
+                    "<sup data-footnote=\"{}\">{piece}</sup>",
+                    escape_html(label)
+                ),
                 MarkKind::Field { code } => {
                     format!("<span data-field=\"{}\">{piece}</span>", escape_html(code))
                 },

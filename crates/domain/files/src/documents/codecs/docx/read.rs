@@ -104,6 +104,7 @@ fn kind_of(style: Option<&str>, ppr: Option<&Element>, ctx: &ReadCtx) -> (BlockK
                 level,
                 ordered,
                 numbering,
+                checked: None,
             };
             return (kind, false);
         }

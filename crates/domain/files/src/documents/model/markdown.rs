@@ -1,31 +1,56 @@
 //! Markdown to and from the `RichText` model.
 //!
-//! [`import`] parses `CommonMark` with tables and strikethrough into blocks
-//! with deterministic ids (`b1`, `b2`, …), so every replica seeding the same
-//! revision builds the same model. [`materialise`] writes the model back as
-//! Markdown; marks Markdown cannot express (underline, colour, highlight,
-//! comments) are dropped from the text, since comments live in the
-//! document's comment store and are re-anchored by id.
+//! [`import`] parses GitHub-flavoured Markdown (tables, strikethrough, task
+//! lists, footnotes, alerts and YAML front matter) into blocks with
+//! deterministic ids (`b1`, `b2`, …), so every replica seeding the same
+//! revision builds the same model. A fenced code block keeps its language,
+//! an image its title as the caption, an alert (`> [!NOTE]`) becomes a
+//! callout, and the inline HTML tags `u`, `sup` and `sub` become marks.
+//! [`materialise`] (in `markdown_write`) writes the model back and refuses
+//! what Markdown cannot hold rather than dropping it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{
+    BlockQuoteKind, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd,
+};
 
+use super::document::DocumentSettings;
 use super::ids::IdSeq;
-use super::inline::{InlineBuf, render_markdown};
+use super::inline::InlineBuf;
+use super::layout::CalloutTone;
 use super::rich_text::{Block, BlockKind, MarkKind, RichText};
+
+pub use super::markdown_write::materialise;
+
+const OPTIONS: Options = Options::ENABLE_TABLES
+    .union(Options::ENABLE_STRIKETHROUGH)
+    .union(Options::ENABLE_TASKLISTS)
+    .union(Options::ENABLE_FOOTNOTES)
+    .union(Options::ENABLE_GFM)
+    .union(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+
+pub(super) const INLINE_TAGS: [(&str, &str); 3] = [
+    ("u", "underline"),
+    ("sup", "superscript"),
+    ("sub", "subscript"),
+];
 
 #[must_use]
 pub fn import(markdown: &str) -> RichText {
     let mut builder = Builder::default();
-    for event in Parser::new_ext(
-        markdown,
-        Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH,
-    ) {
+    for event in Parser::new_ext(markdown, OPTIONS) {
         builder.event(event);
     }
-    RichText::of(builder.blocks)
+    let mut model = RichText::of(builder.blocks);
+    if let Some(front_matter) = builder.front_matter {
+        model.document = Some(Box::new(DocumentSettings {
+            front_matter: Some(front_matter),
+            ..DocumentSettings::default()
+        }));
+    }
+    model
 }
 
 #[derive(Default)]
@@ -36,8 +61,13 @@ struct Builder {
     kind: Option<BlockKind>,
     lists: Vec<bool>,
     quote: usize,
+    callout: Option<CalloutTone>,
+    footnote: Option<String>,
     rows: Vec<Vec<RichText>>,
     table: bool,
+    caption: Option<String>,
+    metadata: bool,
+    front_matter: Option<String>,
 }
 
 impl Builder {
@@ -45,18 +75,64 @@ impl Builder {
         match event {
             Event::Start(tag) => self.start(tag),
             Event::End(tag) => self.end(tag),
-            Event::Text(text) | Event::Html(text) | Event::InlineHtml(text) => {
-                self.inline.push(&text);
+            Event::Text(text) if self.metadata => {
+                self.front_matter
+                    .get_or_insert_with(String::new)
+                    .push_str(&text);
             },
+            Event::InlineHtml(html) => self.inline_html(&html),
+            Event::Text(text) | Event::Html(text) => self.inline.push(&text),
             Event::Code(text) => {
                 self.inline.open(MarkKind::Code);
                 self.inline.push(&text);
                 self.inline.close_key("code");
             },
+            Event::FootnoteReference(label) => {
+                self.inline.open(MarkKind::Footnote {
+                    label: label.to_string(),
+                });
+                self.inline.push(&label);
+                self.inline.close_key("footnote");
+            },
+            Event::TaskListMarker(ticked) => {
+                if let Some(BlockKind::ListItem { checked, .. }) = self.kind.as_mut() {
+                    *checked = Some(ticked);
+                }
+            },
             Event::SoftBreak => self.inline.push(" "),
             Event::HardBreak => self.inline.push("\n"),
             Event::Rule => self.emit(BlockKind::Divider),
             _ => {},
+        }
+    }
+
+    fn inline_html(&mut self, html: &str) {
+        let tag = html.trim().trim_start_matches('<').trim_end_matches('>');
+        let (closing, name) = match tag.strip_prefix('/') {
+            Some(name) => (true, name),
+            None => (false, tag),
+        };
+        match INLINE_TAGS.iter().find(|(html, _)| *html == name) {
+            Some((_, key)) if closing => self.inline.close_key(key),
+            Some((_, key)) => {
+                if let Some(kind) = MarkKind::from_key(key, "") {
+                    self.inline.open(kind);
+                }
+            },
+            None => self.inline.push(html),
+        }
+    }
+
+    fn text_kind(&self) -> BlockKind {
+        if let Some(label) = &self.footnote {
+            return BlockKind::Footnote {
+                label: label.clone(),
+            };
+        }
+        match (self.callout, self.quote) {
+            (Some(tone), _) => BlockKind::Callout { tone },
+            (None, 0) => BlockKind::Paragraph,
+            (None, _) => BlockKind::Quote,
         }
     }
 
@@ -67,13 +143,7 @@ impl Builder {
                     level: heading(level),
                 });
             },
-            Tag::Paragraph if self.kind.is_none() => {
-                self.kind = Some(if self.quote > 0 {
-                    BlockKind::Quote
-                } else {
-                    BlockKind::Paragraph
-                });
-            },
+            Tag::Paragraph if self.kind.is_none() => self.kind = Some(self.text_kind()),
             Tag::CodeBlock(kind) => {
                 let language = match kind {
                     CodeBlockKind::Fenced(lang) if !lang.is_empty() => Some(lang.to_string()),
@@ -81,7 +151,12 @@ impl Builder {
                 };
                 self.kind = Some(BlockKind::Code { language });
             },
-            Tag::BlockQuote(_) => self.quote += 1,
+            Tag::BlockQuote(kind) => {
+                self.quote += 1;
+                self.callout = kind.map(tone).or(self.callout);
+            },
+            Tag::FootnoteDefinition(label) => self.footnote = Some(label.to_string()),
+            Tag::MetadataBlock(_) => self.metadata = true,
             Tag::List(first) => {
                 if matches!(self.kind, Some(BlockKind::ListItem { .. })) {
                     self.flush();
@@ -101,8 +176,11 @@ impl Builder {
             Tag::Link { dest_url, .. } => self.inline.open(MarkKind::Link {
                 href: dest_url.to_string(),
             }),
-            Tag::Image { dest_url, .. } => {
+            Tag::Image {
+                dest_url, title, ..
+            } => {
                 self.flush();
+                self.caption = (!title.is_empty()).then(|| title.to_string());
                 self.kind = Some(BlockKind::image(dest_url.to_string(), String::new()));
             },
             _ => {},
@@ -114,13 +192,15 @@ impl Builder {
             TagEnd::Heading(_) | TagEnd::Paragraph | TagEnd::CodeBlock | TagEnd::Item => {
                 self.flush();
             },
-            TagEnd::Image => {
-                let alt = self.inline.take().0;
-                if let Some(BlockKind::Image { blob, .. }) = self.kind.take() {
-                    self.emit(BlockKind::image(blob, alt));
+            TagEnd::Image => self.end_image(),
+            TagEnd::BlockQuote(_) => {
+                self.quote = self.quote.saturating_sub(1);
+                if self.quote == 0 {
+                    self.callout = None;
                 }
             },
-            TagEnd::BlockQuote(_) => self.quote = self.quote.saturating_sub(1),
+            TagEnd::FootnoteDefinition => self.footnote = None,
+            TagEnd::MetadataBlock(_) => self.metadata = false,
             TagEnd::List(_) => {
                 self.lists.pop();
             },
@@ -135,13 +215,28 @@ impl Builder {
             TagEnd::Table => {
                 self.table = false;
                 let rows = std::mem::take(&mut self.rows);
-                self.emit(BlockKind::table(rows));
+                let mut kind = BlockKind::table(rows);
+                if let BlockKind::Table { props, .. } = &mut kind {
+                    props.header_rows = 1;
+                }
+                self.emit(kind);
             },
             TagEnd::Emphasis => self.inline.close_key("italic"),
             TagEnd::Strong => self.inline.close_key("bold"),
             TagEnd::Strikethrough => self.inline.close_key("strike"),
             TagEnd::Link => self.inline.close_key("link"),
             _ => {},
+        }
+    }
+
+    fn end_image(&mut self) {
+        let alt = self.inline.take().0;
+        if let Some(BlockKind::Image { blob, .. }) = self.kind.take() {
+            let mut kind = BlockKind::image(blob, alt);
+            if let BlockKind::Image { caption, .. } = &mut kind {
+                *caption = self.caption.take();
+            }
+            self.emit(kind);
         }
     }
 
@@ -167,6 +262,16 @@ impl Builder {
     }
 }
 
+const fn tone(kind: BlockQuoteKind) -> CalloutTone {
+    match kind {
+        BlockQuoteKind::Note => CalloutTone::Note,
+        BlockQuoteKind::Tip => CalloutTone::Success,
+        BlockQuoteKind::Important => CalloutTone::Info,
+        BlockQuoteKind::Warning => CalloutTone::Warning,
+        BlockQuoteKind::Caution => CalloutTone::Danger,
+    }
+}
+
 const fn heading(level: HeadingLevel) -> u8 {
     match level {
         HeadingLevel::H1 => 1,
@@ -176,87 +281,4 @@ const fn heading(level: HeadingLevel) -> u8 {
         HeadingLevel::H5 => 5,
         HeadingLevel::H6 => 6,
     }
-}
-
-#[must_use]
-pub fn materialise(model: &RichText) -> String {
-    let mut out = String::new();
-    let mut previous_list = false;
-    for block in &model.blocks {
-        let is_list = matches!(block.kind, BlockKind::ListItem { .. });
-        if !out.is_empty() {
-            out.push_str(if is_list && previous_list {
-                "\n"
-            } else {
-                "\n\n"
-            });
-        }
-        previous_list = is_list;
-        write_block(&mut out, block);
-    }
-    if !out.is_empty() {
-        out.push('\n');
-    }
-    out
-}
-
-fn write_block(out: &mut String, block: &Block) {
-    let inline = || render_markdown(&block.text, &block.marks);
-    match &block.kind {
-        BlockKind::Paragraph => out.push_str(&inline()),
-        BlockKind::Heading { level } => {
-            out.push_str(&"#".repeat(usize::from(*level)));
-            out.push(' ');
-            out.push_str(&inline());
-        },
-        BlockKind::ListItem { level, ordered, .. } => {
-            out.push_str(&"  ".repeat(usize::from(*level)));
-            out.push_str(if *ordered { "1. " } else { "- " });
-            out.push_str(&inline());
-        },
-        BlockKind::Quote | BlockKind::Callout { .. } => {
-            out.push_str("> ");
-            out.push_str(&inline().replace('\n', "\n> "));
-        },
-        BlockKind::Code { language } => {
-            out.push_str("```");
-            out.push_str(language.as_deref().unwrap_or(""));
-            out.push('\n');
-            out.push_str(&block.text);
-            out.push_str("\n```");
-        },
-        BlockKind::Table { rows, .. } => write_table(out, rows),
-        BlockKind::Image { blob, alt, .. } => out.push_str(&format!("![{alt}]({blob})")),
-        BlockKind::Divider
-        | BlockKind::PageBreak
-        | BlockKind::SectionBreak { .. }
-        | BlockKind::Toc { .. } => out.push_str("---"),
-        BlockKind::Raw { source } => out.push_str(source),
-    }
-}
-
-fn write_table(out: &mut String, rows: &[Vec<RichText>]) {
-    let width = rows.iter().map(Vec::len).max().unwrap_or(0);
-    for (index, row) in rows.iter().enumerate() {
-        out.push('|');
-        for column in 0..width {
-            let cell = row.get(column).map(cell_text).unwrap_or_default();
-            out.push_str(&format!(" {} |", cell.replace('|', "\\|")));
-        }
-        if index == 0 {
-            out.push_str("\n|");
-            out.push_str(&" --- |".repeat(width));
-        }
-        if index + 1 < rows.len() {
-            out.push('\n');
-        }
-    }
-}
-
-fn cell_text(cell: &RichText) -> String {
-    cell.blocks
-        .iter()
-        .map(|block| render_markdown(&block.text, &block.marks))
-        .collect::<Vec<_>>()
-        .join(" ")
 }

@@ -38,6 +38,7 @@ fn a_docx_body_imports_headings_lists_marks_tables_and_raw_objects() {
             level: 0,
             ordered: false,
             numbering: None,
+            checked: None,
         }
     );
     assert!(

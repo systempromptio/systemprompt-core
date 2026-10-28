@@ -31,7 +31,7 @@ pub const DOCUMENT_CONTAINER: &str = "document";
 
 pub type WriteError = Box<dyn std::error::Error + Send + Sync>;
 
-pub const TEXT_STYLES: [(&str, ExpandType); 15] = [
+pub const TEXT_STYLES: [(&str, ExpandType); 16] = [
     ("bold", ExpandType::After),
     ("italic", ExpandType::After),
     ("underline", ExpandType::After),
@@ -47,6 +47,7 @@ pub const TEXT_STYLES: [(&str, ExpandType); 15] = [
     ("subscript", ExpandType::After),
     ("caps", ExpandType::After),
     ("field", ExpandType::None),
+    ("footnote", ExpandType::None),
 ];
 
 pub fn configure(doc: &LoroDoc) {

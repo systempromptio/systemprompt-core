@@ -31,11 +31,13 @@ fn markdown_imports_blocks_and_marks_with_deterministic_ids() {
                 level: 0,
                 ordered: false,
                 numbering: None,
+                checked: None,
             },
             BlockKind::ListItem {
                 level: 1,
                 ordered: false,
                 numbering: None,
+                checked: None,
             },
         ]
     );
@@ -59,7 +61,7 @@ fn markdown_materialises_and_reimports_to_the_same_model() {
     let model = markdown::import(
         "## Plan\n\nA *small* `step`.\n\n1. first\n\n> quoted\n\n```rust\nfn x() {}\n```\n\n---\n",
     );
-    let again = markdown::import(&markdown::materialise(&model));
+    let again = markdown::import(&markdown::materialise(&model).expect("materialise"));
     assert_eq!(again, model);
 }
 
@@ -76,6 +78,7 @@ fn html_round_trips_blocks_and_keeps_unknown_markup_verbatim() {
             level: 1,
             ordered: false,
             numbering: None,
+            checked: None,
         }));
     let again = html::import(&html::materialise(&model));
     assert_eq!(again, model);

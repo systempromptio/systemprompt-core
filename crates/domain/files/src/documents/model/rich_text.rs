@@ -77,6 +77,9 @@ pub enum BlockKind {
         ordered: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         numbering: Option<String>,
+        /// A task-list item's box: `Some(true)` ticked, `Some(false)` open.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        checked: Option<bool>,
     },
     Quote,
     Code {
@@ -103,6 +106,10 @@ pub enum BlockKind {
     },
     Callout {
         tone: CalloutTone,
+    },
+    /// A footnote's text; `footnote` marks in the body reference its label.
+    Footnote {
+        label: String,
     },
     Divider,
     PageBreak,
@@ -145,6 +152,7 @@ impl BlockKind {
             level,
             ordered,
             numbering: None,
+            checked: None,
         }
     }
 
@@ -158,6 +166,7 @@ impl BlockKind {
                 | Self::Quote
                 | Self::Code { .. }
                 | Self::Callout { .. }
+                | Self::Footnote { .. }
         )
     }
 }

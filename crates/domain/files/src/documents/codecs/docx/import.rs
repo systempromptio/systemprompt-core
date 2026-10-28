@@ -163,6 +163,7 @@ pub(super) fn settings(
         theme,
         numbering: ctx.numbering.defs(),
         section,
+        front_matter: None,
     })
 }
 

@@ -63,6 +63,10 @@ fn write_block(out: &mut String, block: &Block) {
                 tone_name(*tone)
             )
         },
+        BlockKind::Footnote { label } => format!(
+            "<p class=\"footnote\" data-footnote=\"{}\">{inline}</p>",
+            escape_html(label)
+        ),
         BlockKind::Divider => "<hr>".to_owned(),
         BlockKind::PageBreak | BlockKind::SectionBreak { .. } => {
             "<hr style=\"page-break-after:always\">".to_owned()

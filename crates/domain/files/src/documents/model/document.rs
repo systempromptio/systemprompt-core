@@ -23,6 +23,9 @@ pub struct DocumentSettings {
     pub numbering: Vec<NumberingDef>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<Section>,
+    /// A Markdown document's YAML front matter, verbatim.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub front_matter: Option<String>,
 }
 
 impl DocumentSettings {

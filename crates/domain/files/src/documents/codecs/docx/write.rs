@@ -117,6 +117,7 @@ fn paragraph(block: &Block, ctx: &mut WriteCtx<'_>, cell: Option<Align>) -> Stri
             level,
             ordered,
             numbering,
+            ..
         } => ctx
             .numbering
             .num_id(numbering.as_deref(), *ordered, &ctx.settings)
@@ -127,6 +128,13 @@ fn paragraph(block: &Block, ctx: &mut WriteCtx<'_>, cell: Option<Align>) -> Stri
     };
     let props = ppr(&block.attrs, style.as_deref(), num.as_deref(), &borders, cell);
     let mut out = format!("<w:p>{props}");
+    if let BlockKind::ListItem {
+        checked: Some(ticked),
+        ..
+    } = &block.kind
+    {
+        out.push_str(&run(None, if *ticked { "\u{2612} " } else { "\u{2610} " }));
+    }
     if matches!(block.kind, BlockKind::Code { .. }) {
         out.push_str(&run(Some(&format!("<w:rPr>{CODE_FONT}</w:rPr>")), &block.text));
     } else {
@@ -214,6 +222,7 @@ pub(super) fn runs(text: &str, active: &[&MarkKind], ctx: &mut WriteCtx<'_>) -> 
             MarkKind::Highlight { value } => fill = hex(value),
             MarkKind::Superscript => vert = Some("superscript"),
             MarkKind::Subscript => vert = Some("subscript"),
+            MarkKind::Footnote { .. } => vert = Some("superscript"),
             _ => {},
         }
     }

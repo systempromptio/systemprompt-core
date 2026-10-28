@@ -172,6 +172,7 @@ fn check_block(block: &Block, limits: &Limits) -> Result<(), ModelRejection> {
         BlockKind::Paragraph
         | BlockKind::Quote
         | BlockKind::Callout { .. }
+        | BlockKind::Footnote { .. }
         | BlockKind::Table { .. }
         | BlockKind::Divider
         | BlockKind::PageBreak
@@ -222,6 +223,7 @@ fn check_mark(
         | MarkKind::Superscript
         | MarkKind::Subscript
         | MarkKind::Caps
+        | MarkKind::Footnote { .. }
         | MarkKind::Comment { .. } => true,
     };
     if allowed {
