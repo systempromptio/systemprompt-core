@@ -243,12 +243,12 @@ fn toc_levels(instr: &str) -> Option<u8> {
     if !words.next()?.eq_ignore_ascii_case("TOC") {
         return None;
     }
-    let range = instr.split("\\o").nth(1).unwrap_or_default();
-    let last = range
-        .trim()
-        .trim_matches('"')
-        .split('-')
+    let last = instr
+        .split("\\o")
         .nth(1)
-        .and_then(|n| n.trim_matches('"').parse::<u8>().ok());
+        .and_then(|rest| rest.split_whitespace().next())
+        .map(|range| range.trim_matches('"'))
+        .and_then(|range| range.split('-').nth(1))
+        .and_then(|n| n.parse::<u8>().ok());
     Some(last.unwrap_or(3).clamp(1, 9))
 }

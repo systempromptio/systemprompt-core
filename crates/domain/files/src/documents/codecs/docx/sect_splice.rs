@@ -13,7 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::documents::codecs::xml_tree::{Element, parse_xml, splice};
+use crate::documents::codecs::xml_tree::{Element, parse_xml};
 use crate::documents::model::layout::{Orientation, Section};
 use crate::documents::model::{BlockKind, RichText, office};
 
@@ -66,7 +66,7 @@ pub(super) fn splice_sect_pr(
         (false, Some(element)) => edits.push((element.start, element.end, String::new())),
         _ => {},
     }
-    splice(base_xml, edits)
+    apply(base_xml, edits)
 }
 
 fn references(root: &Element, base: &Section, next: &Section, ctx: &mut WriteCtx<'_>) -> Vec<Edit> {
@@ -215,4 +215,13 @@ fn before_any(root: &Element, followers: &[&str]) -> usize {
 
 const fn twips(points: u32) -> u32 {
     points.saturating_mul(20)
+}
+
+fn apply(xml: &str, mut edits: Vec<Edit>) -> String {
+    edits.sort_by(|a, b| b.0.cmp(&a.0).then((b.1 - b.0).cmp(&(a.1 - a.0))));
+    let mut out = xml.to_owned();
+    for (start, end, replacement) in edits {
+        out.replace_range(start..end, &replacement);
+    }
+    out
 }
