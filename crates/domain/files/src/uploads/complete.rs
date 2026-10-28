@@ -35,6 +35,17 @@ use super::stream::{Tally, assembled_storage_id, concatenated};
 /// closes a claim not refreshed for an hour.
 const CLAIM_HEARTBEAT: Duration = Duration::from_secs(300);
 
+/// Stops a completion's claim heartbeat however the completion ends (an
+/// early error return or a panic included), so a dead completion's claim
+/// goes stale and the expiry job can close it.
+struct Heartbeat(tokio::task::JoinHandle<()>);
+
+impl Drop for Heartbeat {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
 impl UploadService {
     pub async fn complete(
         &self,
@@ -74,7 +85,7 @@ impl UploadService {
     /// A heartbeat keeps the claim fresh while a large assembly runs, so the
     /// expiry job only closes claims whose completion really died.
     async fn finish_claimed(self, session: UploadSession) -> UploadResult<CompletedUpload> {
-        let heartbeat = {
+        let _heartbeat = Heartbeat({
             let uploads = Arc::clone(&self.uploads);
             let id = session.id.clone();
             tokio::spawn(async move {
@@ -87,7 +98,7 @@ impl UploadService {
                     }
                 }
             })
-        };
+        });
         let outcome = match self.finish(&session).await {
             Err(UploadError::Refused { reason, detail }) => {
                 self.refuse(&session, reason, &detail).await?;
@@ -101,7 +112,6 @@ impl UploadService {
             },
             ok => ok,
         };
-        heartbeat.abort();
         outcome
     }
 

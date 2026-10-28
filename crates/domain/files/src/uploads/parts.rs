@@ -2,7 +2,11 @@
 //! object (`part-NNNNN-<attempt>`), so a failed or racing re-send deletes
 //! only its own bytes, never a part already accepted. The row swap answers
 //! the object it replaced, and the caller deletes that one only after the
-//! row points at the new one.
+//! row points at the new one. The swap first locks the upload's row in its
+//! own statement, so swaps of one upload are serial and the swap that
+//! follows reads (under READ COMMITTED) the part row as the last swap left
+//! it: two first attempts of a part cannot both see no previous object and
+//! orphan the loser's.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -44,6 +48,13 @@ impl DocumentUploadRepository {
         let size = i64::try_from(part.size_bytes).map_err(|source| {
             RepositoryError::decode("document_upload_parts.size_bytes", source)
         })?;
+        let mut tx = self.write.begin().await?;
+        sqlx::query_scalar!(
+            r#"SELECT 1 AS "locked!" FROM document_uploads WHERE id = $1::text::uuid FOR UPDATE"#,
+            id.as_str(),
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
         let row = sqlx::query_as!(
             SwapRow,
             r#"WITH previous AS (
@@ -70,8 +81,9 @@ impl DocumentUploadRepository {
             part.sha256.as_str(),
             part.storage_id,
         )
-        .fetch_one(&*self.write)
+        .fetch_one(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(PartSwap {
             written: row.written == 1,
             previous: row.previous.filter(|previous| *previous != part.storage_id),
