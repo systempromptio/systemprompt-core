@@ -6,9 +6,9 @@ use systemprompt_files::documents::model::{BlockKind, Media, MediaBlob, ModelVie
 
 use super::docx_fixture::{entries, part};
 
-const BLOB: &str = "4f9c1b1c3f0e2a7d6b5c4a39281706f5e4d3c2b1a0918273645546372819a0b1";
+pub(super) const BLOB: &str = "4f9c1b1c3f0e2a7d6b5c4a39281706f5e4d3c2b1a0918273645546372819a0b1";
 
-fn png(width: u32, height: u32) -> Vec<u8> {
+pub(super) fn png(width: u32, height: u32) -> Vec<u8> {
     let mut bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR".to_vec();
     bytes.extend_from_slice(&width.to_be_bytes());
     bytes.extend_from_slice(&height.to_be_bytes());
@@ -16,7 +16,7 @@ fn png(width: u32, height: u32) -> Vec<u8> {
     bytes
 }
 
-fn rich_model() -> RichText {
+pub(super) fn rich_model() -> RichText {
     let view: ModelViewV2 = serde_json::from_value(serde_json::json!({
         "version": 2,
         "kind": "rich_text",
@@ -75,7 +75,7 @@ fn rich_model() -> RichText {
     view.into_model().expect("a supported version")
 }
 
-fn media() -> Media {
+pub(super) fn media() -> Media {
     let mut media = Media::new();
     media.insert(
         BLOB.to_owned(),
@@ -87,7 +87,7 @@ fn media() -> Media {
     media
 }
 
-fn written() -> Vec<u8> {
+pub(super) fn written() -> Vec<u8> {
     let base = blank_docx().expect("blank");
     materialise_rich_with(&base, &rich_model(), &media()).expect("materialise")
 }
