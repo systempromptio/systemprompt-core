@@ -1,14 +1,20 @@
-//! Signed URLs for the resumable upload API, for a client that holds no
-//! session cookie: an agent handed a session by `documents_upload`, or a
-//! link that downloads a completed upload.
+//! Signed upload tokens for the resumable upload API, for a client that
+//! holds no session cookie: an agent handed a session by
+//! `documents_upload`, or a link that downloads a completed upload.
 //!
-//! Each URL carries a user JWT minted for the caller with the audience
-//! [`UPLOAD_AUDIENCE`] and a `purpose` naming one upload: a write token
-//! (`document_upload:<id>`) stores parts, reads progress, completes, aborts
-//! and downloads that one upload; a read token
-//! (`document_upload_download:<id>`) only downloads it. The upload routes
-//! verify the token, check the purpose against the path and then act as
-//! the token's subject, so the session's owner check still applies.
+//! A token is a user JWT minted for the caller with **no permissions**, the
+//! audience [`UPLOAD_AUDIENCE`] (which the API's session middleware does not
+//! accept, so it is no general credential), a fifteen-minute lifetime and a
+//! `purpose` naming one upload. A write token (`document_upload:<id>`)
+//! opens only that upload's `PUT /{id}/parts/{n}`, `POST /{id}/complete`
+//! and `GET /{id}` progress; a download token
+//! (`document_upload_download:<id>`) opens only its `GET|HEAD
+//! /{id}/content`. The token travels in the [`UPLOAD_TOKEN_HEADER`] header,
+//! so it stays out of URLs and access logs; the `access_token` query is
+//! accepted only for a client that cannot set headers. The upload routes
+//! act as the token's subject, so the session's owner check still applies.
+//! A client whose token ran out asks `documents_upload` again with the
+//! `upload_id` for a fresh one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,10 +24,11 @@ use systemprompt_identifiers::{AccessTokenId, DocumentUploadId, SessionId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenAuthority, UserJwtRequest};
 use systemprompt_models::modules::ApiPaths;
 
-use super::download::{DOWNLOAD_TOKEN_QUERY, DownloadLinkError};
+use super::download::DownloadLinkError;
 
 pub const UPLOAD_AUDIENCE: &str = "documents.upload";
-pub const UPLOAD_LINK_TTL: Duration = Duration::hours(1);
+pub const UPLOAD_LINK_TTL: Duration = Duration::minutes(15);
+pub const UPLOAD_TOKEN_HEADER: &str = "x-upload-token";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UploadGrant {
@@ -46,10 +53,12 @@ pub struct UploadLinkTarget<'a> {
     pub upload: &'a DocumentUploadId,
 }
 
-/// The URLs one signed token opens. `parts_url` holds a literal `{n}` the
-/// client replaces with the 1-based part number.
+/// One signed token and the token-free URLs it opens, sent with the token
+/// in [`UPLOAD_TOKEN_HEADER`]. `parts_url` holds a literal `{n}` the client
+/// replaces with the 1-based part number.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignedUploadLinks {
+    pub token: String,
     pub status_url: String,
     pub parts_url: String,
     pub complete_url: String,
@@ -65,7 +74,7 @@ pub fn signed_upload_links(
         user: target.user.clone(),
         session_id: target.session_id.clone(),
         jti: AccessTokenId::generate(),
-        permissions: target.user.permissions().to_vec(),
+        permissions: Vec::new(),
         audience: vec![JwtAudience::Resource(UPLOAD_AUDIENCE.to_owned())],
         ttl: UPLOAD_LINK_TTL,
         client_id: None,
@@ -81,12 +90,12 @@ pub fn signed_upload_links(
         ApiPaths::UPLOADS,
         target.upload
     );
-    let query = format!("{DOWNLOAD_TOKEN_QUERY}={token}");
     Ok(SignedUploadLinks {
-        status_url: format!("{base}?{query}"),
-        parts_url: format!("{base}/parts/{{n}}?{query}"),
-        complete_url: format!("{base}/complete?{query}"),
-        content_url: format!("{base}/content?{query}"),
+        token,
+        status_url: base.clone(),
+        parts_url: format!("{base}/parts/{{n}}"),
+        complete_url: format!("{base}/complete"),
+        content_url: format!("{base}/content"),
         expires_at: Utc::now() + UPLOAD_LINK_TTL,
     })
 }

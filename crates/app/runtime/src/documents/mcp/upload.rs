@@ -3,11 +3,13 @@
 //! A body up to the inline limit (`files.documents.uploads.inlineMaxBytes`,
 //! 5 MiB by default) is sent as base64 in `content_base64` and answered
 //! with its `blob_ref`. A larger file is declared by `size` and `sha256`
-//! and answered with a resumable session: signed URLs, valid for an hour,
-//! to `PUT` each part (`parts_url`, `{n}` replaced by the 1-based part
-//! number, every part `part_size` bytes but the last), read progress and
-//! complete it; the completion answers the `blob_ref`. Either way the
-//! content passes the same checks as a browser upload.
+//! and answered with a resumable session: URLs to `PUT` each part
+//! (`parts_url`, `{n}` replaced by the 1-based part number, every part
+//! `part_size` bytes but the last), read progress and complete it, and an
+//! `upload_token` valid for fifteen minutes and for that upload only, sent in
+//! the `token_header` header; the completion answers the `blob_ref`. Calling
+//! again with just `upload_id` re-issues the token for an unfinished upload.
+//! Either way the content passes the same checks as a browser upload.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,7 +19,9 @@ use chrono::{DateTime, Utc};
 use rmcp::ErrorData as McpError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_files::uploads::{NewUpload, UploadError, UploadService};
+use systemprompt_files::uploads::{
+    NewUpload, UploadError, UploadService, UploadSession, UploadStatus,
+};
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, McpExecutionId};
 use systemprompt_mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_models::documents::content_hash;
@@ -28,12 +32,18 @@ use super::outputs::documents_output;
 use super::refusal::refusal;
 use super::support::caller;
 use crate::documents::refusal::RefusalCode;
-use crate::documents::upload_links::{UploadGrant, UploadLinkTarget, signed_upload_links};
+use crate::documents::upload_links::{
+    UPLOAD_TOKEN_HEADER, UploadGrant, UploadLinkTarget, signed_upload_links,
+};
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct UploadInput {
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub mime: String,
+    #[serde(default)]
+    pub upload_id: Option<DocumentUploadId>,
     #[serde(default)]
     pub content_base64: Option<String>,
     #[serde(default)]
@@ -69,6 +79,10 @@ pub struct UploadOutput {
     pub status_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub complete_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub upload_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_header: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
 }
@@ -152,6 +166,8 @@ impl UploadHandler<'_> {
                 parts_url: None,
                 status_url: None,
                 complete_url: None,
+                upload_token: None,
+                token_header: None,
                 expires_at: None,
             },
             summary,
@@ -165,24 +181,49 @@ impl UploadHandler<'_> {
         sha256: ContentHash,
         ctx: &RequestContext,
     ) -> Result<(UploadOutput, String), McpError> {
-        let who = caller(ctx)?;
-        let service = uploads(self.tools)?;
         let request = NewUpload {
             name: input.name,
             mime: input.mime,
             size,
             sha256,
         };
-        let session = service
+        let session = uploads(self.tools)?
             .create(ctx.user_id(), request, ctx.trace_id())
             .await
             .map_err(upload_error)?;
+        self.signed(&session, ctx)
+    }
+
+    /// A fresh token for an upload the caller opened and has not finished,
+    /// for a client whose fifteen-minute token ran out mid-upload.
+    async fn reissue(
+        &self,
+        upload_id: &DocumentUploadId,
+        ctx: &RequestContext,
+    ) -> Result<(UploadOutput, String), McpError> {
+        let progress = uploads(self.tools)?
+            .progress(ctx.user_id(), upload_id)
+            .await
+            .map_err(upload_error)?;
+        if progress.session.status != UploadStatus::Open {
+            return Err(upload_error(UploadError::Closed {
+                status: progress.session.status,
+            }));
+        }
+        self.signed(&progress.session, ctx)
+    }
+
+    fn signed(
+        &self,
+        session: &UploadSession,
+        ctx: &RequestContext,
+    ) -> Result<(UploadOutput, String), McpError> {
         let links = signed_upload_links(
             self.tools.token_authority(),
             UploadLinkTarget {
                 grant: UploadGrant::Write,
                 base_url: self.tools.api_external_url(),
-                user: who,
+                user: caller(ctx)?,
                 session_id: ctx.session_id(),
                 upload: &session.id,
             },
@@ -192,7 +233,9 @@ impl UploadHandler<'_> {
             McpError::internal_error("the upload links could not be signed", None)
         })?;
         let summary = format!(
-            "PUT {} parts of {} bytes to parts_url, then POST complete_url",
+            "PUT {} parts of {} bytes to parts_url, then POST complete_url, sending upload_token \
+             in the {UPLOAD_TOKEN_HEADER} header; when it expires call documents_upload with \
+             upload_id for a new one",
             session.part_count(),
             session.part_size
         );
@@ -201,13 +244,15 @@ impl UploadHandler<'_> {
                 mode: UploadMode::Resumable,
                 part_count: Some(session.part_count()),
                 part_size: Some(session.part_size),
-                upload_id: session.id,
+                upload_id: session.id.clone(),
                 blob_ref: None,
                 mime: None,
                 deduplicated: None,
                 parts_url: Some(links.parts_url),
                 status_url: Some(links.status_url),
                 complete_url: Some(links.complete_url),
+                upload_token: Some(links.token),
+                token_header: Some(UPLOAD_TOKEN_HEADER.to_owned()),
                 expires_at: Some(links.expires_at.min(session.expires_at)),
             },
             summary,
@@ -224,7 +269,8 @@ impl McpToolHandler for UploadHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Upload a file: base64 up to 5 MiB returns blob_ref; else size+sha256 returns signed part URLs."
+        "Upload a file: base64 up to 5 MiB returns blob_ref; else size+sha256 returns part URLs and a \
+         token; upload_id re-issues the token."
     }
 
     async fn handle(
@@ -234,6 +280,9 @@ impl McpToolHandler for UploadHandler<'_> {
         _exec_id: &McpExecutionId,
     ) -> Result<(UploadOutput, String), McpError> {
         caller(ctx)?;
+        if let Some(upload_id) = input.upload_id.clone() {
+            return self.reissue(&upload_id, ctx).await;
+        }
         match (
             input.content_base64.take(),
             input.size,
