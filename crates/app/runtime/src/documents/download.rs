@@ -39,6 +39,12 @@ pub fn download_purpose(document: &DocumentId, revision: &DocumentRevisionId) ->
 #[error("the download link could not be signed")]
 pub struct DownloadLinkError(#[source] TokenError);
 
+impl From<TokenError> for DownloadLinkError {
+    fn from(error: TokenError) -> Self {
+        Self(error)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Rendition {
     Native,

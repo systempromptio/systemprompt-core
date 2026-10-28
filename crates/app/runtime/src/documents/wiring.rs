@@ -16,6 +16,7 @@ use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
     DocumentServiceParts, DocumentsError, SubjectDirectory,
 };
+use systemprompt_files::uploads::{DocumentUploadRepository, UploadService, UploadServiceParts};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_traits::{BackgroundTasks, FileStorage};
@@ -53,11 +54,14 @@ impl std::fmt::Debug for DocumentsRuntimeParts {
 ///
 /// It holds the repositories bundle, the [`DocumentService`] built over it
 /// and, with the `collab` feature, the process's one live co-editing
-/// service, whose timer runs on the runtime's background tasks.
+/// service, whose timer runs on the runtime's background tasks. Beside it
+/// sits the [`UploadService`] the resumable upload API runs on, over the
+/// same blob store.
 #[derive(Debug, Clone)]
 pub struct DocumentsRuntime {
     repositories: Arc<DocumentRepositories>,
     service: Arc<DocumentService>,
+    uploads: Arc<UploadService>,
     #[cfg(feature = "collab")]
     collab: Arc<CollabService>,
 }
@@ -90,9 +94,16 @@ impl DocumentsRuntime {
             directory,
         ));
         let blobs = Arc::new(BlobStore::new(
-            file_storage,
+            Arc::clone(&file_storage),
             Arc::clone(&repositories.blobs),
         ));
+        let uploads = Arc::new(UploadService::new(UploadServiceParts {
+            storage: file_storage,
+            uploads: Arc::new(DocumentUploadRepository::new(&database)),
+            blobs: Arc::clone(&blobs),
+            max_upload_bytes: config.max_upload_bytes,
+            limits: config.uploads,
+        }));
         let service = Arc::new(DocumentService::new(DocumentServiceParts {
             repos: Arc::clone(&repositories),
             blobs,
@@ -123,6 +134,7 @@ impl DocumentsRuntime {
         Self {
             repositories,
             service,
+            uploads,
             #[cfg(feature = "collab")]
             collab,
         }
@@ -142,6 +154,11 @@ impl DocumentsRuntime {
     #[must_use]
     pub const fn service(&self) -> &Arc<DocumentService> {
         &self.service
+    }
+
+    #[must_use]
+    pub const fn uploads(&self) -> &Arc<UploadService> {
+        &self.uploads
     }
 
     pub async fn reconcile_folder_entities(&self) -> Result<u64, DocumentsError> {

@@ -38,6 +38,7 @@ pub(crate) async fn harness() -> McpHarness {
     let runtime = systemprompt_test_fixtures::fixture_documents_runtime(&pool, &files, &allow());
     let tools = DocumentsMcpTools::new(DocumentsMcpConfig {
         service: Arc::clone(runtime.service()),
+        uploads: Some(Arc::clone(runtime.uploads())),
         users: Arc::new(UserRepository::new(&pool)),
         tokens: systemprompt_test_fixtures::test_token_authority("documents-test"),
         server_name: McpServerId::new(SERVER),

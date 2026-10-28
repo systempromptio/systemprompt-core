@@ -1,6 +1,6 @@
-//! Mounts `/api/v1/documents` and `/api/v1/document-folders` with their
-//! router-scoped state, the content rate limit and the user authz gate, or
-//! nothing when `files.documents.enabled` is off.
+//! Mounts `/api/v1/documents`, `/api/v1/document-folders` and
+//! `/api/v1/uploads` with their router-scoped state, the content rate limit
+//! and the user authz gate, or nothing when `files.documents.enabled` is off.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +13,7 @@ use super::protocol::MountCtx;
 use crate::routes::documents::{
     DocumentsState, folders_router, router as documents_router, with_download_tokens,
 };
+use crate::routes::uploads::{router as uploads_router, with_upload_tokens};
 use crate::services::middleware::RouterExt;
 use crate::services::middleware::authz::AuthzPolicy;
 
@@ -31,6 +32,15 @@ pub(super) fn mount_documents(
             ApiPaths::DOCUMENTS,
             with_download_tokens(
                 documents_router(state.clone())
+                    .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+                state.clone(),
+            )
+            .with_rate_limit(mount.limits, per_second, "documents")?,
+        )
+        .nest(
+            ApiPaths::UPLOADS,
+            with_upload_tokens(
+                uploads_router(state.clone())
                     .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
                 state.clone(),
             )

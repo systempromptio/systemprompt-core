@@ -32,6 +32,7 @@ mod records;
 mod refusal;
 mod share;
 mod support;
+mod upload;
 mod write;
 
 use std::sync::Arc;
@@ -42,6 +43,7 @@ use rmcp::model::{
     ReadResourceResult, Tool,
 };
 use systemprompt_files::documents::DocumentService;
+use systemprompt_files::uploads::UploadService;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{ClientProfile, McpToolExecutor};
 use systemprompt_models::auth::TokenAuthority;
@@ -75,13 +77,14 @@ pub use records::DocumentAck;
 pub use refusal::{refusal, refusal_code, refusal_result, refused_error};
 pub use share::ShareHandler;
 pub use support::tool_error;
+pub use upload::{UploadHandler, UploadInput, UploadMode, UploadOutput};
 pub use write::{CreateHandler, EditHandler};
 
 use support::run;
 
 use crate::AppContext;
 
-pub const TOOL_NAMES: [&str; 16] = [
+pub const TOOL_NAMES: [&str; 17] = [
     "documents_list",
     "documents_search",
     "documents_create",
@@ -97,6 +100,7 @@ pub const TOOL_NAMES: [&str; 16] = [
     "documents_trash",
     "documents_untrash",
     "documents_export",
+    "documents_upload",
     "documents_guide",
 ];
 
@@ -111,7 +115,8 @@ changed refuses. Pass op_id so a retry is safe.
 never resend your old text.
 5. Do not re-read between your own writes. Details: documents_guide.
 6. An edit may land as a proposal (proposal_id in the ack); a reviewer accepts it with \
-documents_proposals.";
+documents_proposals.
+7. To bring a file in, documents_upload it and import the returned blob_ref.";
 
 /// Why [`DocumentsMcpTools::from_context`] refused to build the tools.
 #[derive(Debug, thiserror::Error)]
@@ -127,6 +132,7 @@ pub enum DocumentsMcpError {
 #[derive(Clone)]
 pub struct DocumentsMcpConfig {
     pub service: Arc<DocumentService>,
+    pub uploads: Option<Arc<UploadService>>,
     pub users: Arc<UserRepository>,
     pub tokens: Arc<dyn TokenAuthority>,
     pub server_name: McpServerId,
@@ -142,10 +148,11 @@ pub struct DocumentsToolCall<'a> {
     pub client: &'a ClientProfile,
 }
 
-/// The sixteen document tools and the preview resource of one MCP server.
+/// The seventeen document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
+    uploads: Option<Arc<UploadService>>,
     users: Arc<UserRepository>,
     tokens: Arc<dyn TokenAuthority>,
     server_name: McpServerId,
@@ -175,6 +182,7 @@ impl DocumentsMcpTools {
     pub fn new(config: DocumentsMcpConfig) -> Self {
         Self {
             service: config.service,
+            uploads: config.uploads,
             users: config.users,
             tokens: config.tokens,
             server_name: config.server_name,
@@ -191,6 +199,7 @@ impl DocumentsMcpTools {
         }
         Ok(Self::new(DocumentsMcpConfig {
             service: Arc::clone(ctx.documents().service()),
+            uploads: Some(Arc::clone(ctx.documents().uploads())),
             users: Arc::clone(ctx.user_repository()),
             tokens: ctx.token_authority(),
             server_name,
@@ -201,6 +210,11 @@ impl DocumentsMcpTools {
     #[must_use]
     pub fn service(&self) -> &DocumentService {
         &self.service
+    }
+
+    #[must_use]
+    pub fn uploads(&self) -> Option<&UploadService> {
+        self.uploads.as_deref()
     }
 
     #[must_use]
@@ -250,6 +264,7 @@ impl DocumentsMcpTools {
             "documents_trash" => Box::pin(run(call, &TrashHandler { tools: self })).await,
             "documents_untrash" => Box::pin(run(call, &UntrashHandler { tools: self })).await,
             "documents_export" => Box::pin(run(call, &ExportHandler { tools: self })).await,
+            "documents_upload" => Box::pin(run(call, &UploadHandler { tools: self })).await,
             "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
             other => Err(McpError::invalid_params(
                 format!(

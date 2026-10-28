@@ -30,6 +30,7 @@ mod folder_sharing;
 mod folders;
 mod headers;
 mod history;
+mod import;
 mod items;
 mod lifecycle;
 mod listing;
@@ -48,16 +49,19 @@ use axum::routing::{delete, get, patch, post, put};
 use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::CollabService;
+use systemprompt_files::uploads::UploadService;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, UserProvider};
 use systemprompt_users::UserRepository;
 
-/// Router-scoped state of the document routes: the one document service and
-/// the user provider that resolves a caller's roles.
+/// Router-scoped state of the document and upload routes: the one document
+/// service, the upload service and the user provider that resolves a
+/// caller's roles.
 #[derive(Clone)]
 pub struct DocumentsState {
     pub(crate) service: Arc<DocumentService>,
+    pub(crate) uploads: Arc<UploadService>,
     pub(crate) users: Arc<dyn UserProvider>,
     pub(crate) user_repository: Arc<UserRepository>,
     pub(crate) tokens: Arc<dyn TokenAuthority>,
@@ -81,6 +85,7 @@ impl DocumentsState {
     pub fn build(ctx: &AppContext) -> Result<Self, DocumentsMountError> {
         Ok(Self {
             service: document_service(ctx),
+            uploads: Arc::clone(ctx.documents().uploads()),
             users: ctx
                 .user_provider()
                 .ok_or(DocumentsMountError::MissingUserProvider)?,
@@ -134,6 +139,7 @@ pub fn router(state: DocumentsState) -> Router {
     let limit = state.max_body_bytes();
     with_collab(Router::new())
         .route("/", get(listing::list).post(items::create))
+        .route("/import", post(import::import))
         .route(
             "/{id}",
             get(items::get)

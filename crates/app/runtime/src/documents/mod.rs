@@ -22,6 +22,8 @@ pub mod mcp;
 /// The refusal vocabulary shared by the MCP tools and the HTTP routes.
 pub mod refusal;
 mod subjects;
+/// Signed URLs for the resumable upload API.
+pub mod upload_links;
 /// Read views, access, comments, proposals and write acks as plain structs.
 pub mod views;
 mod wiring;
