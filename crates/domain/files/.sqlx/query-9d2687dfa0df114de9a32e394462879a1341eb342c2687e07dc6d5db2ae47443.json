@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH previous AS (\n                   SELECT storage_id FROM document_upload_parts\n                   WHERE upload_id = $1::text::uuid AND part_number = $2\n                   FOR UPDATE\n               ),\n               written AS (\n                   INSERT INTO document_upload_parts\n                       (upload_id, part_number, size_bytes, sha256, storage_id)\n                   SELECT $1::text::uuid, $2, $3, $4, $5\n                   WHERE EXISTS (SELECT 1 FROM document_uploads\n                                 WHERE id = $1::text::uuid AND status = 'open')\n                   ON CONFLICT (upload_id, part_number) DO UPDATE\n                       SET size_bytes = EXCLUDED.size_bytes, sha256 = EXCLUDED.sha256,\n                           storage_id = EXCLUDED.storage_id, created_at = CURRENT_TIMESTAMP\n                   RETURNING 1\n               )\n               SELECT (SELECT COUNT(*) FROM written)::bigint AS \"written!\",\n                      (SELECT storage_id FROM previous) AS previous",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "written!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "previous",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "9d2687dfa0df114de9a32e394462879a1341eb342c2687e07dc6d5db2ae47443"
+}

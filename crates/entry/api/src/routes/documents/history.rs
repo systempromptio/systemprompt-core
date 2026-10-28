@@ -2,9 +2,9 @@
 //!
 //! A `file` document that is a PDF previews as the PDF itself, served
 //! inline as `application/pdf` (never as the type it was stored under) for
-//! the browser's own viewer, sandboxed by CSP, `nosniff`, and frameable only
-//! by the app (`frame-ancestors 'self'`); an image previews inline in the
-//! sandboxed HTML.
+//! the browser's own viewer, decided by its bytes, `nosniff`, loading
+//! nothing else and frameable only by the app (see `INLINE_PDF_CSP`); an image
+//! previews inline in the sandboxed HTML.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,23 +14,28 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Extension, Json};
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use systemprompt_extension::FrameOptionsOverride;
-use systemprompt_files::documents::service::{DocumentView, HistoryPage, StreamRequest};
-use systemprompt_identifiers::{ContentHash, DocumentRevisionId};
+use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::blob_store::BlobStoreError;
+use systemprompt_files::documents::codecs::file::is_pdf;
+use systemprompt_files::documents::service::{HistoryPage, StreamRequest};
+use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::{DocumentFormat, Projection};
 use systemprompt_provider_contracts::FrameOptions;
-use systemprompt_traits::FileByteStream;
+use systemprompt_traits::{ByteRange, FileStorageError};
 
 use super::DocumentsState;
-use super::caller::caller;
+use super::caller::{Caller, caller};
 use super::content::{RevisionQuery, revision_id};
 use super::error::{DocumentsHttpError, DocumentsResult};
 use super::headers::etag;
 use super::items::{cursor, document_id};
 use super::views::RevisionJson;
-use crate::routes::user_content::{INLINE_PREVIEW_CSP, harden};
+use crate::routes::user_content::{INLINE_PDF_CSP, harden};
 
 const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
 const PDF_MIME: &str = "application/pdf";
@@ -141,17 +146,10 @@ pub(super) async fn preview(
     let id = document_id(&id)?;
     let revision = revision_id(query.revision.as_deref())?;
     let view = state.service.get(&who.user, &id, &who.trace).await?;
-    if is_pdf_file(&view) {
-        let request = StreamRequest {
-            document: &id,
-            revision: revision.as_ref(),
-            range: None,
-        };
-        let (revision, read) = state
-            .service
-            .open_stream(&who.user, request, &who.trace)
-            .await?;
-        return Ok(pdf_preview(read.body, &revision.content_sha256));
+    if view.document.format == DocumentFormat::File
+        && let Some(response) = pdf_preview(&state, &who, &id, revision.as_ref()).await?
+    {
+        return Ok(response);
     }
     let (revision, html) = state
         .service
@@ -172,23 +170,55 @@ pub(super) async fn preview(
     Ok(response)
 }
 
-fn is_pdf_file(view: &DocumentView) -> bool {
-    let document = &view.document;
-    document.format == DocumentFormat::File
-        && (document.mime_type == PDF_MIME || document.name.to_ascii_lowercase().ends_with(".pdf"))
-}
-
-fn pdf_preview(body: FileByteStream, hash: &ContentHash) -> Response {
-    let mut response = Response::new(Body::from_stream(body));
+/// A `file` document whose bytes open as a PDF, served inline for the
+/// browser's viewer; `None` for any other file, which previews as HTML. The
+/// decision is the bytes' own, never the name or the stored type.
+async fn pdf_preview(
+    state: &DocumentsState,
+    who: &Caller,
+    id: &DocumentId,
+    revision: Option<&DocumentRevisionId>,
+) -> Result<Option<Response>, DocumentsHttpError> {
+    let head = StreamRequest {
+        document: id,
+        revision,
+        range: Some(ByteRange::Bounded { start: 0, end: 7 }),
+    };
+    let opened = state.service.open_stream(&who.user, head, &who.trace).await;
+    let (_, mut read) = match opened {
+        Err(DocumentsError::Blob(BlobStoreError::Storage(
+            FileStorageError::RangeNotSatisfiable { .. },
+        ))) => return Ok(None),
+        other => other?,
+    };
+    let mut magic = Vec::new();
+    while let Some(chunk) = read.body.next().await {
+        magic.extend_from_slice(
+            &chunk.map_err(|source| ApiError::internal("document preview read failed", source))?,
+        );
+    }
+    if !is_pdf(&magic) {
+        return Ok(None);
+    }
+    let whole = StreamRequest {
+        document: id,
+        revision,
+        range: None,
+    };
+    let (revision, read) = state
+        .service
+        .open_stream(&who.user, whole, &who.trace)
+        .await?;
+    let mut response = Response::new(Body::from_stream(read.body));
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(PDF_MIME));
     headers.insert(
         header::CONTENT_DISPOSITION,
         HeaderValue::from_static("inline"),
     );
-    if let Ok(value) = HeaderValue::from_str(&etag(hash)) {
+    if let Ok(value) = HeaderValue::from_str(&etag(&revision.content_sha256)) {
         headers.insert(header::ETAG, value);
     }
-    harden(&mut response, INLINE_PREVIEW_CSP);
-    response
+    harden(&mut response, INLINE_PDF_CSP);
+    Ok(Some(response))
 }

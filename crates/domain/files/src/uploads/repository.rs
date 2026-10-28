@@ -103,6 +103,10 @@ pub struct SessionTerms<'a> {
     pub trace: &'a TraceId,
     pub max_open: i64,
     pub daily_quota: i64,
+    /// A session opened and finished in one call (an ingest or an inline
+    /// body): it neither counts toward nor is held to the open-session cap,
+    /// but its bytes count toward the daily quota.
+    pub one_shot: bool,
 }
 
 /// Whether [`DocumentUploadRepository::insert_admitted`] opened the session.
@@ -124,8 +128,9 @@ impl DocumentUploadRepository {
     /// Opens a session if the owner is within the open-session cap and the
     /// rolling daily quota, deciding and inserting under one per-owner
     /// advisory lock so parallel creates cannot all pass. Every session of
-    /// the last day counts toward the quota except an aborted one, refused
-    /// ones included, so a client cannot loop full-size uploads for free.
+    /// the last day counts its declared size toward the quota, refused ones
+    /// included, and an aborted one the bytes it actually received, so
+    /// neither refusal nor abort-and-retry resets the budget.
     pub async fn insert_admitted(
         &self,
         request: &NewUpload,
@@ -143,20 +148,21 @@ impl DocumentUploadRepository {
         let open = sqlx::query_scalar!(
             r#"SELECT COUNT(*)::bigint AS "count!" FROM document_uploads
                WHERE owner_user_id = $1 AND status IN ('open', 'completing')
-                 AND expires_at > now()"#,
+                 AND NOT one_shot AND expires_at > now()"#,
             terms.owner.as_str(),
         )
         .fetch_one(&mut *tx)
         .await?;
-        if open >= terms.max_open {
+        if !terms.one_shot && open >= terms.max_open {
             return Ok(Admission::TooManyOpen {
                 open: open.unsigned_abs(),
             });
         }
         let used = sqlx::query_scalar!(
-            r#"SELECT COALESCE(SUM(declared_size), 0)::bigint AS "total!" FROM document_uploads
-               WHERE owner_user_id = $1 AND status <> 'aborted'
-                 AND created_at > now() - interval '1 day'"#,
+            r#"SELECT COALESCE(SUM(CASE WHEN status = 'aborted' THEN received_bytes
+                                        ELSE declared_size END), 0)::bigint AS "total!"
+               FROM document_uploads
+               WHERE owner_user_id = $1 AND created_at > now() - interval '1 day'"#,
             terms.owner.as_str(),
         )
         .fetch_one(&mut *tx)
@@ -170,8 +176,8 @@ impl DocumentUploadRepository {
             SessionRow,
             r#"INSERT INTO document_uploads
                    (owner_user_id, file_name, declared_mime, declared_size, declared_sha256,
-                    part_size, trace_id, expires_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int))
+                    part_size, trace_id, expires_at, one_shot)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int), $9)
                RETURNING id::text AS "id!: DocumentUploadId",
                          owner_user_id AS "owner_user_id: UserId", file_name, declared_mime,
                          declared_size, declared_sha256 AS "declared_sha256: ContentHash",
@@ -186,6 +192,7 @@ impl DocumentUploadRepository {
             terms.part_size,
             terms.trace.as_str(),
             terms.ttl_hours,
+            terms.one_shot,
         )
         .fetch_one(&mut *tx)
         .await?
@@ -224,34 +231,6 @@ impl DocumentUploadRepository {
                AND received_bytes + $2 <= declared_size * 2",
             id.as_str(),
             bytes,
-        )
-        .execute(&*self.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
-    /// Records a stored part, only while the session is still open; `false`
-    /// when it left `open` meanwhile, so the caller deletes the object.
-    pub async fn upsert_part(&self, id: &DocumentUploadId, part: &UploadPart) -> RepoResult<bool> {
-        let number = i32::try_from(part.part_number).map_err(|source| {
-            RepositoryError::decode("document_upload_parts.part_number", source)
-        })?;
-        let size = i64::try_from(part.size_bytes).map_err(|source| {
-            RepositoryError::decode("document_upload_parts.size_bytes", source)
-        })?;
-        let result = sqlx::query!(
-            "INSERT INTO document_upload_parts (upload_id, part_number, size_bytes, sha256, storage_id)
-             SELECT $1::text::uuid, $2, $3, $4, $5
-             WHERE EXISTS (SELECT 1 FROM document_uploads
-                           WHERE id = $1::text::uuid AND status = 'open')
-             ON CONFLICT (upload_id, part_number) DO UPDATE
-                 SET size_bytes = EXCLUDED.size_bytes, sha256 = EXCLUDED.sha256,
-                     storage_id = EXCLUDED.storage_id, created_at = CURRENT_TIMESTAMP",
-            id.as_str(),
-            number,
-            size,
-            part.sha256.as_str(),
-            part.storage_id,
         )
         .execute(&*self.write)
         .await?;

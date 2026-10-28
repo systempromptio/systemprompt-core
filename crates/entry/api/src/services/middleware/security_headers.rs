@@ -1,5 +1,8 @@
 //! Security response headers (CSP, frame options, HSTS).
 //!
+//! A route that sets `X-Content-Type-Options` itself (user content) keeps
+//! its value; every other response gets the configured one.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -50,7 +53,9 @@ pub async fn inject_security_headers(
         }
     }
 
-    if let Ok(value) = HeaderValue::from_str(&config.content_type_options) {
+    if !headers.contains_key("x-content-type-options")
+        && let Ok(value) = HeaderValue::from_str(&config.content_type_options)
+    {
         headers.insert("x-content-type-options", value);
     }
 

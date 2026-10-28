@@ -24,6 +24,7 @@ mod ingest;
 pub mod job;
 mod lifecycle;
 pub mod models;
+mod parts;
 pub mod repository;
 mod safety;
 mod service;

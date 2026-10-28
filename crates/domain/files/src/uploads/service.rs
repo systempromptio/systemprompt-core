@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use systemprompt_identifiers::{DocumentUploadId, TraceId, UserId};
-use systemprompt_traits::{FileByteStream, FileStorage};
+use systemprompt_traits::{FileByteStream, FileStorage, StoredFileId};
 
 use super::error::{UploadError, UploadResult};
 use super::models::{NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus};
@@ -87,6 +87,18 @@ impl UploadService {
         request: NewUpload,
         trace: &TraceId,
     ) -> UploadResult<UploadSession> {
+        self.begin(owner, request, trace, false).await
+    }
+
+    /// Opens a session; a `one_shot` one (opened and finished in one call)
+    /// is exempt from the open-session cap but not from the daily quota.
+    pub(super) async fn begin(
+        &self,
+        owner: &UserId,
+        request: NewUpload,
+        trace: &TraceId,
+        one_shot: bool,
+    ) -> UploadResult<UploadSession> {
         let request = NewUpload {
             mime: request.mime.trim().to_ascii_lowercase(),
             ..request
@@ -102,6 +114,7 @@ impl UploadService {
             trace,
             max_open: i64::try_from(self.limits.max_open_sessions).unwrap_or(i64::MAX),
             daily_quota: i64::try_from(self.limits.daily_quota_bytes).unwrap_or(i64::MAX),
+            one_shot,
         };
         let session = match self.uploads.insert_admitted(&request, terms).await? {
             Admission::Admitted(session) => session,
@@ -213,22 +226,45 @@ impl UploadService {
         if !self.uploads.reserve_part_bytes(id, expected).await? {
             return Err(self.part_refusal(id).await?);
         }
-        let storage_id = part_storage_id(id.as_str(), part);
+        let attempt = part_storage_id(id.as_str(), part);
+        let stored = self.store_part(id, part, expected, &attempt, body).await;
+        if stored.is_err()
+            && let Err(refund) = self.uploads.refund_part_bytes(id, expected).await
+        {
+            tracing::warn!(upload_id = %id, error = %refund, "Failed to refund a part attempt");
+        }
+        stored
+    }
+
+    /// Stores one part attempt under its own object and points the part's
+    /// row at it; a failed attempt deletes only its own object, and the part
+    /// it replaces is deleted only once the row no longer names it.
+    async fn store_part(
+        &self,
+        id: &DocumentUploadId,
+        part: u32,
+        expected: u64,
+        attempt: &StoredFileId,
+        body: FileByteStream,
+    ) -> UploadResult<UploadPart> {
         let tally = Tally::new(expected);
         let stored = self
             .storage
-            .store_stream(std::path::Path::new(storage_id.as_str()), tally.wrap(body))
+            .store_stream(std::path::Path::new(attempt.as_str()), tally.wrap(body))
             .await;
         let actual = tally.len();
         if tally.overflowed() || (stored.is_ok() && actual != expected) {
-            self.discard(&storage_id).await;
+            self.discard(attempt).await;
             return Err(UploadError::PartSize {
                 part,
                 expected,
                 actual,
             });
         }
-        stored?;
+        if let Err(error) = stored {
+            self.discard(attempt).await;
+            return Err(error.into());
+        }
         let sha256 = tally
             .hash()
             .ok_or_else(|| UploadError::Invalid("part hash could not be formed".to_owned()))?;
@@ -236,11 +272,15 @@ impl UploadService {
             part_number: part,
             size_bytes: actual,
             sha256,
-            storage_id: storage_id.as_str().to_owned(),
+            storage_id: attempt.as_str().to_owned(),
         };
-        if !self.uploads.upsert_part(id, &stored_part).await? {
-            self.discard(&storage_id).await;
+        let swap = self.uploads.swap_part(id, &stored_part).await?;
+        if !swap.written {
+            self.discard(attempt).await;
             return Err(self.part_refusal(id).await?);
+        }
+        if let Some(previous) = swap.previous {
+            self.discard(&StoredFileId::new(previous)).await;
         }
         Ok(stored_part)
     }

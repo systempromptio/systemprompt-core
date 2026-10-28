@@ -94,9 +94,13 @@ pub(crate) fn concatenated(
     )
 }
 
-/// The stored object of part `n` of an upload.
+/// A fresh object for one attempt at part `n` of an upload: every attempt
+/// gets its own, so a failed re-send never touches an accepted part.
 pub(crate) fn part_storage_id(upload: &str, part: u32) -> StoredFileId {
-    StoredFileId::new(format!("documents/uploads/{upload}/part-{part:05}"))
+    StoredFileId::new(format!(
+        "documents/uploads/{upload}/part-{part:05}-{}",
+        uuid::Uuid::new_v4().simple()
+    ))
 }
 
 /// Where a completed upload is assembled. It sits under `documents/blobs/`

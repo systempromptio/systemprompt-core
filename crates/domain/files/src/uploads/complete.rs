@@ -265,7 +265,7 @@ impl UploadService {
                 request.size
             )));
         }
-        let session = self.create(owner, request, trace).await?;
+        let session = self.begin(owner, request, trace, true).await?;
         let stored = self.put_all(owner, &session, bytes).await;
         if let Err(error) = stored {
             if let Err(abort) = self.abort(owner, &session.id).await {
