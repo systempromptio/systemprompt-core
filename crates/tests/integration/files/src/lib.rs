@@ -10,6 +10,12 @@ mod config_paths;
 #[cfg(test)]
 mod documents_access_requests;
 #[cfg(test)]
+mod documents_agent_caps;
+#[cfg(test)]
+mod documents_agent_fixture;
+#[cfg(test)]
+mod documents_agent_rules;
+#[cfg(test)]
 mod documents_blob_store;
 #[cfg(test)]
 mod documents_collab;

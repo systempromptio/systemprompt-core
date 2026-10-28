@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_files::DocumentsConfig;
+use systemprompt_files::documents::agents::AgentAccessPolicy;
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::codecs::CodecRegistry;
 use systemprompt_files::documents::model::Media;
@@ -237,9 +238,19 @@ pub(crate) fn harness_on_db(
     directory: RoleDirectory,
     config: DocumentsConfig,
 ) -> Harness {
+    harness_with_policy(db, (hook, subjects, directory), storage, config, None)
+}
+
+pub(crate) fn harness_with_policy(
+    db: DbPool,
+    (hook, subjects, directory): (SharedAuthzHook, GroupSource, RoleDirectory),
+    storage: Arc<TempDir>,
+    config: DocumentsConfig,
+    policy: Option<Arc<dyn AgentAccessPolicy>>,
+) -> Harness {
     let repos = Arc::new(DocumentRepositories::new(&db));
     let access_entities = Arc::new(AccessControlRepository::new(&db));
-    let access = Arc::new(DocumentAccessService::new(
+    let access = DocumentAccessService::new(
         DocumentAccessRepositories {
             grants: Arc::clone(&repos.grants),
             folders: Arc::clone(&repos.folders),
@@ -249,7 +260,11 @@ pub(crate) fn harness_on_db(
         hook,
         Arc::new(subjects),
         Arc::new(directory),
-    ));
+    );
+    let access = Arc::new(match policy {
+        Some(policy) => access.with_agent_policy(policy),
+        None => access,
+    });
     let file_storage: Arc<dyn FileStorage> =
         Arc::new(LocalFileStorage::new(storage.path().to_path_buf()));
     let blobs = Arc::new(BlobStore::new(

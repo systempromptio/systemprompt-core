@@ -1,4 +1,5 @@
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefusal};
 use systemprompt_files::documents::models::LockHolderKind;
 use systemprompt_identifiers::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
@@ -56,7 +57,8 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::Authz(_)
         | DocumentsError::Events { .. }
         | DocumentsError::Worker(_)
-        | DocumentsError::Directory(_) => true,
+        | DocumentsError::Directory(_)
+        | DocumentsError::Agent(_) => true,
     }
 }
 
@@ -279,6 +281,43 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
                 status: AccessRequestStatus::Declined,
             },
             RefusalCode::AccessRequestClosed,
+        ),
+        (
+            DocumentsError::Agent(AgentRefusal::HardRule {
+                agent: "claude".to_owned(),
+                capability: AgentCapability::Share,
+            }),
+            RefusalCode::AgentForbidden,
+        ),
+        (
+            DocumentsError::Agent(AgentRefusal::CapExceeded {
+                agent: "claude".to_owned(),
+                cap: AgentCap::Read,
+                action: "comment".to_owned(),
+                reason: "capped".to_owned(),
+            }),
+            RefusalCode::AgentForbidden,
+        ),
+        (
+            DocumentsError::Agent(AgentRefusal::SuggestOnly {
+                agent: "claude".to_owned(),
+                reason: "capped".to_owned(),
+            }),
+            RefusalCode::AgentSuggestOnly,
+        ),
+        (
+            DocumentsError::Agent(AgentRefusal::RateLimited {
+                limit: 10,
+                retry_after_secs: 60,
+            }),
+            RefusalCode::AgentRateLimited,
+        ),
+        (
+            DocumentsError::Agent(AgentRefusal::OverrideLooser {
+                requested: AgentCap::Edit,
+                policy_cap: AgentCap::Read,
+            }),
+            RefusalCode::InvalidParams,
         ),
         (
             DocumentsError::Codec(CodecError::NoMatch),

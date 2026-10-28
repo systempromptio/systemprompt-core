@@ -9641,6 +9641,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-manifest",
+ "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-storage",
  "systemprompt-test-fixtures",

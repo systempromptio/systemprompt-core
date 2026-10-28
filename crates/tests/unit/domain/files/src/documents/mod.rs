@@ -1,3 +1,4 @@
+mod agent_caps;
 mod batch_order;
 mod blob_ids;
 mod codecs_docx;

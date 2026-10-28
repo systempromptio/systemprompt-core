@@ -35,7 +35,7 @@ fn test_files_extension_metadata_version() {
 fn test_files_extension_schemas_count() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 24);
+    assert_eq!(schemas.len(), 25);
 }
 
 #[test]
