@@ -1,10 +1,12 @@
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::LockHolderKind;
 use systemprompt_identifiers::{
-    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
-    DocumentProposalId, DocumentRevisionId,
+    ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
+    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId,
 };
-use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat, ProposalStatus};
+use systemprompt_models::documents::{
+    AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
+};
 use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_runtime::documents::mcp::{refusal_result, tool_error};
 use systemprompt_runtime::documents::refusal::{RefusalCode, refusal_of};
@@ -41,6 +43,9 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::InvalidCursor { .. }
         | DocumentsError::ProposalConflict { .. }
         | DocumentsError::ProposalClosed { .. }
+        | DocumentsError::AccessRequestOpen { .. }
+        | DocumentsError::AccessRequestNotNeeded { .. }
+        | DocumentsError::AccessRequestClosed { .. }
         | DocumentsError::Codec(_)
         | DocumentsError::Template { .. }
         | DocumentsError::LiveSession(_)
@@ -246,6 +251,26 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
                 status: ProposalStatus::Accepted,
             },
             RefusalCode::ProposalClosed,
+        ),
+        (
+            DocumentsError::AccessRequestOpen {
+                document_id: DocumentId::generate(),
+            },
+            RefusalCode::AccessRequestOpen,
+        ),
+        (
+            DocumentsError::AccessRequestNotNeeded {
+                document_id: DocumentId::generate(),
+                held: AccessLevel::View,
+            },
+            RefusalCode::AccessRequestNotNeeded,
+        ),
+        (
+            DocumentsError::AccessRequestClosed {
+                request_id: DocumentAccessRequestId::generate(),
+                status: AccessRequestStatus::Declined,
+            },
+            RefusalCode::AccessRequestClosed,
         ),
         (
             DocumentsError::Codec(CodecError::NoMatch),

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT role AS \"role!\" FROM users, UNNEST(roles) AS role\n               WHERE status = $1 AND role <> $2 ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "043fd26d269c86990f534ffc3c002ecffb01831d7acbe38a299c6599b5b67f30"
+}

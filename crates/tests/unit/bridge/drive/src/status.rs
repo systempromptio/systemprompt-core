@@ -14,6 +14,7 @@ fn notice(n: usize) -> DocumentNotice {
         document_name: None,
         proposal_id: None,
         detail: None,
+        message: None,
     }
 }
 

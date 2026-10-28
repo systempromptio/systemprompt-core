@@ -1,4 +1,4 @@
-//! `documents_read`: the read views of [`read_view`] as a tool.
+//! The read tool, answering every view of [`read_view`] as the HTTP route does.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

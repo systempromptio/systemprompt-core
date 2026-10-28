@@ -200,4 +200,3 @@ impl McpToolHandler for UpdateHandler<'_> {
         ))
     }
 }
-

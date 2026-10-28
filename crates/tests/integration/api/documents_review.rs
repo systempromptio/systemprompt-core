@@ -214,7 +214,7 @@ async fn a_commenter_proposes_by_default_and_cannot_force_a_landing() -> Result<
     .await?;
     assert_eq!(land.status, StatusCode::FORBIDDEN, "{}", land.json());
     assert_eq!(
-        land.json()["owner"],
+        land.json()["detail"]["owner"],
         owner.user_id.as_str(),
         "{}",
         land.json()
@@ -396,8 +396,8 @@ async fn a_lock_is_exclusive_to_its_holder_until_released() -> Result<()> {
 
     let held = lock("editor-b").await?;
     assert_eq!(held.status, StatusCode::LOCKED, "{}", held.json());
-    assert_eq!(held.json()["error_key"], "lock_held");
-    assert_eq!(held.json()["lock"]["holder_id"], "editor-a");
+    assert_eq!(held.json()["error_key"], "locked");
+    assert_eq!(held.json()["detail"]["lock"]["holder_id"], "editor-a");
 
     let blank = lock("  ").await?;
     assert_eq!(blank.status, StatusCode::BAD_REQUEST);
@@ -621,7 +621,7 @@ async fn an_unsatisfiable_range_is_416_and_a_trashed_document_says_so() -> Resul
     .await?;
     assert_eq!(trashed.status, StatusCode::NOT_FOUND, "{}", trashed.json());
     assert_eq!(trashed.json()["error_key"], "trashed", "{}", trashed.json());
-    assert_eq!(trashed.json()["trashed"], true);
+    assert_eq!(trashed.json()["detail"]["trashed"], true);
     Ok(())
 }
 

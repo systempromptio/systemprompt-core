@@ -53,9 +53,10 @@ pub use comment::CommentHandler;
 pub use export::ExportHandler;
 pub use guide::GuideHandler;
 pub use inputs::{
-    AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput, ExportAs,
-    ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput, ListSortInput,
-    ProposalAction, ProposalsInput, QuoteAnchor, SearchInput, ShareInput, UpdateInput,
+    AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput,
+    ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput,
+    ListSortInput, ProposalAction, ProposalsInput, QuoteAnchor, SearchInput, ShareInput,
+    UpdateInput,
 };
 pub use lifecycle::{CopyHandler, TrashHandler, UntrashHandler, UpdateHandler};
 pub use outputs::{

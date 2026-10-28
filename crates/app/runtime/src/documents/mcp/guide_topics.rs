@@ -139,6 +139,12 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
             "template_failed: the template could not be instantiated; the text names the \
              template and the cause. Pick another template or report it."
         },
+        _ => access_refusal_text(code),
+    }
+}
+
+const fn access_refusal_text(code: RefusalCode) -> &'static str {
+    match code {
         RefusalCode::Forbidden => {
             "forbidden: you lack the access level the action needs; the text names the level \
              held and needed, and owner names who can share it. existing_level means the \
@@ -193,5 +199,18 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
         RefusalCode::UnknownSubject => {
             "unknown_subject: no active user or subject has that id; check the id and resend."
         },
+        RefusalCode::AccessRequestOpen => {
+            "access_request_open: you already have an open request on this document; wait for \
+             the owner to answer it."
+        },
+        RefusalCode::AccessRequestNotNeeded => {
+            "access_request_not_needed: you already hold a level on this document; ask a holder \
+             of share to raise it."
+        },
+        RefusalCode::AccessRequestClosed => {
+            "access_request_closed: the request was already granted or declined; only an open \
+             request can be answered."
+        },
+        _ => "",
     }
 }

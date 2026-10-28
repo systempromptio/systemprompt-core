@@ -57,6 +57,10 @@ pub(super) fn clamp_limit(limit: Option<i64>) -> i64 {
 }
 
 #[must_use]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "handlers pass it as the fn pointer of map_err over an owned DocumentsError"
+)]
 pub fn tool_error(error: DocumentsError) -> McpError {
     refusal_of(&error).map_or_else(|| internal_failure(&error), refused_error)
 }

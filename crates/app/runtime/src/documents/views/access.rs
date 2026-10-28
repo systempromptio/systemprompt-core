@@ -224,6 +224,8 @@ pub async fn folder_access_view(
     history: bool,
     trace: &TraceId,
 ) -> Result<AccessOutput, DocumentsError> {
-    let access = service.folder_access_of(who, folder, history, trace).await?;
+    let access = service
+        .folder_access_of(who, folder, history, trace)
+        .await?;
     Ok(AccessOutput::from(access))
 }

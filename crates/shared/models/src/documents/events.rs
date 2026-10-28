@@ -52,7 +52,7 @@ pub enum DocumentEventName {
 }
 
 impl DocumentEventName {
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::RevisionCreated,
         Self::Presence,
         Self::Lock,

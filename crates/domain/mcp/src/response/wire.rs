@@ -60,10 +60,8 @@ impl WireShape<'_> {
         if self.terse {
             let mut meta = terse_execution_meta(&artifact.artifact_id, &artifact.mcp_execution_id);
             if include_ui {
-                meta.0.insert(
-                    UI_RESOURCE_URI_META_KEY.to_owned(),
-                    JsonValue::String(uri.clone()),
-                );
+                meta.0
+                    .insert(UI_RESOURCE_URI_META_KEY.to_owned(), JsonValue::String(uri));
             }
             result = result.with_meta(Some(meta));
         } else if include_ui || include_structured {

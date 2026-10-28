@@ -195,6 +195,6 @@ async fn deny_hook_refuses_folder_mutations() {
         .await
         .expect("find")
         .expect("row");
-    assert!(row.deleted_at.is_none());
+    assert!(row.trashed_at.is_none());
     assert_ne!(row.name, "Nope");
 }

@@ -188,6 +188,7 @@ pub enum CommitWarning {
 }
 
 /// A revision a commit landed, with the acknowledgement stored for it.
+///
 /// `projection` is the landed revision's id-addressed projection: the one
 /// the commit built, or for a replayed acknowledgement (`replayed`) the
 /// acknowledged revision's.

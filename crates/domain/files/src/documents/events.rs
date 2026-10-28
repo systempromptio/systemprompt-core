@@ -31,11 +31,10 @@ use systemprompt_events::{EventRouter, RelayOutcome, TopicEvent};
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::documents::{
-    DocumentAwarenessEvent, DocumentCollabUpdateEvent, DocumentCommentCreatedEvent,
-    DocumentAccessRequestedEvent, DocumentCollabUpdateEvent, DocumentCommentCreatedEvent,
-    DocumentCommentResolvedEvent, DocumentConflictEvent, DocumentLockEvent,
-    DocumentOwnershipTransferredEvent, DocumentPresenceEvent, DocumentProposalEvent,
-    DocumentRevisionCreatedEvent, DocumentSharedEvent,
+    DocumentAccessRequestedEvent, DocumentAwarenessEvent, DocumentCollabUpdateEvent,
+    DocumentCommentCreatedEvent, DocumentCommentResolvedEvent, DocumentConflictEvent,
+    DocumentLockEvent, DocumentOwnershipTransferredEvent, DocumentPresenceEvent,
+    DocumentProposalEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
 };
 
 use super::error::{DocumentsError, EventFailure};

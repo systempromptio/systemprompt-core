@@ -1,0 +1,152 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, event,\n                      CASE WHEN target_kind = 'document' THEN target_id::text END\n                          AS \"document_id: DocumentId\",\n                      CASE WHEN target_kind = 'folder' THEN target_id::text END\n                          AS \"folder_id: DocumentFolderId\",\n                      subject_kind,\n                      subject_value, old_level, new_level, valid_until,\n                      actor_user_id AS \"actor_user_id: UserId\",\n                      trace_id AS \"trace_id: TraceId\", created_at\n               FROM document_grant_events\n               WHERE target_id = $1::text::uuid AND target_kind = $2\n               ORDER BY created_at DESC, id DESC LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "event",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "event"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "document_id: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "folder_id: DocumentFolderId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "subject_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "subject_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "subject_value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "subject_value"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "old_level",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "old_level"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "new_level",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "new_level"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "valid_until",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "valid_until"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "actor_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "actor_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "trace_id: TraceId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "trace_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_grant_events",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "39d5094e1e64e718f1ce7f364a0592225ff31158835e19367e9eed8ce38ffa37"
+}

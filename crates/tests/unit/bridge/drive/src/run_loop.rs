@@ -169,6 +169,7 @@ fn the_loop_syncs_and_folds_proxy_signals_into_the_status() {
                 document_name: None,
                 proposal_id: None,
                 detail: Some("tighten".to_owned()),
+                message: None,
             })));
         run.signals
             .send(DriveSignal::Presence(Box::new(DocumentPresenceEvent {
