@@ -100,10 +100,9 @@ impl<'a> Runs<'a> {
         for child in &run.children {
             match child.name.as_str() {
                 "w:t" => {
-                    let text = child
-                        .text("word/document.xml", self.xml)
-                        .unwrap_or_default();
-                    self.push(&text, &base);
+                    if let Ok(text) = child.text("word/document.xml", self.xml) {
+                        self.push(&text, &base);
+                    }
                 },
                 "w:tab" | "w:ptab" => self.push("\t", &base),
                 "w:br" | "w:cr" => match child.attr("w:type") {
@@ -112,10 +111,8 @@ impl<'a> Runs<'a> {
                 },
                 "w:fldChar" => self.fld_char(child.attr("w:fldCharType").unwrap_or_default()),
                 "w:instrText" => {
-                    let text = child
-                        .text("word/document.xml", self.xml)
-                        .unwrap_or_default();
-                    if let Some(instr) = self.instr.as_mut() {
+                    let text = child.text("word/document.xml", self.xml);
+                    if let (Ok(text), Some(instr)) = (text, self.instr.as_mut()) {
                         instr.push_str(&text);
                     }
                 },

@@ -53,6 +53,12 @@ formatting, page and section breaks, styled or merged tables, sized images) with
 unsupported_op naming the block; nothing is dropped.";
 
 pub(super) fn model_topic() -> String {
-    let schema = serde_json::to_string(&model_view_schema()).unwrap_or_default();
-    format!("{MODEL}\nJSON Schema (also GET /api/v1/documents/schema):\n{schema}")
+    match serde_json::to_string(&model_view_schema()) {
+        Ok(schema) => {
+            format!("{MODEL}\nJSON Schema (also GET /api/v1/documents/schema):\n{schema}")
+        },
+        Err(error) => {
+            format!("{MODEL}\nThe JSON Schema is at GET /api/v1/documents/schema ({error}).")
+        },
+    }
 }
