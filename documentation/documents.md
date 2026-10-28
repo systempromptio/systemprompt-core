@@ -114,14 +114,14 @@ Document tools are exposed through MCP and authorise as the calling user, never 
 | `documents_read` | A revision as hashlines, by outline, text, node range, one node, spreadsheet cells or search; the changes since a revision; or the document's metadata and who is in it now. |
 | `documents_edit` | Apply edit operations as one revision on the head, guarded per node, optionally idempotent by `op_id`. `answering` records the revision on a comment; an edit that removes text a comment is anchored to is refused unless `allow_detach` is set. |
 | `documents_comment` | Create, list and resolve comment threads anchored to a node and, optionally, a quote inside it. |
-| `documents_history` | Revisions, newest first, with author, actor kind and message, and with `verbose` the session, context, trace, task and on-behalf-of user. |
+| `documents_history` | Revisions, newest first, with `author`, `actor`, `at` (to the second) and message, and with `verbose` the session, context, trace, task and on-behalf-of user. |
 | `documents_proposals` | A document's proposals with their status, or, with `action: accept` or `reject`, review one with an optional note (needs edit access). |
 | `documents_share` | Grant a subject access to a document or a folder subtree with an optional `message`, transfer a document's ownership, or revoke every grant on it. |
 | `documents_access` | The owner, the grants on a document with each subject's display name, the grants it inherits from its folders with the folder named, and the caller's level; for holders of `share`, open access requests and, with `history: true`, the grant audit log. |
 | `documents_copy` | A new document owned by the caller from another document's head, with its own history. |
 | `documents_update` | Rename a document or move it to another folder; `folder_id: null` moves it to the root. |
 | `documents_trash` | Move a document to the trash. |
-| `documents_restore_document` | Restore a trashed document. |
+| `documents_untrash` | Bring a trashed document back. |
 | `documents_export` | A signed ten-minute download link, or the sanitised HTML preview for the document-preview app. |
 | `documents_guide` | Working detail by topic: `editing`, `formats`, `sheets`, `slides`, `sharing`, `comments`, `lifecycle`, `proposals` and `refusal.<code>`. |
 
@@ -135,11 +135,34 @@ The server `instructions` carry the working contract: read the outline, edit by 
 
 **Comments.** A comment is anchored to a stable node id and, optionally, to the nth occurrence of a quote inside that node; a reply carries its parent's anchor. Edits elsewhere never move an anchor. An edit that deletes the node or the quoted words is refused with `anchors_affected`, listing the comments, unless it sets `allow_detach`; a detached comment keeps its node and drops its quote. Bridge uploads and whole-file writes detach without refusing. Commenting needs `comment` access.
 
-**Lifecycle.** A trashed document leaves listings, and reads, edits and shares refuse it as `not_found` with `trashed: true`; only a caller who could reach it learns it is trashed. Trashing and restoring are the owner's. A document restored into a deleted folder lands at the root, and a name taken in the meantime gains the first free ` (restored)`, ` (restored 2)`, … suffix; a copy without a name takes the first free ` (copy)`, ` (copy 2)`, … name in its folder. Trashed documents are deleted, with their revisions, after the retention period. Transferring ownership is the owner's, and the previous owner keeps `edit`.
+**Lifecycle.** A trashed document leaves listings, and reads, edits and shares refuse it as `trashed`; only a caller who could reach it learns it is trashed. Trashing and untrashing are the owner's. A document untrashed into a deleted folder lands at the root, and a name taken in the meantime gains the first free ` (restored)`, ` (restored 2)`, … suffix; a copy without a name takes the first free ` (copy)`, ` (copy 2)`, … name in its folder. Trashed documents are deleted, with their revisions, after the retention period. Transferring ownership is the owner's, and the previous owner keeps `edit`.
 
-**Results.** A result is a one-line summary plus structured content, sent once. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs, content hashes, each node id's positional path and the revision attribution. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read; a write landed on a moved head says `merged`, and a replayed `op_id` says `replayed`.
+**Results.** A result is a one-line summary plus structured content, sent once. Its `_meta` carries only `io.systemprompt/execution` with the `artifact_id` and `mcp_execution_id` a client correlates on (and the UI resource URI for a host that renders the preview app). A one-op edit stays under 400 bytes and a three-revision history under 800 bytes on the full wire. Outputs are terse by default; `verbose: true` on a read, edit, history or list adds `document://<document_id>@<revision_id>` URIs, content hashes, each node id's positional path and the revision attribution. A write acknowledges the lines it changed or created, so the next edit anchors on them without a read; a write landed on a moved head says `merged`, and a replayed `op_id` says `replayed`.
 
-**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` (`stale_base`, `guard_mismatch`, `find_none`, `unsupported_op`, `unsupported_format`, `template_failed`, `forbidden`, `not_found`, `locked`, `anchors_affected`, `proposal_conflict`, `invalid_params`, `unknown_subject`, `too_large`, `op_id_mismatch`, `self_review`) and the detail the failure knows: the head revision and who wrote it, a node's current text and hash, a match count, the accepted node kinds, the owner to ask for access, the comments an edit would detach, or that a document is in the trash. The text names what to do next.
+**Refusals.** A refused call is a tool result with `isError: true`. Its structured content carries a stable `code` and the detail the failure knows: the head revision, its content hash, the base sent and who wrote the head, a node's current text and hash, a match count, the accepted node kinds, the owner to ask for access, the comments an edit would detach, or that a document is in the trash. The text names what to do next. The HTTP API answers in the same vocabulary (see [Errors](#errors)).
+
+| Code | Meaning |
+|---|---|
+| `stale_base` | The base is no longer the head. |
+| `guard_mismatch` | A touched node changed since it was read. |
+| `find_none` | A quote matched no place, or more than one. |
+| `unsupported_op` | The format does not take the operation or node kind. |
+| `unsupported_format` | No codec handles the format. |
+| `template_failed` | The template could not be instantiated. |
+| `forbidden` | The caller lacks the access the action needs. |
+| `not_found` | The document, folder, revision, comment or node does not exist. |
+| `trashed` | The document is in the trash. |
+| `locked` | Another holder has the lock. |
+| `folder_not_empty` | The folder still holds documents or folders. |
+| `anchors_affected` | The edit removes text comments are anchored to. |
+| `proposal_conflict` | The proposal no longer applies at the head. |
+| `proposal_closed` | The proposal was already reviewed or superseded. |
+| `invalid_params` | The call is malformed. |
+| `unknown_subject` | No active subject has that id. |
+| `too_large` | The call exceeds an input limit. |
+| `integrity_mismatch` | Uploaded bytes do not hash to the declared hash. |
+| `op_id_mismatch` | The op id was used for a different request. |
+| `self_review` | The reviewer proposed it. |
 
 **Proposals.** An edit either lands on the head or is written as a proposal: a revision whose parent is its base and which never becomes the head on its own. `documents_edit` and `POST /edits` take `mode: land | propose`. Without a mode, a caller holding `comment` but not `edit` access proposes, an agent proposes in a folder whose agent edit policy is `propose` (set on the folder or inherited from any folder above it; the root is `direct`), and everyone else lands. `mode: land` needs `edit` access, and an agent's `mode: land` in a `propose` folder is refused as `forbidden` with the policy named, since the folder policy outranks the request. The acknowledgement carries the `proposal_id`, the proposed revision and its lines against the base. A newer proposal from the same proposer on the same document supersedes the open one.
 
@@ -157,15 +180,15 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 |---|---|
 | `GET`, `POST /api/v1/documents` | List by `scope` (`folder`, `shared`, `mine`, `recent`), `folder`, `query` and `sort` (`name`, `updated`, `recent`), with each document's `size_bytes` and `my_access`; create from a template, or import by multipart upload. |
 | `GET`, `HEAD`, `PATCH`, `DELETE /api/v1/documents/{id}` | Metadata, rename and move, and trash. The `ETag` is the head revision. |
-| `POST /api/v1/documents/{id}/restore`, `/copy` | Restore from the trash; copy into a new document. |
-| `GET /api/v1/documents/{id}/read` | The `documents_read` views: `view=outline`, `text`, `changes` (`since_revision`), `node` (`node_id`), `search` (`text`) or `meta`, at `revision_id` or the head. |
+| `POST /api/v1/documents/{id}/untrash`, `/copy` | Bring back from the trash; copy into a new document. |
+| `GET /api/v1/documents/{id}/read` | The `documents_read` views, assembled by the same code: `view=outline`, `text`, `range` (`from_node`, `to_node`), `cells` (`sheet`, `cells`), `changes` (`since_revision`), `node` (`node_id`), `search` (`text`) or `meta`, at `revision_id` or the head; `verbose=true` as on the tool. |
 | `GET`, `POST /api/v1/documents/{id}/comments`, `POST /api/v1/documents/{id}/comments/{comment_id}/resolve` | Comment threads. |
 | `GET /api/v1/documents/{id}/access` | Owner, grants with display names, inherited grants with `inherited_from`, the caller's level, open access requests for holders of `share`, and with `?history=true` the grant audit log. |
 | `POST /api/v1/documents/{id}/transfer`, `DELETE /api/v1/documents/{id}/grants/all` | Ownership transfer; revoke every grant. |
 | `GET /api/v1/documents/subject-kinds` | The grant subject kinds this installation accepts. |
 | `GET /api/v1/documents/subjects` | Subject search by `kind`, `q` (prefix) and `limit` (at most 20). |
 | `POST /api/v1/documents/{id}/access-requests`, `POST /api/v1/documents/{id}/access-requests/{rid}/grant`, `/decline` | Request access; answer a request (needs `share`). |
-| `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support. Replace the bytes with `If-Match: "<revision_id>"`; a stale base merges as described above or returns `409` with the head and base. `?op_id=` makes the write idempotent. |
+| `GET`, `PUT /api/v1/documents/{id}/content` | Download with range and conditional support. Replace the bytes with `If-Match: "<revision_id>"`; a stale base merges as described above or returns `409` `stale_base` with the head, its content hash and the base under `detail`. `?op_id=` makes the write idempotent. |
 | `POST /api/v1/documents/{id}/edits` | Structured edit operations, with an optional base revision, `op_id`, `answering`, `allow_detach` and `mode` (`land` or `propose`). A proposal answers `201` with the proposal and its revision. |
 | `GET /api/v1/documents/{id}/proposals` | Proposals, newest first; `?status=` filters. |
 | `GET /api/v1/documents/{id}/proposals/{pid}` | One proposal and the lines it changes against its base, in the changes-view form. |
@@ -180,7 +203,21 @@ Routes mount under `/api/v1/documents` and `/api/v1/document-folders` with user 
 
 With the `files-collab` facade feature (part of `full`), four further routes co-edit HTML and Markdown documents live. See [Live co-editing](#live-co-editing).
 
-A write records the request's session, trace and task, and the conversation named by an `x-context-id` header. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`. Errors map to `409` conflict, stale anchor, `proposal_conflict`, `proposal_closed`, `access_request_open` and `access_request_closed`, `403` forbidden, `404` not found, `413` too large, `422` integrity mismatch and `423` locked. See [reference/http-api.md](reference/http-api.md) for the common error shape.
+A write records the request's session, trace and task, and the conversation named by an `x-context-id` header. A merged write answers `merged_from`, and a replayed `op_id` answers the stored response with `replayed: true`.
+
+### Errors
+
+A refused request answers the common error envelope ([reference/http-api.md](reference/http-api.md)) with the refusal code of the MCP tools as its `error_key` and the same typed detail under `detail`, so one client handles both surfaces. A server-side failure answers a fixed message; its cause is logged, never returned. When the install enables access requests, a signed-in caller's `not_found` on an existing document also carries `can_request: true` under `detail`.
+
+| Status | Codes |
+|---|---|
+| `409` | `stale_base`, `guard_mismatch`, `anchors_affected`, `find_none`, `proposal_conflict`, `proposal_closed`, `folder_not_empty`, `op_id_mismatch`, `access_request_open`, `access_request_closed`, and `not_found` for a node id |
+| `403` | `forbidden`, `self_review` |
+| `404` | `not_found`, `trashed` |
+| `413` | `too_large` |
+| `422` | `integrity_mismatch`, `template_failed`, and `invalid_params` for a document that cannot be parsed |
+| `423` | `locked` (a held lock also names the `lock` under `detail`) |
+| `400` | `invalid_params`, `unsupported_op`, `unsupported_format`, `unknown_subject`, `access_request_not_needed`, `find_none` for an `old_str` quote |
 
 ## Live co-editing
 
@@ -301,6 +338,7 @@ Config validation rejects values outside the bounds.
 | `document_blob_gc` | daily | Deletes blobs that no revision or edit-session snapshot references and that are older than the grace period, in batches of 500. |
 | Presence sweep | every 60 seconds | Removes expired presence rows, grants past their `valid_until` (with the named user's presence on that document, and an `expired` audit row) and write acknowledgements older than seven days, and reopens accepted proposals that have not landed after five minutes. |
 | `document_collab_update_sweep` | every 5 minutes | Deletes the update log of closed edit sessions. |
+| `document_node_ids_backfill` | every 10 minutes, once per release | Mints stable node ids for revisions written before ids existed, oldest first so a child carries its parent's ids. Reads never mint: until then such a revision refuses `not_found`. It runs once per release across the cluster under a release stamp. |
 | `document_trash_purge` | daily | Deletes documents trashed longer than the retention period, with their revisions, node ids, grants and comments; the blob GC then collects their blobs. |
 
 All run once per cluster, and return without work while the store is disabled.

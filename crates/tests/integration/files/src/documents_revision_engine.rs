@@ -296,7 +296,7 @@ async fn an_op_id_applies_once_and_replays_under_concurrency() {
     assert!(a.replayed != b.replayed, "exactly one call applies");
     let again = landed(commit(&h, &owner, same()).await.expect("retry"));
     assert!(again.replayed);
-    assert!(again.projection.is_none());
+    assert_eq!(again.projection, a.projection);
     let history = h
         .service
         .history(

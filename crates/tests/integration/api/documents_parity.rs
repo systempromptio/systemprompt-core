@@ -247,12 +247,13 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
     )
     .await?;
     assert_eq!(status, StatusCode::FORBIDDEN, "{refused}");
-    assert_eq!(refused["owner"], next.user_id.as_str());
+    assert_eq!(refused["error_key"], "forbidden");
+    assert_eq!(refused["detail"]["owner"], next.user_id.as_str());
     Ok(())
 }
 
 #[tokio::test]
-async fn trash_restore_copy_and_scoped_listing() -> Result<()> {
+async fn trash_untrash_copy_and_scoped_listing() -> Result<()> {
     let (pool, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-trash").await?;
     let prefix = format!("trash-{}", Uuid::new_v4().simple());
@@ -267,6 +268,7 @@ async fn trash_restore_copy_and_scoped_listing() -> Result<()> {
     let (status, gone) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}"))).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{gone}");
     assert_eq!(gone["error_key"], "trashed");
+    assert_eq!(gone["detail"]["trashed"], true);
     let (status, restored) = send(
         app(&state, &owner),
         empty(Method::POST, &format!("/{id}/untrash")),

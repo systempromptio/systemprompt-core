@@ -196,10 +196,12 @@ async fn a_put_against_a_stale_base_is_409_with_head_and_base() -> Result<()> {
     assert_eq!(stale.status, StatusCode::CONFLICT);
     let body = stale.json();
     assert_eq!(body["code"], "conflict_error");
-    assert_eq!(body["head"], head.as_str());
-    assert_eq!(body["base"], base.as_str());
+    assert_eq!(body["error_key"], "stale_base");
+    assert_eq!(body["detail"]["code"], "stale_base");
+    assert_eq!(body["detail"]["head_revision"], head.as_str());
+    assert_eq!(body["detail"]["base_revision"], base.as_str());
     assert_eq!(
-        body["head_content_sha256"],
+        body["detail"]["head_content_sha256"],
         content_hash(b"# Ours\n").as_str()
     );
 
@@ -256,10 +258,10 @@ async fn an_edit_with_a_stale_anchor_is_409_with_the_current_text() -> Result<()
     .await?;
     assert_eq!(reply.status, StatusCode::CONFLICT, "{}", reply.json());
     let body = reply.json();
-    assert_eq!(body["error_key"], "stale_anchor");
-    assert_eq!(body["node"], node_id.as_str());
-    assert_eq!(body["expected"], "00000000");
-    assert_eq!(body["current_text"], text.as_str());
+    assert_eq!(body["error_key"], "guard_mismatch");
+    assert_eq!(body["detail"]["node"], node_id.as_str());
+    assert_ne!(body["detail"]["hash"], "00000000");
+    assert_eq!(body["detail"]["current_text"], text.as_str());
     Ok(())
 }
 
