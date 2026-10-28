@@ -1,6 +1,6 @@
-//! `documents_access`: the owner, grants, inherited grants and the caller's
-//! level on a document; for a caller holding `share`, also the open access
-//! requests and, with `history: true`, the grant audit log.
+//! The access read-back tool. Grants, open access requests and the audit
+//! log reach only a caller holding `share`; everyone else reads the owner
+//! and their own level.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
