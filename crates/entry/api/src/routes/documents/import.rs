@@ -2,7 +2,10 @@
 //!
 //! The body names the upload's `blob_ref`, the target `folder_id` and the
 //! document `name` (its extension picks the format unless `format` is
-//! given). Only the user who uploaded a blob may import it. A blob past the
+//! given; `.csv` imports as text). A blob of no editable format becomes a
+//! `file` document under the MIME type its upload recorded, listed and
+//! downloadable like any other. Only the user who uploaded a blob may
+//! import it. A blob past the
 //! document upload limit is refused with `413`, never truncated, and the
 //! format's codec must parse it whole before the document is created.
 //!
@@ -45,7 +48,7 @@ pub(super) async fn import(
     let Json(body) = body?;
     let who = caller(&state, &req_ctx).await?;
     let limit = state.service.config().max_upload_bytes;
-    let bytes = state
+    let (bytes, mime_type) = state
         .uploads
         .read_owned_blob(req_ctx.user_id(), &body.blob_ref, limit)
         .await
@@ -54,6 +57,7 @@ pub(super) async fn import(
         folder: body.folder_id,
         name: body.name,
         format: body.format,
+        mime_type: Some(mime_type),
         bytes,
         author: api_author(&req_ctx, &headers),
     };

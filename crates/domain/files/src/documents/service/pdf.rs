@@ -31,6 +31,11 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<RenderedPdf, DocumentsError> {
         let (document, revision, bytes) = self.read(who, document, revision, trace).await?;
+        if document.format.is_file() {
+            return Err(DocumentsError::UnsupportedFormat {
+                format: document.format,
+            });
+        }
         let codec = self.codec(document.format)?;
         let max_pages = usize::try_from(self.config.limits.pdf_pages).unwrap_or(usize::MAX);
         let name = document.name.clone();

@@ -1,8 +1,9 @@
 //! Core document codecs and the registry that selects one per format.
 //!
-//! Three codecs ship with core and register themselves at compile time with
+//! Four codecs ship with core and register themselves at compile time with
 //! `register_document_codec!`:
 //!
+//! - [`FileCodec`] — any other upload, stored as bytes and never edited.
 //! - [`TextCodec`] — plain text, projected as `line[N]` nodes.
 //! - [`MarkdownCodec`] — the same line nodes plus a read-only block outline
 //!   (`h[N]`, `p[N]`, `li[N]`).
@@ -31,6 +32,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod anchors;
+pub mod file;
 mod html;
 mod lines;
 mod markdown;
@@ -47,6 +49,7 @@ mod xml_tree;
 #[cfg(feature = "office")]
 mod zip_package;
 
+pub use file::FileCodec;
 pub use html::HtmlCodec;
 pub use markdown::MarkdownCodec;
 pub use registry::CodecRegistry;

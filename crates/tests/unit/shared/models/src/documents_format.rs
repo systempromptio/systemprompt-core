@@ -31,6 +31,10 @@ fn format_extension_round_trip() {
         Some(DocumentFormat::Html)
     );
     assert_eq!(DocumentFormat::from_extension("pdf"), None);
+    assert_eq!(
+        DocumentFormat::from_extension("csv"),
+        Some(DocumentFormat::Text)
+    );
 }
 
 #[test]
@@ -48,9 +52,11 @@ fn format_mime_types() {
 
 #[test]
 fn office_and_merge_partition_formats() {
-    for format in DocumentFormat::ALL {
+    for format in DocumentFormat::ALL.into_iter().filter(|f| !f.is_file()) {
         assert_ne!(format.is_office(), format.supports_three_way_merge());
     }
+    assert!(!DocumentFormat::File.is_office());
+    assert!(!DocumentFormat::File.supports_three_way_merge());
     assert!(DocumentFormat::Html.supports_three_way_merge());
     assert!(DocumentFormat::Pptx.is_office());
 }

@@ -127,7 +127,12 @@ pub struct CreateRequest {
 pub struct ImportRequest {
     pub folder: Option<DocumentFolderId>,
     pub name: String,
+    /// The format to import as; `None` infers it from the name's extension
+    /// and falls back to [`DocumentFormat::File`].
     pub format: Option<DocumentFormat>,
+    /// The upload's MIME type, kept for a [`DocumentFormat::File`] so it is
+    /// served and previewed as what it is; other formats use their own.
+    pub mime_type: Option<String>,
     pub bytes: Vec<u8>,
     pub author: Author,
 }

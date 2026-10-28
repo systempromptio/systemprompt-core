@@ -140,7 +140,8 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
         },
         RefusalCode::UnsupportedOp => {
             "unsupported_op: this format does not take the op or node kind; accepted_kinds lists \
-             what insert_after takes. See topic formats."
+             what insert_after takes. A file document (PDF, image, any upload) takes no op at \
+             all. See topic formats."
         },
         RefusalCode::UnsupportedFormat => {
             "unsupported_format: no codec handles the requested format; export native or pdf \

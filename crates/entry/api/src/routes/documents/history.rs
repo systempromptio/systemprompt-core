@@ -1,19 +1,25 @@
 //! Revision history, projections and the sandboxed HTML preview.
 //!
+//! A `file` document that is a PDF previews as the PDF itself, served
+//! inline as `application/pdf` (never as the type it was stored under) for
+//! the browser's own viewer; an image previews inline in the sandboxed HTML.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_extension::FrameOptionsOverride;
-use systemprompt_files::documents::service::HistoryPage;
-use systemprompt_identifiers::DocumentRevisionId;
+use systemprompt_files::documents::service::{DocumentView, HistoryPage, StreamRequest};
+use systemprompt_identifiers::{ContentHash, DocumentRevisionId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::documents::Projection;
+use systemprompt_models::documents::{DocumentFormat, Projection};
 use systemprompt_provider_contracts::FrameOptions;
+use systemprompt_traits::FileByteStream;
 
 use super::DocumentsState;
 use super::caller::caller;
@@ -24,6 +30,7 @@ use super::items::{cursor, document_id};
 use super::views::RevisionJson;
 
 const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
+const PDF_MIME: &str = "application/pdf";
 const DEFAULT_HISTORY: i64 = 50;
 const MAX_HISTORY: i64 = 500;
 
@@ -130,6 +137,19 @@ pub(super) async fn preview(
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
     let revision = revision_id(query.revision.as_deref())?;
+    let view = state.service.get(&who.user, &id, &who.trace).await?;
+    if is_pdf_file(&view) {
+        let request = StreamRequest {
+            document: &id,
+            revision: revision.as_ref(),
+            range: None,
+        };
+        let (revision, read) = state
+            .service
+            .open_stream(&who.user, request, &who.trace)
+            .await?;
+        return Ok(pdf_preview(read.body, &revision.content_sha256));
+    }
     let (revision, html) = state
         .service
         .preview_html(&who.user, &id, revision.as_ref(), &who.trace)
@@ -147,4 +167,31 @@ pub(super) async fn preview(
         headers.insert(header::ETAG, value);
     }
     Ok(response)
+}
+
+fn is_pdf_file(view: &DocumentView) -> bool {
+    let document = &view.document;
+    document.format == DocumentFormat::File
+        && (document.mime_type == PDF_MIME || document.name.to_ascii_lowercase().ends_with(".pdf"))
+}
+
+fn pdf_preview(body: FileByteStream, hash: &ContentHash) -> Response {
+    let mut response = Response::new(Body::from_stream(body));
+    response
+        .extensions_mut()
+        .insert(FrameOptionsOverride(FrameOptions::SameOrigin));
+    let headers = response.headers_mut();
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(PDF_MIME));
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("inline"),
+    );
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    if let Ok(value) = HeaderValue::from_str(&etag(hash)) {
+        headers.insert(header::ETAG, value);
+    }
+    response
 }

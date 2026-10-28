@@ -49,6 +49,9 @@ pub(super) fn validate_name(name: &str) -> Result<(), DocumentsError> {
 
 pub(super) fn document_name(name: &str, format: DocumentFormat) -> Result<String, DocumentsError> {
     validate_name(name)?;
+    if format.is_file() {
+        return Ok(name.to_owned());
+    }
     let has_extension = name
         .rsplit_once('.')
         .and_then(|(_, ext)| DocumentFormat::from_extension(ext))
@@ -68,6 +71,15 @@ pub(super) fn apply_with(
     bytes: &[u8],
     ops: Vec<EditOp>,
 ) -> Result<Vec<u8>, DocumentsError> {
+    if format.is_file()
+        && let Some(op) = ops.first()
+    {
+        return Err(DocumentsError::UnsupportedOp {
+            op: op.name(),
+            format,
+            accepted_kinds: &[],
+        });
+    }
     let projection = codec.project(bytes)?;
     let resolved = resolve_targets(&projection, ops)?;
     codec

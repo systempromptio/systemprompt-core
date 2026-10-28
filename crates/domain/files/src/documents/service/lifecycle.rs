@@ -208,6 +208,7 @@ impl DocumentService {
                 author: request.author.clone(),
                 message: Some(format!("copy of {}", source.id)),
                 ops: None,
+                mime_type: Some(source.mime_type.clone()),
             };
             match self.create_with_bytes(who, content).await {
                 Err(DocumentsError::Repository(error))

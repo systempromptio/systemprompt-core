@@ -56,6 +56,7 @@ impl DocumentService {
                     folder,
                     name,
                     format: None,
+                    mime_type: None,
                     bytes,
                     author,
                 };

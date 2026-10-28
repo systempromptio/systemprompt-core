@@ -62,6 +62,7 @@ async fn import_markdown(
                 folder: None,
                 name: unique("notes"),
                 format: Some(DocumentFormat::Markdown),
+                mime_type: None,
                 bytes: text.as_bytes().to_vec(),
                 author: api_author(),
             },

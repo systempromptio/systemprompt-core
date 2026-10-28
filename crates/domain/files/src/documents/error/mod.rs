@@ -116,7 +116,7 @@ pub enum DocumentsError {
     },
     #[error(
         "operation {op} is not supported for {format} documents{}",
-        kinds_label(.op, .accepted_kinds)
+        kinds_label(.op, .format, .accepted_kinds)
     )]
     UnsupportedOp {
         op: &'static str,

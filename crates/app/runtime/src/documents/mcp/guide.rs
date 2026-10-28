@@ -33,7 +33,11 @@ fn formats(tools: &DocumentsMcpTools) -> String {
         "\nExport: native as url everywhere; pdf as url everywhere (rendered from the outline: \
          headings, paragraphs, lists, tables, sheet grids, one page per slide; images omitted); \
          html as preview everywhere; md or html as url only for a document already in that \
-         format.",
+         format.\nfile: any other upload (a PDF, an image, an archive) is a file document. It \
+         is listed, shared, downloaded (export native as url) and previewed (an image inline), \
+         but it has no outline and is never edited: every edit op refuses with unsupported_op. \
+         To change one, write a new version of the whole file, or upload a new file with \
+         documents_upload and import it.",
     );
     out
 }

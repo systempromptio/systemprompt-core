@@ -2,7 +2,8 @@
 //!
 //! `POST /` takes JSON to create from a template, or `multipart/form-data`
 //! to import an uploaded file (parts `file`, optional `name`, `folder_id`,
-//! `format`).
+//! `format`). A file of no known format is kept as a `file` document under
+//! the part's content type.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -135,9 +136,13 @@ async fn read_import(mut form: Multipart, author: Author) -> DocumentsResult<Imp
     let mut folder = None;
     let mut format = None;
     let mut file: Option<(Option<String>, Vec<u8>)> = None;
+    let mut mime_type = None;
     while let Some(field) = form.next_field().await? {
         let part = field.name().unwrap_or_default().to_owned();
         let file_name = field.file_name().map(str::to_owned);
+        if part == "file" {
+            mime_type = field.content_type().map(str::to_owned);
+        }
         let bytes = field.bytes().await?;
         let text = || String::from_utf8_lossy(&bytes).trim().to_owned();
         match part.as_str() {
@@ -162,6 +167,7 @@ async fn read_import(mut form: Multipart, author: Author) -> DocumentsResult<Imp
         folder,
         name,
         format,
+        mime_type,
         bytes,
         author,
     })

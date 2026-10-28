@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     folder_id UUID REFERENCES document_folders(id) ON DELETE RESTRICT,
     name TEXT NOT NULL CHECK (length(name) > 0),
-    format TEXT NOT NULL CHECK (format IN ('docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'html', 'markdown', 'text')),
+    format TEXT NOT NULL CHECK (format IN ('docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'html', 'markdown', 'text', 'file')),
     mime_type TEXT NOT NULL,
     head_revision_id UUID,
     template_id TEXT,

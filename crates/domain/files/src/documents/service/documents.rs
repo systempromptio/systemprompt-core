@@ -29,6 +29,7 @@ pub(super) struct NewContent {
     pub(super) author: Author,
     pub(super) message: Option<String>,
     pub(super) ops: Option<Vec<EditOp>>,
+    pub(super) mime_type: Option<String>,
 }
 
 impl DocumentService {
@@ -76,6 +77,7 @@ impl DocumentService {
                 author: request.author,
                 message: request.message,
                 ops: recorded,
+                mime_type: None,
             },
         )
         .await
@@ -91,10 +93,12 @@ impl DocumentService {
         let format = request
             .format
             .or_else(|| format_of_name(&request.name))
-            .ok_or_else(|| DocumentsError::UnknownFormat {
-                name: request.name.clone(),
-            })?;
+            .unwrap_or(DocumentFormat::File);
         let name = document_name(&request.name, format)?;
+        let mime_type = format
+            .is_file()
+            .then(|| request.mime_type.clone())
+            .flatten();
         self.authorize_create(who, request.folder.as_ref(), trace)
             .await?;
         let codec = self.codec(format)?;
@@ -114,6 +118,7 @@ impl DocumentService {
                 author: request.author,
                 message: None,
                 ops: None,
+                mime_type,
             },
         )
         .await
@@ -150,7 +155,10 @@ impl DocumentService {
                 folder_id: content.folder.clone(),
                 name: content.name.clone(),
                 format: content.format,
-                mime_type: content.format.mime_type().to_owned(),
+                mime_type: content
+                    .mime_type
+                    .clone()
+                    .unwrap_or_else(|| content.format.mime_type().to_owned()),
                 template_id: content.template_id.clone(),
                 owner_user_id: who.id.clone(),
                 created_by: who.id.clone(),

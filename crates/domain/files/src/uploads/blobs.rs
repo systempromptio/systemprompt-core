@@ -14,30 +14,37 @@ use super::service::UploadService;
 use crate::documents::blob_store::BlobStoreError;
 
 impl UploadService {
-    /// Refuses unless `owner` completed an upload that produced `blob`, so a
-    /// content hash alone never opens bytes someone else uploaded.
-    pub async fn require_owned_blob(&self, owner: &UserId, blob: &ContentHash) -> UploadResult<()> {
-        if self.uploads.owns_blob(owner, blob).await? {
-            Ok(())
-        } else {
-            Err(UploadError::BlobNotOwned(blob.clone()))
-        }
+    /// The MIME type `owner`'s upload recorded for `blob`; refuses unless
+    /// `owner` completed an upload that produced it, so a content hash alone
+    /// never opens bytes someone else uploaded.
+    pub async fn require_owned_blob(
+        &self,
+        owner: &UserId,
+        blob: &ContentHash,
+    ) -> UploadResult<String> {
+        self.uploads
+            .find_blob_mime(owner, blob)
+            .await?
+            .ok_or_else(|| UploadError::BlobNotOwned(blob.clone()))
     }
 
-    /// The bytes of a blob `owner` uploaded, whole; a blob past `max_bytes`
-    /// is refused, never truncated.
+    /// The bytes of a blob `owner` uploaded, whole, and its MIME type; a blob
+    /// past `max_bytes` is refused, never truncated.
+    // TRACKED(phase-6 streaming import): the import parses a blob whole, so
+    // `max_bytes` (files.documents.maxUploadBytes) bounds it in memory; a
+    // streaming codec import lifts this bound.
     pub async fn read_owned_blob(
         &self,
         owner: &UserId,
         blob: &ContentHash,
         max_bytes: u64,
-    ) -> UploadResult<Vec<u8>> {
-        self.require_owned_blob(owner, blob).await?;
+    ) -> UploadResult<(Vec<u8>, String)> {
+        let mime = self.require_owned_blob(owner, blob).await?;
         match self.blobs.read_all_primary(blob, max_bytes).await {
             Err(BlobStoreError::TooLarge { size, limit }) => {
                 Err(UploadError::TooLarge { size, limit })
             },
-            other => Ok(other?),
+            other => Ok((other?, mime)),
         }
     }
 

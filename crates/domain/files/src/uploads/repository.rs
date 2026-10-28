@@ -266,15 +266,21 @@ impl DocumentUploadRepository {
         .await?)
     }
 
-    pub async fn owns_blob(&self, owner: &UserId, blob: &ContentHash) -> RepoResult<bool> {
+    /// The MIME type a completed upload of `owner` recorded for `blob`, or
+    /// `None` when `owner` never uploaded it.
+    pub async fn find_blob_mime(
+        &self,
+        owner: &UserId,
+        blob: &ContentHash,
+    ) -> RepoResult<Option<String>> {
         Ok(sqlx::query_scalar!(
-            r#"SELECT EXISTS (SELECT 1 FROM document_uploads
-                              WHERE owner_user_id = $1 AND blob_sha256 = $2
-                                AND status = 'completed') AS "owned!""#,
+            r#"SELECT COALESCE(detected_mime, declared_mime) AS "mime!" FROM document_uploads
+               WHERE owner_user_id = $1 AND blob_sha256 = $2 AND status = 'completed'
+               ORDER BY finished_at DESC LIMIT 1"#,
             owner.as_str(),
             blob.as_str(),
         )
-        .fetch_one(&*self.write)
+        .fetch_optional(&*self.write)
         .await?)
     }
 }

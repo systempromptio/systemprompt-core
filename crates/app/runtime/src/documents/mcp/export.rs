@@ -1,6 +1,7 @@
 //! A link opens the stored file, so a link in another format is offered only
 //! when the document already is that format, except PDF: a `pdf` url is a
-//! link to the revision rendered by the core PDF renderer, for every format.
+//! link to the revision rendered by the core PDF renderer, for every format
+//! but `file`, whose only link is its own bytes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +28,12 @@ enum Plan {
 }
 
 fn plan(input: &ExportInput, format: DocumentFormat) -> Result<Plan, McpError> {
+    if format.is_file() && !matches!(input.format, ExportFormat::Native | ExportFormat::Html) {
+        return Err(refusal(
+            RefusalCode::UnsupportedFormat,
+            "a file document exports as native url (its own bytes) or html preview only".to_owned(),
+        ));
+    }
     match (input.format, input.export_as) {
         (ExportFormat::Native | ExportFormat::Html, ExportAs::Preview) => Ok(Plan::Preview),
         (ExportFormat::Native, ExportAs::Url) => Ok(Plan::Link(Rendition::Native)),
