@@ -21,6 +21,7 @@ fn comment(action: CommentAction, document: &DocumentId) -> CommentInput {
         anchor: None,
         body: None,
         parent_id: None,
+        mentions: Vec::new(),
         comment_id: None,
         answering: None,
     }

@@ -76,7 +76,7 @@ pub fn resolve_targets(
             } => resolve_replace_text(
                 projection,
                 &mut batch,
-                node,
+                &node,
                 expected_hash,
                 text,
                 content_as,
@@ -129,12 +129,12 @@ pub fn resolve_targets(
 fn resolve_replace_text(
     projection: &Projection,
     batch: &mut ResolvedBatch,
-    node: NodeTarget,
+    node: &NodeTarget,
     expected_hash: Option<String>,
     text: String,
     content_as: ContentAs,
 ) -> Result<(), TargetError> {
-    let resolved = resolve(projection, &node, expected_hash, true)?;
+    let resolved = resolve(projection, node, expected_hash, true)?;
     batch.matches.extend(resolved.matches);
     if content_as == ContentAs::Markdown {
         batch.ops.push(EditOp::InsertAfter {
