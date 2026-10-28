@@ -154,10 +154,9 @@ pub(crate) fn render_html(text: &str, marks: &[Mark]) -> String {
                 MarkKind::Caps => {
                     format!("<span style=\"text-transform:uppercase\">{piece}</span>")
                 },
-                MarkKind::Field { code } => format!(
-                    "<span data-field=\"{}\">{piece}</span>",
-                    escape_html(code)
-                ),
+                MarkKind::Field { code } => {
+                    format!("<span data-field=\"{}\">{piece}</span>", escape_html(code))
+                },
             };
         }
         out.push_str(&piece);

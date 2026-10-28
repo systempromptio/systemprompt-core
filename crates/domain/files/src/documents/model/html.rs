@@ -116,10 +116,7 @@ impl Reader {
                 inline(&mut buf, child);
             }
         }
-        self.push(
-            BlockKind::list_item(depth, ordered),
-            buf,
-        );
+        self.push(BlockKind::list_item(depth, ordered), buf);
         for nested in item
             .child_elements()
             .filter(|e| matches!(e.value().name(), "ul" | "ol"))

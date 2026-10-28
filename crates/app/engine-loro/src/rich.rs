@@ -79,10 +79,7 @@ fn read_settings(doc: &LoroDoc) -> Option<Box<DocumentSettings>> {
 }
 
 /// Writes the document settings when they differ from what the doc holds.
-pub fn sync_settings(
-    doc: &LoroDoc,
-    settings: Option<&DocumentSettings>,
-) -> Result<(), WriteError> {
+pub fn sync_settings(doc: &LoroDoc, settings: Option<&DocumentSettings>) -> Result<(), WriteError> {
     let map = doc.get_map(DOCUMENT_CONTAINER);
     let held = string_of(&map, "settings");
     match settings.filter(|settings| !settings.is_default()) {

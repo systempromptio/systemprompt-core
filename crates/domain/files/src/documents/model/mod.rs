@@ -16,25 +16,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod document;
 pub mod formats;
 pub mod html;
 pub mod html_body;
 mod html_write;
 mod ids;
 mod inline;
+pub mod layout;
+mod mark_kind;
 pub mod markdown;
 pub mod office;
 pub mod ops;
-pub mod document;
-pub mod layout;
-mod mark_kind;
 mod rich_text;
 mod validate;
 mod view;
 
+pub use document::DocumentSettings;
 pub use ids::carry_ids;
 pub use inline::segments;
-pub use document::DocumentSettings;
 pub use mark_kind::FIELD_CODES;
 pub use rich_text::{Block, BlockKind, Mark, MarkKind, RICH_TEXT_VERSION, RichText};
 pub use validate::{EditLevel, Limits, ModelRejection, validate};

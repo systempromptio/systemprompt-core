@@ -58,7 +58,10 @@ impl DocumentGrantRepository {
         let mut levels = vec![None; subjects.len()];
         for row in rows {
             let level = row.rank.and_then(level_from_rank);
-            if let Some(slot) = usize::try_from(row.owner).ok().and_then(|i| levels.get_mut(i)) {
+            if let Some(slot) = usize::try_from(row.owner)
+                .ok()
+                .and_then(|i| levels.get_mut(i))
+            {
                 *slot = level;
             }
         }

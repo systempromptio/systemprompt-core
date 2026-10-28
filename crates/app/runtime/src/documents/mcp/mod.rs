@@ -66,8 +66,8 @@ pub use inputs::{
 pub use lifecycle::{CopyHandler, TrashHandler, UntrashHandler, UpdateHandler};
 pub use outputs::{
     CreateOutput, DocumentItem, ExportOutput, FolderItem, GuideOutput, HistoryOutput, ListOutput,
-    PeopleOutput, PersonItem, ProposalItem, ProposalsOutput, ReviewOutput,
-    RevisionAttributionItem, RevisionItem, SearchHit, SearchOutput, ShareOutput,
+    PeopleOutput, PersonItem, ProposalItem, ProposalsOutput, ReviewOutput, RevisionAttributionItem,
+    RevisionItem, SearchHit, SearchOutput, ShareOutput,
 };
 pub use people::PeopleHandler;
 pub use preview::{

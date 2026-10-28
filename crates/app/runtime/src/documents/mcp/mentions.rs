@@ -28,10 +28,8 @@ const MAX_AGENT_NAME: usize = 64;
 /// anything else (a free-text name a client sent) recorded as `agent`.
 pub(super) fn agent_origin(ctx: &RequestContext) -> CommentOrigin {
     let name = ctx.agent_name().as_str();
-    let allowed =
-        |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
-    let valid =
-        !name.is_empty() && name.len() <= MAX_AGENT_NAME && name.chars().all(allowed);
+    let allowed = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
+    let valid = !name.is_empty() && name.len() <= MAX_AGENT_NAME && name.chars().all(allowed);
     CommentOrigin {
         via_agent: Some(if valid { name } else { UNNAMED_AGENT }.to_owned()),
     }
@@ -81,8 +79,7 @@ fn plain_mention(body: &str, mention: &str) -> Option<std::ops::Range<usize>> {
         let start = from + found;
         let end = start + needle.len();
         let boundary = lower[end..].chars().next().is_none_or(|c| {
-            c.is_whitespace()
-                || (c.is_ascii_punctuation() && !matches!(c, '.' | '@' | '-' | '_'))
+            c.is_whitespace() || (c.is_ascii_punctuation() && !matches!(c, '.' | '@' | '-' | '_'))
         });
         if boundary {
             return Some(start..end);

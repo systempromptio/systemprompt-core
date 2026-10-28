@@ -12,9 +12,9 @@
 //! Every event except the per-recipient ones (`document.shared`,
 //! `document.comment.mentioned`) is also published once on the document's
 //! live topic ([`live_topic`]) and relayed to other replicas, so the
-//! document-scoped live channel sees it whoever the recipients were; a collab update carries
-//! `<session>:<seq>` as its resume id. Awareness goes to the topic only, at
-//! most once per [`AWARENESS_INTERVAL`] per participant.
+//! document-scoped live channel sees it whoever the recipients were; a collab
+//! update carries `<session>:<seq>` as its resume id. Awareness goes to the
+//! topic only, at most once per [`AWARENESS_INTERVAL`] per participant.
 //!
 //! Every `emit` reports a relay failure as [`DocumentsError::Events`] after
 //! logging it; local delivery has already happened by then. Callers that
