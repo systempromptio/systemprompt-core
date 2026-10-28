@@ -2,7 +2,8 @@
 //! nextest process and writes its own `files.yaml`.
 
 use systemprompt_files::{
-    DocumentsConfig, FilesConfigValidator, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES,
+    DocumentLimits, DocumentsConfig, FilesConfigValidator, MAX_DOCUMENT_UPLOAD_BYTES,
+    MIN_DOCUMENT_UPLOAD_BYTES,
 };
 use systemprompt_manifest::validators::DomainConfig;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
@@ -108,4 +109,49 @@ fn zero_grace_and_ttl_are_rejected() {
             "files.documents.presenceTtlSecs"
         ]
     );
+}
+
+#[test]
+fn the_pdf_page_cap_defaults_to_five_hundred_and_accepts_its_bounds() {
+    assert_eq!(DocumentLimits::default().pdf_pages, 500);
+    assert_eq!(DocumentsConfig::default().limits.pdf_pages, 500);
+    let partial: DocumentsConfig =
+        serde_yaml::from_str("limits:\n  pdfPages: 12\n").expect("parse");
+    assert_eq!(partial.limits.pdf_pages, 12);
+    assert_eq!(
+        partial.limits.max_ops_per_call,
+        DocumentLimits::default().max_ops_per_call
+    );
+    for pages in [1, 5000] {
+        let yaml = format!("files:\n  documents:\n    limits:\n      pdfPages: {pages}\n");
+        assert!(error_fields(&yaml).is_empty(), "pdfPages {pages}");
+    }
+}
+
+#[test]
+fn a_pdf_page_cap_outside_one_to_five_thousand_is_rejected() {
+    for pages in [0, 5001] {
+        let yaml = format!("files:\n  documents:\n    limits:\n      pdfPages: {pages}\n");
+        assert_eq!(
+            error_fields(&yaml),
+            vec!["files.documents.limits.pdfPages"],
+            "pdfPages {pages}"
+        );
+    }
+}
+
+#[test]
+fn every_limit_is_rejected_just_outside_its_bounds_and_named_by_its_field() {
+    for (field, _, (low, high)) in DocumentLimits::default().bounded() {
+        for value in [low - 1, high + 1] {
+            let yaml = format!("files:\n  documents:\n    limits:\n      {field}: {value}\n");
+            assert_eq!(
+                error_fields(&yaml),
+                vec![format!("files.documents.limits.{field}")],
+                "{field} {value}"
+            );
+        }
+        let yaml = format!("files:\n  documents:\n    limits:\n      {field}: {high}\n");
+        assert!(error_fields(&yaml).is_empty(), "{field} at its ceiling");
+    }
 }
