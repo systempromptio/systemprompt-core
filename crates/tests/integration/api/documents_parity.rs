@@ -182,7 +182,7 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
         json_request(
             Method::POST,
             &format!("/{id}/grants"),
-            &json!({ "subject_kind": "role", "subject_value": "staff", "level": "view" }),
+            &json!({ "subject_kind": "role", "subject_value": "admin", "level": "view" }),
         ),
     )
     .await?;
@@ -218,7 +218,7 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
             .map(|grant| grant["display_name"].clone())
     };
     assert_eq!(display("user"), Some(json!("Next Reader")));
-    assert_eq!(display("role"), Some(json!("staff")));
+    assert_eq!(display("role"), Some(json!("admin")));
 
     let (status, _) = send(
         app(&state, &owner),

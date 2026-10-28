@@ -133,6 +133,7 @@ async fn grant_folder(
             access_level: level,
             granted_by: granted_by.clone(),
             valid_until: expired.then(|| Utc::now() - chrono::Duration::hours(1)),
+            trace_id: systemprompt_identifiers::TraceId::generate(),
         })
         .await
         .expect("insert grant");
@@ -330,6 +331,7 @@ async fn effective_level_picks_the_highest_grant() {
             access_level: AccessLevel::Share,
             granted_by: owner.clone(),
             valid_until: None,
+            trace_id: systemprompt_identifiers::TraceId::generate(),
         })
         .await
         .expect("grant");

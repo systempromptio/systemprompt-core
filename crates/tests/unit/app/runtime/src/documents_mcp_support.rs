@@ -156,3 +156,15 @@ pub(crate) fn line_for<'a>(read: &'a ReadOutput, text: &str) -> (&'a str, &'a st
     let (anchor, _) = line.split_once('|').expect("hashline");
     anchor.rsplit_once(':').expect("node:hash")
 }
+
+pub(crate) async fn registered(prefix: &str) -> AuthenticatedUser {
+    let user = person(prefix);
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
+        .bind(user.id.as_str())
+        .bind(&user.email)
+        .execute(&*pool.write_pool())
+        .await
+        .expect("user row");
+    user
+}

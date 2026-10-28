@@ -16,7 +16,8 @@ use systemprompt_test_fixtures::test_db_pool;
 use tokio::sync::mpsc;
 
 use crate::documents_service_fixture::{
-    GroupSource, Harness, allow, api_author, create, harness, person, trace, unique,
+    GroupSource, Harness, RoleDirectory, allow, api_author, create, harness, harness_with, person,
+    trace, unique,
 };
 
 async fn document(h: &Harness, owner: &AuthenticatedUser) -> DocumentId {
@@ -64,6 +65,7 @@ async fn share(
                 subject_display: None,
                 level,
                 valid_until: None,
+                message: None,
             },
             &trace(),
         )
@@ -306,7 +308,13 @@ async fn update_renames_and_moves_and_names_the_owner_when_refused() {
 
 #[tokio::test]
 async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
-    let h = harness(allow(), GroupSource::new(&[])).await;
+    let h = harness_with(
+        allow(),
+        GroupSource::new(&[]),
+        std::sync::Arc::new(tempfile::TempDir::new().expect("tempdir")),
+        RoleDirectory::default().with_role("staff", &[]),
+    )
+    .await;
     let owner = person("access-owner");
     let reader = person("access-reader");
     let parent = folder(&h, &owner).await;
@@ -329,6 +337,7 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
                 subject_display: Some("Ada Reader".to_owned()),
                 level: AccessLevel::Comment,
                 valid_until: None,
+                message: None,
             },
             &trace(),
         )
@@ -352,14 +361,14 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
     .await;
     let access = h
         .service
-        .access_of(&owner, &doc.id, &trace())
+        .access_of(&owner, &doc.id, false, &trace())
         .await
         .expect("access");
     assert_eq!(access.owner, owner.id);
     assert_eq!(access.my_access, AccessLevel::Own);
     let below_share = h
         .service
-        .access_of(&reader, &doc.id, &trace())
+        .access_of(&reader, &doc.id, false, &trace())
         .await
         .expect("reader access");
     assert_eq!(below_share.my_access, AccessLevel::Comment);
@@ -373,9 +382,10 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
         access
             .inherited
             .iter()
-            .any(|grant| grant.subject_kind == "role"
-                && grant.subject_value == "staff"
-                && grant.subject_display.is_none())
+            .any(|inherited| inherited.grant.subject_kind == "role"
+                && inherited.grant.subject_value == "staff"
+                && inherited.grant.subject_display.is_none()
+                && inherited.folder_id == parent)
     );
 }
 
@@ -419,7 +429,7 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
     assert_eq!(view.my_access, AccessLevel::Edit);
     let access = h
         .service
-        .access_of(&next, &id, &trace())
+        .access_of(&next, &id, false, &trace())
         .await
         .expect("new owner reads access");
     let kept = access
@@ -452,7 +462,13 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
 
 #[tokio::test]
 async fn revoke_all_removes_every_grant() {
-    let h = harness(allow(), GroupSource::new(&[])).await;
+    let h = harness_with(
+        allow(),
+        GroupSource::new(&[]),
+        std::sync::Arc::new(tempfile::TempDir::new().expect("tempdir")),
+        RoleDirectory::default().with_role("staff", &[]),
+    )
+    .await;
     let owner = person("revoke-owner");
     let reader = person("revoke-reader");
     let id = document(&h, &owner).await;

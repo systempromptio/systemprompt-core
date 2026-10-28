@@ -103,3 +103,27 @@ fn queued_notices_are_numbered_and_bounded_and_render_their_keys() {
             .any(|(k, v)| *k == "document" && v == document.as_str())
     );
 }
+
+#[test]
+fn a_shared_frame_with_a_message_shows_the_message_in_the_toast() {
+    let document = DocumentId::generate();
+    let me = UserId::new("me");
+    let frame = format!(
+        r#"{{"document_id":"{document}","document_name":"Plan.docx","recipient_user_id":"me","subject_kind":"user","subject_value":"me","level":"view","by":"owner-1","shared_by":"Olivia Owner","message":"please review by Friday"}}"#
+    );
+    let notice = notice_for("document.shared", &frame, Some(&me)).expect("notice");
+    assert_eq!(notice.message.as_deref(), Some("please review by Friday"));
+    let text = notice_text(&DriveHandle::new().status(), &notice);
+    assert_eq!(text.body_key, "drive-shared-body-message");
+    assert!(
+        text.args
+            .iter()
+            .any(|(k, v)| *k == "message" && v == "please review by Friday")
+    );
+    let plain =
+        notice_for("document.shared", &shared_frame(&document, "me"), Some(&me)).expect("notice");
+    assert_eq!(
+        notice_text(&DriveHandle::new().status(), &plain).body_key,
+        "drive-shared-body"
+    );
+}

@@ -12,7 +12,7 @@ use systemprompt_files::documents::service::{Author, CreateRequest, RevisionOrig
 use systemprompt_files::documents::templates::TemplateRegistry;
 use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
-    DocumentServiceParts, SubjectDirectory, SubjectDirectoryError,
+    DocumentServiceParts, SubjectDirectory, SubjectDirectoryError, SubjectMatch,
 };
 use systemprompt_governance::authz::{
     AccessControlRepository, AllowAllHook, DenyAllHook, RuleType, SharedAuthzHook,
@@ -34,6 +34,7 @@ pub(crate) const GROUP: RuleType = RuleType::extension_static("group");
 pub(crate) struct GroupSource {
     dimensions: Vec<SubjectDimension>,
     groups: HashMap<UserId, Vec<String>>,
+    known: Option<Vec<String>>,
 }
 
 impl GroupSource {
@@ -52,7 +53,13 @@ impl GroupSource {
                 precedence: 150,
             }],
             groups: by_user,
+            known: None,
         }
+    }
+
+    pub(crate) fn enumerable(mut self, known: &[&str]) -> Self {
+        self.known = Some(known.iter().map(|value| (*value).to_owned()).collect());
+        self
     }
 }
 
@@ -77,11 +84,19 @@ impl SubjectAttributeSource for GroupSource {
                 .collect(),
         )
     }
+
+    async fn known_values(
+        &self,
+        _dimension: &SubjectDimension,
+    ) -> Result<Option<Vec<String>>, SubjectSourceError> {
+        Ok(self.known.clone())
+    }
 }
 
 #[derive(Default)]
 pub(crate) struct RoleDirectory {
     roles: HashMap<String, Vec<UserId>>,
+    users: Vec<(UserId, String)>,
 }
 
 impl RoleDirectory {
@@ -90,6 +105,11 @@ impl RoleDirectory {
             role.to_owned(),
             members.iter().map(|user| (*user).clone()).collect(),
         );
+        self
+    }
+
+    pub(crate) fn with_user(mut self, user: &UserId, display: &str) -> Self {
+        self.users.push((user.clone(), display.to_owned()));
         self
     }
 }
@@ -121,6 +141,31 @@ impl SubjectDirectory for RoleDirectory {
                 .unwrap_or_default(),
             _ => Vec::new(),
         })
+    }
+
+    async fn search_users(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SubjectMatch>, SubjectDirectoryError> {
+        let query = query.to_lowercase();
+        Ok(self
+            .users
+            .iter()
+            .filter(|(_, display)| display.to_lowercase().starts_with(&query))
+            .take(limit)
+            .map(|(user, display)| SubjectMatch {
+                value: user.as_str().to_owned(),
+                display: display.clone(),
+                detail: None,
+            })
+            .collect())
+    }
+
+    async fn roles(&self) -> Result<Vec<String>, SubjectDirectoryError> {
+        let mut roles: Vec<String> = self.roles.keys().cloned().collect();
+        roles.sort();
+        Ok(roles)
     }
 }
 
@@ -159,6 +204,23 @@ pub(crate) async fn harness_with(
     storage: Arc<TempDir>,
     directory: RoleDirectory,
 ) -> Harness {
+    harness_configured(
+        hook,
+        subjects,
+        storage,
+        directory,
+        DocumentsConfig::default(),
+    )
+    .await
+}
+
+pub(crate) async fn harness_configured(
+    hook: SharedAuthzHook,
+    subjects: GroupSource,
+    storage: Arc<TempDir>,
+    directory: RoleDirectory,
+    config: DocumentsConfig,
+) -> Harness {
     let db = test_db_pool().await;
     let repos = Arc::new(DocumentRepositories::new(&db));
     let access_entities = Arc::new(AccessControlRepository::new(&db));
@@ -188,7 +250,7 @@ pub(crate) async fn harness_with(
         templates: Arc::new(TemplateRegistry::discover(Vec::new())),
         access,
         events,
-        config: DocumentsConfig::default(),
+        config,
     });
     Harness {
         service,

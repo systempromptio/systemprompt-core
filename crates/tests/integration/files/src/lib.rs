@@ -8,6 +8,8 @@ mod bootstrap;
 #[cfg(test)]
 mod config_paths;
 #[cfg(test)]
+mod documents_access_requests;
+#[cfg(test)]
 mod documents_blob_store;
 #[cfg(test)]
 mod documents_collab;
@@ -45,6 +47,8 @@ mod documents_service_drive;
 mod documents_service_fixture;
 #[cfg(test)]
 mod documents_shared_editing;
+#[cfg(test)]
+mod documents_sharing_audit;
 #[cfg(test)]
 mod documents_sharing_guards;
 #[cfg(test)]

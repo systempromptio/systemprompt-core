@@ -17,7 +17,7 @@ use systemprompt_runtime::documents::mcp::{
 };
 
 use crate::documents_mcp_support::{
-    create_text, ctx_for, exec, harness, line_for, person, read_text,
+    create_text, ctx_for, exec, harness, line_for, read_text, registered,
 };
 
 fn read_input(document: &DocumentId, view: ReadView) -> ReadInput {
@@ -82,7 +82,7 @@ async fn replace_line(
 #[tokio::test]
 async fn changes_since_a_revision_return_only_what_changed() {
     let h = harness().await;
-    let owner = person("since");
+    let owner = registered("since").await;
     let ctx = ctx_for(Some(&owner));
     let (document, first) = create_text(&h.tools, &ctx, "alpha\nbeta\ngamma\ndelta").await;
     let before = read_text(&h.tools, &ctx, &document).await;
@@ -125,7 +125,7 @@ fn edit_input(document: &DocumentId, op_id: &DocumentOpId, op: EditOp) -> EditIn
 #[tokio::test]
 async fn a_repeated_op_id_replays_the_first_ack() {
     let h = harness().await;
-    let owner = person("replay");
+    let owner = registered("replay").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "one\ntwo").await;
     let op_id = DocumentOpId::new(format!("op-{}", uuid::Uuid::new_v4()));
@@ -170,7 +170,7 @@ async fn a_repeated_op_id_replays_the_first_ack() {
 #[tokio::test]
 async fn search_and_meta_views_answer_without_a_full_read() {
     let h = harness().await;
-    let owner = person("views");
+    let owner = registered("views").await;
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "Revenue grew\ncosts fell").await;
     let mut input = read_input(&document, ReadView::Search);
@@ -190,7 +190,7 @@ async fn search_and_meta_views_answer_without_a_full_read() {
 #[tokio::test]
 async fn a_verbose_read_lists_codec_paths_and_history_shows_attribution() {
     let h = harness().await;
-    let owner = person("attribution");
+    let owner = registered("attribution").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "first\nsecond").await;
     let mut input = read_input(&document, ReadView::Text);

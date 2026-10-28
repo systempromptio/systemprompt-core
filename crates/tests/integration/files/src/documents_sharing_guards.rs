@@ -45,6 +45,7 @@ fn grant(document: &DocumentId, kind: &str, value: &str, level: AccessLevel) -> 
         subject_display: None,
         level,
         valid_until: None,
+        message: None,
     }
 }
 
@@ -59,6 +60,7 @@ async fn legacy_own_grant(h: &Harness, document: &DocumentId, owner: &UserId, us
             access_level: AccessLevel::Own,
             granted_by: owner.clone(),
             valid_until: None,
+            trace_id: systemprompt_identifiers::TraceId::generate(),
         })
         .await
         .expect("insert own grant");
@@ -281,7 +283,7 @@ async fn expired_grants_are_flagged_and_swept() {
         .expect("share");
     let access = h
         .service
-        .access_of(&owner, &id, &trace())
+        .access_of(&owner, &id, false, &trace())
         .await
         .expect("access");
     let listed = access
@@ -293,7 +295,7 @@ async fn expired_grants_are_flagged_and_swept() {
     h.repos.grants.sweep_expired(10_000).await.expect("sweep");
     let after = h
         .service
-        .access_of(&owner, &id, &trace())
+        .access_of(&owner, &id, false, &trace())
         .await
         .expect("access");
     assert!(after.grants.iter().all(|g| g.id != expired.id));

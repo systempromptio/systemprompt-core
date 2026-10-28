@@ -190,6 +190,7 @@ mod documents_collab;
 mod documents_parity;
 #[cfg(test)]
 mod documents_review;
+mod documents_sharing;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;

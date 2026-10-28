@@ -49,6 +49,7 @@ async fn share(
                 subject_display: None,
                 level,
                 valid_until: None,
+                message: None,
             },
             &trace(),
         )

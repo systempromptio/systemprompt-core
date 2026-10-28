@@ -14,6 +14,7 @@ fn shared(document: &DocumentId) -> DocumentNotice {
         document_name: Some("memo.docx".to_owned()),
         proposal_id: None,
         detail: Some("edit".to_owned()),
+        message: None,
     }
 }
 

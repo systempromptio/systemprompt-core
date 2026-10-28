@@ -17,7 +17,7 @@ use systemprompt_runtime::documents::mcp::{
 };
 
 use crate::documents_mcp_support::{
-    create_text, ctx_for, exec, harness, line_for, person, read_text,
+    create_text, ctx_for, exec, harness, line_for, read_text, registered,
 };
 
 async fn edit(
@@ -73,6 +73,7 @@ async fn share(
                 subject_display: None,
                 level,
                 valid_until: None,
+                message: None,
             },
             &TraceId::generate(),
         )
@@ -90,7 +91,7 @@ fn texts(read: &systemprompt_runtime::documents::mcp::ReadOutput) -> Vec<String>
 #[tokio::test]
 async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
     let h = harness().await;
-    let owner = person("mcp-propose");
+    let owner = registered("mcp-propose").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "one\ntwo\nthree").await;
 
@@ -145,7 +146,7 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
         .and_then(|c| c.as_str());
     assert_eq!(code, Some("self_review"));
 
-    let reviewer = person("mcp-reviewer");
+    let reviewer = registered("mcp-reviewer").await;
     share(&h.tools, &owner, &document, &reviewer, AccessLevel::Edit).await;
     let (output, _) = ProposalsHandler { tools: &h.tools }
         .handle(accept, &ctx_for(Some(&reviewer)), &exec())
@@ -161,9 +162,9 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
 #[tokio::test]
 async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
     let h = harness().await;
-    let owner = person("mcp-owner");
-    let commenter = person("mcp-commenter");
-    let viewer = person("mcp-viewer");
+    let owner = registered("mcp-owner").await;
+    let commenter = registered("mcp-commenter").await;
+    let viewer = registered("mcp-viewer").await;
     let owner_ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &owner_ctx, "red\ngreen").await;
     share(
@@ -216,7 +217,7 @@ async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
 #[tokio::test]
 async fn the_proposals_guide_topic_names_the_review_actions() {
     let h = harness().await;
-    let owner = person("mcp-guide");
+    let owner = registered("mcp-guide").await;
     let (_, text) = GuideHandler { tools: &h.tools }
         .handle(
             GuideInput {
