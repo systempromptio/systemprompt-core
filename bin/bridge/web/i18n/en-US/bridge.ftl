@@ -469,6 +469,7 @@ drive-editor-title = Someone is editing
 drive-editor-body = { $count } Drive documents are being edited right now.
 drive-shared-title = Shared with you: { $document }
 drive-shared-body = { $from } shared { $document } with you ({ $level } access).
+drive-shared-body-message = { $from } shared { $document } with you ({ $level } access): “{ $message }”
 drive-proposal-title = A change was proposed
 drive-proposal-body = { $from } proposed a change to { $document }.
 tray-syncing = Syncing…

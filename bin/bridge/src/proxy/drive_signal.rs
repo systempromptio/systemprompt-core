@@ -51,6 +51,7 @@ pub struct DocumentNotice {
     pub document_name: Option<String>,
     pub proposal_id: Option<DocumentProposalId>,
     pub detail: Option<String>,
+    pub message: Option<String>,
 }
 
 #[must_use]
@@ -69,6 +70,7 @@ pub fn notice_for(name: &str, value: &str, viewer: Option<&UserId>) -> Option<Do
                 document_name: Some(shared.document_name),
                 proposal_id: None,
                 detail: Some(shared.level.to_string()),
+                message: shared.message,
             })
         },
         DocumentProposalEvent::OPENED => {
@@ -81,6 +83,7 @@ pub fn notice_for(name: &str, value: &str, viewer: Option<&UserId>) -> Option<Do
                 document_name: None,
                 proposal_id: Some(opened.proposal_id),
                 detail: opened.message,
+                message: None,
             })
         },
         _ => None,

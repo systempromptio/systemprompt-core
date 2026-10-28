@@ -2,7 +2,8 @@
 //!
 //! The document is named by its Drive path when this device has synced it,
 //! else by the name the event carries, else by its id; the sender by the
-//! display name the event carries, else by user id.
+//! display name the event carries, else by user id. A share that carries a
+//! message shows it under the share line.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,14 +39,24 @@ pub fn notice_text(status: &DriveStatus, notice: &DocumentNotice) -> NoticeText 
         .clone()
         .unwrap_or_else(|| notice.from.to_string());
     match notice.kind {
-        NoticeKind::Shared => NoticeText {
-            title_key: "drive-shared-title",
-            body_key: "drive-shared-body",
-            args: vec![
+        NoticeKind::Shared => {
+            let mut args = vec![
                 ("from", from),
                 ("document", document),
                 ("level", notice.detail.clone().unwrap_or_default()),
-            ],
+            ];
+            let body_key = match notice.message.as_deref().map(str::trim) {
+                Some(message) if !message.is_empty() => {
+                    args.push(("message", message.to_owned()));
+                    "drive-shared-body-message"
+                },
+                _ => "drive-shared-body",
+            };
+            NoticeText {
+                title_key: "drive-shared-title",
+                body_key,
+                args,
+            }
         },
         NoticeKind::ProposalOpened => NoticeText {
             title_key: "drive-proposal-title",
