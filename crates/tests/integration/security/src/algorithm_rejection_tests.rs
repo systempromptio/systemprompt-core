@@ -35,6 +35,7 @@ fn sample_claims(iss: &str) -> JwtClaims {
             plugin_id: None,
             act: None,
             purpose: None,
+            interaction: None,
         },
     }
 }

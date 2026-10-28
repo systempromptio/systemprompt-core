@@ -136,7 +136,8 @@ deployment's agent policy and an owner's override on the document or a folder ab
 which can only tighten it; documents_access shows your agent_cap and why. Whatever the cap, \
 agents do not share or change grants, give access by mentioning someone (mention only people \
 who can already see the document), trash, untrash or delete, move or transfer, restore an \
-old revision, or replace a whole file, unless the policy allows it: ask your user. Agent \
+old revision, replace the whole content (a whole file, set_text or set_html: edit by node \
+instead) or accept and reject proposals, unless the policy allows it: ask your user. Agent \
 edits are limited per user per hour (agent_rate_limited).";
 
 pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {

@@ -138,6 +138,7 @@ fn build_claims(
         client_id: config.client_id,
         purpose: config.purpose,
         plugin_id: config.plugin_id,
+        interaction: None,
     };
     Ok(user_claims(signing.issuer, &request)?)
 }
@@ -192,6 +193,7 @@ pub fn generate_anonymous_jwt_with_expiry(
         client_id: Some(client_id.clone()),
         purpose: None,
         plugin_id: None,
+        interaction: None,
     };
     Ok(authority.mint_user_jwt(&request)?)
 }

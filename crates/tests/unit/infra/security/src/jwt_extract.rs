@@ -55,6 +55,7 @@ fn mint_with(
             plugin_id: None,
             act,
             purpose: None,
+            interaction: None,
         },
     };
 

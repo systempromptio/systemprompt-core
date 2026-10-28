@@ -682,6 +682,7 @@ pub(super) fn mint_download(
         client_id: None,
         purpose: Some(purpose),
         plugin_id: None,
+        interaction: None,
     };
     authority.mint_user_jwt(&request).expect("download token")
 }

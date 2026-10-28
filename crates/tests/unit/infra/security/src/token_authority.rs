@@ -2,7 +2,8 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, Header, decode_header, encode};
 use systemprompt_identifiers::{AccessTokenId, PluginId, SessionId, UserId};
 use systemprompt_models::auth::{
-    AuthenticatedUser, JwtAudience, Permission, TokenAuthority, TokenError, UserJwtRequest,
+    AuthenticatedUser, JwtAudience, Permission, TokenAuthority, TokenError, TokenInteraction,
+    UserJwtRequest,
 };
 use systemprompt_security::DeploymentTokenAuthority;
 use systemprompt_test_fixtures::test_signing_keys;
@@ -29,6 +30,7 @@ fn request(audience: Vec<JwtAudience>, permissions: Vec<Permission>) -> UserJwtR
         client_id: None,
         purpose: Some("farm:run-1".to_owned()),
         plugin_id: None,
+        interaction: None,
     }
 }
 
@@ -45,6 +47,28 @@ fn mint_user_jwt_round_trips_through_verify_bearer() {
     assert_eq!(claims.registered.jti, req.jti.to_string());
     assert_eq!(claims.custom.purpose.as_deref(), Some("farm:run-1"));
     assert_eq!(claims.custom.session_id, Some(SessionId::new("sess-1")));
+}
+
+#[test]
+fn the_interaction_claim_round_trips_and_is_absent_by_default() {
+    let authority = authority();
+    let plain = authority
+        .mint_user_jwt(&request(vec![JwtAudience::Mcp], vec![Permission::User]))
+        .expect("mint");
+    let claims = authority
+        .verify_bearer(&plain, &[JwtAudience::Mcp])
+        .expect("verify");
+    assert_eq!(claims.custom.interaction, None);
+    let mut req = request(vec![JwtAudience::Mcp], vec![Permission::User]);
+    req.interaction = Some(TokenInteraction::NonInteractive);
+    let unattended = authority.mint_user_jwt(&req).expect("mint");
+    let claims = authority
+        .verify_bearer(&unattended, &[JwtAudience::Mcp])
+        .expect("verify");
+    assert_eq!(
+        claims.custom.interaction,
+        Some(TokenInteraction::NonInteractive)
+    );
 }
 
 #[test]

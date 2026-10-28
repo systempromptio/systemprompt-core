@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod access_requests;
+mod agent_batch;
 mod agent_caps;
 mod blobs;
 mod collab_updates;
@@ -46,6 +47,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
 pub use access_requests::DocumentAccessRequestRepository;
+pub use agent_batch::FolderChain;
 pub use agent_caps::{AgentFacts, AgentReadRecord, CapOverride};
 pub use blobs::DocumentBlobRepository;
 pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository, SnapshotMark};

@@ -82,6 +82,7 @@ pub fn signed_upload_links(
         client_id: None,
         purpose: Some(upload_purpose(target.grant, target.upload)),
         plugin_id: None,
+        interaction: None,
     };
     let token = authority
         .mint_user_jwt(&request)

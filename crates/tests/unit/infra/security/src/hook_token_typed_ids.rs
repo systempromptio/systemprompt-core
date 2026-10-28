@@ -50,6 +50,7 @@ fn hook_claims(plugin_id: &str, subject: &str) -> JwtClaims {
             plugin_id: Some(PluginId::new(plugin_id)),
             act: None,
             purpose: None,
+            interaction: None,
         },
     }
 }

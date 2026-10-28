@@ -94,9 +94,13 @@ pub enum AgentCapability {
     Administer,
     /// Restore an earlier revision over the head.
     RestoreRevision,
-    /// Replace a document's whole content in one write.
+    /// Replace a document's whole content in one write: a whole-file body,
+    /// or a `set_text` or `set_html` op.
     ReplaceContent,
-    /// Change a document template.
+    /// Accept or reject a proposal.
+    ReviewProposal,
+    /// Change a document template. Core has no template-editing path, so
+    /// nothing checks this today; it is reserved for one.
     EditTemplate,
 }
 
@@ -110,6 +114,7 @@ impl AgentCapability {
             Self::Administer => "administer",
             Self::RestoreRevision => "restore_revision",
             Self::ReplaceContent => "replace_content",
+            Self::ReviewProposal => "review_proposal",
             Self::EditTemplate => "edit_template",
         }
     }

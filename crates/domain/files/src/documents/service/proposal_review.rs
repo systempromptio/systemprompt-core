@@ -21,6 +21,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, ProposalStatus};
 
 use super::{Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService};
+use crate::documents::agents::AgentCapability;
 use crate::documents::error::DocumentsError;
 use crate::documents::model::Media;
 use crate::documents::models::{Document, DocumentProposal, DocumentRevision, ProposalReview};
@@ -135,6 +136,9 @@ impl DocumentService {
             .ok_or_else(|| DocumentsError::not_found("proposal", proposal))?;
         let document = self
             .authorized_document(who, &proposal.document_id, DocumentAction::Edit, trace)
+            .await?;
+        self.access
+            .require_agent_capability(who, &document, AgentCapability::ReviewProposal)
             .await?;
         Ok((document, proposal))
     }

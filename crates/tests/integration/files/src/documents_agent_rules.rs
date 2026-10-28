@@ -5,14 +5,17 @@
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefusal};
 use systemprompt_files::documents::models::GrantTarget;
-use systemprompt_files::documents::service::{CommentRequest, ShareRequest};
+use systemprompt_files::documents::revision::CommitBody;
+use systemprompt_files::documents::service::{
+    CommentPolicy, CommentRequest, CommitRequest, ShareRequest,
+};
 use systemprompt_files::{DocumentLimits, DocumentsConfig};
 use systemprompt_identifiers::DocumentId;
-use systemprompt_models::documents::AccessLevel;
+use systemprompt_models::documents::{AccessLevel, EditOp};
 use systemprompt_test_fixtures::test_db_pool;
 
 use crate::documents_agent_fixture::{agent_harness, agent_refusal, as_agent, document, edit};
-use crate::documents_service_fixture::{RoleDirectory, person, trace};
+use crate::documents_service_fixture::{RoleDirectory, api_author, person, trace};
 
 fn share_with(id: &DocumentId, user: &str) -> ShareRequest {
     ShareRequest {
@@ -171,4 +174,40 @@ async fn agent_edits_past_the_hourly_ceiling_are_refused() {
     edit(&h, &owner, &id, "the owner is not limited\n")
         .await
         .expect("a person is not limited");
+}
+
+#[tokio::test]
+async fn an_agents_set_text_is_a_whole_content_replace() {
+    let h = agent_harness(
+        AgentCap::Edit,
+        Vec::new(),
+        RoleDirectory::default(),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let owner = person("replace-owner");
+    let id = document(&h, &owner).await;
+    let head = h
+        .service
+        .get(&owner, &id, &trace())
+        .await
+        .expect("get")
+        .head
+        .map(|r| r.id);
+    let request = CommitRequest {
+        document_id: id.clone(),
+        base_revision: head,
+        body: CommitBody::Ops(vec![EditOp::SetText {
+            text: "all of it\n".to_owned(),
+        }]),
+        author: api_author(),
+        message: None,
+        lock_holder_id: None,
+        comments: CommentPolicy::default(),
+        op_id: None,
+    };
+    let refused = as_agent(h.service.commit(&owner, request, &trace()))
+        .await
+        .expect_err("set_text is a whole-content replace");
+    assert_eq!(hard_rule(&refused), Some(AgentCapability::ReplaceContent));
 }

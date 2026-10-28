@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, Algorithm, Header};
+use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
@@ -143,6 +143,7 @@ fn mint_jwt_internal(
             plugin_id: None,
             act: None,
             purpose: None,
+            interaction: None,
         },
     };
     let mut header = Header::new(Algorithm::RS256);

@@ -43,6 +43,7 @@ fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Valu
             plugin_id: None,
             act: None,
             purpose: None,
+            interaction: None,
         },
     }
 }

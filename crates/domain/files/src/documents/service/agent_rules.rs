@@ -1,5 +1,6 @@
 //! The write rules an agent caller meets on top of its cap: no restore of
-//! an earlier revision and no whole-content replacement unless the agent
+//! an earlier revision and no whole-content replacement (a whole-file body,
+//! `set_text` or `set_html`) unless the agent
 //! access policy allows it, and a per-user ceiling on agent edits per hour
 //! (`files.documents.limits.agentEditsPerHour`). A person passes untouched.
 //!
@@ -27,10 +28,15 @@ impl DocumentService {
         if !current_actor().is_agent() {
             return Ok(());
         }
+        let restores = |op: &EditOp| matches!(op, EditOp::Restore { .. });
+        let replaces = |op: &EditOp| matches!(op, EditOp::SetText { .. } | EditOp::SetHtml { .. });
         let capability = match body {
             CommitBody::Bytes(_) => Some(AgentCapability::ReplaceContent),
-            CommitBody::Ops(ops) if ops.iter().any(|op| matches!(op, EditOp::Restore { .. })) => {
+            CommitBody::Ops(ops) if ops.iter().any(restores) => {
                 Some(AgentCapability::RestoreRevision)
+            },
+            CommitBody::Ops(ops) if ops.iter().any(replaces) => {
+                Some(AgentCapability::ReplaceContent)
             },
             CommitBody::Ops(_) => None,
         };

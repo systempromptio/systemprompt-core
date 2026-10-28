@@ -34,6 +34,7 @@ fn sample_claims() -> JwtClaims {
             plugin_id: None,
             act: None,
             purpose: None,
+            interaction: None,
         },
     }
 }

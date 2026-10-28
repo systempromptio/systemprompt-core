@@ -65,6 +65,7 @@ impl JwtService {
                 plugin_id: None,
                 act: None,
                 purpose: None,
+                interaction: None,
             },
         };
 

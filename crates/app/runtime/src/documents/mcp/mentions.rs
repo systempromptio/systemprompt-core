@@ -36,9 +36,9 @@ pub(super) fn agent_origin(ctx: &RequestContext) -> CommentOrigin {
 /// The actor every documents tool call runs as: always an agent, since
 /// this surface is driven by one, named as [`agent_origin`] records it.
 /// `attended` is `false` for a headless call: a request marked
-/// non-interactive, or one whose actor is a scheduled job or the system.
-/// Nothing else marks a run headless today, so an agent run that reaches
-/// the tools with a user's token counts as attended.
+/// non-interactive (the MCP auth layer does so for a token carrying the
+/// `interaction: non_interactive` claim, which agent runs mint), or one whose
+/// actor is a scheduled job or the system.
 pub(super) fn document_actor(ctx: &RequestContext) -> DocumentActor {
     let headless_mode =
         ctx.settings.user_interaction_mode == Some(UserInteractionMode::NonInteractive);

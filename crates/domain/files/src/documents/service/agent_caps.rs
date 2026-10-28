@@ -6,7 +6,8 @@
 //! capability), so an agent cannot loosen its own cap. An override only
 //! tightens: one looser than the policy's cap for the target is refused, and
 //! the effective cap is always the stricter of the two. The cap reported for
-//! a person is the one a generic attended agent would act under.
+//! a person is the one a generic attended agent named `agent` would act
+//! under, or the agent they name with [`DocumentService::agent_cap_as`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -59,11 +60,24 @@ impl DocumentService {
         target: AgentCapTarget,
         trace: &TraceId,
     ) -> Result<AgentCapView, DocumentsError> {
+        self.agent_cap_as(who, target, reported_agent(), trace)
+            .await
+    }
+
+    /// The cap `agent` would act under on `target`, for a person checking
+    /// what a named agent may do there.
+    pub async fn agent_cap_as(
+        &self,
+        who: &AuthenticatedUser,
+        target: AgentCapTarget,
+        agent: AgentActor,
+        trace: &TraceId,
+    ) -> Result<AgentCapView, DocumentsError> {
         let granted = self
             .access
             .authorize(who, target.access_target(), DocumentAction::View, trace)
             .await?;
-        self.cap_view(who, target, &granted).await
+        self.cap_view(who, target, &granted, &agent).await
     }
 
     pub async fn set_agent_cap(
@@ -112,7 +126,8 @@ impl DocumentService {
             trace_id = trace.as_str(),
             "Agent cap override set"
         );
-        self.cap_view(who, target, &granted).await
+        self.cap_view(who, target, &granted, &reported_agent())
+            .await
     }
 
     async fn cap_view(
@@ -120,11 +135,9 @@ impl DocumentService {
         who: &AuthenticatedUser,
         target: AgentCapTarget,
         granted: &Granted,
+        agent: &AgentActor,
     ) -> Result<AgentCapView, DocumentsError> {
-        let effective = self
-            .access
-            .agent_cap_for(who, granted, &reported_agent())
-            .await?;
+        let effective = self.access.agent_cap_for(who, granted, agent).await?;
         let (document, folders) = match &target {
             AgentCapTarget::Document(id) => (id.clone(), Vec::new()),
             AgentCapTarget::Folder(id) => {

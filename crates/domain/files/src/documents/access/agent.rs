@@ -81,13 +81,14 @@ impl AgentGate {
     }
 }
 
-const CAPABILITIES: [AgentCapability; 7] = [
+const CAPABILITIES: [AgentCapability; 8] = [
     AgentCapability::Share,
     AgentCapability::MentionGrant,
     AgentCapability::Trash,
     AgentCapability::Administer,
     AgentCapability::RestoreRevision,
     AgentCapability::ReplaceContent,
+    AgentCapability::ReviewProposal,
     AgentCapability::EditTemplate,
 ];
 
@@ -132,25 +133,7 @@ impl DocumentAccessService {
             .await?;
         context.created_by_agent = facts.created_by_agent;
         let policy_cap = self.agents.cap(context, agent).await;
-        let mut effective = EffectiveCap {
-            cap: policy_cap,
-            policy_cap,
-            source: CapSource::Policy {
-                policy: self.agents.name(),
-            },
-        };
-        for found in facts.overrides {
-            if found.cap() < effective.cap {
-                effective.cap = found.cap();
-                effective.source = match found {
-                    CapOverride::Document(document_id, _) => {
-                        CapSource::DocumentOverride { document_id }
-                    },
-                    CapOverride::Folder(folder_id, _) => CapSource::FolderOverride { folder_id },
-                };
-            }
-        }
-        Ok(effective)
+        Ok(combine(policy_cap, self.agents.name(), facts.overrides))
     }
 
     /// The nearest-first folder chain of `document`: its folder, then each
@@ -193,6 +176,31 @@ impl DocumentAccessService {
             .await?;
         Ok(())
     }
+}
+
+/// The stricter of `policy_cap` and every override, and which set it.
+pub(super) fn combine(
+    policy_cap: AgentCap,
+    policy: &'static str,
+    overrides: Vec<CapOverride>,
+) -> EffectiveCap {
+    let mut effective = EffectiveCap {
+        cap: policy_cap,
+        policy_cap,
+        source: CapSource::Policy { policy },
+    };
+    for found in overrides {
+        if found.cap() < effective.cap {
+            effective.cap = found.cap();
+            effective.source = match found {
+                CapOverride::Document(document_id, _) => {
+                    CapSource::DocumentOverride { document_id }
+                },
+                CapOverride::Folder(folder_id, _) => CapSource::FolderOverride { folder_id },
+            };
+        }
+    }
+    effective
 }
 
 pub(super) fn document_context(

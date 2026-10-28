@@ -3,15 +3,19 @@
 //! override on how far agents may go there. `GET` needs view; `PUT` needs
 //! own and takes `{"cap": "none" | "read" | "comment" | "suggest" | "edit"
 //! | null}`, where `null` clears the override. An override looser than the
-//! agent policy allows is refused.
+//! agent policy allows is refused. `GET ?agent=<name>&attended=<bool>`
+//! answers for that agent (default: an attended agent named `agent`); a
+//! name outside 1 to 64 of letters, digits, `-`, `_`, `.`, `:` or `/` is
+//! refused.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
-use systemprompt_files::documents::agents::{AgentCap, CapSource};
+use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::agents::{AgentActor, AgentCap, CapSource};
 use systemprompt_files::documents::service::{AgentCapTarget, AgentCapView};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 use systemprompt_models::RequestContext;
@@ -24,6 +28,33 @@ use super::error::DocumentsResult;
 #[serde(deny_unknown_fields)]
 pub(super) struct AgentCapBody {
     cap: Option<AgentCap>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct AgentQuery {
+    agent: Option<String>,
+    attended: Option<bool>,
+}
+
+const MAX_AGENT_NAME: usize = 64;
+
+impl AgentQuery {
+    fn actor(self) -> DocumentsResult<AgentActor> {
+        let name = self.agent.unwrap_or_else(|| "agent".to_owned());
+        let allowed =
+            |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
+        if name.is_empty() || name.len() > MAX_AGENT_NAME || !name.chars().all(allowed) {
+            return Err(DocumentsError::InvalidParams {
+                detail: "agent must be 1 to 64 letters, digits, '-', '_', '.', ':' or '/'",
+            }
+            .into());
+        }
+        Ok(AgentActor {
+            name,
+            attended: self.attended.unwrap_or(true),
+        })
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -60,11 +91,13 @@ async fn read(
     state: &DocumentsState,
     req_ctx: &RequestContext,
     target: AgentCapTarget,
+    query: AgentQuery,
 ) -> DocumentsResult<Json<AgentCapJson>> {
     let who = caller(state, req_ctx).await?;
+    let agent = query.actor()?;
     let view = state
         .service
-        .agent_cap(&who.user, target, &who.trace)
+        .agent_cap_as(&who.user, target, agent, &who.trace)
         .await?;
     Ok(Json(view.into()))
 }
@@ -87,9 +120,10 @@ pub(super) async fn get_document(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
+    Query(query): Query<AgentQuery>,
 ) -> DocumentsResult<Json<AgentCapJson>> {
     let target = AgentCapTarget::Document(DocumentId::try_new(&id)?);
-    read(&state, &req_ctx, target).await
+    read(&state, &req_ctx, target, query).await
 }
 
 pub(super) async fn put_document(
@@ -106,9 +140,10 @@ pub(super) async fn get_folder(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
+    Query(query): Query<AgentQuery>,
 ) -> DocumentsResult<Json<AgentCapJson>> {
     let target = AgentCapTarget::Folder(DocumentFolderId::try_new(&id)?);
-    read(&state, &req_ctx, target).await
+    read(&state, &req_ctx, target, query).await
 }
 
 pub(super) async fn put_folder(

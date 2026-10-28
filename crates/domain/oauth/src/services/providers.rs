@@ -139,6 +139,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             client_id: None,
             purpose: None,
             plugin_id: None,
+            interaction: None,
         };
         self.authority
             .mint_user_jwt(&request)

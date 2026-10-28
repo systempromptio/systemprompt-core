@@ -70,6 +70,7 @@ pub async fn mint_browser_session(
         client_id: None,
         purpose: None,
         plugin_id: None,
+        interaction: None,
     };
     let access_token = session_service
         .token_authority()

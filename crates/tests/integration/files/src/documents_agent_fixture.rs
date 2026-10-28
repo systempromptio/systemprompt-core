@@ -79,19 +79,22 @@ pub(crate) async fn document(h: &Harness, owner: &AuthenticatedUser) -> Document
         .id
 }
 
-/// A whole-text edit at the head, made as `who` by the running actor.
+/// Rewrites the document's text to `text` with one `str_replace` at the
+/// head (not `set_text`, which agents meet as a whole-content replace),
+/// made as `who` by the running actor.
 pub(crate) async fn edit(
     h: &Harness,
     who: &AuthenticatedUser,
     id: &DocumentId,
     text: &str,
 ) -> Result<CommitOutcome, DocumentsError> {
-    let head = h.service.get(who, id, &trace()).await?.head.map(|r| r.id);
+    let (head, current) = h.service.plain_text(who, id, None, &trace()).await?;
     let request = CommitRequest {
         document_id: id.clone(),
-        base_revision: head,
-        body: CommitBody::Ops(vec![EditOp::SetText {
-            text: text.to_owned(),
+        base_revision: Some(head.id),
+        body: CommitBody::Ops(vec![EditOp::StrReplace {
+            old_str: current.trim().to_owned(),
+            new_str: text.trim().to_owned(),
         }]),
         author: api_author(),
         message: None,

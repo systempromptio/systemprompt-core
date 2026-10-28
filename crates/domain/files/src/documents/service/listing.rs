@@ -127,10 +127,9 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Vec<T> {
         let mut allowed: HashMap<Option<DocumentFolderId>, bool> = HashMap::new();
-        let mut visible = Vec::with_capacity(items.len());
+        let mut admitted = Vec::with_capacity(items.len());
         for item in items {
-            let document = document_of(&item);
-            let key = document.folder_id.clone();
+            let key = document_of(&item).folder_id.clone();
             let admit = if let Some(admit) = allowed.get(&key) {
                 *admit
             } else {
@@ -138,10 +137,16 @@ impl DocumentService {
                 allowed.insert(key, admit);
                 admit
             };
-            if admit && !self.access.hidden_from_agent(who, document).await {
-                visible.push(item);
+            if admit {
+                admitted.push(item);
             }
         }
-        visible
+        let documents: Vec<&Document> = admitted.iter().map(&document_of).collect();
+        let hidden = self.access.hidden_from_agent_many(who, &documents).await;
+        admitted
+            .into_iter()
+            .zip(hidden)
+            .filter_map(|(item, hidden)| (!hidden).then_some(item))
+            .collect()
     }
 }

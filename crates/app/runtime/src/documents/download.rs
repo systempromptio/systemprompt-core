@@ -75,6 +75,7 @@ pub fn signed_download_url(
         client_id: None,
         purpose: Some(download_purpose(target.document, target.revision)),
         plugin_id: None,
+        interaction: None,
     };
     let token = authority
         .mint_user_jwt(&request)

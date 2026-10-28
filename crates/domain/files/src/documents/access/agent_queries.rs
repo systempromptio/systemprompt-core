@@ -5,9 +5,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 
-use super::agent::{document_context, folder_context};
+use super::agent::{combine, document_context, folder_context};
 use super::service::{DocumentAccessService, Granted};
 use crate::documents::agents::{
     AgentActor, AgentCap, AgentCapability, AgentRefusal, EffectiveCap, current_actor,
@@ -60,6 +61,63 @@ impl DocumentAccessService {
             },
         };
         self.effective_cap(&mut context, agent).await
+    }
+
+    /// [`Self::hidden_from_agent`] for a page of documents, in two
+    /// statements: the documents' own facts, and every folder's chain with
+    /// its overrides. An error hides the whole page from the agent.
+    pub async fn hidden_from_agent_many(
+        &self,
+        who: &AuthenticatedUser,
+        documents: &[&Document],
+    ) -> Vec<bool> {
+        let Some(agent) = current_actor().as_agent().cloned() else {
+            return vec![false; documents.len()];
+        };
+        match self.caps_of_many(who, documents, &agent).await {
+            Ok(caps) => caps.into_iter().map(|cap| cap == AgentCap::None).collect(),
+            Err(error) => {
+                tracing::warn!(
+                    error = %error,
+                    "Agent caps could not be resolved; the page is withheld from the agent"
+                );
+                vec![true; documents.len()]
+            },
+        }
+    }
+
+    async fn caps_of_many(
+        &self,
+        who: &AuthenticatedUser,
+        documents: &[&Document],
+        agent: &AgentActor,
+    ) -> Result<Vec<AgentCap>, DocumentsError> {
+        let ids: Vec<DocumentId> = documents.iter().map(|d| d.id.clone()).collect();
+        let mut folders: Vec<DocumentFolderId> = documents
+            .iter()
+            .filter_map(|d| d.folder_id.clone())
+            .collect();
+        folders.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        folders.dedup();
+        let mut facts = self.documents.agent_facts_of(&ids).await?;
+        let chains = self.documents.folder_chains(&folders).await?;
+        let mut caps = Vec::with_capacity(documents.len());
+        for document in documents {
+            let own = facts.remove(&document.id).unwrap_or_default();
+            let chain = document
+                .folder_id
+                .as_ref()
+                .and_then(|folder| chains.get(folder))
+                .cloned()
+                .unwrap_or_default();
+            let mut context = document_context(who, document, chain.chain);
+            context.created_by_agent = own.created_by_agent;
+            let policy_cap = self.agents.cap(&context, agent).await;
+            let mut overrides = own.overrides;
+            overrides.extend(chain.overrides);
+            caps.push(combine(policy_cap, self.agents.name(), overrides).cap);
+        }
+        Ok(caps)
     }
 
     /// Whether an agent caller must not see `document` at all: its cap is

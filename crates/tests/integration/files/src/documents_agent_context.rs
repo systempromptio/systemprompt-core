@@ -9,6 +9,7 @@ use systemprompt_files::documents::agents::{
     AgentAccessPolicy, AgentActor, AgentCap, DocumentContext,
 };
 use systemprompt_files::documents::service::NewFolderRequest;
+use systemprompt_models::documents::EditOp;
 use systemprompt_test_fixtures::test_db_pool;
 use tempfile::TempDir;
 
@@ -74,13 +75,13 @@ async fn the_policy_sees_the_creating_agent_and_a_nearest_first_chain() {
         .await
         .expect_err("a person's document is read-only to the agent");
 
-    let (draft, _) = as_agent(h.service.create_from_template(
-        &owner,
-        create("blank-text", Some(&inner.id)),
-        &trace(),
-    ))
-    .await
-    .expect("the agent drafts");
+    let mut request = create("blank-text", Some(&inner.id));
+    request.ops = vec![EditOp::SetText {
+        text: "draft\n".to_owned(),
+    }];
+    let (draft, _) = as_agent(h.service.create_from_template(&owner, request, &trace()))
+        .await
+        .expect("the agent drafts");
     as_agent(edit(&h, &owner, &draft.id, "mine\n"))
         .await
         .expect("the agent edits its own draft");

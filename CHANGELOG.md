@@ -8,8 +8,12 @@
 
 - **Files:** the agent access policy is async and built from the database pool (`build: fn(&DbPool) -> Arc<dyn AgentAccessPolicy>`); `DocumentContext` carries `created_by_agent` (recorded on `documents.created_by_agent` when an agent creates a document) and a nearest-first folder chain. `DocumentService::visible_documents` checks up to 500 ids at once. `sp-document-browser` gains `registerRowExtension` (row `data-*` attributes and an `.sp-doc-browser__ext` slot) and `registerFolderMenuItem` (a folder menu on the row's More button or right click). `systemprompt::register_agent_access_policy!` is re-exported at the facade root.
 
+- **Files:** an agent's `set_text` and `set_html` ops count as `ReplaceContent`, and accepting or rejecting a proposal needs the new `ReviewProposal` capability; both are denied to agents by default. Agent listings resolve caps in two statements per page. `GET .../agent-cap?agent=<name>&attended=<bool>` answers for a named agent.
+- **MCP:** a call whose token carries the new `interaction: non_interactive` claim is marked `UserInteractionMode::NonInteractive`, so documents treat it as an unattended agent; only an agent run's MCP token carries it.
+
 ### Breaking
 
+- **Breaking:** **Auth:** `CustomClaims` and `UserJwtRequest` gain `interaction: Option<TokenInteraction>`. Migrate struct literals by adding `interaction: None`.
 - **Breaking:** **Files:** `DocumentsError` gains `Agent(AgentRefusal)`, `Granted` gains `agent_cap`, `TargetAccess` gains `agent_cap`, and `DocumentLimits` gains `agent_edits_per_hour`. Migrate by adding arms (or a wildcard) to exhaustive matches and the fields to struct literals (`..Default::default()` for `DocumentLimits`).
 
 ## [0.75.0] - 2026-10-27

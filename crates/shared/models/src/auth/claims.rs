@@ -139,6 +139,17 @@ pub struct CustomClaims {
     pub act: Option<ActClaim>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<String>,
+    /// Set only on a token minted for a run no person is attached to (an
+    /// agent run's MCP token); absent means interactive.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interaction: Option<TokenInteraction>,
+}
+
+/// The `interaction` claim: how the caller of a token is attended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenInteraction {
+    NonInteractive,
 }
 
 fn serialize_audiences<S>(auds: &[JwtAudience], s: S) -> Result<S::Ok, S::Error>
