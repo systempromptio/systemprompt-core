@@ -29,6 +29,7 @@ pub(super) struct UploadJson {
     part_count: u32,
     status: UploadStatus,
     received_bytes: u64,
+    received_parts: Vec<u32>,
     parts: Vec<UploadPart>,
     missing_parts: Vec<u32>,
     blob_ref: Option<ContentHash>,
@@ -41,6 +42,7 @@ pub(super) struct UploadJson {
 impl From<UploadProgress> for UploadJson {
     fn from(progress: UploadProgress) -> Self {
         let received_bytes = progress.received_bytes();
+        let received_parts = progress.parts.iter().map(|part| part.part_number).collect();
         let missing_parts = if progress.session.status == UploadStatus::Open {
             progress.missing_parts()
         } else {
@@ -57,6 +59,7 @@ impl From<UploadProgress> for UploadJson {
             part_size: session.part_size,
             status: session.status,
             received_bytes,
+            received_parts,
             parts: progress.parts,
             missing_parts,
             blob_ref: session.blob_sha256,

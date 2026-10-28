@@ -4,7 +4,8 @@
 //! runs the kind's own check: the [`office`] zip-bomb guard over ranged
 //! reads, the [`image`] dimension cap and metadata strip, or the [`svg`]
 //! active-content refusal. Images and SVG are read whole, bounded by their
-//! own size limits; every other kind is checked without being buffered.
+//! own size limits; every other kind is checked without being buffered. A
+//! type with no check of its own is stored as an opaque blob.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -75,7 +76,7 @@ pub(crate) async fn inspect(
     let expected = declared_kind(subject.declared_mime).ok_or_else(|| {
         UploadError::refused(
             RefusalReason::UnsupportedType,
-            format!("{} uploads are not accepted", subject.declared_mime),
+            format!("{} is not a MIME type", subject.declared_mime),
         )
     })?;
     let head = read_range(
@@ -114,7 +115,7 @@ pub(crate) async fn inspect(
             svg::check(&bytes)?;
             None
         },
-        Kind::Pdf | Kind::Text => None,
+        Kind::Pdf | Kind::Text | Kind::Opaque => None,
     };
     Ok(Inspected {
         detected_mime: detected_mime(expected, subject.declared_mime).to_owned(),

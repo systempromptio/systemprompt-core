@@ -122,7 +122,7 @@ impl UploadService {
         }
         if declared_kind(&request.mime).is_none() {
             return Err(UploadError::Invalid(format!(
-                "{} uploads are not accepted",
+                "{} is not a MIME type",
                 request.mime
             )));
         }
