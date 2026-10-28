@@ -124,6 +124,7 @@ async fn jwt_and_pat_for_one_user_get_the_same_decision_on_every_role_gated_rout
         limits: &ApiKeyLimits::default(),
         scopes: &[],
         purpose: None,
+        kind: systemprompt_users::ApiKeyKind::User,
     })
     .await?;
 

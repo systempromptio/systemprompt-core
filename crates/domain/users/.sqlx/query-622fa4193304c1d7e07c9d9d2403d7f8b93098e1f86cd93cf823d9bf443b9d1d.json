@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT k.id, k.user_id as \"user_id: UserId\", k.name, k.key_prefix, k.key_hash,\n                   k.created_at, k.last_used_at, k.expires_at, k.revoked_at,\n                   k.model_allowlist, k.budget_microdollars, k.max_requests,\n                   k.request_window_seconds, k.purpose,\n                   ARRAY(SELECT s.dimension FROM user_api_key_scopes s\n                         WHERE s.key_id = k.id ORDER BY s.dimension) AS \"scope_dimensions!\",\n                   ARRAY(SELECT s.value FROM user_api_key_scopes s\n                         WHERE s.key_id = k.id ORDER BY s.dimension) AS \"scope_values!\"\n            FROM user_api_keys k\n            WHERE k.user_id = $1\n            ORDER BY k.created_at DESC\n            ",
+  "query": "\n            INSERT INTO user_api_keys\n                (id, user_id, name, key_prefix, key_hash, expires_at,\n                 model_allowlist, budget_microdollars, max_requests, request_window_seconds,\n                 purpose, kind)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)\n            RETURNING id, user_id as \"user_id: UserId\", name, key_prefix, key_hash,\n                      created_at, last_used_at, expires_at, revoked_at,\n                      model_allowlist, budget_microdollars, max_requests, request_window_seconds,\n                      purpose, kind,\n                      ARRAY[]::TEXT[] AS \"scope_dimensions!\", ARRAY[]::TEXT[] AS \"scope_values!\"\n            ",
   "describe": {
     "columns": [
       {
@@ -159,12 +159,23 @@
       },
       {
         "ordinal": 14,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_api_keys",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
         "name": "scope_dimensions!",
         "type_info": "TextArray",
         "origin": "Expression"
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "scope_values!",
         "type_info": "TextArray",
         "origin": "Expression"
@@ -172,6 +183,17 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Text",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Timestamptz",
+        "TextArray",
+        "Int8",
+        "Int4",
+        "Int4",
+        "Text",
         "Text"
       ]
     },
@@ -190,9 +212,10 @@
       true,
       true,
       true,
+      false,
       null,
       null
     ]
   },
-  "hash": "eb643042dca3b8d7d83e3ea20c8b162d53bf12b3ac56ddd9ec790c1456014a7e"
+  "hash": "622fa4193304c1d7e07c9d9d2403d7f8b93098e1f86cd93cf823d9bf443b9d1d"
 }

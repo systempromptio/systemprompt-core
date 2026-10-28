@@ -83,6 +83,7 @@ async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await?;
 

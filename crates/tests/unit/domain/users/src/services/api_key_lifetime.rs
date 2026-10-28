@@ -76,6 +76,7 @@ fn params<'a>(
         limits,
         scopes: &[],
         purpose: None,
+        kind: systemprompt_users::ApiKeyKind::User,
     }
 }
 

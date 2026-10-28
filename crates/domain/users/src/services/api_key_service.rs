@@ -21,7 +21,7 @@ use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::attribution::ScopeBinding;
 
 use crate::error::{Result, UserError};
-use crate::models::{ApiKeyLimits, NewApiKey, UserApiKey};
+use crate::models::{ApiKeyKind, ApiKeyLimits, NewApiKey, UserApiKey};
 use crate::repository::{CreateApiKeyParams, UserRepository};
 
 pub const API_KEY_PREFIX: &str = "sp-live-";
@@ -37,6 +37,7 @@ pub struct IssueApiKeyParams<'a> {
     pub limits: &'a ApiKeyLimits,
     pub scopes: &'a [ScopeBinding],
     pub purpose: Option<&'a str>,
+    pub kind: ApiKeyKind,
 }
 
 /// The lifetime ceiling applied to every issued key.
@@ -134,6 +135,7 @@ impl ApiKeyService {
                 limits: params.limits,
                 scopes: params.scopes,
                 purpose: params.purpose,
+                kind: params.kind,
             })
             .await?;
 

@@ -15,8 +15,11 @@
 
 - **Files:** `AgentAccessPolicy` gains `on_move(doc, to, &MoveActor) -> Result<(), String>` (called before a document or folder move commits; `Err` refuses it with `invalid_params`) and `on_copy(source, copy)` (called after every copy). A token carrying a `purpose` is never attended, and token exchange copies the self-issued subject's `interaction` claim (a federated subject's is ignored), so an unattended subject never yields an attended token.
 
+- **Users:** API keys carry a `kind` (`user` or `device`, migration 031); the PAT a bridge device enrolment mints is `device`. Bridge access from a device PAT with no purpose is stamped `interaction: interactive` (an attended host); a user-created or purposed PAT never is.
+
 ### Breaking
 
+- **Breaking:** **Users:** `IssueApiKeyParams`, `CreateApiKeyParams` and `UserApiKey` gain `kind: ApiKeyKind`. Migrate struct literals with `kind: ApiKeyKind::User`.
 - **Breaking:** **Files:** a document service call outside an `act_as` scope is an unnamed, unattended agent, not the person. `RequestContext` `AuthContext` gains `browser_session`, `JwtUserContext` and `JwtConfig` gain `interaction`, `BridgeAccessRequest` gains `interactive`, `TokenInteraction` gains `Interactive`, `AgentRateLimiter::admit` takes the agent name, and download links name the minting agent in their purpose. Migrate struct literals with `browser_session: false` / `interaction: None` / `interactive: false`.
 - **Breaking:** **Auth:** `CustomClaims` and `UserJwtRequest` gain `interaction: Option<TokenInteraction>`. Migrate struct literals by adding `interaction: None`.
 - **Breaking:** **Files:** `DocumentsError` gains `Agent(AgentRefusal)`, `Granted` gains `agent_cap`, `TargetAccess` gains `agent_cap`, and `DocumentLimits` gains `agent_edits_per_hour`. Migrate by adding arms (or a wildcard) to exhaustive matches and the fields to struct literals (`..Default::default()` for `DocumentLimits`).

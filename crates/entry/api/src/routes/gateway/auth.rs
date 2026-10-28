@@ -99,12 +99,34 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
             })?
             .as_ref(),
         users.as_ref(),
-        BridgeAccessRequest::bridge(ctx.config(), request.headers(), caller_ip, &record.user_id)
-            .with_purpose(record.purpose.clone()),
+        bridge_access_from_pat(
+            BridgeAccessRequest::bridge(
+                ctx.config(),
+                request.headers(),
+                caller_ip,
+                &record.user_id,
+            ),
+            &record,
+        ),
     )
     .await?;
 
     Ok(Json(result.into()))
+}
+
+/// Bridge access from a PAT: a device enrolment's PAT with no purpose is the
+/// interactive host a person installed, so its bridge JWT is attended; a
+/// user-created PAT or one bound to a purpose never is.
+fn bridge_access_from_pat<'a>(
+    request: BridgeAccessRequest<'a>,
+    record: &systemprompt_users::UserApiKey,
+) -> BridgeAccessRequest<'a> {
+    let request = request.with_purpose(record.purpose.clone());
+    if record.is_interactive_host() {
+        request.interactive()
+    } else {
+        request
+    }
 }
 
 pub async fn session(
@@ -199,6 +221,7 @@ async fn mint_device_pat(
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::Device,
         })
         .await?;
 

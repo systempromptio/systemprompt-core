@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT k.id, k.user_id as \"user_id: UserId\", k.name, k.key_prefix, k.key_hash,\n                   k.created_at, k.last_used_at, k.expires_at, k.revoked_at,\n                   k.model_allowlist, k.budget_microdollars, k.max_requests,\n                   k.request_window_seconds, k.purpose,\n                   ARRAY(SELECT s.dimension FROM user_api_key_scopes s\n                         WHERE s.key_id = k.id ORDER BY s.dimension) AS \"scope_dimensions!\",\n                   ARRAY(SELECT s.value FROM user_api_key_scopes s\n                         WHERE s.key_id = k.id ORDER BY s.dimension) AS \"scope_values!\"\n            FROM user_api_keys k\n            WHERE k.key_prefix = $1\n              AND k.revoked_at IS NULL\n            ",
+  "query": "\n            SELECT k.id, k.user_id as \"user_id: UserId\", k.name, k.key_prefix, k.key_hash,\n                   k.created_at, k.last_used_at, k.expires_at, k.revoked_at,\n                   k.model_allowlist, k.budget_microdollars, k.max_requests,\n                   k.request_window_seconds, k.purpose, k.kind,\n                   ARRAY(SELECT s.dimension FROM user_api_key_scopes s\n                         WHERE s.key_id = k.id ORDER BY s.dimension) AS \"scope_dimensions!\",\n                   ARRAY(SELECT s.value FROM user_api_key_scopes s\n                         WHERE s.key_id = k.id ORDER BY s.dimension) AS \"scope_values!\"\n            FROM user_api_keys k\n            WHERE k.key_prefix = $1\n              AND k.revoked_at IS NULL\n            ",
   "describe": {
     "columns": [
       {
@@ -159,12 +159,23 @@
       },
       {
         "ordinal": 14,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_api_keys",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
         "name": "scope_dimensions!",
         "type_info": "TextArray",
         "origin": "Expression"
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "scope_values!",
         "type_info": "TextArray",
         "origin": "Expression"
@@ -190,9 +201,10 @@
       true,
       true,
       true,
+      false,
       null,
       null
     ]
   },
-  "hash": "182d35d26406644ed5073dced6b9e7190d58b840018db3a24ded88d9a09fd04a"
+  "hash": "4c6631ce1b6629d1c555660a7f66cdf7519fbcb8adab563b4528341383aa1e26"
 }

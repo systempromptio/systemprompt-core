@@ -18,6 +18,7 @@ fn make_api_key(revoked: bool, expires_at: Option<chrono::DateTime<Utc>>) -> Use
         limits: systemprompt_users::ApiKeyLimits::default(),
         scopes: Vec::new(),
         purpose: None,
+        kind: systemprompt_users::ApiKeyKind::User,
     }
 }
 
@@ -124,5 +125,31 @@ mod new_api_key_tests {
         };
         assert_eq!(new_key.secret, secret);
         assert_eq!(new_key.record.name, record.name);
+    }
+}
+
+mod interactive_host_tests {
+    use systemprompt_users::ApiKeyKind;
+
+    use super::*;
+
+    #[test]
+    fn only_a_purposeless_device_key_is_the_interactive_host() {
+        let mut key = make_api_key(false, None);
+        assert!(!key.is_interactive_host(), "a user-created key");
+        key.kind = ApiKeyKind::Device;
+        assert!(key.is_interactive_host(), "a device enrolment's key");
+        key.purpose = Some("farm:run-1".to_owned());
+        assert!(
+            !key.is_interactive_host(),
+            "a device key bound to a purpose"
+        );
+    }
+
+    #[test]
+    fn an_unknown_stored_kind_claims_nothing() {
+        assert_eq!(ApiKeyKind::from_stored("device"), ApiKeyKind::Device);
+        assert_eq!(ApiKeyKind::from_stored("user"), ApiKeyKind::User);
+        assert_eq!(ApiKeyKind::from_stored("robot"), ApiKeyKind::User);
     }
 }

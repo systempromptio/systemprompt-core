@@ -42,9 +42,9 @@ pub use extension::UsersExtension;
 
 pub use error::{Result, UserError, UserResult};
 pub use models::{
-    AccountKind, ApiKeyLimits, NewApiKey, User, UserActivity, UserApiKey, UserCountBreakdown,
-    UserDeviceCert, UserExport, UserRole, UserSession, UserStats, UserStatus, UserWithSessions,
-    normalise_email,
+    AccountKind, ApiKeyKind, ApiKeyLimits, NewApiKey, User, UserActivity, UserApiKey,
+    UserCountBreakdown, UserDeviceCert, UserExport, UserRole, UserSession, UserStats, UserStatus,
+    UserWithSessions, normalise_email,
 };
 pub use repository::{
     ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams,

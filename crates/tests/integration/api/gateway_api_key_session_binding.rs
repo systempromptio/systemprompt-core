@@ -72,6 +72,7 @@ async fn key_for(ctx: &AppContext, cred: &AuthedFixture) -> Result<NewApiKey> {
         limits: &ApiKeyLimits::default(),
         scopes: &[],
         purpose: None,
+        kind: systemprompt_users::ApiKeyKind::User,
     })
     .await?)
 }
