@@ -14,6 +14,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ClientId;
 use systemprompt_models::net::{OutboundUrlError, validate_outbound_url};
 use systemprompt_traits::SecretStore;
 use systemprompt_traits::sso::SsoIdentityPolicy;
@@ -49,6 +50,10 @@ pub enum OidcConfigError {
     #[error("OIDC outbound HTTP client could not be built: {0}")]
     HttpClient(#[source] reqwest::Error),
 }
+fn default_client_id() -> ClientId {
+    ClientId::new("")
+}
+
 
 fn default_client_secret_key() -> String {
     "oidc_client_secret".to_owned()
@@ -114,8 +119,8 @@ pub struct OidcConfig {
     pub issuer: String,
     #[serde(default)]
     pub discovery_url: Option<String>,
-    #[serde(default)]
-    pub client_id: String,
+    #[serde(default = "default_client_id")]
+    pub client_id: ClientId,
     #[serde(default = "default_client_secret_key")]
     pub client_secret_key: String,
     #[serde(default = "default_scopes")]
@@ -140,7 +145,7 @@ impl Default for OidcConfig {
             enabled: false,
             issuer: String::new(),
             discovery_url: None,
-            client_id: String::new(),
+            client_id: default_client_id(),
             client_secret_key: default_client_secret_key(),
             scopes: default_scopes(),
             claims: OidcClaimMapping::default(),
@@ -212,7 +217,7 @@ impl OidcConfig {
                 source,
             })?;
         }
-        if self.client_id.trim().is_empty() {
+        if self.client_id.as_str().trim().is_empty() {
             return Err(OidcConfigError::Missing("client_id"));
         }
         if self.client_secret_key.trim().is_empty() {

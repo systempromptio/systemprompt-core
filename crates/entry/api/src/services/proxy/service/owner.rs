@@ -40,7 +40,8 @@ pub fn owner_url(advertise_url: &str, path_and_query: &str) -> String {
     }
 }
 
-pub const FORWARDED_TO_OWNER: HeaderName = HeaderName::from_static("x-systemprompt-owner-hop");
+pub const FORWARDED_TO_OWNER: HeaderName =
+    HeaderName::from_static(systemprompt_identifiers::headers::OWNER_HOP);
 
 pub const OWNER_CACHE_TTL: Duration = Duration::from_secs(2);
 

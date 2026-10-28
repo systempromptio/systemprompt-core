@@ -13,6 +13,7 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ClientId;
 use systemprompt_models::auth::{AccountKind, UserStatus};
 use systemprompt_users::normalise_email;
 
@@ -62,7 +63,7 @@ pub struct DeclaredUser {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DeclaredClient {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub name: String,
     pub owner: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -139,8 +140,8 @@ pub fn user_key(email: &str) -> String {
 }
 
 #[must_use]
-pub fn client_key(client_id: &str) -> String {
-    format!("{CLIENT_PREFIX}{}", client_id.trim())
+pub fn client_key(client_id: &ClientId) -> String {
+    format!("{CLIENT_PREFIX}{}", client_id.as_str().trim())
 }
 
 impl DeclaredUser {
@@ -185,7 +186,7 @@ impl DeclaredUser {
 
 impl DeclaredClient {
     pub fn validate(&self) -> Result<(), DeclarationError> {
-        let id = self.client_id.trim();
+        let id = self.client_id.as_str().trim();
         if id.is_empty() {
             return Err(DeclarationError::new(
                 "an oauth client has an empty client_id".to_owned(),
@@ -252,9 +253,9 @@ impl UserValue {
 
 impl ClientValue {
     #[must_use]
-    pub fn into_declared(self, client_id: &str) -> DeclaredClient {
+    pub fn into_declared(self, client_id: ClientId) -> DeclaredClient {
         DeclaredClient {
-            client_id: client_id.to_owned(),
+            client_id,
             name: self.name,
             owner: self.owner,
             redirect_uris: self.redirect_uris,

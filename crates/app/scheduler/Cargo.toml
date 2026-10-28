@@ -72,7 +72,6 @@ reqwest = { workspace = true }
 metrics = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
-hmac = { workspace = true }
 url = { workspace = true }
 
 # Panic isolation for spawned jobs

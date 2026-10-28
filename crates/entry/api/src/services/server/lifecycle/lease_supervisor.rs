@@ -182,20 +182,21 @@ impl LeaseLoop {
             .background_grace()
             .saturating_sub(RELEASE_MARGIN)
             .min(timings.child_grace() + RELEASE_MARGIN);
-        let held: Vec<ProcessKey> = self.held.drain().map(|(key, _)| key).collect();
+        let held = std::mem::take(&mut self.held).into_keys();
         let ctx = &self.ctx;
         let leases = &self.leases;
-        futures_util::future::join_all(held.into_iter().map(|key| async move {
-            match tokio::time::timeout(budget, stop_held(ctx, &key, timings.child_grace())).await {
-                Ok(true) => {
-                    if let Err(error) = leases.release(&key.lease_key()).await {
-                        tracing::warn!(service = %key.name(), error = %error, "process lease release failed");
-                    }
-                },
-                Ok(false) | Err(_) => tracing::warn!(
+        futures_util::future::join_all(held.map(|key| async move {
+            let stopped =
+                tokio::time::timeout(budget, stop_held(ctx, &key, timings.child_grace())).await;
+            if stopped == Ok(true) {
+                if let Err(error) = leases.release(&key.lease_key()).await {
+                    tracing::warn!(service = %key.name(), error = %error, "process lease release failed");
+                }
+            } else {
+                tracing::warn!(
                     service = %key.name(),
                     "process not confirmed stopped on shutdown; leaving its lease to expire"
-                ),
+                );
             }
         }))
         .await;

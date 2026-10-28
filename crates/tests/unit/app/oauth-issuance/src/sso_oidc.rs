@@ -1,3 +1,4 @@
+use p256::elliptic_curve::sec1::ToEncodedPoint;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -7,6 +8,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use p256::pkcs8::{EncodePrivateKey, LineEnding};
 use serde_json::{Value, json};
+use systemprompt_identifiers::ClientId;
 use systemprompt_oauth_issuance::sso::oidc::{
     OidcConfig, OidcConfigError, OidcDiscovery, OidcProvider, OidcProviderError,
     identity_from_claims, pkce_challenge, validate_id_token,
@@ -234,7 +236,7 @@ fn config_missing_secret_fails_validation() {
 fn config_requires_issuer_client_and_openid_scope() {
     let secrets = MapSecrets::with_client_secret();
     let mut cfg = config("https://kc.example.com/realms/acme");
-    cfg.client_id.clear();
+    cfg.client_id = ClientId::new("");
     assert!(matches!(
         cfg.validate(secrets.as_ref()),
         Err(OidcConfigError::Missing("client_id"))

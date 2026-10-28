@@ -142,18 +142,9 @@ impl ProxyService {
             return self.forward_to(&owner, service_name, request).await;
         }
 
-        let service = match ServiceResolver::resolve(service_name, &ctx).await {
-            Ok(svc) => svc,
-            Err(err) => {
-                return Err(unknown_service_error(
-                    service_name,
-                    proxy_kind,
-                    &request,
-                    &ctx,
-                    err,
-                ));
-            },
-        };
+        let service = ServiceResolver::resolve(service_name, &ctx)
+            .await
+            .map_err(|err| unknown_service_error(service_name, proxy_kind, &request, &ctx, err))?;
 
         let req_ctx = request.extensions().get::<RequestContext>().cloned();
         let authenticated_user = AccessValidator::validate(

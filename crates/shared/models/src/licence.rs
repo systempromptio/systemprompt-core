@@ -1,11 +1,14 @@
 //! The licence check-in wire contract shared by the reporting job and the
 //! control-plane receiver.
 //!
-//! A check-in is a JSON [`LicenceCheckin`] body POSTed with
+//! A check-in is a JSON [`LicenceCheckin`] body sent by `POST` with
 //! [`CHECKIN_SIGNATURE_HEADER`] set to `v1=<hex>`, where `<hex>` is the
 //! lowercase hex HMAC-SHA256 of the exact body bytes keyed by the raw bytes
 //! of the shared signing secret. [`CHECKIN_TENANT_HEADER`] carries the tenant
 //! id when one is configured.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 
@@ -42,7 +45,7 @@ pub enum CheckinSignatureError {
     #[error("signature is not valid hex: {0}")]
     Hex(#[source] hex::FromHexError),
     #[error("signature does not match the body")]
-    Mismatch,
+    Mismatch(#[source] hmac::digest::MacError),
 }
 
 fn mac(secret: &[u8]) -> HmacSha256 {
@@ -73,5 +76,5 @@ pub fn verify_checkin(
     let mut mac = mac(secret);
     mac.update(body);
     mac.verify_slice(&expected)
-        .map_err(|_| CheckinSignatureError::Mismatch)
+        .map_err(CheckinSignatureError::Mismatch)
 }

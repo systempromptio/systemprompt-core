@@ -5,12 +5,12 @@
 //! posts a [`LicenceCheckin`] to `licence.endpoint` at most once per
 //! `licence.interval_secs`: the licence and tenant ids, this instance, the
 //! core version, the hosting provider, the external URL host and the live
-//! replica count per `server.role`. The body is signed with HMAC-SHA256 under
-//! the `licence_signing_secret` secret, hex-encoded in
-//! [`SIGNATURE_HEADER`]. The check-in never gates anything: a failure is
-//! logged and recorded in `licence_checkin_state` and the job still reports
-//! success, so the platform's behaviour is the same whatever the endpoint
-//! answers.
+//! replica count per `server.role`. The body is signed with HMAC-SHA256 keyed
+//! by the raw bytes of the `licence_signing_secret` secret, sent as
+//! `v1=<hex>` in the signature header of `systemprompt_models::licence`. The
+//! check-in never gates anything: a failure is logged and recorded in
+//! `licence_checkin_state` and the job still reports success, so the platform's
+//! behaviour is the same whatever the endpoint answers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -3,7 +3,7 @@
 //! Every worker scores every `(key, worker)` pair with the same stable hash
 //! and the highest score owns the key, so all workers agree on the owner from
 //! the live worker set alone, and a worker joining or leaving moves only the
-//! keys it wins or held. The hash is FNV-1a with a SplitMix64 finaliser,
+//! keys it wins or held. The hash is `FNV-1a` with a `SplitMix64` finaliser,
 //! fixed here rather than taken from `std`, whose hasher may change between
 //! toolchains and would split a mixed-version fleet's view of ownership.
 //!

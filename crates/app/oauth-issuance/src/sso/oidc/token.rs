@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
+use systemprompt_identifiers::ClientId;
 use systemprompt_models::net::validate_outbound_url;
 
 use super::error::OidcProviderError;
@@ -16,7 +17,7 @@ pub(super) struct CodeRedemption<'a> {
     pub token_endpoint: &'a str,
     pub code: &'a str,
     pub redirect_uri: &'a str,
-    pub client_id: &'a str,
+    pub client_id: &'a ClientId,
     pub client_secret: &'a str,
     pub code_verifier: &'a str,
 }
@@ -49,7 +50,7 @@ pub(super) async fn redeem_code(
             ("grant_type", "authorization_code"),
             ("code", req.code),
             ("redirect_uri", req.redirect_uri),
-            ("client_id", req.client_id),
+            ("client_id", req.client_id.as_str()),
             ("client_secret", req.client_secret),
             ("code_verifier", req.code_verifier),
         ])

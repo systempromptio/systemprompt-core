@@ -10,6 +10,7 @@ use systemprompt_extension::prelude::{
     ChangeSource, ConfigPlaneError, ConfigPlaneResult, DeclaredEntities, DeclaredEntity,
     PlaneSnapshot,
 };
+use systemprompt_identifiers::ClientId;
 
 use super::declaration::{
     CLIENT_PREFIX, ClientValue, IdentityDocument, USER_PREFIX, UserValue, client_key, user_key,
@@ -111,7 +112,8 @@ pub fn render_document(entities: &PlaneSnapshot) -> ConfigPlaneResult<String> {
             doc.users.push(user.into_declared(email));
         } else if let Some(client_id) = key.strip_prefix(CLIENT_PREFIX) {
             let client: ClientValue = serde_json::from_str(value).map_err(backend)?;
-            doc.oauth_clients.push(client.into_declared(client_id));
+            doc.oauth_clients
+                .push(client.into_declared(ClientId::new(client_id)));
         }
     }
     serde_yaml::to_string(&doc).map_err(backend)

@@ -13,6 +13,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::SsoProviderId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
@@ -37,11 +38,14 @@ impl std::fmt::Debug for SsoHookContext {
     }
 }
 
+pub type SsoProviderFactory =
+    fn(&SsoHookContext) -> Result<Option<Arc<dyn SsoProvider>>, SsoProviderError>;
+
 /// One inventory submission per
 /// [`register_sso_provider!`](crate::register_sso_provider) call.
 #[derive(Debug, Clone, Copy)]
 pub struct SsoProviderRegistration {
-    pub factory: fn(&SsoHookContext) -> Result<Option<Arc<dyn SsoProvider>>, SsoProviderError>,
+    pub factory: SsoProviderFactory,
 }
 
 /// Why SSO provider discovery refused to build the provider set.
@@ -49,12 +53,12 @@ pub struct SsoProviderRegistration {
 pub enum SsoProviderError {
     #[error("SSO provider `{provider_id}` is enabled but its configuration is unusable: {source}")]
     Config {
-        provider_id: String,
+        provider_id: SsoProviderId,
         #[source]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("SSO provider id `{provider_id}` is registered more than once")]
-    Duplicate { provider_id: String },
+    Duplicate { provider_id: SsoProviderId },
 }
 
 impl SsoProviderError {
@@ -63,7 +67,7 @@ impl SsoProviderError {
         source: impl std::error::Error + Send + Sync + 'static,
     ) -> Self {
         Self::Config {
-            provider_id: provider_id.into(),
+            provider_id: SsoProviderId::new(provider_id),
             source: Box::new(source),
         }
     }
@@ -90,7 +94,7 @@ pub(super) fn discover_providers(
         };
         if providers.iter().any(|p| p.id() == provider.id()) {
             return Err(SsoProviderError::Duplicate {
-                provider_id: provider.id().to_owned(),
+                provider_id: SsoProviderId::new(provider.id()),
             });
         }
         providers.push(provider);

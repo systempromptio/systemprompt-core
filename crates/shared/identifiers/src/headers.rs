@@ -33,6 +33,7 @@ pub const PROXY_VERIFIED: &str = "x-proxy-verified";
 pub const USER_PERMISSIONS: &str = "x-user-permissions";
 pub const USER_ROLES: &str = "x-user-roles";
 pub const CLIENT_KIND: &str = "x-systemprompt-client";
+pub const OWNER_HOP: &str = "x-systemprompt-owner-hop";
 pub const CLIENT_ATTESTATION: &str = "x-systemprompt-client-attestation";
 pub const SCOPE_PREFIX: &str = "x-systemprompt-scope-";
 pub const CALLER_PURPOSE: &str = "x-systemprompt-caller";

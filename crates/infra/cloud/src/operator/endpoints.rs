@@ -77,7 +77,7 @@ pub(super) fn authorize_url(
         "{}{separator}response_type=code&client_id={}&redirect_uri={}&scope={}&state={}&nonce={}\
          &code_challenge={}&code_challenge_method=S256",
         discovery.authorization_endpoint,
-        urlencoding::encode(&request.client_id),
+        urlencoding::encode(request.client_id.as_str()),
         urlencoding::encode(redirect_uri),
         urlencoding::encode(&scope),
         urlencoding::encode(state),

@@ -173,7 +173,7 @@ pub fn build_authorize_url(
     } = params;
     let scope = cfg.scopes.join(" ");
     let query = url::form_urlencoded::Serializer::new(String::new())
-        .append_pair("client_id", &cfg.client_id)
+        .append_pair("client_id", cfg.client_id.as_str())
         .append_pair("response_type", "code")
         .append_pair("redirect_uri", redirect_uri)
         .append_pair("scope", &scope)

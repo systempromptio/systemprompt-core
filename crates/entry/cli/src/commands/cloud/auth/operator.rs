@@ -12,6 +12,7 @@ use anyhow::{Result, anyhow, bail};
 use serde::Serialize;
 use systemprompt_cloud::operator::{OperatorLoginRequest, run_operator_login};
 use systemprompt_cloud::{CloudPath, OAuthTemplates, get_cloud_paths};
+use systemprompt_identifiers::ClientId;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::{OperatorAuthConfig, Profile, default_operator_scopes};
 
@@ -22,14 +23,14 @@ use crate::shared::CommandOutput;
 #[derive(Debug, Clone, Serialize)]
 struct OperatorLoginOutput {
     issuer: String,
-    client_id: String,
+    client_id: ClientId,
     email: Option<String>,
     credentials_path: String,
 }
 
 pub(super) fn operator_request(
     issuer: Option<String>,
-    client_id: Option<String>,
+    client_id: Option<ClientId>,
     profile: Option<&Profile>,
 ) -> Result<Option<OperatorLoginRequest>> {
     let configured: Option<&OperatorAuthConfig> = profile

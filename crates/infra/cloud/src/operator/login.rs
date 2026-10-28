@@ -14,7 +14,7 @@ use base64::prelude::*;
 use chrono::Utc;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::{CloudAuthToken, Email};
+use systemprompt_identifiers::{ClientId, CloudAuthToken, Email};
 use systemprompt_logging::CliService;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 use tokio::sync::{Mutex, oneshot};
@@ -29,7 +29,7 @@ use crate::error::{CloudError, CloudResult};
 #[derive(Debug, Clone)]
 pub struct OperatorLoginRequest {
     pub issuer: String,
-    pub client_id: String,
+    pub client_id: ClientId,
     pub scopes: Vec<String>,
 }
 

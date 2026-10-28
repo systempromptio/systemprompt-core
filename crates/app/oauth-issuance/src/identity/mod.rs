@@ -232,7 +232,7 @@ impl ConfigPlane for IdentityPlane {
                 secret_key: row.secret_key,
                 active: row.is_active,
             })?;
-            snapshot.insert(client_key(row.client_id.as_str()), value);
+            snapshot.insert(client_key(&row.client_id), value);
         }
         Ok(snapshot)
     }

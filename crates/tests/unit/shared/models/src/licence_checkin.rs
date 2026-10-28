@@ -26,19 +26,19 @@ fn signed_body_verifies() {
 #[test]
 fn tampered_body_is_rejected() {
     let header = sign_checkin(BODY, SECRET);
-    assert_eq!(
+    assert!(matches!(
         verify_checkin(br#"{"instance_id":"node-b"}"#, &header, SECRET),
-        Err(CheckinSignatureError::Mismatch)
-    );
+        Err(CheckinSignatureError::Mismatch(_))
+    ));
 }
 
 #[test]
 fn wrong_secret_is_rejected() {
     let header = sign_checkin(BODY, SECRET);
-    assert_eq!(
+    assert!(matches!(
         verify_checkin(BODY, &header, b"other-secret"),
-        Err(CheckinSignatureError::Mismatch)
-    );
+        Err(CheckinSignatureError::Mismatch(_))
+    ));
 }
 
 #[test]

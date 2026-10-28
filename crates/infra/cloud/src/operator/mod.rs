@@ -22,7 +22,7 @@ use std::path::Path;
 use base64::prelude::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{CloudAuthToken, Email};
+use systemprompt_identifiers::{ClientId, CloudAuthToken, Email};
 
 use crate::error::{CloudError, CloudResult};
 use crate::private_dir::write_private_json;
@@ -34,7 +34,7 @@ pub use login::{OperatorLoginRequest, run_operator_login};
 pub struct OperatorCredentials {
     pub issuer: String,
 
-    pub client_id: String,
+    pub client_id: ClientId,
 
     pub id_token: CloudAuthToken,
 

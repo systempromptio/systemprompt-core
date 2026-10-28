@@ -88,7 +88,7 @@ fn validate_operator(operator: &OperatorAuthConfig, errors: &mut Vec<String>) {
             operator.issuer
         ));
     }
-    if operator.client_id.trim().is_empty() {
+    if operator.client_id.as_str().trim().is_empty() {
         errors.push("cloud.operator.client_id must not be empty".to_owned());
     }
     if !operator.scopes.iter().any(|scope| scope == "openid") {

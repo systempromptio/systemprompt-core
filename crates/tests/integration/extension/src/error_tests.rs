@@ -239,6 +239,9 @@ fn test_loader_error_variant_matching() {
                 assert!(!extension.as_str().is_empty());
                 assert!(!message.is_empty());
             },
+            LoaderError::InitializationStepFailed { extension, .. } => {
+                assert!(!extension.as_str().is_empty());
+            },
             LoaderError::SchemaInstallationStepFailed {
                 extension, context, ..
             }

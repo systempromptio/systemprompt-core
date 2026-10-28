@@ -14,11 +14,12 @@ mod whoami;
 pub use login::{build_login_output, complete_login};
 
 use crate::context::CommandContext;
-use crate::shared::render_result;
+use crate::shared::{parse_client_id, render_result};
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use super::Environment;
+use systemprompt_identifiers::ClientId;
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum AuthCommands {
@@ -36,8 +37,12 @@ pub enum AuthCommands {
         )]
         issuer: Option<String>,
 
-        #[arg(long, help = "OAuth client id registered at the operator issuer")]
-        client_id: Option<String>,
+        #[arg(
+            long,
+            value_parser = parse_client_id,
+            help = "OAuth client id registered at the operator issuer"
+        )]
+        client_id: Option<ClientId>,
     },
 
     #[command(about = "Clear saved cloud credentials")]

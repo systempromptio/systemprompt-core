@@ -99,15 +99,20 @@ impl Worker {
 }
 
 async fn crash(db: &DbPool, id: &InstanceId) {
-    for table in ["services", "instance_endpoints", "instance_presence"] {
-        sqlx::query(&format!(
-            "UPDATE {table} SET heartbeat_at = CURRENT_TIMESTAMP - make_interval(days => 1) \
-             WHERE instance_id = $1"
-        ))
-        .bind(id.as_str())
-        .execute(&*db.write_pool())
-        .await
-        .expect("age heartbeat");
+    let statements = [
+        "UPDATE services SET heartbeat_at = CURRENT_TIMESTAMP - make_interval(days => 1) WHERE \
+         instance_id = $1",
+        "UPDATE instance_endpoints SET heartbeat_at = CURRENT_TIMESTAMP - make_interval(days => \
+         1) WHERE instance_id = $1",
+        "UPDATE instance_presence SET heartbeat_at = CURRENT_TIMESTAMP - make_interval(days => 1) \
+         WHERE instance_id = $1",
+    ];
+    for statement in statements {
+        sqlx::query(statement)
+            .bind(id.as_str())
+            .execute(&*db.write_pool())
+            .await
+            .expect("age heartbeat");
     }
 }
 

@@ -12,6 +12,7 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ClientId;
 
 pub const DEFAULT_GITOPS_COMMIT_MESSAGE: &str = "deploy({tenant}): {digest}";
 
@@ -83,7 +84,7 @@ fn default_commit_message() -> String {
 pub struct OperatorAuthConfig {
     pub issuer: String,
 
-    pub client_id: String,
+    pub client_id: ClientId,
 
     #[serde(default = "default_operator_scopes")]
     pub scopes: Vec<String>,
