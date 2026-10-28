@@ -43,7 +43,7 @@ pub mod write;
 pub use client::DriveClient;
 pub use error::DriveError;
 pub use root::DriveRoot;
-pub use state::{DriveEntryState, DriveState, OpenProposal};
+pub use state::{DriveEntryState, DriveState, OpenProposal, SentForReview};
 pub use status::{ConflictNotice, DriveHandle, DriveStatus, EditorPresence};
 
 use systemprompt_identifiers::DriveDeviceId;

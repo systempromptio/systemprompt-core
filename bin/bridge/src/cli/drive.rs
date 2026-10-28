@@ -106,13 +106,21 @@ fn sync(ctx: &BridgeContext, root: &DriveRoot) -> ExitCode {
     match ctx.block_on(sync_once(ctx, root)) {
         Ok(report) => {
             stdio::print_line(&format!(
-                "drive synced: {} pulled, {} committed, {} merged, {} conflicts, {} pending",
+                "drive synced: {} pulled, {} committed, {} merged, {} sent for review, {} \
+                 conflicts, {} pending",
                 report.pull.applied,
                 report.upload.committed,
                 report.upload.merged,
+                report.upload.sent_for_review.len(),
                 report.pull.conflicts.len() + report.upload.conflicts.len(),
                 report.pending_uploads,
             ));
+            for sent in &report.upload.sent_for_review {
+                stdio::print_line(&format!(
+                    "  {} was sent for review (proposal {}); your local copy is kept",
+                    sent.path, sent.proposal_id
+                ));
+            }
             ExitCode::SUCCESS
         },
         Err(error) => {

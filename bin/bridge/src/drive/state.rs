@@ -44,6 +44,17 @@ pub struct ConflictNotice {
     pub detected_at: DateTime<Utc>,
 }
 
+/// A local edit the server took as a proposal for review, not a commit:
+/// the device acts as an agent that may only suggest on that document. The
+/// file stays as edited; the next pull replaces it once a reviewer accepts
+/// (or the head otherwise moves).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SentForReview {
+    pub path: String,
+    pub proposal_id: DocumentProposalId,
+    pub sent_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OpenProposal {
     pub proposal_id: DocumentProposalId,
@@ -66,6 +77,8 @@ pub struct DriveState {
     pub conflicts: Vec<ConflictNotice>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub proposals: Vec<OpenProposal>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sent_for_review: Vec<SentForReview>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub shares: Vec<ReceivedShare>,
 }

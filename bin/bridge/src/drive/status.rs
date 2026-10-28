@@ -23,7 +23,7 @@ use super::root::DriveRoot;
 use super::scan::local_changes;
 use super::shares::{ReceivedShare, received};
 pub use super::state::ConflictNotice;
-use super::state::{DriveState, OpenProposal};
+use super::state::{DriveState, OpenProposal, SentForReview};
 use crate::proxy::drive_signal::DocumentNotice;
 
 pub const EDITOR_TTL: Duration = Duration::seconds(90);
@@ -54,6 +54,8 @@ pub struct DriveStatus {
     pub conflicts: Vec<ConflictNotice>,
     pub editors: Vec<EditorPresence>,
     pub proposals: Vec<OpenProposal>,
+    /// Local edits the server took as proposals for review.
+    pub sent_for_review: Vec<SentForReview>,
     pub shares: Vec<ReceivedShare>,
     pub notices: Vec<QueuedNotice>,
     pub last_error: Option<String>,
@@ -73,6 +75,7 @@ impl DriveStatus {
             pending_uploads: local_changes(root, &state)?.len(),
             conflicts: state.conflicts,
             proposals: state.proposals,
+            sent_for_review: state.sent_for_review,
             shares: state.shares,
             editors: Vec::new(),
             notices: Vec::new(),

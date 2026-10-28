@@ -9,17 +9,20 @@
 //! session cookie (one the web login did not mint) is refused `401`, so the
 //! cookie cannot carry anything but a browser session. And a browser-session
 //! request the browser marks cross-site (`Sec-Fetch-Site`), or whose
-//! `Origin` names another host, is refused `403`: the person's cookie acts
-//! only from the person's own pages.
+//! `Origin` is not the site's configured public URL, is refused `403`: the
+//! person's cookie acts only from the person's own pages.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
 
 use axum::extract::Request;
 use axum::http::{HeaderMap, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use systemprompt_files::documents::agents::act_as;
+use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::documents::actor::request_actor;
 
@@ -38,7 +41,7 @@ pub async fn scope(request: Request, next: Next) -> Response {
         )
         .into_response();
     }
-    if ctx.is_browser_session() && !same_origin(request.headers()) {
+    if ctx.is_browser_session() && !same_origin(request.headers(), &site_origins(&request)) {
         return ApiHttpError::forbidden("a browser session acts only from this site's pages")
             .into_response();
     }
@@ -46,11 +49,32 @@ pub async fn scope(request: Request, next: Next) -> Response {
     act_as(actor, next.run(request)).await
 }
 
+/// The origins this site's own pages are served from: the configured
+/// public URL (`api_external_url`) and `advertise_url` when set, as
+/// `scheme://host[:port]`. Empty without a `Config` extension.
+fn site_origins(request: &Request) -> Vec<String> {
+    let Some(config) = request.extensions().get::<Arc<Config>>() else {
+        return Vec::new();
+    };
+    [
+        Some(&config.api_external_url),
+        config.advertise_url.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    .filter_map(|raw| url::Url::parse(raw).ok())
+    .map(|url| url.origin().ascii_serialization())
+    .filter(|origin| origin != "null")
+    .collect()
+}
+
 /// Whether the request came from this site's own pages: the browser's
 /// `Sec-Fetch-Site` is `same-origin` or `none` when sent, and an `Origin`,
-/// when sent, names the request's own host.
+/// when sent, is one of `site_origins` (the configured public URLs, so a
+/// proxy rewriting `Host` cannot cause a false refusal). With no configured
+/// origin to compare against, the `Origin` host must match `Host`.
 #[must_use]
-pub fn same_origin(headers: &HeaderMap) -> bool {
+pub fn same_origin(headers: &HeaderMap, site_origins: &[String]) -> bool {
     let fetch_site = headers
         .get("sec-fetch-site")
         .and_then(|value| value.to_str().ok());
@@ -60,13 +84,16 @@ pub fn same_origin(headers: &HeaderMap) -> bool {
     let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) else {
         return true;
     };
+    let origin = origin.trim_end_matches('/');
+    if !site_origins.is_empty() {
+        return site_origins
+            .iter()
+            .any(|site| site.eq_ignore_ascii_case(origin));
+    }
     let host = headers
         .get(header::HOST)
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default();
-    let origin_host = origin
-        .split_once("://")
-        .map_or(origin, |(_, rest)| rest)
-        .trim_end_matches('/');
+    let origin_host = origin.split_once("://").map_or(origin, |(_, rest)| rest);
     !host.is_empty() && origin_host.eq_ignore_ascii_case(host)
 }
