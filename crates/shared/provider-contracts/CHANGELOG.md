@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `EditOp` gains `SetMarks`, `SetBlockType`, `InsertTable`, `TableInsertRow`, `TableInsertCol`, `TableDelete` and `InsertImage`, with their payload types (`SetMarks`, `MarkSpec`, `SetBlockType`, `TextBlockType`, `InsertTable`, `TableInsert`, `TableDelete`, `InsertImage`) and `EditOp::{is_rich, rich_target, rich_guard}`; `resolve_targets` resolves their targets. Exhaustive matches need new arms.
+
 ## [0.74.0] - 2026-10-27
 
 ### Added

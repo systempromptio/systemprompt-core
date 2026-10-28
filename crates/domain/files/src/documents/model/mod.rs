@@ -7,19 +7,24 @@
 //!
 //! [`RichText`] is the model of text documents. HTML and Markdown import and
 //! materialise here; the `docx` and `odt` codecs cut their bodies into
-//! [`office`] segments. Every live
+//! [`office`] segments; [`formats`] picks the import and materialise of a
+//! format, and [`ops`] applies the rich-text and table edit ops to a model.
+//! Every live
 //! update is checked with [`validate`] on the server's own fork before it
 //! is logged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod formats;
 pub mod html;
+pub mod html_body;
 mod html_write;
 mod ids;
 mod inline;
 pub mod markdown;
 pub mod office;
+pub mod ops;
 mod rich_text;
 mod validate;
 

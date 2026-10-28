@@ -6,15 +6,22 @@
 //! marks. A paragraph holding a drawing or embedded object, and every
 //! table, is a `Raw` block kept byte for byte. New and edited blocks are
 //! written as plain paragraphs (`HeadingN` style for headings, `w:numPr`
-//! on numbering 1 for list items); marks Word runs cannot carry here
-//! (strike, code, links, colours, comments) are dropped from the written
-//! runs. Only `word/document.xml` is rewritten.
+//! on numbering 1 for list items) and new tables as bordered `w:tbl`s.
+//! Written runs carry bold, italic, underline, strike, code (a monospaced
+//! font), hex colours and highlights; a link is a `w:hyperlink` whose
+//! external relationship is added to the document's relationships part.
+//! Comment marks are not written. Only `word/document.xml` and, for new
+//! links, its relationships part are rewritten.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::cell::RefCell;
+
 use systemprompt_provider_contracts::documents::{CodecError, NodeKind};
 
+use super::links::{Links, hyperlink};
+use super::markdown::BORDERS;
 use super::markup::run;
 use super::parts::{DOCUMENT, read_document, replace_part};
 use super::projection::para_kind;
@@ -32,11 +39,15 @@ pub fn import_rich(bytes: &[u8]) -> Result<RichText, CodecError> {
 pub fn materialise_rich(base: &[u8], model: &RichText) -> Result<Vec<u8>, CodecError> {
     let src = read_document(base)?;
     let body = segments(&src)?;
-    let xml = office::splice(&src, &body, model, write_block);
+    let links = RefCell::new(Links::load(base, &src)?);
+    let xml = office::splice(&src, &body, model, |block| {
+        write_block(block, &mut links.borrow_mut())
+    });
     if xml == src {
         return Ok(base.to_vec());
     }
-    replace_part(base, DOCUMENT, xml.as_bytes())
+    let bytes = replace_part(base, DOCUMENT, xml.as_bytes())?;
+    links.into_inner().finish(bytes)
 }
 
 fn segments(src: &str) -> Result<SegmentedBody, CodecError> {
@@ -122,7 +133,7 @@ fn insert_point(src: &str) -> usize {
     src[..close].rfind("<w:sectPr").unwrap_or(close)
 }
 
-fn write_block(block: &Block) -> String {
+fn write_block(block: &Block, links: &mut Links) -> String {
     let ppr = match &block.kind {
         BlockKind::Heading { level } => {
             format!("<w:pPr><w:pStyle w:val=\"Heading{level}\"/></w:pPr>")
@@ -131,23 +142,95 @@ fn write_block(block: &Block) -> String {
             "<w:pPr><w:numPr><w:ilvl w:val=\"{level}\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr>"
         ),
         BlockKind::Raw { source } => return source.clone(),
+        BlockKind::Table { rows } => return table_xml(rows, links),
+        BlockKind::PageBreak => return "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>".to_owned(),
+        BlockKind::Divider => return DIVIDER.to_owned(),
         _ => String::new(),
     };
     let mut out = format!("<w:p>{ppr}");
     for (text, active) in crate::documents::model::segments(&block.text, &block.marks) {
+        let has = |key: &str| active.iter().any(|kind| kind.key() == key);
+        let value = |key: &str| {
+            active
+                .iter()
+                .find(|kind| kind.key() == key)
+                .and_then(|kind| hex(kind.value()))
+        };
+        let link = active.iter().find_map(|kind| match kind {
+            MarkKind::Link { href } => Some(href.as_str()),
+            _ => None,
+        });
         let mut rpr = String::new();
-        for (kind, tag) in [
-            (MarkKind::Bold, "<w:b/>"),
-            (MarkKind::Italic, "<w:i/>"),
-            (MarkKind::Underline, "<w:u w:val=\"single\"/>"),
+        for (on, tag) in [
+            (has("code"), CODE_FONT),
+            (has("bold"), "<w:b/>"),
+            (has("italic"), "<w:i/>"),
+            (has("strike"), "<w:strike/>"),
         ] {
-            if active.contains(&&kind) {
+            if on {
                 rpr.push_str(tag);
             }
         }
+        match value("color") {
+            Some(color) => rpr.push_str(&format!("<w:color w:val=\"{color}\"/>")),
+            None if link.is_some() => rpr.push_str("<w:color w:val=\"0563C1\"/>"),
+            None => {},
+        }
+        if has("underline") || link.is_some() {
+            rpr.push_str("<w:u w:val=\"single\"/>");
+        }
+        if let Some(fill) = value("highlight") {
+            rpr.push_str(&format!(
+                "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"{fill}\"/>"
+            ));
+        }
         let props = (!rpr.is_empty()).then(|| format!("<w:rPr>{rpr}</w:rPr>"));
-        out.push_str(&run(props.as_deref(), &text));
+        let piece = run(props.as_deref(), &text);
+        match link.and_then(|href| links.id_for(href)) {
+            Some(id) => out.push_str(&hyperlink(&id, &piece)),
+            None => out.push_str(&piece),
+        }
     }
     out.push_str("</w:p>");
+    out
+}
+
+const CODE_FONT: &str = "<w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/>";
+
+const DIVIDER: &str = "<w:p><w:pPr><w:pBdr><w:bottom w:val=\"single\" w:sz=\"6\" w:space=\"1\" \
+    w:color=\"auto\"/></w:pBdr></w:pPr></w:p>";
+
+fn hex(value: &str) -> Option<String> {
+    let digits = value.strip_prefix('#').unwrap_or(value);
+    (digits.len() == 6 && digits.chars().all(|c| c.is_ascii_hexdigit()))
+        .then(|| digits.to_ascii_uppercase())
+}
+
+fn table_xml(rows: &[Vec<RichText>], links: &mut Links) -> String {
+    let columns = rows.iter().map(Vec::len).max().unwrap_or(0);
+    let mut out = format!(
+        "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/>{BORDERS}</w:tblPr><w:tblGrid>{}</w:tblGrid>",
+        "<w:gridCol/>".repeat(columns)
+    );
+    for row in rows {
+        out.push_str("<w:tr>");
+        for column in 0..columns {
+            let mut body = String::new();
+            for block in row
+                .get(column)
+                .map_or(&[][..], |cell| cell.blocks.as_slice())
+            {
+                body.push_str(&write_block(block, links));
+            }
+            if body.is_empty() {
+                body.push_str("<w:p/>");
+            }
+            out.push_str("<w:tc><w:tcPr><w:tcW w:w=\"0\" w:type=\"auto\"/></w:tcPr>");
+            out.push_str(&body);
+            out.push_str("</w:tc>");
+        }
+        out.push_str("</w:tr>");
+    }
+    out.push_str("</w:tbl>");
     out
 }

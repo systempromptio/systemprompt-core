@@ -34,6 +34,7 @@ mod codec;
 mod edit_op;
 mod format;
 mod projection;
+mod rich_op;
 mod target;
 mod template;
 
@@ -44,6 +45,10 @@ pub use codec::{
 pub use edit_op::{CellValue, ContentAs, EditOp, NodeTarget, QuoteTarget, required_hash};
 pub use format::{DocumentFormat, UnknownDocumentFormat};
 pub use projection::{NodeKind, Projection, ProjectionNode, content_hash, hash8};
+pub use rich_op::{
+    InsertImage, InsertTable, MarkSpec, RichTarget, SetBlockType, SetMarks, TableDelete,
+    TableInsert, TextBlockType,
+};
 pub use target::{ClosestBlock, READ_ONLY_ATTR, ResolvedBatch, TargetError, resolve_targets};
 pub use template::{
     DocumentTemplate, DocumentTemplateProvider, DocumentTemplateProviderRegistration,

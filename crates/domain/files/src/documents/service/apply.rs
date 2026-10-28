@@ -7,6 +7,8 @@
 //! only when that node's hash at the head differs, and an op naming an id
 //! the head no longer has is refused as an unknown node. Codec errors are
 //! relabelled from paths back to ids so a refusal names what the caller read.
+//! A batch of rich-text and table ops applies through the document's model
+//! instead of the codec, addressed by id, and may not mix with other ops.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +24,7 @@ use systemprompt_provider_contracts::documents::{
 use super::fragments::{FragmentInsert, FragmentPass, unsupported};
 use super::node_ids::Projected;
 use crate::documents::error::DocumentsError;
+use crate::documents::model::ops::apply_rich_ops;
 use crate::documents::nodes::{CarryHints, path_of, to_paths};
 
 #[derive(Debug, Clone)]
@@ -82,6 +85,14 @@ pub(super) fn apply_on_head(
     }
     let edited = if resolved.ops.is_empty() {
         bytes.to_vec()
+    } else if resolved.ops.iter().any(EditOp::is_rich) {
+        if !resolved.ops.iter().all(EditOp::is_rich) {
+            return Err(DocumentsError::Codec(CodecError::Malformed {
+                detail: "rich-text and table ops cannot share a batch with other ops",
+            }));
+        }
+        apply_rich_ops(format, bytes, &head.ids, &resolved.ops)
+            .map_err(|error| relabel(DocumentsError::from(error), &head.ids))?
     } else {
         let ops = to_paths(resolved.ops, &head.ids);
         codec
@@ -136,7 +147,10 @@ pub(super) fn guard(ids: &Projection, ops: &[EditOp]) -> Result<(), DocumentsErr
             } => (node.id(), expected_hash.as_deref()),
             EditOp::InsertAfter { node, .. } => (node.id(), None),
             EditOp::InsertSlide { after, .. } => (after.as_ref(), None),
-            _ => continue,
+            other => match other.rich_guard() {
+                Some((node, expected)) => (node.id(), expected.map(String::as_str)),
+                None => continue,
+            },
         };
         let Some(node) = node else {
             continue;

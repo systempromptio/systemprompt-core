@@ -21,6 +21,14 @@ str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, rang
 insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; append_markdown \
 {markdown}; insert_from_revision {revision_id, node, after} copies a block back from history; \
 restore {revision_id} alone makes an old revision the head (base_revision must be the head).
+Rich ops (html, markdown, docx, odt; a batch of only these): set_marks {node, expected_hash, \
+find?, nth?, add: [{mark: bold|italic|underline|strike|code|link|color|highlight, value?}], \
+remove: [mark]}; set_block_type {node, expected_hash, block: {type: paragraph} | {type: \
+heading, level} | {type: list_item, level?, ordered?} | {type: quote} | {type: code}}; \
+insert_table {after, rows: [[text]]}; table_insert_row / table_insert_col {table, \
+expected_hash, at?, cells?}; table_delete {table, expected_hash, row? | col?} (neither deletes \
+the table); insert_image {after, blob, alt?} (html and markdown only). Rows and columns count \
+from 0. docx and odt take no quote or code blocks, odt takes no marks.
 Target: an anchored op names node by id with expected_hash (required), or node: {find: \"quoted text\", \
 nth?, within?: node} to hit the block containing the quote; no match refuses find_none with \
 the closest block. Content: replace_text and insert_after take as: \"markdown\" to write \

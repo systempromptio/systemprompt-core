@@ -29,6 +29,7 @@ mod fragment;
 mod inline;
 mod insert;
 mod instantiate;
+mod links;
 mod markdown;
 mod markup;
 mod parts;

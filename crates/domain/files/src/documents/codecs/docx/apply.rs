@@ -18,6 +18,7 @@ use systemprompt_provider_contracts::documents::{
     CodecError, ContentAs, DocumentFormat, EditOp, hash8, required_hash,
 };
 
+use super::links::Links;
 use super::markup::{self, Splice};
 use super::parts;
 use super::parts::malformed;
@@ -60,6 +61,7 @@ pub(super) struct Batch<'d> {
     splices: Vec<Splice>,
     pub(super) para_ids: BTreeSet<String>,
     cell_paras: HashMap<&'d str, usize>,
+    pub(super) links: Links,
 }
 
 pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError> {
@@ -79,13 +81,19 @@ pub(super) fn apply(bytes: &[u8], ops: &[EditOp]) -> Result<Vec<u8>, CodecError>
             .filter_map(|p| p.w14_id.clone())
             .collect(),
         cell_paras: HashMap::new(),
+        links: Links::load(bytes, &xml)?,
     };
     for (order, op) in ops.iter().enumerate() {
         batch.op(order, op)?;
     }
-    let edited = markup::apply_splices(&xml, batch.splices)?;
+    let Batch { splices, links, .. } = batch;
+    let edited = markup::apply_splices(&xml, splices)?;
     scan::parse(&edited)?;
-    parts::replace_part(bytes, parts::DOCUMENT, edited.as_bytes())
+    links.finish(parts::replace_part(
+        bytes,
+        parts::DOCUMENT,
+        edited.as_bytes(),
+    )?)
 }
 
 impl<'d> Batch<'d> {
@@ -165,7 +173,14 @@ impl<'d> Batch<'d> {
             | EditOp::SetHtml { .. }
             | EditOp::SetText { .. }
             | EditOp::Restore { .. }
-            | EditOp::InsertFromRevision { .. } => {
+            | EditOp::InsertFromRevision { .. }
+            | EditOp::SetMarks(_)
+            | EditOp::SetBlockType(_)
+            | EditOp::InsertTable(_)
+            | EditOp::TableInsertRow(_)
+            | EditOp::TableInsertCol(_)
+            | EditOp::TableDelete(_)
+            | EditOp::InsertImage(_) => {
                 return Err(CodecError::UnsupportedOp {
                     op: op.name(),
                     format: DocumentFormat::Docx,

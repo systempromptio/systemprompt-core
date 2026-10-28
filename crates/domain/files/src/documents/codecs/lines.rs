@@ -165,7 +165,14 @@ impl LineDoc {
             | EditOp::InsertSlide { .. }
             | EditOp::SetHtml { .. }
             | EditOp::Restore { .. }
-            | EditOp::InsertFromRevision { .. } => Err(CodecError::UnsupportedOp {
+            | EditOp::InsertFromRevision { .. }
+            | EditOp::SetMarks(_)
+            | EditOp::SetBlockType(_)
+            | EditOp::InsertTable(_)
+            | EditOp::TableInsertRow(_)
+            | EditOp::TableInsertCol(_)
+            | EditOp::TableDelete(_)
+            | EditOp::InsertImage(_) => Err(CodecError::UnsupportedOp {
                 op: op.name(),
                 format,
             }),

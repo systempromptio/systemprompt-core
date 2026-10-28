@@ -6,8 +6,8 @@
 //! element (lists, tables, sections, declarations) and any paragraph
 //! holding a frame, note or annotation is a `Raw` block kept byte for byte.
 //! New and edited blocks are written as unstyled `text:p`/`text:h`, list
-//! items as one-item `text:list`s; marks are not written. Only
-//! `content.xml` is rewritten.
+//! items as one-item `text:list`s and new tables as unstyled `table:table`s;
+//! marks are not written. Only `content.xml` is rewritten.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -103,6 +103,32 @@ fn write_block(block: &Block) -> String {
             )
         },
         BlockKind::Raw { source } => source.clone(),
+        BlockKind::Table { rows } => table_xml(rows),
         _ => format!("<text:p>{text}</text:p>"),
     }
+}
+
+fn table_xml(rows: &[Vec<RichText>]) -> String {
+    let columns = rows.iter().map(Vec::len).max().unwrap_or(0);
+    let mut out =
+        format!("<table:table><table:table-column table:number-columns-repeated=\"{columns}\"/>");
+    for row in rows {
+        out.push_str("<table:table-row>");
+        for column in 0..columns {
+            out.push_str("<table:table-cell office:value-type=\"string\">");
+            let blocks = row
+                .get(column)
+                .map_or(&[][..], |cell| cell.blocks.as_slice());
+            for block in blocks {
+                out.push_str(&write_block(block));
+            }
+            if blocks.is_empty() {
+                out.push_str("<text:p/>");
+            }
+            out.push_str("</table:table-cell>");
+        }
+        out.push_str("</table:table-row>");
+    }
+    out.push_str("</table:table>");
+    out
 }

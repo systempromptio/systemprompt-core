@@ -279,7 +279,14 @@ pub(super) fn apply_ops(
             | EditOp::InsertSlide { .. }
             | EditOp::SetText { .. }
             | EditOp::Restore { .. }
-            | EditOp::InsertFromRevision { .. } => {
+            | EditOp::InsertFromRevision { .. }
+            | EditOp::SetMarks(_)
+            | EditOp::SetBlockType(_)
+            | EditOp::InsertTable(_)
+            | EditOp::TableInsertRow(_)
+            | EditOp::TableInsertCol(_)
+            | EditOp::TableDelete(_)
+            | EditOp::InsertImage(_) => {
                 return Err(unsupported(op));
             },
         }

@@ -7,7 +7,8 @@
 //! resolved op carries the matched node's id and, unless the caller quoted
 //! one, its current hash. A `replace_text` with Markdown content resolves to
 //! an `insert_after` of the lowered blocks followed by a `delete` of the
-//! node, so codecs only lower Markdown on insert.
+//! node, so codecs only lower Markdown on insert. A rich-text or table op
+//! resolves its one target the same way, keeping its guard when it has one.
 //!
 //! A block is a node with text, outside any subtree marked `read_only`,
 //! that has no descendant which also matches; a quote that spans two
@@ -121,7 +122,20 @@ pub fn resolve_targets(
                     content_as,
                 });
             },
-            other => batch.ops.push(other),
+            mut other => {
+                if let Some(target) = other.rich_target() {
+                    let anchored = target.expected_hash.is_some();
+                    let mut slot = target.expected_hash;
+                    let hash = slot.as_deref_mut().and_then(Option::take);
+                    let resolved = resolve(projection, target.node, hash, anchored)?;
+                    batch.matches.extend(resolved.matches);
+                    *target.node = NodeTarget::Id(resolved.node);
+                    if let Some(held) = slot {
+                        *held = Some(resolved.hash);
+                    }
+                }
+                batch.ops.push(other);
+            },
         }
     }
     Ok(batch)

@@ -25,6 +25,7 @@ mod docx_fixture;
 mod engine_loro;
 mod live_resume;
 mod model_office;
+mod model_ops;
 mod model_rich_text;
 mod node_ids;
 mod odf_fixture;
