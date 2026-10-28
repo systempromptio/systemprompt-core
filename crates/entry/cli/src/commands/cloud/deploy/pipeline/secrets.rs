@@ -18,6 +18,7 @@ use super::request::{DeployRequest, DeploySecretsSource};
 
 const SIGNING_KEY_ENV: &str = "SIGNING_KEY_PEM";
 const PROFILE_ENV: &str = "SYSTEMPROMPT_PROFILE";
+const LICENCE_SECRET_ENV: &str = "LICENCE_SIGNING_SECRET";
 
 pub(super) const fn pushed_count(outcome: &SecretsOutcome) -> usize {
     match outcome {
@@ -118,6 +119,9 @@ pub(super) fn declared_secret_keys(request: &DeployRequest) -> Result<Vec<String
         DeploySecretsSource::Vault { bootstrap_env } => bootstrap_env.clone(),
     };
     keys.push(PROFILE_ENV.to_owned());
+    if request.licence_secret_required {
+        keys.push(LICENCE_SECRET_ENV.to_owned());
+    }
     keys.sort();
     keys.dedup();
     Ok(keys)

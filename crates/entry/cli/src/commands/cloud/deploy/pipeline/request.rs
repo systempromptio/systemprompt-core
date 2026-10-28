@@ -27,6 +27,7 @@ pub struct DeployRequest {
     pub platform_credentials: Option<CloudCredentials>,
     pub secrets: DeploySecretsSource,
     pub signing_key_path: PathBuf,
+    pub licence_secret_required: bool,
     pub options: DeployOptions,
 }
 

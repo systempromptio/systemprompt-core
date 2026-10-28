@@ -99,6 +99,7 @@ pub(super) async fn execute(
         ProfilePath::Secrets.resolve(profile_dir),
     );
     let signing_key_path = super::doctor::resolve_signing_key_path(&profile, profile_dir);
+    let licence_secret_required = profile.licence.enabled();
     let progress = CliDeployProgress::new();
     let orchestrator = DeployOrchestrator::new();
 
@@ -116,6 +117,7 @@ pub(super) async fn execute(
                 platform_credentials: Some(target.creds),
                 secrets,
                 signing_key_path,
+                licence_secret_required,
                 options,
             };
             orchestrator.deploy(&provider, &request, &progress).await?;
@@ -130,6 +132,7 @@ pub(super) async fn execute(
                 platform_credentials: None,
                 secrets,
                 signing_key_path,
+                licence_secret_required,
                 options,
             };
             orchestrator.deploy(&provider, &request, &progress).await?;
