@@ -39,7 +39,6 @@ fn le(bytes: &[u8], at: usize, len: usize) -> Option<u64> {
     )
 }
 
-/// Measures and strips one image; answers the bytes to store.
 pub(crate) fn sanitize(kind: Kind, bytes: &[u8], limits: &UploadLimits) -> UploadResult<Vec<u8>> {
     let (stripped, dimensions) = match kind {
         Kind::Png => png(bytes),
@@ -129,7 +128,7 @@ fn webp(bytes: &[u8]) -> Option<(Vec<u8>, (u64, u64))> {
         let data = at + 8;
         match kind {
             b"VP8X" => {
-                dimensions = Some((le(bytes, data + 4, 3)? + 1, le(bytes, data + 7, 3)? + 1))
+                dimensions = Some((le(bytes, data + 4, 3)? + 1, le(bytes, data + 7, 3)? + 1));
             },
             b"VP8L" if dimensions.is_none() => {
                 let bits = le(bytes, data + 1, 4)?;

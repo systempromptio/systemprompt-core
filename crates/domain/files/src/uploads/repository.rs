@@ -103,19 +103,14 @@ pub struct SessionTerms<'a> {
     pub trace: &'a TraceId,
     pub max_open: i64,
     pub daily_quota: i64,
-    /// A session opened and finished in one call (an ingest or an inline
-    /// body): it neither counts toward nor is held to the open-session cap,
-    /// but its bytes count toward the daily quota.
     pub one_shot: bool,
-    /// A save that does not spend the daily quota (see
-    /// [`Allowance::Save`](super::models::Allowance::Save)).
     pub quota_exempt: bool,
 }
 
 /// Whether [`DocumentUploadRepository::insert_admitted`] opened the session.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Admission {
-    Admitted(UploadSession),
+    Admitted(Box<UploadSession>),
     TooManyOpen { open: u64 },
     QuotaExceeded { used: u64 },
 }
@@ -128,12 +123,6 @@ impl DocumentUploadRepository {
         }
     }
 
-    /// Opens a session if the owner is within the open-session cap and the
-    /// rolling daily quota, deciding and inserting under one per-owner
-    /// advisory lock so parallel creates cannot all pass. Every session of
-    /// the last day counts its declared size toward the quota, refused ones
-    /// included, and an aborted one the bytes it actually received, so
-    /// neither refusal nor abort-and-retry resets the budget.
     pub async fn insert_admitted(
         &self,
         request: &NewUpload,
@@ -204,7 +193,7 @@ impl DocumentUploadRepository {
         .await?
         .try_into()?;
         tx.commit().await?;
-        Ok(Admission::Admitted(session))
+        Ok(Admission::Admitted(Box::new(session)))
     }
 
     pub async fn find(&self, id: &DocumentUploadId) -> RepoResult<Option<UploadSession>> {
@@ -225,9 +214,6 @@ impl DocumentUploadRepository {
         .transpose()
     }
 
-    /// Reserves `bytes` of the session's part budget (twice its declared
-    /// size, so re-sends are bounded); `false` when the session is no longer
-    /// open or the budget is spent.
     pub async fn reserve_part_bytes(&self, id: &DocumentUploadId, bytes: u64) -> RepoResult<bool> {
         let bytes = i64::try_from(bytes)
             .map_err(|source| RepositoryError::decode("document_uploads.received_bytes", source))?;

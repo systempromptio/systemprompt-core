@@ -38,7 +38,7 @@ pub use inline::segments;
 pub use mark_kind::FIELD_CODES;
 pub use rich_text::{Block, BlockKind, Mark, MarkKind, RICH_TEXT_VERSION, RichText};
 pub use validate::{EditLevel, Limits, ModelRejection, validate};
-pub use view::{ModelViewV2, model_view_schema};
+pub use view::{ModelViewV2, UnsupportedModelView, model_view_schema};
 
 #[must_use]
 pub fn rich_text_schema() -> schemars::Schema {

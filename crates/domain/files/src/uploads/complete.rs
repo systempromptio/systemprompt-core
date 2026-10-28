@@ -23,27 +23,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_identifiers::{DocumentUploadId, UserId};
+use systemprompt_traits::{OwnedTask, StoredFileId};
 
 use super::error::{RefusalReason, UploadError, UploadResult};
-use super::models::{CompletedUpload, UploadSession, UploadStatus};
+use super::models::{CompletedUpload, UploadPart, UploadSession, UploadStatus};
 use super::safety::{Subject, inspect};
 use super::service::UploadService;
 use super::stream::{Tally, assembled_storage_id, concatenated};
 
-/// How often a running completion refreshes its claim; the expiry job
-/// closes a claim not refreshed for an hour.
 const CLAIM_HEARTBEAT: Duration = Duration::from_secs(300);
-
-/// Stops a completion's claim heartbeat however the completion ends (an
-/// early error return or a panic included), so a dead completion's claim
-/// goes stale and the expiry job can close it.
-struct Heartbeat(tokio::task::JoinHandle<()>);
-
-impl Drop for Heartbeat {
-    fn drop(&mut self) {
-        self.0.abort();
-    }
-}
 
 impl UploadService {
     pub async fn complete(
@@ -74,20 +62,21 @@ impl UploadService {
             return Err(UploadError::Closed { status });
         }
         let service = self.clone();
-        let completion = tokio::spawn(async move { service.finish_claimed(session).await });
-        completion.await?
+        let (answer, answered) = tokio::sync::oneshot::channel();
+        self.tasks.spawn("upload_completion", async move {
+            let outcome = service.finish_claimed(session).await;
+            if answer.send(outcome).is_err() {
+                tracing::debug!("An upload completion finished after its caller left");
+            }
+        });
+        answered.await?
     }
 
-    /// Finishes a claimed upload on its own task, so a client that drops the
-    /// `complete` request (a proxy timeout) does not cancel the work and
-    /// strand the claim: the upload still completes and a retry answers it.
-    /// A heartbeat keeps the claim fresh while a large assembly runs, so the
-    /// expiry job only closes claims whose completion really died.
     async fn finish_claimed(self, session: UploadSession) -> UploadResult<CompletedUpload> {
-        let _heartbeat = Heartbeat({
+        let _heartbeat = {
             let uploads = Arc::clone(&self.uploads);
             let id = session.id.clone();
-            tokio::spawn(async move {
+            OwnedTask::spawn("upload_claim_heartbeat", async move {
                 let mut tick = tokio::time::interval(CLAIM_HEARTBEAT);
                 tick.tick().await;
                 loop {
@@ -97,8 +86,8 @@ impl UploadService {
                     }
                 }
             })
-        });
-        let outcome = match self.finish(&session).await {
+        };
+        match self.finish(&session).await {
             Err(UploadError::Refused { reason, detail }) => {
                 self.refuse(&session, reason, &detail).await?;
                 Err(UploadError::Refused { reason, detail })
@@ -110,8 +99,7 @@ impl UploadService {
                 Err(error)
             },
             ok => ok,
-        };
-        outcome
+        }
     }
 
     async fn finish(&self, session: &UploadSession) -> UploadResult<CompletedUpload> {
@@ -124,30 +112,7 @@ impl UploadService {
         if !missing.is_empty() {
             return Err(UploadError::MissingParts { missing });
         }
-        let assembled = assembled_storage_id(session.id.as_str());
-        let tally = Tally::new(session.declared_size);
-        let sources = progress
-            .parts
-            .iter()
-            .map(|part| part.storage_id.as_str().into())
-            .collect();
-        self.storage
-            .store_stream(
-                Path::new(assembled.as_str()),
-                tally.wrap(concatenated(Arc::clone(&self.storage), sources)),
-            )
-            .await?;
-        let actual = tally.hash();
-        if actual.as_ref() != Some(&session.declared_sha256) {
-            return Err(UploadError::refused(
-                RefusalReason::ChecksumMismatch,
-                format!(
-                    "declared sha256 {} but the parts hash to {}",
-                    session.declared_sha256,
-                    actual.map_or_else(|| "nothing".to_owned(), |hash| hash.to_string())
-                ),
-            ));
-        }
+        let assembled = self.assemble(session, &progress.parts).await?;
         let subject = Subject {
             storage: self.storage.as_ref(),
             id: &assembled,
@@ -207,6 +172,37 @@ impl UploadService {
             checked_kind: inspected.checked.as_str().to_owned(),
             deduplicated: !blob.inserted,
         })
+    }
+
+    async fn assemble(
+        &self,
+        session: &UploadSession,
+        parts: &[UploadPart],
+    ) -> UploadResult<StoredFileId> {
+        let assembled = assembled_storage_id(session.id.as_str());
+        let tally = Tally::new(session.declared_size);
+        let sources = parts
+            .iter()
+            .map(|part| part.storage_id.as_str().into())
+            .collect();
+        self.storage
+            .store_stream(
+                Path::new(assembled.as_str()),
+                tally.wrap(concatenated(Arc::clone(&self.storage), sources)),
+            )
+            .await?;
+        let actual = tally.hash();
+        if actual.as_ref() != Some(&session.declared_sha256) {
+            return Err(UploadError::refused(
+                RefusalReason::ChecksumMismatch,
+                format!(
+                    "declared sha256 {} but the parts hash to {}",
+                    session.declared_sha256,
+                    actual.map_or_else(|| "nothing".to_owned(), |hash| hash.to_string())
+                ),
+            ));
+        }
+        Ok(assembled)
     }
 
     async fn refuse(

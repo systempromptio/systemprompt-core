@@ -56,8 +56,6 @@ pub fn router(state: DocumentsState) -> Router {
     routes(&state).with_state(state)
 }
 
-/// Answers requests that carry a signed upload token before the session
-/// middleware `router` is wrapped in.
 pub fn with_upload_tokens(router: Router, state: DocumentsState) -> Router {
     let gate_state = gate::GateState {
         tokened: routes(&state).with_state(state.clone()),

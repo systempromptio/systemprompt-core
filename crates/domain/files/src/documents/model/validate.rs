@@ -127,12 +127,12 @@ fn check_blocks<'a>(
                 if depth + 1 > limits.depth || cells > limits.table_cells {
                     return Err(ModelRejection::TableTooLarge);
                 }
-                let shades_ok = props
+                let bad_shade = props
                     .cells
                     .iter()
                     .flatten()
-                    .all(|cell| cell.shade.as_deref().is_none_or(is_color));
-                if !shades_ok || props.cells.len() > rows.len() {
+                    .any(|cell| cell.shade.as_deref().is_some_and(|shade| !is_color(shade)));
+                if bad_shade || props.cells.len() > rows.len() {
                     return Err(ModelRejection::BadAttribute(block.id.clone()));
                 }
                 for cell in rows.iter().flatten() {

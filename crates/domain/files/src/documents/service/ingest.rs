@@ -24,6 +24,8 @@ use systemprompt_models::documents::{DocumentAction, DocumentFormat};
 
 use super::support::format_of_name;
 use super::{CommitOutcome, CommitRequest, DocumentService, ImportRequest};
+use systemprompt_traits::FileStorageError;
+
 use crate::documents::blob_store::BlobStoreError;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
@@ -41,6 +43,9 @@ fn refused(error: UploadError) -> DocumentsError {
         UploadError::Blob(error) => DocumentsError::Blob(error),
         UploadError::Repository(error) => DocumentsError::Repository(error),
         UploadError::Interrupted(error) => DocumentsError::Worker(error),
+        UploadError::Unanswered(error) => DocumentsError::Blob(BlobStoreError::Storage(
+            FileStorageError::Backend(Box::new(error)),
+        )),
         other => DocumentsError::ContentRefused {
             code: other.code(),
             detail: other.to_string(),
@@ -55,6 +60,10 @@ impl DocumentService {
         }
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the caller, name, format, bytes, trace and allowance are each needed by the upload the check runs as"
+    )]
     async fn ingest(
         &self,
         who: &AuthenticatedUser,
@@ -78,7 +87,6 @@ impl DocumentService {
         Ok((ingested.bytes, Some(ingested.mime)))
     }
 
-    /// [`DocumentService::import`] for bytes from outside the upload API.
     pub async fn import_external(
         &self,
         who: &AuthenticatedUser,
@@ -104,8 +112,6 @@ impl DocumentService {
         self.import(who, request, trace).await
     }
 
-    /// [`DocumentService::commit`] for a whole-file write from outside the
-    /// upload API; an ops commit passes straight through.
     pub async fn commit_external(
         &self,
         who: &AuthenticatedUser,

@@ -27,8 +27,9 @@ const FORBIDDEN: [&str; 12] = [
 const REMOTE: [&str; 4] = ["href=\"http", "href='http", "url(http", "@import"];
 
 pub(crate) fn check(bytes: &[u8]) -> UploadResult<()> {
-    let text = std::str::from_utf8(bytes)
-        .map_err(|_| UploadError::refused(RefusalReason::UnsafeSvg, "the SVG is not UTF-8"))?;
+    let text = std::str::from_utf8(bytes).map_err(|_not_utf8| {
+        UploadError::refused(RefusalReason::UnsafeSvg, "the SVG is not UTF-8")
+    })?;
     let lowered: String = text
         .to_ascii_lowercase()
         .split_whitespace()
@@ -40,13 +41,15 @@ pub(crate) fn check(bytes: &[u8]) -> UploadResult<()> {
         .find(|needle| lowered.contains(*needle))
         .copied()
         .or_else(|| has_event_handler(&lowered).then_some("on* event handler"));
-    match found {
-        Some(what) => Err(UploadError::refused(
-            RefusalReason::UnsafeSvg,
-            format!("the SVG carries active or external content ({what})"),
-        )),
-        None => Ok(()),
-    }
+    found.map_or_else(
+        || Ok(()),
+        |what| {
+            Err(UploadError::refused(
+                RefusalReason::UnsafeSvg,
+                format!("the SVG carries active or external content ({what})"),
+            ))
+        },
+    )
 }
 
 fn has_event_handler(lowered: &str) -> bool {

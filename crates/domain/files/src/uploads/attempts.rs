@@ -13,9 +13,10 @@ use super::service::UploadService;
 use super::stream::Tally;
 
 impl UploadService {
-    /// Stores one part attempt under its own object and points the part's
-    /// row at it; a failed attempt deletes only its own object, and the part
-    /// it replaces is deleted only once the row no longer names it.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one part attempt is named by its upload, part number, expected size, object and body"
+    )]
     pub(super) async fn store_part(
         &self,
         id: &DocumentUploadId,
@@ -62,8 +63,6 @@ impl UploadService {
         Ok(stored_part)
     }
 
-    /// Why a part was not taken: the session left `open`, or it spent the
-    /// part budget re-sending parts.
     pub(super) async fn part_refusal(&self, id: &DocumentUploadId) -> UploadResult<UploadError> {
         let session = self.uploads.find(id).await?;
         Ok(match session {

@@ -1,6 +1,12 @@
 //! The blob reads an upload's owner may make: the bytes of a blob they
 //! uploaded, for an import, and the stream of a completed upload, for a
-//! download.
+//! download. An import reads a blob whole, after checking it passed the
+//! content check its format needs; a blob past the limit is refused, never
+//! truncated.
+//!
+//! TRACKED(phase-6 streaming import): the import parses a blob whole, so
+//! `files.documents.maxUploadBytes` bounds it in memory; a streaming codec
+//! import lifts this bound.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,9 +23,6 @@ use super::service::UploadService;
 use crate::documents::blob_store::BlobStoreError;
 
 impl UploadService {
-    /// What `owner`'s upload recorded for `blob`; refuses unless `owner`
-    /// completed an upload that produced it, so a content hash alone never
-    /// opens bytes someone else uploaded.
     pub async fn require_owned_blob(
         &self,
         owner: &UserId,
@@ -31,12 +34,6 @@ impl UploadService {
             .ok_or_else(|| UploadError::BlobNotOwned(blob.clone()))
     }
 
-    /// The bytes of a blob `owner` uploaded, whole, after checking it passed
-    /// the content check `format` needs; a blob past `max_bytes` is refused,
-    /// never truncated.
-    // TRACKED(phase-6 streaming import): the import parses a blob whole, so
-    // `max_bytes` (files.documents.maxUploadBytes) bounds it in memory; a
-    // streaming codec import lifts this bound.
     pub async fn read_owned_blob(
         &self,
         owner: &UserId,
@@ -68,9 +65,6 @@ impl UploadService {
         }
     }
 
-    /// Runs the content checks over a blob whose upload completed before
-    /// checks were recorded, and records the result, instead of refusing it
-    /// as unchecked; a blob the checks refuse is refused here.
     async fn recheck(
         &self,
         owner: &UserId,
@@ -92,7 +86,6 @@ impl UploadService {
         })
     }
 
-    /// Streams the blob a completed upload produced, optionally one range.
     pub async fn open_blob(
         &self,
         owner: &UserId,

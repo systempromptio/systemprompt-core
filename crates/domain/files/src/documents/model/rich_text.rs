@@ -27,8 +27,6 @@ pub const RICH_TEXT_VERSION: u32 = 2;
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RichText {
     pub blocks: Vec<Block>,
-    /// Styles, theme, numbering and final page setup. Only a document's
-    /// top-level model carries it; a table cell or header never does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<Box<DocumentSettings>>,
 }
@@ -61,10 +59,12 @@ pub struct Block {
     pub marks: Vec<Mark>,
 }
 
-/// A block's type and attributes. Paragraph, heading, list item, quote,
-/// code and callout blocks carry text; `Raw` is native markup the model
-/// does not own, kept verbatim and never authored by a live update. A
-/// `section_break` ends a section and carries that section's page setup.
+/// A block's type and attributes.
+///
+/// Paragraph, heading, list item, quote, code and callout blocks carry text;
+/// `Raw` is native markup the model does not own, kept verbatim and never
+/// authored by a live update. A `section_break` ends a section and carries that
+/// section's page setup.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BlockKind {
@@ -75,8 +75,6 @@ pub enum BlockKind {
     ListItem {
         level: u8,
         ordered: bool,
-        /// A numbering definition id from the document settings; `None`
-        /// uses the built-in bullet or decimal list.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         numbering: Option<String>,
     },
@@ -111,7 +109,6 @@ pub enum BlockKind {
     SectionBreak {
         section: Box<Section>,
     },
-    /// A table of contents over headings up to `levels`.
     Toc {
         #[serde(default = "toc_levels")]
         levels: u8,

@@ -19,7 +19,6 @@ struct TallyState {
     overflowed: bool,
 }
 
-/// The running SHA-256 and length of a stream, shared with the stream.
 #[derive(Debug, Clone)]
 pub(crate) struct Tally {
     state: Arc<Mutex<TallyState>>,
@@ -38,22 +37,25 @@ impl Tally {
         }
     }
 
-    /// `body`, counted and hashed into this tally; past the limit it fails
-    /// with a validation error and [`Tally::overflowed`] turns true.
     pub(crate) fn wrap(&self, body: FileByteStream) -> FileByteStream {
         let state = Arc::clone(&self.state);
         let limit = self.limit;
         Box::pin(body.map(move |chunk| {
             let chunk = chunk?;
-            let mut state = state.lock().unwrap_or_else(PoisonError::into_inner);
-            state.len = state.len.saturating_add(chunk.len() as u64);
-            if state.len > limit {
-                state.overflowed = true;
+            let overflowed = {
+                let mut state = state.lock().unwrap_or_else(PoisonError::into_inner);
+                state.len = state.len.saturating_add(chunk.len() as u64);
+                state.overflowed = state.len > limit;
+                if !state.overflowed {
+                    state.hasher.update(&chunk);
+                }
+                state.overflowed
+            };
+            if overflowed {
                 return Err(FileStorageError::Validation(format!(
                     "the body exceeds {limit} bytes"
                 )));
             }
-            state.hasher.update(&chunk);
             Ok(chunk)
         }))
     }
@@ -78,8 +80,6 @@ impl Tally {
     }
 }
 
-/// The stored parts, in order, as one stream; each is opened only when the
-/// previous one is exhausted.
 pub(crate) fn concatenated(
     storage: Arc<dyn FileStorage>,
     parts: Vec<StoredFileId>,
@@ -94,8 +94,6 @@ pub(crate) fn concatenated(
     )
 }
 
-/// A fresh object for one attempt at part `n` of an upload: every attempt
-/// gets its own, so a failed re-send never touches an accepted part.
 pub(crate) fn part_storage_id(upload: &str, part: u32) -> StoredFileId {
     StoredFileId::new(format!(
         "documents/uploads/{upload}/part-{part:05}-{}",
@@ -103,9 +101,6 @@ pub(crate) fn part_storage_id(upload: &str, part: u32) -> StoredFileId {
     ))
 }
 
-/// Where a completed upload is assembled. It sits under `documents/blobs/`
-/// because, unless a check rewrites it or the bytes are already stored, the
-/// assembled object becomes the blob itself.
 pub(crate) fn assembled_storage_id(upload: &str) -> StoredFileId {
     StoredFileId::new(format!("documents/blobs/uploads/{upload}"))
 }

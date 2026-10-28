@@ -66,8 +66,6 @@ pub(super) struct SubjectJson {
     display_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     detail: Option<String>,
-    /// With `document_id` on a user search: the level the user holds on that
-    /// document, or `none`.
     #[serde(skip_serializing_if = "Option::is_none")]
     access_level: Option<&'static str>,
 }

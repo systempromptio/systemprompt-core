@@ -30,7 +30,8 @@ impl From<UploadError> for ApiHttpError {
             UploadError::Storage(_)
             | UploadError::Repository(_)
             | UploadError::Blob(_)
-            | UploadError::Interrupted(_) => {
+            | UploadError::Interrupted(_)
+            | UploadError::Unanswered(_) => {
                 return Self::from(ApiError::internal("upload storage failed", error));
             },
         };

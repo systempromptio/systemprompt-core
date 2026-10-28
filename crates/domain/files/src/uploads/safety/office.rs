@@ -1,4 +1,4 @@
-//! The zip-bomb guard for Office and OpenDocument uploads.
+//! The zip-bomb guard for Office and `OpenDocument` uploads.
 //!
 //! The archive is read once, front to back, through its local file headers,
 //! and every entry is actually inflated into a counter; nothing is written
@@ -72,9 +72,7 @@ pub(crate) async fn check(
         }
     }
     drop(sender);
-    scanning
-        .await
-        .map_err(|error| refuse(format!("the archive scan stopped: {error}")))?
+    scanning.await?
 }
 
 struct Entry {
@@ -114,7 +112,6 @@ fn skip(reader: &mut impl Read, len: u64) -> io::Result<()> {
     }
 }
 
-/// The zip64 compressed size, when the 32-bit field defers to the extra.
 fn zip64_compressed(extra: &[u8], uncompressed32: u32, compressed32: u32) -> Option<u64> {
     let mut at = 0;
     while at + 4 <= extra.len() {
@@ -153,8 +150,6 @@ fn local_entry(reader: &mut impl Read) -> io::Result<Entry> {
     })
 }
 
-/// Inflates or reads one entry's data into a counter; answers the bytes it
-/// expanded to and the bytes it took from the archive.
 fn entry_bytes<R: BufRead>(reader: &mut R, entry: &Entry, budget: u64) -> UploadResult<(u64, u64)> {
     let over = |out: u64| out > budget;
     match entry.method {
@@ -165,13 +160,13 @@ fn entry_bytes<R: BufRead>(reader: &mut R, entry: &Entry, budget: u64) -> Upload
             if over(entry.compressed) {
                 return Err(refuse("entries expand past the decompressed limit"));
             }
-            skip(reader, entry.compressed).map_err(unreadable)?;
+            skip(reader, entry.compressed).map_err(|error| unreadable(&error))?;
             Ok((entry.compressed, entry.compressed))
         },
         METHOD_DEFLATE => {
             let mut inflater = DeflateDecoder::new(reader);
             let out = io::copy(&mut (&mut inflater).take(budget + 1), &mut io::sink())
-                .map_err(unreadable)?;
+                .map_err(|error| unreadable(&error))?;
             if over(out) {
                 return Err(refuse("entries expand past the decompressed limit"));
             }
@@ -183,7 +178,7 @@ fn entry_bytes<R: BufRead>(reader: &mut R, entry: &Entry, budget: u64) -> Upload
     }
 }
 
-fn unreadable(error: io::Error) -> UploadError {
+fn unreadable(error: &io::Error) -> UploadError {
     refuse(format!("the archive could not be read: {error}"))
 }
 
@@ -208,7 +203,7 @@ fn scan<R: BufRead>(
     let mut total: u64 = 0;
     loop {
         let at = reader.position;
-        match read_u32(&mut reader).map_err(unreadable)? {
+        match read_u32(&mut reader).map_err(|error| unreadable(&error))? {
             LOCAL_SIGNATURE => {},
             CENTRAL_SIGNATURE if at == directory.offset && entries.len() == 0 => break,
             CENTRAL_SIGNATURE => {
@@ -227,7 +222,7 @@ fn scan<R: BufRead>(
                 expected.offset
             )));
         }
-        let entry = local_entry(&mut reader).map_err(unreadable)?;
+        let entry = local_entry(&mut reader).map_err(|error| unreadable(&error))?;
         if entry.flags & FLAG_ENCRYPTED != 0 {
             return Err(refuse("encrypted entries are not accepted"));
         }
@@ -247,7 +242,7 @@ fn scan<R: BufRead>(
         }
         total += out;
         if entry.flags & FLAG_DESCRIPTOR != 0 {
-            descriptor(&mut reader, entry.zip64).map_err(unreadable)?;
+            descriptor(&mut reader, entry.zip64).map_err(|error| unreadable(&error))?;
         }
     }
     if directory.entries.is_empty() {

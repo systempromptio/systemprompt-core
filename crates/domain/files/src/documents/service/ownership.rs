@@ -26,8 +26,6 @@ use crate::documents::models::{Document, DocumentGrant, GrantActor, OwnerTransfe
 
 pub(super) const USER_SUBJECT: &str = "user";
 
-/// What made a share, beyond its actor: the agent that acted for them and,
-/// for a share made by a mention, the comment.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct ShareCause {
     pub(super) via_agent: Option<String>,
@@ -116,6 +114,10 @@ impl DocumentService {
         Ok(revoked)
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the share notice names the actor, the document, the grant, the message and the cause, each distinct"
+    )]
     pub(super) async fn announce_share(
         &self,
         who: &AuthenticatedUser,

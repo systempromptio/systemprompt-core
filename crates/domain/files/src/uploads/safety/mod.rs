@@ -30,8 +30,6 @@ use crate::config::UploadLimits;
 
 const SNIFF_BYTES: u64 = 8 * 1024;
 
-/// What an upload passed as: the MIME type recorded for it and, when the
-/// check rewrote it, the bytes to store in place of the upload.
 #[derive(Debug)]
 pub(crate) struct Inspected {
     pub(crate) detected_mime: String,

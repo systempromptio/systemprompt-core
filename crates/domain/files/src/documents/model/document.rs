@@ -21,7 +21,6 @@ pub struct DocumentSettings {
     pub theme: Option<Theme>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub numbering: Vec<NumberingDef>,
-    /// The page setup of the last section (the one no section break ends).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<Section>,
 }
@@ -102,7 +101,6 @@ pub struct NumberingLevel {
     pub text: String,
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub start: u32,
-    /// Left indent in points.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub indent: Option<u32>,
 }

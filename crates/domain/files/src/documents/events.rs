@@ -52,9 +52,6 @@ pub fn live_topic(document: &DocumentId) -> String {
     format!("{LIVE_TOPIC_PREFIX}{document}")
 }
 
-/// Who an event reaches. A per-recipient event (a share, a mention) names
-/// one person and may carry a private message, so it never goes to the
-/// document's live topic, where every viewer of the document would see it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Audience {
     Recipients,

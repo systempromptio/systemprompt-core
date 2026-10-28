@@ -7,35 +7,32 @@
 
 use axum::Json;
 use axum::body::Body;
-use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
 use axum::http::{Extensions, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use futures_util::StreamExt;
 use systemprompt_files::uploads::NewUpload;
 use systemprompt_identifiers::DocumentUploadId;
-use systemprompt_models::api::ApiError;
+use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_traits::FileStorageError;
 
-use super::principal::uploader;
+use super::principal::{unauthenticated, uploader};
 use super::views::{CompletedJson, CreateBody, UploadJson};
 use crate::error::ApiHttpError;
 use crate::routes::documents::DocumentsState;
 
 type UploadsResult = Result<Response, ApiHttpError>;
 
-pub(super) fn upload_id(raw: &str) -> Result<DocumentUploadId, ApiHttpError> {
-    Ok(DocumentUploadId::try_new(raw)?)
+pub(super) fn upload_id(raw: &str) -> Result<DocumentUploadId, IdValidationError> {
+    DocumentUploadId::try_new(raw)
 }
 
 pub(super) async fn create(
     State(state): State<DocumentsState>,
     extensions: Extensions,
-    body: Result<Json<CreateBody>, JsonRejection>,
+    Json(body): Json<CreateBody>,
 ) -> UploadsResult {
-    let who = uploader(&extensions)?;
-    let Json(body) =
-        body.map_err(|source| ApiError::bad_request("invalid request body").with_source(source))?;
+    let who = uploader(&extensions).ok_or_else(unauthenticated)?;
     let request = NewUpload {
         name: body.name,
         mime: body.mime,
@@ -51,7 +48,7 @@ pub(super) async fn status(
     extensions: Extensions,
     Path(id): Path<String>,
 ) -> UploadsResult {
-    let who = uploader(&extensions)?;
+    let who = uploader(&extensions).ok_or_else(unauthenticated)?;
     let progress = state.uploads.progress(&who.user, &upload_id(&id)?).await?;
     Ok(Json(UploadJson::from(progress)).into_response())
 }
@@ -62,7 +59,7 @@ pub(super) async fn put_part(
     Path((id, part)): Path<(String, u32)>,
     body: Body,
 ) -> UploadsResult {
-    let who = uploader(&extensions)?;
+    let who = uploader(&extensions).ok_or_else(unauthenticated)?;
     let stream = body
         .into_data_stream()
         .map(|chunk| chunk.map_err(|error| FileStorageError::Io(std::io::Error::other(error))));
@@ -83,7 +80,7 @@ pub(super) async fn complete(
     extensions: Extensions,
     Path(id): Path<String>,
 ) -> UploadsResult {
-    let who = uploader(&extensions)?;
+    let who = uploader(&extensions).ok_or_else(unauthenticated)?;
     let done = state.uploads.complete(&who.user, &upload_id(&id)?).await?;
     Ok(Json(CompletedJson::from(done)).into_response())
 }
@@ -93,7 +90,7 @@ pub(super) async fn abort(
     extensions: Extensions,
     Path(id): Path<String>,
 ) -> UploadsResult {
-    let who = uploader(&extensions)?;
+    let who = uploader(&extensions).ok_or_else(unauthenticated)?;
     state.uploads.abort(&who.user, &upload_id(&id)?).await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }

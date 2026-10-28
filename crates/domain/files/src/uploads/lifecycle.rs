@@ -26,8 +26,6 @@ impl UploadService {
         Ok(())
     }
 
-    /// Closes up to `limit` open sessions past their expiry and deletes
-    /// their stored bytes; answers how many it closed.
     pub async fn expire(&self, limit: i64) -> UploadResult<u64> {
         let mut expired = 0;
         for id in self.uploads.list_expired(limit).await? {

@@ -99,9 +99,10 @@ impl DocumentCommentRepository {
         Ok(row.into())
     }
 
-    /// Rewrites an author's comment and grants `comment` to the newly
-    /// mentioned users in `grants`; `false` when no live comment of that
-    /// author matched, in which case nothing was granted either.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one statement writes the comment's body, mentions and grants together, so each is its own bound value"
+    )]
     pub async fn update_body_granting(
         &self,
         document: &DocumentId,

@@ -49,8 +49,6 @@ fn token(request: &Request) -> Option<String> {
     })
 }
 
-/// Whether a write token may make this call: only the upload's own part
-/// PUTs, its completion and its progress.
 fn writable(method: &Method, rest: &str) -> bool {
     match (method, rest.split_once('/')) {
         (&Method::PUT, Some(("parts", part))) => !part.is_empty() && !part.contains('/'),

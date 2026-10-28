@@ -23,7 +23,6 @@ use systemprompt_files::documents::codecs::file::is_pdf;
 use systemprompt_files::documents::service::{HistoryPage, StreamRequest};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::{DocumentFormat, Projection};
 use systemprompt_provider_contracts::FrameOptions;
 use systemprompt_traits::{ByteRange, FileStorageError};
@@ -170,9 +169,6 @@ pub(super) async fn preview(
     Ok(response)
 }
 
-/// A `file` document whose bytes open as a PDF, served inline for the
-/// browser's viewer; `None` for any other file, which previews as HTML. The
-/// decision is the bytes' own, never the name or the stored type.
 async fn pdf_preview(
     state: &DocumentsState,
     who: &Caller,
@@ -194,7 +190,7 @@ async fn pdf_preview(
     let mut magic = Vec::new();
     while let Some(chunk) = read.body.next().await {
         magic.extend_from_slice(
-            &chunk.map_err(|source| ApiError::internal("document preview read failed", source))?,
+            &chunk.map_err(|source| DocumentsError::Blob(BlobStoreError::Storage(source)))?,
         );
     }
     if !is_pdf(&magic) {

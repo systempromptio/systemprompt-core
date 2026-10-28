@@ -2,7 +2,7 @@
 //!
 //! A stream that fits in one chunk is a single `PUT`. Anything longer
 //! opens a multipart upload (`POST ?uploads`), sends each chunk as a part
-//! (`PUT ?partNumber=n&uploadId=…`) and completes it with the parts' ETags
+//! (`PUT ?partNumber=n&uploadId=…`) and completes it with the parts' `ETag`s
 //! (`POST ?uploadId=…`). Only the chunk being sent is in memory. Any
 //! failure aborts the upload (`DELETE ?uploadId=…`) so no parts are left
 //! billed in the bucket, and so does a write cancelled mid-way (a dropped
@@ -34,11 +34,14 @@ fn upload_query(upload_id: &str) -> String {
 }
 
 fn complete_body(etags: &[String]) -> String {
-    let parts: String = etags
-        .iter()
-        .zip(1..)
-        .map(|(etag, n)| format!("<Part><PartNumber>{n}</PartNumber><ETag>{etag}</ETag></Part>"))
-        .collect();
+    use std::fmt::Write as _;
+    let mut parts = String::new();
+    for (etag, n) in etags.iter().zip(1..) {
+        let _written = write!(
+            parts,
+            "<Part><PartNumber>{n}</PartNumber><ETag>{etag}</ETag></Part>"
+        );
+    }
     format!("<CompleteMultipartUpload>{parts}</CompleteMultipartUpload>")
 }
 
@@ -184,7 +187,6 @@ impl S3FileStorage {
         }
     }
 
-    /// An owned copy of this backend, for an abort that outlives the call.
     fn detached(&self) -> Self {
         Self::new(
             self.params.clone(),
@@ -194,10 +196,6 @@ impl S3FileStorage {
     }
 }
 
-/// Aborts a multipart upload whose write was dropped mid-way (the client
-/// disconnected and the request future was cancelled), so its parts are not
-/// left billed in the bucket. The write disarms it once it has completed or
-/// aborted the upload itself.
 struct AbortGuard {
     storage: Option<S3FileStorage>,
     name: String,
@@ -222,7 +220,6 @@ impl Drop for AbortGuard {
     }
 }
 
-/// Why a streamed write failed: the stream itself, or S3.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum StreamPutError {
     #[error(transparent)]

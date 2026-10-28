@@ -1,15 +1,17 @@
-//! Signed upload tokens for the resumable upload API, for a client that
-//! holds no session cookie: an agent handed a session by
-//! `documents_upload`, or a link that downloads a completed upload.
+//! Signed upload tokens for the resumable upload API.
+//!
+//! They serve a client that holds no session cookie: an agent handed a
+//! session by `documents_upload`, or a link that downloads a completed
+//! upload.
 //!
 //! A token is a user JWT minted for the caller with **no permissions**, the
-//! audience [`UPLOAD_AUDIENCE`] (which the API's session middleware does not
+//! audience `UPLOAD_AUDIENCE` (which the API's session middleware does not
 //! accept, so it is no general credential), a fifteen-minute lifetime and a
 //! `purpose` naming one upload. A write token (`document_upload:<id>`)
 //! opens only that upload's `PUT /{id}/parts/{n}`, `POST /{id}/complete`
 //! and `GET /{id}` progress; a download token
 //! (`document_upload_download:<id>`) opens only its `GET|HEAD
-//! /{id}/content`. The token travels in the [`UPLOAD_TOKEN_HEADER`] header,
+//! /{id}/content`. The token travels in the `UPLOAD_TOKEN_HEADER` header,
 //! so it stays out of URLs and access logs; the `access_token` query is
 //! accepted only for a client that cannot set headers. The upload routes
 //! act as the token's subject, so the session's owner check still applies.

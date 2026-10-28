@@ -75,8 +75,6 @@ impl DocumentAccessService {
             .map(granted_ceiling))
     }
 
-    /// [`Self::level_of`] for many users at once: their subject pairs are
-    /// resolved per user, the grants are read in one query.
     pub async fn levels_of(
         &self,
         document: &Document,

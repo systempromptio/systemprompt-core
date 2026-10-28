@@ -1,4 +1,5 @@
-//! `documents_upload`: a file into the store as a blob an import can name.
+//! The `documents_upload` tool puts a file into the store as a blob an
+//! import can name.
 //!
 //! A body up to the inline limit (`files.documents.uploads.inlineMaxBytes`,
 //! 5 MiB by default) is sent as base64 in `content_base64` and answered
@@ -36,8 +37,8 @@ mod io;
 
 pub use io::{UploadInput, UploadMode, UploadOutput};
 
-pub(super) fn upload_error(error: UploadError) -> McpError {
-    let code = match &error {
+pub(super) fn upload_error(error: &UploadError) -> McpError {
+    let code = match error {
         UploadError::TooLarge { .. }
         | UploadError::QuotaExceeded { .. }
         | UploadError::PartBudgetExhausted { .. } => RefusalCode::TooLarge,
@@ -46,8 +47,9 @@ pub(super) fn upload_error(error: UploadError) -> McpError {
         UploadError::Storage(_)
         | UploadError::Repository(_)
         | UploadError::Blob(_)
-        | UploadError::Interrupted(_) => {
-            tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "document upload failed");
+        | UploadError::Interrupted(_)
+        | UploadError::Unanswered(_) => {
+            tracing::error!(error = %error, cause = ?std::error::Error::source(error), "document upload failed");
             return McpError::internal_error("the upload could not be stored", None);
         },
         _ => RefusalCode::InvalidParams,
@@ -88,10 +90,10 @@ impl UploadHandler<'_> {
         }
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(encoded.trim())
-            .map_err(|error| {
+            .map_err(|_undecodable| {
                 refusal(
                     RefusalCode::InvalidParams,
-                    format!("content_base64 is not base64: {error}"),
+                    "content_base64 is not valid base64".to_owned(),
                 )
             })?;
         let request = NewUpload {
@@ -103,7 +105,7 @@ impl UploadHandler<'_> {
         let done = service
             .put_inline(ctx.user_id(), request, bytes, ctx.trace_id())
             .await
-            .map_err(upload_error)?;
+            .map_err(|error| upload_error(&error))?;
         let summary = format!("uploaded as blob {} ({} bytes)", done.blob, done.size_bytes);
         Ok((
             UploadOutput {
@@ -141,12 +143,10 @@ impl UploadHandler<'_> {
         let session = uploads(self.tools)?
             .create(ctx.user_id(), request, ctx.trace_id())
             .await
-            .map_err(upload_error)?;
+            .map_err(|error| upload_error(&error))?;
         self.signed(&session, ctx)
     }
 
-    /// A fresh token for an upload the caller opened and has not finished,
-    /// for a client whose fifteen-minute token ran out mid-upload.
     async fn reissue(
         &self,
         upload_id: &DocumentUploadId,
@@ -155,9 +155,9 @@ impl UploadHandler<'_> {
         let progress = uploads(self.tools)?
             .progress(ctx.user_id(), upload_id)
             .await
-            .map_err(upload_error)?;
+            .map_err(|error| upload_error(&error))?;
         if progress.session.status != UploadStatus::Open {
-            return Err(upload_error(UploadError::Closed {
+            return Err(upload_error(&UploadError::Closed {
                 status: progress.session.status,
             }));
         }

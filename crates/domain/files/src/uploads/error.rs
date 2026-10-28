@@ -89,6 +89,8 @@ pub enum UploadError {
     Storage(#[from] FileStorageError),
     #[error("the upload completion stopped")]
     Interrupted(#[from] tokio::task::JoinError),
+    #[error("the upload completion ended without an answer")]
+    Unanswered(#[from] tokio::sync::oneshot::error::RecvError),
     #[error("upload repository failed")]
     Repository(#[from] RepositoryError),
     #[error("upload blob store failed")]
@@ -103,7 +105,6 @@ impl UploadError {
         }
     }
 
-    /// The stable code a transport answers this error with.
     #[must_use]
     pub const fn code(&self) -> &'static str {
         match self {
@@ -118,9 +119,11 @@ impl UploadError {
             Self::PartBudgetExhausted { .. } => "part_budget_exhausted",
             Self::MissingParts { .. } => "missing_parts",
             Self::Refused { reason, .. } => reason.as_str(),
-            Self::Storage(_) | Self::Repository(_) | Self::Blob(_) | Self::Interrupted(_) => {
-                "internal"
-            },
+            Self::Storage(_)
+            | Self::Repository(_)
+            | Self::Blob(_)
+            | Self::Interrupted(_)
+            | Self::Unanswered(_) => "internal",
         }
     }
 }

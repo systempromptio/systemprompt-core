@@ -13,7 +13,6 @@ use super::models::{Allowance, CompletedUpload, NewUpload, UploadSession};
 use super::service::UploadService;
 
 impl UploadService {
-    /// Uploads a body small enough to send in one call, as one session.
     pub async fn put_inline(
         &self,
         owner: &UserId,
@@ -32,9 +31,10 @@ impl UploadService {
             .await
     }
 
-    /// Uploads a body already held in memory (a multipart import or an
-    /// inline MCP body) as one session, through the same quota, checks and
-    /// completion as a resumable upload.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "a whole-body upload names its owner, request, bytes, trace and allowance, each distinct"
+    )]
     pub async fn put_whole(
         &self,
         owner: &UserId,

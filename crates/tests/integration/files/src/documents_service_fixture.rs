@@ -15,6 +15,7 @@ use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
     DocumentServiceParts, SubjectDirectory, SubjectDirectoryError, SubjectMatch,
 };
+use systemprompt_files::uploads::{UploadService, UploadServiceParts};
 use systemprompt_governance::authz::{
     AccessControlRepository, AllowAllHook, DenyAllHook, RuleType, SharedAuthzHook,
 };
@@ -27,6 +28,7 @@ use systemprompt_models::documents::ActorKind;
 use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_traits::{BackgroundTasks, FileStorage};
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -247,10 +249,20 @@ pub(crate) fn harness_on_db(
         Arc::new(subjects),
         Arc::new(directory),
     ));
+    let file_storage: Arc<dyn FileStorage> =
+        Arc::new(LocalFileStorage::new(storage.path().to_path_buf()));
     let blobs = Arc::new(BlobStore::new(
-        Arc::new(LocalFileStorage::new(storage.path().to_path_buf())),
+        Arc::clone(&file_storage),
         repos.blobs.clone(),
     ));
+    let uploads = Arc::new(UploadService::new(UploadServiceParts {
+        storage: file_storage,
+        uploads: Arc::clone(&repos.uploads),
+        blobs: Arc::clone(&blobs),
+        max_upload_bytes: config.max_upload_bytes,
+        limits: config.uploads,
+        tasks: BackgroundTasks::new(),
+    }));
     let broadcasters = Arc::new(EventBroadcasters::new());
     let events = Arc::new(DocumentEvents::new(Arc::new(EventRouter::local_only(
         Arc::clone(&broadcasters),
@@ -264,6 +276,7 @@ pub(crate) fn harness_on_db(
         events,
         config,
     });
+    service.attach_uploads(&uploads);
     Harness {
         service,
         repos,

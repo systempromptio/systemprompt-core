@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use systemprompt_identifiers::{DocumentUploadId, TraceId, UserId};
-use systemprompt_traits::{FileByteStream, FileStorage};
+use systemprompt_traits::{BackgroundTasks, FileByteStream, FileStorage};
 
 use super::error::{UploadError, UploadResult};
 use super::models::{
@@ -34,6 +34,7 @@ pub struct UploadService {
     pub(super) blobs: Arc<BlobStore>,
     pub(super) max_upload_bytes: u64,
     pub(super) limits: UploadLimits,
+    pub(super) tasks: BackgroundTasks,
 }
 
 impl std::fmt::Debug for UploadService {
@@ -53,6 +54,7 @@ pub struct UploadServiceParts {
     pub blobs: Arc<BlobStore>,
     pub max_upload_bytes: u64,
     pub limits: UploadLimits,
+    pub tasks: BackgroundTasks,
 }
 
 impl std::fmt::Debug for UploadServiceParts {
@@ -70,6 +72,7 @@ impl UploadService {
             blobs: parts.blobs,
             max_upload_bytes: parts.max_upload_bytes,
             limits: parts.limits,
+            tasks: parts.tasks,
         }
     }
 
@@ -92,7 +95,6 @@ impl UploadService {
         self.begin(owner, request, trace, Allowance::Session).await
     }
 
-    /// Opens a session under `allowance`: what it counts against.
     pub(super) async fn begin(
         &self,
         owner: &UserId,
@@ -105,8 +107,9 @@ impl UploadService {
             ..request
         };
         self.admit(&request)?;
-        let part_size = i64::try_from(self.limits.part_size_bytes)
-            .map_err(|_| UploadError::Invalid("part size is out of range".to_owned()))?;
+        let part_size = i64::try_from(self.limits.part_size_bytes).map_err(|_out_of_range| {
+            UploadError::Invalid("part size is out of range".to_owned())
+        })?;
         let ttl_hours = i32::try_from(self.limits.session_ttl_hours).unwrap_or(i32::MAX);
         let terms = SessionTerms {
             owner,
@@ -119,7 +122,7 @@ impl UploadService {
             quota_exempt: allowance.quota_exempt(),
         };
         let session = match self.uploads.insert_admitted(&request, terms).await? {
-            Admission::Admitted(session) => session,
+            Admission::Admitted(session) => *session,
             Admission::TooManyOpen { open } => {
                 return Err(UploadError::TooManyOpen {
                     open,

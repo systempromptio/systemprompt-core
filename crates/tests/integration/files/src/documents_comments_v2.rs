@@ -146,7 +146,12 @@ async fn mentioning_a_user_without_access_shares_the_document_as_comment() {
     assert_eq!(comment.mentions, vec![stranger.id.clone()]);
     let levels = h
         .service
-        .levels_on(&owner, &document, &[stranger.id.clone()], &trace())
+        .levels_on(
+            &owner,
+            &document,
+            std::slice::from_ref(&stranger.id),
+            &trace(),
+        )
         .await
         .expect("levels");
     assert_eq!(levels, vec![Some(AccessLevel::Comment)]);

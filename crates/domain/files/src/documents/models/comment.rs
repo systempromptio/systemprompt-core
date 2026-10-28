@@ -62,10 +62,11 @@ pub struct NewComment {
     pub via_agent: Option<String>,
 }
 
-/// The users a comment shares the document with because it mentions them
-/// while they hold no access: each gets a `comment` grant in the comment's
-/// own statement, audited as granted by `granted_by` with the comment as
-/// the reason.
+/// The users a comment shares the document with.
+///
+/// A comment shares it with users it mentions while they hold no access: each
+/// gets a `comment` grant in the comment's own statement, audited as granted by
+/// `granted_by` with the comment as the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MentionGrants {
     pub users: Vec<UserId>,

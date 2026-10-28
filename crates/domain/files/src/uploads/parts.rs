@@ -22,10 +22,7 @@ type RepoResult<T> = Result<T, RepositoryError>;
 /// What [`DocumentUploadRepository::swap_part`] did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartSwap {
-    /// The row now names the new object; `false` when the session had left
-    /// `open`, so nothing was recorded.
     pub written: bool,
-    /// The object the row named before, now unreferenced.
     pub previous: Option<String>,
 }
 
@@ -35,8 +32,6 @@ struct SwapRow {
 }
 
 impl DocumentUploadRepository {
-    /// Points the part's row at `part.storage_id`, only while the session
-    /// is still open, and answers the object it named before.
     pub async fn swap_part(
         &self,
         id: &DocumentUploadId,
@@ -90,7 +85,6 @@ impl DocumentUploadRepository {
         })
     }
 
-    /// Gives back the part budget a failed attempt reserved.
     pub async fn refund_part_bytes(&self, id: &DocumentUploadId, bytes: u64) -> RepoResult<()> {
         let bytes = i64::try_from(bytes)
             .map_err(|source| RepositoryError::decode("document_uploads.received_bytes", source))?;

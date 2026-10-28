@@ -10,7 +10,6 @@ use std::io::{self, BufRead, Read};
 use bytes::Bytes;
 use tokio::sync::mpsc;
 
-/// The storage stream as a blocking reader.
 pub(super) struct Pipe {
     receiver: mpsc::Receiver<io::Result<Bytes>>,
     current: Bytes,
@@ -39,8 +38,6 @@ impl Read for Pipe {
     }
 }
 
-/// A buffered reader that counts the bytes consumed, so the scan knows the
-/// archive offset of every header it reads.
 pub(super) struct Counted<R> {
     inner: R,
     pub(super) position: u64,

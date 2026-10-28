@@ -48,15 +48,12 @@ fn field(bytes: &[u8], at: usize, len: usize) -> UploadResult<u64> {
     le(bytes, at, len).ok_or_else(|| refuse("the central directory is malformed"))
 }
 
-/// One central-directory entry: where its local header starts and how many
-/// compressed bytes its data takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct Expected {
     pub(super) offset: u64,
     pub(super) compressed: u64,
 }
 
-/// The directory the scan checks the local entries against.
 #[derive(Debug)]
 pub(super) struct Directory {
     pub(super) entries: Vec<Expected>,

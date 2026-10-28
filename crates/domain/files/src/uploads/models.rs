@@ -111,15 +111,8 @@ pub struct UploadPart {
 /// What a session counts against.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Allowance {
-    /// A resumable upload: held to the open-session cap and the daily quota.
     Session,
-    /// Opened and finished in one call (an import, an inline body): not
-    /// held to the open-session cap, still counted toward the daily quota.
     OneShot,
-    /// A save of an existing document (a bridge drive write, a REST
-    /// whole-file write): every content check still runs, but repeated
-    /// saves of one document do not spend the daily quota. Each save stays
-    /// bounded by `maxUploadBytes` and the request rate limits.
     Save,
 }
 
@@ -177,10 +170,6 @@ pub struct BlobOrigin {
 }
 
 impl BlobOrigin {
-    /// Whether the bytes passed the check a document of `format` must
-    /// pass before its codec parses them: the zip guard for an Office or
-    /// OpenDocument format, the text check for HTML, Markdown and text. A
-    /// `file` document is never parsed, so any blob may become one.
     #[must_use]
     pub fn admits(&self, format: DocumentFormat) -> bool {
         let checked = self.checked_kind.as_deref();

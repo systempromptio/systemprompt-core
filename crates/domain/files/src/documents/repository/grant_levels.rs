@@ -14,7 +14,6 @@ use super::rows::RepoResult;
 use crate::documents::models::SubjectPairs;
 
 impl DocumentGrantRepository {
-    /// One level per entry of `subjects`, in order; `None` for no grant.
     pub async fn effective_levels(
         &self,
         document_id: &DocumentId,

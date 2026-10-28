@@ -15,7 +15,7 @@ use systemprompt_files::uploads::UploadError;
 use systemprompt_traits::{ByteRange, FileStorageError};
 
 use super::handlers::upload_id;
-use super::principal::uploader;
+use super::principal::{unauthenticated, uploader};
 use crate::error::ApiHttpError;
 use crate::routes::documents::DocumentsState;
 use crate::routes::user_content::{USER_CONTENT_CSP, harden};
@@ -27,7 +27,7 @@ pub(super) async fn content(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Result<Response, ApiHttpError> {
-    let who = uploader(&extensions)?;
+    let who = uploader(&extensions).ok_or_else(unauthenticated)?;
     let range = (method == Method::GET)
         .then(|| {
             headers

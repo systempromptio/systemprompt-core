@@ -40,8 +40,6 @@ pub struct ShareRequest {
     pub level: AccessLevel,
     pub valid_until: Option<DateTime<Utc>>,
     pub message: Option<String>,
-    /// The agent sharing for the caller, when one is; recorded on the grant's
-    /// audit row and carried on `document.shared`.
     pub via_agent: Option<String>,
 }
 

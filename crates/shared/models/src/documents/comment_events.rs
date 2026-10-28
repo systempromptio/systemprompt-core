@@ -37,8 +37,10 @@ impl DocumentCommentDeletedEvent {
     pub const NAME: &'static str = "document.comment.deleted";
 }
 
-/// The notice one mentioned user receives, and the input contract of the
-/// notifications project (`v` = [`MENTION_EVENT_VERSION`]). `author_id` is
+/// The notice one mentioned user receives.
+///
+/// It is the input contract of the notifications project
+/// (`v` = [`MENTION_EVENT_VERSION`]). `author_id` is
 /// the acting user; `via_agent` names the agent that wrote the comment for
 /// them. `mentions` is the comment's whole mention list and `granted` the
 /// users this comment gave `comment` access. `excerpt` is the start of the
@@ -46,11 +48,6 @@ impl DocumentCommentDeletedEvent {
 /// read by `comment_id`. Fields after `author_id` default when absent, so a
 /// frame from an older server still decodes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "the document event wire vocabulary names every reference document_id, comment_id, \
-              mentioned_user_id and author_id, as the sibling events do"
-)]
 pub struct DocumentCommentMentionedEvent {
     pub document_id: DocumentId,
     pub comment_id: DocumentCommentId,
@@ -74,7 +71,6 @@ pub struct DocumentCommentMentionedEvent {
 
 pub const MENTION_EVENT_VERSION: u32 = 1;
 
-/// The excerpt length of [`DocumentCommentMentionedEvent::excerpt`], in chars.
 pub const MENTION_EXCERPT_CHARS: usize = 280;
 
 impl DocumentCommentMentionedEvent {

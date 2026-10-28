@@ -109,8 +109,6 @@ async fn discard(staging: &Path) {
     }
 }
 
-/// Removes a streamed write's staging file on every exit but a published
-/// one: an error, or the request future being dropped mid-stream.
 struct StagingGuard(Option<PathBuf>);
 
 impl Drop for StagingGuard {

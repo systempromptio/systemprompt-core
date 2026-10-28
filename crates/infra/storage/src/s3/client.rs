@@ -88,8 +88,6 @@ impl S3FileStorage {
         self.call(call).await
     }
 
-    /// One signed request. `query` is the canonical query string (sorted
-    /// keys, values encoded), sent as the URL's query unchanged.
     pub(crate) async fn call(&self, call: Call<'_>) -> Result<Response, S3Error> {
         let (mut url, host) = self.object_url(call.name)?;
         if !call.query.is_empty() {

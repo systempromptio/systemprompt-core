@@ -8,8 +8,6 @@
 use futures::StreamExt;
 use systemprompt_traits::{FileByteStream, FileStorageError};
 
-/// The part size both multipart backends send: above S3's 5 MiB minimum
-/// part and a multiple of Cloud Storage's 256 KiB chunk granularity.
 pub(crate) const CHUNK_BYTES: usize = 8 * 1024 * 1024;
 
 pub(crate) struct Chunks {
@@ -27,8 +25,6 @@ impl Chunks {
         }
     }
 
-    /// The next chunk of exactly [`CHUNK_BYTES`], or the shorter remainder
-    /// at the end of the stream; `None` once the stream is exhausted.
     pub(crate) async fn next(&mut self) -> Result<Option<Vec<u8>>, FileStorageError> {
         while !self.finished && self.pending.len() < CHUNK_BYTES {
             match self.body.next().await {
@@ -45,8 +41,6 @@ impl Chunks {
     }
 }
 
-/// The chunks of a stream with one chunk of lookahead, so the sender knows
-/// which one is the last.
 pub(crate) struct Lookahead {
     chunks: Chunks,
     next: Option<Vec<u8>>,
@@ -59,7 +53,6 @@ impl Lookahead {
         Ok(Self { chunks, next })
     }
 
-    /// The next chunk and whether it is the last one.
     pub(crate) async fn next(&mut self) -> Result<Option<(Vec<u8>, bool)>, FileStorageError> {
         let Some(current) = self.next.take() else {
             return Ok(None);

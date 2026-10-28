@@ -214,7 +214,7 @@ fn write_block(out: &mut String, block: &Block) {
             out.push_str(if *ordered { "1. " } else { "- " });
             out.push_str(&inline());
         },
-        BlockKind::Quote => {
+        BlockKind::Quote | BlockKind::Callout { .. } => {
             out.push_str("> ");
             out.push_str(&inline().replace('\n', "\n> "));
         },
@@ -227,10 +227,6 @@ fn write_block(out: &mut String, block: &Block) {
         },
         BlockKind::Table { rows, .. } => write_table(out, rows),
         BlockKind::Image { blob, alt, .. } => out.push_str(&format!("![{alt}]({blob})")),
-        BlockKind::Callout { .. } => {
-            out.push_str("> ");
-            out.push_str(&inline().replace('\n', "\n> "));
-        },
         BlockKind::Divider
         | BlockKind::PageBreak
         | BlockKind::SectionBreak { .. }

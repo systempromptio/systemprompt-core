@@ -9,7 +9,7 @@
 //! `document_blobs`. The blob's hash is the `blob_ref` an import names.
 //!
 //! Sessions are bounded per user by the `files.documents.uploads` limits
-//! ([`UploadLimits`](crate::UploadLimits)); [`job`] closes the ones left
+//! ([`UploadLimits`](crate::UploadLimits)); [`jobs`] closes the ones left
 //! open past their lifetime. An unimported blob is collected by the
 //! document blob GC after its grace period, like any unreferenced blob.
 //!
@@ -22,7 +22,7 @@ mod claims;
 mod complete;
 pub mod error;
 mod ingest;
-pub mod job;
+pub mod jobs;
 mod lifecycle;
 pub mod models;
 mod parts;
@@ -34,7 +34,7 @@ mod whole;
 
 pub use error::{RefusalReason, UploadError, UploadResult};
 pub use ingest::Ingested;
-pub use job::DocumentUploadExpiryJob;
+pub use jobs::DocumentUploadExpiryJob;
 pub use models::{
     Allowance, BlobOrigin, CompletedUpload, NewUpload, UploadPart, UploadProgress, UploadSession,
     UploadStatus,

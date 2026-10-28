@@ -156,7 +156,7 @@ fn a_markdown_image_goes_in_after_a_source_line() {
 }
 
 #[test]
-fn a_docx_image_is_refused() {
+fn a_docx_image_is_inserted() {
     let bytes = fixture();
     let ids = project(&bytes);
     let heading = ids
@@ -168,14 +168,8 @@ fn a_docx_image_is_refused() {
         blob: "https://cdn.example.com/chart.png".to_owned(),
         alt: String::new(),
     });
-    let error = apply_rich_ops(DocumentFormat::Docx, &bytes, &ids, &[op]).expect_err("refused");
-    assert!(matches!(
-        error,
-        CodecError::UnsupportedOp {
-            op: "insert_image",
-            ..
-        }
-    ));
+    let applied = apply_rich_ops(DocumentFormat::Docx, &bytes, &ids, &[op]).expect("inserted");
+    assert_ne!(applied, bytes);
 }
 
 #[test]

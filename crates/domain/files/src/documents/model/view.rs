@@ -13,6 +13,16 @@ use serde::{Deserialize, Serialize};
 
 use super::rich_text::{RICH_TEXT_VERSION, RichText};
 
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error(
+    "model view {kind} v{version} is not supported (this server reads rich_text up to v{supported})"
+)]
+pub struct UnsupportedModelView {
+    pub kind: String,
+    pub version: u32,
+    pub supported: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ModelViewV2 {
     #[serde(default = "current")]
@@ -33,13 +43,13 @@ impl ModelViewV2 {
         }
     }
 
-    /// The model, if this view is a version this build understands.
-    pub fn into_model(self) -> Result<RichText, String> {
+    pub fn into_model(self) -> Result<RichText, UnsupportedModelView> {
         if self.version > RICH_TEXT_VERSION || self.kind != "rich_text" {
-            return Err(format!(
-                "model view {} v{} is not supported (this server reads rich_text up to v{})",
-                self.kind, self.version, RICH_TEXT_VERSION
-            ));
+            return Err(UnsupportedModelView {
+                kind: self.kind,
+                version: self.version,
+                supported: RICH_TEXT_VERSION,
+            });
         }
         Ok(self.model)
     }

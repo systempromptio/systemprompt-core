@@ -16,19 +16,20 @@ pub(super) struct Uploader {
     pub(super) trace: TraceId,
 }
 
-/// Set by the token gate on a request it authorized from a signed URL.
 #[derive(Debug, Clone)]
 pub(super) struct TokenUploader(pub(super) Uploader);
 
-pub(super) fn uploader(extensions: &Extensions) -> Result<Uploader, ApiHttpError> {
+pub(super) fn uploader(extensions: &Extensions) -> Option<Uploader> {
     if let Some(TokenUploader(uploader)) = extensions.get::<TokenUploader>() {
-        return Ok(uploader.clone());
+        return Some(uploader.clone());
     }
-    let ctx = extensions
-        .get::<RequestContext>()
-        .ok_or_else(|| ApiHttpError::unauthorized("upload routes need an authenticated session"))?;
-    Ok(Uploader {
+    let ctx = extensions.get::<RequestContext>()?;
+    Some(Uploader {
         user: ctx.user_id().clone(),
         trace: ctx.trace_id().clone(),
     })
+}
+
+pub(super) fn unauthenticated() -> ApiHttpError {
+    ApiHttpError::unauthorized("upload routes need an authenticated session")
 }

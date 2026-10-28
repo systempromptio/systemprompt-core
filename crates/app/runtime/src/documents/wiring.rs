@@ -16,7 +16,7 @@ use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
     DocumentServiceParts, DocumentsError, SubjectDirectory,
 };
-use systemprompt_files::uploads::{DocumentUploadRepository, UploadService, UploadServiceParts};
+use systemprompt_files::uploads::{UploadService, UploadServiceParts};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_traits::{BackgroundTasks, FileStorage};
@@ -99,10 +99,11 @@ impl DocumentsRuntime {
         ));
         let uploads = Arc::new(UploadService::new(UploadServiceParts {
             storage: file_storage,
-            uploads: Arc::new(DocumentUploadRepository::new(&database)),
+            uploads: Arc::clone(&repositories.uploads),
             blobs: Arc::clone(&blobs),
             max_upload_bytes: config.max_upload_bytes,
             limits: config.uploads,
+            tasks: background_tasks.clone(),
         }));
         let service = Arc::new(DocumentService::new(DocumentServiceParts {
             repos: Arc::clone(&repositories),

@@ -22,10 +22,6 @@ const OFFICE_PREFIXES: [&str; 2] = [
     "application/vnd.oasis.opendocument.",
 ];
 
-/// The kind a declared MIME type must sniff as. A well-formed type this
-/// module has no check for is [`Kind::Opaque`]: stored as given, never
-/// parsed, and served only as `application/octet-stream`. `None` means the
-/// declaration is not a MIME type at all.
 pub(crate) fn declared_kind(mime: &str) -> Option<Kind> {
     let mime = mime
         .split(';')
@@ -64,9 +60,6 @@ fn well_formed(mime: &str) -> bool {
         .is_some_and(|(kind, subtype)| token(kind) && token(subtype))
 }
 
-/// Whether the first bytes are what the declared kind must be. SVG is text
-/// that opens an `<svg` element; any other text is only text, so an HTML
-/// page with an inline drawing still sniffs as the text it was declared.
 pub(crate) fn matches(expected: Kind, head: &[u8]) -> bool {
     match (expected, sniff(head)) {
         (Kind::Opaque, _) => true,
@@ -77,8 +70,6 @@ pub(crate) fn matches(expected: Kind, head: &[u8]) -> bool {
     }
 }
 
-/// The kind the first bytes of an upload are, judged from magic bytes; text
-/// is valid UTF-8 without NUL bytes.
 pub(crate) fn sniff(head: &[u8]) -> Option<Kind> {
     let magic: [(&[u8], Kind); 6] = [
         (b"PK\x03\x04", Kind::Zip),
@@ -108,13 +99,11 @@ fn utf8_prefix(head: &[u8]) -> Option<&str> {
     }
 }
 
-/// Whether the first bytes open a zip archive, whatever was declared.
 pub(crate) fn is_zip(head: &[u8]) -> bool {
     head.starts_with(b"PK\x03\x04")
 }
 
 impl Kind {
-    /// The name recorded on the upload for the check this kind passed.
     pub(crate) const fn as_str(self) -> &'static str {
         match self {
             Self::Zip => "zip",
@@ -130,7 +119,6 @@ impl Kind {
     }
 }
 
-/// The MIME type recorded for a sniffed kind.
 pub(crate) const fn detected_mime(kind: Kind, declared: &str) -> &str {
     match kind {
         Kind::Zip | Kind::Text => declared,

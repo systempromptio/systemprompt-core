@@ -52,10 +52,6 @@ pub trait SubjectDirectory: Send + Sync {
 
     async fn roles(&self) -> Result<Vec<String>, SubjectDirectoryError>;
 
-    /// Whether `user` is an active person: the only kind of user a document
-    /// is shared with or a comment mentions. A directory that tells people
-    /// from service accounts overrides this; the default counts every active
-    /// user.
     async fn is_person(&self, user: &UserId) -> Result<bool, SubjectDirectoryError> {
         Ok(self.roles_of(user).await?.is_some())
     }

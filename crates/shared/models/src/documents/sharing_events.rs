@@ -1,7 +1,8 @@
-//! Payloads of the sharing events: a document shared with someone (by a
-//! grant or by a mention), an access request, and an ownership transfer.
-//! Each names its recipient and reaches only them, never the document's
-//! live topic.
+//! Payloads of the sharing events.
+//!
+//! A document shared with someone (by a grant or by a mention), an access
+//! request, and an ownership transfer each name their recipient and reach
+//! only them, never the document's live topic.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,7 +30,6 @@ pub struct DocumentSharedEvent {
     pub v: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub via_agent: Option<String>,
-    /// Set when a mention in this comment shared the document.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment_id: Option<DocumentCommentId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

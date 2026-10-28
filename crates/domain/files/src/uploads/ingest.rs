@@ -24,8 +24,6 @@ pub struct Ingested {
     pub mime: String,
 }
 
-/// The type a `file` document is declared as from its extension, so the
-/// kinds that have a check (PDF, images, SVG) go through it.
 fn file_mime(name: &str) -> &'static str {
     let extension = name
         .rsplit_once('.')
@@ -42,6 +40,10 @@ fn file_mime(name: &str) -> &'static str {
 }
 
 impl UploadService {
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the owner, name, format, bytes, trace and allowance are each needed by the upload the check runs as"
+    )]
     pub async fn ingest(
         &self,
         owner: &UserId,

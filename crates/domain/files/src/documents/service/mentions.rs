@@ -38,18 +38,12 @@ pub struct CommentOrigin {
     pub via_agent: Option<String>,
 }
 
-/// The checked mention list and the mentioned users the comment shares the
-/// document with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct MentionPlan {
     pub(super) mentions: Vec<UserId>,
     pub(super) grants: MentionGrants,
 }
 
-/// What a comment says about its mentions: its body, whose
-/// `@[Name](user:<id>)` tokens are the mention list, the ids the caller
-/// passed (each must appear as a token), and the users the comment already
-/// mentioned before an edit, who are neither re-checked nor re-shared with.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct MentionInput<'a> {
     pub(super) body: &'a str,
@@ -61,11 +55,6 @@ const TOKEN_OPEN: &str = "@[";
 const TOKEN_LINK: &str = "(user:";
 const MAX_LABEL_CHARS: usize = 120;
 
-/// The token at the start of `text` (just after `@[`), as its user id and
-/// the length it spans: `Name](user:<id>)` with a label of 1 to 120 chars
-/// holding none of `[]()` or a newline, and an id with no whitespace or `)`.
-/// The workspace's chip pattern is the same grammar, so every id here
-/// renders as a chip.
 fn token_at(text: &str) -> Option<(&str, usize)> {
     let label_end = text.find(']')?;
     let label = &text[..label_end];
@@ -83,10 +72,6 @@ fn token_at(text: &str) -> Option<(&str, usize)> {
     Some((id, label_end + 1 + TOKEN_LINK.len() + close + 1))
 }
 
-/// The user ids of the body's `@[Name](user:<id>)` tokens, in order, once
-/// each. Any other `@[` followed by `](user:` is a token that breaks the
-/// grammar, and the body is refused rather than read as text that grants
-/// nothing but looks like a mention.
 pub(super) fn token_ids(body: &str) -> Result<Vec<UserId>, DocumentsError> {
     let mut ids: Vec<UserId> = Vec::new();
     let mut rest = body;
@@ -108,8 +93,6 @@ pub(super) fn token_ids(body: &str) -> Result<Vec<UserId>, DocumentsError> {
     Ok(ids)
 }
 
-/// Whether `text` (just after `@[`) reaches `](user:` before the next `@[`
-/// or newline: an attempted token.
 fn looks_like_token(text: &str) -> bool {
     let stop = [text.find(TOKEN_OPEN), text.find('\n')]
         .into_iter()
@@ -135,9 +118,6 @@ fn checked(input: &MentionInput<'_>) -> Result<Vec<UserId>, DocumentsError> {
 }
 
 impl DocumentService {
-    /// The level each of `users` holds on `document`, `None` for no access,
-    /// for a caller who can comment there (and so could mention them): what
-    /// the people picker shows beside each match.
     pub async fn levels_on(
         &self,
         who: &AuthenticatedUser,
@@ -201,9 +181,10 @@ impl DocumentService {
         })
     }
 
-    /// After a comment landed: the `document.shared` event for each user it
-    /// shared the document with, and the mention event for each user in
-    /// `mentioned`.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the mention notice names the actor, the document, the comment, the mentioned users and the grants, each distinct"
+    )]
     pub(super) async fn announce_mentions(
         &self,
         who: &AuthenticatedUser,

@@ -7,7 +7,7 @@
 //! downloadable like any other. Only the user who uploaded a blob may
 //! import it, and an editable format is imported only from an upload that
 //! passed that format's content check (the zip guard for Office and
-//! OpenDocument, the text check for HTML, Markdown and text); anything
+//! `OpenDocument`, the text check for HTML, Markdown and text); anything
 //! else answers `422 unchecked_format`. A blob past the
 //! document upload limit is refused with `413`, never truncated, and the
 //! format's codec must parse it whole before the document is created.
@@ -58,10 +58,6 @@ pub(super) async fn import(
     Ok((StatusCode::CREATED, Json(created)).into_response())
 }
 
-/// A document from a blob the caller uploaded: the one import path both
-/// `POST /import` and the multipart `POST /` take, so the format is
-/// resolved, the blob's content check enforced and its recorded MIME type
-/// used the same way for both.
 pub(super) async fn import_blob(
     state: &DocumentsState,
     req_ctx: &RequestContext,

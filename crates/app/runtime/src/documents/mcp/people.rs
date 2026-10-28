@@ -1,8 +1,9 @@
-//! `documents_people`: finds the active people a caller can mention or share
-//! with, by name, email or id prefix, through the store's subject search
-//! (the one directory authority). With `document_id`, each match carries the
-//! level it already holds there, so an agent knows who a mention would share
-//! the document with; reading that needs comment on the document.
+//! The `documents_people` tool finds people a caller can mention or share with.
+//!
+//! It searches active people by name, email or id prefix through the store's
+//! subject search (the one directory authority). With `document_id`, each match
+//! carries the level it already holds there, so an agent knows who a mention
+//! would share the document with; reading that needs comment on the document.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

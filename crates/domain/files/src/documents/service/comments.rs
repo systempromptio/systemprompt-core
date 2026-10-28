@@ -80,8 +80,6 @@ impl DocumentService {
             .await
     }
 
-    /// Creates a comment as `who`, written by `origin`; a mentioned user
-    /// without access is shared with in the same statement (`mentions`).
     pub async fn create_comment_from(
         &self,
         who: &AuthenticatedUser,

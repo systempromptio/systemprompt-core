@@ -133,5 +133,4 @@ impl MarkKind {
     ];
 }
 
-/// The field codes a `field` mark may carry.
 pub const FIELD_CODES: [&str; 3] = ["PAGE", "NUMPAGES", "DATE"];

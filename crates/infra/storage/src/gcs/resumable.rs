@@ -139,9 +139,6 @@ impl GcsFileStorage {
     }
 }
 
-/// Cancels a resumable session whose write was dropped mid-way (the request
-/// future was cancelled). The write disarms it once it has finished or
-/// cancelled the session itself.
 struct CancelGuard {
     http: Option<reqwest::Client>,
     session: Url,
@@ -163,7 +160,6 @@ impl Drop for CancelGuard {
     }
 }
 
-/// Why a streamed write failed: the stream itself, or Cloud Storage.
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum StreamUploadError {
     #[error(transparent)]

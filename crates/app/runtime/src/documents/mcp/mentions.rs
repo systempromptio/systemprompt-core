@@ -23,9 +23,6 @@ const MAX_MENTIONS: usize = 20;
 
 const MAX_AGENT_NAME: usize = 64;
 
-/// The agent named on the request, as the comment and grant audit record
-/// it: at most 64 chars of letters, digits, `-`, `_`, `.`, `:` or `/`, with
-/// anything else (a free-text name a client sent) recorded as `agent`.
 pub(super) fn agent_origin(ctx: &RequestContext) -> CommentOrigin {
     let name = ctx.agent_name().as_str();
     let allowed = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
@@ -35,7 +32,6 @@ pub(super) fn agent_origin(ctx: &RequestContext) -> CommentOrigin {
     }
 }
 
-/// A comment body with its mentions written as tokens, and their ids.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct ResolvedMentions {
     pub(super) body: String,
@@ -44,8 +40,6 @@ pub(super) struct ResolvedMentions {
 
 const MAX_LABEL_CHARS: usize = 120;
 
-/// A token label the workspace renders as a chip: 1 to 120 chars with no
-/// brackets, parentheses or newlines, falling back to the email, then the id.
 fn label_of(user: &User) -> String {
     let clean = |name: &str| -> String {
         name.replace(['[', ']', '(', ')', '\n'], " ")
@@ -67,10 +61,6 @@ fn label_of(user: &User) -> String {
     .unwrap_or_else(|| user.id.as_str().to_owned())
 }
 
-/// The byte range of the first `@<mention>` in `body` that ends at a word
-/// boundary (whitespace, punctuation other than `.@-_`, or the end), compared
-/// ASCII-case-insensitively (an id or email is ASCII, and ASCII folding keeps
-/// every byte offset), so `@bob` never matches inside `@bobby`.
 fn plain_mention(body: &str, mention: &str) -> Option<std::ops::Range<usize>> {
     let needle = format!("@{}", mention.to_ascii_lowercase());
     let lower = body.to_ascii_lowercase();
@@ -97,9 +87,10 @@ async fn find_person(users: &UserRepository, mention: &UserId) -> Result<User, M
     };
     found
         .map_err(|error| {
+            tracing::warn!(error = %error, "a mentioned user could not be looked up");
             refusal(
                 RefusalCode::UnknownSubject,
-                format!("could not look up {mention}: {error}"),
+                format!("could not look up {mention}"),
             )
         })?
         .filter(|user| user.is_active() && !user.is_service_account())
@@ -114,11 +105,6 @@ async fn find_person(users: &UserRepository, mention: &UserId) -> Result<User, M
         })
 }
 
-/// Resolves each mention (a user id or an email, compared lower-cased),
-/// once each and at most 20, to an active person and
-/// writes it into the body as `@[Name](user:<id>)`: a plain `@<id>` or
-/// `@<email>` in the body becomes the token, and a mention the body does not
-/// name yet is appended, so the body always carries what it mentions.
 pub(super) async fn resolve_mentions(
     users: &UserRepository,
     mentions: Vec<UserId>,

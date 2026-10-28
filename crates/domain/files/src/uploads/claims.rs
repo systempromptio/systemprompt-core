@@ -14,8 +14,6 @@ use super::repository::DocumentUploadRepository;
 type RepoResult<T> = Result<T, RepositoryError>;
 
 impl DocumentUploadRepository {
-    /// Claims an open, unexpired upload for completion; `false` when it is
-    /// no longer open (completed, closed or claimed by another completion).
     pub async fn claim(&self, id: &DocumentUploadId) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE document_uploads SET status = 'completing', claimed_at = CURRENT_TIMESTAMP
@@ -27,7 +25,6 @@ impl DocumentUploadRepository {
         Ok(result.rows_affected() == 1)
     }
 
-    /// Refreshes a running completion's claim so the expiry job leaves it.
     pub async fn touch_claim(&self, id: &DocumentUploadId) -> RepoResult<()> {
         sqlx::query!(
             "UPDATE document_uploads SET claimed_at = CURRENT_TIMESTAMP
@@ -39,8 +36,6 @@ impl DocumentUploadRepository {
         Ok(())
     }
 
-    /// Records the check a blob passed on the uploads that produced it, for
-    /// an upload completed before checks were recorded.
     pub async fn set_checked_kind(
         &self,
         owner: &UserId,
@@ -60,8 +55,6 @@ impl DocumentUploadRepository {
         Ok(())
     }
 
-    /// Hands a claimed upload back to `open` after a completion failed for a
-    /// reason the caller may retry.
     pub async fn release(&self, id: &DocumentUploadId) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE document_uploads SET status = 'open', claimed_at = NULL
@@ -95,8 +88,6 @@ impl DocumentUploadRepository {
         Ok(result.rows_affected() == 1)
     }
 
-    /// Closes an upload that is still in `from`; `false` when another call
-    /// moved it first.
     pub async fn mark_closed(
         &self,
         id: &DocumentUploadId,
@@ -130,11 +121,6 @@ impl DocumentUploadRepository {
         .await?)
     }
 
-    /// Deletes the blob row a lost completion created, unless a revision, an
-    /// edit session or a completed upload references it, or another
-    /// completion of the same bytes is still running (it may have adopted
-    /// the row and not yet recorded it); answers the
-    /// object to delete when the row went.
     pub async fn withdraw_blob(&self, blob: &ContentHash) -> RepoResult<Option<String>> {
         Ok(sqlx::query_scalar!(
             r#"DELETE FROM document_blobs b WHERE b.content_sha256 = $1
@@ -155,8 +141,6 @@ impl DocumentUploadRepository {
         .await?)
     }
 
-    /// What a completed upload of `owner` recorded for `blob`, or `None`
-    /// when `owner` never uploaded it.
     pub async fn find_blob_origin(
         &self,
         owner: &UserId,

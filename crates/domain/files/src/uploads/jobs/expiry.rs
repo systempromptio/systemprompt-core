@@ -9,10 +9,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionContext;
-use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
+use systemprompt_traits::{
+    BackgroundTasks, Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
+};
 
-use super::repository::DocumentUploadRepository;
-use super::service::{UploadService, UploadServiceParts};
+use super::super::repository::DocumentUploadRepository;
+use super::super::service::{UploadService, UploadServiceParts};
 use crate::FilesConfig;
 use crate::documents::blob_store::BlobStore;
 use crate::documents::repository::DocumentBlobRepository;
@@ -58,6 +60,7 @@ impl Job for DocumentUploadExpiryJob {
             blobs,
             max_upload_bytes: documents.max_upload_bytes,
             limits: documents.uploads,
+            tasks: BackgroundTasks::new(),
         });
         let expired = service
             .expire(BATCH)

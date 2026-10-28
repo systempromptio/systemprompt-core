@@ -78,7 +78,6 @@ fn read_settings(doc: &LoroDoc) -> Option<Box<DocumentSettings>> {
     serde_json::from_str(&json).ok().map(Box::new)
 }
 
-/// Writes the document settings when they differ from what the doc holds.
 pub fn sync_settings(doc: &LoroDoc, settings: Option<&DocumentSettings>) -> Result<(), WriteError> {
     let map = doc.get_map(DOCUMENT_CONTAINER);
     let held = string_of(&map, "settings");

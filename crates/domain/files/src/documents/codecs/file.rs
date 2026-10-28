@@ -35,8 +35,6 @@ fn factory() -> Arc<dyn DocumentCodec> {
 
 register_document_codec!(factory);
 
-/// The image type of `bytes` from its magic bytes, if it is one the
-/// preview shows.
 #[must_use]
 pub fn image_mime(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
@@ -80,13 +78,15 @@ impl DocumentCodec for FileCodec {
         _base: &Projection,
         ops: &[EditOp],
     ) -> Result<Vec<u8>, CodecError> {
-        match ops.first() {
-            None => Ok(bytes.to_vec()),
-            Some(op) => Err(CodecError::UnsupportedOp {
-                op: op.name(),
-                format: DocumentFormat::File,
-            }),
-        }
+        ops.first().map_or_else(
+            || Ok(bytes.to_vec()),
+            |op| {
+                Err(CodecError::UnsupportedOp {
+                    op: op.name(),
+                    format: DocumentFormat::File,
+                })
+            },
+        )
     }
 
     fn preview_html(&self, bytes: &[u8]) -> Result<String, CodecError> {

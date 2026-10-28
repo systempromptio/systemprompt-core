@@ -6,9 +6,9 @@
 //! never served, and [`BlobStore::put`] removes an object it just stored
 //! when the row cannot be written.
 //!
-//! [`BlobStore::adopt`] (in `blob_adopt`) registers an object already written
-//! elsewhere (an assembled upload) under its verified hash; when the hash
-//! already has a row, the adopted object is the duplicate and is removed.
+//! [`BlobStore::adopt`] (in `blob_adopt`) registers an object already
+//! written elsewhere (an assembled upload) under its verified hash, moving
+//! it to the same content-addressed path a `put` uses.
 //!
 //! Garbage collection deletes the row first, because the repository refuses
 //! to delete a row a revision or edit session still references; only then is
