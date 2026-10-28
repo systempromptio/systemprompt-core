@@ -31,6 +31,8 @@ mod execute;
 #[cfg(test)]
 mod execute_paths;
 #[cfg(test)]
+mod execute_preflight;
+#[cfg(test)]
 mod execute_support;
 #[cfg(test)]
 mod execute_version;

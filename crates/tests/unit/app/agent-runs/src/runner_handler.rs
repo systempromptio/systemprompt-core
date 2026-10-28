@@ -213,3 +213,37 @@ async fn an_undecodable_request_finishes_as_host_crashed() {
     assert_eq!(row.error_class.as_deref(), Some("host_crashed"));
     assert!(row.error.is_some());
 }
+
+#[tokio::test]
+async fn a_cancel_requested_mid_run_stops_the_host() {
+    let r = rig().await;
+    let claimed = claim(&r, None).await;
+    let id = claimed.row.id.clone();
+    let repo = r.f.repo.clone();
+    let cancel_id = id.clone();
+    let canceller = tokio::spawn(async move {
+        loop {
+            let row = repo.find_run(&cancel_id).await.expect("find").expect("row");
+            if row.started_at.is_some() {
+                repo.update_cancel_requested(&cancel_id)
+                    .await
+                    .expect("cancel");
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    });
+
+    tokio::time::timeout(
+        Duration::from_secs(30),
+        handler(&r, "echo up; sleep 60", None).await.run(claimed),
+    )
+    .await
+    .expect("run stopped")
+    .expect("run");
+    canceller.await.expect("canceller");
+
+    let row = finished(&r, &id).await;
+    assert_eq!(row.status, "cancelled");
+    assert!(row.duration_ms.is_some_and(|d| d < 20_000));
+}

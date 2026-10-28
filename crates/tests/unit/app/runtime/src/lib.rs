@@ -45,6 +45,8 @@ mod display_tests;
 #[cfg(test)]
 mod documents_actor;
 #[cfg(test)]
+mod documents_mcp_browse_share;
+#[cfg(test)]
 mod documents_mcp_content;
 #[cfg(test)]
 mod documents_mcp_export;
@@ -62,6 +64,8 @@ mod documents_mcp_media;
 mod documents_mcp_people;
 #[cfg(test)]
 mod documents_mcp_proposals;
+#[cfg(test)]
+mod documents_mcp_refusal_kinds;
 #[cfg(test)]
 mod documents_mcp_refusals;
 #[cfg(test)]
