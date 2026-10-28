@@ -4,6 +4,7 @@
 //! `insert_from_revision` copying a table natively.
 
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ReviewRequest,
@@ -35,6 +36,7 @@ fn ops(
         lock_holder_id: None,
         comments: CommentPolicy::detach(),
         op_id: None,
+        media: Media::new(),
     }
 }
 
@@ -261,6 +263,7 @@ async fn stale_upload(
     let request = CommitRequest {
         body: CommitBody::Bytes(upload),
         ..ops(&document, Some(&rev0), Vec::new())
+        media: Media::new(),
     };
     h.service
         .commit(owner, request, &trace())

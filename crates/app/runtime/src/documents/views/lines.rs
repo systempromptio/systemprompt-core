@@ -33,7 +33,9 @@ pub struct RenderedLines {
 
 pub fn render(projection: &Projection, input: &ReadInput) -> Result<RenderedLines, DocumentsError> {
     let lines = match input.view {
-        ReadView::Text | ReadView::Changes | ReadView::Meta => structured(projection, shows),
+        ReadView::Text | ReadView::Changes | ReadView::Meta | ReadView::Model => {
+            structured(projection, shows)
+        },
         ReadView::Outline => outline(projection),
         ReadView::Node => node_lines(projection, input.node_id.as_ref())?,
         ReadView::Search => search_lines(projection, input.text.as_deref())?,

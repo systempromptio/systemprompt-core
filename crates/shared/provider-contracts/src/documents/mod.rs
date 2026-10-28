@@ -33,6 +33,7 @@
 mod codec;
 mod edit_op;
 mod format;
+mod layout_op;
 mod projection;
 mod rich_op;
 mod target;
@@ -44,6 +45,9 @@ pub use codec::{
 };
 pub use edit_op::{CellValue, ContentAs, EditOp, NodeTarget, QuoteTarget, required_hash};
 pub use format::{DocumentFormat, UnknownDocumentFormat};
+pub use layout_op::{
+    ApplyTheme, CellUpdate, InsertBlock, SetParagraph, SetSection, SetStyle, UpdateTable,
+};
 pub use projection::{NodeKind, Projection, ProjectionNode, content_hash, hash8};
 pub use rich_op::{
     InsertImage, InsertTable, MarkSpec, RichTarget, SetBlockType, SetMarks, TableDelete,

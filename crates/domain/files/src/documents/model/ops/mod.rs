@@ -9,15 +9,19 @@
 //! materialised back onto the same bytes, so every block no op changed keeps
 //! its native markup. A batch applies all or none.
 //!
-//! What a format can hold decides what it accepts: images go into HTML and
-//! Markdown only; `docx` and `odt` take paragraphs, headings and list items
-//! but no quote or code blocks; Markdown takes the marks it can write, and
+//! What a format can hold decides what it accepts: images go into HTML,
+//! Markdown and `docx`; the layout ops (`set_paragraph`, `insert_block`,
+//! `update_table`, `set_section`, `set_style`, `apply_theme`) into `docx`,
+//! and into Markdown only where Markdown can hold the result; `docx` and
+//! `odt` take paragraphs, headings and list items but no quote or code
+//! blocks through `set_block_type`; Markdown takes the marks it can write, and
 //! `odt` takes none. Blocks an op adds get fresh `op<N>` ids, never equal to
 //! an id already in the document.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod layout;
 mod locate;
 mod marks;
 mod table;
@@ -29,8 +33,8 @@ use systemprompt_provider_contracts::documents::{
     TextBlockType,
 };
 
-use super::formats::{ModelError, import_rich_text, materialise_rich_text};
-use super::{Block, BlockKind, EditLevel, Limits, RichText, validate};
+use super::formats::{ModelError, import_rich_text, materialise_rich_text_with};
+use super::{Block, BlockKind, EditLevel, Limits, Media, RichText, validate};
 
 const fn malformed(detail: &'static str) -> CodecError {
     CodecError::Malformed { detail }
@@ -42,6 +46,17 @@ pub fn apply_rich_ops(
     ids: &Projection,
     ops: &[EditOp],
 ) -> Result<Vec<u8>, CodecError> {
+    apply_rich_ops_with(format, bytes, ids, ops, &Media::new())
+}
+
+/// [`apply_rich_ops`] with the bytes of the images the ops add.
+pub fn apply_rich_ops_with(
+    format: DocumentFormat,
+    bytes: &[u8],
+    ids: &Projection,
+    ops: &[EditOp],
+    media: &Media,
+) -> Result<Vec<u8>, CodecError> {
     let before = import_rich_text(format, bytes).map_err(|error| model_error(format, error))?;
     let targets = ops
         .iter()
@@ -50,6 +65,10 @@ pub fn apply_rich_ops(
     let mut model = before.clone();
     let mut fresh = FreshIds::new(&model);
     for (op, target) in ops.iter().zip(&targets) {
+        let Some(target) = target else {
+            layout::apply_document(&mut model, format, op)?;
+            continue;
+        };
         let at = model
             .blocks
             .iter()
@@ -61,16 +80,24 @@ pub fn apply_rich_ops(
     }
     validate(&before, &model, EditLevel::Edit, &Limits::default())
         .map_err(|rejection| malformed(rejection.reason()))?;
-    materialise_rich_text(format, bytes, &model).map_err(|error| model_error(format, error))
+    materialise_rich_text_with(format, bytes, &model, media)
+        .map_err(|error| model_error(format, error))
 }
 
-fn target_id(ids: &Projection, model: &RichText, op: &EditOp) -> Result<String, CodecError> {
+fn target_id(
+    ids: &Projection,
+    model: &RichText,
+    op: &EditOp,
+) -> Result<Option<String>, CodecError> {
+    if op.is_document_level() {
+        return Ok(None);
+    }
     let (node, _) = op.rich_guard().ok_or(CodecError::UnsupportedOp {
         op: op.name(),
         format: ids.format,
     })?;
     let at = locate::block_index(ids, model, node.resolved()?)?;
-    Ok(model.blocks[at].id.clone())
+    Ok(Some(model.blocks[at].id.clone()))
 }
 
 fn model_error(format: DocumentFormat, error: ModelError) -> CodecError {
@@ -111,6 +138,13 @@ fn apply_one(
         EditOp::InsertImage(op) => {
             let image = new_image(fresh, format, op)?;
             model.blocks.insert(at + 1, image);
+            Ok(())
+        },
+        EditOp::SetParagraph(op) => layout::set_paragraph(block, format, op),
+        EditOp::UpdateTable(op) => layout::update_table(block, fresh, op),
+        EditOp::InsertBlock(op) => {
+            let block = layout::new_block(fresh, format, op)?;
+            model.blocks.insert(at + 1, block);
             Ok(())
         },
         other => Err(CodecError::UnsupportedOp {

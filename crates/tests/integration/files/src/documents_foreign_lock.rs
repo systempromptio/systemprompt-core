@@ -4,6 +4,7 @@
 use std::time::Duration;
 
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::{LockHolderKind, LockOutcome, LockRequest};
 use systemprompt_files::documents::repository::{DocumentRepository, HeadMove};
 use systemprompt_files::documents::revision::CommitBody;
@@ -32,6 +33,7 @@ fn ops(document: &DocumentId, ops: Vec<EditOp>, holder: Option<&str>) -> CommitR
         lock_holder_id: holder.map(str::to_owned),
         comments: CommentPolicy::default(),
         op_id: None,
+        media: Media::new(),
     }
 }
 

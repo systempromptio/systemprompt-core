@@ -48,9 +48,14 @@ impl DocumentService {
                 let (head, bytes) = head.ok_or_else(missing_head)?;
                 let codec = self.codec(document.format)?;
                 let format = document.format;
+                let media = landing.media.clone();
                 Built::Applied(
                     blocking(move || {
-                        let edit = HeadEdit { ops, fragments };
+                        let edit = HeadEdit {
+                            ops,
+                            fragments,
+                            media,
+                        };
                         apply_on_head(codec.as_ref(), format, &bytes, &head, edit)
                     })
                     .await?,

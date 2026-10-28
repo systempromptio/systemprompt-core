@@ -3,6 +3,7 @@ use std::time::Duration;
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::jobs::DocumentTrashPurgeJob;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
@@ -86,6 +87,7 @@ fn set_text(document: &DocumentId, text: &str) -> CommitRequest {
         lock_holder_id: None,
         comments: CommentPolicy::default(),
         op_id: None,
+        media: Media::new(),
     }
 }
 

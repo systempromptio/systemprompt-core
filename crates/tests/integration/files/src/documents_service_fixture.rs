@@ -7,6 +7,7 @@ use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::codecs::CodecRegistry;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::RevisionAttribution;
 use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_files::documents::service::{Author, CreateRequest, RevisionOrigin};
@@ -321,5 +322,7 @@ pub(crate) fn create(template: &str, folder: Option<&DocumentFolderId>) -> Creat
         ops: Vec::new(),
         author: api_author(),
         message: None,
+        content: None,
+        media: Media::new(),
     }
 }

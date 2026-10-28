@@ -38,6 +38,7 @@ mod live;
 mod proposals;
 mod read;
 mod requests;
+mod schema;
 mod sharing;
 mod views;
 
@@ -140,6 +141,7 @@ pub fn router(state: DocumentsState) -> Router {
     with_collab(Router::new())
         .route("/", get(listing::list).post(items::create))
         .route("/import", post(import::import))
+        .route("/schema", get(schema::schema))
         .route(
             "/{id}",
             get(items::get)

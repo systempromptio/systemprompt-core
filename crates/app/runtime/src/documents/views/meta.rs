@@ -41,6 +41,7 @@ pub(super) async fn meta(
         format: view.document.format,
         lines: Vec::new(),
         truncated: false,
+        model: None,
         meta: Some(DocumentMeta {
             name: view.document.name,
             folder_path: view.folder_path,

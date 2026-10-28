@@ -14,6 +14,7 @@ use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Deserializer};
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::ListCursor;
 use systemprompt_files::documents::service::{CreateRequest, FolderMove, UpdateRequest};
 use systemprompt_files::uploads::{Allowance, NewUpload};
@@ -146,6 +147,8 @@ pub(super) async fn create(
             ops: Vec::new(),
             author,
             message: None,
+            content: None,
+            media: Media::new(),
         };
         state
             .service

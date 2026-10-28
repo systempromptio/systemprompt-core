@@ -1,4 +1,5 @@
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::CommentAnchor;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
@@ -46,6 +47,7 @@ fn commit(document: &DocumentId, ops: Vec<EditOp>) -> CommitRequest {
         lock_holder_id: None,
         comments: CommentPolicy::default(),
         op_id: None,
+        media: Media::new(),
     }
 }
 

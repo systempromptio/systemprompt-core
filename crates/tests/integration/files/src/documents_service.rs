@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::{
     GrantTarget, ListScope, ListSort, LockHolderKind, LockOutcome,
 };
@@ -29,6 +30,7 @@ fn commit_bytes(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>
         lock_holder_id: None,
         comments: CommentPolicy::default(),
         op_id: None,
+        media: Media::new(),
     }
 }
 
@@ -46,6 +48,7 @@ fn replace_title(
             content_as: ContentAs::Text,
         }]),
         ..commit_bytes(document, base, Vec::new())
+        media: Media::new(),
     }
 }
 
@@ -457,6 +460,7 @@ async fn a_lock_held_by_another_holder_blocks_commits() {
     let request = CommitRequest {
         lock_holder_id: Some("device-2".to_owned()),
         ..commit_bytes(&document, &first, b"two\n".to_vec())
+        media: Media::new(),
     };
     let refused = h
         .service
@@ -469,6 +473,7 @@ async fn a_lock_held_by_another_holder_blocks_commits() {
     let holder = CommitRequest {
         lock_holder_id: Some("device-1".to_owned()),
         ..commit_bytes(&document, &first, b"two\n".to_vec())
+        media: Media::new(),
     };
     let committed = h
         .service

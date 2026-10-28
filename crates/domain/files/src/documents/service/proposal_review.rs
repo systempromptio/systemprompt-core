@@ -22,6 +22,7 @@ use systemprompt_models::documents::{DocumentAction, ProposalStatus};
 
 use super::{Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService};
 use crate::documents::error::DocumentsError;
+use crate::documents::model::Media;
 use crate::documents::models::{Document, DocumentProposal, DocumentRevision, ProposalReview};
 use crate::documents::revision::CommitBody;
 
@@ -207,6 +208,7 @@ impl DocumentService {
                     lock_holder_id: None,
                     comments: CommentPolicy::default(),
                     op_id: None,
+                    media: Media::new(),
                 },
                 Some(&proposal.id),
                 trace,

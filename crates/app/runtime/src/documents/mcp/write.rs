@@ -17,6 +17,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
+use systemprompt_files::documents::model::{ModelViewV2, RichText, markdown};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, CreateRequest, EditModeRequest,
@@ -29,10 +30,13 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsMcpTools;
-use super::inputs::{CreateInput, EditInput};
+use super::inputs::{CreateContent, CreateInput, EditInput};
+use super::media::{image_refs, resolve_media};
 use super::outputs::CreateOutput;
 use super::proposals::propose_ops;
+use super::refusal::refusal;
 use super::support::{agent_author, caller, stale_base, tool_error};
+use crate::documents::refusal::RefusalCode;
 use crate::documents::views::{EditOutput, edit_ack, written_lines};
 
 pub(super) struct EditCall<'a> {
@@ -48,6 +52,21 @@ pub(super) struct EditCall<'a> {
     pub(super) message: Option<String>,
     pub(super) comments: CommentPolicy,
     pub(super) verbose: bool,
+}
+
+/// The content model a create names, from its model or its Markdown.
+fn content_model(content: Option<CreateContent>) -> Result<Option<RichText>, McpError> {
+    let invalid = |detail: String| refusal(RefusalCode::InvalidParams, detail);
+    match content {
+        None => Ok(None),
+        Some(CreateContent::Markdown(markdown)) => Ok(Some(markdown::import(&markdown))),
+        Some(CreateContent::Model(value)) => {
+            let view: ModelViewV2 = serde_json::from_value(value).map_err(|error| {
+                invalid(format!("content.model is not a RichText v2 model: {error}"))
+            })?;
+            view.into_model().map(Some).map_err(invalid)
+        },
+    }
 }
 
 async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
@@ -68,6 +87,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     if mode == EditMode::Propose {
         return propose_ops(call).await;
     }
+    let media = resolve_media(call.tools, call.ctx, image_refs(None, &call.ops)).await?;
     let outcome = call
         .tools
         .service()
@@ -82,6 +102,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
                 lock_holder_id: None,
                 comments: call.comments.clone(),
                 op_id: call.op_id.clone(),
+                media,
             },
             call.ctx.trace_id(),
         )
@@ -119,7 +140,7 @@ impl McpToolHandler for CreateHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create from a template, optionally with ops."
+        "Create from a template, with content {model|markdown} and/or ops. Guide: model."
     }
 
     async fn handle(
@@ -130,6 +151,9 @@ impl McpToolHandler for CreateHandler<'_> {
     ) -> Result<(CreateOutput, String), McpError> {
         let who = caller(ctx)?;
         let applied = input.ops.len();
+        let content = content_model(input.content)?;
+        let refs = image_refs(content.as_ref(), &input.ops);
+        let media = resolve_media(self.tools, ctx, refs).await?;
         let (document, revision) = self
             .tools
             .service()
@@ -145,6 +169,8 @@ impl McpToolHandler for CreateHandler<'_> {
                     ops: input.ops,
                     author: agent_author(ctx, exec_id),
                     message: input.message,
+                    content,
+                    media,
                 },
                 ctx.trace_id(),
             )

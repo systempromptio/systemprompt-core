@@ -104,6 +104,10 @@ const fn writes(format: DocumentFormat, kind: &MarkKind) -> bool {
                 | MarkKind::Strike
                 | MarkKind::Code
                 | MarkKind::Link { .. }
+                | MarkKind::Underline
+                | MarkKind::Superscript
+                | MarkKind::Subscript
+                | MarkKind::Footnote { .. }
         ),
         _ => false,
     }

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_files::documents::collab::{CollabService, CollabTuning, JoinMode};
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommentPolicy, CommitOutcome, CommitRequest};
 use systemprompt_identifiers::DocumentId;
@@ -126,6 +127,7 @@ async fn a_checkpoint_conflicting_with_an_outside_write_leaves_the_head_alone() 
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
                 op_id: None,
+                media: Media::new(),
             },
             &trace(),
         )

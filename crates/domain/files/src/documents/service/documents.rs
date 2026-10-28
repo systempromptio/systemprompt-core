@@ -13,6 +13,7 @@ use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId,
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 
+use super::content::{apply_content, apply_rich_on_new};
 use super::support::{apply_with, blocking, document_name, format_of_name, join_path};
 use super::{Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
 use crate::documents::access::AccessTarget;
@@ -47,6 +48,7 @@ impl DocumentService {
         let params = request.params;
         let ops = request.ops;
         let recorded = (!ops.is_empty()).then(|| ops.clone());
+        let (content, media) = (request.content, request.media);
         let instantiated = blocking(move || {
             let mut made = templates
                 .instantiate(&template_id, &params, &codecs)
@@ -54,6 +56,9 @@ impl DocumentService {
                     template_id,
                     source,
                 })?;
+            if let Some(content) = &content {
+                made.bytes = apply_content(made.format, &made.bytes, content, &media)?;
+            }
             if !ops.is_empty() {
                 let codec =
                     codecs
@@ -61,7 +66,11 @@ impl DocumentService {
                         .ok_or(DocumentsError::UnsupportedFormat {
                             format: made.format,
                         })?;
-                made.bytes = apply_with(codec.as_ref(), made.format, &made.bytes, ops)?;
+                made.bytes = if ops.iter().all(EditOp::is_rich) {
+                    apply_rich_on_new(codec.as_ref(), made.format, &made.bytes, ops, &media)?
+                } else {
+                    apply_with(codec.as_ref(), made.format, &made.bytes, ops)?
+                };
             }
             Ok(made)
         })

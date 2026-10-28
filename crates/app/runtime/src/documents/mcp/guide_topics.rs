@@ -27,8 +27,10 @@ remove: [mark]}; set_block_type {node, expected_hash, block: {type: paragraph} |
 heading, level} | {type: list_item, level?, ordered?} | {type: quote} | {type: code}}; \
 insert_table {after, rows: [[text]]}; table_insert_row / table_insert_col {table, \
 expected_hash, at?, cells?}; table_delete {table, expected_hash, row? | col?} (neither deletes \
-the table); insert_image {after, blob, alt?} (html and markdown only). Rows and columns count \
-from 0. docx and odt take no quote or code blocks, odt takes no marks.
+the table); insert_image {after, blob, alt?} (html, markdown and docx; in docx blob is a \
+documents_upload blob_ref). Rows and columns count from 0. set_block_type gives docx and odt \
+no quote or code blocks, odt takes no marks. Styles, layout, any block type, tables with \
+widths, shading and merges, sections and themes: guide topic model.
 Target: an anchored op names node by id with expected_hash (required), or node: {find: \"quoted text\", \
 nth?, within?: node} to hit the block containing the quote; no match refuses find_none with \
 the closest block. Content: replace_text and insert_after take as: \"markdown\" to write \

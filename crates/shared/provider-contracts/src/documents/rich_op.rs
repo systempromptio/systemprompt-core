@@ -130,6 +130,21 @@ impl EditOp {
                 | Self::TableInsertCol(_)
                 | Self::TableDelete(_)
                 | Self::InsertImage(_)
+                | Self::SetParagraph(_)
+                | Self::InsertBlock(_)
+                | Self::UpdateTable(_)
+                | Self::SetSection(_)
+                | Self::SetStyle(_)
+                | Self::ApplyTheme(_)
+        )
+    }
+
+    /// Whether this rich op acts on the whole document and names no node.
+    #[must_use]
+    pub const fn is_document_level(&self) -> bool {
+        matches!(
+            self,
+            Self::SetSection(_) | Self::SetStyle(_) | Self::ApplyTheme(_)
         )
     }
 
@@ -143,6 +158,9 @@ impl EditOp {
             Self::TableDelete(op) => (&mut op.table, Some(&mut op.expected_hash)),
             Self::InsertTable(op) => (&mut op.after, None),
             Self::InsertImage(op) => (&mut op.after, None),
+            Self::SetParagraph(op) => (&mut op.node, Some(&mut op.expected_hash)),
+            Self::UpdateTable(op) => (&mut op.table, Some(&mut op.expected_hash)),
+            Self::InsertBlock(op) => (&mut op.after, None),
             _ => return None,
         };
         Some(RichTarget {
@@ -162,6 +180,9 @@ impl EditOp {
             Self::TableDelete(op) => (&op.table, op.expected_hash.as_ref()),
             Self::InsertTable(op) => (&op.after, None),
             Self::InsertImage(op) => (&op.after, None),
+            Self::SetParagraph(op) => (&op.node, op.expected_hash.as_ref()),
+            Self::UpdateTable(op) => (&op.table, op.expected_hash.as_ref()),
+            Self::InsertBlock(op) => (&op.after, None),
             _ => return None,
         })
     }

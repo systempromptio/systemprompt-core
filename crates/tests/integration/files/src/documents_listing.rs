@@ -1,3 +1,4 @@
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::{
     CommentAnchor, GrantTarget, ListScope, ListSort, ListedDocument,
 };
@@ -224,6 +225,7 @@ async fn recent_orders_by_the_callers_last_touch() {
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
                 op_id: None,
+                media: Media::new(),
             },
             &trace(),
         )

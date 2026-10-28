@@ -26,7 +26,7 @@ use super::entry::{CollabEntry, model_error, utf8};
 use super::model::body_of;
 use super::{Checkpoint, CollabError, CollabService};
 use crate::documents::engine::ModelView;
-use crate::documents::model::carry_ids;
+use crate::documents::model::{Media, carry_ids};
 use crate::documents::models::RevisionAttribution;
 use crate::documents::repository::SnapshotMark;
 use crate::documents::revision::CommitBody;
@@ -97,6 +97,7 @@ impl CollabService {
                     lock_holder_id: None,
                     comments: CommentPolicy::detach(),
                     op_id: None,
+                    media: Media::new(),
                 },
                 trace,
             )

@@ -26,6 +26,8 @@ pub enum ReadView {
     Node,
     Search,
     Meta,
+    /// The document as its `RichText` v2 model, with node ids.
+    Model,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -72,6 +74,9 @@ pub struct ReadOutput {
     pub meta: Option<DocumentMeta>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
+    /// The `model` view: a `ModelViewV2` object.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]

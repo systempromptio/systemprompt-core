@@ -168,7 +168,19 @@ impl LineDoc {
             | EditOp::TableInsertRow(_)
             | EditOp::TableInsertCol(_)
             | EditOp::TableDelete(_)
-            | EditOp::InsertImage(_) => Err(CodecError::UnsupportedOp {
+            | EditOp::InsertImage(_)
+
+            | EditOp::SetParagraph(_)
+
+            | EditOp::InsertBlock(_)
+
+            | EditOp::UpdateTable(_)
+
+            | EditOp::SetSection(_)
+
+            | EditOp::SetStyle(_)
+
+            | EditOp::ApplyTheme(_) => Err(CodecError::UnsupportedOp {
                 op: op.name(),
                 format,
             }),

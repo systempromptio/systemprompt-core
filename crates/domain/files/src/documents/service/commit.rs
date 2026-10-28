@@ -29,6 +29,7 @@ use super::landed::Pending;
 use super::landing::{OpClaim, Placement};
 use super::{CommitOutcome, CommitRequest, DocumentService};
 use crate::documents::error::DocumentsError;
+use crate::documents::model::Media;
 use crate::documents::models::{Document, DocumentRevision};
 use crate::documents::nodes::CarryHints;
 use crate::documents::revision::CommitBody;
@@ -59,6 +60,7 @@ pub(super) struct Landing<'a> {
     pub document: &'a Document,
     pub head: Option<&'a DocumentRevision>,
     pub base: Option<&'a DocumentRevisionId>,
+    pub media: &'a Media,
 }
 
 impl DocumentService {
@@ -122,6 +124,7 @@ impl DocumentService {
             document: &document,
             head: head.as_ref(),
             base: base.as_ref(),
+            media: &request.media,
         };
         let Some(applied) = self.build_body(&landing, request.body).await? else {
             return self

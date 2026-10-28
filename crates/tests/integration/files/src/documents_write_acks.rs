@@ -1,6 +1,7 @@
 //! Stored write acknowledgements and node id rows: an acknowledgement past
 //! the replay window is swept, and a revision's ids are written once.
 
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::NodeIdEntry;
 use systemprompt_files::documents::repository::DocumentNodeIdRepository;
 use systemprompt_files::documents::revision::CommitBody;
@@ -32,6 +33,7 @@ async fn acks_past_the_replay_window_are_swept() {
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
                 op_id: Some(op_id.clone()),
+                media: Media::new(),
             },
             &trace(),
         )

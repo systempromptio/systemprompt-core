@@ -30,6 +30,9 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 
 use super::codec::CodecError;
+use super::layout_op::{
+    ApplyTheme, InsertBlock, SetParagraph, SetSection, SetStyle, UpdateTable,
+};
 use super::projection::NodeKind;
 use super::rich_op::{InsertImage, InsertTable, SetBlockType, SetMarks, TableDelete, TableInsert};
 
@@ -199,6 +202,12 @@ pub enum EditOp {
     TableInsertCol(TableInsert),
     TableDelete(TableDelete),
     InsertImage(InsertImage),
+    SetParagraph(SetParagraph),
+    InsertBlock(InsertBlock),
+    UpdateTable(UpdateTable),
+    SetSection(SetSection),
+    SetStyle(SetStyle),
+    ApplyTheme(ApplyTheme),
 }
 
 impl EditOp {
@@ -223,6 +232,12 @@ impl EditOp {
             Self::TableInsertCol(_) => "table_insert_col",
             Self::TableDelete(_) => "table_delete",
             Self::InsertImage(_) => "insert_image",
+            Self::SetParagraph(_) => "set_paragraph",
+            Self::InsertBlock(_) => "insert_block",
+            Self::UpdateTable(_) => "update_table",
+            Self::SetSection(_) => "set_section",
+            Self::SetStyle(_) => "set_style",
+            Self::ApplyTheme(_) => "apply_theme",
         }
     }
 
@@ -240,7 +255,10 @@ impl EditOp {
             | Self::TableInsertRow(_)
             | Self::TableInsertCol(_)
             | Self::TableDelete(_)
-            | Self::InsertImage(_) => match self.rich_guard() {
+            | Self::InsertImage(_)
+            | Self::SetParagraph(_)
+            | Self::InsertBlock(_)
+            | Self::UpdateTable(_) => match self.rich_guard() {
                 Some((node, _)) => node.id(),
                 None => None,
             },
@@ -249,6 +267,9 @@ impl EditOp {
             | Self::SetHtml { .. }
             | Self::SetText { .. }
             | Self::AppendMarkdown { .. }
+            | Self::SetSection(_)
+            | Self::SetStyle(_)
+            | Self::ApplyTheme(_)
             | Self::Restore { .. } => None,
         }
     }

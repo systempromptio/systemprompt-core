@@ -13,6 +13,7 @@ use systemprompt_models::documents::{DocumentUri, Projection};
 
 use super::lines::{MAX_LINES, RenderedLines, render, shows, truncate};
 use super::meta::meta;
+use super::model::model_view;
 use super::outline::change_lines;
 use super::types::{ReadInput, ReadOutput, ReadView};
 
@@ -46,6 +47,9 @@ pub async fn read_view(
     if input.view == ReadView::Meta {
         return meta(service, who, &input, trace).await;
     }
+    if input.view == ReadView::Model {
+        return model_view(service, who, &input, trace).await;
+    }
     let (revision, projection) = service
         .project(who, &input.document_id, input.revision_id.as_ref(), trace)
         .await?;
@@ -74,5 +78,6 @@ pub async fn read_view(
         truncated: rendered.truncated,
         meta: None,
         paths,
+        model: None,
     })
 }

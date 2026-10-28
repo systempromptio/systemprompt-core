@@ -17,6 +17,7 @@ use super::{
     RevisionOrigin,
 };
 use crate::documents::error::DocumentsError;
+use crate::documents::model::Media;
 use crate::documents::models::RevisionAttribution;
 use crate::documents::revision::CommitBody;
 
@@ -75,6 +76,7 @@ impl DocumentService {
             lock_holder_id: Some(meta.device_id.as_str().to_owned()),
             comments: CommentPolicy::detach(),
             op_id: None,
+            media: Media::new(),
         };
         Ok(match self.commit_external(who, request, trace).await? {
             CommitOutcome::Committed(landed) => DriveCommitResponse::Committed {

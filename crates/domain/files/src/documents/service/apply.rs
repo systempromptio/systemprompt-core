@@ -24,7 +24,8 @@ use systemprompt_provider_contracts::documents::{
 use super::fragments::{FragmentInsert, FragmentPass, unsupported};
 use super::node_ids::Projected;
 use crate::documents::error::DocumentsError;
-use crate::documents::model::ops::apply_rich_ops;
+use crate::documents::model::Media;
+use crate::documents::model::ops::apply_rich_ops_with;
 use crate::documents::nodes::{CarryHints, path_of, to_paths};
 
 #[derive(Debug, Clone)]
@@ -36,6 +37,8 @@ pub(super) struct AppliedOps {
 pub(super) struct HeadEdit {
     pub(super) ops: Vec<EditOp>,
     pub(super) fragments: Vec<NodeFragment>,
+    /// Image bytes the ops' blob references resolve to.
+    pub(super) media: Media,
 }
 
 impl HeadEdit {
@@ -43,11 +46,12 @@ impl HeadEdit {
         Self {
             ops,
             fragments: Vec::new(),
+            media: Media::new(),
         }
     }
 }
 
-fn split_fragments(edit: HeadEdit) -> (Vec<EditOp>, Vec<FragmentInsert>) {
+fn split_fragments(edit: HeadEdit) -> (Vec<EditOp>, Vec<FragmentInsert>, Media) {
     let mut fragments = edit.fragments.into_iter();
     let mut ops = Vec::with_capacity(edit.ops.len());
     let mut inserts = Vec::new();
@@ -61,7 +65,7 @@ fn split_fragments(edit: HeadEdit) -> (Vec<EditOp>, Vec<FragmentInsert>) {
             other => ops.push(other),
         }
     }
-    (ops, inserts)
+    (ops, inserts, edit.media)
 }
 
 pub(super) fn apply_on_head(
@@ -71,7 +75,7 @@ pub(super) fn apply_on_head(
     head: &Projected,
     edit: HeadEdit,
 ) -> Result<AppliedOps, DocumentsError> {
-    let (ops, inserts) = split_fragments(edit);
+    let (ops, inserts, media) = split_fragments(edit);
     require_guards(&ops)?;
     let resolved = resolve_targets(&head.ids, ops)?;
     guard(&head.ids, &resolved.ops)?;
@@ -91,7 +95,7 @@ pub(super) fn apply_on_head(
                 detail: "rich-text and table ops cannot share a batch with other ops",
             }));
         }
-        apply_rich_ops(format, bytes, &head.ids, &resolved.ops)
+        apply_rich_ops_with(format, bytes, &head.ids, &resolved.ops, &media)
             .map_err(|error| relabel(DocumentsError::from(error), &head.ids))?
     } else {
         let ops = to_paths(resolved.ops, &head.ids);

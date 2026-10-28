@@ -9,6 +9,7 @@ use sqlx::Executor;
 use sqlx::postgres::PgPoolOptions;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_files::DocumentsConfig;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, HistoryPage, LandedCommit,
@@ -86,6 +87,7 @@ fn request(document: &DocumentId, ops: Vec<EditOp>) -> CommitRequest {
         lock_holder_id: None,
         comments: CommentPolicy::default(),
         op_id: None,
+        media: Media::new(),
     }
 }
 

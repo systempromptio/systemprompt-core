@@ -14,6 +14,7 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
+use super::guide_model::model_topic;
 use super::guide_topics::{
     COMMENTS, EDITING, LIFECYCLE, PROPOSALS, SHARING, SHEETS, SLIDES, refusal_text,
 };
@@ -52,14 +53,15 @@ fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
         "comments" => COMMENTS.to_owned(),
         "lifecycle" => LIFECYCLE.to_owned(),
         "proposals" => PROPOSALS.to_owned(),
+        "model" => model_topic(),
         other => RefusalCode::ALL
             .iter()
             .find(|code| other.strip_prefix("refusal.") == Some(code.as_str()))
             .map_or_else(
                 || {
                     format!(
-                        "unknown topic; topics are editing, formats, sheets, slides, sharing, \
-                         comments, lifecycle, proposals and refusal.<code> for {}",
+                        "unknown topic; topics are editing, model, formats, sheets, slides, \
+                         sharing, comments, lifecycle, proposals and refusal.<code> for {}",
                         RefusalCode::ALL.map(RefusalCode::as_str).join(", ")
                     )
                 },
@@ -83,7 +85,7 @@ impl McpToolHandler for GuideHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Detail by topic (editing, formats, proposals, refusal.<code>, ...)."
+        "Detail by topic (editing, model, formats, proposals, refusal.<code>, ...)."
     }
 
     fn read_only(&self) -> bool {

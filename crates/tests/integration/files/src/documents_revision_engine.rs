@@ -5,6 +5,7 @@
 use std::collections::HashSet;
 
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::{NewRevision, RevisionAttribution};
 use systemprompt_files::documents::repository::DocumentNodeIdRepository;
 use systemprompt_files::documents::revision::CommitBody;
@@ -36,6 +37,7 @@ fn request(document: &DocumentId, ops: Vec<EditOp>, author: Author) -> CommitReq
         lock_holder_id: None,
         comments: CommentPolicy::default(),
         op_id: None,
+        media: Media::new(),
     }
 }
 
@@ -197,6 +199,7 @@ async fn an_unlanded_revision_is_not_history_and_cannot_be_read_or_restored() {
                 }],
                 api_author(),
             )
+            media: Media::new(),
         },
     )
     .await;
@@ -288,6 +291,7 @@ async fn an_op_id_applies_once_and_replays_under_concurrency() {
             vec![rewrite(&head, "beta", "BETA")],
             api_author(),
         )
+        media: Media::new(),
     };
     let (a, b) = tokio::join!(commit(&h, &owner, same()), commit(&h, &owner, same()));
     let (a, b) = (landed(a.expect("a")), landed(b.expect("b")));
@@ -319,6 +323,7 @@ async fn an_op_id_applies_once_and_replays_under_concurrency() {
             vec![rewrite(&head, "gamma", "GAMMA")],
             api_author(),
         )
+        media: Media::new(),
     };
     let mismatch = commit(&h, &owner, different).await;
     assert!(

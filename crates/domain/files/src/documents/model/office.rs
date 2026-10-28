@@ -54,6 +54,13 @@ pub(crate) fn number(model: &mut RichText, ids: &mut IdSeq) {
     }
 }
 
+/// Numbers a model's blocks afresh, nested and running blocks included.
+pub(crate) fn renumber(model: &mut RichText) {
+    let mut ids = IdSeq::default();
+    number(model, &mut ids);
+    number_running(model);
+}
+
 /// Numbers the blocks of the final section's headers and footers after
 /// every body block, so their ids never collide with the body's.
 pub(crate) fn number_running(model: &mut RichText) {

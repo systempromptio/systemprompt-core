@@ -27,6 +27,7 @@ use super::support::blocking;
 use super::{Author, CommentPolicy, DocumentService};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
+use crate::documents::model::Media;
 use crate::documents::models::{
     Document, DocumentProposal, DocumentRevision, NewProposal, ProposalReview,
 };
@@ -211,6 +212,7 @@ impl DocumentService {
             let edit = HeadEdit {
                 ops: applied_ops,
                 fragments,
+                media: Media::new(),
             };
             apply_on_head(codec.as_ref(), format, &bytes, &projected, edit)
         })

@@ -4,7 +4,7 @@
 //! returns `DocumentsError`:
 //! the MCP tools and the HTTP routes both call it, so both surfaces answer
 //! alike. The read views are outline, text, changes, node, search, meta,
-//! range and cells; `access_view`, `folder_access_view` and
+//! range, cells and model; `access_view`, `folder_access_view` and
 //! `comments_view` read sharing and comment threads; `proposal_lines`
 //! renders what a proposal changes; `edit_ack` renders a landed write's
 //! acknowledgement.
@@ -16,6 +16,7 @@ mod access;
 mod acks;
 mod lines;
 mod meta;
+mod model;
 mod outline;
 mod read;
 mod records;

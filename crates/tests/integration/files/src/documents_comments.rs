@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::CommentAnchor;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
@@ -61,6 +62,7 @@ fn ops(document: &DocumentId, ops: Vec<EditOp>, comments: CommentPolicy) -> Comm
         lock_holder_id: None,
         comments,
         op_id: None,
+        media: Media::new(),
     }
 }
 

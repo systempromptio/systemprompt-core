@@ -29,6 +29,7 @@ mod comments_edit;
 mod comments_export;
 mod commit;
 mod commit_build;
+mod content;
 mod documents;
 mod drive;
 mod drive_blob;

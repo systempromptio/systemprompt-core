@@ -5,6 +5,7 @@ use systemprompt_engine_loro::rich;
 use systemprompt_files::documents::collab::{
     ApplyRequest, Checkpoint, CollabError, CollabService, CollabTuning, JoinMode,
 };
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommentPolicy, CommitOutcome, CommitRequest};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
@@ -43,6 +44,7 @@ async fn write(c: &Collab, owner: &AuthenticatedUser, document: &DocumentId, fro
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
                 op_id: None,
+                media: Media::new(),
             },
             &trace(),
         )
