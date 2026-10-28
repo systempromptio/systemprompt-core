@@ -107,6 +107,9 @@ pub struct SessionTerms<'a> {
     /// body): it neither counts toward nor is held to the open-session cap,
     /// but its bytes count toward the daily quota.
     pub one_shot: bool,
+    /// A save that does not spend the daily quota (see
+    /// [`Allowance::Save`](super::models::Allowance::Save)).
+    pub quota_exempt: bool,
 }
 
 /// Whether [`DocumentUploadRepository::insert_admitted`] opened the session.
@@ -162,12 +165,13 @@ impl DocumentUploadRepository {
             r#"SELECT COALESCE(SUM(CASE WHEN status = 'aborted' THEN received_bytes
                                         ELSE declared_size END), 0)::bigint AS "total!"
                FROM document_uploads
-               WHERE owner_user_id = $1 AND created_at > now() - interval '1 day'"#,
+               WHERE owner_user_id = $1 AND NOT quota_exempt
+                 AND created_at > now() - interval '1 day'"#,
             terms.owner.as_str(),
         )
         .fetch_one(&mut *tx)
         .await?;
-        if used.saturating_add(size) > terms.daily_quota {
+        if !terms.quota_exempt && used.saturating_add(size) > terms.daily_quota {
             return Ok(Admission::QuotaExceeded {
                 used: used.unsigned_abs(),
             });
@@ -176,8 +180,9 @@ impl DocumentUploadRepository {
             SessionRow,
             r#"INSERT INTO document_uploads
                    (owner_user_id, file_name, declared_mime, declared_size, declared_sha256,
-                    part_size, trace_id, expires_at, one_shot)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int), $9)
+                    part_size, trace_id, expires_at, one_shot, quota_exempt)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int), $9,
+                       $10)
                RETURNING id::text AS "id!: DocumentUploadId",
                          owner_user_id AS "owner_user_id: UserId", file_name, declared_mime,
                          declared_size, declared_sha256 AS "declared_sha256: ContentHash",
@@ -193,6 +198,7 @@ impl DocumentUploadRepository {
             terms.trace.as_str(),
             terms.ttl_hours,
             terms.one_shot,
+            terms.quota_exempt,
         )
         .fetch_one(&mut *tx)
         .await?

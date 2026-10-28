@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS document_uploads (
     checked_kind TEXT,
     claimed_at TIMESTAMPTZ,
     received_bytes BIGINT NOT NULL DEFAULT 0,
-    one_shot BOOLEAN NOT NULL DEFAULT false
+    one_shot BOOLEAN NOT NULL DEFAULT false,
+    quota_exempt BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_uploads_owner_created

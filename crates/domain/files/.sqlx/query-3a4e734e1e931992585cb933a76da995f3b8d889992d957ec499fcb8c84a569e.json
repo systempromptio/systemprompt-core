@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO document_uploads\n                   (owner_user_id, file_name, declared_mime, declared_size, declared_sha256,\n                    part_size, trace_id, expires_at, one_shot)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int), $9)\n               RETURNING id::text AS \"id!: DocumentUploadId\",\n                         owner_user_id AS \"owner_user_id: UserId\", file_name, declared_mime,\n                         declared_size, declared_sha256 AS \"declared_sha256: ContentHash\",\n                         part_size, status, blob_sha256 AS \"blob_sha256: ContentHash\",\n                         detected_mime, checked_kind, refusal, trace_id AS \"trace_id: TraceId\", created_at,\n                         expires_at, finished_at",
+  "query": "INSERT INTO document_uploads\n                   (owner_user_id, file_name, declared_mime, declared_size, declared_sha256,\n                    part_size, trace_id, expires_at, one_shot, quota_exempt)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int), $9,\n                       $10)\n               RETURNING id::text AS \"id!: DocumentUploadId\",\n                         owner_user_id AS \"owner_user_id: UserId\", file_name, declared_mime,\n                         declared_size, declared_sha256 AS \"declared_sha256: ContentHash\",\n                         part_size, status, blob_sha256 AS \"blob_sha256: ContentHash\",\n                         detected_mime, checked_kind, refusal, trace_id AS \"trace_id: TraceId\", created_at,\n                         expires_at, finished_at",
   "describe": {
     "columns": [
       {
@@ -185,6 +185,7 @@
         "Int8",
         "Text",
         "Int4",
+        "Bool",
         "Bool"
       ]
     },
@@ -207,5 +208,5 @@
       true
     ]
   },
-  "hash": "edff57c5a3f81fd67ec02d2af302bc580c2fbff27f3b0d292ba1343166c4a692"
+  "hash": "3a4e734e1e931992585cb933a76da995f3b8d889992d957ec499fcb8c84a569e"
 }

@@ -26,7 +26,7 @@ use systemprompt_identifiers::{DocumentUploadId, TraceId, UserId};
 use systemprompt_traits::FileStorageError;
 
 use super::error::{RefusalReason, UploadError, UploadResult};
-use super::models::{CompletedUpload, NewUpload, UploadSession, UploadStatus};
+use super::models::{Allowance, CompletedUpload, NewUpload, UploadSession, UploadStatus};
 use super::safety::{Subject, inspect};
 use super::service::UploadService;
 use super::stream::{Tally, assembled_storage_id, concatenated};
@@ -255,7 +255,8 @@ impl UploadService {
                 limit: self.limits.inline_max_bytes,
             });
         }
-        self.put_whole(owner, request, bytes, trace).await
+        self.put_whole(owner, request, bytes, trace, Allowance::OneShot)
+            .await
     }
 
     /// Uploads a body already held in memory (a multipart import or an
@@ -267,6 +268,7 @@ impl UploadService {
         request: NewUpload,
         bytes: Vec<u8>,
         trace: &TraceId,
+        allowance: Allowance,
     ) -> UploadResult<CompletedUpload> {
         let size = bytes.len() as u64;
         if size != request.size {
@@ -275,7 +277,7 @@ impl UploadService {
                 request.size
             )));
         }
-        let session = self.begin(owner, request, trace, true).await?;
+        let session = self.begin(owner, request, trace, allowance).await?;
         let stored = self.put_all(owner, &session, bytes).await;
         if let Err(error) = stored {
             if let Err(abort) = self.abort(owner, &session.id).await {

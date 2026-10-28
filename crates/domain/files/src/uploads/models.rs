@@ -108,6 +108,33 @@ pub struct UploadPart {
     pub storage_id: String,
 }
 
+/// What a session counts against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Allowance {
+    /// A resumable upload: held to the open-session cap and the daily quota.
+    Session,
+    /// Opened and finished in one call (an import, an inline body): not
+    /// held to the open-session cap, still counted toward the daily quota.
+    OneShot,
+    /// A save of an existing document (a bridge drive write, a REST
+    /// whole-file write): every content check still runs, but repeated
+    /// saves of one document do not spend the daily quota. Each save stays
+    /// bounded by `maxUploadBytes` and the request rate limits.
+    Save,
+}
+
+impl Allowance {
+    #[must_use]
+    pub const fn one_shot(self) -> bool {
+        !matches!(self, Self::Session)
+    }
+
+    #[must_use]
+    pub const fn quota_exempt(self) -> bool {
+        matches!(self, Self::Save)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewUpload {
     pub name: String,

@@ -18,7 +18,9 @@ use systemprompt_identifiers::{DocumentUploadId, TraceId, UserId};
 use systemprompt_traits::{FileByteStream, FileStorage, StoredFileId};
 
 use super::error::{UploadError, UploadResult};
-use super::models::{NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus};
+use super::models::{
+    Allowance, NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus,
+};
 use super::repository::{Admission, DocumentUploadRepository, SessionTerms};
 use super::safety::sniff::declared_kind;
 use super::stream::{Tally, part_storage_id};
@@ -87,17 +89,16 @@ impl UploadService {
         request: NewUpload,
         trace: &TraceId,
     ) -> UploadResult<UploadSession> {
-        self.begin(owner, request, trace, false).await
+        self.begin(owner, request, trace, Allowance::Session).await
     }
 
-    /// Opens a session; a `one_shot` one (opened and finished in one call)
-    /// is exempt from the open-session cap but not from the daily quota.
+    /// Opens a session under `allowance`: what it counts against.
     pub(super) async fn begin(
         &self,
         owner: &UserId,
         request: NewUpload,
         trace: &TraceId,
-        one_shot: bool,
+        allowance: Allowance,
     ) -> UploadResult<UploadSession> {
         let request = NewUpload {
             mime: request.mime.trim().to_ascii_lowercase(),
@@ -114,7 +115,8 @@ impl UploadService {
             trace,
             max_open: i64::try_from(self.limits.max_open_sessions).unwrap_or(i64::MAX),
             daily_quota: i64::try_from(self.limits.daily_quota_bytes).unwrap_or(i64::MAX),
-            one_shot,
+            one_shot: allowance.one_shot(),
+            quota_exempt: allowance.quota_exempt(),
         };
         let session = match self.uploads.insert_admitted(&request, terms).await? {
             Admission::Admitted(session) => session,

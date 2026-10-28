@@ -16,7 +16,7 @@ use axum::{Extension, Json};
 use serde::{Deserialize, Deserializer};
 use systemprompt_files::documents::models::ListCursor;
 use systemprompt_files::documents::service::{CreateRequest, FolderMove, UpdateRequest};
-use systemprompt_files::uploads::NewUpload;
+use systemprompt_files::uploads::{Allowance, NewUpload};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
@@ -120,7 +120,13 @@ pub(super) async fn create(
         };
         let done = state
             .uploads
-            .put_whole(req_ctx.user_id(), upload, file.bytes, req_ctx.trace_id())
+            .put_whole(
+                req_ctx.user_id(),
+                upload,
+                file.bytes,
+                req_ctx.trace_id(),
+                Allowance::OneShot,
+            )
             .await
             .map_err(ApiHttpError::from)?;
         let body = ImportBody {

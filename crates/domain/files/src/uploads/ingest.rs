@@ -12,7 +12,7 @@ use systemprompt_identifiers::{TraceId, UserId};
 use systemprompt_models::documents::{DocumentFormat, content_hash};
 
 use super::error::{RefusalReason, UploadError, UploadResult};
-use super::models::{BlobOrigin, NewUpload};
+use super::models::{Allowance, BlobOrigin, NewUpload};
 use super::service::UploadService;
 
 const OPAQUE_MIME: &str = "application/octet-stream";
@@ -49,6 +49,7 @@ impl UploadService {
         format: DocumentFormat,
         bytes: Vec<u8>,
         trace: &TraceId,
+        allowance: Allowance,
     ) -> UploadResult<Ingested> {
         let file_name = name
             .rsplit(['/', '\\'])
@@ -67,7 +68,9 @@ impl UploadService {
             sha256: content_hash(&bytes),
             name: file_name,
         };
-        let done = self.put_whole(owner, request, bytes, trace).await?;
+        let done = self
+            .put_whole(owner, request, bytes, trace, allowance)
+            .await?;
         let origin = BlobOrigin {
             mime: done.detected_mime.clone(),
             checked_kind: Some(done.checked_kind.clone()),

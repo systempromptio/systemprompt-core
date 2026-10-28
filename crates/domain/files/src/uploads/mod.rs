@@ -34,7 +34,8 @@ pub use error::{RefusalReason, UploadError, UploadResult};
 pub use ingest::Ingested;
 pub use job::DocumentUploadExpiryJob;
 pub use models::{
-    BlobOrigin, CompletedUpload, NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus,
+    Allowance, BlobOrigin, CompletedUpload, NewUpload, UploadPart, UploadProgress, UploadSession,
+    UploadStatus,
 };
 pub use repository::DocumentUploadRepository;
 pub use service::{UploadService, UploadServiceParts};

@@ -6,6 +6,10 @@
 //! (templates, restores, live checkpoints) take [`DocumentService::import`]
 //! and [`DocumentService::commit`] directly.
 //!
+//! A new document's import counts toward the daily upload quota; a save of
+//! an existing document runs every check but does not spend it
+//! ([`Allowance::Save`]).
+//!
 //! With no upload service attached, external bytes are refused rather than
 //! parsed unchecked.
 //!
@@ -24,7 +28,7 @@ use crate::documents::blob_store::BlobStoreError;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 use crate::documents::revision::CommitBody;
-use crate::uploads::{UploadError, UploadService};
+use crate::uploads::{Allowance, UploadError, UploadService};
 
 fn refused(error: UploadError) -> DocumentsError {
     match error {
@@ -58,6 +62,7 @@ impl DocumentService {
         format: DocumentFormat,
         bytes: Vec<u8>,
         trace: &TraceId,
+        allowance: Allowance,
     ) -> Result<(Vec<u8>, Option<String>), DocumentsError> {
         if bytes.is_empty() {
             return Ok((bytes, None));
@@ -67,7 +72,7 @@ impl DocumentService {
             detail: "no upload service is attached to check these bytes".to_owned(),
         })?;
         let ingested = uploads
-            .ingest(&who.id, name, format, bytes, trace)
+            .ingest(&who.id, name, format, bytes, trace, allowance)
             .await
             .map_err(refused)?;
         Ok((ingested.bytes, Some(ingested.mime)))
@@ -89,7 +94,7 @@ impl DocumentService {
             .await?;
         let bytes = std::mem::take(&mut request.bytes);
         let (bytes, mime) = self
-            .ingest(who, &request.name, format, bytes, trace)
+            .ingest(who, &request.name, format, bytes, trace, Allowance::OneShot)
             .await?;
         request.bytes = bytes;
         request.format = Some(format);
