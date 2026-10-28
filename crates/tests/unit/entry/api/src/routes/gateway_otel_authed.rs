@@ -1,7 +1,8 @@
-//! `/otel` with a real gateway credential: the authenticated handler accepts
-//! a bound session and refuses a header that contradicts the JWT claim, and
-//! each decoded signal (protobuf traces, logs and metrics, JSON logs) is
-//! counted under its own label on `gateway_desktop_telemetry_exports_total`.
+//! `/otel` with a real gateway credential: the authenticated handler stamps
+//! every export with the credential's own session, whatever session header the
+//! client sends, and each decoded signal (protobuf traces, logs and metrics,
+//! JSON logs) is counted under its own label on
+//! `gateway_desktop_telemetry_exports_total`.
 
 use std::sync::Arc;
 
@@ -173,19 +174,21 @@ async fn an_attested_session_is_accepted_and_each_protobuf_signal_is_counted() {
 }
 
 #[tokio::test]
-async fn a_session_header_the_credential_does_not_attest_is_refused() {
+async fn a_session_header_that_differs_from_the_claim_is_accepted_on_the_claim() {
     let h = harness().await;
+    let before = exports("traces");
     let resp = handle(
         Arc::clone(&h.extractor),
         (*h.ctx).clone(),
         authed(&h, "/otel/v1/traces", &SessionId::generate(), traces()),
     )
     .await;
-    assert!(
-        resp.status().is_client_error(),
-        "a mismatched X-Session-ID must not be written: {}",
-        resp.status()
+    assert_eq!(
+        resp.status(),
+        StatusCode::ACCEPTED,
+        "the export is stamped with the JWT's own session, so a differing header is not refused"
     );
+    assert!(exports("traces") > before, "the export is counted");
 }
 
 #[tokio::test]

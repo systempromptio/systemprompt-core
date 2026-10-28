@@ -32,10 +32,11 @@ pub async fn inject_security_headers(
                 headers.remove("x-frame-options");
             },
         }
-        if let Ok(value) = HeaderValue::from_str(&format!(
-            "frame-ancestors {}",
-            frame_options.frame_ancestors()
-        )) {
+        let existing = headers
+            .get("content-security-policy")
+            .and_then(|value| value.to_str().ok());
+        let policy = with_frame_ancestors(existing, frame_options.frame_ancestors());
+        if let Ok(value) = HeaderValue::from_str(&policy) {
             headers.insert("content-security-policy", value);
         }
     } else {
@@ -70,4 +71,24 @@ pub async fn inject_security_headers(
     }
 
     response
+}
+
+fn with_frame_ancestors(existing: Option<&str>, ancestors: &str) -> String {
+    let directive = format!("frame-ancestors {ancestors}");
+    let kept: Vec<&str> = existing
+        .into_iter()
+        .flat_map(|policy| policy.split(';'))
+        .map(str::trim)
+        .filter(|part| {
+            !part.is_empty()
+                && !part
+                    .split_ascii_whitespace()
+                    .next()
+                    .is_some_and(|name| name.eq_ignore_ascii_case("frame-ancestors"))
+        })
+        .collect();
+    if kept.is_empty() {
+        return directive;
+    }
+    format!("{}; {directive}", kept.join("; "))
 }

@@ -145,7 +145,7 @@ pub(super) fn import_skill(
         });
     }
 
-    if let Err(unknown) = HostKind::parse_list(&front.hosts) {
+    if let Err(unknown) = HostKind::validate_targets(&front.hosts) {
         return Err(MarketplaceError::import(
             &skill_md,
             "SKILL.md frontmatter `hosts`",

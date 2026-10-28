@@ -4,9 +4,11 @@
 //!
 //! - `bridge_user_host_prefs`: whether a user has enabled the bridge for a
 //!   host. The bridge GUI reads these at sync time so disabling a host on one
-//!   device disables sync to it everywhere. "No enabled rows" means every host
-//!   is enabled, so disabling one host for a user with no rows first records
-//!   the instance's other hosts as enabled, in one transaction.
+//!   device disables sync to it everywhere. "No enabled rows" for the default
+//!   hosts means every default host is enabled, so disabling one for a user
+//!   with no such rows first records the instance's other default hosts as
+//!   enabled, in one transaction. An opt-in host (see [`InstanceHosts`]) is
+//!   enabled only by its own row and never counts towards that heuristic.
 //! - `bridge_user_host_model_prefs`: an optional per-host wire-protocol filter.
 //!   A row's presence is the override (an empty `model_protocols` array means
 //!   "all models"); absence means the host's built-in default applies. Kept in
@@ -25,24 +27,32 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 
 use crate::error::OauthResult;
 
 /// A user's stored enable preferences.
 ///
-/// `any_enabled_row` is true when at least one enabled row exists, including
-/// rows this build could not parse into a [`HostKind`].
+/// `unknown_enabled_row` is true when an enabled row names a host this build
+/// could not parse into a [`HostKind`]; it still counts as a choice.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EnabledHostPrefs {
     pub hosts: Vec<HostKind>,
-    pub any_enabled_row: bool,
+    pub unknown_enabled_row: bool,
 }
 
 impl EnabledHostPrefs {
     #[must_use]
-    pub fn admits(&self, host: HostKind) -> bool {
-        !self.any_enabled_row || self.hosts.contains(&host)
+    pub fn chose_default_hosts(&self, instance: &InstanceHosts) -> bool {
+        self.unknown_enabled_row || self.hosts.iter().any(|host| !instance.is_opt_in(*host))
+    }
+
+    #[must_use]
+    pub fn admits(&self, host: HostKind, instance: &InstanceHosts) -> bool {
+        if instance.is_opt_in(host) {
+            return self.hosts.contains(&host);
+        }
+        !self.chose_default_hosts(instance) || self.hosts.contains(&host)
     }
 }
 
@@ -96,12 +106,13 @@ impl BridgeHostPrefsRepository {
         )
         .fetch_all(self.pool.as_ref())
         .await?;
+        let hosts: Vec<HostKind> = rows
+            .iter()
+            .filter_map(|r| known_host(user_id, "bridge_user_host_prefs", &r.host_id))
+            .collect();
         Ok(EnabledHostPrefs {
-            any_enabled_row: !rows.is_empty(),
-            hosts: rows
-                .iter()
-                .filter_map(|r| known_host(user_id, "bridge_user_host_prefs", &r.host_id))
-                .collect(),
+            unknown_enabled_row: hosts.len() < rows.len(),
+            hosts,
         })
     }
 
@@ -110,7 +121,7 @@ impl BridgeHostPrefsRepository {
         user_id: &UserId,
         host: HostKind,
         enabled: bool,
-        instance_hosts: &[HostKind],
+        instance: &InstanceHosts,
     ) -> OauthResult<HostPrefWrite> {
         let mut tx = self.write_pool.as_ref().begin().await?;
         let stored: Vec<String> = sqlx::query_scalar!(
@@ -123,24 +134,34 @@ impl BridgeHostPrefsRepository {
         )
         .fetch_all(&mut *tx)
         .await?;
-        if !enabled {
-            let remaining: Vec<&str> = if stored.is_empty() {
-                instance_hosts
-                    .iter()
-                    .filter(|h| **h != host)
-                    .map(|h| h.as_str())
+        let is_default_row = |raw: &str| {
+            raw.parse::<HostKind>()
+                .ok()
+                .is_none_or(|h| !instance.is_opt_in(h))
+        };
+        let stored_defaults: Vec<&str> = stored
+            .iter()
+            .map(String::as_str)
+            .filter(|raw| is_default_row(raw))
+            .collect();
+        if !enabled && !instance.is_opt_in(host) {
+            let remaining: Vec<&str> = if stored_defaults.is_empty() {
+                instance
+                    .by_default()
+                    .filter(|h| *h != host)
+                    .map(HostKind::as_str)
                     .collect()
             } else {
-                stored
+                stored_defaults
                     .iter()
-                    .map(String::as_str)
+                    .copied()
                     .filter(|h| *h != host.as_str())
                     .collect()
             };
             if remaining.is_empty() {
                 return Ok(HostPrefWrite::WouldDisableAll);
             }
-            if stored.is_empty() {
+            if stored_defaults.is_empty() {
                 let keep: Vec<String> = remaining.iter().map(|h| (*h).to_owned()).collect();
                 sqlx::query!(
                     r#"

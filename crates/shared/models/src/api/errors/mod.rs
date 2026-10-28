@@ -39,6 +39,8 @@ pub enum ErrorCode {
     InternalError,
     ValidationError,
     ConflictError,
+    PayloadTooLarge,
+    Locked,
     RateLimited,
     ServiceUnavailable,
 }
@@ -161,6 +163,14 @@ impl ApiError {
 
     pub fn conflict(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::ConflictError, message)
+    }
+
+    pub fn payload_too_large(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::PayloadTooLarge, message)
+    }
+
+    pub fn locked(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::Locked, message)
     }
 
     pub fn rate_limited(message: impl Into<String>) -> Self {

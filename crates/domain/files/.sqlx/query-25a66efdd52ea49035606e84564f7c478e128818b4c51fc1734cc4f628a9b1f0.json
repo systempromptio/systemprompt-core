@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT document_id::text AS \"document_id!: DocumentId\",\n                      holder_user_id AS \"holder_user_id: UserId\",\n                      holder_kind, holder_id, acquired_at, expires_at\n               FROM document_locks\n               WHERE document_id = $1::text::uuid AND expires_at > now()",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "holder_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "holder_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "holder_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "holder_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "holder_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "holder_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "acquired_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "acquired_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "25a66efdd52ea49035606e84564f7c478e128818b4c51fc1734cc4f628a9b1f0"
+}

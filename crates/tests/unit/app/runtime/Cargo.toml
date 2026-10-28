@@ -27,6 +27,7 @@ systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-files = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }
@@ -40,6 +41,8 @@ systemprompt-events = { workspace = true }
 inventory = { workspace = true }
 
 [dev-dependencies]
+rmcp = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }

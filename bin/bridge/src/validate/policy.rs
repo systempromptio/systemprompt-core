@@ -90,10 +90,32 @@ fn check_claude_code_policy_dir(report: &mut Report) {
         return;
     }
     let mut offenders: Vec<&str> = Vec::new();
-    if dir.join(MANAGED_MCP_FILE).exists() {
-        offenders.push(MANAGED_MCP_FILE);
+    let mcp_path = dir.join(MANAGED_MCP_FILE);
+    match crate::claude_policy::managed_mcp_author(&mcp_path) {
+        Ok(Some(crate::claude_policy::PolicyAuthor::Bridge)) => offenders.push(MANAGED_MCP_FILE),
+        Ok(Some(crate::claude_policy::PolicyAuthor::Foreign)) => report.warn(
+            "claude code policy dir",
+            &format!(
+                "{} is an MCP policy the bridge did not write; sync leaves it in place",
+                mcp_path.display()
+            ),
+        ),
+        Ok(None) => {},
+        Err(e) => report.warn(
+            "claude code policy dir",
+            &format!("{} unreadable: {e}", mcp_path.display()),
+        ),
     }
     let settings = dir.join(MANAGED_SETTINGS_FILE);
+    if crate::claude_policy::holds_foreign_mcp_keys(&settings) {
+        report.warn(
+            "claude code policy dir",
+            &format!(
+                "{} carries an MCP allowlist the bridge did not write; sync leaves it in place",
+                settings.display()
+            ),
+        );
+    }
     match crate::claude_policy::stripped_settings(&settings) {
         Ok(Some(_)) => offenders.push(MANAGED_SETTINGS_FILE),
         Ok(None) => {},

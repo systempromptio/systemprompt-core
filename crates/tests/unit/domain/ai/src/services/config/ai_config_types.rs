@@ -165,7 +165,7 @@ mod model_capabilities_tests {
     use super::*;
 
     #[test]
-    fn default_all_false() {
+    fn default_only_prompt_caching_on() {
         let caps = ModelCapabilities::default();
         assert!(!caps.vision);
         assert!(!caps.audio_input);
@@ -177,6 +177,17 @@ mod model_capabilities_tests {
         assert!(!caps.structured_output);
         assert!(!caps.system_prompts);
         assert!(!caps.image_resolution_config);
+        assert!(!caps.reasoning);
+        assert!(caps.prompt_caching);
+    }
+
+    #[test]
+    fn omitted_prompt_caching_deserializes_on() {
+        let caps: ModelCapabilities = serde_json::from_str("{}").expect("deserialize");
+        assert!(caps.prompt_caching);
+        let off: ModelCapabilities =
+            serde_json::from_str(r#"{"prompt_caching": false}"#).expect("deserialize");
+        assert!(!off.prompt_caching);
     }
 
     #[test]

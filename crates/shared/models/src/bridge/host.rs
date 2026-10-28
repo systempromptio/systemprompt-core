@@ -16,6 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
 use std::fmt;
 use std::str::FromStr;
 
@@ -115,9 +116,52 @@ impl HostKind {
     pub fn parse_list<S: AsRef<str>>(hosts: &[S]) -> Result<Vec<Self>, UnknownHostKind> {
         hosts.iter().map(|host| host.as_ref().parse()).collect()
     }
+
+    pub fn validate_targets<S: AsRef<str>>(hosts: &[S]) -> Result<(), UnknownHostKind> {
+        hosts
+            .iter()
+            .map(S::as_ref)
+            .filter(|host| *host != COWORK_TARGET)
+            .try_for_each(|host| host.parse::<Self>().map(drop))
+    }
 }
 
+/// The hosts an instance serves, and the opt-in subset that reaches only the
+/// users who turn it on.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct InstanceHosts {
+    pub enabled: Vec<HostKind>,
+    pub opt_in: BTreeSet<HostKind>,
+}
+
+impl InstanceHosts {
+    #[must_use]
+    pub fn is_opt_in(&self, host: HostKind) -> bool {
+        self.opt_in.contains(&host)
+    }
+
+    pub fn by_default(&self) -> impl Iterator<Item = HostKind> + '_ {
+        self.enabled
+            .iter()
+            .copied()
+            .filter(|host| !self.is_opt_in(*host))
+    }
+}
+
+// Why: Cowork is not a HostKind; it receives the Claude Desktop plugin bundle,
+// so a `hosts:` list may name it beside the host ids.
+pub const COWORK_TARGET: &str = "cowork";
+
 impl HostProduct {
+    #[must_use]
+    pub fn targeted_by<S: AsRef<str>>(self, hosts: &[S]) -> bool {
+        hosts.iter().any(|host| {
+            host.as_ref()
+                .parse::<HostKind>()
+                .is_ok_and(|kind| kind.product() == self)
+        })
+    }
+
     pub fn hosts(self) -> impl Iterator<Item = HostKind> {
         HostKind::ALL
             .into_iter()

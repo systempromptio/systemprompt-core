@@ -110,6 +110,10 @@ fn sync_commands(b: &Brand) -> String {
                                           --allow-tofu opts back into trust-on-first-use
                                           pubkey fetch when no pinned key is available;
                                           required only if MDM rollout is unavailable.
+  drive                      Two-way sync of the workspace Drive folder
+    status                              Folder, pending uploads and open conflicts
+    sync                                Run one pull-then-upload cycle now
+    conflicts                           List local edits kept as conflict siblings
   oauth-client               Manage the per-tenant OAuth client used to mint
                              plugin-scoped hook tokens
     status                              Show locally-stashed creds (no secret echo)

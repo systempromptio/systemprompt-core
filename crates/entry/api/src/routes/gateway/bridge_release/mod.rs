@@ -2,8 +2,9 @@
 //! the desktop bridge's self-updater reads.
 //!
 //! Release assets live in a private repository that the bridge has no
-//! credential for, so the gateway resolves the newest `bridge-v*` release and
-//! proxies the bytes. Resolution happening here is also what lets an operator
+//! credential for, so the gateway resolves the newest `bridge-v*` release this
+//! server supports (major.minor no higher than its own version) and proxies
+//! the bytes. Resolution happening here is also what lets an operator
 //! pin or stage a rollout without shipping a new client.
 //!
 //! Every bridge in the fleet reads this feed on a timer, so resolution is
@@ -31,6 +32,7 @@ use systemprompt_models::ApiPaths;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 use systemprompt_runtime::AppContext;
 
+mod cache;
 mod error;
 mod feed;
 mod github;

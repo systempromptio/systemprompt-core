@@ -1,0 +1,95 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT document_id::text AS \"document_id!: DocumentId\",\n                      user_id AS \"user_id: UserId\",\n                      source, state, cursor, updated_at, expires_at\n               FROM document_presence\n               WHERE document_id = $1::text::uuid AND expires_at > now()\n               ORDER BY updated_at DESC, user_id, source",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_presence",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_presence",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_presence",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "cursor",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "document_presence",
+            "name": "cursor"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_presence",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_presence",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "fb3facc67a7f9ca08460a82a3bc36344da437f37e530174926cf644b2d6bfb3f"
+}

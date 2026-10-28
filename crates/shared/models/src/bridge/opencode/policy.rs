@@ -57,6 +57,7 @@ pub struct Lockdown<'a> {
     pub allowed_tools: &'a [String],
     pub denied_tools: &'a [String],
     pub allowed_mcp: &'a [String],
+    pub allowed_plugins: &'a [String],
 }
 
 #[must_use]
@@ -67,6 +68,12 @@ pub fn lockdown_policies(lockdown: &Lockdown<'_>) -> Vec<Policy> {
         Policy::deny(PolicyAction::Integration, "mcp:*"),
         Policy::deny(PolicyAction::Integration, "plugin:*"),
     ];
+    out.extend(
+        lockdown
+            .allowed_plugins
+            .iter()
+            .map(|plugin| Policy::allow(PolicyAction::Integration, format!("plugin:{plugin}"))),
+    );
     out.extend(
         lockdown
             .allowed_mcp

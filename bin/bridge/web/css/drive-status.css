@@ -1,0 +1,8 @@
+.sp-drive-status { display: flex; flex-direction: column; gap: var(--sp-space-1); }
+.sp-drive-status__line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-space-2); }
+.sp-drive-status__label { font-weight: 600; }
+.sp-drive-status__count,
+.sp-drive-status__root { color: var(--sp-muted); font-size: 12px; }
+.sp-drive-status__error { margin: 0; color: var(--sp-muted); font-size: 12px; }
+.sp-drive-status__conflicts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-space-1); }
+.sp-drive-status__conflict { font-size: 12px; overflow-wrap: anywhere; }

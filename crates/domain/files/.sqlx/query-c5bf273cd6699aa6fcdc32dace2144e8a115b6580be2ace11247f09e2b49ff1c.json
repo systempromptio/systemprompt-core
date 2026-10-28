@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT node_id AS \"node_id: DocumentNodeId\",\n                      path AS \"path: DocumentNodeId\",\n                      hash8\n               FROM document_node_ids\n               WHERE revision_id = $1::text::uuid\n               ORDER BY ordinal",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "node_id: DocumentNodeId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_node_ids",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "path: DocumentNodeId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_node_ids",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "hash8",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_node_ids",
+            "name": "hash8"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c5bf273cd6699aa6fcdc32dace2144e8a115b6580be2ace11247f09e2b49ff1c"
+}

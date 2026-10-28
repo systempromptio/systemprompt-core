@@ -6,10 +6,11 @@
 mod dirs;
 
 pub use dirs::{
-    CLAUDE_MSIX_FAMILY, COWORK_ARTIFACTS_SUBDIR, COWORK_PLUGINS_SUBDIR, WORKSPACE_ARTIFACTS_SUBDIR,
-    bridge_metadata_dir, bridge_staging_dir, bridge_update_dir, bridge_working_dir,
-    claude_cli_home, claude_cli_plugins_dir, claude_cli_settings_path, claude_code_policy_dir,
-    cowork3p_sessions_root, workspace_artifacts_dir, workspace_dir, write_persistent_profile,
+    CLAUDE_MSIX_FAMILY, COWORK_ARTIFACTS_SUBDIR, COWORK_PLUGINS_SUBDIR, DRIVE_STATE_FILE,
+    DRIVE_SUBDIR, WORKSPACE_ARTIFACTS_SUBDIR, bridge_metadata_dir, bridge_staging_dir,
+    bridge_update_dir, bridge_working_dir, claude_cli_home, claude_cli_plugins_dir,
+    claude_cli_settings_path, claude_code_policy_dir, cowork3p_sessions_root, drive_dir,
+    drive_state_path, workspace_artifacts_dir, workspace_dir, write_persistent_profile,
 };
 
 use std::path::PathBuf;

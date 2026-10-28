@@ -100,6 +100,26 @@ echo "    $(wc -l < "$WORK/newer.txt") migration(s) newer than $RUNG; ${#BREAKIN
 echo "    $RUNG reads the compat ledger: $HAS_LEDGER"
 
 step "write a minimal $RUNG server profile"
+# Why: from 0.73 the loader derives every API URL and the JWT issuer from
+# server.external_url and refuses a profile that states them; older rungs
+# require them stated.
+CATALOG_SHAPE=false
+if git -C "$ROOT" grep -q extra_cors_origins "$RUNG" -- crates/shared/manifest/src/profile; then
+    CATALOG_SHAPE=true
+    SERVER_URLS="  external_url: $BASE
+  extra_cors_origins:
+    - http://127.0.0.1"
+    JWT_ISSUER=""
+else
+    SERVER_URLS="  api_server_url: $BASE
+  api_internal_url: $BASE
+  api_external_url: $BASE
+  use_https: false
+  cors_allowed_origins:
+    - http://127.0.0.1"
+    JWT_ISSUER="  jwt_issuer: https://issuer.test
+"
+fi
 mkdir -p "$WORK"/{system/web,services/config,services/ai,services/content,services/web/templates,services/web/assets,services/skills/echo_skill,services/agents,services/plugins,services/hooks,services/marketplaces,bin,storage,profile}
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$WORK/system/signing_key.pem" 2>/dev/null
 
@@ -155,6 +175,11 @@ ai:
       enabled: true
       default_model: claude-sonnet-4-5
 YAML
+# Why: from 0.73 the catalog lives only in ai/*.yaml and the loader refuses
+# the inline `ai:` section the older rungs read.
+if [ "$CATALOG_SHAPE" = true ]; then
+    sed -i '/^ai:/,$d' "$WORK/services/config/config.yaml"
+fi
 cat > "$WORK/services/ai/providers.yaml" <<YAML
 providers:
   - name: anthropic
@@ -228,12 +253,7 @@ database:
 server:
   host: 127.0.0.1
   port: $API_PORT
-  api_server_url: $BASE
-  api_internal_url: $BASE
-  api_external_url: $BASE
-  use_https: false
-  cors_allowed_origins:
-    - http://127.0.0.1
+$SERVER_URLS
   content_negotiation:
     enabled: false
     markdown_suffix: .md
@@ -256,8 +276,7 @@ paths:
   storage: $WORK/storage
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.test
-  jwt_access_token_expiration: 3600
+$JWT_ISSUER  jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences:
     - api
@@ -333,6 +352,14 @@ cargo build --locked --manifest-path "$ROOT/crates/tests/mock-inference/Cargo.to
     --target-dir "${LADDER_MOCK_TARGET:-$WORK/mock-target}"
 "${LADDER_MOCK_TARGET:-$WORK/mock-target}/debug/mock-inference" --port "$MOCK_PORT" > "$WORK/mock.log" 2>&1 &
 MOCK_PID=$!
+
+# Why: a 0.73+ rung refuses the pre-0.73 ai/*.yaml shape written above; its
+# own migrator rewrites them into the catalog that release loads.
+if [ "$CATALOG_SHAPE" = true ]; then
+    step "rewrite the ladder services tree into the $RUNG catalog shape"
+    rung admin config migrate --services "$WORK/services" > "$WORK/migrate.log" 2>&1 \
+        || { cat "$WORK/migrate.log"; fail "$RUNG could not migrate the ladder services tree."; }
+fi
 
 step "seed the system admin and an API key with a request quota"
 rung admin bootstrap --email testadmin@example.com > "$WORK/bootstrap.log" 2>&1 \

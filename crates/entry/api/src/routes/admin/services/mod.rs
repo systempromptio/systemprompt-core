@@ -25,6 +25,7 @@ use axum::Router;
 use axum::routing::{get, post};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ContentHash;
 use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_runtime::AppContext;
@@ -57,7 +58,7 @@ pub struct SourceView {
     pub name: String,
     pub digest: String,
     pub version: String,
-    pub content_hash: String,
+    pub content_hash: ContentHash,
     pub fetched_at: DateTime<Utc>,
 }
 

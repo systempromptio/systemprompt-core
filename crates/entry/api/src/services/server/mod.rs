@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod boot_steps;
 pub mod builder;
 mod discovery;
 pub mod health;

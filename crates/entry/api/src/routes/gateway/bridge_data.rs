@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{ApiKeyId, UserId};
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_oauth::OauthResult;
 use systemprompt_oauth::repository::{EnabledHostPrefs, HostPrefWrite};
@@ -47,11 +47,10 @@ pub async fn set_host_enabled(
     user_id: &UserId,
     host: HostKind,
     enabled: bool,
-    instance_hosts: &[HostKind],
+    instance: &InstanceHosts,
 ) -> OauthResult<HostPrefWrite> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    repo.set_enabled(user_id, host, enabled, instance_hosts)
-        .await
+    repo.set_enabled(user_id, host, enabled, instance).await
 }
 
 pub async fn load_host_model_protocols(

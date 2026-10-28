@@ -72,6 +72,7 @@ mod cloud;
 mod connection;
 mod content;
 mod context;
+mod documents;
 mod email;
 mod engagement;
 mod events;
@@ -133,6 +134,11 @@ pub use cloud::{CloudAppId, CloudPlanId, CloudUserId, EnterpriseLicenseId, Price
 pub use connection::ConnectionId;
 pub use content::{CategoryId, ContentId, FileId, SkillId, SkillName, SourceId, TagId};
 pub use context::ContextId;
+pub use documents::{
+    ContentHash, DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId,
+    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
+    DriveDeviceId,
+};
 pub use email::Email;
 pub use engagement::{AnalyticsEventId, EngagementEventId};
 pub use events::EventOutboxId;

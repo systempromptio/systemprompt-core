@@ -1,9 +1,9 @@
 //! Session binding (credential.md §4): the session a gateway request lands on
 //! comes from the credential. An API key with no gateway-issued
 //! `x-session-id` gets a session minted and bound to it; a client's own
-//! header is recorded as `client_session_id` and never rejected, as is a JWT
-//! client's own header; a JWT whose header names another gateway session than
-//! its `session_id` claim is 401.
+//! header is recorded as `client_session_id` and never rejected. A JWT always
+//! lands on its `session_id` claim, and any other header it sends — the
+//! client's own id or another gateway session — is recorded the same way.
 
 use std::sync::Arc;
 
@@ -178,7 +178,7 @@ async fn a_client_session_header_is_recorded_and_never_rejected() -> Result<()> 
 }
 
 #[tokio::test]
-async fn a_jwt_header_naming_a_gateway_session_other_than_its_claim_is_refused() -> Result<()> {
+async fn a_jwt_header_naming_another_session_lands_on_the_claim_and_is_recorded() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "bind-jwt@example.invalid").await?;
     let other = seed_admin_credential(&pool, "bind-jwt-other@example.invalid").await?;
@@ -190,7 +190,7 @@ async fn a_jwt_header_naming_a_gateway_session_other_than_its_claim_is_refused()
         other.session_id.clone(),
         SessionId::new("sess_forged-and-never-issued"),
     ] {
-        let rejection = sign_in(
+        let principal = sign_in(
             &ctx,
             &extractor,
             cred.jwt.as_str(),
@@ -198,9 +198,12 @@ async fn a_jwt_header_naming_a_gateway_session_other_than_its_claim_is_refused()
             &providers,
         )
         .await
-        .expect_err("a gateway-format header that contradicts the claim is refused");
-        assert_eq!(rejection.status, StatusCode::UNAUTHORIZED);
-        assert!(rejection.message.contains("X-Session-ID"));
+        .expect("a header that differs from the claim is never a reason to refuse");
+        assert_eq!(principal.session_id(), &cred.session_id);
+        assert_eq!(
+            principal.client_session().map(|c| c.as_str()),
+            Some(header.as_str())
+        );
     }
     Ok(())
 }

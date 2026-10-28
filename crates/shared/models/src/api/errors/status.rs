@@ -17,6 +17,8 @@ impl ErrorCode {
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::ValidationError => StatusCode::UNPROCESSABLE_ENTITY,
             Self::ConflictError => StatusCode::CONFLICT,
+            Self::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
+            Self::Locked => StatusCode::LOCKED,
             Self::RateLimited => StatusCode::TOO_MANY_REQUESTS,
             Self::ServiceUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,

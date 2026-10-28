@@ -47,6 +47,10 @@ impl AppContext {
         &self.subsystems.connector_tokens
     }
 
+    pub const fn documents(&self) -> &Arc<crate::documents::DocumentsRuntime> {
+        &self.subsystems.documents
+    }
+
     #[must_use]
     pub fn token_authority(&self) -> Arc<dyn TokenAuthority> {
         Arc::new(DeploymentTokenAuthority::new(

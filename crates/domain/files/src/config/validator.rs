@@ -11,6 +11,7 @@ use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
 use systemprompt_traits::ConfigProvider;
 
 use super::FilesConfig;
+use super::documents::{MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
 use super::types::FilesConfigYaml;
 
 const MAX_RECOMMENDED_FILE_SIZE: u64 = 2 * 1024 * 1024 * 1024;
@@ -97,6 +98,34 @@ impl DomainConfig for FilesConfigValidator {
                 )
                 .with_suggestion("Increase maxFileSizeBytes to at least 100MB for video uploads"),
             );
+        }
+
+        let documents = &config.documents;
+        if !(MIN_DOCUMENT_UPLOAD_BYTES..=MAX_DOCUMENT_UPLOAD_BYTES)
+            .contains(&documents.max_upload_bytes)
+        {
+            report.add_error(ValidationIssue::new(
+                "files.documents.maxUploadBytes",
+                "Document upload limit must be between 1 MiB and 2 GiB",
+            ));
+        }
+        if documents.blob_gc_grace_hours == 0 {
+            report.add_error(ValidationIssue::new(
+                "files.documents.blobGcGraceHours",
+                "Blob garbage-collection grace must be at least one hour",
+            ));
+        }
+        if documents.presence_ttl_secs == 0 {
+            report.add_error(ValidationIssue::new(
+                "files.documents.presenceTtlSecs",
+                "Presence time-to-live must be at least one second",
+            ));
+        }
+        if documents.trash_retention_days == 0 {
+            report.add_error(ValidationIssue::new(
+                "files.documents.trashRetentionDays",
+                "Trash retention must be at least one day",
+            ));
         }
 
         Ok(report)

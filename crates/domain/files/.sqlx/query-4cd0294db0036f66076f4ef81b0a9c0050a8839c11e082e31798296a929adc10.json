@@ -1,0 +1,157 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id::text AS \"id!: DocumentId\",\n                      d.folder_id::text AS \"folder_id: DocumentFolderId\",\n                      d.name, d.format, d.mime_type,\n                      d.head_revision_id::text AS \"head_revision_id: DocumentRevisionId\",\n                      d.template_id AS \"template_id: DocumentTemplateId\",\n                      d.owner_user_id AS \"owner_user_id: UserId\",\n                      d.created_by AS \"created_by: UserId\",\n                      d.created_at, d.updated_at, d.deleted_at AS trashed_at,\n                      d.trashed_by AS \"trashed_by: UserId\"\n               FROM documents d WHERE d.id = $1::text::uuid AND d.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "folder_id: DocumentFolderId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "format",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "format"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "mime_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "mime_type"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "head_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "template_id: DocumentTemplateId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "template_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "owner_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "owner_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "trashed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "deleted_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "trashed_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "trashed_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false,
+      false,
+      false,
+      null,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "4cd0294db0036f66076f4ef81b0a9c0050a8839c11e082e31798296a929adc10"
+}

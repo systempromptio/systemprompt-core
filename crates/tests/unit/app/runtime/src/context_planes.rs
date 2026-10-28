@@ -146,10 +146,18 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("Plugins"), "got: {dbg}");
     assert!(dbg.contains("marketplace_filter"), "got: {dbg}");
 
+    let authz_hook: systemprompt_governance::authz::SharedAuthzHook =
+        Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    let file_storage =
+        systemprompt_storage::build_file_storage(systemprompt_storage::FileStorageBackend::Local {
+            root: std::env::temp_dir(),
+        });
+    let documents =
+        systemprompt_test_fixtures::fixture_documents_runtime(&pool, &file_storage, &authz_hook);
     let subsystems = Subsystems {
         system_admin: Arc::new(fixture_system_admin("planeadmin")),
         logging: systemprompt_test_fixtures::fixture_logging_runtime(),
-        authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
+        authz_hook: Arc::clone(&authz_hook),
         signing_keys: systemprompt_test_fixtures::test_signing_keys(),
         governance: systemprompt_test_fixtures::default_governance_watch(),
         services: systemprompt_test_fixtures::fixture_services_state(),
@@ -165,11 +173,7 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_events::EventBroadcasters::new(),
         )),
         geoip_reader: None,
-        file_storage: systemprompt_storage::build_file_storage(
-            systemprompt_storage::FileStorageBackend::Local {
-                root: std::env::temp_dir(),
-            },
-        ),
+        file_storage: Arc::clone(&file_storage),
         shutdown: Default::default(),
         background_tasks: Default::default(),
         spawner: systemprompt_test_fixtures::test_spawner(),
@@ -177,6 +181,7 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_marketplace::inventory::PublishGuard::default(),
         )),
         connector_tokens: Arc::default(),
+        documents,
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

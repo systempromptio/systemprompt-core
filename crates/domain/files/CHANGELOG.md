@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- `FilesConfigYaml` gains `documents: DocumentsConfig`. YAML without the key is unchanged; migrate struct literals by adding `documents: DocumentsConfig::default()`.
+
+### Added
+
+- A shared document store: folders with materialised ancestors, content-addressed blobs over `FileStorage`, documents with a compare-and-swap head revision, revisions with request attribution and stable node ids, subject-keyed grants, locks, presence, edit sessions, comments, proposals, write acknowledgements and a text index, each behind a repository in `DocumentRepositories` (migrations `003`–`010`).
+- `DocumentService` and `DocumentAccessService`: template-based creation and import, node-guarded edit commits that merge onto a moved head, three-way merges for text formats and diff-on-head for Office files, sharing with stored subject display names, ownership transfer, comments, proposals with a folder `agent_edit_policy`, the trash (`trashed_at`, stored in `documents.deleted_at`), copies and restores that take the next free name, scoped listings, locks, presence, search and the bridge Drive feed, with document events on the AgUi stream.
+- `DocumentCodec` implementations for HTML, Markdown and plain text, and (feature `office`) `.docx`, `.xlsx`, `.pptx`, `.odt`, `.ods` and `.odp`, with the `CodecRegistry`; edit ops target nodes by id or by quoted text and accept Markdown content; every codec writes `pending` placeholder blocks.
+- A document template registry merging `DocumentTemplateProvider` registrations with `services/documents/templates/*.yaml`, with core blank templates.
+- `CollabService` (feature `collab`): live HTML and Markdown co-editing over a Loro CRDT with snapshotting and `edit_session` revisions.
+- Jobs: blob GC, presence sweep, `document_trash_purge` and `document_collab_update_sweep`; the `report_document_revisions` view.
+- The `files.documents` configuration (`enabled`, upload limit, GC grace, presence TTL, `trashRetentionDays`); the store is disabled by default.
+- Web Components for the document store, shipped through `FilesExtension::required_assets` to `assets/documents/{js,css,wasm}` with `loro-crdt` 1.17.1 vendored as WebAssembly.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

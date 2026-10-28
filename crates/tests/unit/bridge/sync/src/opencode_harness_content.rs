@@ -178,3 +178,28 @@ fn an_mdm_provider_tier_gets_content_but_no_bridge_mcp_servers() {
         );
     });
 }
+
+#[test]
+fn a_rules_block_within_the_budget_is_not_over_it() {
+    use systemprompt_models::bridge::opencode::agents_md::over_budget;
+    assert_eq!(over_budget(&[rule("a", &["opencode"], "Short.")]), None);
+    assert_eq!(over_budget(&[]), None);
+}
+
+#[test]
+fn a_rules_block_past_the_budget_reports_its_length() {
+    use systemprompt_models::bridge::opencode::agents_md::{AGENTS_MD_BUDGET_CHARS, over_budget};
+    let body = "x".repeat(AGENTS_MD_BUDGET_CHARS);
+    let chars = over_budget(&[rule("a", &["opencode-cli"], &body)]).expect("over budget");
+    assert!(chars > AGENTS_MD_BUDGET_CHARS);
+}
+
+#[test]
+fn rules_that_reach_no_opencode_host_do_not_count_against_the_budget() {
+    use systemprompt_models::bridge::opencode::agents_md::{AGENTS_MD_BUDGET_CHARS, over_budget};
+    let body = "x".repeat(AGENTS_MD_BUDGET_CHARS);
+    assert_eq!(
+        over_budget(&[rule("a", &["cowork", "claude-code"], &body)]),
+        None
+    );
+}

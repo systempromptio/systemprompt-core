@@ -11,20 +11,22 @@ use std::path::Path;
 use crate::claude_policy::MANAGED_SETTINGS_FILE;
 
 pub(super) fn clear_direct(
-    mcp_path: &Path,
+    mcp_path: Option<&Path>,
     settings_path: &Path,
     stripped_settings_body: Option<&str>,
 ) -> std::io::Result<()> {
-    match fs::remove_file(mcp_path) {
-        Ok(()) => {},
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-        Err(e) => return Err(e),
-    }
-    if mcp_path.try_exists()? {
-        return Err(std::io::Error::other(format!(
-            "{} still exists after removal",
-            mcp_path.display()
-        )));
+    if let Some(mcp_path) = mcp_path {
+        match fs::remove_file(mcp_path) {
+            Ok(()) => {},
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => return Err(e),
+        }
+        if mcp_path.try_exists()? {
+            return Err(std::io::Error::other(format!(
+                "{} still exists after removal",
+                mcp_path.display()
+            )));
+        }
     }
     if let Some(body) = stripped_settings_body {
         crate::fsutil::atomic_write_0644(settings_path, body.as_bytes())?;
@@ -42,13 +44,13 @@ fn stage_clear(body: &str) -> Result<(tempfile::TempDir, std::path::PathBuf), st
 
 #[cfg(target_os = "macos")]
 pub(super) fn clear_elevated(
-    mcp_path: &Path,
+    mcp_path: Option<&Path>,
     settings_path: &Path,
     stripped_settings_body: Option<&str>,
 ) -> std::io::Result<()> {
     let staging = stripped_settings_body.map(stage_clear).transpose()?;
     let script = crate::install::elevation_script::clear_policy_script(
-        mcp_path.exists().then_some(mcp_path),
+        mcp_path.filter(|path| path.exists()),
         staging
             .as_ref()
             .map(|(_, staged)| (staged.as_path(), settings_path)),
@@ -63,7 +65,7 @@ pub(super) fn clear_elevated(
 
 #[cfg(target_os = "windows")]
 pub(super) fn clear_elevated(
-    mcp_path: &Path,
+    mcp_path: Option<&Path>,
     settings_path: &Path,
     stripped_settings_body: Option<&str>,
 ) -> std::io::Result<()> {
@@ -80,11 +82,11 @@ pub(super) fn clear_elevated(
                 dest: settings_path.to_path_buf(),
             })
             .collect(),
-        remove_files: if mcp_path.exists() {
-            vec![mcp_path.to_path_buf()]
-        } else {
-            Vec::new()
-        },
+        remove_files: mcp_path
+            .filter(|path| path.exists())
+            .map(Path::to_path_buf)
+            .into_iter()
+            .collect(),
         private_dirs: Vec::new(),
     };
     let stage_dir = staging
@@ -106,23 +108,29 @@ pub(super) fn clear_elevated(
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub(super) fn clear_elevated(mcp_path: &Path, _: &Path, _: Option<&str>) -> std::io::Result<()> {
+pub(super) fn clear_elevated(
+    _: Option<&Path>,
+    settings_path: &Path,
+    _: Option<&str>,
+) -> std::io::Result<()> {
     Err(std::io::Error::new(
         std::io::ErrorKind::PermissionDenied,
         format!(
             "{}: root privileges required to remove managed MCP policy",
-            mcp_path.display()
+            settings_path.parent().unwrap_or(settings_path).display()
         ),
     ))
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn verify_removal(
-    mcp_path: &Path,
+    mcp_path: Option<&Path>,
     settings_path: &Path,
     body: Option<&str>,
 ) -> std::io::Result<()> {
-    if mcp_path.try_exists()? {
+    if let Some(mcp_path) = mcp_path
+        && mcp_path.try_exists()?
+    {
         return Err(std::io::Error::other(format!(
             "{}: elevated removal did not land",
             mcp_path.display()

@@ -15,8 +15,8 @@ use systemprompt_api::routes::gateway::models::{families_from_header, model_entr
 use systemprompt_catalog_fixtures::{
     CatalogFixture, claude_model, model, personal, platform, priced,
 };
-use systemprompt_identifiers::TenantId;
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
+use systemprompt_identifiers::{ModelId, TenantId};
 use systemprompt_manifest::bridge_profile::{BridgeProfileParams, CredentialFacts, build};
 use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
 use systemprompt_models::api::ErrorCode;
@@ -91,7 +91,7 @@ fn the_profile_lists_advertised_servable_models_only() {
     let p = profile(&c, &["anthropic", "openai"], &[]);
     assert_eq!(
         p.models,
-        vec!["claude-sonnet-5".to_owned(), "gpt-5".to_owned()]
+        vec![ModelId::new("claude-sonnet-5"), ModelId::new("gpt-5")]
     );
     assert_eq!(p.default_model.as_deref(), Some("claude-sonnet-5[1m]"));
 }
@@ -102,12 +102,12 @@ fn a_personal_credential_serves_only_a_caller_who_stored_a_key() {
     assert!(
         !profile(&c, &["anthropic"], &[])
             .models
-            .contains(&"go-kimi".to_owned())
+            .contains(&ModelId::new("go-kimi"))
     );
     assert!(
         profile(&c, &["anthropic"], &["go"])
             .models
-            .contains(&"go-kimi".to_owned())
+            .contains(&ModelId::new("go-kimi"))
     );
 }
 
@@ -115,7 +115,7 @@ fn a_personal_credential_serves_only_a_caller_who_stored_a_key() {
 fn a_missing_secret_withholds_models_but_reports_the_provider() {
     let c = catalog();
     let p = profile(&c, &["anthropic"], &[]);
-    assert!(!p.models.contains(&"gpt-5".to_owned()));
+    assert!(!p.models.contains(&ModelId::new("gpt-5")));
     let openai = p
         .providers
         .iter()

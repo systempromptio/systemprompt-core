@@ -105,6 +105,27 @@ async fn webhook_transport_failure_denies() {
 }
 
 #[tokio::test]
+async fn webhook_error_status_is_not_retried_and_denies() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/authz"))
+        .respond_with(ResponseTemplate::new(503))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let hook = WebhookHook::new(
+        format!("{}/authz", server.uri()),
+        Duration::from_secs(2),
+        Arc::new(NullAuditSink),
+    )
+    .expect("build webhook hook");
+
+    let decision = hook.evaluate(fixture()).await;
+    assert!(matches!(decision, AuthzDecision::Deny { .. }));
+}
+
+#[tokio::test]
 async fn webhook_exposes_configured_url_and_timeout() {
     let hook = WebhookHook::new(
         "http://127.0.0.1:1/authz".to_string(),

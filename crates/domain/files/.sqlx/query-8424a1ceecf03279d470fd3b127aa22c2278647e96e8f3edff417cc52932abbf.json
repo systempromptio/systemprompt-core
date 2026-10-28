@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_edit_sessions SET closed_at = now(), updated_at = now()\n             WHERE id = $1::text::uuid AND closed_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8424a1ceecf03279d470fd3b127aa22c2278647e96e8f3edff417cc52932abbf"
+}

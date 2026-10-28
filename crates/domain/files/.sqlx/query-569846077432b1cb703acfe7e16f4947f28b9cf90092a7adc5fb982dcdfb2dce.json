@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_collab_updates\n             WHERE (session_id, seq) IN (\n                 SELECT u.session_id, u.seq FROM document_collab_updates u\n                 JOIN document_edit_sessions s ON s.id = u.session_id\n                 WHERE s.closed_at IS NOT NULL\n                 LIMIT $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "569846077432b1cb703acfe7e16f4947f28b9cf90092a7adc5fb982dcdfb2dce"
+}

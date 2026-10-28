@@ -135,12 +135,16 @@ impl ExtensionContext for AppContext {
     }
 
     fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies {
-        systemprompt_provider_contracts::Dependencies::new()
+        let mut dependencies = systemprompt_provider_contracts::Dependencies::new()
             .with(Arc::clone(self.db_pool()))
             .with(Arc::clone(self.app_paths_arc()))
             .with(Arc::clone(self.files_config()))
             .with(Arc::clone(self.oauth_repositories()))
-            .with(Arc::clone(self.ai_repositories()))
+            .with(Arc::clone(self.ai_repositories()));
+        if self.files_config().documents_config().is_enabled() {
+            dependencies.insert(Arc::clone(self.documents().service()));
+        }
+        dependencies
     }
 
     fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {

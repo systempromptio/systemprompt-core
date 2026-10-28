@@ -17,6 +17,7 @@ use systemprompt_security::manifest_signing::{canonical_manifest_bytes, verify_w
 
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::ContentHash;
 
 #[derive(Debug, Clone, Args)]
 pub struct InspectArgs {
@@ -36,7 +37,7 @@ pub struct BundleReport {
     pub version: String,
     pub created_at: String,
     pub requires_core: String,
-    pub content_hash: String,
+    pub content_hash: ContentHash,
     pub source_repo: Option<String>,
     pub source_commit: Option<String>,
     pub workflow_run: Option<String>,

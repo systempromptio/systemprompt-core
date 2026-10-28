@@ -12,6 +12,7 @@ use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::services_profile_fixture as fixture;
+use systemprompt_identifiers::ContentHash;
 
 const HELPER: &str = "services_refresh_changed_exit::refresh_changed_helper";
 const OLD: &str = "sha256:old00000";
@@ -38,7 +39,9 @@ async fn refresh_changed_helper() {
         BundleSourceState {
             digest: OLD.to_owned(),
             version: "1.2.3".to_owned(),
-            content_hash: "old-content".to_owned(),
+            content_hash: ContentHash::new(
+                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            ),
             fetched_at: Utc::now(),
         },
     );

@@ -208,3 +208,42 @@ async fn served_by_injects_instance_id_when_config_present() {
         .and_then(|h| h.to_str().ok());
     assert_eq!(val, Some("unit-test-instance"));
 }
+
+#[tokio::test]
+async fn frame_override_merges_frame_ancestors_into_an_existing_csp() {
+    let app = Router::new()
+        .route(
+            "/",
+            get(|| async {
+                (
+                    [(
+                        "content-security-policy",
+                        "sandbox; default-src 'none'; frame-ancestors *",
+                    )],
+                    "ok",
+                )
+            }),
+        )
+        .layer(from_fn(move |req, next| {
+            systemprompt_extension::stamp_frame_options(
+                systemprompt_manifest::profile::FrameOptions::SameOrigin,
+                req,
+                next,
+            )
+        }))
+        .layer(from_fn(move |req, next| {
+            let mut cfg = SecurityHeadersConfig::default();
+            cfg.content_security_policy = Some("default-src 'self'".into());
+            async move { inject_security_headers(cfg, req, next).await }
+        }));
+    let resp = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let h = resp.headers();
+    assert_eq!(h.get("x-frame-options").unwrap(), "SAMEORIGIN");
+    assert_eq!(
+        h.get("content-security-policy").unwrap(),
+        "sandbox; default-src 'none'; frame-ancestors 'self'"
+    );
+}

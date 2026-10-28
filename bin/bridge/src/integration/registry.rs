@@ -37,7 +37,7 @@ impl std::fmt::Debug for HostAppRegistration {
 
 inventory::collect!(HostAppRegistration);
 
-/// Removes a host from the registry by `id()`.
+/// Removes a host from the registry by `id()`, Claude Code included.
 ///
 /// Shadowing can only replace a host; a white-label crate whose install must
 /// not offer one at all suppresses it instead, and every surface — onboarding
@@ -110,6 +110,20 @@ pub fn host_apps() -> &'static [&'static dyn HostApp] {
 }
 
 #[must_use]
+pub fn is_suppressed(id: HostKind) -> bool {
+    REGISTRY.suppressed.contains(&id)
+}
+
+// Why: host_sync sits below integration, so the suppression filter over its
+// registry lives here; sync dispatches through this, never the raw registry.
+pub fn host_syncs() -> impl Iterator<Item = &'static dyn crate::host_sync::HostSync> {
+    crate::host_sync::registry()
+        .iter()
+        .copied()
+        .filter(|emitter| !is_suppressed(emitter.host_id()))
+}
+
+#[must_use]
 pub fn find_host_by_id(id: HostKind) -> Option<&'static dyn HostApp> {
     REGISTRY.hosts.iter().copied().find(|h| h.id() == id)
 }
@@ -147,7 +161,7 @@ pub fn resolve_host(id: HostKind) -> ResolvedHost {
     if let Some(agent) = super::sync_only::sync_only_agent(id) {
         return ResolvedHost::SyncOnly(agent);
     }
-    if REGISTRY.suppressed.contains(&id) {
+    if is_suppressed(id) {
         return ResolvedHost::Suppressed;
     }
     ResolvedHost::Unknown

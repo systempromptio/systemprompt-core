@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_grants SET granted_by = $2 WHERE granted_by = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "427605f7f49f0c0a604b5be6e498966d411de1ca74ef38e3eeabe5e1864413da"
+}

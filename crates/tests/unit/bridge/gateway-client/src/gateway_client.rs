@@ -8,7 +8,7 @@ use systemprompt_bridge::gateway::manifest::decode_payload;
 use systemprompt_bridge::gateway::{Freshness, GatewayClient, GatewayError};
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::integration::HostKind;
-use systemprompt_identifiers::{PluginId, ValidatedUrl};
+use systemprompt_identifiers::{ModelId, PluginId, ValidatedUrl};
 use wiremock::matchers::{header, header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -353,7 +353,7 @@ async fn fetch_bridge_profile_ok() {
     assert_eq!(profile.auth_scheme, "bearer");
     assert_eq!(
         profile.models,
-        vec!["claude-x".to_owned(), "gpt-y".to_owned()]
+        vec![ModelId::new("claude-x"), ModelId::new("gpt-y")]
     );
 }
 

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_comments\n             SET anchor_find = NULL, anchor_nth = NULL, updated_at = now()\n             WHERE document_id = $1::text::uuid AND id = ANY($2::text[]::uuid[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "48ac2f2d496ea92a3db0dc9316538c655ed367cf6d8572eda41cf98fae2dd8ab"
+}

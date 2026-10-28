@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_comments SET author_user_id = $2 WHERE author_user_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "002371c955765c8d7020cbb21934a1be7ff606370a76188703fff4d68a6e50d5"
+}

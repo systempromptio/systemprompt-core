@@ -1,13 +1,14 @@
 //! The run home's `~/.config/opencode/opencode.json`.
 //!
 //! Rendered with the shared [`OpenCodeConfig`] builder: the gateway as the
-//! only provider (PAT read from [`PAT_ENV`], the run's gateway session in
-//! `x-session-id`, attribution scope headers), the request's model alias,
-//! the request's MCP servers, and `policies` that confine the run. Tool
-//! limits are `tool.use` policies, never `permissions`, because managed and
-//! generated `permissions` are overridable by an agent definition while
-//! `policies` are not. [`PermissionMode::Plan`] denies `edit`, `write` and
-//! `shell`.
+//! only provider (PAT read from [`PAT_ENV`], attribution scope headers), the
+//! request's model alias, the request's MCP servers, and `policies` that
+//! confine the run. Tool limits are `tool.use` policies, never `permissions`,
+//! because managed and generated `permissions` are overridable by an agent
+//! definition while `policies` are not. [`PermissionMode::Plan`] denies `edit`,
+//! `write` and `shell`. The run's gateway session comes from the PAT's session
+//! binding, not from `x-session-id`: `OpenCode` 2 replaces that header with its
+//! own session id, which the gateway records as the client session.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -50,6 +51,7 @@ pub fn build(
                 alias.clone(),
                 ModelEntry {
                     model: alias.clone(),
+                    name: None,
                     limit: None,
                 },
             )
@@ -75,6 +77,7 @@ pub fn build(
             allowed_tools: &request.allowed_tools,
             denied_tools: &denied,
             allowed_mcp: &mcp_names,
+            allowed_plugins: &[],
         }));
     if let Some(alias) = &request.model {
         config = config.with_model(PROVIDER_ID, alias);

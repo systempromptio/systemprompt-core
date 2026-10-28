@@ -1,7 +1,8 @@
 //! `instance_enabled_hosts` gates the bridge host list on the operator's
 //! `external_agents` catalog: an entry with `enabled: false` removes its host
 //! instance-wide, an absent entry leaves the host enabled, and catalog ids
-//! (snake_case) map onto host ids (kebab-case).
+//! (snake_case) map onto host ids (kebab-case). `default_enabled: false`
+//! keeps an enabled host but makes it opt-in.
 
 use systemprompt_identifiers::ExternalAgentId;
 use systemprompt_manifest::services::ServicesConfig;
@@ -17,6 +18,7 @@ fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConf
             display_name: id.to_owned(),
             kind: ExternalAgentKind::CliTool,
             enabled,
+            default_enabled: true,
             description: String::new(),
             platforms: Vec::new(),
             docs_url: None,
@@ -74,4 +76,40 @@ fn snake_case_catalog_ids_map_onto_kebab_case_host_ids() {
             HostKind::Hermes,
         ]
     );
+}
+
+#[test]
+fn a_default_off_catalog_entry_is_enabled_but_opt_in() {
+    let mut services = ServicesConfig::default();
+    let (id, mut agent) = catalog_entry("claude_code", true);
+    agent.default_enabled = false;
+    services
+        .external_agents
+        .extend([(id, agent), catalog_entry("hermes", false)]);
+
+    let instance = services.instance_hosts();
+    assert!(instance.enabled.contains(&HostKind::ClaudeCode));
+    assert!(instance.is_opt_in(HostKind::ClaudeCode));
+    assert!(!instance.enabled.contains(&HostKind::Hermes));
+    assert!(
+        !instance.is_opt_in(HostKind::Hermes),
+        "a disabled host is not offered at all"
+    );
+    assert!(
+        instance
+            .by_default()
+            .all(|host| host != HostKind::ClaudeCode)
+    );
+}
+
+#[test]
+fn a_catalog_entry_without_default_enabled_reaches_every_user() {
+    let file: ExternalAgentConfig = serde_json::from_value(serde_json::json!({
+        "id": "claude_code",
+        "display_name": "Claude Code",
+        "kind": "cli_tool",
+        "enabled": true
+    }))
+    .expect("parses");
+    assert!(file.default_enabled);
 }

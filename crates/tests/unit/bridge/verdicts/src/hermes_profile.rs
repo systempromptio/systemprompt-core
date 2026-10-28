@@ -28,6 +28,7 @@ const SECRET: &str = "hermes-host-token-value";
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         model_limits: Default::default(),
+        model_names: Default::default(),
         gateway_base_url: GATEWAY.to_owned(),
         host_token: HostToken::new(SECRET),
         models: vec![MODEL.to_owned()],

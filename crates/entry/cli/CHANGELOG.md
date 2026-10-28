@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- `admin config planes`' `ApplyArgs` gains `dry_run: bool`. Migrate struct literals by passing `dry_run: false`.
+
+### Added
+
+- `admin config planes apply --dry-run` reports what an apply would change without writing or auditing.
+- `core services validate` reports an `agents_md` finding that warns when the tree's `OpenCode` rules render to more than 24,000 characters.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking
@@ -58,7 +69,7 @@
 - `admin config secret set` refuses a profile whose secrets come from Vault or an external source: the file it would edit is ignored at boot, so the edit would silently do nothing. Rotate the secret at its source and run `admin config secret check`.
 - `admin config secret check` builds the external provider for `secrets.source: external` and reports its `kind`, and the store's `generation`, `last_reload_at` and `last_error`.
 
-## [0.66.0] - Unreleased
+## [0.66.0] - 2026-10-13
 
 ### Added
 

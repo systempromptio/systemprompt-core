@@ -6,7 +6,8 @@
 //! - [`WebhookHook`] — production. POSTs to an extension HTTP handler (e.g. the
 //!   template's `POST /govern/authz`). Any transport error, non-2xx, decode
 //!   failure, or timeout **denies** the request and records the fault to the
-//!   audit sink. There is no fail-open mode.
+//!   audit sink. A connect failure (the request never left) is retried once
+//!   after a short pause; nothing else is. There is no fail-open mode.
 //! - [`DenyAllHook`] — bootstrap default and `mode: disabled`. Denies every
 //!   request and records to the audit sink so outages remain observable.
 //! - [`AllowAllHook`] — TEST/DEV ONLY. Installed only when the operator passes
@@ -119,6 +120,8 @@ impl AuthzDecisionHook for AllowAllHook {
     }
 }
 
+const CONNECT_RETRY_DELAY: Duration = Duration::from_millis(150);
+
 #[derive(Debug, Clone)]
 pub struct WebhookHook {
     url: String,
@@ -167,7 +170,11 @@ enum WebhookFault {
 
 impl WebhookHook {
     async fn decide(&self, req: &AuthzRequest) -> Result<AuthzDecision, WebhookFault> {
-        let response = self.client.post(&self.url).json(req).send().await;
+        let mut response = self.client.post(&self.url).json(req).send().await;
+        if matches!(&response, Err(err) if err.is_connect()) {
+            tokio::time::sleep(CONNECT_RETRY_DELAY).await;
+            response = self.client.post(&self.url).json(req).send().await;
+        }
         let response = match response {
             Ok(r) => r,
             Err(err) => {

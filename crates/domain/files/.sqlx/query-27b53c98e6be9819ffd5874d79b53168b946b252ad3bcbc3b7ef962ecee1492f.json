@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n                   SELECT 1 FROM document_folders f\n                   JOIN document_folders a\n                     ON a.id = f.id OR a.id = ANY(f.ancestor_ids)\n                   WHERE f.id = $1::text::uuid\n                     AND a.deleted_at IS NULL\n                     AND a.agent_edit_policy = 'propose'\n               ) AS \"proposes!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "proposes!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "27b53c98e6be9819ffd5874d79b53168b946b252ad3bcbc3b7ef962ecee1492f"
+}

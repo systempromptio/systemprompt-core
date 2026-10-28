@@ -211,10 +211,16 @@ fn listed_marketplaces(
                 }),
                 opencode: marketplace.opencode.as_ref().map(|o| ManifestOpenCode {
                     min_client_version: o.min_client_version.clone(),
-                    theme: o.theme.as_ref().map(|t| ThemeRef {
-                        name: t.name.clone(),
-                        sha: t.sha256.clone(),
-                    }),
+                    themes: o
+                        .themes
+                        .iter()
+                        .map(|t| ThemeRef {
+                            name: t.name.clone(),
+                            sha: t.sha256.clone(),
+                        })
+                        .collect(),
+                    default_theme: o.default_theme.clone(),
+                    theme_mode: o.theme_mode,
                     cli_defaults: o.cli_defaults.clone(),
                 }),
             }

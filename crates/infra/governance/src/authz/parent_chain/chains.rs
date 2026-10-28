@@ -4,7 +4,8 @@
 //! several marketplaces admit produces one chain each, ordered by marketplace
 //! id, and [`ParentChainIndex::resolve`] takes the first that permits — so a
 //! member of several marketplaces is admitted when any admits, and the first
-//! deny in id order is the one reported when none does.
+//! deny in id order is the one reported when none does. Documents and
+//! folders are roots: they have no chain.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +22,7 @@ impl ParentChainIndex {
         match kind {
             EntityKind::Skill => self.skill_chains(id),
             EntityKind::Plugin => self.plugin_chains(id),
+            EntityKind::Document | EntityKind::Folder => Vec::new(),
             _ => self.member_chains(kind, id),
         }
     }

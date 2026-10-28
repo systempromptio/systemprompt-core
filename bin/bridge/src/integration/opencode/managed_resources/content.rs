@@ -8,8 +8,9 @@
 //!   `mode: subagent`; the first plugin (by id) to ship a name wins.
 //! - A plugin bundle's `hosts/opencode/plugins/*.{js,ts}` becomes
 //!   `plugins/<plugin>-<file>`.
-//! - A marketplace's `opencode.theme` is copied from the bundle that ships
-//!   `hosts/opencode/themes/<name>.json` with the pinned digest.
+//! - Each of a marketplace's `opencode.themes` is copied from the bundle that
+//!   ships `hosts/opencode/themes/<name>.json` with the pinned digest, and its
+//!   `hosts/opencode/desktop-themes/<name>.json` beside it when present.
 //!
 //! Every bundle file is checked against its manifest digest before it is
 //! projected; a file that does not match is not written.
@@ -20,65 +21,19 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use systemprompt_models::bridge::host::{HostKind, HostProduct};
+use systemprompt_models::bridge::host::HostKind;
+pub use systemprompt_models::bridge::opencode::agents_md::{agents_block, splice_block};
 
 use super::owned;
 use crate::gateway::manifest::{PluginEntry, PluginFile, RuleEntry, SignedManifest};
 use crate::host_sync::{ApplyError, HostSyncReport, HostWarningKind};
 
-const BLOCK_BEGIN: &str = "<!-- systemprompt:begin (managed by the bridge; edits are replaced) -->";
-const BLOCK_END: &str = "<!-- systemprompt:end -->";
 const AGENTS_FILE: &str = "AGENTS.md";
 const BUNDLE_PLUGINS: &str = "hosts/opencode/plugins/";
 const BUNDLE_THEMES: &str = "hosts/opencode/themes/";
-
-pub(super) fn rule_targets_opencode(rule: &RuleEntry) -> bool {
-    rule.hosts.iter().any(|h| {
-        h.parse::<HostKind>()
-            .is_ok_and(|host| host.product() == HostProduct::OpenCode)
-    })
-}
-
-#[must_use]
-pub fn agents_block(rules: &[RuleEntry]) -> Option<String> {
-    let mut selected: Vec<&RuleEntry> = rules.iter().filter(|r| rule_targets_opencode(r)).collect();
-    if selected.is_empty() {
-        return None;
-    }
-    selected.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
-    let mut block = format!("{BLOCK_BEGIN}\n");
-    for rule in selected {
-        block.push_str(&format!(
-            "\n## {}\n\n{}\n",
-            rule.name.as_str(),
-            rule.instructions.trim()
-        ));
-    }
-    block.push_str(&format!("\n{BLOCK_END}\n"));
-    Some(block)
-}
-
-#[must_use]
-pub fn splice_block(existing: &str, block: Option<&str>) -> String {
-    let outside = match (existing.find(BLOCK_BEGIN), existing.find(BLOCK_END)) {
-        (Some(start), Some(end)) if end > start => {
-            let tail = &existing[end + BLOCK_END.len()..];
-            format!(
-                "{}{}",
-                existing[..start].trim_end(),
-                tail.trim_start_matches('\n')
-            )
-        },
-        _ => existing.to_owned(),
-    };
-    let outside = outside.trim_end();
-    match (outside.is_empty(), block) {
-        (true, None) => String::new(),
-        (true, Some(block)) => block.to_owned(),
-        (false, None) => format!("{outside}\n"),
-        (false, Some(block)) => format!("{outside}\n\n{block}"),
-    }
-}
+// Why: OpenCode Desktop has its own theme format and does not load external
+// themes yet; the files are projected so a kit need not change once it does.
+const BUNDLE_DESKTOP_THEMES: &str = "hosts/opencode/desktop-themes/";
 
 pub(super) fn write_agents_md(root: &Path, rules: &[RuleEntry]) -> Result<(), ApplyError> {
     let path = root.join(AGENTS_FILE);
@@ -156,7 +111,8 @@ pub(super) fn bundle_files(
     let themes: BTreeMap<&str, &str> = manifest
         .marketplaces
         .iter()
-        .filter_map(|m| m.opencode.as_ref()?.theme.as_ref())
+        .filter_map(|m| m.opencode.as_ref())
+        .flat_map(|o| &o.themes)
         .map(|t| (t.name.as_str(), t.sha.as_str()))
         .collect();
     for plugin in plugins {
@@ -214,6 +170,14 @@ fn target_for(
         && has_extension(name, &["js", "ts"])
     {
         return Some(format!("plugins/{}-{name}", plugin.id.as_str()));
+    }
+    if let Some(name) = path
+        .strip_prefix(BUNDLE_DESKTOP_THEMES)
+        .and_then(|rest| rest.strip_suffix(".json"))
+    {
+        return themes
+            .contains_key(name)
+            .then(|| format!("desktop-themes/{name}.json"));
     }
     let name = path.strip_prefix(BUNDLE_THEMES)?.strip_suffix(".json")?;
     (themes.get(name) == Some(&file.sha256.as_str())).then(|| format!("themes/{name}.json"))

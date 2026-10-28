@@ -16,6 +16,11 @@ fn constructors_carry_their_error_codes() {
         (ApiError::conflict("user exists"), ErrorCode::ConflictError),
         (ApiError::rate_limited("login"), ErrorCode::RateLimited),
         (
+            ApiError::payload_too_large("upload"),
+            ErrorCode::PayloadTooLarge,
+        ),
+        (ApiError::locked("held"), ErrorCode::Locked),
+        (
             ApiError::validation_error("invalid", Vec::new()),
             ErrorCode::ValidationError,
         ),
@@ -58,6 +63,8 @@ fn only_internal_and_unavailable_are_server_errors() {
         ErrorCode::Forbidden,
         ErrorCode::ValidationError,
         ErrorCode::ConflictError,
+        ErrorCode::PayloadTooLarge,
+        ErrorCode::Locked,
         ErrorCode::RateLimited,
     ] {
         assert!(!code.is_server_error(), "{code:?}");

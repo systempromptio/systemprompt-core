@@ -47,7 +47,7 @@ pub async fn manifest(
     let stamp = build_version()?;
 
     let services = ctx.services_config();
-    let instance_hosts = services.instance_enabled_hosts();
+    let instance_hosts = services.instance_hosts();
     let desktop_policy = desktop_policy(&services);
 
     let (candidate, bridge_policy) = assemble_candidate(

@@ -17,6 +17,7 @@ fn apply(plane: &str, reason: &str, entities: Vec<String>) -> PlanesCommands {
         reason: reason.to_owned(),
         mode: ModeArg::Overwrite,
         entities,
+        dry_run: false,
     })
 }
 

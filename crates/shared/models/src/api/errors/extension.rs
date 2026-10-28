@@ -17,6 +17,8 @@ impl ApiError {
             403 => ErrorCode::Forbidden,
             404 => ErrorCode::NotFound,
             409 => ErrorCode::ConflictError,
+            413 => ErrorCode::PayloadTooLarge,
+            423 => ErrorCode::Locked,
             422 => ErrorCode::ValidationError,
             429 => ErrorCode::RateLimited,
             503 => ErrorCode::ServiceUnavailable,

@@ -120,6 +120,33 @@ fn merging_keeps_the_users_rules_and_replaces_only_what_the_bridge_wrote_before(
 }
 
 #[test]
+fn clearing_when_the_bridge_owns_no_rules_leaves_the_users_permissions_unchanged() {
+    let existing = json!({
+        "defaultMode": "acceptEdits",
+        "allow": ["Bash(git status)"],
+        "deny": ["Bash(rm -rf)"]
+    });
+    let merged = merged_permissions(
+        Some(&existing),
+        &PermissionRules::default(),
+        &PermissionRules::default(),
+    );
+    assert_eq!(merged.as_ref(), Some(&existing));
+}
+
+#[test]
+fn clearing_a_file_with_no_permissions_key_adds_none() {
+    assert!(
+        merged_permissions(
+            None,
+            &PermissionRules::default(),
+            &PermissionRules::default()
+        )
+        .is_none()
+    );
+}
+
+#[test]
 fn taking_every_bridge_rule_out_of_an_otherwise_empty_object_removes_the_key() {
     let existing = json!({ "allow": ["mcp__atlassian"] });
     let previously = PermissionRules {

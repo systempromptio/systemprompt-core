@@ -64,7 +64,7 @@ pub(super) async fn run_attempt(
     if record_outcome(&sentinel, &last_state)? == Recorded::Partially {
         return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
     }
-    seed_default_model_from_profile(&fetch.client).await?;
+    seed_default_model_from_profile(&fetch.client, &synced).await?;
     prepare_persistence(bridge)?;
     drop(operation);
     Ok(build_summary(&synced, report))

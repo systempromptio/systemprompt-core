@@ -7,7 +7,7 @@
 # the whole job timeout in this step and the job is cancelled without a
 # diagnosis. Here every apt command runs under `timeout`, apt itself is told to
 # give up on a silent connection and on a held lock, and the whole sequence is
-# retried a bounded number of times. The worst case is about ten and a half
+# retried a bounded number of times, finishing any dpkg run a timeout cut short. The worst case is about eleven
 # minutes (two more when `ripgrep` is requested); the workflow step's
 # `timeout-minutes` is the last backstop.
 #
@@ -106,8 +106,9 @@ if [ "${installed:-0}" -eq "$#" ]; then
     exit 0
 fi
 
-UPDATE_TIMEOUT_S=60
-INSTALL_TIMEOUT_S=120
+UPDATE_TIMEOUT_S=45
+DOWNLOAD_TIMEOUT_APT_S=75
+INSTALL_TIMEOUT_S=75
 
 APT_OPTS=(
     -o Acquire::Retries=3
@@ -123,6 +124,16 @@ APT_OPTS=(
 # trigger alone can take minutes and is never needed in CI.
 sudo rm -f /var/lib/man-db/auto-update
 
+# A dependency that upgrades udev or systemd triggers an initramfs rebuild
+# (dracut on 26.04 images), which a CI job never boots and which alone can
+# outlast the install timeout. Both generators are diverted to a no-op.
+for generator in /usr/sbin/update-initramfs /usr/bin/dracut; do
+    if [ -e "$generator" ] && ! dpkg-divert --list "$generator" | grep -q .; then
+        sudo dpkg-divert --local --rename --add "$generator" >/dev/null
+        sudo ln -sf /bin/true "$generator"
+    fi
+done
+
 apt_bounded() {
     local limit=$1
     shift
@@ -130,10 +141,31 @@ apt_bounded() {
         timeout --kill-after=10 "$limit" apt-get "${APT_OPTS[@]}" "$@"
 }
 
+# Why: `libdbus-1-dev` depends on `libsystemd-dev`, which must match the
+# installed `libsystemd0`; an archive ahead of the image would otherwise pull a
+# whole systemd upgrade. Pinning it to the image's version installs two small
+# packages instead.
+pin_to_installed() {
+    local dev=$1 runtime=$2 version
+    version=$(dpkg-query -W -f='${Version}' "$runtime" 2>/dev/null || true)
+    if [ -n "$version" ] && apt-cache madison "$dev" 2>/dev/null | grep -qF " $version "; then
+        echo "$dev=$version"
+    else
+        echo "$dev"
+    fi
+}
+
 for attempt in $(seq 1 "$ATTEMPTS"); do
     echo "::group::apt attempt $attempt/$ATTEMPTS: $*"
+    # Why: the download runs on its own budget before dpkg starts, so a slow
+    # mirror times out a fetch rather than killing dpkg mid-unpack.
     if apt_bounded "$UPDATE_TIMEOUT_S" update &&
-        apt_bounded "$INSTALL_TIMEOUT_S" install -y --no-install-recommends "$@"; then
+        targets=("$@") &&
+        if printf '%s\n' "$@" | grep -qx libdbus-1-dev; then
+            targets+=("$(pin_to_installed libsystemd-dev libsystemd0)")
+        fi &&
+        apt_bounded "$DOWNLOAD_TIMEOUT_APT_S" install -y --no-install-recommends --download-only "${targets[@]}" &&
+        apt_bounded "$INSTALL_TIMEOUT_S" install -y --no-install-recommends "${targets[@]}"; then
         echo "::endgroup::"
         exit 0
     else
@@ -143,6 +175,10 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
     echo "::warning::system dependency install attempt $attempt/$ATTEMPTS failed (exit $status; 124 = timed out)"
     if [ "$attempt" -lt "$ATTEMPTS" ]; then
         sleep $((attempt * 10))
+        # Why: a timed-out install leaves dpkg half-configured, and apt refuses
+        # every later install until it is finished.
+        sudo DEBIAN_FRONTEND=noninteractive timeout --kill-after=10 "$INSTALL_TIMEOUT_S" \
+            dpkg --configure -a || true
     fi
 done
 

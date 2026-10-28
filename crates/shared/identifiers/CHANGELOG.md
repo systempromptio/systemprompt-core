@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Added
+
+- `DocumentId`, `DocumentFolderId`, `DocumentRevisionId`, `DocumentEditSessionId`, `ContentHash`, `DocumentNodeId`, `DocumentTemplateId`, `DriveDeviceId`, `DocumentOpId` and `DocumentCommentId`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

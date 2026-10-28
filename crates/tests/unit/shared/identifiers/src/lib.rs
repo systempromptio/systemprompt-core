@@ -100,3 +100,6 @@ mod service_tests;
 
 #[cfg(test)]
 mod user_tests;
+
+#[cfg(test)]
+mod documents_tests;

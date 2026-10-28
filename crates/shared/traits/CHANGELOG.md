@@ -46,7 +46,7 @@
 
 - `SsoLoginSuccess::session_id` is a `SessionId`.
 
-## [0.66.0] - Unreleased
+## [0.66.0] - 2026-10-13
 
 ### Added
 

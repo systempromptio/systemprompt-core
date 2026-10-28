@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- **Breaking:** `ModelAdmission::retain` takes and returns `Vec<ModelId>`, and `routes::gateway::messages::session_binding::is_client_owned` is removed. Migrate by building model ids with `ModelId::new`.
+- `bridge_release::ReleaseError` gains `NoCompatibleRelease`, returned when no published bridge release is supported by this server. Migrate by adding an arm (or a wildcard) to exhaustive matches.
+
+### Added
+
+- `/api/v1/documents` and `/api/v1/document-folders` serve the document store over REST (listing, creation, import, update, trash and restore, copy, history, read views, projections, previews, grants, access, transfer, comments, proposals, presence, locks and content with `ETag`/`If-Match`/`Range`), and the `collab` feature adds `POST /api/v1/documents/{id}/collab/{join,updates,leave,cursor}`.
+- The bridge Drive routes under `/v1/bridge/drive/` (manifest, changes, blob, commit, presence, proposals) take the bridge bearer.
+- The content route accepts the signed `documents.download` `access_token` that `documents_export` mints.
+
+### Changed
+
+- A bridge or OAuth JWT whose `x-session-id` differs from its `session_id` claim lands on the claim's session and records the header as `client_session_id`.
+
+### Fixed
+
+- `GET /v1/bridge/latest` serves the newest bridge release whose major.minor is no higher than the server's own version; with none it answers 404 `compatible_release_not_found`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

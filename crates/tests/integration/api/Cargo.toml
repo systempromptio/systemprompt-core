@@ -22,7 +22,7 @@ systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
 inventory = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-api = { workspace = true }
+systemprompt-api = { workspace = true, features = ["collab"] }
 systemprompt-gateway = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-models = { workspace = true }
@@ -63,6 +63,7 @@ tokio = { workspace = true, features = ["io-std"] }
 uuid = { workspace = true }
 sha2 = { workspace = true }
 base64 = { workspace = true }
+loro = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 reqwest = { workspace = true }

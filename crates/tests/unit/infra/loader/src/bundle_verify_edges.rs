@@ -16,6 +16,7 @@ use systemprompt_manifest::profile::BundleVerification;
 use systemprompt_manifest::services::bundle::{BUNDLE_MANIFEST_FILE, SignedBundleManifest};
 
 use crate::bundle_support::{SEED, base_tree, pack, pack_with, pubkey};
+use systemprompt_identifiers::ContentHash;
 
 fn tar_gz_with(entries: &[(&str, &[u8])], out: &Path) {
     let file = fs::File::create(out).expect("create archive");
@@ -231,7 +232,7 @@ fn a_manifest_whose_content_hash_was_edited_no_longer_verifies_the_tree() {
     let out = tempfile::tempdir().expect("tempdir");
     base_tree(src.path());
     let mut packed = pack(src.path(), &out.path().join("b.tar.gz"), "1.0.0", ">=0.1");
-    packed.signed.manifest.content_hash = "0".repeat(64);
+    packed.signed.manifest.content_hash = ContentHash::new("0".repeat(64));
 
     let err = verify_extracted(src.path(), &packed.signed.manifest)
         .expect_err("the recomputed content hash does not match");

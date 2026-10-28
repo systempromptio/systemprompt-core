@@ -1247,6 +1247,7 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
             ),
         ),
         update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
+        drive_signals: systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
     }
 }
 

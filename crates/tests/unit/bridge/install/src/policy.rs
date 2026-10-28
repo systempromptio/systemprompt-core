@@ -115,11 +115,13 @@ fn the_workspace_folders_pre_trust_the_brand_dir_and_allow_home() {
         1,
         "a single brand-only entry locks the Code tab out of home"
     );
-    assert_eq!(folders.len(), 2);
+    assert_eq!(folders.len(), 3);
     assert_eq!(folders[0]["path"], "~/Systemprompt");
     assert_eq!(folders[0]["isDefaultSelected"], true);
-    assert_eq!(folders[1]["path"], "~");
+    assert_eq!(folders[1]["path"], "~/Systemprompt/Drive");
     assert_eq!(folders[1]["isDefaultSelected"], false);
+    assert_eq!(folders[2]["path"], "~");
+    assert_eq!(folders[2]["isDefaultSelected"], false);
 }
 
 #[test]

@@ -7,6 +7,7 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::bridge::opencode::{
     ApiKeyRef, ModelEntry, ModelLimit, OpenCodeConfig, Policy, PolicyAction, gateway_provider,
 };
@@ -35,7 +36,8 @@ pub(in crate::integration::opencode) fn render(inputs: &ProfileGenInputs) -> Ope
         .models
         .iter()
         .map(|model| {
-            let limit = inputs.model_limits.get(model).map(|l| ModelLimit {
+            let id = ModelId::new(model.as_str());
+            let limit = inputs.model_limits.get(&id).map(|l| ModelLimit {
                 context: u64::from(l.context_window),
                 output: u64::from(l.max_output_tokens),
             });
@@ -43,6 +45,7 @@ pub(in crate::integration::opencode) fn render(inputs: &ProfileGenInputs) -> Ope
                 model.clone(),
                 ModelEntry {
                     model: model.clone(),
+                    name: inputs.model_names.get(&id).cloned(),
                     limit,
                 },
             )

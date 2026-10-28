@@ -11,6 +11,7 @@ pub mod credential_helper;
 mod dev_web;
 pub mod diagnostics;
 pub mod doctor;
+pub mod drive;
 mod feedback;
 pub mod flags;
 mod gui;
@@ -133,6 +134,7 @@ fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> 
         Some("__install-claude-policy") => install_claude_policy::cmd(args),
         Some("__apply-policy-task") => install_claude_policy::cmd_apply_policy_task(args),
         Some("sync") => sync::cmd_sync(&ctx, args),
+        Some("drive") => drive::cmd_drive(&ctx, args),
         Some("update") => update::cmd_update(&ctx, args),
         Some("oauth-client") => oauth_client::cmd_oauth_client(&ctx, args),
         Some("validate") => validate::cmd_validate(&ctx),

@@ -18,6 +18,7 @@ use systemprompt_manifest::services::bundle::{
 };
 
 use super::error::{BundleError, BundleResult};
+use systemprompt_identifiers::ContentHash;
 
 const STATE_FILE: &str = "state.json";
 const CURRENT_LINK: &str = "current";
@@ -53,8 +54,19 @@ impl BundleCache {
     }
 
     #[must_use]
-    pub fn bundle_dir(&self, name: &str, content_hash: &str) -> PathBuf {
-        self.root.join("bundles").join(name).join(content_hash)
+    pub fn bundle_dir(&self, name: &str, content_hash: &ContentHash) -> PathBuf {
+        self.root
+            .join("bundles")
+            .join(name)
+            .join(content_hash.as_str())
+    }
+
+    #[must_use]
+    pub fn staging_dir(&self, name: &str, content_hash: &ContentHash) -> PathBuf {
+        self.root
+            .join("bundles")
+            .join(name)
+            .join(format!("{content_hash}.tmp-{}", std::process::id()))
     }
 
     #[must_use]
@@ -89,7 +101,7 @@ impl BundleCache {
     pub fn read_manifest(
         &self,
         name: &str,
-        content_hash: &str,
+        content_hash: &ContentHash,
     ) -> BundleResult<SignedBundleManifest> {
         let path = self
             .bundle_dir(name, content_hash)

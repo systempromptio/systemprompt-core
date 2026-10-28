@@ -29,9 +29,15 @@ pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[SyncOnlyAgent {
     icon: HostKind::ClaudeCode.as_str(),
 }];
 
+pub fn sync_only_agents() -> impl Iterator<Item = &'static SyncOnlyAgent> {
+    SYNC_ONLY_AGENTS
+        .iter()
+        .filter(|agent| !super::registry::is_suppressed(agent.id))
+}
+
 #[must_use]
 pub fn sync_only_agent(host_id: HostKind) -> Option<&'static SyncOnlyAgent> {
-    SYNC_ONLY_AGENTS.iter().find(|a| a.id == host_id)
+    sync_only_agents().find(|a| a.id == host_id)
 }
 
 // Why: Claude Code with no gateway keys in the settings it reads keeps the

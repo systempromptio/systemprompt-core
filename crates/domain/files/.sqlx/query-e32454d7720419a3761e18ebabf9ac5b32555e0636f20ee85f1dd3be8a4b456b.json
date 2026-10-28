@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH target AS (\n                   SELECT id, ancestor_ids FROM document_folders\n                   WHERE id = $1::text::uuid AND deleted_at IS NULL\n               ),\n               destination AS (\n                   SELECT COALESCE(\n                       (SELECT p.ancestor_ids || p.id FROM document_folders p\n                        WHERE p.id = $2::text::uuid AND p.deleted_at IS NULL),\n                       '{}'::uuid[]) AS ancestors\n               )\n               UPDATE document_folders f\n               SET ancestor_ids = d.ancestors || f.ancestor_ids[cardinality(t.ancestor_ids) + 1:],\n                   parent_id = CASE WHEN f.id = t.id THEN $2::text::uuid ELSE f.parent_id END,\n                   updated_at = now()\n               FROM target t, destination d\n               WHERE (f.id = t.id OR t.id = ANY(f.ancestor_ids))\n                 AND ($2::text IS NULL OR EXISTS (\n                     SELECT 1 FROM document_folders p\n                     WHERE p.id = $2::text::uuid AND p.deleted_at IS NULL\n                       AND p.id <> t.id AND NOT (t.id = ANY(p.ancestor_ids))))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e32454d7720419a3761e18ebabf9ac5b32555e0636f20ee85f1dd3be8a4b456b"
+}

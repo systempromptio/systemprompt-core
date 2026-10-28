@@ -10,6 +10,7 @@ pub(super) const BINARY: &str = "opencode";
 pub(super) const PROVIDER_ID: &str = "systemprompt";
 pub(super) const CONFIG_FILE: &str = "opencode.json";
 pub(super) const CONFIG_FILE_JSONC: &str = "opencode.jsonc";
+pub(super) const CLI_CONFIG_FILE: &str = "cli.json";
 pub(super) const AUTH_FILE: &str = "auth.json";
 pub(super) const TOKEN_FILE: &str = "systemprompt.token";
 pub(super) const MANAGED_PLIST: &str = "/Library/Managed Preferences/ai.opencode.managed.plist";
@@ -86,6 +87,10 @@ pub(super) fn user_dir() -> PathBuf {
 
 pub(super) fn user_config_path() -> PathBuf {
     user_dir().join(CONFIG_FILE)
+}
+
+pub(super) fn cli_config_path() -> PathBuf {
+    user_dir().join(CLI_CONFIG_FILE)
 }
 
 pub(super) fn skills_dir() -> PathBuf {

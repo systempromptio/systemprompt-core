@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_locks WHERE document_id = $1::text::uuid AND holder_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cbf069326932146cbcefd452d65200742963ac392b478753dce7c6fffbfa6ac7"
+}

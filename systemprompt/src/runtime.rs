@@ -5,6 +5,10 @@
 //! `systemprompt_extension::register_extension!`; a binary that links an
 //! extension crate carries it, and discovery finds it through `inventory`.
 //!
+//! With `api` on, [`documents`] re-exports the shared document store runtime:
+//! `DocumentsRuntime` and the MCP tools an extension's server binary
+//! composes, `documents::mcp::DocumentsMcpTools`.
+//!
 //! ```no_run
 //! # #[cfg(all(feature = "runtime", feature = "core"))]
 //! # async fn demo() -> Result<(), systemprompt::RuntimeError> {
@@ -18,6 +22,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use thiserror::Error;
+
+#[cfg(feature = "api")]
+#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+pub use systemprompt_runtime::documents;
 
 /// Typed error returned by [`RuntimeBuilder::run`].
 #[derive(Debug, Error)]

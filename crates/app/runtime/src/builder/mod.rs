@@ -14,6 +14,7 @@ mod authz;
 mod composition;
 mod core_layer;
 mod database;
+mod documents;
 mod events;
 mod governance;
 pub use composition::owner_reassignments;
@@ -236,6 +237,15 @@ impl AppContextBuilder {
         );
         let plugins = new_plugins(extensions, mcp_registry, self.marketplace_filter, &market);
         let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
+        let documents = documents::build_documents(&documents::DocumentsInputs {
+            boot: &self.boot,
+            database: &database,
+            file_storage: &file_storage,
+            authz_hook: &authz_hook,
+            subjects: &plugins.subjects,
+            event_router: &router,
+            files_config: &files_config,
+        })?;
         let subsystems = Subsystems {
             ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance.get()),
@@ -256,6 +266,7 @@ impl AppContextBuilder {
             spawner: new_spawner()?,
             publish_guard: Arc::default(),
             connector_tokens,
+            documents,
         };
 
         Ok(AppContext::from_parts(

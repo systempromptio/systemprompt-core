@@ -9,14 +9,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use systemprompt_manifest::Secrets;
 use systemprompt_manifest::services::BridgeReleasesSpec;
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 
 use super::CACHE_TTL;
+use super::cache::Cache;
 use super::error::ReleaseError;
 use super::github::{asset_digest, resolve_release, sums_url};
 
@@ -43,34 +43,6 @@ pub struct ResolvedAsset {
     sums_url: Option<String>,
 }
 
-#[derive(Debug)]
-struct Cache<T>(tokio::sync::RwLock<HashMap<String, (Instant, T)>>);
-
-impl<T> Default for Cache<T> {
-    fn default() -> Self {
-        Self(tokio::sync::RwLock::new(HashMap::new()))
-    }
-}
-
-impl<T: Clone + Send + Sync> Cache<T> {
-    async fn fresh(&self, key: &str, ttl: Duration) -> Option<T> {
-        let held = self.0.read().await;
-        held.get(key)
-            .filter(|(at, _)| at.elapsed() < ttl)
-            .map(|(_, value)| value.clone())
-    }
-
-    async fn stale(&self, key: &str) -> Option<T> {
-        let held = self.0.read().await;
-        held.get(key).map(|(_, value)| value.clone())
-    }
-
-    async fn store(&self, key: &str, value: T) {
-        let mut held = self.0.write().await;
-        held.insert(key.to_owned(), (Instant::now(), value));
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 struct Upstream<'a> {
     spec: &'a BridgeReleasesSpec,
@@ -79,21 +51,56 @@ struct Upstream<'a> {
 
 /// Router-scoped state for the release feed: one HTTP client and the
 /// per-platform resolution caches both endpoints read.
-#[derive(Debug, Default)]
+///
+/// The feed only offers releases this server supports: the newest release
+/// whose major.minor is no higher than the server's own version, so a bridge
+/// published ahead of a deployment is not handed to its clients.
+#[derive(Debug)]
 pub struct ReleaseFeed {
     http: reqwest::Client,
     assets: Cache<ResolvedAsset>,
     digests: Cache<String>,
     ttl: Option<Duration>,
+    ceiling: semver::Version,
+}
+
+impl Default for ReleaseFeed {
+    fn default() -> Self {
+        Self::with_ceiling(semver::Version::new(
+            pkg_component(env!("CARGO_PKG_VERSION_MAJOR")),
+            pkg_component(env!("CARGO_PKG_VERSION_MINOR")),
+            pkg_component(env!("CARGO_PKG_VERSION_PATCH")),
+        ))
+    }
+}
+
+fn pkg_component(digits: &str) -> u64 {
+    digits.parse().unwrap_or(0)
 }
 
 impl ReleaseFeed {
+    #[must_use]
+    pub fn with_ceiling(ceiling: semver::Version) -> Self {
+        Self {
+            http: reqwest::Client::default(),
+            assets: Cache::default(),
+            digests: Cache::default(),
+            ttl: None,
+            ceiling,
+        }
+    }
+
     #[must_use]
     pub fn with_ttl(ttl: Duration) -> Self {
         Self {
             ttl: Some(ttl),
             ..Self::default()
         }
+    }
+
+    #[must_use]
+    pub const fn ceiling(&self) -> &semver::Version {
+        &self.ceiling
     }
 
     pub async fn resolve(
@@ -233,7 +240,7 @@ impl ReleaseFeed {
                     platform: platform.to_owned(),
                 })?;
 
-        let release = resolve_release(&self.http, spec, secrets).await?;
+        let release = resolve_release(&self.http, spec, secrets, &self.ceiling).await?;
         let asset = release
             .assets
             .iter()

@@ -117,6 +117,16 @@ pub fn gateway_repositories(
     .with_quota_sharding(profile.quota_config()))
 }
 
+fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
+    if !ctx.files_config().documents_config().is_enabled() {
+        return Router::new();
+    }
+    crate::routes::documents::drive::router(crate::routes::documents::drive::DriveState::new(
+        crate::routes::documents::document_service(ctx),
+        Arc::clone(jwt_extractor),
+    ))
+}
+
 struct GatewayParts {
     traffic: Router,
     bridge_auth: Router,
@@ -136,6 +146,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             ))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
+            .merge(drive_routes(ctx, &jwt_extractor))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
             .merge(bridge_release::routes(ctx, &jwt_extractor))
             .merge(otel_routes(ctx, &jwt_extractor))

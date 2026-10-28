@@ -21,7 +21,9 @@ use async_trait::async_trait;
 
 use systemprompt_models::bridge::host::{HostKind, HostProduct};
 
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
+use systemprompt_models::bridge::opencode::agents_md::{self, AGENTS_MD_BUDGET_CHARS};
+
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport, HostWarningKind};
 use crate::integration::managed_skills::{SkillDirPolicy, SkillTarget};
 
 mod config_json;
@@ -29,7 +31,7 @@ mod content;
 mod owned;
 mod plugin_js;
 
-use config_json::{apply_cli_defaults, write_mcp_servers};
+use config_json::{apply_cli_defaults, select_default_theme, write_mcp_servers};
 pub use content::{agents_block, as_subagent, splice_block};
 pub(super) use plugin_js::remove_hook_plugin;
 use plugin_js::write_hook_plugin;
@@ -82,6 +84,16 @@ impl HostSync for OpenCodeSync {
         write_mcp_servers(ctx.loopback, servers)?;
         write_hook_plugin(ctx.loopback, ctx.manifest)?;
         content::write_agents_md(&root, &ctx.manifest.rules)?;
+        if let Some(chars) = agents_md::over_budget(&ctx.manifest.rules) {
+            report.warn(
+                HostWarningKind::Manifest,
+                HostKind::OpenCode,
+                format!(
+                    "the rules block of AGENTS.md is {chars} characters, over OpenCode's \
+                     {AGENTS_MD_BUDGET_CHARS}; rules past it never reach the model"
+                ),
+            );
+        }
         let files = content::bundle_files(ctx.manifest, ctx.org_plugins_root, &mut report);
         let themes: Vec<String> = files
             .keys()
@@ -89,7 +101,8 @@ impl HostSync for OpenCodeSync {
             .map(str::to_owned)
             .collect();
         owned::sync(&root, &files)?;
-        apply_cli_defaults(ctx.manifest, &themes)?;
+        apply_cli_defaults(ctx.manifest)?;
+        select_default_theme(ctx.manifest, &themes)?;
         Ok(report)
     }
 

@@ -7,7 +7,7 @@ use systemprompt_api::routes::gateway::bridge_data::{
     load_enabled_hosts, load_revocations, load_user, set_host_enabled,
 };
 use systemprompt_identifiers::UserId;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 use super::common::setup_ctx;
@@ -39,7 +39,7 @@ async fn load_enabled_hosts_empty_for_unknown_user() -> anyhow::Result<()> {
     let user = UserId::new(format!("hosts-{}", uuid::Uuid::new_v4()));
     let prefs = load_enabled_hosts(&ctx, &user).await?;
     assert!(prefs.hosts.is_empty());
-    assert!(!prefs.any_enabled_row);
+    assert!(!prefs.unknown_enabled_row);
     Ok(())
 }
 
@@ -54,7 +54,10 @@ async fn set_host_enabled_round_trip() -> anyhow::Result<()> {
         .bind(format!("{}@test.invalid", user.as_str()))
         .execute(exec_pool.as_ref())
         .await?;
-    let instance = [HostKind::ClaudeCode, HostKind::OpenCode];
+    let instance = InstanceHosts {
+        enabled: vec![HostKind::ClaudeCode, HostKind::OpenCode],
+        opt_in: Default::default(),
+    };
     set_host_enabled(&ctx, &user, HostKind::ClaudeCode, true, &instance).await?;
     let prefs = load_enabled_hosts(&ctx, &user).await?;
     assert!(prefs.hosts.contains(&HostKind::ClaudeCode), "got {prefs:?}");

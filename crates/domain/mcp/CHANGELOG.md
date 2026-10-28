@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Added
+
+- `McpOutputSchema::terse_wire` sends an output once, as summary text and untagged structured content.
+
+### Changed
+
+- A tool result for a client that negotiates structured content but not the MCP Apps UI extension carries the output as JSON in its text block, after the summary, as the MCP specification asks.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

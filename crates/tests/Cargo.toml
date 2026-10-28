@@ -76,6 +76,7 @@ members = [
     "unit/bridge/manifest",
     "unit/bridge/update",
     "unit/bridge/gateway-client",
+    "unit/bridge/drive",
     "unit/bridge/mcp-probe",
     "unit/bridge/paths",
     "unit/bridge/install",
@@ -175,6 +176,7 @@ serde_jcs = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
 semver = "1"
 uuid = { version = "1.28", features = ["v4", "serde"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 pg_query = "6.2"
 validator = { version = "0.21", features = ["derive"] }
 regex = "1.13"
@@ -248,6 +250,8 @@ proptest = "1.12"
 # Path dependencies to main crates (relative to crates/tests/)
 systemprompt-identifiers = { path = "../shared/identifiers" }
 systemprompt-provider-contracts = { path = "../shared/provider-contracts" }
+umya-spreadsheet = { version = "=4.0.0-beta.1", default-features = false }
+loro = { version = "=1.17.1", default-features = false }
 systemprompt-traits = { path = "../shared/traits" }
 systemprompt = { path = "../../systemprompt", features = ["full"] }
 systemprompt-extension = { path = "../shared/extension" }

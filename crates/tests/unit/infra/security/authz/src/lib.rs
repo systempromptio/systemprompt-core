@@ -19,6 +19,8 @@ mod decision_schema;
 #[cfg(test)]
 mod decision_types;
 #[cfg(test)]
+mod document_kinds;
+#[cfg(test)]
 mod entity_kinds;
 #[cfg(test)]
 mod entity_row;

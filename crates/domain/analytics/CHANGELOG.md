@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Added
+
+- The `report_*` read contract gains `report_ai_request_attributions`, `report_ai_request_tool_calls` (without arguments or results) and `report_governance_decisions`, each hiding a deleted user's rows. The analytics extension depends on `authz`, which owns `governance_decisions`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

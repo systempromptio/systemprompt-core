@@ -8,7 +8,8 @@
 //! we run.
 //!
 //! The bridge owns its own static `HostApp` registry; this gateway-side YAML
-//! is the catalog the admin UI lists and the operator's `enabled` flag.
+//! is the catalog the admin UI lists, the operator's `enabled` flag, and
+//! `default_enabled: false` for a host each user must turn on.
 //! The `id` field MUST equal the bridge's `HostApp::id()` for the same host
 //! (e.g. `claude_desktop`, `codex_cli`).
 //!
@@ -32,6 +33,8 @@ pub struct ExternalAgentConfig {
     pub display_name: String,
     pub kind: ExternalAgentKind,
     pub enabled: bool,
+    #[serde(default = "default_enabled")]
+    pub default_enabled: bool,
     #[serde(default)]
     pub description: String,
     #[serde(default)]
@@ -40,4 +43,8 @@ pub struct ExternalAgentConfig {
     pub docs_url: Option<String>,
     #[serde(default)]
     pub desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy,
+}
+
+const fn default_enabled() -> bool {
+    true
 }

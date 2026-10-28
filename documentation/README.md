@@ -37,12 +37,14 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [concepts/gateway.md](concepts/gateway.md) — the provider-facing proxy and its controls.
 - [concepts/extensions.md](concepts/extensions.md) — the compile-time extension model.
 - [concepts/config-authority.md](concepts/config-authority.md) — declared configuration files projected into the database: authority, audit, the writer token, the export runbook.
+- [documents.md](documents.md) — the shared document store: versioned Office, OpenDocument and text documents, grants, MCP tools, HTTP API and bridge Drive sync.
 
 ### Guides (how-to)
 - [guides/configure.md](guides/configure.md) — write and manage a profile.
 - [guides/deploy-production.md](guides/deploy-production.md) — HA, backup, DR, key rotation, air-gap.
 - [guides/operate.md](guides/operate.md) — health, metrics, logging, troubleshooting, upgrades.
 - [guides/upgrading-0.73.md](guides/upgrading-0.73.md) — upgrade a deployment from 0.72 to 0.73.
+- [guides/upgrading-0.74.md](guides/upgrading-0.74.md) — upgrade a deployment from 0.73 to 0.74.
 - [guides/database-connections.md](guides/database-connections.md) — connection budgeting, per-role pool sizing, PgBouncer.
 - [guides/authoring-extensions.md](guides/authoring-extensions.md) — build an extension.
 - [guides/marketplace-authoring.md](guides/marketplace-authoring.md) — author a marketplace in Claude Code format and import it.

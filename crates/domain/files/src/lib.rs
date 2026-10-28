@@ -17,7 +17,8 @@
 //!
 //! | Feature | Default | Effect |
 //! |---------|---------|--------|
-//! | _none_  | n/a     | The crate currently exposes a single feature surface; all modules are compiled unconditionally. The `[package.metadata.docs.rs] all-features = true` setting is retained so future feature additions automatically appear in published docs. |
+//! | `office` | off | The `.docx`, `.xlsx` and `.pptx` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec)s in `documents::codecs::{docx,xlsx,pptx}`, built on `zip`, `quick-xml`, `ammonia` and `umya-spreadsheet`. |
+//! | `collab` | off | Live co-editing of HTML and Markdown documents in `documents::collab`, built on the `loro` CRDT. |
 //!
 //! ## Layering
 //!
@@ -30,6 +31,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod config;
+pub mod documents;
 pub mod error;
 pub(crate) mod extension;
 pub(crate) mod jobs;
@@ -41,8 +43,8 @@ pub use error::{FilesError, FilesResult};
 pub use extension::FilesExtension;
 
 pub use config::{
-    AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfig, FilesConfigValidator,
-    FilesConfigYaml,
+    AllowedFileTypes, DocumentsConfig, FilePersistenceMode, FileUploadConfig, FilesConfig,
+    FilesConfigValidator, FilesConfigYaml, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES,
 };
 pub use jobs::FileIngestionJob;
 pub use models::{

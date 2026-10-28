@@ -23,6 +23,7 @@ use systemprompt_manifest::services::bundle::{BUNDLE_ALLOWED_DIRS, ServicesBundl
 
 use super::bootstrap::cache_root;
 use super::cache::BundleCache;
+use systemprompt_identifiers::ContentHash;
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 /// One pinned bundle as the cache last recorded it. `pinned_digest` is what
@@ -34,7 +35,7 @@ pub struct BundleProvenance {
     pub name: String,
     pub pinned_digest: Option<String>,
     pub active_digest: Option<String>,
-    pub content_hash: Option<String>,
+    pub content_hash: Option<ContentHash>,
     pub version: Option<String>,
 }
 
@@ -51,7 +52,7 @@ pub struct SourcesProvenance {
 /// repeatedly and handed to [`sources_provenance`].
 #[derive(Debug, Default)]
 pub struct BaseTreeHashMemo {
-    last: Mutex<Option<(Fingerprint, String)>>,
+    last: Mutex<Option<(Fingerprint, ContentHash)>>,
 }
 
 impl BaseTreeHashMemo {
@@ -96,7 +97,7 @@ pub fn sources_provenance(
             }
         })
         .collect();
-    let base = base_tree_hash(memo, Path::new(&profile.paths.services));
+    let base = base_tree_hash(memo, Path::new(&profile.paths.services)).map(String::from);
     SourcesProvenance {
         // Why: with no bundles pinned no boot records a composed hash; the
         // composition is the base tree alone.
@@ -112,7 +113,7 @@ pub fn sources_provenance(
 // hand and needs the kit that declares it, which only the cached manifest
 // knows.
 #[must_use]
-pub fn owning_bundle_hashes(profile: &Profile) -> BTreeMap<String, String> {
+pub fn owning_bundle_hashes(profile: &Profile) -> BTreeMap<String, ContentHash> {
     let cache = BundleCache::new(cache_root(profile));
     let state = cache.read_state();
     let mut owners = BTreeMap::new();
@@ -149,7 +150,7 @@ fn active_composed_hash(root: Option<&ActiveServicesRoot>) -> Option<String> {
 // newest mtime or file count moves — a publish or a deploy, not a pass.
 type Fingerprint = (SystemTime, usize);
 
-fn base_tree_hash(memo: &BaseTreeHashMemo, root: &Path) -> Option<String> {
+fn base_tree_hash(memo: &BaseTreeHashMemo, root: &Path) -> Option<ContentHash> {
     let fingerprint = tree_fingerprint(root)?;
     if let Some((seen, hash)) = memo
         .last

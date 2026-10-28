@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- **Breaking:** `AssetType` gains `Wasm`. Migrate by adding an arm (or a wildcard) to exhaustive matches.
+
+### Added
+
+- `AssetDefinition::wasm`; `AssetType::mime_type` names the media type of the single-type families (`application/wasm` for `Wasm`).
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

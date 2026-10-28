@@ -284,4 +284,4 @@ pub use super::agent_inputs::{
     OS_APPROVAL_WINDOW_SECS, PendingStep,
 };
 pub use super::agent_verdict::{AgentAction, AgentReason, AgentState, AgentVerdict};
-pub use super::sync_only::{SYNC_ONLY_AGENTS, SyncOnlyAgent, sync_only_agent};
+pub use super::sync_only::{SYNC_ONLY_AGENTS, SyncOnlyAgent, sync_only_agent, sync_only_agents};

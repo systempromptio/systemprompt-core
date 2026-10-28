@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_presence (document_id, user_id, source, state, cursor, expires_at)\n             VALUES ($1::text::uuid, $2, $3, $4, $5, now() + $6::float8 * interval '1 second')\n             ON CONFLICT (document_id, user_id, source) DO UPDATE\n                 SET state = EXCLUDED.state,\n                     cursor = EXCLUDED.cursor,\n                     updated_at = now(),\n                     expires_at = EXCLUDED.expires_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "99c701f3333fe603e2ce731133b8eae5359e23d10d781c9703d2cfef60d4fe6c"
+}

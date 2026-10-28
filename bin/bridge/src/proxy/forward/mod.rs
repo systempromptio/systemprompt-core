@@ -55,6 +55,7 @@ pub(crate) struct ForwardDeps<'a> {
     pub gateway_http: reqwest::Client,
     pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
     pub credential: LoopbackCredential,
+    pub drive_signals: &'a crate::proxy::drive_signal::DriveSignals,
 }
 
 #[tracing::instrument(
@@ -82,6 +83,7 @@ pub(crate) async fn forward(
         gateway_http,
         plugin_tokens,
         credential,
+        drive_signals,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
@@ -161,6 +163,7 @@ pub(crate) async fn forward(
             &parts.headers,
             &buffered_body,
             &mut upstream_headers,
+            drive_signals,
         )?;
     }
 
@@ -188,18 +191,13 @@ pub(crate) async fn forward(
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
         tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
-        let unauthorized = status == StatusCode::UNAUTHORIZED;
-        if unauthorized && let Some(plugin_id) = hook_plugin.as_ref() {
-            plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
-        } else if unauthorized && !gateway_signed {
-            // Why: only the gateway that minted the credential can say it
-            // is bad. A managed MCP upstream elsewhere (or a stale entry
-            // for a previous gateway) rejecting it is neither a sign-out
-            // nor a reason to re-mint.
-            tracing::warn!(
-                upstream = %route.url,
-                gateway = %gateway_base,
-                "401 from a non-gateway upstream; the gateway token is kept"
+        if status == StatusCode::UNAUTHORIZED {
+            note_unauthorized(
+                &plugin_tokens,
+                gateway_base,
+                hook_plugin.as_ref(),
+                gateway_signed,
+                &route.url,
             );
         }
     }
@@ -249,3 +247,25 @@ const _: fn() = || {
     const fn assert_send<T: Send>() {}
     assert_send::<ForwardResult<Response<ProxyBody>>>();
 };
+
+fn note_unauthorized(
+    plugin_tokens: &crate::auth::plugin_oauth::PluginTokenCache,
+    gateway_base: &ValidatedUrl,
+    hook_plugin: Option<&crate::ids::PluginId>,
+    gateway_signed: bool,
+    upstream: &str,
+) {
+    if let Some(plugin_id) = hook_plugin {
+        plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
+    } else if !gateway_signed {
+        // Why: only the gateway that minted the credential can say it
+        // is bad. A managed MCP upstream elsewhere (or a stale entry
+        // for a previous gateway) rejecting it is neither a sign-out
+        // nor a reason to re-mint.
+        tracing::warn!(
+            upstream = %upstream,
+            gateway = %gateway_base,
+            "401 from a non-gateway upstream; the gateway token is kept"
+        );
+    }
+}

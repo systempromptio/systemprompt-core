@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_presence\n             WHERE document_id = $1::text::uuid AND user_id = $2 AND source = 'web'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d907c46453bc37e07928dd8c61f6389d125b533e296f2cba0f2374545d523c15"
+}

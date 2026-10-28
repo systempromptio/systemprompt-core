@@ -8,12 +8,14 @@
 //!
 //! `policies` are evaluated last-match-wins by `OpenCode`; a `tool.use`
 //! resource is `<tool>:<pattern>` and an `integration.use` resource is
-//! `mcp:<name>`, `plugin:<id>` or `skill:<id>`. [`lockdown_policies`] relies
-//! on that ordering.
+//! `mcp:<name>`, `plugin:<id or path>` or `skill:<id>`. [`lockdown_policies`]
+//! relies on that ordering: each allow follows the deny it carves out of. A
+//! plugin allowed by path is safe only where the user cannot write that path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agents_md;
 mod policy;
 
 use std::collections::BTreeMap;
@@ -118,6 +120,8 @@ pub struct ProviderSettings {
 pub struct ModelEntry {
     #[serde(rename = "modelID")]
     pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<ModelLimit>,
 }

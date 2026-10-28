@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- **Breaking:** `EnabledHostPrefs::any_enabled_row` becomes `unknown_enabled_row`, and `admits` and `BridgeHostPrefsRepository::set_enabled` take `&InstanceHosts` instead of a host slice. Migrate by passing `ServicesConfig::instance_hosts()`.
+
+### Changed
+
+- A host with `external_agents.<host>.default_enabled: false` reaches only users with an explicit enabled row and never counts towards "no rows means every host".
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

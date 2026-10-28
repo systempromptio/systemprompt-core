@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- **Breaking:** `BundleCache::bundle_dir` takes `&ContentHash`, and `owning_bundle_hashes` and `BundleProvenance::content_hash` use `ContentHash`. Migrate by building values with `ContentHash::try_new`.
+
+### Added
+
+- `BundleCache::staging_dir` names a bundle's per-process staging directory.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

@@ -8,7 +8,7 @@ use systemprompt_models::bridge::host::HostKind;
 use crate::gui::state::AppStateSnapshot;
 use crate::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, ApplyFailure, HostCapabilities, HostHealthInputs,
-    HostModelViewRef, PendingStep, SYNC_ONLY_AGENTS, SyncOnlyAgent,
+    HostModelViewRef, PendingStep, SyncOnlyAgent, sync_only_agents,
 };
 use crate::integration::host_app::ConfigFormat;
 pub(crate) use crate::wire::hosts::{
@@ -143,8 +143,7 @@ pub fn host_verdicts(snap: &AppStateSnapshot) -> Vec<(HostKind, AgentVerdict)> {
         })
         .collect();
     out.extend(
-        SYNC_ONLY_AGENTS
-            .iter()
+        sync_only_agents()
             .filter(|agent| is_enabled(snap, agent.id))
             .map(|agent| (agent.id, sync_only_verdict(snap, agent))),
     );
@@ -247,11 +246,7 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
         .copied()
         .map(|host| build_entry(snap, host))
         .collect();
-    entries.extend(
-        SYNC_ONLY_AGENTS
-            .iter()
-            .map(|agent| build_sync_only_entry(snap, agent)),
-    );
+    entries.extend(sync_only_agents().map(|agent| build_sync_only_entry(snap, agent)));
     entries.retain(|e| e.enabled);
     let agent_fleet = AgentFleets::fold(
         &entries

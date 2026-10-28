@@ -93,7 +93,7 @@ sed -i -E "s/(systemprompt = \{ version = \")[^\"]+(\")/\1${NEW_VERSION}\2/" \
   systemprompt/src/lib.rs systemprompt/README.md
 
 echo "==> bridge version and its core pins -> $NEW_VERSION"
-sed -i -E "1,80s/\"$OLD_VERSION\"/\"$NEW_VERSION\"/" bin/bridge/Cargo.toml
+sed -i -E "\%^version = |path = \"\.\./\.\./crates/%s/\"$OLD_VERSION\"/\"$NEW_VERSION\"/" bin/bridge/Cargo.toml
 
 echo "==> cargo update --workspace (${LOCK_MANIFESTS[*]})"
 for m in "${LOCK_MANIFESTS[@]}"; do

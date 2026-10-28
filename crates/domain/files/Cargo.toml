@@ -12,7 +12,7 @@ keywords.workspace = true
 categories.workspace = true
 description = "File storage, metadata, and access control for systemprompt.io AI governance infrastructure. Governed file operations for the MCP governance pipeline."
 readme = "README.md"
-include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*", "build.rs"]
+include = ["src/**/*", "schema/**/*", "assets/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*", "build.rs"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -33,6 +33,8 @@ systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-governance = { workspace = true }
+systemprompt-events = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
@@ -48,6 +50,20 @@ hex = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
 serde_yaml = { workspace = true }
+futures-util = { workspace = true }
+pulldown-cmark = { workspace = true }
+ammonia = { workspace = true }
+scraper = { workspace = true }
+ego-tree = { workspace = true }
+diffy = { workspace = true }
+zip = { workspace = true, optional = true }
+quick-xml = { workspace = true, optional = true }
+umya-spreadsheet = { workspace = true, optional = true }
+loro = { workspace = true, optional = true }
+
+[features]
+office = ["dep:zip", "dep:quick-xml", "dep:umya-spreadsheet"]
+collab = ["dep:loro"]
 
 [package.metadata.cargo-machete]
 # inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)

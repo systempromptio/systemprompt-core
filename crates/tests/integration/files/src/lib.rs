@@ -8,6 +8,32 @@ mod bootstrap;
 #[cfg(test)]
 mod config_paths;
 #[cfg(test)]
+mod documents_blob_store;
+#[cfg(test)]
+mod documents_collab;
+#[cfg(test)]
+mod documents_comments;
+#[cfg(test)]
+mod documents_lifecycle;
+#[cfg(test)]
+mod documents_listing;
+#[cfg(test)]
+mod documents_proposals;
+#[cfg(test)]
+mod documents_proposals_review;
+#[cfg(test)]
+mod documents_repository;
+#[cfg(test)]
+mod documents_service;
+#[cfg(test)]
+mod documents_service_drive;
+#[cfg(test)]
+mod documents_service_fixture;
+#[cfg(test)]
+mod documents_shared_editing;
+#[cfg(test)]
+mod documents_write_acks;
+#[cfg(test)]
 mod file_ingestion;
 #[cfg(test)]
 mod repository;

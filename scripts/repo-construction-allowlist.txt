@@ -19,3 +19,7 @@ crates/infra/logging/src/services/maintenance.rs
 # accessor for them is not warranted.
 crates/app/scheduler/src/services/job_execution/mod.rs
 crates/app/scheduler/src/services/scheduling/mod.rs
+# the document store's repository bundle lives in the files crate's
+# `documents` submodule, so its constructor sits under
+# src/documents/repository/ rather than src/repository/.
+crates/domain/files/src/documents/repository/mod.rs

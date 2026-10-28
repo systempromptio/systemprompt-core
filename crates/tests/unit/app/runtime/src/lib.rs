@@ -35,6 +35,26 @@ mod database_context_live;
 #[cfg(test)]
 mod display_tests;
 #[cfg(test)]
+mod documents_mcp_guide;
+#[cfg(test)]
+mod documents_mcp_handlers;
+#[cfg(test)]
+mod documents_mcp_lifecycle;
+#[cfg(test)]
+mod documents_mcp_lines;
+#[cfg(test)]
+mod documents_mcp_proposals;
+#[cfg(test)]
+mod documents_mcp_refusals;
+#[cfg(test)]
+mod documents_mcp_schema;
+#[cfg(test)]
+mod documents_mcp_shared;
+#[cfg(test)]
+mod documents_mcp_sizes;
+#[cfg(test)]
+mod documents_mcp_support;
+#[cfg(test)]
 mod error_variants;
 #[cfg(test)]
 mod ext_fixtures;

@@ -119,7 +119,16 @@ impl Sandbox {
                         .expect("valid runtime config");
                     let cache = Arc::new(TokenCache::new(Arc::clone(&refresh)));
                     let client = reqwest::Client::new();
-                    let _ = tokio::time::timeout(budget, comms::run_loop(cfg, cache, client)).await;
+                    let _ = tokio::time::timeout(
+                        budget,
+                        comms::run_loop(
+                            cfg,
+                            cache,
+                            client,
+                            systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
+                        ),
+                    )
+                    .await;
                     seen.store(
                         server.received_requests().await.map_or(0, |r| r.len()),
                         Ordering::SeqCst,

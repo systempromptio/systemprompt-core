@@ -17,6 +17,7 @@ use systemprompt_manifest::services::bundle::ServicesBundleState;
 use systemprompt_manifest::services::root::{ActiveServicesRoot, ServicesProvenance};
 
 use crate::services_profile_fixture as fx;
+use systemprompt_identifiers::ContentHash;
 
 fn ctx() -> CommandContext {
     crate::boot_ctx::new_with_boot(
@@ -138,7 +139,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     use systemprompt_test_fixtures::DisposableDb;
 
     const SOURCE: &str = "cli-positive";
-    const CONTENT_HASH: &str = "cli-content-hash";
+    const CONTENT_HASH: &str = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
     const COMPOSED_HASH: &str = "cli-composed-hash";
 
     let database = DisposableDb::with_schema("cli_services_reconcile").await;
@@ -152,7 +153,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
         BundleSourceState {
             digest: "sha256:cli".to_owned(),
             version: "1.0.0".to_owned(),
-            content_hash: CONTENT_HASH.to_owned(),
+            content_hash: ContentHash::new(CONTENT_HASH),
             fetched_at: Utc::now(),
         },
     );
@@ -163,7 +164,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
             sources,
         })
         .expect("seed pending composition state");
-    let bundle_dir = cache.bundle_dir(SOURCE, CONTENT_HASH);
+    let bundle_dir = cache.bundle_dir(SOURCE, &ContentHash::new(CONTENT_HASH));
     std::fs::create_dir_all(&bundle_dir).unwrap();
     let signed = SignedBundleManifest {
         manifest: ServicesBundleManifest {
@@ -173,7 +174,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
             requires_core: ">=0.0.1".to_owned(),
             source: BundleSourceInfo::default(),
             files: Vec::new(),
-            content_hash: CONTENT_HASH.to_owned(),
+            content_hash: ContentHash::new(CONTENT_HASH),
             total_size: 0,
             owns: BundleOwnership::default(),
         },

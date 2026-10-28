@@ -5,6 +5,7 @@
 use std::fs;
 use std::path::Path;
 
+use systemprompt_identifiers::ContentHash;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_manifest::services::bundle::{BundleSourceState, ServicesBundleState};
 
@@ -17,7 +18,7 @@ fn state(hash: &str) -> ServicesBundleState {
             BundleSourceState {
                 digest: "sha256:aa".to_owned(),
                 version: "1.2.3".to_owned(),
-                content_hash: hash.to_owned(),
+                content_hash: ContentHash::new(hash),
                 fetched_at: chrono::Utc::now(),
             },
         )]),
@@ -54,7 +55,7 @@ fn state_written_to_the_cache_reads_back_unchanged() {
     let root = tempfile::tempdir().expect("tempdir");
     let cache = BundleCache::new(root.path());
 
-    let written = state("abc");
+    let written = state("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     cache.write_state(&written).expect("write state");
 
     assert_eq!(cache.read_state(), written);
@@ -64,7 +65,7 @@ fn state_written_to_the_cache_reads_back_unchanged() {
     );
     assert_eq!(cache.root(), root.path());
     assert_eq!(
-        cache.bundle_dir("base", "abc"),
+        cache.bundle_dir("base", &ContentHash::new("abc")),
         root.path().join("bundles").join("base").join("abc")
     );
     assert_eq!(
@@ -104,7 +105,7 @@ fn pruning_keeps_the_two_newest_versions_of_each_bundle() {
     let cache = BundleCache::new(root.path());
     cache.prepare().expect("prepare");
     for hash in ["v1", "v2", "v3"] {
-        let dir = cache.bundle_dir("base", hash);
+        let dir = cache.bundle_dir("base", &ContentHash::new(hash));
         fs::create_dir_all(&dir).expect("mkdir");
         fs::write(dir.join("marker"), hash).expect("write");
         std::thread::sleep(std::time::Duration::from_millis(10));
@@ -113,11 +114,11 @@ fn pruning_keeps_the_two_newest_versions_of_each_bundle() {
     cache.gc("nothing").expect("gc");
 
     assert!(
-        !cache.bundle_dir("base", "v1").exists(),
+        !cache.bundle_dir("base", &ContentHash::new("v1")).exists(),
         "the oldest is pruned"
     );
-    assert!(cache.bundle_dir("base", "v2").exists());
-    assert!(cache.bundle_dir("base", "v3").exists());
+    assert!(cache.bundle_dir("base", &ContentHash::new("v2")).exists());
+    assert!(cache.bundle_dir("base", &ContentHash::new("v3")).exists());
 }
 
 #[test]

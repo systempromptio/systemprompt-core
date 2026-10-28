@@ -8,6 +8,7 @@ mod clients;
 pub mod comms;
 pub mod credential;
 pub mod dispatch;
+pub mod drive_signal;
 pub mod forward;
 pub mod handle;
 pub mod heartbeat;

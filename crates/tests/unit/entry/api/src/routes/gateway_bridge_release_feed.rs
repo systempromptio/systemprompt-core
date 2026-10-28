@@ -416,3 +416,80 @@ async fn a_token_secret_the_store_cannot_resolve_refuses_rather_than_calling_git
         "no GitHub request may be sent without the configured token"
     );
 }
+
+#[tokio::test]
+async fn the_feed_serves_the_newest_release_within_the_server_minor() {
+    let server = MockServer::start().await;
+    let sums = format!("{}/sums", server.uri());
+    mount_releases(
+        &server,
+        serde_json::json!([
+            release("bridge-v0.72.1", &sums, "https://example.test/old"),
+            release("bridge-v0.74.0", &sums, "https://example.test/ahead"),
+            release("bridge-v0.73.2", &sums, "https://example.test/supported"),
+        ]),
+    )
+    .await;
+    mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
+
+    let resolved = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .resolve(&spec(&server), &secrets(), "linux-x64")
+        .await
+        .expect("a release within the server minor resolves");
+
+    assert_eq!(resolved.manifest.version, "0.73.2");
+    assert_eq!(resolved.asset.url, "https://example.test/supported");
+}
+
+#[tokio::test]
+async fn a_feed_with_only_releases_ahead_of_the_server_is_not_found() {
+    let server = MockServer::start().await;
+    let sums = format!("{}/sums", server.uri());
+    mount_releases(
+        &server,
+        serde_json::json!([release(
+            "bridge-v0.74.0",
+            &sums,
+            "https://example.test/ahead"
+        )]),
+    )
+    .await;
+
+    let error = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .resolve(&spec(&server), &secrets(), "linux-x64")
+        .await
+        .expect_err("no release is supported by a 0.73 server");
+
+    assert!(
+        matches!(error, ReleaseError::NoCompatibleRelease { .. }),
+        "{error:?}"
+    );
+    assert_eq!(error.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_pinned_version_ahead_of_the_server_is_still_served() {
+    let server = MockServer::start().await;
+    let sums = format!("{}/sums", server.uri());
+    Mock::given(method("GET"))
+        .and(path(
+            "/repos/systempromptio/bridge/releases/tags/bridge-v0.74.0",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(release(
+            "bridge-v0.74.0",
+            &sums,
+            "https://example.test/pinned",
+        )))
+        .mount(&server)
+        .await;
+    mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
+    let mut pinned = spec(&server);
+    pinned.pinned_version = Some("0.74.0".to_owned());
+
+    let resolved = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .resolve(&pinned, &secrets(), "linux-x64")
+        .await
+        .expect("an operator pin overrides the ceiling");
+
+    assert_eq!(resolved.manifest.version, "0.74.0");
+}

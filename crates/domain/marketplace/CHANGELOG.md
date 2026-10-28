@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- **Breaking:** `ImportWarning` gains `RulesMissOpenCode`, `MissingSkillManifest`, `MissingReference` and `SiblingSkillPath`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+
+### Changed
+
+- Import accepts `cowork` in a skill's or rule's `hosts`, copies a plugin's `hosts/` tree without its development files, and refuses a marketplace whose `opencode:` themes no plugin ships at the pinned sha256.
+- `core marketplace import` reports a skill directory without `SKILL.md`, a cited `references/…` path the skill does not carry, and a `../` path out of the skill directory; `--strict` refuses each.
+
+### Fixed
+
+- Import keeps a rule's frontmatter `hosts` and copies a plugin's `hosts/` tree, so host-targeted rules and host-native files reach the bundle.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

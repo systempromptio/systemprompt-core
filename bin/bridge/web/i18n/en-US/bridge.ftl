@@ -457,6 +457,20 @@ menu-open-config = Open config folder
 
 # Tray -------------------------------------------------------------------------
 tray-sync-now = Sync now
+tray-drive-off = Drive: off
+tray-drive-synced = Drive: synced
+tray-drive-pending = Drive: syncing
+tray-drive-conflicts = Drive: conflicts to review
+tray-drive-error = Drive: sync failing
+tray-editing-count = { $line } · { $count } editing
+drive-conflict-title = Drive kept your edit
+drive-conflict-body = { $path } changed elsewhere; your version is saved as { $sibling }.
+drive-editor-title = Someone is editing
+drive-editor-body = { $count } Drive documents are being edited right now.
+drive-shared-title = A document was shared with you
+drive-shared-body = { $from } shared { $document } with you ({ $level }).
+drive-proposal-title = A change was proposed
+drive-proposal-body = { $from } proposed a change to { $document }.
 tray-syncing = Syncing…
 tray-validate = Re-check
 tray-check-updates = Check for updates
@@ -622,6 +636,16 @@ overall-degraded = synced with failures
 overall-needs-approval = needs administrator approval
 overall-ready = ready
 overall-needs-sign-in = needs sign-in
+drive-status-off = Drive is not set up on this device
+drive-status-synced = Drive is up to date
+drive-status-pending = Drive is syncing
+drive-status-conflicts = Drive kept conflicting edits beside the latest version
+drive-status-error = Drive sync is failing
+drive-heading = Drive
+drive-sync-now = Sync now
+drive-pending = { $count } local edits waiting to upload
+drive-editing = { $count } people editing
+drive-conflict-row = { $path } — your edit is in { $sibling }
 
 proxy-state-unknown = checking…
 proxy-state-unconfigured = awaiting first host-app probe

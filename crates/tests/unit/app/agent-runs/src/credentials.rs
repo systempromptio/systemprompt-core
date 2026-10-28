@@ -1,6 +1,6 @@
 //! DB-backed tests for `RunCredentialService`: issue mints a verifiable PAT
-//! with the run's scopes, a gateway session with the run's ttl and a hook
-//! JWT the hook validator accepts; revoke undoes all three.
+//! with the run's scopes, a gateway session with the run's ttl bound to that
+//! PAT, and a hook JWT the hook validator accepts; revoke undoes all three.
 
 use std::time::Duration;
 
@@ -112,6 +112,16 @@ async fn issue_then_revoke_round_trips_every_credential() {
             .await
             .expect("lookup")
             .is_some()
+    );
+
+    assert_eq!(
+        UserRepository::new(&pool)
+            .find_api_key_session(&creds.api_key_id)
+            .await
+            .expect("binding lookup"),
+        Some(creds.gateway_session_id.clone()),
+        "the run's PAT is bound to the run session, so a harness-sent \
+         x-session-id cannot move the run's requests elsewhere"
     );
 
     let token = creds.hook_token.as_deref().expect("hook token");

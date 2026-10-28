@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_folders SET agent_edit_policy = $2, updated_at = now()\n             WHERE id = $1::text::uuid AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "228294c245cf1a59c925dfee170a3cae175d5239613c200fb194623f3b7a2751"
+}

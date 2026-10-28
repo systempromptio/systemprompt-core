@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.74.0] - 2026-10-27
+
+### Breaking
+
+- **Breaking:** `Subsystems` gains `documents: Arc<DocumentsRuntime>`. Migrate code that builds `Subsystems` by hand (`AppContext::from_parts`) by passing `DocumentsRuntime::new(DocumentsRuntimeParts { .. })`.
+
+### Added
+
+- `AppContext::documents()` holds the document store built once at composition (`DocumentsRuntime`), and `AppContext::document_repositories()` exposes its repositories.
+- `documents::mcp::DocumentsMcpTools`, the tool set an extension's MCP server composes: `documents_list`, `documents_search`, `documents_create`, `documents_read`, `documents_edit`, `documents_history`, `documents_share`, `documents_export`, `documents_guide`, `documents_comment`, `documents_access`, `documents_copy`, `documents_update`, `documents_trash`, `documents_restore_document` and `documents_proposals`, plus the `ui://<server>/document-preview` app resource. `from_context` fails, naming the switch, while `files.documents.enabled` is off.
+- Document tool results are terse and sent once; a refusal is a tool result with `isError: true` carrying a stable `code` and the typed detail. Writes take an `op_id` (a repeat answers the stored acknowledgement with `replayed: true`), and revisions record the request's session, context, trace and task and the user the agent acted for.
+- An extension's `Dependencies` carry `Arc<DocumentService>` while `files.documents.enabled` is on.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

@@ -1,5 +1,6 @@
 //! GitHub release resolution for the bridge feed: picking the newest matching
-//! `bridge-v*` release and reading its signed SHA256SUMS entry.
+//! `bridge-v*` release this server supports and reading its signed SHA256SUMS
+//! entry.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,6 +39,7 @@ pub(super) async fn resolve_release(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
     secrets: &Secrets,
+    ceiling: &semver::Version,
 ) -> Result<GhRelease, ReleaseError> {
     if let Some(pinned) = spec.pinned_version.as_deref() {
         let tag = format!("{}{pinned}", spec.tag_prefix);
@@ -55,12 +57,30 @@ pub(super) async fn resolve_release(
         spec.repo
     );
     let releases = fetch_json::<Vec<GhRelease>>(http, spec, secrets, &url).await?;
-    releases
+    let published: Vec<(semver::Version, GhRelease)> = releases
         .into_iter()
-        .find(|r| !r.draft && !r.prerelease && r.tag_name.starts_with(&spec.tag_prefix))
-        .ok_or_else(|| ReleaseError::NoRelease {
+        .filter(|r| !r.draft && !r.prerelease)
+        .filter_map(|r| {
+            let version =
+                semver::Version::parse(r.tag_name.strip_prefix(&spec.tag_prefix)?).ok()?;
+            Some((version, r))
+        })
+        .collect();
+    if published.is_empty() {
+        return Err(ReleaseError::NoRelease {
             prefix: spec.tag_prefix.clone(),
             repo: spec.repo.clone(),
+        });
+    }
+    published
+        .into_iter()
+        .filter(|(v, _)| (v.major, v.minor) <= (ceiling.major, ceiling.minor))
+        .max_by(|(a, _), (b, _)| a.cmp(b))
+        .map(|(_, r)| r)
+        .ok_or_else(|| ReleaseError::NoCompatibleRelease {
+            prefix: spec.tag_prefix.clone(),
+            repo: spec.repo.clone(),
+            ceiling: ceiling.to_string(),
         })
 }
 

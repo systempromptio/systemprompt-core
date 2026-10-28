@@ -1,4 +1,5 @@
 use systemprompt_bridge::wire::StatePayload;
+use systemprompt_bridge::wire::drive::DriveStatusPayload;
 use systemprompt_bridge::wire::ipc::{
     BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest,
 };
@@ -20,4 +21,5 @@ fn export_bindings() {
     IpcRequest::export_all(&cfg).expect("export IpcRequest");
     IpcReplyPayload::export_all(&cfg).expect("export IpcReplyPayload");
     StatePayload::export_all(&cfg).expect("export StatePayload and everything it carries");
+    DriveStatusPayload::export_all(&cfg).expect("export DriveStatusPayload");
 }

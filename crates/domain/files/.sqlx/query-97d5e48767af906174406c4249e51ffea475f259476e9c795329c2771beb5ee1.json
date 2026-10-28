@@ -1,0 +1,184 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.id::text AS \"id!: DocumentProposalId\",\n                      p.document_id::text AS \"document_id!: DocumentId\",\n                      p.base_revision_id::text AS \"base_revision_id!: DocumentRevisionId\",\n                      p.proposed_revision_id::text AS \"proposed_revision_id!: DocumentRevisionId\",\n                      p.proposer_user_id AS \"proposer_user_id: UserId\",\n                      p.actor_kind, p.origin_kind, p.origin_id, p.status, p.message,\n                      p.reviewer_user_id AS \"reviewer_user_id: UserId\",\n                      p.reviewed_at, p.note,\n                      p.landed_revision_id::text AS \"landed_revision_id: DocumentRevisionId\",\n                      p.created_at, p.updated_at\n               FROM document_proposals p\n               JOIN documents d ON d.id = p.document_id\n               WHERE p.status = 'open' AND d.deleted_at IS NULL\n                 AND (d.owner_user_id = $1 OR p.proposer_user_id = $1)\n               ORDER BY p.created_at DESC, p.id DESC\n               LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentProposalId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "base_revision_id!: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "proposed_revision_id!: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "proposer_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "proposer_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "actor_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "actor_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "origin_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "origin_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "origin_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "origin_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "message"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "reviewer_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "reviewer_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "reviewed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "reviewed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "note",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "note"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "landed_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_proposals",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "97d5e48767af906174406c4249e51ffea475f259476e9c795329c2771beb5ee1"
+}

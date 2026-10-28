@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document preview</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+    .status { padding: 16px; opacity: 0.7; }
+    iframe { display: block; width: 100%; border: 0; min-height: 120px; }
+  </style>
+</head>
+<body>
+  <div id="root"><div class="status">Loading preview…</div></div>
+  <script>
+    /*MCP_UI_CONSTANTS*/
+
+    const PENDING = new Map();
+    let requestId = 0;
+
+    function post(message) {
+      window.parent.postMessage(message, '*');
+    }
+
+    function request(method, params) {
+      return new Promise((resolve, reject) => {
+        const id = ++requestId;
+        PENDING.set(id, { resolve, reject });
+        post({ jsonrpc: '2.0', id, method, params });
+      });
+    }
+
+    function publishSize(height) {
+      post({ jsonrpc: '2.0', method: MCP_UI.SIZE_CHANGED, params: { width: document.body.scrollWidth, height } });
+    }
+
+    function render(result) {
+      const payload = (result && result.structuredContent) || result || {};
+      const root = document.getElementById('root');
+      if (typeof payload.html !== 'string') {
+        root.textContent = 'This result carries no document preview.';
+        return;
+      }
+      const frame = document.createElement('iframe');
+      frame.setAttribute('sandbox', 'allow-same-origin');
+      frame.setAttribute('title', payload.uri || 'Document preview');
+      frame.srcdoc = payload.html;
+      frame.addEventListener('load', () => {
+        const height = frame.contentDocument ? frame.contentDocument.documentElement.scrollHeight : 480;
+        frame.style.height = height + 'px';
+        publishSize(height);
+      });
+      root.replaceChildren(frame);
+    }
+
+    window.addEventListener('message', (event) => {
+      const data = event.data || {};
+      if (data.id && PENDING.has(data.id)) {
+        const { resolve, reject } = PENDING.get(data.id);
+        PENDING.delete(data.id);
+        if (data.error) {
+          reject(new Error(data.error.message || 'Request failed'));
+        } else {
+          resolve(data.result);
+        }
+        return;
+      }
+      if (data.method === MCP_UI.TOOL_RESULT && event.source === window.parent) {
+        render(data.params);
+      }
+    });
+
+    request(MCP_UI.INITIALIZE, {
+      appInfo: { name: 'systemprompt-document-preview', version: '1.0.0' },
+      appCapabilities: {},
+      protocolVersion: MCP_UI.PROTOCOL_VERSION
+    }).then(() => {
+      post({ jsonrpc: '2.0', method: MCP_UI.INITIALIZED, params: {} });
+    }).catch((err) => {
+      console.error('MCP Apps initialize failed:', err);
+    });
+  </script>
+</body>
+</html>

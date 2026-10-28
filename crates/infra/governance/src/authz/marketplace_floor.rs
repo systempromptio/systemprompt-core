@@ -74,7 +74,9 @@ const fn member_scope(kind: EntityKind) -> MemberScope {
         | EntityKind::TeamsTenant
         | EntityKind::TeamsConversation
         | EntityKind::Model
-        | EntityKind::Provider => MemberScope::Unsupported,
+        | EntityKind::Provider
+        | EntityKind::Document
+        | EntityKind::Folder => MemberScope::Unsupported,
     }
 }
 

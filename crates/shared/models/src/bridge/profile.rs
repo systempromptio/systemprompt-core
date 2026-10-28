@@ -13,6 +13,7 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ModelId;
 
 use crate::providers::ClientFamily;
 
@@ -21,7 +22,7 @@ pub struct BridgeProfileResponse {
     pub inference_gateway_base_url: String,
     pub auth_scheme: String,
     #[serde(default)]
-    pub models: Vec<String>,
+    pub models: Vec<ModelId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_model: Option<String>,
     #[serde(default)]
@@ -32,7 +33,9 @@ pub struct BridgeProfileResponse {
     // gateway model with their own default and cut a 1M model short. Absent
     // from an older server, so it defaults to empty.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub model_limits: BTreeMap<String, AdvertisedLimits>,
+    pub model_limits: BTreeMap<ModelId, AdvertisedLimits>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub model_names: BTreeMap<ModelId, String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

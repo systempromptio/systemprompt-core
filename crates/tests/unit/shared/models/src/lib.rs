@@ -153,7 +153,11 @@ mod mime;
 mod routing;
 
 #[cfg(test)]
+mod bridge_opencode_lockdown;
+#[cfg(test)]
 mod marketplace;
+#[cfg(test)]
+mod marketplace_opencode_themes;
 
 
 #[cfg(test)]
@@ -379,3 +383,21 @@ mod feedback_contracts;
 
 #[cfg(test)]
 mod skill_frontmatter_render;
+
+#[cfg(test)]
+mod documents_format;
+
+#[cfg(test)]
+mod documents_projection;
+
+#[cfg(test)]
+mod documents_edit_op;
+
+#[cfg(test)]
+mod documents_access;
+
+#[cfg(test)]
+mod documents_uri;
+
+#[cfg(test)]
+mod documents_drive;

@@ -16,7 +16,7 @@ impl AppState {
         use crate::gui::first_run::state::{FirstRunHost, FirstRunPhase, StepStatus};
         let mut guard = self.snap_mut();
         guard.first_run.active = true;
-        guard.first_run.phase = FirstRunPhase::Probing;
+        guard.first_run.phase = FirstRunPhase::Syncing;
         guard.first_run.sync = StepStatus::Pending;
         guard.first_run.error = None;
         guard.first_run.started_at_unix = now_unix();
@@ -28,7 +28,7 @@ impl AppState {
             .map(|(id, name)| FirstRunHost {
                 host_id: *id,
                 display_name: name.clone(),
-                status: StepStatus::Probing,
+                status: StepStatus::Pending,
                 error: None,
             })
             .collect();

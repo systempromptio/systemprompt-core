@@ -213,6 +213,20 @@ async fn structured_client_gets_typed_output_matching_the_advertised_schema() {
 }
 
 #[tokio::test]
+async fn structured_client_without_ui_also_gets_the_data_as_text() {
+    let result = build(&structured_client(), table()).await;
+
+    assert!(result.structured_content.is_some());
+    let json = serde_json::to_value(&result).expect("serializes");
+    let text = json["content"][0]["text"].as_str().expect("text block");
+    assert!(text.starts_with("summary line\n\n```json\n"), "{text}");
+    assert!(
+        text.contains("ed@example.com"),
+        "rows must reach hosts that ignore structuredContent: {text}"
+    );
+}
+
+#[tokio::test]
 async fn ui_client_gets_embedded_resource_and_prefixed_meta() {
     let result = build(&ui_client(), table()).await;
 

@@ -21,7 +21,6 @@ use super::error::RejectionError;
 use crate::services::middleware::session::{SessionAttestationError, attest_session};
 
 const ROUTE: &str = "gateway/messages";
-const GATEWAY_SESSION_PREFIX: &str = "sess_";
 
 #[derive(Debug, Clone, Copy)]
 pub struct SessionRequest<'a> {
@@ -56,31 +55,6 @@ pub async fn bind_api_key_session(
             .header_session
             .and_then(|s| ClientSessionId::try_new(s.as_str().to_owned()).ok()),
     })
-}
-
-pub async fn is_client_owned(
-    ctx: &AppContext,
-    header: &SessionId,
-    user_id: &UserId,
-) -> Result<bool, RejectionError> {
-    if header.as_str().starts_with(GATEWAY_SESSION_PREFIX) {
-        return Ok(false);
-    }
-    let sessions = ctx.session_provider().ok_or_else(|| {
-        RejectionError::server(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "session provider unavailable: cannot attest session",
-        )
-    })?;
-    match attest_session(&sessions, header, user_id, ROUTE).await {
-        Err(SessionAttestationError::Missing) => Ok(true),
-        Ok(()) | Err(SessionAttestationError::UserMismatch) => Ok(false),
-        Err(lookup @ SessionAttestationError::Lookup(..)) => Err(RejectionError::server(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "session attestation failed",
-        )
-        .with_cause(lookup)),
-    }
 }
 
 async fn is_usable(

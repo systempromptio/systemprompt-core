@@ -1,4 +1,5 @@
-//! Verbatim copy of the scripts a plugin sidecar declares.
+//! Verbatim copy of the plugin files the bundle ships as they are: declared
+//! scripts, Node package files and the `hosts/` tree.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +13,8 @@ use crate::bundle::{NODE_PACKAGE_FILE, node_lockfile};
 use crate::error::MarketplaceError;
 
 use super::writer::Sink;
+
+const PLUGIN_HOSTS_DIR: &str = "hosts";
 
 pub(super) fn copy_plugin_scripts(
     plugin_id: &PluginId,
@@ -56,4 +59,21 @@ pub(super) fn copy_node_package_files(
         sink.copy_file(&dir.join(name), &rel)?;
     }
     Ok(())
+}
+
+// Why: the bundle builder ships a plugin's `hosts/<host>/…` tree verbatim, so
+// an imported plugin keeps it beside its config.
+pub(super) fn copy_host_files(
+    plugin_id: &PluginId,
+    dir: &Path,
+    sink: &Sink,
+) -> Result<(), MarketplaceError> {
+    let hosts = dir.join(PLUGIN_HOSTS_DIR);
+    if !hosts.is_dir() {
+        return Ok(());
+    }
+    let rel = Path::new("plugins")
+        .join(plugin_id.as_str())
+        .join(PLUGIN_HOSTS_DIR);
+    sink.copy_plugin_subtree(dir, &hosts, &rel)
 }

@@ -48,6 +48,7 @@ mod base;
 mod disk;
 mod hooks;
 mod marketplace;
+mod opencode_themes;
 mod pass_through;
 mod plugin;
 mod remote;
@@ -55,6 +56,7 @@ mod rules;
 mod scripts;
 pub mod sidecar;
 mod skill;
+mod skill_refs;
 mod warning;
 mod writer;
 
@@ -204,6 +206,8 @@ fn import_marketplace_tree(
 
     let mut seen_skills: BTreeSet<String> = BTreeSet::new();
     let mut seen_rules: BTreeSet<String> = BTreeSet::new();
+    let mut rules_without_opencode: Vec<String> = Vec::new();
+    let mut theme_pins = opencode_themes::ThemePins::new(sidecar.marketplace.opencode.as_ref());
     let plugin_root = manifest.metadata.plugin_root.as_deref();
 
     for entry in vendored {
@@ -250,8 +254,17 @@ fn import_marketplace_tree(
         report.plugins.push(imported.id);
         report.skills.extend(imported.skills);
         report.rules.extend(imported.rules);
+        rules_without_opencode.extend(imported.rules_without_opencode);
         report.hooks.extend(imported.hooks);
         report.warnings.extend(imported.warnings);
+        theme_pins.scan(&dir)?;
+    }
+
+    theme_pins.finish(manifest_path)?;
+    if sidecar.marketplace.opencode.is_some() && !rules_without_opencode.is_empty() {
+        report.warnings.push(ImportWarning::RulesMissOpenCode {
+            rules: rules_without_opencode,
+        });
     }
 
     Ok(())

@@ -3,9 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod documents;
 mod types;
 mod validator;
 
+pub use documents::{DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
 pub use validator::FilesConfigValidator;
 
@@ -23,6 +25,7 @@ pub struct FilesConfig {
     url_prefix: String,
     cache_control: Option<String>,
     upload: FileUploadConfig,
+    documents: DocumentsConfig,
 }
 
 impl FilesConfig {
@@ -46,6 +49,7 @@ impl FilesConfig {
             url_prefix: yaml.url_prefix,
             cache_control: yaml.cache_control,
             upload: yaml.upload,
+            documents: yaml.documents,
         }
     }
 
@@ -73,6 +77,10 @@ impl FilesConfig {
 
     pub const fn upload(&self) -> &FileUploadConfig {
         &self.upload
+    }
+
+    pub const fn documents_config(&self) -> &DocumentsConfig {
+        &self.documents
     }
 
     pub fn validate(&self) -> FilesResult<()> {

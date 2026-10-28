@@ -42,6 +42,7 @@ pub async fn run_server(
 
     let scheduler_handle =
         start_role_phases(&ctx, plan, events.as_ref(), early.scheduler_health()).await?;
+    super::boot_steps::reconcile_document_folders(&ctx).await?;
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
@@ -49,7 +50,7 @@ pub async fn run_server(
     let router =
         crate::services::server::setup_api_server(&ctx, events.as_ref(), early.readiness())?
             .layer(axum::Extension(Arc::clone(early.scheduler_health())));
-    start_accounting_recovery(&ctx).await?;
+    super::boot_steps::start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
 
     early.activate(router);
@@ -287,14 +288,4 @@ async fn start_metrics_listener(
     Ok(Some(
         super::metrics::serve_metrics_listener(addr, state, readiness).await?,
     ))
-}
-
-async fn start_accounting_recovery(ctx: &AppContext) -> Result<()> {
-    let settlement = crate::routes::gateway::gateway_repositories(ctx)?.settlement();
-    let settled = systemprompt_gateway::audit::journal::recover(&settlement).await?;
-    if settled > 0 {
-        tracing::info!(settled, "Gateway accounting receipts recovered at startup");
-    }
-    systemprompt_gateway::audit::journal::spawn_recovery(settlement, ctx.background_tasks());
-    Ok(())
 }

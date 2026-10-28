@@ -220,6 +220,7 @@ pub(super) fn set_enabled(
         return Ok(());
     };
     let mut root = read_json_object(&path)?;
+    let original = root.clone();
 
     let enabled_map = object_entry(&mut root, &path, "enabledPlugins")?;
     for marketplace in stale {
@@ -259,6 +260,10 @@ pub(super) fn set_enabled(
         }
     }
 
+    foreign::drop_created_empty_maps(&mut root, &original);
+    if root == original {
+        return Ok(());
+    }
     write_json(&path, &Value::Object(root))
 }
 

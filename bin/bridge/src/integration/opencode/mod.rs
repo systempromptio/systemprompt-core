@@ -28,12 +28,18 @@ mod hosts;
 mod install;
 mod managed_resources;
 mod probe;
+mod roundtrip;
 mod tier;
 mod version;
 
 pub use hosts::{OPENCODE_APP_HOST, OPENCODE_CLI_HOST, OpenCodeAppHost, OpenCodeCliHost};
 pub use managed_resources::{OpenCodeSync, agents_block, as_subagent, splice_block};
-pub use version::{ClientVersion, MIN_CLIENT_VERSION, parse_version, probe_client_version};
+pub use roundtrip::{
+    Loss, PolicyKey, RoundTrip, WrittenConfig, compare, probe_round_trip, written_config,
+};
+pub use version::{
+    ClientProbeError, ClientVersion, MIN_CLIENT_VERSION, parse_version, probe_client_version,
+};
 
 use systemprompt_models::bridge::host::HostKind;
 

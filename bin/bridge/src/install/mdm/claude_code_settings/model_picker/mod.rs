@@ -125,21 +125,24 @@ fn read_json_object(
         })
 }
 
+/// Splices the gateway rows into `modelPicker` and reports whether the value
+/// changed, so an unchanged file is never rewritten.
 // JSON: Claude Code `settings.json` — foreign config, unknown keys must be
 // preserved.
 fn splice_rows(
     root: &mut serde_json::Map<String, serde_json::Value>,
     previously_ours: &[String],
     rows: &[PickerRow],
-) {
-    match merged_picker(root.get("modelPicker"), previously_ours, rows) {
-        Some(picker) => {
-            root.insert("modelPicker".to_owned(), picker);
-        },
-        None => {
-            root.remove("modelPicker");
-        },
+) -> bool {
+    let merged = merged_picker(root.get("modelPicker"), previously_ours, rows);
+    if root.get("modelPicker") == merged.as_ref() {
+        return false;
     }
+    match merged {
+        Some(picker) => root.insert("modelPicker".to_owned(), picker),
+        None => root.remove("modelPicker"),
+    };
+    true
 }
 
 pub(crate) fn apply_model_picker(rows: &[PickerRow]) -> Result<Vec<String>, MdmError> {
@@ -147,8 +150,9 @@ pub(crate) fn apply_model_picker(rows: &[PickerRow]) -> Result<Vec<String>, MdmE
     let mut lines = Vec::new();
     let standalone =
         standalone_settings_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    if let Some(mut root) = read_json_object(&standalone)? {
-        splice_rows(&mut root, &previously, rows);
+    if let Some(mut root) = read_json_object(&standalone)?
+        && splice_rows(&mut root, &previously, rows)
+    {
         write_atomic(&standalone, &render(root, &standalone)?)?;
         lines.push(format!(
             "wrote: {} (modelPicker, {} gateway model(s))",
@@ -159,12 +163,15 @@ pub(crate) fn apply_model_picker(rows: &[PickerRow]) -> Result<Vec<String>, MdmE
     let settings = managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
     if let Some(mut root) = read_json_object(&settings)?
         && root.contains_key("apiKeyHelper")
+        && splice_rows(&mut root, &previously, rows)
     {
-        splice_rows(&mut root, &previously, rows);
         write_atomic(&settings, &render(root, &settings)?)?;
         lines.push(format!("wrote: {} (modelPicker)", settings.display()));
     }
-    write_sidecar(&rows.iter().map(|r| r.id.clone()).collect::<Vec<_>>())?;
+    let ours: Vec<String> = rows.iter().map(|r| r.id.clone()).collect();
+    if ours != previously {
+        write_sidecar(&ours)?;
+    }
     Ok(lines)
 }
 

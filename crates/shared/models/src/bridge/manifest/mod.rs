@@ -47,7 +47,7 @@ pub use external::{
     ManifestExternalPlugin, ManifestExternalPluginSource,
 };
 pub use managed_mcp::ManagedMcpServer;
-pub use opencode::{ManifestOpenCode, OPENCODE_V2_MIN_BRIDGE, ThemeRef};
+pub use opencode::{ManifestOpenCode, OPENCODE_V2_MIN_BRIDGE, ThemeMode, ThemeRef};
 
 pub const MANIFEST_SCHEMA_VERSION: u32 = 2;
 

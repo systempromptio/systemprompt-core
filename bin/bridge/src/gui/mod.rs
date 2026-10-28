@@ -5,6 +5,7 @@
 
 pub mod command;
 pub mod dispatch;
+mod drive;
 pub mod emit;
 pub mod error;
 mod event_kind;
@@ -160,10 +161,13 @@ pub(crate) struct GuiApp {
     pub(crate) did_initial_sync: bool,
     pub(crate) active_signals: HashSet<notify::Signal>,
     pub(crate) unattended_repairs: HashSet<systemprompt_models::bridge::host::HostKind>,
+    pub(crate) drive_watch: tokio::sync::watch::Receiver<u64>,
+    pub(crate) drive_notice_seq: u64,
 }
 
 impl GuiApp {
     fn new(state: Arc<AppState>, proxy: UiEventProxy, ctx: Arc<BridgeContext>) -> Self {
+        let drive_watch = ctx.drive.subscribe();
         Self {
             state,
             proxy,
@@ -181,6 +185,8 @@ impl GuiApp {
             did_initial_sync: false,
             active_signals: HashSet::new(),
             unattended_repairs: HashSet::new(),
+            drive_watch,
+            drive_notice_seq: 0,
         }
     }
 

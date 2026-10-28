@@ -16,6 +16,7 @@ use systemprompt_security::manifest_signing::{canonical_manifest_bytes, sign_wit
 
 use super::signing::{BundleSigningKey, load_signing_key};
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::ContentHash;
 
 #[derive(Debug, Clone, Args)]
 pub struct BundleArgs {
@@ -52,7 +53,7 @@ pub struct BundleOutcome {
     pub archive: String,
     pub version: String,
     pub requires_core: String,
-    pub content_hash: String,
+    pub content_hash: ContentHash,
     pub files: usize,
     pub total_size: u64,
     pub dirs: String,

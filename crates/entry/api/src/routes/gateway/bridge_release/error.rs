@@ -29,6 +29,12 @@ pub enum ReleaseError {
     UnknownPlatform { platform: String },
     #[error("no {prefix}* release found in {repo}")]
     NoRelease { prefix: String, repo: String },
+    #[error("no {prefix}* release in {repo} is supported by this server ({ceiling})")]
+    NoCompatibleRelease {
+        prefix: String,
+        repo: String,
+        ceiling: String,
+    },
     #[error("release {tag} has no asset {asset}")]
     MissingAsset { tag: String, asset: String },
     #[error("release {version} publishes no SHA256SUMS")]
@@ -90,6 +96,7 @@ impl ReleaseError {
             Self::NotConfigured
             | Self::UnknownPlatform { .. }
             | Self::NoRelease { .. }
+            | Self::NoCompatibleRelease { .. }
             | Self::MissingAsset { .. } => StatusCode::NOT_FOUND,
             Self::NoChecksums { .. }
             | Self::ChecksumMissing { .. }
@@ -129,6 +136,7 @@ impl ReleaseError {
             Self::NotConfigured => "bridge_releases_not_configured",
             Self::UnknownPlatform { .. } => "platform_not_published",
             Self::NoRelease { .. } => "release_not_found",
+            Self::NoCompatibleRelease { .. } => "compatible_release_not_found",
             Self::MissingAsset { .. } => "release_asset_not_found",
             Self::NoChecksums { .. } | Self::ChecksumMissing { .. } => {
                 "release_checksum_unavailable"

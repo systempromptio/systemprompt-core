@@ -13,7 +13,7 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_identifiers::ResourceRevisionId;
+use systemprompt_identifiers::{ContentHash, ResourceRevisionId};
 
 use super::InventoryEntry;
 use super::publish_latest::Managed;
@@ -28,7 +28,7 @@ use crate::managed::{
 pub(super) struct PassProvenance {
     pub(super) composed_hash: Option<String>,
     pub(super) inventory_generation: i64,
-    pub(super) bundle_hashes: BTreeMap<String, String>,
+    pub(super) bundle_hashes: BTreeMap<String, ContentHash>,
 }
 
 pub(super) fn inventory_request(

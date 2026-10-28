@@ -237,3 +237,20 @@ fn suppressed_host_is_not_unknown() {
     assert!(find_host_by_id(SUPPRESSED).is_none());
     assert!(matches!(resolve_host(SUPPRESSED), ResolvedHost::Suppressed));
 }
+
+#[test]
+fn a_suppressed_host_has_no_host_sync_to_apply_or_clear() {
+    assert!(
+        systemprompt_bridge::integration::host_syncs()
+            .all(|emitter| emitter.host_id() != SUPPRESSED),
+        "a suppressed host's settings must never be written, not even to clear them"
+    );
+}
+
+#[test]
+fn a_suppressed_host_is_not_offered_as_a_sync_only_agent() {
+    assert!(systemprompt_bridge::integration::is_suppressed(SUPPRESSED));
+    assert!(
+        systemprompt_bridge::integration::sync_only_agents().all(|agent| agent.id != SUPPRESSED)
+    );
+}

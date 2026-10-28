@@ -3,9 +3,10 @@ use systemprompt_governance::authz::{EntityKind, EntityRef};
 #[test]
 fn from_kind_and_id_round_trips_every_kind() {
     for kind in EntityKind::ALL {
-        let entity = EntityRef::from_kind_and_id(*kind, "some-id").expect("non-empty id");
+        let entity = EntityRef::from_kind_and_id(*kind, "00000000-0000-4000-8000-000000000001")
+            .expect("a uuid is valid for every kind");
         assert_eq!(entity.kind(), *kind);
-        assert_eq!(entity.id_str(), "some-id");
+        assert_eq!(entity.id_str(), "00000000-0000-4000-8000-000000000001");
     }
 }
 
