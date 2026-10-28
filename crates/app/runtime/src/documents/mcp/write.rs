@@ -30,7 +30,7 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsMcpTools;
-use super::inputs::{CreateContent, CreateInput, EditInput};
+use super::inputs::{CreateInput, EditInput};
 use super::media::{image_refs, resolve_media};
 use super::outputs::CreateOutput;
 use super::proposals::propose_ops;
@@ -54,18 +54,35 @@ pub(super) struct EditCall<'a> {
     pub(super) verbose: bool,
 }
 
-/// The content model a create names, from its model or its Markdown.
-fn content_model(content: Option<CreateContent>) -> Result<Option<RichText>, McpError> {
+const CONTENT_SHAPES: &str = "content is exactly {\"model\": <ModelViewV2>} or {\"markdown\": \
+                              \"<text>\"} (schema: GET /api/v1/documents/schema)";
+
+/// The content model a create names. The input schema leaves `content`
+/// untyped to keep the tool list small, so the shape is checked here:
+/// an object with exactly one key, `model` (a `ModelViewV2`) or `markdown`
+/// (a string); anything else refuses with `invalid_params`.
+pub fn create_content(content: Option<serde_json::Value>) -> Result<Option<RichText>, McpError> {
     let invalid = |detail: String| refusal(RefusalCode::InvalidParams, detail);
-    match content {
-        None => Ok(None),
-        Some(CreateContent::Markdown(markdown)) => Ok(Some(markdown::import(&markdown))),
-        Some(CreateContent::Model(value)) => {
-            let view: ModelViewV2 = serde_json::from_value(value).map_err(|error| {
-                invalid(format!("content.model is not a RichText v2 model: {error}"))
-            })?;
-            view.into_model().map(Some).map_err(invalid)
+    let Some(content) = content else {
+        return Ok(None);
+    };
+    let entry = content
+        .as_object()
+        .filter(|object| object.len() == 1)
+        .and_then(|object| object.iter().next());
+    match entry {
+        Some((key, serde_json::Value::String(markdown))) if key == "markdown" => {
+            Ok(Some(markdown::import(markdown)))
         },
+        Some((key, value)) if key == "model" => {
+            let view: ModelViewV2 = serde_json::from_value(value.clone()).map_err(|error| {
+                invalid(format!("content.model is not a valid model ({error}); {CONTENT_SHAPES}"))
+            })?;
+            view.into_model()
+                .map(Some)
+                .map_err(|detail| invalid(format!("{detail}; {CONTENT_SHAPES}")))
+        },
+        _ => Err(invalid(CONTENT_SHAPES.to_owned())),
     }
 }
 
@@ -141,7 +158,7 @@ impl McpToolHandler for CreateHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create from a template, with content {model|markdown} and/or ops. Guide: model."
+        "Create from a template. Guide: model."
     }
 
     async fn handle(
@@ -152,7 +169,7 @@ impl McpToolHandler for CreateHandler<'_> {
     ) -> Result<(CreateOutput, String), McpError> {
         let who = caller(ctx)?;
         let applied = input.ops.len();
-        let content = content_model(input.content)?;
+        let content = create_content(input.content)?;
         let refs = image_refs(content.as_ref(), &input.ops);
         let media = resolve_media(self.tools, ctx, refs, None).await?;
         let (document, revision) = self
@@ -217,7 +234,7 @@ impl McpToolHandler for EditHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Apply ops on the head, or as a proposal with mode: propose. Guide: editing."
+        "Apply ops, or propose them. Guide: editing."
     }
 
     async fn handle(

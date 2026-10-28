@@ -91,6 +91,7 @@ pub(crate) async fn create_text(
                 folder_id: None,
                 name: format!("notes-{}", Uuid::new_v4().simple()),
                 params: Default::default(),
+                content: None,
                 ops: Vec::new(),
                 message: None,
             },

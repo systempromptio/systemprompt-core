@@ -85,7 +85,7 @@ pub use refusal::{refusal, refusal_code, refusal_result, refused_error};
 pub use share::ShareHandler;
 pub use support::tool_error;
 pub use upload::{UploadHandler, UploadInput, UploadMode, UploadOutput};
-pub use write::{CreateHandler, EditHandler};
+pub use write::{CreateHandler, EditHandler, create_content};
 
 use support::run;
 

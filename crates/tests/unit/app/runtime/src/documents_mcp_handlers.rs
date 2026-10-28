@@ -405,6 +405,7 @@ async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
                 folder_id: None,
                 name: format!("memo-{}", uuid::Uuid::new_v4().simple()),
                 params: Default::default(),
+                content: None,
                 ops: vec![
                     EditOp::InsertAfter {
                         node: NodeTarget::Id(DocumentNodeId::new("body/h1[1]")),

@@ -29,7 +29,7 @@ impl McpToolHandler for AccessHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Owner, grants, access requests, history and your access."
+        "Owner, grants, requests and your access."
     }
 
     fn read_only(&self) -> bool {

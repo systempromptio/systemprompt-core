@@ -103,7 +103,7 @@ impl McpToolHandler for ExportHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Export as a signed download url (native or pdf) or an HTML preview."
+        "Export a download url or HTML preview."
     }
 
     fn read_only(&self) -> bool {

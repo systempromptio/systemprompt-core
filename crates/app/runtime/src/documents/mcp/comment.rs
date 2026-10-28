@@ -106,7 +106,7 @@ impl McpToolHandler for CommentHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create, list, resolve, edit or delete anchored comments; mention users by id or email."
+        "Anchored comments and mentions. Guide: comments."
     }
 
     async fn handle(

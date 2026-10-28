@@ -83,7 +83,7 @@ impl McpToolHandler for ListHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List documents by scope; pass next_cursor as cursor."
+        "List documents by scope; next_cursor pages."
     }
 
     fn read_only(&self) -> bool {

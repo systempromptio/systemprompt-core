@@ -220,8 +220,7 @@ impl McpToolHandler for UploadHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Upload a file: base64 up to 5 MiB returns blob_ref; else size+sha256 returns part URLs and a \
-         token; upload_id re-issues the token."
+        "Upload a file; returns a blob_ref. Guide: uploads."
     }
 
     async fn handle(

@@ -26,7 +26,6 @@ pub enum ReadView {
     Node,
     Search,
     Meta,
-    /// The document as its `RichText` v2 model, with node ids.
     Model,
 }
 

@@ -2,7 +2,10 @@
 //!
 //! Descriptions are one line and the working detail lives in
 //! `documents_guide`, so the list stays small. Edit ops are listed by name
-//! with their fields left open; the `editing` topic carries their shapes.
+//! with their fields left open; the `editing` topic carries their shapes,
+//! and `documents_create` lists its ops as a plain array. A property with
+//! no `type` is a string: ids, names, text and cursors are all strings, so
+//! the schema leaves the type out rather than repeat it sixty times.
 //! A tool advertises no output schema and no artifact-viewer `_meta`, since
 //! results arrive as summary text and untagged structured content and this
 //! server serves only the document-preview resource, which `documents_export`
@@ -129,6 +132,9 @@ fn slim(property: &mut JsonValue, defs: &Map<String, JsonValue>) {
     if let Some(JsonValue::Object(properties)) = map.get_mut("properties") {
         properties.values_mut().for_each(|inner| slim(inner, defs));
     }
+    if map.len() == 1 && map.get("type").and_then(JsonValue::as_str) == Some("string") {
+        map.clear();
+    }
 }
 
 // JSON: schemars output in, compacted schemars output out
@@ -156,6 +162,18 @@ fn compact_input(schema: &Map<String, JsonValue>) -> Map<String, JsonValue> {
     schema
 }
 
+/// A create lists its ops as a plain array; `documents_edit` names them.
+fn plain_ops(mut tool: Tool) -> Tool {
+    let mut schema = (*tool.input_schema).clone();
+    if let Some(JsonValue::Object(properties)) = schema.get_mut("properties")
+        && properties.contains_key("ops")
+    {
+        properties.insert("ops".to_owned(), json!({ "type": "array" }));
+    }
+    tool.input_schema = Arc::new(schema);
+    tool
+}
+
 fn compact(mut tool: Tool, keep_meta: bool) -> Tool {
     tool.input_schema = Arc::new(compact_input(&tool.input_schema));
     tool.output_schema = None;
@@ -172,7 +190,7 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
     vec![
         compact(ListHandler { tools }.tool_definition(server), false),
         compact(SearchHandler { tools }.tool_definition(server), false),
-        compact(CreateHandler { tools }.tool_definition(server), false),
+        plain_ops(compact(CreateHandler { tools }.tool_definition(server), false)),
         compact(ReadHandler { tools }.tool_definition(server), false),
         compact(EditHandler { tools }.tool_definition(server), false),
         compact(CommentHandler { tools }.tool_definition(server), false),

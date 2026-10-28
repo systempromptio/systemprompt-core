@@ -60,15 +60,6 @@ pub struct SearchInput {
     pub limit: Option<i64>,
 }
 
-/// A new document's body: a `RichText` v2 model (see the `model` guide
-/// topic) or Markdown, written over the template before `ops` apply.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum CreateContent {
-    Model(serde_json::Value),
-    Markdown(String),
-}
-
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct CreateInput {
     pub template_id: DocumentTemplateId,
@@ -77,8 +68,9 @@ pub struct CreateInput {
     pub name: String,
     #[serde(default)]
     pub params: std::collections::BTreeMap<String, String>,
+    /// Guide: model.
     #[serde(default)]
-    pub content: Option<CreateContent>,
+    pub content: Option<serde_json::Value>,
     #[serde(default)]
     pub ops: Vec<EditOp>,
     #[serde(default)]
