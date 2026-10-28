@@ -9,8 +9,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ContentHash, DocumentCommentId, DocumentEditSessionId, DocumentId, DocumentNodeId,
-    DocumentProposalId, DocumentRevisionId, DriveDeviceId, UserId,
+    ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentEditSessionId, DocumentId,
+    DocumentNodeId, DocumentProposalId, DocumentRevisionId, DriveDeviceId, UserId,
 };
 
 use super::access::{AccessLevel, ActorKind, ProposalStatus, RevisionOriginKind};
@@ -47,6 +47,8 @@ pub enum DocumentEventName {
     ProposalSuperseded,
     #[serde(rename = "document.awareness")]
     Awareness,
+    #[serde(rename = "document.access_requested")]
+    AccessRequested,
 }
 
 impl DocumentEventName {
@@ -65,6 +67,7 @@ impl DocumentEventName {
         Self::ProposalRejected,
         Self::ProposalSuperseded,
         Self::Awareness,
+        Self::AccessRequested,
     ];
 
     #[must_use]
@@ -84,6 +87,7 @@ impl DocumentEventName {
             Self::ProposalRejected => DocumentProposalEvent::REJECTED,
             Self::ProposalSuperseded => DocumentProposalEvent::SUPERSEDED,
             Self::Awareness => DocumentAwarenessEvent::NAME,
+            Self::AccessRequested => DocumentAccessRequestedEvent::NAME,
         }
     }
 
@@ -207,10 +211,28 @@ pub struct DocumentSharedEvent {
     pub level: AccessLevel,
     pub by: UserId,
     pub shared_by: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 impl DocumentSharedEvent {
     pub const NAME: &'static str = "document.shared";
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocumentAccessRequestedEvent {
+    pub document_id: DocumentId,
+    pub document_name: String,
+    pub request_id: DocumentAccessRequestId,
+    pub requester_user_id: UserId,
+    pub requested_by: String,
+    pub level: AccessLevel,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+impl DocumentAccessRequestedEvent {
+    pub const NAME: &'static str = "document.access_requested";
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

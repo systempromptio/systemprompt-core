@@ -207,6 +207,10 @@ pub enum SubjectSourceError {
 
 /// Reads the values a user holds per extension-declared subject dimension.
 ///
+/// `known_values` lists every value a dimension can take when its provider
+/// can enumerate them, and answers `None` when it cannot; a caller treats
+/// `None` as "any value may exist", never as "no value exists".
+///
 /// Held as `Arc<dyn SubjectAttributeSource>` by the extension context and the
 /// handle below, so it uses `#[async_trait]`: native `async fn` in traits is
 /// not `dyn`-compatible.
@@ -221,6 +225,13 @@ pub trait SubjectAttributeSource: Send + Sync {
     ) -> Result<Vec<String>, SubjectSourceError>;
 
     async fn resolve_all(&self, user: &UserId) -> Result<SubjectAttributes, SubjectSourceError>;
+
+    async fn known_values(
+        &self,
+        _dimension: &SubjectDimension,
+    ) -> Result<Option<Vec<String>>, SubjectSourceError> {
+        Ok(None)
+    }
 }
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
@@ -271,6 +282,16 @@ impl SubjectAttributeSource for SubjectSourceHandle {
     async fn resolve_all(&self, user: &UserId) -> Result<SubjectAttributes, SubjectSourceError> {
         match self.0.get() {
             Some(source) => source.resolve_all(user).await,
+            None => Err(SubjectSourceError::NotReady),
+        }
+    }
+
+    async fn known_values(
+        &self,
+        dimension: &SubjectDimension,
+    ) -> Result<Option<Vec<String>>, SubjectSourceError> {
+        match self.0.get() {
+            Some(source) => source.known_values(dimension).await,
             None => Err(SubjectSourceError::NotReady),
         }
     }

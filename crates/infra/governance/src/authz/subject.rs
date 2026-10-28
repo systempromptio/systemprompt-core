@@ -58,6 +58,10 @@ pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
 /// bound to that same value. Key issuance accepts them without a membership
 /// check, so binding one is the issuer's authority, never the caller's.
 ///
+/// `known_values` lists every value the dimension can take when the
+/// provider can enumerate them (sharing validates and searches against it);
+/// the default `None` means the values cannot be listed.
+///
 /// `#[async_trait]` because providers are held as
 /// [`SharedSubjectAttributeProvider`], an `Arc<dyn …>`, so the trait must stay
 /// `dyn`-compatible.
@@ -73,6 +77,10 @@ pub trait SubjectAttributeProvider: Send + Sync + Debug {
 
     fn key_bound_values(&self) -> &'static [&'static str] {
         &[]
+    }
+
+    async fn known_values(&self) -> Result<Option<Vec<String>>, super::AuthzError> {
+        Ok(None)
     }
 }
 
@@ -212,5 +220,18 @@ impl SubjectAttributeSource for SubjectProviderSet {
             attributes.insert(rule_type, values);
         }
         Ok(attributes)
+    }
+
+    async fn known_values(
+        &self,
+        dimension: &SubjectDimension,
+    ) -> Result<Option<Vec<String>>, SubjectSourceError> {
+        let provider = self.find(dimension.rule_type.as_str()).ok_or_else(|| {
+            SubjectSourceError::UnknownDimension(dimension.rule_type.as_str().to_owned())
+        })?;
+        provider
+            .known_values()
+            .await
+            .map_err(|e| source_error(&dimension.rule_type, e))
     }
 }
