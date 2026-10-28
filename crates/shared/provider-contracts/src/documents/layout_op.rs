@@ -26,7 +26,8 @@ pub struct SetParagraph {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_hash: Option<String>,
     /// Paragraph attributes: `style`, `align`, `indent`, `space_before`,
-    /// `space_after`, `keep_with_next`. Replaces the block's attributes.
+    /// `space_after`, `keep_with_next`. Merged into the block's attributes;
+    /// a `null` value clears that attribute.
     pub attrs: serde_json::Value,
 }
 

@@ -49,7 +49,19 @@ pub(super) fn set_paragraph(
             block.id
         )));
     }
-    block.attrs = parse::<ParaAttrs>("set_paragraph.attrs", &op.attrs)?;
+    let mut merged = serde_json::to_value(&block.attrs)
+        .map_err(|error| refused(format!("the block's attributes did not serialise: {error}")))?;
+    let (Some(held), Some(given)) = (merged.as_object_mut(), op.attrs.as_object()) else {
+        return Err(refused("set_paragraph.attrs must be an object".to_owned()));
+    };
+    for (key, value) in given {
+        if value.is_null() {
+            held.remove(key);
+        } else {
+            held.insert(key.clone(), value.clone());
+        }
+    }
+    block.attrs = parse::<ParaAttrs>("set_paragraph.attrs", &merged)?;
     Ok(())
 }
 
