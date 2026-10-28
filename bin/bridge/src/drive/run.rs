@@ -69,6 +69,7 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
         status.pending_uploads = report.pending_uploads;
         status.conflicts.clone_from(&state.conflicts);
         status.proposals.clone_from(&state.proposals);
+        status.sent_for_review.clone_from(&state.sent_for_review);
         status.shares.clone_from(&state.shares);
         status.last_error = None;
     });
