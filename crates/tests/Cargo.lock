@@ -9309,6 +9309,8 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 
@@ -9621,6 +9623,8 @@ dependencies = [
  "systemprompt-traits",
  "systemprompt-wire",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

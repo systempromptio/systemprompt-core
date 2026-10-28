@@ -401,3 +401,6 @@ mod documents_uri;
 
 #[cfg(test)]
 mod documents_drive;
+
+#[cfg(test)]
+mod builder_edges;

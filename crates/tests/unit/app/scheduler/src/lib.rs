@@ -56,6 +56,8 @@ mod otlp_export;
 #[cfg(test)]
 mod plans;
 #[cfg(test)]
+mod projection_jobs_db;
+#[cfg(test)]
 mod reconciler_db;
 #[cfg(test)]
 mod registration_db;
