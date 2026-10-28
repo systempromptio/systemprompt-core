@@ -13,7 +13,7 @@ fn write(root: &Path, file: &str, body: &str) {
     std::fs::write(path, body).expect("write");
 }
 
-const ROLES: &str = r#"
+pub(crate) const ROLES: &str = r#"
 rules:
   - entity_type: marketplace
     entity_id: commons

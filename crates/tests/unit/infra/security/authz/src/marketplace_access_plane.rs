@@ -134,3 +134,72 @@ async fn a_reconcile_writes_no_marketplace_access() {
         "boot applies nothing: only `config apply` writes access"
     );
 }
+
+fn write_rules(root: &Path, body: &str) {
+    let rules = root.join("access-control/rules.yaml");
+    std::fs::create_dir_all(rules.parent().expect("parent")).expect("mkdir");
+    std::fs::write(rules, body).expect("write rules");
+}
+
+#[test]
+fn load_declared_hashes_rules_and_marketplace_blocks_together() {
+    let root = tempfile::tempdir().expect("tempdir");
+    write_marketplace(root.path(), "ops", "  access:\n    roles: [admin]\n");
+    write_rules(
+        root.path(),
+        "entities:\n  - entity: marketplace/other\n    why: shared\n    allow:\n      role: [user]\n",
+    );
+
+    let plane = AccessControlPlane;
+    assert_eq!(plane.name(), "access_control");
+    assert_eq!(plane.declared_path(), "access-control/rules.yaml");
+    assert!(plane.supports_scoped_apply());
+
+    let declared = plane
+        .load_declared(root.path())
+        .expect("loads")
+        .expect("declares");
+    let keys: Vec<&str> = declared.entries.keys().map(String::as_str).collect();
+    assert_eq!(keys, ["marketplace/ops", "marketplace/other"]);
+    let again = plane
+        .load_declared(root.path())
+        .expect("loads")
+        .expect("declares");
+    assert_eq!(declared.hash, again.hash);
+
+    let rendered = plane
+        .render_declarations(&declared.entries)
+        .expect("renders");
+    assert!(rendered.contains("marketplace/other"), "{rendered}");
+    assert!(rendered.contains("marketplace/ops"), "{rendered}");
+}
+
+#[test]
+fn load_declared_without_any_declaration_is_none() {
+    let root = tempfile::tempdir().expect("tempdir");
+    assert!(
+        AccessControlPlane
+            .load_declared(root.path())
+            .expect("loads")
+            .is_none()
+    );
+}
+
+#[test]
+fn the_retired_roles_file_is_refused_with_the_migrate_hint() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let roles = root.path().join("access-control/roles.yaml");
+    std::fs::create_dir_all(roles.parent().expect("parent")).expect("mkdir");
+    std::fs::write(roles, "roles: {}\n").expect("roles");
+    let error = AccessControlPlane
+        .load_declared(root.path())
+        .expect_err("retired file");
+    assert!(error.to_string().contains("config migrate"), "{error}");
+}
+
+#[test]
+fn render_refuses_a_value_that_is_not_a_canonical_entity() {
+    let mut entries = std::collections::BTreeMap::new();
+    entries.insert("marketplace/x".to_owned(), "not json".to_owned());
+    assert!(AccessControlPlane.render_declarations(&entries).is_err());
+}

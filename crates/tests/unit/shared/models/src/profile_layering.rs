@@ -289,3 +289,50 @@ fn committed_gate_refuses_absolute_temp_paths() {
     assert!(committed_source_errors("paths:\n  system: /var/tmp/x\n").len() == 1);
     assert!(committed_source_errors("paths:\n  system: /srv/app\n").is_empty());
 }
+
+#[test]
+fn create_overlay_keeps_only_what_differs_from_the_base() {
+    let tree = Tree::new(Some(BASE), "local", Some("name: local\n"));
+    let mut profile = Profile::load_from_path(&tree.overlay("local")).unwrap();
+    profile.server.port = 7777;
+    let fresh = tree.profiles.join("staging").join("profile.yaml");
+    profile.create_overlay(&fresh, Some("# staging")).unwrap();
+
+    let text = std::fs::read_to_string(&fresh).unwrap();
+    assert!(text.starts_with("# staging\n\n"), "{text}");
+    let overlay: Value = serde_yaml::from_str(&text).unwrap();
+    assert_eq!(overlay["name"], yaml("local"));
+    assert_eq!(overlay["server"]["port"], yaml("7777"));
+    assert!(overlay["server"].get("host").is_none(), "{text}");
+    assert!(overlay["site"].get("name").is_none(), "{text}");
+    assert_eq!(Profile::load_from_path(&fresh).unwrap().server.port, 7777);
+}
+
+#[test]
+fn create_overlay_without_a_base_writes_the_whole_profile() {
+    let tree = Tree::new(Some(BASE), "local", Some("name: local\n"));
+    let profile = Profile::load_from_path(&tree.overlay("local")).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let lone = dir.path().join("nested").join("profile.yaml");
+    profile.create_overlay(&lone, None).unwrap();
+    let overlay: Value = serde_yaml::from_str(&std::fs::read_to_string(&lone).unwrap()).unwrap();
+    assert_eq!(overlay["site"]["name"], yaml("Site"));
+}
+
+#[test]
+fn apply_changes_clears_removed_keys_by_shape() {
+    use systemprompt_manifest::profile::overlay::apply_changes;
+    let before = yaml("list: [a]\nmap: { k: v }\nscalar: 1\nkept: x\n");
+    let after = yaml("kept: x\n");
+    let mut overlay = Value::Null;
+    apply_changes(&mut overlay, &before, &after);
+    assert_eq!(overlay, yaml("list: []\nmap: {}\nscalar: null\n"));
+
+    let mut replaced = yaml("old: 1\n");
+    apply_changes(&mut replaced, &yaml("a: 1\n"), &yaml("[1, 2]"));
+    assert_eq!(replaced, yaml("[1, 2]"));
+
+    let mut untouched = yaml("old: 1\n");
+    apply_changes(&mut untouched, &yaml("a: 1\n"), &yaml("a: 1\n"));
+    assert_eq!(untouched, yaml("old: 1\n"));
+}

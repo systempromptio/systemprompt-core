@@ -22,4 +22,6 @@ mod resolved_catalog;
 #[cfg(test)]
 mod resolved_routes;
 #[cfg(test)]
+mod route_predicates;
+#[cfg(test)]
 mod vertex_rate_card;

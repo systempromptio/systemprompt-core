@@ -434,3 +434,135 @@ async fn the_catalog_stamp_moves_with_a_cohort_generation() {
         .expect("stamp");
     assert_ne!(before, after);
 }
+
+struct NamedGate(&'static str, AssetDigest);
+
+#[async_trait]
+impl PublicationGate for NamedGate {
+    fn id(&self) -> &'static str {
+        self.0
+    }
+
+    async fn admit(&self, _ctx: &GateContext<'_>) -> Result<GateVerdict, PublicationGateError> {
+        Ok(GateVerdict::Admit {
+            evidence_digest: self.1.clone(),
+        })
+    }
+}
+
+struct BrokenGate;
+
+#[async_trait]
+impl PublicationGate for BrokenGate {
+    fn id(&self) -> &'static str {
+        "broken"
+    }
+
+    async fn admit(&self, _ctx: &GateContext<'_>) -> Result<GateVerdict, PublicationGateError> {
+        Err(PublicationGateError::Evidence(
+            "unreadable report".to_owned(),
+        ))
+    }
+}
+
+#[test]
+fn the_policy_debug_names_its_gates_and_exposes_its_config() {
+    let config = ManagedMarketplaceConfig {
+        publication: PublicationConfig {
+            gate: PublicationGateConfig {
+                required: true,
+                on_adoption: true,
+            },
+        },
+        rings: Vec::new(),
+    };
+    let policy = PublicationPolicy::new(
+        config,
+        vec![
+            Arc::new(NamedGate("eval", AssetDigest::of(b"a"))),
+            Arc::new(BrokenGate),
+        ],
+        SubjectProviderSet::default(),
+        None,
+    );
+    let shown = format!("{policy:?}");
+    assert!(shown.contains("\"eval\""), "{shown}");
+    assert!(shown.contains("\"broken\""), "{shown}");
+    assert!(policy.config().publication.gate.on_adoption);
+}
+
+#[tokio::test]
+async fn several_admitting_gates_record_one_combined_admission() {
+    let f = fixture().await;
+    publish(&f).await;
+    let candidate = next_revision(&f, "# improved twice\n").await;
+    let first = AssetDigest::of(b"eval evidence");
+    let repository = gated(
+        &f,
+        PublicationGateConfig::default(),
+        vec![
+            Arc::new(NamedGate("eval", first.clone())),
+            Arc::new(NamedGate("lint", AssetDigest::of(b"lint evidence"))),
+        ],
+    );
+    let decision = repository
+        .review_and_publish(
+            &f.owner,
+            &f.owner,
+            &improvement(
+                &f,
+                Some(&candidate),
+                PublicationAction::PublishImprovement,
+                1,
+                None,
+            ),
+        )
+        .await
+        .expect("admitted");
+    let db = test_db_pool().await;
+    let (gate_id, digest): (Option<String>, Option<String>) = sqlx::query_as(
+        "SELECT gate_id, gate_evidence_digest FROM managed_publication_reviews WHERE id=$1",
+    )
+    .bind(decision.review_id.as_str())
+    .fetch_one(db.pool().as_ref())
+    .await
+    .expect("review row");
+    assert_eq!(gate_id.as_deref(), Some("eval,lint"));
+    let digest = digest.expect("combined digest");
+    assert_ne!(digest, first.as_str());
+}
+
+#[tokio::test]
+async fn a_failing_gate_refuses_as_an_internal_error() {
+    let f = fixture().await;
+    publish(&f).await;
+    let candidate = next_revision(&f, "# improved\n").await;
+    let repository = gated(
+        &f,
+        PublicationGateConfig::default(),
+        vec![Arc::new(BrokenGate)],
+    );
+    let refused = repository
+        .review_and_publish(
+            &f.owner,
+            &f.owner,
+            &improvement(
+                &f,
+                Some(&candidate),
+                PublicationAction::PublishImprovement,
+                1,
+                None,
+            ),
+        )
+        .await;
+    assert!(
+        matches!(refused, Err(ManagedError::Internal { .. })),
+        "{refused:?}"
+    );
+    let head = f
+        .repository
+        .publication_head_generation(&f.owner, &f.resource)
+        .await
+        .expect("head");
+    assert_eq!(head, 1);
+}

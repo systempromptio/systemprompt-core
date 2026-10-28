@@ -12,6 +12,8 @@ mod aborts;
 #[cfg(test)]
 mod data;
 #[cfg(test)]
+mod execute;
+#[cfg(test)]
 mod golden;
 #[cfg(test)]
 mod hooks;
@@ -23,5 +25,7 @@ mod profile_layer;
 mod profiles;
 #[cfg(test)]
 mod roles;
+#[cfg(test)]
+mod routes;
 #[cfg(test)]
 mod support;
