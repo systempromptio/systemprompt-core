@@ -167,7 +167,7 @@ A write records the request's session, trace and task, and the conversation name
 
 ## Live co-editing
 
-HTML and Markdown documents can be edited by several people at once. The document body is a [Loro](https://loro.dev) CRDT: one text container named `body`, holding the inner markup of `<body>` for HTML (the whole document when it has no `<body>`) and the full text for Markdown. Office formats are not co-edited and answer `400`.
+HTML and Markdown documents can be edited by several people at once. The document body is held by the installation's document engine, `systemprompt-engine-loro` ([Loro](https://loro.dev)) behind the facade's `files-collab-loro` feature: one text container named `body`, holding the inner markup of `<body>` for HTML (the whole document when it has no `<body>`) and the full text for Markdown. Office formats are not co-edited and answer `400`. With `files-collab` and no engine, every session route answers `503` with `collab_engine_unavailable`.
 
 | Route | Body | Response |
 |---|---|---|
@@ -195,14 +195,14 @@ The files extension ships native ES module Web Components for browsing, previewi
 | `assets/documents/js/documents.js` | Entry module; importing it defines every component |
 | `assets/documents/js/*.js` | One module per component, plus the HTTP client, the event stream and helpers |
 | `assets/documents/css/documents.css`, `documents-panels.css` | Styles built on the install's `--sp-` design tokens |
-| `assets/documents/wasm/loro.wasm`, `loro.js` | Vendored `loro-crdt` 1.17.1 (MIT), the version of the server's `loro` crate |
+
+Core ships no third-party frontend code, so there is no live editor component: a live-session client vendors its own CRDT client at the engine's wire version (`systemprompt_engine_loro::WIRE_VERSION`) and speaks the collab routes above.
 
 | Element | Attributes | Uses |
 |---|---|---|
 | `sp-document-browser` | `scope` (`mine`, `shared`, `recent`) | `GET /documents` (folder navigation, scope and name filter); dispatches `sp-document-open` with `{id, format, name}` |
 | `sp-document-preview` | `document-id`, `revision` | `GET /{id}/preview` in a sandboxed frame without scripts, `PUT /{id}/presence` |
 | `sp-presence-bar` | `document-id` | `GET /{id}/presence`, `document.presence` events |
-| `sp-document-editor` | `document-id`, `readonly` | the collab routes above, `document.collab.update`, `document.presence` and `document.revision.created` (`origin_kind = edit_session` is shown as a checkpoint) |
 | `sp-sheet-grid` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `set_cells` |
 | `sp-slide-text` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `replace_text` by node id and hash |
 | `sp-share-dialog` | `document-id` | `GET /{id}/access` and `GET /subject-kinds`, `POST` and `DELETE /{id}/grants`, `DELETE /{id}/grants/all` and `POST /{id}/transfer` |
@@ -211,8 +211,6 @@ The files extension ships native ES module Web Components for browsing, previewi
 | `sp-proposal-list` | `document-id` | `GET /{id}/proposals`, the changed lines from `GET /{id}/proposals/{pid}`, accept or reject with a note, `document.proposal.*` events; hidden when the install answers `404` |
 
 Every edit carries a fresh `op_id`, so a retried request replays its first acknowledgement. A refusal is shown with its error key. All components on a page share one AG-UI stream (`/api/v1/stream/agui`), because each user may hold at most ten streams.
-
-The editor compiles WebAssembly. Core sends no `Content-Security-Policy`; an install that sets one must allow `'wasm-unsafe-eval'` in `script-src`.
 
 The asset sources resolve inside the `systemprompt-files` crate, so they are declared optional: a build that compiles core copies them, and a runtime without the crate's sources keeps the copies already in its web distribution.
 

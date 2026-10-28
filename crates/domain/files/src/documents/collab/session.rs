@@ -5,7 +5,6 @@
 
 use std::time::Duration;
 
-use loro::ExportMode;
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
@@ -37,6 +36,7 @@ impl CollabService {
             JoinMode::Edit => DocumentAction::Edit,
             JoinMode::View => DocumentAction::View,
         };
+        self.engine()?;
         let document = self.authorized(who, document, action, trace).await?;
         if !is_collab_format(document.format) {
             return Err(DocumentsError::UnsupportedFormat {
@@ -50,8 +50,8 @@ impl CollabService {
         self.catch_up(&mut entry).await?;
         let joined = Joined {
             session_id: session.id.clone(),
-            snapshot: entry.doc.export(ExportMode::Snapshot)?,
-            version: entry.doc.oplog_vv().encode(),
+            snapshot: entry.doc.snapshot()?,
+            version: entry.doc.version(),
             seq: entry.last_seq,
             head_revision: document.head_revision_id.clone(),
         };

@@ -35,6 +35,7 @@ tempfile = { workspace = true }
 serde_yaml = { workspace = true }
 zip = { workspace = true }
 loro = { workspace = true }
+systemprompt-engine-loro = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

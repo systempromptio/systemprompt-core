@@ -105,46 +105,8 @@ fn every_relative_import_resolves_to_a_shipped_file() {
     assert!(checked > 20, "only {checked} imports were checked");
 }
 
-#[test]
-fn wasm_glue_loads_the_shipped_module() {
-    let collab =
-        std::fs::read_to_string(assets_root().join("js/documents-collab.js")).expect("collab");
-    assert!(collab.contains("\"../wasm/loro.wasm\""));
-    assert!(collab.contains("\"../wasm/loro.js\""));
-}
-
 fn asset(name: &str) -> String {
     std::fs::read_to_string(assets_root().join("js").join(name)).expect("asset")
-}
-
-#[test]
-fn collab_push_advances_the_sent_version_only_after_the_post() {
-    let collab = asset("documents-collab.js");
-    let post = collab
-        .find("await postWithRetry(")
-        .expect("push posts with retry");
-    let advance = collab
-        .find("this.sent = version;")
-        .expect("push advances sent");
-    assert!(
-        post < advance,
-        "sent must advance only after the update is accepted"
-    );
-    assert!(collab.contains("RETRY_DELAYS_MS"));
-}
-
-#[test]
-fn collab_diff_runs_over_code_points() {
-    let collab = asset("documents-collab.js");
-    assert!(collab.contains("Array.from(beforeText)"));
-    assert!(collab.contains("Array.from(afterText)"));
-}
-
-#[test]
-fn collab_rejoins_on_a_sequence_gap() {
-    let collab = asset("documents-collab.js");
-    assert!(collab.contains("event.seq > this.seq + 1"));
-    assert!(collab.contains("await this.join(this.mode)"));
 }
 
 #[test]

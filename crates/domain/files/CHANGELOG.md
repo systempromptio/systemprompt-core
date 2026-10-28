@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- The `collab` feature links no CRDT crate: live sessions run over the new `documents::engine::DocumentEngine` seam (`EngineDoc`, `FormulaEngine`, `RenderEngine`, `ModelView`, `EngineError`), and `CollabService::new` takes `Option<Arc<dyn DocumentEngine>>`. The Loro implementation is `systemprompt-engine-loro`.
+- The vendored `loro-crdt` WebAssembly, `documents-collab.js` and `sp-document-editor` are removed; core ships no third-party frontend code.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

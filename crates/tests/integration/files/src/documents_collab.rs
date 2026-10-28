@@ -4,7 +4,8 @@ use std::time::Duration;
 use loro::{ExportMode, LoroDoc, VersionVector};
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::collab::model::BODY_CONTAINER;
+use systemprompt_engine_loro::{BODY_CONTAINER, LoroEngine};
+use systemprompt_files::documents::engine::DocumentEngine;
 use systemprompt_files::documents::collab::{
     ApplyRequest, CollabError, CollabService, CollabTuning, JoinMode, Joined,
 };
@@ -29,6 +30,7 @@ pub(crate) async fn collab() -> Collab {
     let collab = Arc::new(CollabService::new(
         Arc::clone(&documents),
         CollabTuning::default(),
+        loro(),
     ));
     Collab {
         h,
@@ -44,6 +46,10 @@ pub(crate) async fn html_document(c: &Collab, owner: &AuthenticatedUser) -> Docu
         .await
         .expect("create html");
     document.id
+}
+
+pub(crate) fn loro() -> Option<Arc<dyn DocumentEngine>> {
+    Some(Arc::new(LoroEngine))
 }
 
 pub(crate) fn client(joined: &Joined) -> LoroDoc {
@@ -160,7 +166,7 @@ async fn apply_logs_the_update_and_broadcasts_it_to_present_users() {
 #[tokio::test]
 async fn a_second_replica_sees_updates_applied_on_the_first() {
     let c = collab().await;
-    let other = CollabService::new(Arc::clone(&c.documents), CollabTuning::default());
+    let other = CollabService::new(Arc::clone(&c.documents), CollabTuning::default(), loro());
     let owner = person("collab-replica");
     let document = html_document(&c, &owner).await;
     let joined = c

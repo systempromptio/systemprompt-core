@@ -6035,6 +6035,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-engine-loro"
+version = "0.74.0"
+dependencies = [
+ "loro",
+ "systemprompt-files",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-events"
 version = "0.74.0"
 dependencies = [
@@ -6089,7 +6098,6 @@ dependencies = [
  "futures-util",
  "hex",
  "inventory",
- "loro",
  "pulldown-cmark",
  "quick-xml 0.42.0",
  "scraper",
@@ -6529,6 +6537,7 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
+ "systemprompt-engine-loro",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",

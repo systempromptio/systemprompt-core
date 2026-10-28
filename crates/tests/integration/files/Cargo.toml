@@ -36,6 +36,7 @@ sqlx = { workspace = true }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
 loro = { workspace = true }
+systemprompt-engine-loro = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

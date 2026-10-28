@@ -40,6 +40,7 @@ members = [
     "crates/app/generator",
     "crates/app/oauth-issuance",
     "crates/app/gateway",
+    "crates/app/engine-loro",
     # Entry layer
     "crates/entry/api",
     "crates/entry/cli",
@@ -331,6 +332,7 @@ systemprompt-loader = { path = "crates/infra/loader", version = "0.74.0" }
 systemprompt-users = { path = "crates/domain/users", version = "0.74.0" }
 systemprompt-oauth = { path = "crates/domain/oauth", version = "0.74.0" }
 systemprompt-files = { path = "crates/domain/files", version = "0.74.0" }
+systemprompt-engine-loro = { path = "crates/app/engine-loro", version = "0.74.0" }
 systemprompt-analytics = { path = "crates/domain/analytics", version = "0.74.0" }
 systemprompt-content = { path = "crates/domain/content", version = "0.74.0" }
 systemprompt-mcp = { path = "crates/domain/mcp", version = "0.74.0" }

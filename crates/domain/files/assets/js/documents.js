@@ -1,7 +1,6 @@
 import "./sp-document-browser.js";
 import "./sp-document-preview.js";
 import "./sp-presence-bar.js";
-import "./sp-document-editor.js";
 import "./sp-sheet-grid.js";
 import "./sp-slide-text.js";
 import "./sp-share-dialog.js";

@@ -1,7 +1,6 @@
 use loro::{ExportMode, LoroDoc, VersionVector};
-use systemprompt_files::documents::collab::model::{
-    BODY_CONTAINER, body_of, body_text, is_collab_format, materialise, seed,
-};
+use systemprompt_engine_loro::{BODY_CONTAINER, body_text, seed};
+use systemprompt_files::documents::collab::model::{body_of, is_collab_format, materialise};
 use systemprompt_provider_contracts::documents::DocumentFormat;
 
 const PAGE: &str = "<!doctype html>\n<html><head><title>Plan</title></head>\n<BODY class=\"x\"><p>One</p></BODY>\n</html>\n";

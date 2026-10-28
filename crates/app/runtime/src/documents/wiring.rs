@@ -22,6 +22,8 @@ use systemprompt_traits::{BackgroundTasks, FileStorage};
 
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::{CollabService, CollabTuning};
+#[cfg(feature = "collab")]
+use systemprompt_files::documents::engine::DocumentEngine;
 
 /// The handles a [`DocumentsRuntime`] is assembled from.
 #[derive(Clone)]
@@ -102,9 +104,15 @@ impl DocumentsRuntime {
         }));
         #[cfg(feature = "collab")]
         let collab = {
+            #[cfg(feature = "engine-loro")]
+            let engine: Option<Arc<dyn DocumentEngine>> =
+                Some(Arc::new(systemprompt_engine_loro::LoroEngine));
+            #[cfg(not(feature = "engine-loro"))]
+            let engine: Option<Arc<dyn DocumentEngine>> = None;
             let collab = Arc::new(CollabService::new(
                 Arc::clone(&service),
                 CollabTuning::default(),
+                engine,
             ));
             service.attach_collab(&collab);
             collab.start(&background_tasks);

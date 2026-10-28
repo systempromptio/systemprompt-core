@@ -1,14 +1,14 @@
-//! Live co-editing of HTML and Markdown documents over a Loro CRDT.
+//! Live co-editing of HTML and Markdown documents over a CRDT engine.
 //!
 //! [`CollabService`] keeps at most one open edit session per document
-//! (`document_edit_sessions`) and, on each replica, one cached `LoroDoc` per
-//! session. A cached document is rebuilt from the session's snapshot blob,
+//! (`document_edit_sessions`) and, on each replica, one cached engine document
+//! per session. A cached document is rebuilt from the session's snapshot blob,
 //! or seeded from its base revision when it has none (see [`model`]), and
 //! then every logged update after it is imported. Before each read or write
 //! a replica imports the updates other replicas logged since it last
 //! looked, so every replica converges on the same log.
 //!
-//! Clients join (`edit` needs edit access, `view` read access), post Loro
+//! Clients join (`edit` needs edit access, `view` read access), post engine
 //! updates, and receive everyone's updates as `document.collab.update`
 //! events on their own AG-UI stream; the event router relays them to other
 //! replicas. Each update is logged with a sequence number before it is
@@ -23,6 +23,9 @@
 //! the merged body is written back into the live text so the next
 //! checkpoint keeps them. Office formats are refused with
 //! [`DocumentsError::UnsupportedFormat`](super::DocumentsError).
+//!
+//! The CRDT itself is a [`DocumentEngine`] the composition root passes in;
+//! with none, every session call answers [`CollabError::EngineUnavailable`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -48,6 +51,7 @@ pub use types::{
 };
 
 use self::entry::SharedEntry;
+use super::engine::DocumentEngine;
 use super::service::DocumentService;
 
 /// The live co-editing service of one replica, built once at a composition
@@ -56,17 +60,27 @@ use super::service::DocumentService;
 pub struct CollabService {
     documents: Arc<DocumentService>,
     tuning: CollabTuning,
+    engine: Option<Arc<dyn DocumentEngine>>,
     cache: Mutex<HashMap<DocumentId, SharedEntry>>,
 }
 
 impl CollabService {
     #[must_use]
-    pub fn new(documents: Arc<DocumentService>, tuning: CollabTuning) -> Self {
+    pub fn new(
+        documents: Arc<DocumentService>,
+        tuning: CollabTuning,
+        engine: Option<Arc<dyn DocumentEngine>>,
+    ) -> Self {
         Self {
             documents,
             tuning,
+            engine,
             cache: Mutex::new(HashMap::new()),
         }
+    }
+
+    fn engine(&self) -> Result<&Arc<dyn DocumentEngine>, CollabError> {
+        self.engine.as_ref().ok_or(CollabError::EngineUnavailable)
     }
 
     fn cached(&self, document: &DocumentId) -> Option<SharedEntry> {

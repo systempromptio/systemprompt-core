@@ -1,4 +1,4 @@
-//! Applying a client's Loro update: validate, log, import, broadcast.
+//! Applying a client's engine update: validate, log, import, broadcast.
 //!
 //! An update enters a replica's cache only from the log, after the
 //! transaction that numbered it has committed, so a failed append leaves
@@ -9,7 +9,6 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use loro::{ExportMode, LoroDoc, VersionVector};
 use systemprompt_identifiers::{DocumentEditSessionId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCollabUpdateEvent};
@@ -37,28 +36,25 @@ impl CollabService {
         let session = self
             .open_matching(&document.id, &request.session_id)
             .await?;
-        let client_version = request
-            .version
-            .as_deref()
-            .map(VersionVector::decode)
-            .transpose()
-            .map_err(CollabError::InvalidVersion)?;
+        let engine = self.engine()?;
         let entry = self.entry(&document, &session).await?;
         let mut entry = entry.lock().await;
         self.catch_up(&mut entry).await?;
-        let missing = match &client_version {
-            Some(known) if !known.includes_vv(&entry.doc.oplog_vv()) => {
-                Some(entry.doc.export(ExportMode::updates(known))?)
-            },
-            _ => None,
-        };
-        LoroDoc::decode_import_blob_meta(&request.update, true)
+        let missing = request
+            .version
+            .as_deref()
+            .map(|known| entry.doc.missing_since(known))
+            .transpose()
+            .map_err(CollabError::InvalidVersion)?
+            .flatten();
+        engine
+            .check_update(&request.update)
             .map_err(CollabError::InvalidUpdate)?;
         let seq = self
             .log_update(&mut entry, &request.update, &who.id)
             .await?;
         entry.record_activity(Some(who));
-        let version = entry.doc.oplog_vv().encode();
+        let version = entry.doc.version();
         if entry.unsnapshotted >= self.tuning.snapshot_after_updates {
             self.snapshot(&mut entry).await?;
         }

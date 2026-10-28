@@ -4,6 +4,8 @@
 
 ### Breaking
 
+- **Breaking:** **Files:** the Loro CRDT moves out of `systemprompt-files` into the new `systemprompt-engine-loro` crate behind the `documents::engine::DocumentEngine` seam (with `FormulaEngine`, `RenderEngine` and the engine-agnostic `ModelView`); `systemprompt-files` links no CRDT crate. `CollabService::new` takes a third argument, `Option<Arc<dyn DocumentEngine>>`; with `None` every session call answers `CollabError::EngineUnavailable` (HTTP 503, `collab_engine_unavailable`). `CollabError::{Crdt, Encode, Reconcile}` collapse into `Engine(EngineError)`, and `InvalidUpdate`/`InvalidVersion` carry an `EngineError`. `collab::model::{BODY_CONTAINER, SEED_PEER, seed, body_text, replica_peer}` move to `systemprompt_engine_loro`. Migrate by passing `Some(Arc::new(LoroEngine))` and enabling the facade's `files-collab-loro` feature (`full` implies it); `files-collab` alone mounts the routes without an engine.
+- **Breaking:** **Files:** core ships no third-party frontend code: the vendored `loro-crdt` WebAssembly (`assets/documents/wasm/*`), the `documents-collab.js` client and the `sp-document-editor` component are removed. Migrate by vendoring a Loro client in the installation that serves the editor, at `systemprompt_engine_loro::WIRE_VERSION`.
 - **Breaking:** **Files:** `DocumentAccessService::new` takes a fourth argument, `Arc<dyn SubjectDirectory>`, which resolves grant subjects to users. Migrate by passing `UserSubjectDirectory` from `systemprompt-runtime` or your own implementation.
 - **Breaking:** **Runtime:** `DocumentsRuntimeParts` gains `directory: Arc<dyn SubjectDirectory>`. Migrate struct literals by passing `Arc::new(UserSubjectDirectory::new(users))`.
 - **Breaking:** **Files:** `DocumentService::transfer_ownership` takes a `TransferRequest { to, to_display }`; a `to_display` of `None` is refused with `UnknownSubject`. Migrate by resolving the recipient with `active_user_display` and passing the result.
@@ -28,6 +30,7 @@
 
 ### Added
 
+- **CI:** the `check-no-vendor` gate fails on any tracked `vendor/` or `node_modules/` directory, `package.json`, `.wasm` or externally loaded script, and the `build-no-engine` job builds the facade with `files-collab` and no engine crate.
 - **Users:** `UserRepository::list_active_ids_with_role`.
 - **Files:** `DocumentGrant::is_expired`, and grant listings and access read-backs carry `expired: true` for a grant past its `valid_until`.
 

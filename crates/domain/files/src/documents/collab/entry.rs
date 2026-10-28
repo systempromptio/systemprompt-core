@@ -7,14 +7,14 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use loro::LoroDoc;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentFormat;
 use tokio::sync::Mutex;
 
-use super::model::{body_of, seed};
+use super::model::body_of;
 use super::{CollabError, CollabService};
+use crate::documents::engine::{EngineDoc, ModelView};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentEditSession};
 
@@ -24,7 +24,7 @@ pub(super) type SharedEntry = Arc<Mutex<CollabEntry>>;
 pub(super) struct CollabEntry {
     pub(super) session: DocumentEditSession,
     pub(super) format: DocumentFormat,
-    pub(super) doc: LoroDoc,
+    pub(super) doc: Box<dyn EngineDoc>,
     pub(super) last_seq: i64,
     pub(super) unsnapshotted: u32,
     pub(super) snapshot_due_from: Option<Instant>,
@@ -84,13 +84,12 @@ impl CollabService {
         &self,
         document: &Document,
         session: &DocumentEditSession,
-    ) -> Result<LoroDoc, CollabError> {
+    ) -> Result<Box<dyn EngineDoc>, CollabError> {
+        let engine = self.engine()?;
         let limit = self.documents.config().max_upload_bytes;
         if let Some(hash) = &session.snapshot_sha256 {
             let bytes = self.documents.blobs().read_all(hash, u64::MAX).await?;
-            let doc = LoroDoc::new();
-            doc.import(&bytes).map_err(CollabError::Crdt)?;
-            return Ok(doc);
+            return Ok(engine.open(&bytes)?);
         }
         let body = match &session.base_revision_id {
             Some(revision) => {
@@ -99,7 +98,7 @@ impl CollabService {
             },
             None => String::new(),
         };
-        seed(&body).map_err(CollabError::Crdt)
+        Ok(engine.seed(&ModelView::Body(body))?)
     }
 
     pub(super) async fn revision_bytes(
@@ -132,7 +131,7 @@ impl CollabService {
             .list_after(&entry.session.id, entry.last_seq)
             .await?;
         for row in rows {
-            entry.doc.import(&row.update).map_err(CollabError::Crdt)?;
+            entry.doc.apply_update(&row.update)?;
             entry.last_seq = entry.last_seq.max(row.seq);
         }
         Ok(())

@@ -58,16 +58,3 @@ fn wasm_asset_type_is_application_wasm() {
     assert_eq!(AssetType::Image.mime_type(), None);
 }
 
-#[test]
-fn loro_wasm_is_present_and_a_wasm_module() {
-    let bytes = std::fs::read(assets_root().join("wasm/loro.wasm")).expect("loro.wasm");
-    assert!(bytes.len() > 1024);
-    assert_eq!(&bytes[..4], b"\0asm");
-}
-
-#[test]
-fn vendored_loro_matches_the_pinned_crate() {
-    let version = std::fs::read_to_string(assets_root().join("wasm/VERSION")).expect("VERSION");
-    assert!(version.contains("version: 1.17.1"));
-    assert!(version.contains("MIT"));
-}

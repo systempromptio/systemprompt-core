@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use loro::{ExportMode, UpdateOptions};
-use systemprompt_files::documents::collab::model::BODY_CONTAINER;
+use systemprompt_engine_loro::BODY_CONTAINER;
 use systemprompt_files::documents::collab::{
     ApplyRequest, Checkpoint, CollabError, CollabService, CollabTuning, JoinMode,
 };
@@ -13,7 +13,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ProposalStatus;
 use systemprompt_test_fixtures::test_db_pool;
 
-use crate::documents_collab::{Collab, client, collab, edit, html_document, request};
+use crate::documents_collab::{Collab, client, collab, edit, html_document, loro, request};
 use crate::documents_service_fixture::{api_author, person, trace};
 
 async fn head_text(
@@ -114,7 +114,7 @@ async fn leaving_on_a_conflicting_checkpoint_lands_a_proposal_and_keeps_the_sess
 #[tokio::test]
 async fn a_viewer_leaving_last_never_checkpoints() {
     let c = collab().await;
-    let other = CollabService::new(Arc::clone(&c.documents), CollabTuning::default());
+    let other = CollabService::new(Arc::clone(&c.documents), CollabTuning::default(), loro());
     let owner = person("settle-owner");
     let document = seeded(&c, &owner).await;
     let (head, _) = head_text(&c, &owner, &document).await;
@@ -161,6 +161,7 @@ async fn sequence_numbers_follow_commit_order_across_replicas() {
     let other = Arc::new(CollabService::new(
         Arc::clone(&c.documents),
         CollabTuning::default(),
+        loro(),
     ));
     let owner = person("settle-seq");
     let document = html_document(&c, &owner).await;

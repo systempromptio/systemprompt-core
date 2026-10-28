@@ -32,6 +32,7 @@ lint-http-errors
 lint-no-untyped-admin
 check-headers
 lint-layers
+check-no-vendor
 lint-mode-enums
 lint-sql-vocab
 lint-repo-construction

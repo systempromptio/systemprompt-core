@@ -155,6 +155,11 @@ lint-inline-tests:
 lint-layers:
     ./scripts/lint-layers.sh
 
+# Core ships no third-party frontend code (vendor dirs, package.json, .wasm,
+# external script URLs); see the script header.
+check-no-vendor:
+    ./scripts/check-no-vendor.sh
+
 # One EnforcementMode and one ServiceStatus vocabulary; copies fail
 lint-mode-enums:
     ./scripts/lint-mode-enums.sh

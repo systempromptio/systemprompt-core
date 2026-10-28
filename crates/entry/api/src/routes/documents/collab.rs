@@ -233,6 +233,10 @@ fn collab_error(error: CollabError) -> DocumentsHttpError {
             Http::from(ApiError::bad_request(message).with_source(source))
         },
         CollabError::NotText { .. } => Http::from(ApiError::bad_request(message)),
+        CollabError::EngineUnavailable => Http::from(
+            ApiError::service_unavailable("no live session engine is enabled")
+                .with_error_key("collab_engine_unavailable"),
+        ),
         other => Http::from(ApiError::internal("live edit session failed", other)),
     }
 }

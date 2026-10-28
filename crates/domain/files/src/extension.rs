@@ -43,11 +43,6 @@ const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
         AssetType::JavaScript,
     ),
     (
-        "js/documents-collab.js",
-        "assets/documents/js/documents-collab.js",
-        AssetType::JavaScript,
-    ),
-    (
         "js/sp-document-browser.js",
         "assets/documents/js/sp-document-browser.js",
         AssetType::JavaScript,
@@ -60,11 +55,6 @@ const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
     (
         "js/sp-presence-bar.js",
         "assets/documents/js/sp-presence-bar.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-document-editor.js",
-        "assets/documents/js/sp-document-editor.js",
         AssetType::JavaScript,
     ),
     (
@@ -106,26 +96,6 @@ const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
         "css/documents-panels.css",
         "assets/documents/css/documents-panels.css",
         AssetType::Css,
-    ),
-    (
-        "wasm/loro.wasm",
-        "assets/documents/wasm/loro.wasm",
-        AssetType::Wasm,
-    ),
-    (
-        "wasm/loro.js",
-        "assets/documents/wasm/loro.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "wasm/loro_wasm.js",
-        "assets/documents/wasm/loro_wasm.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "wasm/loro-snippet.js",
-        "assets/documents/wasm/loro-snippet.js",
-        AssetType::JavaScript,
     ),
 ];
 

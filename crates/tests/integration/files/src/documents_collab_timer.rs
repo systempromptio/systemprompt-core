@@ -8,7 +8,7 @@ use systemprompt_identifiers::DocumentId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::RevisionOriginKind;
 
-use crate::documents_collab::{Collab, client, collab, edit, html_document, request};
+use crate::documents_collab::{Collab, client, collab, edit, html_document, loro, request};
 use crate::documents_service_fixture::{api_author, person, trace};
 
 fn eager(c: &Collab) -> Arc<CollabService> {
@@ -21,6 +21,7 @@ fn eager(c: &Collab) -> Arc<CollabService> {
             tick: Duration::from_millis(10),
             evict_after: Duration::ZERO,
         },
+        loro(),
     ))
 }
 

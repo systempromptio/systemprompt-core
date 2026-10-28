@@ -24,7 +24,7 @@ inventory = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-api = { workspace = true, features = ["collab"] }
 systemprompt-gateway = { workspace = true }
-systemprompt-runtime = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["engine-loro"] }
 systemprompt-storage = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }

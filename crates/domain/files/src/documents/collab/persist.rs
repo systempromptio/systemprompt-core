@@ -1,11 +1,11 @@
 //! Snapshots and checkpoints of a live edit session.
 //!
-//! A snapshot stores the session's Loro state as a blob and prunes the
+//! A snapshot stores the session's engine state as a blob and prunes the
 //! logged updates it covers. A checkpoint materialises the live body and
 //! commits it as a revision with origin `edit_session`, based on the
 //! session's previous checkpoint (or its base revision); when the revision
 //! engine merges it with outside writes, the merged body is written back
-//! into the live text, logged and broadcast like any other update.
+//! into the live body, logged and broadcast like any other update.
 //!
 //! A checkpoint always runs as the session's last editor. Settling a
 //! session that is being left or closed lands a conflicting body as a
@@ -15,15 +15,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use loro::{ExportMode, UpdateOptions};
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, DocumentAction};
 
 use super::apply::update_event;
 use super::entry::{CollabEntry, utf8};
-use super::model::{BODY_CONTAINER, body_of, body_text, materialise};
+use super::model::{body_of, materialise};
 use super::{Checkpoint, CollabError, CollabService};
+use crate::documents::engine::ModelView;
 use crate::documents::models::RevisionAttribution;
 use crate::documents::repository::SnapshotMark;
 use crate::documents::revision::CommitBody;
@@ -37,8 +37,8 @@ const CONFLICT_MESSAGE: &str = "Live edit session body that conflicted with the 
 impl CollabService {
     pub(super) async fn snapshot(&self, entry: &mut CollabEntry) -> Result<(), CollabError> {
         self.catch_up(entry).await?;
-        let bytes = entry.doc.export(ExportMode::Snapshot)?;
-        let version = entry.doc.oplog_vv().encode();
+        let bytes = entry.doc.snapshot()?;
+        let version = entry.doc.version();
         let blob = self.documents.blobs().put(&bytes).await?;
         let moved = self
             .documents
@@ -74,7 +74,7 @@ impl CollabService {
         };
         let limit = self.documents.config().max_upload_bytes;
         let base_text = utf8(&document_id, self.revision_bytes(&base, limit).await?)?;
-        let body = body_text(&entry.doc);
+        let body = entry.doc.export_model().body().to_owned();
         let next = materialise(entry.format, &base_text, &body);
         entry.checkpoint_due_from = None;
         if next == base_text {
@@ -146,7 +146,7 @@ impl CollabService {
         let document_id = entry.session.document_id.clone();
         let limit = self.documents.config().max_upload_bytes;
         let base_text = utf8(&document_id, self.revision_bytes(&base, limit).await?)?;
-        let body = materialise(entry.format, &base_text, &body_text(&entry.doc));
+        let body = materialise(entry.format, &base_text, &entry.doc.export_model().body().to_owned());
         let proposed = self
             .documents
             .propose_body(
@@ -174,17 +174,12 @@ impl CollabService {
         merged_body: &str,
         trace: &TraceId,
     ) -> Result<(), CollabError> {
-        if body_text(&entry.doc) == merged_body {
+        let Some(update) = entry
+            .doc
+            .update_to_model(&ModelView::Body(merged_body.to_owned()))?
+        else {
             return Ok(());
-        }
-        let before = entry.doc.oplog_vv();
-        let draft = entry.doc.fork();
-        draft
-            .get_text(BODY_CONTAINER)
-            .update(merged_body, UpdateOptions::default())
-            .map_err(CollabError::Reconcile)?;
-        draft.commit();
-        let update = draft.export(ExportMode::updates(&before))?;
+        };
         let seq = self.log_update(entry, &update, &who.id).await?;
         let document = self
             .authorized(who, &entry.session.document_id, DocumentAction::View, trace)
