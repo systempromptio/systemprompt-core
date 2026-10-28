@@ -38,7 +38,9 @@ impl DocumentEngine for LoroEngine {
     }
 
     fn seed(&self, model: &ModelView) -> Result<Box<dyn EngineDoc>, EngineError> {
-        Ok(Box::new(LoroEngineDoc(seed_model(model).map_err(state)?)))
+        Ok(Box::new(LoroEngineDoc(
+            seed_model(model).map_err(EngineError::State)?,
+        )))
     }
 
     fn open(&self, snapshot: &[u8]) -> Result<Box<dyn EngineDoc>, EngineError> {
@@ -101,7 +103,9 @@ impl EngineDoc for LoroEngineDoc {
         let draft = self.0.fork();
         rich::configure(&draft);
         match model {
-            ModelView::RichText(target) => write_model(&draft, target).map_err(state)?,
+            ModelView::RichText(target) => {
+                write_model(&draft, target).map_err(EngineError::State)?;
+            },
             ModelView::Body(target) => draft
                 .get_text(BODY_CONTAINER)
                 .update(target, UpdateOptions::default())
@@ -116,8 +120,6 @@ impl EngineDoc for LoroEngineDoc {
     }
 }
 
-/// The model a document holds: its blocks, or the flat body of a session
-/// opened before the model existed.
 #[must_use]
 pub fn export(doc: &LoroDoc) -> ModelView {
     let body = body_text(doc);
@@ -133,8 +135,7 @@ pub fn body_text(doc: &LoroDoc) -> String {
     doc.get_text(BODY_CONTAINER).to_string()
 }
 
-/// A document seeded with `model` by [`SEED_PEER`].
-pub fn seed_model(model: &ModelView) -> Result<LoroDoc, loro::LoroError> {
+pub fn seed_model(model: &ModelView) -> Result<LoroDoc, rich::WriteError> {
     let doc = LoroDoc::new();
     rich::configure(&doc);
     doc.set_peer_id(SEED_PEER)?;
@@ -144,21 +145,18 @@ pub fn seed_model(model: &ModelView) -> Result<LoroDoc, loro::LoroError> {
             let text: LoroText = doc.get_text(BODY_CONTAINER);
             text.insert(0, body)?;
         },
-        _ => return Err(loro::LoroError::NotImplemented("model kind")),
+        _ => return Err(Box::new(loro::LoroError::NotImplemented("model kind"))),
     }
     doc.commit();
     doc.set_peer_id(replica_peer())?;
     Ok(doc)
 }
 
-/// A document seeded with a flat body; kept for sessions opened before the
-/// `RichText` model.
-pub fn seed(body: &str) -> Result<LoroDoc, loro::LoroError> {
+pub fn seed(body: &str) -> Result<LoroDoc, rich::WriteError> {
     seed_model(&ModelView::Body(body.to_owned()))
 }
 
-/// A document seeded with `model`'s blocks.
-pub fn seed_rich(model: &RichText) -> Result<LoroDoc, loro::LoroError> {
+pub fn seed_rich(model: &RichText) -> Result<LoroDoc, rich::WriteError> {
     seed_model(&ModelView::RichText(model.clone()))
 }
 

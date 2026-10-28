@@ -12,7 +12,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// The version of the `RichText` schema; bumped on any incompatible change.
 pub const RICH_TEXT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -31,6 +30,9 @@ pub struct Block {
     pub marks: Vec<Mark>,
 }
 
+/// A block's type and attributes. Only paragraph, heading, list item, quote
+/// and code blocks carry text; `Raw` is native markup the model does not
+/// own, kept verbatim and never authored by a live update.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BlockKind {
@@ -57,15 +59,12 @@ pub enum BlockKind {
     },
     Divider,
     PageBreak,
-    /// Native markup the model does not own, kept verbatim and not editable.
     Raw {
         source: String,
     },
 }
 
 impl BlockKind {
-    /// Whether the block's `text` is editable content; the others keep it
-    /// empty.
     #[must_use]
     pub const fn has_text(&self) -> bool {
         matches!(
@@ -104,7 +103,6 @@ pub enum MarkKind {
 }
 
 impl MarkKind {
-    /// The key a CRDT text container stores this mark under.
     #[must_use]
     pub const fn key(&self) -> &'static str {
         match self {
@@ -120,7 +118,6 @@ impl MarkKind {
         }
     }
 
-    /// The mark's value, empty for the flag marks.
     #[must_use]
     pub fn value(&self) -> &str {
         match self {
@@ -132,7 +129,6 @@ impl MarkKind {
         }
     }
 
-    /// Rebuilds a mark from its container key and value.
     #[must_use]
     pub fn from_key(key: &str, value: &str) -> Option<Self> {
         let owned = || value.to_owned();
@@ -150,7 +146,6 @@ impl MarkKind {
         })
     }
 
-    /// Every container key, in a fixed order.
     pub const KEYS: [&'static str; 9] = [
         "bold",
         "italic",
@@ -175,15 +170,13 @@ impl Block {
         }
     }
 
-    /// The text's length in Unicode scalar values, the unit of [`Mark`]
-    /// offsets.
     #[must_use]
     pub fn len(&self) -> usize {
         self.text.chars().count()
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.text.is_empty()
     }
 }

@@ -121,7 +121,7 @@ fn duplicate_ids_marks_past_the_text_and_oversize_models_are_rejected() {
         Err("bad_mark")
     );
     let limits = Limits {
-        max_blocks: 1,
+        blocks: 1,
         ..Limits::default()
     };
     let many = RichText {

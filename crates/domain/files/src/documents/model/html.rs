@@ -101,8 +101,6 @@ impl Reader {
         self.push(kind, buf);
     }
 
-    /// A list's items; a list nested directly in a list (as written back by
-    /// the materialiser) is one level deeper.
     fn list(&mut self, list: ElementRef<'_>, depth: u8) {
         let ordered = list.value().name() == "ol";
         for child in list.child_elements() {
@@ -208,8 +206,6 @@ fn is_inline(name: &str) -> bool {
     )
 }
 
-/// A container with no attributes is only structure; one with attributes is
-/// styling the model does not own.
 fn is_plain(element: ElementRef<'_>) -> bool {
     element.value().attrs().next().is_none()
 }

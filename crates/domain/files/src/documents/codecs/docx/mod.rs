@@ -34,8 +34,11 @@ mod markup;
 mod parts;
 mod preview;
 mod projection;
+mod rich;
 mod scan;
 mod styles;
+
+pub use rich::{import_rich, materialise_rich};
 
 use std::sync::Arc;
 

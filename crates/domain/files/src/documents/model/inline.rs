@@ -8,7 +8,6 @@ use std::collections::BTreeSet;
 
 use super::rich_text::{Mark, MarkKind};
 
-/// Text gathered with the marks open around it, in Unicode scalar offsets.
 #[derive(Debug, Default)]
 pub(crate) struct InlineBuf {
     text: String,
@@ -44,8 +43,6 @@ impl InlineBuf {
         }
     }
 
-    /// The gathered text and marks; marks still open end here and do not
-    /// carry into the next block.
     pub(crate) fn take(&mut self) -> (String, Vec<Mark>) {
         for (kind, start) in std::mem::take(&mut self.open) {
             self.close(kind, start);
@@ -58,9 +55,7 @@ impl InlineBuf {
     }
 }
 
-/// Splits `text` at every mark boundary into runs with the marks active on
-/// each.
-pub(crate) fn segments<'a>(text: &'a str, marks: &'a [Mark]) -> Vec<(String, Vec<&'a MarkKind>)> {
+pub fn segments<'a>(text: &'a str, marks: &'a [Mark]) -> Vec<(String, Vec<&'a MarkKind>)> {
     let chars: Vec<char> = text.chars().collect();
     let mut cuts: BTreeSet<usize> = BTreeSet::from([0, chars.len()]);
     for mark in marks {

@@ -12,10 +12,11 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentFormat;
 use tokio::sync::Mutex;
 
-use super::model::import;
+use super::document::{ModelError, import};
 use super::{CollabError, CollabService};
-use crate::documents::engine::EngineDoc;
+use crate::documents::engine::{EngineDoc, ModelView};
 use crate::documents::error::DocumentsError;
+use crate::documents::model::RichText;
 use crate::documents::models::{Document, DocumentEditSession};
 
 pub(super) type SharedEntry = Arc<Mutex<CollabEntry>>;
@@ -91,14 +92,14 @@ impl CollabService {
             let bytes = self.documents.blobs().read_all(hash, u64::MAX).await?;
             return Ok(engine.open(&bytes)?);
         }
-        let text = match &session.base_revision_id {
+        let model = match &session.base_revision_id {
             Some(revision) => {
                 let bytes = self.revision_bytes(revision, limit).await?;
-                utf8(&document.id, bytes)?
+                import(document.format, &bytes).map_err(model_error(&document.id))?
             },
-            None => String::new(),
+            None => ModelView::RichText(RichText::default()),
         };
-        Ok(engine.seed(&import(document.format, &text))?)
+        Ok(engine.seed(&model)?)
     }
 
     pub(super) async fn revision_bytes(
@@ -135,6 +136,14 @@ impl CollabService {
             entry.last_seq = entry.last_seq.max(row.seq);
         }
         Ok(())
+    }
+}
+
+pub(super) fn model_error(document: &DocumentId) -> impl FnOnce(ModelError) -> CollabError {
+    let document_id = document.clone();
+    move |source| CollabError::Model {
+        document_id,
+        source,
     }
 }
 

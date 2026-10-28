@@ -1,7 +1,7 @@
 //! Snapshots and checkpoints of a live edit session.
 //!
 //! A snapshot stores the session's engine state as a blob and prunes the
-//! logged updates it covers. A checkpoint materialises the live body and
+//! logged updates it covers. A checkpoint materialises the live model and
 //! commits it as a revision with origin `edit_session`, based on the
 //! session's previous checkpoint (or its base revision); when the revision
 //! engine merges it with outside writes, the merged document is re-imported
@@ -21,8 +21,9 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, DocumentAction};
 
 use super::apply::update_event;
-use super::entry::{CollabEntry, utf8};
-use super::model::{body_of, import_rich_text, materialise, unchanged_from};
+use super::document::{import_rich_text, materialise, unchanged_from};
+use super::entry::{CollabEntry, model_error, utf8};
+use super::model::body_of;
 use super::{Checkpoint, CollabError, CollabService};
 use crate::documents::engine::ModelView;
 use crate::documents::model::carry_ids;
@@ -75,13 +76,14 @@ impl CollabService {
             return Ok(Checkpoint::Unchanged);
         };
         let limit = self.documents.config().max_upload_bytes;
-        let base_text = utf8(&document_id, self.revision_bytes(&base, limit).await?)?;
+        let base_bytes = self.revision_bytes(&base, limit).await?;
         let model = entry.doc.export_model();
         entry.checkpoint_due_from = None;
-        if unchanged_from(entry.format, &base_text, &model) {
+        if unchanged_from(entry.format, &base_bytes, &model).map_err(model_error(&document_id))? {
             return Ok(Checkpoint::Unchanged);
         }
-        let next = materialise(entry.format, &base_text, &model);
+        let next =
+            materialise(entry.format, &base_bytes, &model).map_err(model_error(&document_id))?;
         let outcome = self
             .documents
             .commit(
@@ -89,7 +91,7 @@ impl CollabService {
                 CommitRequest {
                     document_id: document_id.clone(),
                     base_revision: Some(base),
-                    body: CommitBody::Bytes(next.into_bytes()),
+                    body: CommitBody::Bytes(next),
                     author: session_author(entry, trace),
                     message: Some(CHECKPOINT_MESSAGE.to_owned()),
                     lock_holder_id: None,
@@ -104,7 +106,6 @@ impl CollabService {
             CommitOutcome::Merged(landed) => {
                 let revision = landed.revision;
                 let merged = self.revision_bytes(&revision.id, limit).await?;
-                let merged = utf8(&document_id, merged)?;
                 self.reconcile(entry, who, &merged, trace).await?;
                 revision
             },
@@ -147,8 +148,9 @@ impl CollabService {
         };
         let document_id = entry.session.document_id.clone();
         let limit = self.documents.config().max_upload_bytes;
-        let base_text = utf8(&document_id, self.revision_bytes(&base, limit).await?)?;
-        let body = materialise(entry.format, &base_text, &entry.doc.export_model());
+        let base_bytes = self.revision_bytes(&base, limit).await?;
+        let body = materialise(entry.format, &base_bytes, &entry.doc.export_model())
+            .map_err(model_error(&document_id))?;
         let proposed = self
             .documents
             .propose_body(
@@ -156,7 +158,7 @@ impl CollabService {
                 ProposeBodyRequest {
                     document_id,
                     base_revision: base,
-                    bytes: body.into_bytes(),
+                    bytes: body,
                     author: session_author(entry, trace),
                     message: Some(CONFLICT_MESSAGE.to_owned()),
                 },
@@ -173,16 +175,20 @@ impl CollabService {
         &self,
         entry: &mut CollabEntry,
         who: &AuthenticatedUser,
-        merged: &str,
+        merged: &[u8],
         trace: &TraceId,
     ) -> Result<(), CollabError> {
+        let document_id = entry.session.document_id.clone();
         let target = match entry.doc.export_model() {
             ModelView::RichText(live) => {
-                let mut next = import_rich_text(entry.format, merged);
+                let mut next =
+                    import_rich_text(entry.format, merged).map_err(model_error(&document_id))?;
                 carry_ids(&live, &mut next);
                 ModelView::RichText(next)
             },
-            ModelView::Body(_) => ModelView::Body(body_of(entry.format, merged)),
+            ModelView::Body(_) => {
+                ModelView::Body(body_of(entry.format, &utf8(&document_id, merged.to_vec())?))
+            },
         };
         let Some(update) = entry.doc.update_to_model(&target)? else {
             return Ok(());

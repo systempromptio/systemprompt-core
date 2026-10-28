@@ -17,6 +17,8 @@ mod access;
 mod caller;
 #[cfg(feature = "collab")]
 mod collab;
+#[cfg(feature = "collab")]
+mod collab_updates;
 mod comments;
 mod commits;
 mod content;
@@ -117,7 +119,7 @@ fn collab_service(ctx: &AppContext) -> Arc<CollabService> {
 fn with_collab(router: Router<DocumentsState>) -> Router<DocumentsState> {
     router
         .route("/{id}/collab/join", post(collab::join))
-        .route("/{id}/collab/updates", post(collab::updates))
+        .route("/{id}/collab/updates", post(collab_updates::updates))
         .route("/{id}/collab/leave", post(collab::leave))
         .route("/{id}/collab/cursor", post(collab::cursor))
 }

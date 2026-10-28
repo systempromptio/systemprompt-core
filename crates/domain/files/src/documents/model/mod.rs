@@ -6,7 +6,8 @@
 //! engine never touches a codec.
 //!
 //! [`RichText`] is the model of text documents. HTML and Markdown import and
-//! materialise here; Office text formats follow in later phases. Every live
+//! materialise here; the `docx` and `odt` codecs cut their bodies into
+//! [`office`] segments. Every live
 //! update is checked with [`validate`] on the server's own fork before it
 //! is logged.
 //!
@@ -18,16 +19,16 @@ mod html_write;
 mod ids;
 mod inline;
 pub mod markdown;
+pub mod office;
 mod rich_text;
 mod validate;
 
 pub use ids::carry_ids;
+pub use inline::segments;
 pub use rich_text::{Block, BlockKind, Mark, MarkKind, RICH_TEXT_VERSION, RichText};
 pub use validate::{EditLevel, Limits, ModelRejection, validate};
 
-/// The JSON Schema of the [`RichText`] model, for clients and the schema
-/// endpoint.
 #[must_use]
-pub fn rich_text_schema() -> serde_json::Value {
-    serde_json::to_value(schemars::schema_for!(RichText)).unwrap_or_default()
+pub fn rich_text_schema() -> schemars::Schema {
+    schemars::schema_for!(RichText)
 }

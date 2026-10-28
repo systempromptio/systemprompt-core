@@ -21,7 +21,8 @@ use systemprompt_files::documents::model::{Block, BlockKind, Mark, MarkKind, Ric
 
 pub const BLOCKS_CONTAINER: &str = "blocks";
 
-/// Each mark key and how it expands when text is typed at its edge.
+pub type WriteError = Box<dyn std::error::Error + Send + Sync>;
+
 pub const TEXT_STYLES: [(&str, ExpandType); 9] = [
     ("bold", ExpandType::After),
     ("italic", ExpandType::After),
@@ -47,7 +48,6 @@ pub fn blocks(doc: &LoroDoc) -> LoroMovableList {
     doc.get_movable_list(BLOCKS_CONTAINER)
 }
 
-/// Reads the model; a block whose map is malformed is skipped.
 #[must_use]
 pub fn read(doc: &LoroDoc) -> RichText {
     let list = blocks(doc);
@@ -93,7 +93,6 @@ fn read_block(map: &LoroMap) -> Option<Block> {
     })
 }
 
-/// The text and its marks, merging adjacent runs of one mark.
 #[must_use]
 pub fn read_text(text: &LoroText) -> (String, Vec<Mark>) {
     let mut out = String::new();
@@ -129,18 +128,18 @@ pub fn read_text(text: &LoroText) -> (String, Vec<Mark>) {
     (out, marks)
 }
 
-/// Writes a new block's map at `at`.
-pub fn insert_block(list: &LoroMovableList, at: usize, block: &Block) -> Result<(), LoroError> {
+pub fn insert_block(list: &LoroMovableList, at: usize, block: &Block) -> Result<(), WriteError> {
     let map = list.insert_container(at, LoroMap::new())?;
     map.insert("id", block.id.as_str())?;
-    map.insert("kind", kind_json(&block.kind))?;
+    map.insert("kind", kind_json(&block.kind)?)?;
     let text = map.insert_container("text", LoroText::new())?;
     text.insert(0, &block.text)?;
-    mark_all(&text, &block.marks)
+    mark_all(&text, &block.marks)?;
+    Ok(())
 }
 
-pub(crate) fn kind_json(kind: &BlockKind) -> String {
-    serde_json::to_string(kind).unwrap_or_default()
+pub(crate) fn kind_json(kind: &BlockKind) -> serde_json::Result<String> {
+    serde_json::to_string(kind)
 }
 
 pub(crate) fn mark_all(text: &LoroText, marks: &[Mark]) -> Result<(), LoroError> {
@@ -154,11 +153,9 @@ pub(crate) fn mark_all(text: &LoroText, marks: &[Mark]) -> Result<(), LoroError>
     Ok(())
 }
 
-/// Rewrites `text` and its marks to `block`'s when they differ.
-pub fn sync_text(text: &LoroText, block: &Block) -> Result<(), LoroError> {
+pub fn sync_text(text: &LoroText, block: &Block) -> Result<(), WriteError> {
     if read_text(text).0 != block.text {
-        text.update(&block.text, loro::UpdateOptions::default())
-            .map_err(|_| LoroError::NotImplemented("text update timed out"))?;
+        text.update(&block.text, loro::UpdateOptions::default())?;
     }
     if read_text(text).1 != block.marks {
         let len = text.len_unicode();

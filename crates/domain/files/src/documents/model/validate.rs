@@ -24,23 +24,23 @@ pub enum EditLevel {
 /// The bounds a model must stay within.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
-    pub max_blocks: usize,
-    pub max_block_chars: usize,
-    pub max_marks_per_block: usize,
-    pub max_table_cells: usize,
-    pub max_depth: usize,
-    pub max_attr_chars: usize,
+    pub blocks: usize,
+    pub block_chars: usize,
+    pub marks_per_block: usize,
+    pub table_cells: usize,
+    pub depth: usize,
+    pub attr_chars: usize,
 }
 
 impl Default for Limits {
     fn default() -> Self {
         Self {
-            max_blocks: 20_000,
-            max_block_chars: 100_000,
-            max_marks_per_block: 2_000,
-            max_table_cells: 10_000,
-            max_depth: 4,
-            max_attr_chars: 2_048,
+            blocks: 20_000,
+            block_chars: 100_000,
+            marks_per_block: 2_000,
+            table_cells: 10_000,
+            depth: 4,
+            attr_chars: 2_048,
         }
     }
 }
@@ -74,7 +74,6 @@ pub enum ModelRejection {
 }
 
 impl ModelRejection {
-    /// The stable wire key of the rejection.
     #[must_use]
     pub const fn reason(&self) -> &'static str {
         match self {
@@ -93,8 +92,6 @@ impl ModelRejection {
 
 const LINK_SCHEMES: [&str; 4] = ["https:", "http:", "mailto:", "#"];
 
-/// Checks `next` against the schema and limits, and against `before` for a
-/// comment-level caller.
 pub fn validate(
     before: &RichText,
     next: &RichText,
@@ -116,17 +113,17 @@ fn check_blocks<'a>(
     depth: usize,
     ids: &mut HashSet<&'a str>,
 ) -> Result<(), ModelRejection> {
-    if model.blocks.len() > limits.max_blocks {
-        return Err(ModelRejection::TooManyBlocks(limits.max_blocks));
+    if model.blocks.len() > limits.blocks {
+        return Err(ModelRejection::TooManyBlocks(limits.blocks));
     }
     for block in &model.blocks {
-        if block.id.is_empty() || block.id.len() > limits.max_attr_chars || !ids.insert(&block.id) {
+        if block.id.is_empty() || block.id.len() > limits.attr_chars || !ids.insert(&block.id) {
             return Err(ModelRejection::BadBlockId(block.id.clone()));
         }
         check_block(block, limits)?;
         if let BlockKind::Table { rows } = &block.kind {
             let cells: usize = rows.iter().map(Vec::len).sum();
-            if depth + 1 > limits.max_depth || cells > limits.max_table_cells {
+            if depth + 1 > limits.depth || cells > limits.table_cells {
                 return Err(ModelRejection::TableTooLarge);
             }
             for cell in rows.iter().flatten() {
@@ -145,23 +142,27 @@ fn check_block(block: &Block, limits: &Limits) -> Result<(), ModelRejection> {
     let attrs_ok = match &block.kind {
         BlockKind::Heading { level } => (1..=6).contains(level),
         BlockKind::ListItem { level, .. } => *level <= 8,
-        BlockKind::Code { language } => language.as_ref().is_none_or(|l| l.len() <= 64),
+        BlockKind::Code { language } => language.as_deref().map_or(0, str::len) <= 64,
         BlockKind::Image { blob, alt } => {
-            blob.len() <= limits.max_attr_chars
-                && alt.len() <= limits.max_attr_chars
+            blob.len() <= limits.attr_chars
+                && alt.len() <= limits.attr_chars
                 && is_safe_url(blob, &["https:", "http:"])
         },
-        BlockKind::Raw { source } => source.len() <= limits.max_block_chars,
-        _ => true,
+        BlockKind::Raw { source } => source.len() <= limits.block_chars,
+        BlockKind::Paragraph
+        | BlockKind::Quote
+        | BlockKind::Table { .. }
+        | BlockKind::Divider
+        | BlockKind::PageBreak => true,
     };
     if !attrs_ok {
         return Err(ModelRejection::BadAttribute(id()));
     }
     let len = block.len();
-    if len > limits.max_block_chars {
+    if len > limits.block_chars {
         return Err(ModelRejection::BlockTooLong(id()));
     }
-    if block.marks.len() > limits.max_marks_per_block {
+    if block.marks.len() > limits.marks_per_block {
         return Err(ModelRejection::TooManyMarks(id()));
     }
     for mark in &block.marks {
@@ -180,13 +181,18 @@ fn check_mark(
         return Err(ModelRejection::MarkOutOfRange(block.id.clone()));
     }
     let value = mark.kind.value();
-    if value.len() > limits.max_attr_chars {
+    if value.len() > limits.attr_chars {
         return Err(ModelRejection::BadAttribute(block.id.clone()));
     }
     let allowed = match &mark.kind {
         MarkKind::Link { href } => is_safe_url(href, &LINK_SCHEMES),
         MarkKind::Color { value } | MarkKind::Highlight { value } => is_color(value),
-        _ => true,
+        MarkKind::Bold
+        | MarkKind::Italic
+        | MarkKind::Underline
+        | MarkKind::Strike
+        | MarkKind::Code
+        | MarkKind::Comment { .. } => true,
     };
     if allowed {
         Ok(())
@@ -197,14 +203,13 @@ fn check_mark(
     }
 }
 
-/// A relative reference, or an absolute one with an allowed scheme.
 fn is_safe_url(url: &str, schemes: &[&str]) -> bool {
     let lower = url.trim().to_ascii_lowercase();
     schemes.iter().any(|scheme| lower.starts_with(scheme))
         || lower
             .split(['/', '?', '#'])
             .next()
-            .is_none_or(|head| !head.contains(':'))
+            .is_some_and(|head| !head.contains(':'))
 }
 
 fn is_color(value: &str) -> bool {
@@ -215,8 +220,6 @@ fn is_color(value: &str) -> bool {
             && value.chars().all(|c| c.is_ascii_alphabetic()))
 }
 
-/// Native markup is carried, never authored: every `Raw` block in `next`
-/// must be one `before` already held, unchanged.
 fn check_raw(before: &RichText, next: &RichText) -> Result<(), ModelRejection> {
     let mut held = HashSet::new();
     collect_raw(before, &mut held);

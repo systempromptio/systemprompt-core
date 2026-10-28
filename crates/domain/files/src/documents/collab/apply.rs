@@ -115,8 +115,6 @@ impl CollabService {
     }
 }
 
-/// Applies `update` to a fork of `doc` and checks the result, leaving `doc`
-/// untouched.
 fn check_on_fork(doc: &dyn EngineDoc, update: &[u8], level: EditLevel) -> Result<(), CollabError> {
     let mut draft = doc.fork();
     draft

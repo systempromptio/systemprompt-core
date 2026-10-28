@@ -22,14 +22,6 @@ impl IdSeq {
     }
 }
 
-/// Gives the blocks of a freshly imported `next` the ids of the matching
-/// blocks of `live`, so a re-import after a merge keeps every address that
-/// comments, cursors and agents hold.
-///
-/// Blocks are matched in order: an identical block (type and text) within a
-/// short look-ahead takes its id; otherwise a block of the same type at the
-/// cursor is taken as edited in place. Any block left unmatched gets a new
-/// id no live block uses.
 pub fn carry_ids(live: &RichText, next: &mut RichText) {
     let mut taken = HashSet::new();
     collect_ids(live, &mut taken);

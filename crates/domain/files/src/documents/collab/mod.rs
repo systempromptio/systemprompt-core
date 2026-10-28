@@ -1,10 +1,11 @@
-//! Live co-editing of HTML and Markdown documents over a CRDT engine.
+//! Live co-editing of HTML, Markdown and (with `office`) `docx` and `odt`
+//! documents over a CRDT engine.
 //!
 //! [`CollabService`] keeps at most one open edit session per document
 //! (`document_edit_sessions`) and, on each replica, one cached engine document
 //! per session. A cached document is rebuilt from the session's snapshot blob,
 //! or seeded from its base revision as a `RichText` model when it has none
-//! (see [`model`]), and
+//! (see [`document`]), and
 //! then every logged update after it is imported. Before each read or write
 //! a replica imports the updates other replicas logged since it last
 //! looked, so every replica converges on the same log.
@@ -24,7 +25,7 @@
 //! 2 min of activity; the last editor leaving commits and closes the
 //! session. When a checkpoint merges with writes made outside the session,
 //! the merged document is written back into the live model so the next
-//! checkpoint keeps them. Office formats are refused with
+//! checkpoint keeps them. Spreadsheets and decks are refused with
 //! [`DocumentsError::UnsupportedFormat`](super::DocumentsError).
 //!
 //! The CRDT itself is a [`DocumentEngine`] the composition root passes in;
@@ -35,6 +36,7 @@
 
 mod access;
 mod apply;
+pub mod document;
 mod entry;
 mod error;
 pub mod model;

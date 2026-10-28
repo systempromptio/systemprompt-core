@@ -9,7 +9,7 @@
 
 ### Added
 
-- `documents::model`: the `RichText` model, HTML and Markdown import and materialise, `validate` with `Limits` and `EditLevel`, `carry_ids`, `rich_text_schema`. Collab protocol v2 join fields, comment-mode joins, and server-side validation of every update on a fork (`CollabError::UpdateRejected`).
+- `documents::model`: the `RichText` model, HTML and Markdown import and materialise, `validate` with `Limits` and `EditLevel`, `carry_ids`, `rich_text_schema`. Collab protocol v2 join fields, comment-mode joins, and server-side validation of every update on a fork (`CollabError::UpdateRejected`). `docx` and `odt` co-editing through `model::office` segments, with every untouched package part kept byte for byte.
 
 ## [0.74.0] - 2026-10-27
 

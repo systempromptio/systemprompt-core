@@ -6,6 +6,7 @@
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentId};
 use systemprompt_traits::RepositoryError;
 
+use super::document::ModelError;
 use crate::documents::blob_store::BlobStoreError;
 use crate::documents::engine::EngineError;
 use crate::documents::error::DocumentsError;
@@ -40,6 +41,12 @@ pub enum CollabError {
         document_id: DocumentId,
         #[source]
         source: std::string::FromUtf8Error,
+    },
+    #[error("document {document_id} could not be read or written as its live model")]
+    Model {
+        document_id: DocumentId,
+        #[source]
+        source: ModelError,
     },
     #[error("edit session state could not be updated")]
     Engine(#[from] EngineError),

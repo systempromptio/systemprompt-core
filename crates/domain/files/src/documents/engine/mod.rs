@@ -24,6 +24,7 @@ pub use error::EngineError;
 use super::model::RichText;
 
 /// Core's engine-agnostic view of a document's editable content.
+///
 /// `RichText` is a text document as typed blocks with marks. `Body` is the
 /// editable body as one flat text (the inner markup of `<body>` for HTML,
 /// the whole text for Markdown) that only sessions opened before the
@@ -36,7 +37,6 @@ pub enum ModelView {
 }
 
 impl ModelView {
-    /// The model's wire name, reported to a joining client.
     #[must_use]
     pub const fn kind(&self) -> &'static str {
         match self {

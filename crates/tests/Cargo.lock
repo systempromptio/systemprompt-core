@@ -9323,6 +9323,7 @@ name = "systemprompt-engine-loro"
 version = "0.74.0"
 dependencies = [
  "loro",
+ "serde_json",
  "systemprompt-files",
  "uuid",
 ]
@@ -9473,6 +9474,7 @@ dependencies = [
  "inventory",
  "pulldown-cmark",
  "quick-xml 0.42.0",
+ "schemars",
  "scraper",
  "serde",
  "serde_json",

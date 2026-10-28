@@ -48,7 +48,7 @@ impl Builder {
             Event::Start(tag) => self.start(tag),
             Event::End(tag) => self.end(tag),
             Event::Text(text) | Event::Html(text) | Event::InlineHtml(text) => {
-                self.inline.push(&text)
+                self.inline.push(&text);
             },
             Event::Code(text) => {
                 self.inline.open(MarkKind::Code);
@@ -67,7 +67,7 @@ impl Builder {
             Tag::Heading { level, .. } => {
                 self.kind = Some(BlockKind::Heading {
                     level: heading(level),
-                })
+                });
             },
             Tag::Paragraph if self.kind.is_none() => {
                 self.kind = Some(if self.quote > 0 {
@@ -112,7 +112,7 @@ impl Builder {
     fn end(&mut self, tag: TagEnd) {
         match tag {
             TagEnd::Heading(_) | TagEnd::Paragraph | TagEnd::CodeBlock | TagEnd::Item => {
-                self.flush()
+                self.flush();
             },
             TagEnd::Image => {
                 let alt = self.inline.take().0;

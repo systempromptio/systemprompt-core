@@ -8,12 +8,14 @@
 
 use std::collections::HashSet;
 
-use loro::{LoroDoc, LoroError};
+use loro::LoroDoc;
 use systemprompt_files::documents::model::RichText;
 
-use crate::rich::{block_map, blocks, insert_block, kind_json, string_of, sync_text, text_of};
+use crate::rich::{
+    WriteError, block_map, blocks, insert_block, kind_json, string_of, sync_text, text_of,
+};
 
-pub fn write_model(doc: &LoroDoc, target: &RichText) -> Result<(), LoroError> {
+pub fn write_model(doc: &LoroDoc, target: &RichText) -> Result<(), WriteError> {
     let list = blocks(doc);
     let wanted: HashSet<&str> = target
         .blocks
@@ -33,33 +35,28 @@ pub fn write_model(doc: &LoroDoc, target: &RichText) -> Result<(), LoroError> {
         let found = ids
             .iter()
             .position(|id| id.as_deref() == Some(block.id.as_str()));
-        match found {
-            Some(from) => {
-                if from != at {
-                    list.mov(from, at)?;
-                    let id = ids.remove(from);
-                    ids.insert(at, id);
-                }
-                let Some(map) = block_map(&list, at) else {
-                    continue;
-                };
-                let kind = kind_json(&block.kind);
-                if string_of(&map, "kind").as_deref() != Some(kind.as_str()) {
-                    map.insert("kind", kind)?;
-                }
-                match text_of(&map) {
-                    Some(text) => sync_text(&text, block)?,
-                    None => {
-                        let text = map.insert_container("text", loro::LoroText::new())?;
-                        sync_text(&text, block)?;
-                    },
-                }
-            },
-            None => {
-                insert_block(&list, at, block)?;
-                ids.insert(at, Some(block.id.clone()));
-            },
+        let Some(from) = found else {
+            insert_block(&list, at, block)?;
+            ids.insert(at, Some(block.id.clone()));
+            continue;
+        };
+        if from != at {
+            list.mov(from, at)?;
+            let id = ids.remove(from);
+            ids.insert(at, id);
         }
+        let Some(map) = block_map(&list, at) else {
+            continue;
+        };
+        let kind = kind_json(&block.kind)?;
+        if string_of(&map, "kind").as_deref() != Some(kind.as_str()) {
+            map.insert("kind", kind)?;
+        }
+        let text = match text_of(&map) {
+            Some(text) => text,
+            None => map.insert_container("text", loro::LoroText::new())?,
+        };
+        sync_text(&text, block)?;
     }
     Ok(())
 }

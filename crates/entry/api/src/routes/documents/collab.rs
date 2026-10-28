@@ -8,7 +8,8 @@
 //! join), and leave. Everyone's updates reach them as
 //! `document.collab.update` events on their existing AG-UI stream. Binary
 //! payloads (snapshots, updates and version vectors) travel as standard
-//! base64.
+//! base64 in JSON; an update may instead be posted as raw
+//! `application/octet-stream` bytes (`collab_updates`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,7 +21,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
 use systemprompt_files::documents::collab::{
-    ApplyRequest, Checkpoint, CollabError, CursorRequest, JoinMode, Left,
+    Checkpoint, CollabError, CursorRequest, JoinMode, Left,
 };
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentProposalId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
@@ -45,8 +46,6 @@ pub(super) struct JoinBody {
     mode: ModeJson,
 }
 
-/// Protocol v2 join response: the session state plus the engine, wire
-/// version, model and access level the client binds its editor to.
 #[derive(Debug, Serialize)]
 pub(super) struct JoinedJson {
     protocol: u32,
@@ -63,21 +62,6 @@ pub(super) struct JoinedJson {
 }
 
 const PROTOCOL_VERSION: u32 = 2;
-
-#[derive(Debug, Deserialize)]
-pub(super) struct UpdateBody {
-    session_id: DocumentEditSessionId,
-    vv: Option<String>,
-    update_b64: String,
-}
-
-#[derive(Debug, Serialize)]
-pub(super) struct AppliedJson {
-    seq: i64,
-    vv: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    missing_b64: Option<String>,
-}
 
 #[derive(Debug, Deserialize)]
 pub(super) struct LeaveBody {
@@ -162,29 +146,6 @@ pub(super) async fn join(
     }))
 }
 
-pub(super) async fn updates(
-    State(state): State<DocumentsState>,
-    Extension(req_ctx): Extension<RequestContext>,
-    Path(id): Path<String>,
-    Json(body): Json<UpdateBody>,
-) -> DocumentsResult<Json<AppliedJson>> {
-    let who = caller(&state, &req_ctx).await?;
-    let update = decode(&body.update_b64)?;
-    state.service.check_collab_update_limit(update.len())?;
-    let request = ApplyRequest {
-        document_id: document_id(&id)?,
-        session_id: body.session_id,
-        version: body.vv.as_deref().map(decode).transpose()?,
-        update,
-    };
-    let applied = state.collab.apply(&who.user, request, &who.trace).await?;
-    Ok(Json(AppliedJson {
-        seq: applied.seq,
-        vv: STANDARD.encode(applied.version),
-        missing_b64: applied.missing.map(|bytes| STANDARD.encode(bytes)),
-    }))
-}
-
 pub(super) async fn leave(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
@@ -224,7 +185,7 @@ pub(super) async fn cursor(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn decode(raw: &str) -> DocumentsResult<Vec<u8>> {
+pub(super) fn decode(raw: &str) -> DocumentsResult<Vec<u8>> {
     STANDARD.decode(raw).map_err(|error| {
         ApiError::bad_request("payload is not valid base64")
             .with_source(error)

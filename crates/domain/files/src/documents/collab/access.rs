@@ -23,8 +23,6 @@ impl CollabService {
         Ok(self.granted(who, document, action, trace).await?.0)
     }
 
-    /// The document and the caller's access level on it, after checking
-    /// `action`.
     pub(super) async fn granted(
         &self,
         who: &AuthenticatedUser,
