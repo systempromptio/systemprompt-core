@@ -452,3 +452,171 @@ mod transport_classification {
         assert!(response.status().is_success());
     }
 }
+
+mod inference_mapping_tests {
+    use super::*;
+
+    fn p() -> ProviderId {
+        ProviderId::new("vendor")
+    }
+
+    fn kind(err: AiError) -> &'static str {
+        match AiInferenceError::from(err) {
+            AiInferenceError::Provider { .. } => "provider",
+            AiInferenceError::NoProviderForModel { .. } => "no-provider",
+            AiInferenceError::RateLimited { .. } => "rate-limited",
+            AiInferenceError::AuthenticationFailed { .. } => "auth",
+            AiInferenceError::Unavailable { .. } => "unavailable",
+            AiInferenceError::InvalidRequest(_) => "invalid",
+            AiInferenceError::Tool(_) => "tool",
+            AiInferenceError::Configuration(_) => "config",
+            AiInferenceError::Storage(_) => "storage",
+            AiInferenceError::Internal(_) => "internal",
+            _ => "other",
+        }
+    }
+
+    #[test]
+    fn provider_failures_split_into_rejections_outages_and_internal_faults() {
+        for err in [
+            ProviderError::EmptyResponse { provider: p() },
+            ProviderError::ImageWithheld { provider: p() },
+            ProviderError::NoImageData { provider: p() },
+            ProviderError::NoStructuredOutput { provider: p() },
+        ] {
+            assert_eq!(kind(AiError::Provider(err)), "provider");
+        }
+        for err in [
+            ProviderError::HttpStatus {
+                provider: p(),
+                status: 503,
+                retry_after: None,
+                body: String::new(),
+            },
+            ProviderError::Timeout {
+                provider: p(),
+                after_ms: 10,
+            },
+            ProviderError::CircuitOpen { provider: p() },
+            ProviderError::DependencyUnavailable { provider: p() },
+        ] {
+            assert_eq!(kind(AiError::Provider(err)), "unavailable");
+        }
+    }
+
+    #[test]
+    fn an_unavailable_provider_keeps_its_name_and_message() {
+        let mapped = AiInferenceError::from(AiError::Provider(ProviderError::Timeout {
+            provider: p(),
+            after_ms: 250,
+        }));
+        match mapped {
+            AiInferenceError::Unavailable { provider, message } => {
+                assert_eq!(provider, "vendor");
+                assert_eq!(message, "Provider vendor request timed out after 250ms");
+            },
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn routing_failures_map_to_request_provider_or_configuration_faults() {
+        let model = || ModelId::new("m");
+        assert_eq!(
+            kind(AiError::Routing(RoutingError::ModelUnsupported {
+                provider: p(),
+                model: model(),
+            })),
+            "provider"
+        );
+        assert_eq!(
+            kind(AiError::Routing(RoutingError::NoProviderWithCapability {
+                capability: ProviderCapability::Streaming,
+            })),
+            "invalid"
+        );
+        assert_eq!(
+            kind(AiError::capability_unsupported(
+                "vendor",
+                ProviderCapability::GoogleSearch
+            )),
+            "invalid"
+        );
+        for err in [
+            RoutingError::NoDefaultProvider,
+            RoutingError::ProviderNotFound { provider: p() },
+            RoutingError::ProviderDisabled { provider: p() },
+            RoutingError::UnknownModel {
+                provider: p(),
+                model: model(),
+            },
+        ] {
+            assert_eq!(kind(AiError::Routing(err)), "config");
+        }
+    }
+
+    #[test]
+    fn request_failures_name_the_provider_they_came_from() {
+        let mapped = AiInferenceError::from(AiError::Request(RequestError::PromptTooLong {
+            provider: p(),
+            length: 9,
+            max: 3,
+        }));
+        match mapped {
+            AiInferenceError::Provider { provider, message } => {
+                assert_eq!(provider, "vendor");
+                assert!(
+                    message.contains("prompt length 9 exceeds maximum 3"),
+                    "{message}"
+                );
+            },
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(
+            kind(AiError::Request(RequestError::UnsupportedResolution {
+                provider: p(),
+                resolution: ImageResolution::FourK,
+            })),
+            "provider"
+        );
+        assert_eq!(
+            kind(AiError::Request(RequestError::UnsupportedAspectRatio {
+                provider: p(),
+                aspect_ratio: AspectRatio::Square,
+            })),
+            "provider"
+        );
+    }
+
+    #[test]
+    fn tool_storage_and_local_faults_keep_their_category() {
+        assert_eq!(
+            kind(AiError::Tool(ToolError::EmptyDescription {
+                tool_name: McpToolName::new("t"),
+            })),
+            "invalid"
+        );
+        assert_eq!(
+            kind(AiError::Storage(StorageError::ImageTooLarge {
+                size: 2,
+                max: 1
+            })),
+            "storage"
+        );
+        assert_eq!(
+            kind(AiError::Repository(RepositoryError::not_found(
+                "AI request",
+                "x"
+            ))),
+            "storage"
+        );
+        let json = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+        assert_eq!(kind(AiError::Serialization(json)), "internal");
+        assert_eq!(kind(AiError::Io(std::io::Error::other("disk"))), "internal");
+        let uuid_err = uuid::Uuid::parse_str("nope").unwrap_err();
+        assert_eq!(
+            kind(AiError::Storage(StorageError::InvalidFileId(uuid_err))),
+            "invalid"
+        );
+    }
+}
