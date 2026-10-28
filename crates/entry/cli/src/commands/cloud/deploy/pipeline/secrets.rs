@@ -13,6 +13,7 @@ use systemprompt_cloud::deploy::provider::{
 };
 use systemprompt_cloud::{CloudCredentials, secrets_env};
 
+use super::progress::{DeployEvent, DeployProgress};
 use super::request::{DeployRequest, DeploySecretsSource};
 
 const SIGNING_KEY_ENV: &str = "SIGNING_KEY_PEM";

@@ -15,7 +15,7 @@ use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
 use systemprompt_traits::{
-    Dependencies, JobContext, OwnedTask, Phase, StartupEvent, StartupEventExt, StartupEventSender,
+    Dependencies, JobContext, OwnedTask, Phase, StartupEventExt, StartupEventSender,
 };
 
 use super::lifecycle::{

@@ -3,23 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-use std::path::Path;
 
-use anyhow::{Result, bail};
-use systemprompt_cloud::constants::{container, paths};
-use systemprompt_cloud::deploy::provider::{
-    BuiltImage, DeployProvider, SecretBatch, SecretPurpose, SecretsOutcome, SecretsTransport,
-};
+use anyhow::Result;
+use systemprompt_cloud::DockerCli;
+use systemprompt_cloud::deploy::provider::{BuiltImage, DeployProvider};
 use systemprompt_cloud::deploy::{find_services_config, validate_profile_dockerfile};
-use systemprompt_cloud::{CloudCredentials, DockerCli, secrets_env};
 use systemprompt_loader::ConfigLoader;
 
 use super::artifacts::DeployArtifacts;
 use super::progress::{DeployEvent, DeployProgress};
-use super::request::{DeployReport, DeployRequest, DeploySecretsSource};
+use super::request::{DeployReport, DeployRequest};
 
-use super::secrets::{provision_secrets, pushed_count};
+use super::secrets::provision_secrets;
 
 #[derive(Debug, Default)]
 pub struct DeployOrchestrator {
