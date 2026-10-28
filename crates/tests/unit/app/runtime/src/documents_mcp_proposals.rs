@@ -12,9 +12,10 @@ use systemprompt_models::documents::{
 };
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpTools, EditHandler, EditInput, EditOutput, GuideHandler, GuideInput,
-    ProposalAction, ProposalsHandler, ProposalsInput,
+    DocumentsMcpTools, EditHandler, EditInput, GuideHandler, GuideInput, ProposalAction,
+    ProposalsHandler, ProposalsInput,
 };
+use systemprompt_runtime::documents::views::EditOutput;
 
 use crate::documents_mcp_support::{
     create_text, ctx_for, exec, harness, line_for, read_text, registered,
@@ -81,7 +82,7 @@ async fn share(
         .expect("share");
 }
 
-fn texts(read: &systemprompt_runtime::documents::mcp::ReadOutput) -> Vec<String> {
+fn texts(read: &systemprompt_runtime::documents::views::ReadOutput) -> Vec<String> {
     read.lines
         .iter()
         .filter_map(|line| line.split_once("| ").map(|(_, text)| text.to_owned()))

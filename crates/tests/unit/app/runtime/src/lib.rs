@@ -57,6 +57,8 @@ mod documents_mcp_sizes;
 #[cfg(test)]
 mod documents_mcp_support;
 #[cfg(test)]
+mod documents_refusal_parity;
+#[cfg(test)]
 mod error_variants;
 #[cfg(test)]
 mod ext_fixtures;

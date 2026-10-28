@@ -3,7 +3,8 @@
 //! history or list adds the `document://` URIs and content hashes. A write
 //! acknowledges what it wrote as read lines, so the next edit anchors on
 //! the ack without a re-read. Outputs reach the wire once, as structured
-//! content.
+//! content. A history item names its author as `author`, its actor kind as
+//! `actor` and its time as `at`, to the second.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,6 +38,10 @@ macro_rules! documents_output_impl {
 }
 
 pub(super) use documents_output_impl as documents_output;
+
+fn seconds<S: serde::Serializer>(at: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+}
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct FolderItem {
@@ -106,7 +111,9 @@ pub struct RevisionItem {
     pub revision_id: DocumentRevisionId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_revision_id: Option<DocumentRevisionId>,
+    #[serde(rename = "author")]
     pub author_user_id: UserId,
+    #[serde(rename = "actor")]
     pub actor_kind: ActorKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -114,6 +121,7 @@ pub struct RevisionItem {
     pub content_sha256: Option<ContentHash>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attribution: Option<RevisionAttributionItem>,
+    #[serde(rename = "at", serialize_with = "seconds")]
     pub created_at: DateTime<Utc>,
 }
 

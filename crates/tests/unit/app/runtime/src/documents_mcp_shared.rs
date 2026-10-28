@@ -12,8 +12,10 @@ use systemprompt_models::documents::{
 };
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpTools, EditHandler, EditInput, EditOutput, HistoryHandler, HistoryInput,
-    ReadHandler, ReadInput, ReadOutput, ReadView, node_lines, outline, search_lines,
+    DocumentsMcpTools, EditHandler, EditInput, HistoryHandler, HistoryInput, ReadHandler,
+};
+use systemprompt_runtime::documents::views::{
+    EditOutput, ReadInput, ReadOutput, ReadView, node_lines, outline, search_lines,
 };
 
 use crate::documents_mcp_support::{
@@ -267,12 +269,11 @@ fn a_node_read_pages_one_node_and_its_children() {
         table,
         block("a.5", NodeKind::Paragraph, "after"),
     ]);
-    let revision = DocumentRevisionId::generate();
-    let lines = node_lines(&doc, Some(&DocumentNodeId::new("a.2")), &revision).expect("node");
+    let lines = node_lines(&doc, Some(&DocumentNodeId::new("a.2"))).expect("node");
     assert_eq!(lines.len(), 3, "{lines:?}");
     assert!(lines[1].ends_with("| | a"));
-    assert!(node_lines(&doc, Some(&DocumentNodeId::new("a.9")), &revision).is_err());
-    assert!(node_lines(&doc, None, &revision).is_err());
+    assert!(node_lines(&doc, Some(&DocumentNodeId::new("a.9"))).is_err());
+    assert!(node_lines(&doc, None).is_err());
     let found = search_lines(&doc, Some("AFT")).expect("search");
     assert_eq!(found.len(), 1);
 }

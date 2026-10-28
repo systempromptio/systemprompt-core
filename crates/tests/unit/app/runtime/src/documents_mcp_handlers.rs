@@ -3,9 +3,10 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, ActorKind, ContentAs, EditOp, NodeTarget};
 use systemprompt_runtime::documents::mcp::{
     EditHandler, EditInput, ExportAs, ExportFormat, ExportHandler, ExportInput, HistoryHandler,
-    HistoryInput, ListHandler, ListInput, ListScopeInput, ListSortInput, ReadHandler, ReadInput,
-    ReadView, ShareHandler, ShareInput,
+    HistoryInput, ListHandler, ListInput, ListScopeInput, ListSortInput, ReadHandler, ShareHandler,
+    ShareInput,
 };
+use systemprompt_runtime::documents::views::{ReadInput, ReadView};
 
 use crate::documents_mcp_support::{
     create_text, ctx_for, exec, harness, line_for, read_text, registered,

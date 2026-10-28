@@ -5,7 +5,8 @@ use systemprompt_identifiers::{
 };
 use systemprompt_mcp::McpError;
 use systemprompt_models::documents::DocumentFormat;
-use systemprompt_runtime::documents::mcp::{RefusalCode, refusal_result, tool_error};
+use systemprompt_runtime::documents::mcp::{refusal_result, tool_error};
+use systemprompt_runtime::documents::refusal::RefusalCode;
 use systemprompt_traits::RepositoryError;
 
 fn refused(error: DocumentsError) -> (String, serde_json::Value) {
@@ -133,7 +134,7 @@ fn forbidden_names_the_owner_and_trash_and_anchors_carry_detail() {
     let (_, data) = refused(DocumentsError::Trashed {
         document_id: DocumentId::generate(),
     });
-    assert_eq!(data["code"], "not_found");
+    assert_eq!(data["code"], "trashed");
     assert_eq!(data["trashed"], true);
 
     let comment = systemprompt_identifiers::DocumentCommentId::generate();

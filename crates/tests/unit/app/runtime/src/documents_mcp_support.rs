@@ -12,8 +12,9 @@ use systemprompt_models::documents::EditOp;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
     CreateHandler, CreateInput, DocumentsMcpConfig, DocumentsMcpTools, EditHandler, EditInput,
-    ReadHandler, ReadInput, ReadOutput, ReadView,
+    ReadHandler,
 };
+use systemprompt_runtime::documents::views::{ReadInput, ReadOutput, ReadView};
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_traits::FileStorage;
 use tempfile::TempDir;

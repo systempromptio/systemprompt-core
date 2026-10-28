@@ -118,7 +118,7 @@ async fn trash_hides_a_document_and_restore_brings_it_back() {
 
     let restored = h
         .service
-        .restore_document(&owner, &id, &trace())
+        .untrash(&owner, &id, &trace())
         .await
         .expect("restore");
     assert!(restored.trashed_at.is_none());
@@ -586,12 +586,12 @@ async fn repeated_copies_and_restores_take_the_next_free_name() {
         .expect("a live document takes the name");
     let first_back = h
         .service
-        .restore_document(&owner, &source.id, &trace())
+        .untrash(&owner, &source.id, &trace())
         .await
         .expect("restore source");
     let second_back = h
         .service
-        .restore_document(&owner, &twin.id, &trace())
+        .untrash(&owner, &twin.id, &trace())
         .await
         .expect("restore twin");
     assert_eq!(first_back.name, format!("{name} (restored).txt"));

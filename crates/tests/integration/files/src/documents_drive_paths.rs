@@ -98,7 +98,7 @@ async fn drive_feed_reports_rename_move_trash_and_restore_in_order() {
         .await
         .expect("trash");
     h.service
-        .restore_document(&owner, &document.id, &trace())
+        .untrash(&owner, &document.id, &trace())
         .await
         .expect("restore");
 

@@ -3,10 +3,10 @@ use systemprompt_identifiers::{DocumentId, DocumentNodeId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, ContentAs, EditOp, NodeTarget};
 use systemprompt_runtime::documents::mcp::{
-    AccessHandler, AccessInput, CommentAction, CommentHandler, CommentInput, CopyHandler,
-    CopyInput, DocumentInput, EditHandler, EditInput, GuideHandler, GuideInput, ListHandler,
-    ListInput, ListScopeInput, ListSortInput, QuoteAnchor, RestoreHandler, ShareHandler,
-    ShareInput, TrashHandler, UpdateHandler, UpdateInput, refusal_result,
+    AccessHandler, AccessInput, CommentAction, CommentHandler, CommentInput, CopyHandler, CopyInput,
+    DocumentInput, EditHandler, EditInput, GuideHandler, GuideInput, ListHandler, ListInput,
+    ListScopeInput, ListSortInput, QuoteAnchor, ShareHandler, ShareInput, TrashHandler,
+    UntrashHandler, UpdateHandler, UpdateInput, refusal_result,
 };
 
 use crate::documents_mcp_support::{
@@ -118,7 +118,7 @@ async fn comment_tool_creates_lists_and_resolves_and_edits_refuse_anchors_affect
 }
 
 #[tokio::test]
-async fn trash_restore_copy_update_and_access_tools() {
+async fn trash_untrash_copy_update_and_access_tools() {
     let h = harness().await;
     let owner = registered("mcp-life").await;
     let ctx = ctx_for(Some(&owner));
@@ -143,9 +143,9 @@ async fn trash_restore_copy_update_and_access_tools() {
     let data = refusal_result(&refused)
         .and_then(|r| r.structured_content)
         .expect("refusal");
-    assert_eq!(data["code"], "not_found");
+    assert_eq!(data["code"], "trashed");
     assert_eq!(data["trashed"], true);
-    RestoreHandler { tools: &h.tools }
+    UntrashHandler { tools: &h.tools }
         .handle(input(), &ctx, &exec())
         .await
         .expect("restore");
@@ -253,7 +253,7 @@ async fn the_guide_explains_comments_lifecycle_and_skeletons() {
         )
         .await
         .expect("guide");
-    for needle in ["allow_detach", "documents_restore_document", "pending"] {
+    for needle in ["allow_detach", "documents_untrash", "pending"] {
         assert!(text.contains(needle), "guide lacks {needle}");
     }
 }

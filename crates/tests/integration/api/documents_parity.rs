@@ -266,10 +266,10 @@ async fn trash_restore_copy_and_scoped_listing() -> Result<()> {
     assert_eq!(status, StatusCode::NO_CONTENT);
     let (status, gone) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}"))).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{gone}");
-    assert_eq!(gone["trashed"], true);
+    assert_eq!(gone["error_key"], "trashed");
     let (status, restored) = send(
         app(&state, &owner),
-        empty(Method::POST, &format!("/{id}/restore")),
+        empty(Method::POST, &format!("/{id}/untrash")),
     )
     .await?;
     assert_eq!(status, StatusCode::OK, "{restored}");

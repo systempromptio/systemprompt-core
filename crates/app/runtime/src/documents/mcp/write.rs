@@ -96,17 +96,11 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     let output = edit_ack(&call.document, landed, call.verbose);
     let summary = if output.replayed {
         format!(
-            "revision {}: op {} already applied",
-            output.revision_id,
+            "op {} replayed",
             call.op_id.as_ref().map_or("", |op| op.as_str())
         )
     } else {
-        format!(
-            "revision {}: {} ops, {} lines written",
-            output.revision_id,
-            output.applied,
-            output.written.len()
-        )
+        format!("wrote {}", output.written.len())
     };
     Ok((output, summary))
 }
