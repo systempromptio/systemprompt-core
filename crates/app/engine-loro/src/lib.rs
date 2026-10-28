@@ -6,7 +6,8 @@
 //! a random peer id, so every replica that seeds from the same revision
 //! produces the same operations and can import any client's updates without
 //! a shared snapshot. A browser editor mirrors the same container with
-//! `loro-crdt` at [`WIRE_VERSION`].
+//! `loro-crdt` at [`WIRE_VERSION`], the `loro` crate version this engine is
+//! pinned to.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,8 +17,6 @@ use systemprompt_files::documents::engine::{DocumentEngine, EngineDoc, EngineErr
 
 pub const BODY_CONTAINER: &str = "body";
 pub const SEED_PEER: PeerID = 0;
-/// The `loro` crate version this engine is pinned to; the client's
-/// `loro-crdt` must match it.
 pub const WIRE_VERSION: &str = "1.17.1";
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -66,12 +65,15 @@ impl EngineDoc for LoroEngineDoc {
     }
 
     fn missing_since(&self, version: &[u8]) -> Result<Option<Vec<u8>>, EngineError> {
-        let known = VersionVector::decode(version)
-            .map_err(|e| EngineError::InvalidVersion(Box::new(e)))?;
+        let known =
+            VersionVector::decode(version).map_err(|e| EngineError::InvalidVersion(Box::new(e)))?;
         if known.includes_vv(&self.0.oplog_vv()) {
             return Ok(None);
         }
-        self.0.export(ExportMode::updates(&known)).map(Some).map_err(encode)
+        self.0
+            .export(ExportMode::updates(&known))
+            .map(Some)
+            .map_err(encode)
     }
 
     fn export_model(&self) -> ModelView {
@@ -90,7 +92,10 @@ impl EngineDoc for LoroEngineDoc {
             .update(target, UpdateOptions::default())
             .map_err(|e| EngineError::State(Box::new(e)))?;
         draft.commit();
-        draft.export(ExportMode::updates(&before)).map(Some).map_err(encode)
+        draft
+            .export(ExportMode::updates(&before))
+            .map(Some)
+            .map_err(encode)
     }
 }
 

@@ -201,10 +201,10 @@ impl DocumentEvents {
             event: name,
             source: EventFailure::Serialize(source),
         })?;
-        if let Some(actor) = to.first() {
-            if let Err(error) = self.publish_topic(name, actor, value.clone()).await {
-                tracing::warn!(event = name, error = %error, "Document event not published on its live topic");
-            }
+        if let Some(actor) = to.first()
+            && let Err(error) = self.publish_topic(name, actor, value.clone()).await
+        {
+            tracing::warn!(event = name, error = %error, "Document event not published on its live topic");
         }
         let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
             name: name.to_owned(),

@@ -21,12 +21,12 @@ use std::fmt;
 
 pub use error::EngineError;
 
-/// Core's engine-agnostic view of a document's editable content.
+/// Core's engine-agnostic view of a document's editable content. `Body`
+/// holds the editable body as one text: the inner markup of `<body>` for
+/// HTML, the whole text for Markdown.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ModelView {
-    /// The editable body as one text: the inner markup of `<body>` for
-    /// HTML, the whole text for Markdown.
     Body(String),
 }
 
@@ -40,43 +40,40 @@ impl ModelView {
 }
 
 /// A live-session CRDT engine.
+///
+/// `wire_version` names the wire format a client must also speak. `seed`
+/// opens a document from a model, and every replica seeding the same model
+/// produces the same operations; `open` reads a snapshot this engine
+/// exported; `check_update` refuses a malformed update before it is logged.
 pub trait DocumentEngine: Send + Sync + fmt::Debug {
-    /// The engine's name, for logs and the join response.
     fn name(&self) -> &'static str;
 
-    /// The version of the engine's wire format; a client must speak the
-    /// same one.
     fn wire_version(&self) -> &'static str;
 
-    /// Opens a document seeded from `model`. Every replica seeding the same
-    /// model must produce the same operations.
     fn seed(&self, model: &ModelView) -> Result<Box<dyn EngineDoc>, EngineError>;
 
-    /// Opens a document from a snapshot this engine exported.
     fn open(&self, snapshot: &[u8]) -> Result<Box<dyn EngineDoc>, EngineError>;
 
-    /// Checks that `update` is a well-formed update of this engine before it
-    /// is logged.
     fn check_update(&self, update: &[u8]) -> Result<(), EngineError>;
 }
 
 /// One open document of a [`DocumentEngine`].
+///
+/// Re-applying an update is a no-op. `version` is the encoded version vector
+/// of everything applied; `missing_since` returns what a peer at a version
+/// lacks, or `None`. `update_to_model` computes, on a fork, the update that
+/// turns this document into a model, or `None` when it already matches.
 pub trait EngineDoc: Send + fmt::Debug {
-    /// Imports an update; importing one already applied is a no-op.
     fn apply_update(&mut self, update: &[u8]) -> Result<(), EngineError>;
 
     fn snapshot(&self) -> Result<Vec<u8>, EngineError>;
 
-    /// The encoded version vector of everything applied so far.
     fn version(&self) -> Vec<u8>;
 
-    /// The updates a peer at `version` lacks, or `None` when it has them all.
     fn missing_since(&self, version: &[u8]) -> Result<Option<Vec<u8>>, EngineError>;
 
     fn export_model(&self) -> ModelView;
 
-    /// The update that turns this document into `model`, computed on a fork
-    /// so the document itself is unchanged; `None` when it already matches.
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError>;
 }
 

@@ -146,7 +146,7 @@ impl CollabService {
         let document_id = entry.session.document_id.clone();
         let limit = self.documents.config().max_upload_bytes;
         let base_text = utf8(&document_id, self.revision_bytes(&base, limit).await?)?;
-        let body = materialise(entry.format, &base_text, &entry.doc.export_model().body().to_owned());
+        let body = materialise(entry.format, &base_text, entry.doc.export_model().body());
         let proposed = self
             .documents
             .propose_body(

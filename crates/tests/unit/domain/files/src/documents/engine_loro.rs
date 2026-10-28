@@ -29,9 +29,16 @@ fn a_snapshot_reopens_with_its_body_and_version() {
     let doc = LoroEngine
         .seed(&ModelView::Body("hello".to_owned()))
         .expect("seed");
-    let reopened = LoroEngine.open(&doc.snapshot().expect("snapshot")).expect("open");
+    let reopened = LoroEngine
+        .open(&doc.snapshot().expect("snapshot"))
+        .expect("open");
     assert_eq!(reopened.export_model(), doc.export_model());
-    assert!(reopened.missing_since(&doc.version()).expect("missing").is_none());
+    assert!(
+        reopened
+            .missing_since(&doc.version())
+            .expect("missing")
+            .is_none()
+    );
 }
 
 #[test]
@@ -40,7 +47,9 @@ fn garbage_is_refused_as_an_update_and_as_a_version() {
         LoroEngine.check_update(b"not loro"),
         Err(EngineError::InvalidUpdate(_))
     ));
-    let doc = LoroEngine.seed(&ModelView::Body(String::new())).expect("seed");
+    let doc = LoroEngine
+        .seed(&ModelView::Body(String::new()))
+        .expect("seed");
     assert!(matches!(
         doc.missing_since(b"\xff\xff"),
         Err(EngineError::InvalidVersion(_))

@@ -2,13 +2,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use loro::{ExportMode, LoroDoc, VersionVector};
+use systemprompt_engine_loro::{BODY_CONTAINER, LoroEngine};
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_engine_loro::{BODY_CONTAINER, LoroEngine};
-use systemprompt_files::documents::engine::DocumentEngine;
 use systemprompt_files::documents::collab::{
     ApplyRequest, CollabError, CollabService, CollabTuning, JoinMode, Joined,
 };
+use systemprompt_files::documents::engine::DocumentEngine;
 use systemprompt_identifiers::{ConnectionId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::RevisionOriginKind;

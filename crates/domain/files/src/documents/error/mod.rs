@@ -17,7 +17,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::authz::SubjectSourceError;
 use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat, ProposalStatus};
-use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError, TargetError};
+use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
 use systemprompt_traits::RepositoryError;
 
 use self::labels::{
@@ -28,6 +28,7 @@ use super::blob_store::BlobStoreError;
 use super::models::{ListCursorError, LockHolderKind};
 use super::templates::TemplateError;
 
+mod conversions;
 mod labels;
 
 #[derive(Debug, thiserror::Error)]
@@ -246,50 +247,6 @@ pub enum EventFailure {
     Serialize(#[from] serde_json::Error),
     #[error("event could not be relayed to other replicas")]
     Relay(#[from] RelayError),
-}
-
-impl From<CodecError> for DocumentsError {
-    fn from(error: CodecError) -> Self {
-        match error {
-            CodecError::StaleAnchor {
-                node,
-                expected,
-                actual,
-                current_text,
-            } => Self::StaleAnchor {
-                node,
-                expected,
-                actual,
-                current_text,
-            },
-            CodecError::UnknownNode { node } => Self::UnknownNode { node },
-            other => Self::Codec(other),
-        }
-    }
-}
-
-impl From<TargetError> for DocumentsError {
-    fn from(error: TargetError) -> Self {
-        match error {
-            TargetError::FindNone { find, closest } => Self::FindNone { find, closest },
-            TargetError::UnknownNode { node } => Self::UnknownNode { node },
-            TargetError::MissingHash { .. } => Self::Codec(CodecError::Malformed {
-                detail: "expected_hash is required when node names a node id",
-            }),
-        }
-    }
-}
-
-impl From<SubjectSourceError> for DocumentsError {
-    fn from(error: SubjectSourceError) -> Self {
-        Self::Authz(AuthzFailure::Subjects(error))
-    }
-}
-
-impl From<AuthzError> for DocumentsError {
-    fn from(error: AuthzError) -> Self {
-        Self::Authz(AuthzFailure::Catalog(error))
-    }
 }
 
 impl DocumentsError {

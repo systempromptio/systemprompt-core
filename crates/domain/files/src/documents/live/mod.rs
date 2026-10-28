@@ -8,7 +8,7 @@
 //! the awareness states still alive. [`DocumentService::live_replay`] turns a
 //! client's `Last-Event-ID` (`<session>:<seq>`) into the collab updates it
 //! missed, or a [`LiveResyncReason`] when the log can no longer supply them.
-//! [`awareness`] validates and publishes awareness states.
+//! The `awareness` submodule validates and publishes awareness states.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

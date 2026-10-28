@@ -57,4 +57,3 @@ fn wasm_asset_type_is_application_wasm() {
     assert_eq!(AssetType::JavaScript.mime_type(), Some("text/javascript"));
     assert_eq!(AssetType::Image.mime_type(), None);
 }
-
