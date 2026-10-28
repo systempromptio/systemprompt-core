@@ -141,13 +141,24 @@ fn check_blocks<'a>(
                     .cells
                     .iter()
                     .flatten()
-                    .all(|cell| cell.shade.as_deref().is_none_or(is_color))
+                    .all(|cell| !matches!(cell.shade.as_deref(), Some(shade) if !is_color(shade)))
                     && bounds::table_ok(rows, props)
             },
             BlockKind::SectionBreak { section } => {
                 depth < limits.depth && bounds::section_ok(section)
             },
-            _ => true,
+            BlockKind::Paragraph
+            | BlockKind::Heading { .. }
+            | BlockKind::ListItem { .. }
+            | BlockKind::Quote
+            | BlockKind::Code { .. }
+            | BlockKind::Image { .. }
+            | BlockKind::Callout { .. }
+            | BlockKind::Footnote { .. }
+            | BlockKind::Divider
+            | BlockKind::PageBreak
+            | BlockKind::Toc { .. }
+            | BlockKind::Raw { .. } => true,
         };
         if !shape_ok {
             return Err(ModelRejection::BadAttribute(block.id.clone()));
