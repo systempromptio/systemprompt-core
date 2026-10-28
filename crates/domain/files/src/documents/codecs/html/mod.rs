@@ -24,6 +24,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod edit;
+mod markup;
 mod tree;
 
 use std::sync::Arc;

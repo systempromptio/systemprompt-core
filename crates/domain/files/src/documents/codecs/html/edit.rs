@@ -14,9 +14,9 @@ use systemprompt_provider_contracts::documents::{
 };
 
 use super::super::anchors::{str_replace_once, verify_anchor};
-use super::super::pending::intent_of_line;
 use super::super::text::escape_html;
-use super::tree::{HtmlProjection, Located, PENDING_ATTR, anchor_node, node_text};
+use super::markup::{markdown_markup, pending_markup};
+use super::tree::{HtmlProjection, Located, anchor_node, node_text};
 
 const DETACHED: CodecError = CodecError::Malformed {
     detail: "an edited node is no longer part of the document",
@@ -157,40 +157,6 @@ fn insert_after(
     }
     tails.insert(key, last);
     Ok(())
-}
-
-fn markdown_chunk(markdown: &str) -> String {
-    let mut rendered = String::new();
-    pulldown_cmark::html::push_html(
-        &mut rendered,
-        pulldown_cmark::Parser::new_ext(
-            markdown,
-            pulldown_cmark::Options::ENABLE_TABLES | pulldown_cmark::Options::ENABLE_STRIKETHROUGH,
-        ),
-    );
-    ammonia::clean(&rendered)
-}
-
-fn pending_markup(intent: &str) -> String {
-    let intent = escape_html(intent);
-    format!("<p {PENDING_ATTR}=\"{intent}\"><em>{intent}</em></p>")
-}
-
-fn markdown_markup(markdown: &str) -> String {
-    let mut out = String::new();
-    let mut chunk = String::new();
-    for line in markdown.lines() {
-        if let Some(intent) = intent_of_line(line) {
-            out.push_str(&markdown_chunk(&chunk));
-            chunk.clear();
-            out.push_str(&pending_markup(intent));
-        } else {
-            chunk.push_str(line);
-            chunk.push('\n');
-        }
-    }
-    out.push_str(&markdown_chunk(&chunk));
-    out
 }
 
 fn fill_pending(html: &mut Html, pending: NodeId) -> Result<NodeId, CodecError> {

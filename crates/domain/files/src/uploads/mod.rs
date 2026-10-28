@@ -16,6 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod attempts;
 mod blobs;
 mod claims;
 mod complete;
@@ -29,6 +30,7 @@ pub mod repository;
 mod safety;
 mod service;
 mod stream;
+mod whole;
 
 pub use error::{RefusalReason, UploadError, UploadResult};
 pub use ingest::Ingested;

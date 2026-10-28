@@ -15,20 +15,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
-use chrono::{DateTime, Utc};
 use rmcp::ErrorData as McpError;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use systemprompt_files::uploads::{
     NewUpload, UploadError, UploadService, UploadSession, UploadStatus,
 };
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, McpExecutionId};
-use systemprompt_mcp::{McpOutputSchema, McpToolHandler};
+use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::content_hash;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::outputs::documents_output;
 use super::refusal::refusal;
 use super::support::caller;
 use crate::documents::refusal::RefusalCode;
@@ -36,57 +32,9 @@ use crate::documents::upload_links::{
     UPLOAD_TOKEN_HEADER, UploadGrant, UploadLinkTarget, signed_upload_links,
 };
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct UploadInput {
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub mime: String,
-    #[serde(default)]
-    pub upload_id: Option<DocumentUploadId>,
-    #[serde(default)]
-    pub content_base64: Option<String>,
-    #[serde(default)]
-    pub size: Option<u64>,
-    #[serde(default)]
-    pub sha256: Option<ContentHash>,
-}
+mod io;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum UploadMode {
-    Inline,
-    Resumable,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct UploadOutput {
-    pub mode: UploadMode,
-    pub upload_id: DocumentUploadId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub blob_ref: Option<ContentHash>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mime: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deduplicated: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub part_size: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub part_count: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parts_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub status_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub complete_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub upload_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub token_header: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<DateTime<Utc>>,
-}
-documents_output!(UploadOutput, "documents_upload");
+pub use io::{UploadInput, UploadMode, UploadOutput};
 
 pub(super) fn upload_error(error: UploadError) -> McpError {
     let code = match &error {

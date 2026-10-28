@@ -17,6 +17,7 @@
 mod directory;
 mod image;
 mod office;
+mod reader;
 pub(crate) mod sniff;
 mod svg;
 
