@@ -17,6 +17,7 @@ pub mod awareness;
 pub mod comment_events;
 pub mod drive;
 pub mod events;
+pub mod sharing_events;
 pub mod uri;
 
 pub use access::{

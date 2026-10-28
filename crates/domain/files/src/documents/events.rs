@@ -2,10 +2,10 @@
 //!
 //! Each event is an AG-UI `CUSTOM` event named by the payload's `NAME`
 //! (`document.revision.created`, `document.presence`, `document.lock`,
-//! `document.conflict`, `document.collab.update`, `document.comment.created`,
-//! `document.comment.resolved`, `document.comment.{updated, deleted,
-//! mentioned}` (emitted from `comment_events`), `document.shared`,
-//! `document.ownership_transferred`, `document.proposal.*`) and routed to each
+//! `document.conflict`, `document.collab.update`, `document.comment.*`
+//! (emitted from `comment_events`), `document.shared`,
+//! `document.access_requested` and `document.ownership_transferred` (from
+//! `sharing_events`), `document.proposal.*`) and routed to each
 //! recipient through the [`EventRouter`], which also relays it to other
 //! replicas. Clients filter the stream on the `document.` prefix.
 //!
@@ -33,10 +33,8 @@ use systemprompt_events::{EventRouter, RelayOutcome, TopicEvent};
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::documents::{
-    DocumentAccessRequestedEvent, DocumentAwarenessEvent, DocumentCollabUpdateEvent,
-    DocumentCommentCreatedEvent, DocumentCommentResolvedEvent, DocumentConflictEvent,
-    DocumentLockEvent, DocumentOwnershipTransferredEvent, DocumentPresenceEvent,
-    DocumentProposalEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent,
+    DocumentAwarenessEvent, DocumentCollabUpdateEvent, DocumentConflictEvent, DocumentLockEvent,
+    DocumentPresenceEvent, DocumentProposalEvent, DocumentRevisionCreatedEvent,
 };
 
 use super::error::{DocumentsError, EventFailure};
@@ -156,51 +154,6 @@ impl DocumentEvents {
         event: &DocumentCollabUpdateEvent,
     ) -> Result<(), DocumentsError> {
         self.emit(DocumentCollabUpdateEvent::NAME, to, event).await
-    }
-
-    pub async fn comment_created(
-        &self,
-        to: &[UserId],
-        event: &DocumentCommentCreatedEvent,
-    ) -> Result<(), DocumentsError> {
-        self.emit(DocumentCommentCreatedEvent::NAME, to, event)
-            .await
-    }
-
-    pub async fn comment_resolved(
-        &self,
-        to: &[UserId],
-        event: &DocumentCommentResolvedEvent,
-    ) -> Result<(), DocumentsError> {
-        self.emit(DocumentCommentResolvedEvent::NAME, to, event)
-            .await
-    }
-
-    pub async fn shared(
-        &self,
-        to: &[UserId],
-        event: &DocumentSharedEvent,
-    ) -> Result<(), DocumentsError> {
-        self.emit_to(DocumentSharedEvent::NAME, to, event, Audience::Recipients)
-            .await
-    }
-
-    pub async fn access_requested(
-        &self,
-        to: &[UserId],
-        event: &DocumentAccessRequestedEvent,
-    ) -> Result<(), DocumentsError> {
-        self.emit(DocumentAccessRequestedEvent::NAME, to, event)
-            .await
-    }
-
-    pub async fn ownership_transferred(
-        &self,
-        to: &[UserId],
-        event: &DocumentOwnershipTransferredEvent,
-    ) -> Result<(), DocumentsError> {
-        self.emit(DocumentOwnershipTransferredEvent::NAME, to, event)
-            .await
     }
 
     pub async fn proposal(

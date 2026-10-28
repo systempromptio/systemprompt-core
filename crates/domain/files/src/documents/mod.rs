@@ -47,6 +47,7 @@ pub mod pdf;
 pub mod repository;
 pub mod revision;
 pub mod service;
+mod sharing_events;
 pub mod templates;
 
 pub use access::{

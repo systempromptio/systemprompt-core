@@ -1,25 +1,30 @@
 //! Payloads of the AG-UI custom events the document store emits.
 //!
 //! Each payload carries its event name as `NAME`; [`DocumentEventName`]
-//! enumerates them for routing and subscription filters.
+//! enumerates them for routing and subscription filters. The sharing
+//! payloads live in [`super::sharing_events`] and are re-exported here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentEditSessionId, DocumentId,
-    DocumentNodeId, DocumentProposalId, DocumentRevisionId, DriveDeviceId, UserId,
+    ContentHash, DocumentCommentId, DocumentEditSessionId, DocumentId, DocumentNodeId,
+    DocumentProposalId, DocumentRevisionId, DriveDeviceId, UserId,
 };
 
-use super::access::{AccessLevel, ActorKind, ProposalStatus, RevisionOriginKind};
+use super::access::{ActorKind, ProposalStatus, RevisionOriginKind};
 use super::awareness::DocumentAwarenessEvent;
 use super::comment_events::{
     DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
 };
 use super::drive::{PresenceSource, PresenceState};
+
+pub use super::sharing_events::{
+    DocumentAccessRequestedEvent, DocumentOwnershipTransferredEvent, DocumentSharedEvent,
+    SHARED_EVENT_VERSION,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub enum DocumentEventName {
@@ -212,62 +217,6 @@ pub struct DocumentCommentResolvedEvent {
 
 impl DocumentCommentResolvedEvent {
     pub const NAME: &'static str = "document.comment.resolved";
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct DocumentSharedEvent {
-    pub document_id: DocumentId,
-    pub document_name: String,
-    pub recipient_user_id: UserId,
-    pub subject_kind: String,
-    pub subject_value: String,
-    pub level: AccessLevel,
-    pub by: UserId,
-    pub shared_by: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    #[serde(default)]
-    pub v: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub via_agent: Option<String>,
-    /// Set when a mention in this comment shared the document.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub comment_id: Option<DocumentCommentId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<DateTime<Utc>>,
-}
-
-pub const SHARED_EVENT_VERSION: u32 = 1;
-
-impl DocumentSharedEvent {
-    pub const NAME: &'static str = "document.shared";
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct DocumentAccessRequestedEvent {
-    pub document_id: DocumentId,
-    pub document_name: String,
-    pub request_id: DocumentAccessRequestId,
-    pub requester_user_id: UserId,
-    pub requester_display: String,
-    pub level: AccessLevel,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-}
-
-impl DocumentAccessRequestedEvent {
-    pub const NAME: &'static str = "document.access_requested";
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct DocumentOwnershipTransferredEvent {
-    pub document_id: DocumentId,
-    pub from: UserId,
-    pub to: UserId,
-}
-
-impl DocumentOwnershipTransferredEvent {
-    pub const NAME: &'static str = "document.ownership_transferred";
 }
 
 /// The payload of every `document.proposal.*` event; the event name says
