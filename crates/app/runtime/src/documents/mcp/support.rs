@@ -101,9 +101,8 @@ pub fn tool_error(error: DocumentsError) -> McpError {
             ..Refusal::new(RefusalCode::GuardMismatch)
         },
         DocumentsError::FindNone { closest, .. } => find_none_refusal(closest),
-        DocumentsError::UnsupportedOp { accepted_kinds, .. } => Refusal {
-            accepted_kinds: Some(accepted_kinds.iter().map(|k| (*k).to_owned()).collect()),
-            ..Refusal::new(RefusalCode::UnsupportedOp)
+        DocumentsError::UnsupportedOp { accepted_kinds, .. } => {
+            unsupported_op_refusal(accepted_kinds)
         },
         DocumentsError::UnsupportedFormat { .. } | DocumentsError::UnknownFormat { .. } => {
             Refusal::new(RefusalCode::UnsupportedFormat)
@@ -131,7 +130,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::Authz(_)
         | DocumentsError::Events { .. }
         | DocumentsError::Worker(_)
-        | DocumentsError::Directory(_) => return internal_failure(&error),
+        | DocumentsError::Directory(_)
         | DocumentsError::LiveSession(_) => return internal_failure(&error),
     };
     refusal.into_error(message)
@@ -259,5 +258,12 @@ fn share_below_existing_refusal(existing: AccessLevel, owner: Option<UserId>) ->
         owner,
         existing_level: Some(existing),
         ..Refusal::new(RefusalCode::Forbidden)
+    }
+}
+
+fn unsupported_op_refusal(accepted_kinds: &[&str]) -> Refusal {
+    Refusal {
+        accepted_kinds: Some(accepted_kinds.iter().map(|k| (*k).to_owned()).collect()),
+        ..Refusal::new(RefusalCode::UnsupportedOp)
     }
 }

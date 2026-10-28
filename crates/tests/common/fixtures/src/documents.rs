@@ -10,10 +10,8 @@ use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_runtime::documents::{
     DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory,
 };
-use systemprompt_traits::FileStorage;
-use systemprompt_users::UserRepository;
-use systemprompt_runtime::documents::{DocumentsRuntime, DocumentsRuntimeParts};
 use systemprompt_traits::{BackgroundTasks, FileStorage};
+use systemprompt_users::UserRepository;
 
 pub fn fixture_documents_runtime(
     pool: &DbPool,
