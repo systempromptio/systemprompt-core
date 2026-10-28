@@ -1,8 +1,8 @@
 //! AWS Signature Version 4 for single S3 object requests.
 //!
 //! Signs `host`, `x-amz-content-sha256`, `x-amz-date` and, for temporary
-//! credentials, `x-amz-security-token`. Requests carry no query string, so
-//! the canonical query is always empty.
+//! credentials, `x-amz-security-token`. The canonical query is passed in
+//! already sorted and encoded; only the multipart calls carry one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,6 +25,7 @@ pub(crate) struct SigningInput<'a> {
     pub method: &'a str,
     pub host: &'a str,
     pub canonical_uri: &'a str,
+    pub canonical_query: &'a str,
     pub payload: &'a [u8],
     pub region: &'a str,
     pub now: DateTime<Utc>,
@@ -72,8 +73,8 @@ pub(crate) fn sign(
         .collect::<Vec<_>>()
         .join(";");
     let canonical_request = format!(
-        "{}\n{}\n\n{canonical_headers}\n{signed_headers}\n{content_sha256}",
-        input.method, input.canonical_uri
+        "{}\n{}\n{}\n{canonical_headers}\n{signed_headers}\n{content_sha256}",
+        input.method, input.canonical_uri, input.canonical_query
     );
     let scope = format!("{date}/{}/s3/aws4_request", input.region);
     let string_to_sign = format!(

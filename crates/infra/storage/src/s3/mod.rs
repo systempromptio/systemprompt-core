@@ -4,13 +4,16 @@
 //! Cloud Storage backend uses. Requests are signed with AWS Signature
 //! Version 4 from static credentials; `path_style` addresses the bucket as
 //! `{endpoint}/{bucket}/{key}` instead of `{bucket}.{endpoint host}/{key}`,
-//! which most self-hosted S3 implementations require.
+//! which most self-hosted S3 implementations require. A streamed write
+//! ([`FileStorage::store_stream`]) is a multipart upload, so an object of
+//! any size is written holding one part in memory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod client;
 mod error;
+mod multipart;
 mod sigv4;
 
 use std::path::Path;
@@ -18,16 +21,18 @@ use std::path::Path;
 use async_trait::async_trait;
 use serde::Deserialize;
 use systemprompt_traits::{
-    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
-    StoredFileRead,
+    ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, StoredFileId,
+    StoredFileMetadata, StoredFileRead,
 };
 use url::Url;
 
 pub use error::S3Error;
 
+use crate::chunks::Lookahead;
 use crate::object_id::{id_for, mime_for, relative_path};
 use crate::remote_read::RemoteRead;
 use client::Lookup;
+use multipart::StreamPutError;
 
 pub const DEFAULT_S3_REGION: &str = "us-east-1";
 
@@ -146,6 +151,23 @@ impl FileStorage for S3FileStorage {
             .await
             .map_err(|e| e.into_storage(&id))?;
         Ok(id)
+    }
+
+    async fn store_stream(
+        &self,
+        path: &Path,
+        body: FileByteStream,
+    ) -> FileStorageResult<StoredFileId> {
+        let id = id_for(relative_path(path)?);
+        let chunks = Lookahead::new(body).await?;
+        match self
+            .put_stream(&self.name_for(&id), mime_for(path), chunks)
+            .await
+        {
+            Ok(()) => Ok(id),
+            Err(StreamPutError::Source(error)) => Err(error),
+            Err(StreamPutError::S3(error)) => Err(error.into_storage(&id)),
+        }
     }
 
     async fn open(
