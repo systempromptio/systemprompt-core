@@ -93,13 +93,24 @@ impl From<PartRow> for UploadPart {
     }
 }
 
-/// What [`DocumentUploadRepository::insert`] stores besides the request.
+/// What [`DocumentUploadRepository::insert_admitted`] stores besides the
+/// request, and the limits it admits the session under.
 #[derive(Debug, Clone, Copy)]
 pub struct SessionTerms<'a> {
     pub owner: &'a UserId,
     pub part_size: i64,
     pub ttl_hours: i32,
     pub trace: &'a TraceId,
+    pub max_open: i64,
+    pub daily_quota: i64,
+}
+
+/// Whether [`DocumentUploadRepository::insert_admitted`] opened the session.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Admission {
+    Admitted(UploadSession),
+    TooManyOpen { open: u64 },
+    QuotaExceeded { used: u64 },
 }
 
 impl DocumentUploadRepository {
@@ -110,14 +121,52 @@ impl DocumentUploadRepository {
         }
     }
 
-    pub async fn insert(
+    /// Opens a session if the owner is within the open-session cap and the
+    /// rolling daily quota, deciding and inserting under one per-owner
+    /// advisory lock so parallel creates cannot all pass. Every session of
+    /// the last day counts toward the quota except an aborted one, refused
+    /// ones included, so a client cannot loop full-size uploads for free.
+    pub async fn insert_admitted(
         &self,
         request: &NewUpload,
         terms: SessionTerms<'_>,
-    ) -> RepoResult<UploadSession> {
+    ) -> RepoResult<Admission> {
         let size = i64::try_from(request.size)
             .map_err(|source| RepositoryError::decode("document_uploads.declared_size", source))?;
-        sqlx::query_as!(
+        let mut tx = self.write.begin().await?;
+        sqlx::query_scalar!(
+            r#"SELECT 1 AS "locked!" FROM (SELECT pg_advisory_xact_lock(hashtext($1))) AS lock"#,
+            terms.owner.as_str(),
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        let open = sqlx::query_scalar!(
+            r#"SELECT COUNT(*)::bigint AS "count!" FROM document_uploads
+               WHERE owner_user_id = $1 AND status IN ('open', 'completing')
+                 AND expires_at > now()"#,
+            terms.owner.as_str(),
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if open >= terms.max_open {
+            return Ok(Admission::TooManyOpen {
+                open: open.unsigned_abs(),
+            });
+        }
+        let used = sqlx::query_scalar!(
+            r#"SELECT COALESCE(SUM(declared_size), 0)::bigint AS "total!" FROM document_uploads
+               WHERE owner_user_id = $1 AND status <> 'aborted'
+                 AND created_at > now() - interval '1 day'"#,
+            terms.owner.as_str(),
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if used.saturating_add(size) > terms.daily_quota {
+            return Ok(Admission::QuotaExceeded {
+                used: used.unsigned_abs(),
+            });
+        }
+        let session: UploadSession = sqlx::query_as!(
             SessionRow,
             r#"INSERT INTO document_uploads
                    (owner_user_id, file_name, declared_mime, declared_size, declared_sha256,
@@ -138,9 +187,11 @@ impl DocumentUploadRepository {
             terms.trace.as_str(),
             terms.ttl_hours,
         )
-        .fetch_one(&*self.write)
+        .fetch_one(&mut *tx)
         .await?
-        .try_into()
+        .try_into()?;
+        tx.commit().await?;
+        Ok(Admission::Admitted(session))
     }
 
     pub async fn find(&self, id: &DocumentUploadId) -> RepoResult<Option<UploadSession>> {
@@ -161,38 +212,38 @@ impl DocumentUploadRepository {
         .transpose()
     }
 
-    pub async fn count_open(&self, owner: &UserId) -> RepoResult<i64> {
-        Ok(sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint AS "count!" FROM document_uploads
-               WHERE owner_user_id = $1 AND status IN ('open', 'completing')
-                 AND expires_at > now()"#,
-            owner.as_str(),
+    /// Reserves `bytes` of the session's part budget (twice its declared
+    /// size, so re-sends are bounded); `false` when the session is no longer
+    /// open or the budget is spent.
+    pub async fn reserve_part_bytes(&self, id: &DocumentUploadId, bytes: u64) -> RepoResult<bool> {
+        let bytes = i64::try_from(bytes)
+            .map_err(|source| RepositoryError::decode("document_uploads.received_bytes", source))?;
+        let result = sqlx::query!(
+            "UPDATE document_uploads SET received_bytes = received_bytes + $2
+             WHERE id = $1::text::uuid AND status = 'open'
+               AND received_bytes + $2 <= declared_size * 2",
+            id.as_str(),
+            bytes,
         )
-        .fetch_one(&*self.write)
-        .await?)
+        .execute(&*self.write)
+        .await?;
+        Ok(result.rows_affected() == 1)
     }
 
-    pub async fn bytes_last_day(&self, owner: &UserId) -> RepoResult<i64> {
-        Ok(sqlx::query_scalar!(
-            r#"SELECT COALESCE(SUM(declared_size), 0)::bigint AS "total!" FROM document_uploads
-               WHERE owner_user_id = $1 AND status IN ('open', 'completing', 'completed')
-                 AND created_at > now() - interval '1 day'"#,
-            owner.as_str(),
-        )
-        .fetch_one(&*self.write)
-        .await?)
-    }
-
-    pub async fn upsert_part(&self, id: &DocumentUploadId, part: &UploadPart) -> RepoResult<()> {
+    /// Records a stored part, only while the session is still open; `false`
+    /// when it left `open` meanwhile, so the caller deletes the object.
+    pub async fn upsert_part(&self, id: &DocumentUploadId, part: &UploadPart) -> RepoResult<bool> {
         let number = i32::try_from(part.part_number).map_err(|source| {
             RepositoryError::decode("document_upload_parts.part_number", source)
         })?;
         let size = i64::try_from(part.size_bytes).map_err(|source| {
             RepositoryError::decode("document_upload_parts.size_bytes", source)
         })?;
-        sqlx::query!(
+        let result = sqlx::query!(
             "INSERT INTO document_upload_parts (upload_id, part_number, size_bytes, sha256, storage_id)
-             VALUES ($1::text::uuid, $2, $3, $4, $5)
+             SELECT $1::text::uuid, $2, $3, $4, $5
+             WHERE EXISTS (SELECT 1 FROM document_uploads
+                           WHERE id = $1::text::uuid AND status = 'open')
              ON CONFLICT (upload_id, part_number) DO UPDATE
                  SET size_bytes = EXCLUDED.size_bytes, sha256 = EXCLUDED.sha256,
                      storage_id = EXCLUDED.storage_id, created_at = CURRENT_TIMESTAMP",
@@ -204,7 +255,7 @@ impl DocumentUploadRepository {
         )
         .execute(&*self.write)
         .await?;
-        Ok(())
+        Ok(result.rows_affected() == 1)
     }
 
     pub async fn list_parts(&self, id: &DocumentUploadId) -> RepoResult<Vec<UploadPart>> {

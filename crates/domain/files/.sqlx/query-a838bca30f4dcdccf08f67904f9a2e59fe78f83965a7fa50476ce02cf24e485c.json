@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_uploads SET received_bytes = received_bytes + $2\n             WHERE id = $1::text::uuid AND status = 'open'\n               AND received_bytes + $2 <= declared_size * 2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a838bca30f4dcdccf08f67904f9a2e59fe78f83965a7fa50476ce02cf24e485c"
+}

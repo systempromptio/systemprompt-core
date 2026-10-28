@@ -18,7 +18,7 @@ use systemprompt_traits::{FileByteStream, FileStorage, FileStorageError, StoredF
 
 use super::error::{UploadError, UploadResult};
 use super::models::{NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus};
-use super::repository::{DocumentUploadRepository, SessionTerms};
+use super::repository::{Admission, DocumentUploadRepository, SessionTerms};
 use super::safety::sniff::declared_kind;
 use super::stream::{Tally, assembled_storage_id, part_storage_id};
 use crate::config::UploadLimits;
@@ -90,7 +90,7 @@ impl UploadService {
             mime: request.mime.trim().to_ascii_lowercase(),
             ..request
         };
-        self.admit(owner, &request).await?;
+        self.admit(&request)?;
         let part_size = i64::try_from(self.limits.part_size_bytes)
             .map_err(|_| UploadError::Invalid("part size is out of range".to_owned()))?;
         let ttl_hours = i32::try_from(self.limits.session_ttl_hours).unwrap_or(i32::MAX);
@@ -99,8 +99,25 @@ impl UploadService {
             part_size,
             ttl_hours,
             trace,
+            max_open: i64::try_from(self.limits.max_open_sessions).unwrap_or(i64::MAX),
+            daily_quota: i64::try_from(self.limits.daily_quota_bytes).unwrap_or(i64::MAX),
         };
-        let session = self.uploads.insert(&request, terms).await?;
+        let session = match self.uploads.insert_admitted(&request, terms).await? {
+            Admission::Admitted(session) => session,
+            Admission::TooManyOpen { open } => {
+                return Err(UploadError::TooManyOpen {
+                    open,
+                    limit: self.limits.max_open_sessions,
+                });
+            },
+            Admission::QuotaExceeded { used } => {
+                return Err(UploadError::QuotaExceeded {
+                    used,
+                    requested: request.size,
+                    limit: self.limits.daily_quota_bytes,
+                });
+            },
+        };
         tracing::info!(
             upload_id = %session.id,
             user_id = %owner,
@@ -113,7 +130,7 @@ impl UploadService {
         Ok(session)
     }
 
-    async fn admit(&self, owner: &UserId, request: &NewUpload) -> UploadResult<()> {
+    fn admit(&self, request: &NewUpload) -> UploadResult<()> {
         if request.name.trim().is_empty() || request.name.contains(['/', '\\', '\0']) {
             return Err(UploadError::Invalid(
                 "name must be a non-empty file name without path separators".to_owned(),
@@ -134,21 +151,6 @@ impl UploadService {
             return Err(UploadError::TooLarge {
                 size: request.size,
                 limit: self.max_upload_bytes,
-            });
-        }
-        let open = self.uploads.count_open(owner).await?.unsigned_abs();
-        if open >= self.limits.max_open_sessions {
-            return Err(UploadError::TooManyOpen {
-                open,
-                limit: self.limits.max_open_sessions,
-            });
-        }
-        let used = self.uploads.bytes_last_day(owner).await?.unsigned_abs();
-        if used.saturating_add(request.size) > self.limits.daily_quota_bytes {
-            return Err(UploadError::QuotaExceeded {
-                used,
-                requested: request.size,
-                limit: self.limits.daily_quota_bytes,
             });
         }
         Ok(())
@@ -207,6 +209,9 @@ impl UploadService {
             return Err(UploadError::PartOutOfRange { part, parts });
         }
         let expected = session.expected_part_size(part);
+        if !self.uploads.reserve_part_bytes(id, expected).await? {
+            return Err(self.part_refusal(id).await?);
+        }
         let storage_id = part_storage_id(id.as_str(), part);
         let tally = Tally::new(expected);
         let stored = self
@@ -232,8 +237,28 @@ impl UploadService {
             sha256,
             storage_id: storage_id.as_str().to_owned(),
         };
-        self.uploads.upsert_part(id, &stored_part).await?;
+        if !self.uploads.upsert_part(id, &stored_part).await? {
+            self.discard(&storage_id).await;
+            return Err(self.part_refusal(id).await?);
+        }
         Ok(stored_part)
+    }
+
+    /// Why a part was not taken: the session left `open`, or it spent the
+    /// part budget re-sending parts.
+    async fn part_refusal(&self, id: &DocumentUploadId) -> UploadResult<UploadError> {
+        let session = self.uploads.find(id).await?;
+        Ok(match session {
+            Some(session) if session.status == UploadStatus::Open => {
+                UploadError::PartBudgetExhausted {
+                    limit: session.declared_size.saturating_mul(2),
+                }
+            },
+            Some(session) => UploadError::Closed {
+                status: session.status,
+            },
+            None => UploadError::NotFound,
+        })
     }
 
     pub async fn abort(&self, owner: &UserId, id: &DocumentUploadId) -> UploadResult<()> {

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_upload_parts (upload_id, part_number, size_bytes, sha256, storage_id)\n             SELECT $1::text::uuid, $2, $3, $4, $5\n             WHERE EXISTS (SELECT 1 FROM document_uploads\n                           WHERE id = $1::text::uuid AND status = 'open')\n             ON CONFLICT (upload_id, part_number) DO UPDATE\n                 SET size_bytes = EXCLUDED.size_bytes, sha256 = EXCLUDED.sha256,\n                     storage_id = EXCLUDED.storage_id, created_at = CURRENT_TIMESTAMP",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4feb6f64a276c31842094561a28c3215a4fabbf24ee929e84ede3a5292be6891"
+}

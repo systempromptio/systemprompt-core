@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS document_uploads (
     expires_at TIMESTAMPTZ NOT NULL,
     finished_at TIMESTAMPTZ,
     checked_kind TEXT,
-    claimed_at TIMESTAMPTZ
+    claimed_at TIMESTAMPTZ,
+    received_bytes BIGINT NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_uploads_owner_created

@@ -64,6 +64,8 @@ pub enum UploadError {
         requested: u64,
         limit: u64,
     },
+    #[error("this upload has received its {limit}-byte part budget; complete it or start over")]
+    PartBudgetExhausted { limit: u64 },
     #[error("{open} uploads are already open; the limit is {limit}")]
     TooManyOpen { open: u64, limit: u64 },
     #[error("part {part} is outside 1..={parts}")]
@@ -111,6 +113,7 @@ impl UploadError {
             Self::TooLarge { .. } => "too_large",
             Self::QuotaExceeded { .. } => "quota_exceeded",
             Self::TooManyOpen { .. } => "too_many_open_uploads",
+            Self::PartBudgetExhausted { .. } => "part_budget_exhausted",
             Self::MissingParts { .. } => "missing_parts",
             Self::Refused { reason, .. } => reason.as_str(),
             Self::Storage(_) | Self::Repository(_) | Self::Blob(_) => "internal",

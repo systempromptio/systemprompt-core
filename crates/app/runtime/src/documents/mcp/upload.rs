@@ -76,7 +76,9 @@ documents_output!(UploadOutput, "documents_upload");
 
 pub(super) fn upload_error(error: UploadError) -> McpError {
     let code = match &error {
-        UploadError::TooLarge { .. } | UploadError::QuotaExceeded { .. } => RefusalCode::TooLarge,
+        UploadError::TooLarge { .. }
+        | UploadError::QuotaExceeded { .. }
+        | UploadError::PartBudgetExhausted { .. } => RefusalCode::TooLarge,
         UploadError::NotFound | UploadError::BlobNotOwned(_) => RefusalCode::NotFound,
         UploadError::Refused { .. } => RefusalCode::IntegrityMismatch,
         UploadError::Storage(_) | UploadError::Repository(_) | UploadError::Blob(_) => {
