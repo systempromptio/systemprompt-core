@@ -21,9 +21,9 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, DocumentAction};
 
 use super::apply::update_event;
-use super::document::{import_rich_text, unchanged_from};
+use super::document::import_rich_text;
 use super::entry::{CollabEntry, model_error, utf8};
-use super::live_media::materialise_or_strip;
+use super::live_media::{LiveState, materialise_or_strip};
 use super::model::body_of;
 use super::{Checkpoint, CollabError, CollabService};
 use crate::documents::engine::ModelView;
@@ -78,27 +78,11 @@ impl CollabService {
         };
         let limit = self.documents.config().max_upload_bytes;
         let base_bytes = self.revision_bytes(&base, limit).await?;
-        let exported = entry.doc.export_model();
         entry.checkpoint_due_from = None;
-        let owners = entry.images.clone();
-        let live = self
-            .admit_live(entry.format, &owners, &base_bytes, exported)
-            .await;
-        if !live.refused.is_empty()
-            && let Err(error) = self
-                .notify_degraded(&entry.session.clone(), who, live.refused.clone(), trace)
-                .await
-        {
-            tracing::warn!(%error, "degraded checkpoint could not be announced");
-        }
-        let unchanged = unchanged_from(entry.format, &base_bytes, &live.model, &live.media)
-            .inspect_err(|error| {
-                tracing::warn!(%error, "live checkpoint could not compare with its base");
-            })
-            .unwrap_or(false);
-        if unchanged {
+        let state = LiveState::of(entry);
+        let Some(live) = self.changed_live(state, who, &base_bytes, trace).await else {
             return Ok(Checkpoint::Unchanged);
-        }
+        };
         let next = materialise_or_strip(entry.format, &base_bytes, &live)
             .map_err(model_error(&document_id))?;
         let outcome = self

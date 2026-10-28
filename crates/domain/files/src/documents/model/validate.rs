@@ -131,35 +131,33 @@ fn check_blocks<'a>(
             return Err(ModelRejection::BadBlockId(block.id.clone()));
         }
         check_block(block, limits)?;
-        let shape_ok = match &block.kind {
-            BlockKind::Table { rows, props } => {
-                let cells: usize = rows.iter().map(Vec::len).sum();
-                if depth + 1 > limits.depth || cells > limits.table_cells {
-                    return Err(ModelRejection::TableTooLarge);
-                }
-                props
-                    .cells
-                    .iter()
-                    .flatten()
-                    .all(|cell| !matches!(cell.shade.as_deref(), Some(shade) if !is_color(shade)))
-                    && bounds::table_ok(rows, props)
-            },
-            BlockKind::SectionBreak { section } => {
-                depth < limits.depth && bounds::section_ok(section)
-            },
-            BlockKind::Paragraph
-            | BlockKind::Heading { .. }
-            | BlockKind::ListItem { .. }
-            | BlockKind::Quote
-            | BlockKind::Code { .. }
-            | BlockKind::Image { .. }
-            | BlockKind::Callout { .. }
-            | BlockKind::Footnote { .. }
-            | BlockKind::Divider
-            | BlockKind::PageBreak
-            | BlockKind::Toc { .. }
-            | BlockKind::Raw { .. } => true,
-        };
+        let shape_ok =
+            match &block.kind {
+                BlockKind::Table { rows, props } => {
+                    let cells: usize = rows.iter().map(Vec::len).sum();
+                    if depth + 1 > limits.depth || cells > limits.table_cells {
+                        return Err(ModelRejection::TableTooLarge);
+                    }
+                    props.cells.iter().flatten().all(
+                        |cell| !matches!(cell.shade.as_deref(), Some(shade) if !is_color(shade)),
+                    ) && bounds::table_ok(rows, props)
+                },
+                BlockKind::SectionBreak { section } => {
+                    depth < limits.depth && bounds::section_ok(section)
+                },
+                BlockKind::Paragraph
+                | BlockKind::Heading { .. }
+                | BlockKind::ListItem { .. }
+                | BlockKind::Quote
+                | BlockKind::Code { .. }
+                | BlockKind::Image { .. }
+                | BlockKind::Callout { .. }
+                | BlockKind::Footnote { .. }
+                | BlockKind::Divider
+                | BlockKind::PageBreak
+                | BlockKind::Toc { .. }
+                | BlockKind::Raw { .. } => true,
+            };
         if !shape_ok {
             return Err(ModelRejection::BadAttribute(block.id.clone()));
         }

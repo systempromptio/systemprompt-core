@@ -168,25 +168,7 @@ impl<'d> Batch<'d> {
                 node.resolved()?,
                 required_hash(expected_hash.as_ref())?,
             )?,
-            EditOp::SetCells { .. }
-            | EditOp::InsertSlide { .. }
-            | EditOp::SetHtml { .. }
-            | EditOp::SetText { .. }
-            | EditOp::Restore { .. }
-            | EditOp::InsertFromRevision { .. }
-            | EditOp::SetMarks(_)
-            | EditOp::SetBlockType(_)
-            | EditOp::InsertTable(_)
-            | EditOp::TableInsertRow(_)
-            | EditOp::TableInsertCol(_)
-            | EditOp::TableDelete(_)
-            | EditOp::InsertImage(_)
-            | EditOp::SetParagraph(_)
-            | EditOp::InsertBlock(_)
-            | EditOp::UpdateTable(_)
-            | EditOp::SetSection(_)
-            | EditOp::SetStyle(_)
-            | EditOp::ApplyTheme(_) => {
+            _ => {
                 return Err(CodecError::UnsupportedOp {
                     op: op.name(),
                     format: DocumentFormat::Docx,

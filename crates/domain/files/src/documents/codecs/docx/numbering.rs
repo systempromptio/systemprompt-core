@@ -59,7 +59,7 @@ impl Numbering {
         def: Option<&str>,
         ordered: bool,
         settings: &DocumentSettings,
-    ) -> Option<u32> {
+    ) -> u32 {
         let builtin = if ordered {
             BUILTIN_DECIMAL
         } else {
@@ -70,7 +70,7 @@ impl Numbering {
             .cloned()
             .unwrap_or_else(|| builtin_def(builtin, ordered));
         if let Some(num) = self.assigned.get(&def.id) {
-            return Some(*num);
+            return *num;
         }
         let held = self.base.num_of.get(&def.id).and_then(|num| {
             let same = self.base.by_num.get(num).is_some_and(|base| {
@@ -78,12 +78,9 @@ impl Numbering {
             });
             same.then(|| num.parse::<u32>().ok()).flatten()
         });
-        let num = match held {
-            Some(num) => num,
-            None => self.add(&def),
-        };
+        let num = held.unwrap_or_else(|| self.add(&def));
         self.assigned.insert(def.id, num);
-        Some(num)
+        num
     }
 
     fn add(&mut self, def: &NumberingDef) -> u32 {
@@ -109,33 +106,30 @@ impl Numbering {
         if self.nums.is_empty() {
             return Ok(());
         }
-        let xml = match self.xml {
-            Some(xml) => {
-                let close = xml
-                    .rfind("</w:numbering>")
-                    .ok_or(malformed("word/numbering.xml is not closed"))?;
-                let first_num = xml.find("<w:num ").or_else(|| xml.find("<w:num>"));
-                let at = first_num.unwrap_or(close).min(close);
-                format!(
-                    "{}{}{}{}{}",
-                    &xml[..at],
-                    self.abstracts,
-                    &xml[at..close],
-                    self.nums,
-                    &xml[close..]
-                )
-            },
-            None => {
-                links
-                    .part_id("numbering", "numbering.xml")
-                    .ok_or(malformed("the document has no relationships part"))?;
-                edits.override_type(NUMBERING, CONTENT_TYPE);
-                format!(
-                    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><w:numbering \
-                     xmlns:w=\"{W_NS}\">{}{}</w:numbering>",
-                    self.abstracts, self.nums
-                )
-            },
+        let xml = if let Some(xml) = self.xml {
+            let close = xml
+                .rfind("</w:numbering>")
+                .ok_or(malformed("word/numbering.xml is not closed"))?;
+            let first_num = xml.find("<w:num ").or_else(|| xml.find("<w:num>"));
+            let at = first_num.unwrap_or(close).min(close);
+            format!(
+                "{}{}{}{}{}",
+                &xml[..at],
+                self.abstracts,
+                &xml[at..close],
+                self.nums,
+                &xml[close..]
+            )
+        } else {
+            links
+                .part_id("numbering", "numbering.xml")
+                .ok_or(malformed("the document has no relationships part"))?;
+            edits.override_type(NUMBERING, CONTENT_TYPE);
+            format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><w:numbering \
+                 xmlns:w=\"{W_NS}\">{}{}</w:numbering>",
+                self.abstracts, self.nums
+            )
         };
         edits.put(NUMBERING, xml.into_bytes());
         Ok(())

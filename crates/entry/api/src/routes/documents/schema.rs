@@ -18,7 +18,7 @@ use super::error::DocumentsResult;
 pub(super) async fn schema(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
-// JSON: the ModelViewV2 JSON Schema document.
+    // JSON: the ModelViewV2 JSON Schema document.
 ) -> DocumentsResult<Json<serde_json::Value>> {
     caller(&state, &req_ctx).await?;
     Ok(Json(model_view_schema().to_value()))

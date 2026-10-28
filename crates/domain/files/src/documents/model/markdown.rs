@@ -103,10 +103,9 @@ impl Builder {
 
     fn inline_html(&mut self, html: &str) {
         let tag = html.trim().trim_start_matches('<').trim_end_matches('>');
-        let (closing, name) = match tag.strip_prefix('/') {
-            Some(name) => (true, name),
-            None => (false, tag),
-        };
+        let (closing, name) = tag
+            .strip_prefix('/')
+            .map_or((false, tag), |name| (true, name));
         match INLINE_TAGS.iter().find(|(html, _)| *html == name) {
             Some((_, key)) if closing => self.inline.close_key(key),
             Some((_, key)) => {

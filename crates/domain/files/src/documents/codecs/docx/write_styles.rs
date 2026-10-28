@@ -148,13 +148,8 @@ pub(super) fn set_attr(
     let tag_end = element.inner_start.min(element.end);
     let tag = &xml[element.start..tag_end];
     let open = format!(" {name}=\"");
-    let rewritten = match tag.find(&open) {
-        Some(at) => {
-            let from = at + open.len();
-            let to = tag[from..].find('"').map_or(tag.len(), |len| from + len);
-            format!("{}{}{}", &tag[..from], escape_attr(value), &tag[to..])
-        },
-        None => {
+    let rewritten = tag.find(&open).map_or_else(
+        || {
             let close = if tag.ends_with("/>") {
                 tag.len() - 2
             } else {
@@ -167,6 +162,11 @@ pub(super) fn set_attr(
                 &tag[close..]
             )
         },
-    };
+        |at| {
+            let from = at + open.len();
+            let to = tag[from..].find('"').map_or(tag.len(), |len| from + len);
+            format!("{}{}{}", &tag[..from], escape_attr(value), &tag[to..])
+        },
+    );
     (element.start, tag_end, rewritten)
 }

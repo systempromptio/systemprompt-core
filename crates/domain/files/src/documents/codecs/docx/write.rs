@@ -45,8 +45,10 @@ pub(super) struct WriteCtx<'a> {
     pub(super) even_odd: bool,
     pub(super) update_fields: bool,
     pub(super) base_breaks: HashMap<String, (String, Section)>,
-    pub(super) saved_uploads: HashMap<String, Option<(String, Option<(u32, u32)>)>>,
+    pub(super) saved_uploads: HashMap<String, SavedUpload>,
 }
+
+pub(super) type SavedUpload = Option<(String, Option<(u32, u32)>)>;
 
 impl WriteCtx<'_> {
     pub(super) fn fail(&mut self, detail: impl Into<String>) {
@@ -106,12 +108,14 @@ fn paragraph(block: &Block, ctx: &mut WriteCtx<'_>, cell: Option<Align>) -> Stri
             ordered,
             numbering,
             ..
-        } => ctx
-            .numbering
-            .num_id(numbering.as_deref(), *ordered, &ctx.settings)
-            .map(|id| {
-                format!("<w:numPr><w:ilvl w:val=\"{level}\"/><w:numId w:val=\"{id}\"/></w:numPr>")
-            }),
+        } => {
+            let id = ctx
+                .numbering
+                .num_id(numbering.as_deref(), *ordered, &ctx.settings);
+            Some(format!(
+                "<w:numPr><w:ilvl w:val=\"{level}\"/><w:numId w:val=\"{id}\"/></w:numPr>"
+            ))
+        },
         _ => None,
     };
     let props = ppr(

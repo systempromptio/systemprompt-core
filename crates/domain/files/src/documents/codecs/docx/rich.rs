@@ -105,19 +105,16 @@ fn with_final_section(xml: String, base: &DocumentSettings, ctx: &mut WriteCtx<'
     {
         return xml;
     }
-    match final_sect(&xml) {
-        Some(range) => {
-            let written = match &base.section {
-                Some(held) => splice_sect_pr(&xml[range.clone()], held, &section, ctx),
-                None => sect_pr(&section, ctx),
-            };
-            format!("{}{written}{}", &xml[..range.start], &xml[range.end..])
-        },
-        None => {
-            let written = sect_pr(&section, ctx);
-            let at = insert_point(&xml);
-            format!("{}{written}{}", &xml[..at], &xml[at..])
-        },
+    if let Some(range) = final_sect(&xml) {
+        let written = match &base.section {
+            Some(held) => splice_sect_pr(&xml[range.clone()], held, &section, ctx),
+            None => sect_pr(&section, ctx),
+        };
+        format!("{}{written}{}", &xml[..range.start], &xml[range.end..])
+    } else {
+        let written = sect_pr(&section, ctx);
+        let at = insert_point(&xml);
+        format!("{}{written}{}", &xml[..at], &xml[at..])
     }
 }
 

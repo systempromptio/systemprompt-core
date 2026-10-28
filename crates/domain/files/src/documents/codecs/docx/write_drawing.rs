@@ -51,7 +51,7 @@ pub(super) fn image_block(block: &Block, ctx: &mut WriteCtx<'_>) -> String {
     };
     let (cx, cy) = size(*width, *height, natural);
     ctx.drawing_id = ctx.drawing_id.saturating_add(1);
-    let drawing = drawing(&rid, ctx.drawing_id, alt, cx, cy, *wrap);
+    let drawing = drawing(&rid, ctx.drawing_id, alt, (cx, cy), *wrap);
     let props = ppr(&block.attrs, None, None, "", None);
     let mut out = format!("<w:p>{props}<w:r><w:drawing>{drawing}</w:drawing></w:r></w:p>");
     if let Some(caption) = caption {
@@ -129,7 +129,7 @@ fn size(width: Option<u32>, height: Option<u32>, natural: Option<(u32, u32)>) ->
     (emu(w), emu(h))
 }
 
-fn drawing(rid: &str, id: u32, alt: &str, cx: u64, cy: u64, wrap: ImageWrap) -> String {
+fn drawing(rid: &str, id: u32, alt: &str, (cx, cy): (u64, u64), wrap: ImageWrap) -> String {
     let alt = escape_attr(alt);
     let graphic = format!(
         "<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a=\"{A_NS}\" noChangeAspect=\"1\"/>\

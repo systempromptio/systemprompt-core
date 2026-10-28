@@ -55,7 +55,10 @@ pub(super) fn read_ctx(bytes: &[u8]) -> Result<ReadCtx, CodecError> {
 
 fn is_running(target: &str) -> bool {
     let name = target.rsplit('/').next().unwrap_or(target);
-    (name.contains("header") || name.contains("footer")) && name.ends_with(".xml")
+    let xml = std::path::Path::new(name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("xml"));
+    (name.contains("header") || name.contains("footer")) && xml
 }
 
 pub(super) fn part_text(bytes: &[u8], name: &str) -> Result<Option<String>, CodecError> {
@@ -67,10 +70,10 @@ fn read_blocks(xml: &str, root: &Element, ctx: &ReadCtx) -> Vec<Block> {
         .iter()
         .filter_map(|child| match child.name.as_str() {
             "w:p" => Some(paragraph(xml, child, ctx).unwrap_or_else(|| raw(xml, child))),
-            "w:tbl" => Some(match table(xml, child, ctx) {
-                Some(kind) => Block::new(String::new(), kind, ""),
-                None => raw(xml, child),
-            }),
+            "w:tbl" => Some(table(xml, child, ctx).map_or_else(
+                || raw(xml, child),
+                |kind| Block::new(String::new(), kind, ""),
+            )),
             _ => None,
         })
         .collect()

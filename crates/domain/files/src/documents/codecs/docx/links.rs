@@ -92,8 +92,8 @@ impl Links {
         if let Some(id) = self.internal.get(&key) {
             return Some(id.clone());
         }
-        let id = (1..)
-            .map(|n: u32| format!("rIdSp{n}"))
+        let id = (1..=u32::MAX)
+            .map(|n| format!("rIdSp{n}"))
             .find(|id| !self.taken.contains(id))?;
         self.taken.insert(id.clone());
         self.internal.insert(key, id.clone());

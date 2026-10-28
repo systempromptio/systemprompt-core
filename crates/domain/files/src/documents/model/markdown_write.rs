@@ -18,7 +18,7 @@
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::inline::render_markdown;
-use super::layout::CalloutTone;
+use super::layout::{CalloutTone, CellProps, ImageWrap};
 use super::rich_text::{Block, BlockKind, RichText};
 
 pub(super) const REFUSED_MARKS: [&str; 6] = ["color", "highlight", "font", "size", "caps", "field"];
@@ -57,7 +57,7 @@ pub fn materialise(model: &RichText) -> Result<String, CodecError> {
     Ok(out)
 }
 
-fn refused(detail: String) -> CodecError {
+const fn refused(detail: String) -> CodecError {
     CodecError::Refused { detail }
 }
 
@@ -107,7 +107,7 @@ fn check_block(block: &Block) -> Result<(), CodecError> {
                     .cells
                     .iter()
                     .flatten()
-                    .all(|cell| *cell == Default::default());
+                    .all(|cell| *cell == CellProps::default());
             (!plain).then_some("table widths, styles, shading or merged cells")
         },
         BlockKind::Image {
@@ -115,19 +115,18 @@ fn check_block(block: &Block) -> Result<(), CodecError> {
             height,
             wrap,
             ..
-        } => (width.is_some() || height.is_some() || *wrap != Default::default())
+        } => (width.is_some() || height.is_some() || *wrap != ImageWrap::default())
             .then_some("an image size or wrap"),
         BlockKind::PageBreak => Some("a page break"),
         BlockKind::SectionBreak { .. } => Some("a section break"),
         BlockKind::Toc { .. } => Some("a table of contents"),
         _ => None,
     };
-    match what {
-        Some(what) => Err(refused(format!(
+    what.map_or(Ok(()), |what| {
+        Err(refused(format!(
             "block {id} holds {what}, which Markdown cannot hold"
-        ))),
-        None => Ok(()),
-    }
+        )))
+    })
 }
 
 fn write_block(out: &mut String, block: &Block) -> Result<(), CodecError> {

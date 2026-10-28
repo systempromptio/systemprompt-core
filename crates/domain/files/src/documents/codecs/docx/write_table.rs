@@ -12,8 +12,8 @@
 
 use super::markdown::BORDERS;
 use super::write::{WriteCtx, escape_attr, hex, write_in_cell};
-use crate::documents::model::RichText;
-use crate::documents::model::layout::{TableProps, VAlign};
+use crate::documents::model::layout::{CellProps, TableProps, VAlign};
+use crate::documents::model::{Block, RichText};
 
 const LOOK: &str = "<w:tblLook w:val=\"04A0\" w:firstRow=\"1\" w:lastRow=\"0\" \
     w:firstColumn=\"1\" w:lastColumn=\"0\" w:noHBand=\"0\" w:noVBand=\"1\"/>";
@@ -29,30 +29,7 @@ pub(super) fn table(rows: &[Vec<RichText>], props: &TableProps, ctx: &mut WriteC
     let widths: Vec<Option<u32>> = (0..columns)
         .map(|c| props.columns.get(c).and_then(|col| col.width))
         .collect();
-    let fixed = widths.iter().all(Option::is_some);
-    let mut out = String::from("<w:tbl><w:tblPr>");
-    if let Some(style) = &props.style {
-        out.push_str(&format!("<w:tblStyle w:val=\"{}\"/>", escape_attr(style)));
-    }
-    out.push_str("<w:tblW w:w=\"0\" w:type=\"auto\"/>");
-    if props.style.is_none() {
-        out.push_str(BORDERS);
-    }
-    if fixed {
-        out.push_str("<w:tblLayout w:type=\"fixed\"/>");
-    }
-    out.push_str(LOOK);
-    out.push_str("</w:tblPr><w:tblGrid>");
-    for width in &widths {
-        match width {
-            Some(points) => {
-                let twips = points.saturating_mul(20);
-                out.push_str(&format!("<w:gridCol w:w=\"{twips}\"/>"));
-            },
-            None => out.push_str("<w:gridCol/>"),
-        }
-    }
-    out.push_str("</w:tblGrid>");
+    let mut out = head(props, &widths);
     let mut remaining = vec![0u32; columns];
     let mut spans = vec![1u32; columns];
     for (r, row) in rows.iter().enumerate() {
@@ -86,29 +63,16 @@ pub(super) fn table(rows: &[Vec<RichText>], props: &TableProps, ctx: &mut WriteC
                 }
                 spans[c] = span;
             }
-            let mut tc_pr = tc_width(&widths, c, span) + &grid_span(span);
-            if cell.rowspan() > 1 {
-                tc_pr.push_str("<w:vMerge w:val=\"restart\"/>");
-            }
-            if let Some(fill) = cell.shade.as_deref().and_then(hex) {
-                tc_pr.push_str(&format!(
-                    "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"{fill}\"/>"
-                ));
-            }
-            if let Some(valign) = cell.valign {
-                tc_pr.push_str(&format!("<w:vAlign w:val=\"{}\"/>", valign_name(valign)));
-            }
-            let mut body = String::new();
-            for block in row
+            let content = row
                 .get(c)
-                .map_or(&[][..], |content| content.blocks.as_slice())
-            {
-                body.push_str(&write_in_cell(block, ctx, cell.align));
-            }
-            if body.is_empty() {
-                body.push_str("<w:p/>");
-            }
-            out.push_str(&format!("<w:tc><w:tcPr>{tc_pr}</w:tcPr>{body}</w:tc>"));
+                .map_or(&[][..], |content| content.blocks.as_slice());
+            out.push_str(&origin_cell(
+                &cell,
+                content,
+                tc_width(&widths, c, span),
+                span,
+                ctx,
+            ));
             c += span as usize;
         }
         out.push_str("</w:tr>");
@@ -117,15 +81,71 @@ pub(super) fn table(rows: &[Vec<RichText>], props: &TableProps, ctx: &mut WriteC
     out
 }
 
+fn head(props: &TableProps, widths: &[Option<u32>]) -> String {
+    let mut out = String::from("<w:tbl><w:tblPr>");
+    if let Some(style) = &props.style {
+        out.push_str(&format!("<w:tblStyle w:val=\"{}\"/>", escape_attr(style)));
+    }
+    out.push_str("<w:tblW w:w=\"0\" w:type=\"auto\"/>");
+    if props.style.is_none() {
+        out.push_str(BORDERS);
+    }
+    if widths.iter().all(Option::is_some) {
+        out.push_str("<w:tblLayout w:type=\"fixed\"/>");
+    }
+    out.push_str(LOOK);
+    out.push_str("</w:tblPr><w:tblGrid>");
+    for width in widths {
+        match width {
+            Some(points) => {
+                let twips = points.saturating_mul(20);
+                out.push_str(&format!("<w:gridCol w:w=\"{twips}\"/>"));
+            },
+            None => out.push_str("<w:gridCol/>"),
+        }
+    }
+    out.push_str("</w:tblGrid>");
+    out
+}
+
+fn origin_cell(
+    cell: &CellProps,
+    content: &[Block],
+    width: String,
+    span: u32,
+    ctx: &mut WriteCtx<'_>,
+) -> String {
+    let mut tc_pr = width + &grid_span(span);
+    if cell.rowspan() > 1 {
+        tc_pr.push_str("<w:vMerge w:val=\"restart\"/>");
+    }
+    if let Some(fill) = cell.shade.as_deref().and_then(hex) {
+        tc_pr.push_str(&format!(
+            "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"{fill}\"/>"
+        ));
+    }
+    if let Some(valign) = cell.valign {
+        tc_pr.push_str(&format!("<w:vAlign w:val=\"{}\"/>", valign_name(valign)));
+    }
+    let mut body: String = content
+        .iter()
+        .map(|block| write_in_cell(block, ctx, cell.align))
+        .collect();
+    if body.is_empty() {
+        body.push_str("<w:p/>");
+    }
+    format!("<w:tc><w:tcPr>{tc_pr}</w:tcPr>{body}</w:tc>")
+}
+
 fn tc_width(widths: &[Option<u32>], from: usize, span: u32) -> String {
     let covered = widths.iter().skip(from).take(span as usize);
     let total = covered
         .map(|w| w.map(|points| points.saturating_mul(20)))
         .try_fold(0u32, |sum, twips| twips.map(|t| sum.saturating_add(t)));
-    match total {
-        Some(twips) => format!("<w:tcW w:w=\"{twips}\" w:type=\"dxa\"/>"),
-        None => "<w:tcW w:w=\"0\" w:type=\"auto\"/>".to_owned(),
-    }
+    total.map_or_else(
+        || "<w:tcW w:w=\"0\" w:type=\"auto\"/>".to_owned(),
+        |twips| format!("<w:tcW w:w=\"{twips}\" w:type=\"dxa\"/>"),
+    )
 }
 
 fn grid_span(span: u32) -> String {

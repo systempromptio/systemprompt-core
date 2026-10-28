@@ -123,6 +123,10 @@ pub fn saved_upload_hashes(bytes: &[u8], wanted: &[String], limit: u64) -> Vec<S
     let Ok(mut archive) = ZipArchive::new(Cursor::new(bytes)) else {
         return Vec::new();
     };
+    #[expect(
+        clippy::needless_collect,
+        reason = "the names borrow the archive, which by_name then borrows mutably"
+    )]
     let names: Vec<(String, String)> = archive
         .file_names()
         .filter_map(Result::ok)

@@ -73,13 +73,12 @@ pub fn create_content(content: Option<serde_json::Value>) -> Result<Option<RichT
             Ok(Some(markdown::import(markdown)))
         },
         Some((key, value)) if key == "model" => {
-            let view: ModelViewV2 =
-                serde_json::from_value(value.clone()).map_err(|source| {
-                    tool_error(DocumentsError::Codec(CodecError::Payload {
-                        what: "content.model",
-                        source,
-                    }))
-                })?;
+            let view: ModelViewV2 = serde_json::from_value(value.clone()).map_err(|source| {
+                tool_error(DocumentsError::Codec(CodecError::Payload {
+                    what: "content.model",
+                    source,
+                }))
+            })?;
             if view.version > RICH_TEXT_VERSION || view.kind != "rich_text" {
                 return Err(invalid(format!(
                     "content.model is {} v{}; this server reads rich_text up to v{RICH_TEXT_VERSION}; \

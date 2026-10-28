@@ -199,7 +199,10 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
     vec![
         compact(ListHandler { tools }.tool_definition(server), false),
         compact(SearchHandler { tools }.tool_definition(server), false),
-        plain_ops(compact(CreateHandler { tools }.tool_definition(server), false)),
+        plain_ops(compact(
+            CreateHandler { tools }.tool_definition(server),
+            false,
+        )),
         compact(ReadHandler { tools }.tool_definition(server), false),
         compact(EditHandler { tools }.tool_definition(server), false),
         compact(CommentHandler { tools }.tool_definition(server), false),

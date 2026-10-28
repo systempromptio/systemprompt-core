@@ -161,19 +161,18 @@ pub(super) fn finish_settings(ctx: &mut WriteCtx<'_>) -> Result<(), CodecError> 
     if wanted.is_empty() {
         return Ok(());
     }
-    let mut xml = match part_text(ctx.base, SETTINGS)? {
-        Some(xml) => xml,
-        None => {
-            ctx.links
-                .part_id("settings", "settings.xml")
-                .ok_or(malformed("the document has no relationships part"))?;
-            ctx.edits
-                .override_type(SETTINGS, &format!("{PART_TYPE}.settings+xml"));
-            format!(
-                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><w:settings \
-                 xmlns:w=\"{W_NS}\"></w:settings>"
-            )
-        },
+    let mut xml = if let Some(xml) = part_text(ctx.base, SETTINGS)? {
+        xml
+    } else {
+        ctx.links
+            .part_id("settings", "settings.xml")
+            .ok_or(malformed("the document has no relationships part"))?;
+        ctx.edits
+            .override_type(SETTINGS, &format!("{PART_TYPE}.settings+xml"));
+        format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><w:settings \
+             xmlns:w=\"{W_NS}\"></w:settings>"
+        )
     };
     for (element, tag, followers) in wanted {
         if xml.contains(tag) {

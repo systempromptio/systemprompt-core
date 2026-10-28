@@ -24,24 +24,7 @@ pub(super) fn table(xml: &str, tbl: &Element, ctx: &ReadCtx) -> Option<BlockKind
     {
         return None;
     }
-    let mut props = TableProps {
-        style: tbl
-            .child("w:tblPr")
-            .and_then(|p| p.child("w:tblStyle"))
-            .and_then(|s| s.attr("w:val"))
-            .map(str::to_owned),
-        columns: tbl
-            .child("w:tblGrid")
-            .map(|grid| {
-                grid.children_named("w:gridCol")
-                    .map(|col| Column {
-                        width: col.attr("w:w").and_then(points),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default(),
-        ..TableProps::default()
-    };
+    let mut props = table_props(tbl);
     let mut rows: Vec<Vec<RichText>> = Vec::new();
     let mut cells: Vec<Vec<CellProps>> = Vec::new();
     let mut header = true;
@@ -95,6 +78,27 @@ pub(super) fn table(xml: &str, tbl: &Element, ctx: &ReadCtx) -> Option<BlockKind
         props.cells = cells;
     }
     Some(BlockKind::Table { rows, props })
+}
+
+fn table_props(tbl: &Element) -> TableProps {
+    TableProps {
+        style: tbl
+            .child("w:tblPr")
+            .and_then(|p| p.child("w:tblStyle"))
+            .and_then(|s| s.attr("w:val"))
+            .map(str::to_owned),
+        columns: tbl
+            .child("w:tblGrid")
+            .map(|grid| {
+                grid.children_named("w:gridCol")
+                    .map(|col| Column {
+                        width: col.attr("w:w").and_then(points),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
+        ..TableProps::default()
+    }
 }
 
 fn extend_rowspan(cells: &mut [Vec<CellProps>], column: usize) {

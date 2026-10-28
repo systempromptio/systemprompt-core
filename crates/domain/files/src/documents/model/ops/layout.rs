@@ -21,7 +21,7 @@ use crate::documents::model::document::{StyleDef, Theme};
 use crate::documents::model::layout::{CellProps, Column, ParaAttrs, Section};
 use crate::documents::model::{Block, BlockKind, RichText};
 
-fn refused(detail: String) -> CodecError {
+const fn refused(detail: String) -> CodecError {
     CodecError::Refused { detail }
 }
 
@@ -33,7 +33,7 @@ fn parse<T: DeserializeOwned>(
     serde_json::from_value(value.clone()).map_err(|source| CodecError::Payload { what, source })
 }
 
-fn accepts(format: DocumentFormat, op: &'static str) -> Result<(), CodecError> {
+const fn accepts(format: DocumentFormat, op: &'static str) -> Result<(), CodecError> {
     match format {
         DocumentFormat::Docx | DocumentFormat::Markdown => Ok(()),
         _ => Err(CodecError::UnsupportedOp { op, format }),
@@ -52,11 +52,10 @@ pub(super) fn set_paragraph(
             block.id
         )));
     }
-    let mut merged =
-        serde_json::to_value(&block.attrs).map_err(|source| CodecError::Payload {
-            what: "the block's attributes",
-            source,
-        })?;
+    let mut merged = serde_json::to_value(&block.attrs).map_err(|source| CodecError::Payload {
+        what: "the block's attributes",
+        source,
+    })?;
     let (Some(held), Some(given)) = (merged.as_object_mut(), op.attrs.as_object()) else {
         return Err(refused("set_paragraph.attrs must be an object".to_owned()));
     };
@@ -145,11 +144,11 @@ pub(super) fn update_table(
             if props.cells.len() <= cell.row {
                 props.cells.resize_with(cell.row + 1, Vec::new);
             }
-            let styles = &mut props.cells[cell.row];
-            if styles.len() <= cell.col {
-                styles.resize_with(cell.col + 1, CellProps::default);
+            let row_props = &mut props.cells[cell.row];
+            if row_props.len() <= cell.col {
+                row_props.resize_with(cell.col + 1, CellProps::default);
             }
-            styles[cell.col] = styled;
+            row_props[cell.col] = styled;
         }
     }
     if let Some(widths) = &op.widths {

@@ -25,7 +25,9 @@ pub struct SetParagraph {
     pub node: NodeTarget,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_hash: Option<String>,
-    #[schemars(description = "Paragraph attributes: `style`, `align`, `indent`, `space_before`, `space_after`, `keep_with_next`. Merged into the block's attributes; a `null` value clears that attribute.")]
+    #[schemars(
+        description = "Paragraph attributes: `style`, `align`, `indent`, `space_before`, `space_after`, `keep_with_next`. Merged into the block's attributes; a `null` value clears that attribute."
+    )]
     // JSON: RichText v2 JSON; this crate sits below the model that parses it.
     pub attrs: serde_json::Value,
 }
@@ -69,7 +71,9 @@ pub struct UpdateTable {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SetSection {
-    #[schemars(description = "Page size, orientation, margins, headers and footers of the document's last section.")]
+    #[schemars(
+        description = "Page size, orientation, margins, headers and footers of the document's last section."
+    )]
     // JSON: RichText v2 JSON; this crate sits below the model that parses it.
     pub section: serde_json::Value,
 }

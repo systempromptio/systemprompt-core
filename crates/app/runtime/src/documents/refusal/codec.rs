@@ -47,7 +47,9 @@ pub(super) fn codec_refusal(error: &CodecError) -> Option<Refused> {
             matches: Some(*matches),
             ..Refusal::new(RefusalCode::FindNone)
         },
-        CodecError::UnsupportedOp { .. } => Refusal::new(RefusalCode::UnsupportedOp),
+        CodecError::UnsupportedOp { .. } | CodecError::Refused { .. } => {
+            Refusal::new(RefusalCode::UnsupportedOp)
+        },
         CodecError::UnknownNode { node } => Refusal {
             node: Some(node.clone()),
             ..Refusal::new(RefusalCode::NotFound)
@@ -58,11 +60,9 @@ pub(super) fn codec_refusal(error: &CodecError) -> Option<Refused> {
             current_text,
             ..
         } => guard_mismatch(node, actual, current_text),
-        CodecError::Malformed { .. } | CodecError::Parse { .. } => {
+        CodecError::Malformed { .. } | CodecError::Parse { .. } | CodecError::Payload { .. } => {
             Refusal::new(RefusalCode::InvalidParams)
         },
-        CodecError::Refused { .. } => Refusal::new(RefusalCode::UnsupportedOp),
-        CodecError::Payload { .. } => Refusal::new(RefusalCode::InvalidParams),
         CodecError::Io(_) => return None,
     };
     Some(refusal.with_message(message))

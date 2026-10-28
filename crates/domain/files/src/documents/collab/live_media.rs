@@ -18,7 +18,8 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCollabDegradedEvent, DocumentFormat};
 use systemprompt_provider_contracts::documents::CodecError;
 
-use super::document::{ModelError, materialise};
+use super::document::{ModelError, materialise, unchanged_from};
+use super::entry::CollabEntry;
 use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
 use crate::documents::engine::ModelView;
@@ -31,6 +32,24 @@ pub(super) struct LiveModel {
     pub(super) media: Media,
     held: Vec<String>,
     pub(super) refused: Vec<String>,
+}
+
+pub(super) struct LiveState {
+    pub(super) format: DocumentFormat,
+    pub(super) session: DocumentEditSession,
+    pub(super) owners: ImageOwners,
+    pub(super) model: ModelView,
+}
+
+impl LiveState {
+    pub(super) fn of(entry: &CollabEntry) -> Self {
+        Self {
+            format: entry.format,
+            session: entry.session.clone(),
+            owners: entry.images.clone(),
+            model: entry.doc.export_model(),
+        }
+    }
 }
 
 impl CollabService {
@@ -82,6 +101,31 @@ impl CollabService {
         }
     }
 
+    pub(super) async fn changed_live(
+        &self,
+        state: LiveState,
+        who: &AuthenticatedUser,
+        base_bytes: &[u8],
+        trace: &TraceId,
+    ) -> Option<LiveModel> {
+        let live = self
+            .admit_live(state.format, &state.owners, base_bytes, state.model)
+            .await;
+        if !live.refused.is_empty()
+            && let Err(error) = self
+                .notify_degraded(&state.session, who, live.refused.clone(), trace)
+                .await
+        {
+            tracing::warn!(%error, "degraded checkpoint could not be announced");
+        }
+        let unchanged = unchanged_from(state.format, base_bytes, &live.model, &live.media)
+            .inspect_err(|error| {
+                tracing::warn!(%error, "live checkpoint could not compare with its base");
+            })
+            .unwrap_or(false);
+        (!unchanged).then_some(live)
+    }
+
     pub(super) async fn notify_degraded(
         &self,
         session: &DocumentEditSession,
@@ -115,7 +159,7 @@ fn placeholders(model: &mut RichText, refused: &[String]) -> bool {
             && refused.contains(blob)
         {
             block.kind = BlockKind::Paragraph;
-            block.text = PLACEHOLDER.to_owned();
+            PLACEHOLDER.clone_into(&mut block.text);
             block.marks.clear();
             changed = true;
             continue;

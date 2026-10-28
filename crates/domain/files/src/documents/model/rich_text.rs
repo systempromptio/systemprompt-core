@@ -94,7 +94,9 @@ pub enum BlockKind {
         ordered: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         numbering: Option<String>,
-        #[schemars(description = "A task-list item's box: `Some(true)` ticked, `Some(false)` open.")]
+        #[schemars(
+            description = "A task-list item's box: `Some(true)` ticked, `Some(false)` open."
+        )]
         #[serde(default, skip_serializing_if = "Option::is_none")]
         checked: Option<bool>,
     },
@@ -124,7 +126,9 @@ pub enum BlockKind {
     Callout {
         tone: CalloutTone,
     },
-    #[schemars(description = "A footnote's text; `footnote` marks in the body reference its label.")]
+    #[schemars(
+        description = "A footnote's text; `footnote` marks in the body reference its label."
+    )]
     Footnote {
         label: String,
     },
