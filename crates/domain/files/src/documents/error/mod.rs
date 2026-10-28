@@ -92,6 +92,8 @@ pub enum DocumentsError {
     AnchorsAffected { comments: Vec<DocumentCommentId> },
     #[error("invalid comment: {detail}")]
     InvalidComment { detail: &'static str },
+    #[error("invalid awareness state: {detail}")]
+    InvalidAwareness { detail: &'static str },
     #[error("comment {comment_id} does not belong to document {document_id}")]
     CommentNotFound {
         document_id: DocumentId,

@@ -42,6 +42,7 @@ use super::cache_invalidation::{
 
 use super::repository::EventOutboxRepository;
 use super::routing::{EventBroadcasters, EventRouter, OUTBOX_CHANNEL, OutboxChannel};
+use super::topics::TopicEvent;
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
@@ -263,6 +264,12 @@ impl PostgresEventBridge {
                     local.route_analytics_local(user_id, event).await;
                 },
                 Err(e) => error!(error = %e, "event bridge: failed to decode analytics event"),
+            },
+            OutboxChannel::Topic => match serde_json::from_value::<TopicEvent>(payload) {
+                Ok(event) => {
+                    local.route_topic_local(event);
+                },
+                Err(e) => error!(error = %e, "event bridge: failed to decode topic event"),
             },
         }
     }

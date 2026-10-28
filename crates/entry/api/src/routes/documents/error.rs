@@ -260,6 +260,7 @@ fn api_error(error: DocumentsError, message: String) -> ApiError {
         | DocumentsError::UnsupportedFormat { .. }
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::InvalidComment { .. }
+        | DocumentsError::InvalidAwareness { .. }
         | DocumentsError::InvalidMove { .. } => ApiError::bad_request(message),
         DocumentsError::UnsupportedOp { .. } => {
             ApiError::bad_request(message).with_error_key("edit_rejected")

@@ -77,6 +77,7 @@ pub fn tool_error(error: DocumentsError) -> McpError {
         | DocumentsError::InvalidMove { .. }
         | DocumentsError::InvalidCursor { .. }
         | DocumentsError::ProposalClosed { .. }
+        | DocumentsError::InvalidAwareness { .. }
         | DocumentsError::InvalidComment { .. } => {
             return plain_refusal(&error).map_or_else(
                 || internal_failure(&error),
@@ -109,6 +110,7 @@ const fn plain_refusal(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::InvalidMove { .. }
         | DocumentsError::InvalidCursor { .. }
         | DocumentsError::ProposalClosed { .. }
+        | DocumentsError::InvalidAwareness { .. }
         | DocumentsError::InvalidComment { .. } => RefusalCode::InvalidParams,
         _ => return None,
     })

@@ -14,6 +14,7 @@ use systemprompt_identifiers::{
 };
 
 use super::access::{AccessLevel, ActorKind, ProposalStatus, RevisionOriginKind};
+use super::awareness::DocumentAwarenessEvent;
 use super::drive::{PresenceSource, PresenceState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -44,10 +45,12 @@ pub enum DocumentEventName {
     ProposalRejected,
     #[serde(rename = "document.proposal.superseded")]
     ProposalSuperseded,
+    #[serde(rename = "document.awareness")]
+    Awareness,
 }
 
 impl DocumentEventName {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::RevisionCreated,
         Self::Presence,
         Self::Lock,
@@ -61,6 +64,7 @@ impl DocumentEventName {
         Self::ProposalAccepted,
         Self::ProposalRejected,
         Self::ProposalSuperseded,
+        Self::Awareness,
     ];
 
     #[must_use]
@@ -79,6 +83,7 @@ impl DocumentEventName {
             Self::ProposalAccepted => DocumentProposalEvent::ACCEPTED,
             Self::ProposalRejected => DocumentProposalEvent::REJECTED,
             Self::ProposalSuperseded => DocumentProposalEvent::SUPERSEDED,
+            Self::Awareness => DocumentAwarenessEvent::NAME,
         }
     }
 

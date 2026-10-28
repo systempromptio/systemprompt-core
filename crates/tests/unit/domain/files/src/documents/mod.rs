@@ -23,6 +23,7 @@ mod collab_model;
 mod engine_loro;
 mod commit_plan;
 mod docx_fixture;
+mod live_resume;
 mod node_ids;
 mod odf_fixture;
 mod pptx_fixture;

@@ -73,6 +73,7 @@ fn round_trip_all_variants() {
         OutboxChannel::A2A,
         OutboxChannel::System,
         OutboxChannel::Analytics,
+        OutboxChannel::Topic,
     ];
     for variant in variants {
         let s = variant.as_str();
@@ -95,6 +96,7 @@ fn every_channel_round_trips_through_parse() {
         OutboxChannel::A2A,
         OutboxChannel::System,
         OutboxChannel::Analytics,
+        OutboxChannel::Topic,
     ] {
         assert_eq!(OutboxChannel::parse(channel.as_str()), Some(channel));
     }

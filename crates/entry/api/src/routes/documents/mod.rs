@@ -7,7 +7,8 @@
 //! blob store directly. Content is streamed with the head's content hash as
 //! the `ETag`, and writes name their base revision in `If-Match`. With the
 //! `collab` feature the `/{id}/collab/*` routes co-edit HTML and Markdown
-//! documents live.
+//! documents live. `/{id}/live` is the document's live channel and
+//! `/{id}/collab/awareness` posts awareness; both work without an engine.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,6 +29,7 @@ mod history;
 mod items;
 mod lifecycle;
 mod listing;
+mod live;
 mod proposals;
 mod read;
 mod sharing;
@@ -140,6 +142,8 @@ pub fn router(state: DocumentsState) -> Router {
         )
         .route("/{id}/edits", post(commits::edits))
         .route("/{id}/read", get(read::read))
+        .route("/{id}/live", get(live::live))
+        .route("/{id}/collab/awareness", post(live::awareness))
         .route("/{id}/comments", get(comments::list).post(comments::create))
         .route(
             "/{id}/comments/{comment_id}/resolve",

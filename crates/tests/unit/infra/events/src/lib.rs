@@ -23,3 +23,6 @@ mod services;
 
 #[cfg(test)]
 mod sse;
+
+#[cfg(test)]
+mod topics;

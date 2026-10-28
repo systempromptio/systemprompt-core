@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod access;
+pub mod awareness;
 pub mod drive;
 pub mod events;
 pub mod uri;
@@ -19,6 +20,10 @@ pub mod uri;
 pub use access::{
     AccessLevel, ActorKind, AgentEditPolicy, DocumentAction, EditMode, ProposalStatus,
     RevisionOriginKind, UnknownDocumentValue,
+};
+pub use awareness::{
+    AwarenessCursor, AwarenessMode, AwarenessState, AwarenessViewport, DocumentAwarenessEvent,
+    DocumentLiveClosedEvent, DocumentLiveReadyEvent, DocumentLiveResyncEvent, LiveResyncReason,
 };
 pub use drive::{
     DriveChange, DriveChangeKind, DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveEntry,

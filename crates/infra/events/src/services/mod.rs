@@ -11,6 +11,7 @@ pub mod cache_invalidation;
 pub mod durable;
 mod repository;
 mod routing;
+mod topics;
 
 pub use bridge::PostgresEventBridge;
 pub use bridge_handle::{EventBridgeHandle, RelayStatus};
@@ -26,3 +27,4 @@ pub use repository::EventsOwnerReassignment;
 pub use routing::{
     BroadcasterConnections, EventBroadcasters, EventRouter, OUTBOX_CHANNEL, OutboxChannel,
 };
+pub use topics::{TOPIC_BUFFER, TopicBroadcaster, TopicEvent};
