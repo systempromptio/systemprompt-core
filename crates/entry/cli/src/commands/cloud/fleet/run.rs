@@ -45,6 +45,7 @@ struct TenantRun {
     tenant_id: TenantId,
     tenant: String,
     exit_code: Option<i32>,
+    // JSON: the command's own output, echoed as the tenant returned it.
     #[serde(skip_serializing_if = "Option::is_none")]
     output: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

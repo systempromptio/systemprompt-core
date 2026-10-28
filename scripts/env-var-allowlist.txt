@@ -24,7 +24,7 @@ crates/shared/models/src/net/mod.rs  # SYSTEMPROMPT_TRUSTED_HTTP_HOSTS — docum
 crates/domain/agent/src/services/agent_orchestration/process/command.rs  # env lookup closure for inherited_parent_env (deployment-host vars, HOSTNAME, POD_NAME, PATH, HOME, SYSTEMPROMPT_TRUSTED_HTTP_HOSTS) after env_clear on the agent child
 crates/domain/mcp/src/services/process/spawner.rs  # env lookup closure passing the operator-named `env_vars` of an MCP service config into the child after env_clear
 crates/entry/cli/src/commands/admin/config/secret_check.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection and OAUTH_AT_REST_PEPPER presence for resolve_source (secrets `env` source)
-crates/entry/cli/src/commands/cloud/deploy/pipeline/orchestrator.rs  # collect_bootstrap_env lookup closure for the operator-listed --bootstrap-env variables pushed to Vault
+crates/entry/cli/src/commands/cloud/deploy/pipeline/secrets.rs  # collect_bootstrap_env lookup closure for the operator-listed --bootstrap-env variables pushed to Vault
 crates/entry/cli/src/commands/cloud/doctor/vault_checks.rs  # VaultKvProvider::from_config lookup closure — Vault credentials from the secrets `env` source
 crates/entry/cli/src/commands/cloud/profile/templates.rs  # SYSTEMPROMPT_SERVICES_PATH subprocess boot variable
 crates/entry/cli/src/commands/core/services/publish.rs  # --auth env:VAR — operator names the registry credential variable explicitly on the CLI

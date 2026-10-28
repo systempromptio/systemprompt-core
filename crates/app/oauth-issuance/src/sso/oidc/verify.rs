@@ -68,6 +68,8 @@ pub async fn validate_id_token(
     Ok(identity)
 }
 
+// JSON: the ID token's claim set is provider-defined; only the standard
+// claims are read, the rest is passed through untyped.
 pub fn identity_from_claims(
     claims: Value,
     cfg: &OidcConfig,
@@ -122,6 +124,7 @@ pub fn identity_from_claims(
     })
 }
 
+// JSON: a provider claim that may be a bool or a string flag.
 fn claim_flag(value: Option<&Value>) -> bool {
     match value {
         Some(Value::Bool(flag)) => *flag,
@@ -130,6 +133,7 @@ fn claim_flag(value: Option<&Value>) -> bool {
     }
 }
 
+// JSON: a provider claim that may be a string or an array of strings.
 fn claim_strings(value: Option<&Value>) -> Vec<String> {
     match value {
         Some(Value::Array(values)) => values
