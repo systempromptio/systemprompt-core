@@ -673,7 +673,7 @@ coverage:
     PROFDIR="$ROOT/coverage-report/profraw"
     TDIR="${COVERAGE_TARGET_DIR:-$ROOT/coverage-report/target}"
     : "${CARGO_BUILD_JOBS:=2}"
-    : "${CARGO_PROFILE_DEV_DEBUG:=line-tables-only}"
+    : "${CARGO_PROFILE_DEV_DEBUG:=0}"
     : "${CARGO_INCREMENTAL:=0}"
     export CARGO_BUILD_JOBS CARGO_PROFILE_DEV_DEBUG CARGO_INCREMENTAL
     rm -rf "$PROFDIR" "$ROOT/coverage-report/tests.profdata"

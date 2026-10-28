@@ -48,9 +48,11 @@ env:
   # is also why cargo-llvm-cov (which merges target rustflags back in) is not
   # used on Linux.
   RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
-  # Coverage needs line mapping, not full debuginfo. Incremental artifacts are
-  # neither cacheable by sccache nor useful on a one-shot runner.
-  CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
+  # llvm-cov reads the coverage mapping sections, not DWARF, so debuginfo is
+  # off: the counted lines are identical and every object, link and archive is
+  # several times smaller. Incremental artifacts are neither cacheable by
+  # sccache nor useful on a one-shot runner.
+  CARGO_PROFILE_DEV_DEBUG: "0"
   CARGO_INCREMENTAL: "0"
   # sccache keys every object on the full rustc argument list, RUSTFLAGS
   # included, so an instrumented object is only ever served to an instrumented
@@ -137,6 +139,8 @@ jobs:
           sudo mkswap /mnt/coverage-swap >/dev/null
           sudo swapon /mnt/coverage-swap
           echo "cores: $(nproc)"; free -h; df -h / /mnt
+          # Memory high-water mark for the build steps, read back after them.
+          (while sleep 10; do free -m | awk '/Mem:/{m=$3} /Swap:/{s=$3} END{print m, s}'; done) > /mnt/discard/mem.log 2>&1 &
 
       - name: Install libdbus (bridge test bins link keyring -> dbus)
         timeout-minutes: 12
@@ -180,6 +184,8 @@ jobs:
           (cd /mnt/out && sha256sum tests.tar.zst > tests.tar.zst.sha256)
           ls -lh /mnt/out; df -h / /mnt
 
+      - name: Peak memory (MiB used RAM / swap)
+        run: sort -n /mnt/discard/mem.log | tail -1; sort -k2 -n /mnt/discard/mem.log | tail -1
       - run: sccache --show-stats
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -208,6 +214,8 @@ jobs:
           sudo mkdir -p /mnt/coverage-target /mnt/discard /mnt/out
           sudo chown -R "$USER" /mnt/coverage-target /mnt/discard /mnt/out
           echo "cores: $(nproc)"; free -h; df -h / /mnt
+          # Memory high-water mark for the build steps, read back after them.
+          (while sleep 10; do free -m | awk '/Mem:/{m=$3} /Swap:/{s=$3} END{print m, s}'; done) > /mnt/discard/mem.log 2>&1 &
       - name: Install libdbus (the bridge links keyring -> dbus)
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
@@ -222,6 +230,8 @@ jobs:
           cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
           cp /mnt/coverage-target/debug/systemprompt /mnt/coverage-target/debug/systemprompt-bridge /mnt/out/
           ls -lh /mnt/out
+      - name: Peak memory (MiB used RAM / swap)
+        run: sort -n /mnt/discard/mem.log | tail -1; sort -k2 -n /mnt/discard/mem.log | tail -1
       - run: sccache --show-stats
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
