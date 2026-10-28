@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.owner AS \"owner!\",\n                      MAX(CASE g.access_level\n                          WHEN 'view' THEN 1 WHEN 'comment' THEN 2 WHEN 'edit' THEN 3\n                          WHEN 'share' THEN 4 WHEN 'own' THEN 5 END) AS \"rank\"\n               FROM UNNEST($3::int4[], $4::text[], $5::text[]) AS p(owner, kind, value)\n               JOIN document_grants g\n                 ON g.subject_kind = p.kind AND g.subject_value = p.value\n               WHERE (g.document_id = $1::text::uuid OR g.folder_id = ANY($2::text[]::uuid[]))\n                 AND (g.valid_until IS NULL OR g.valid_until > now())\n               GROUP BY p.owner",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "owner!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "rank",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "Int4Array",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "8b6f39c92e0ea9fd3df59e7d36ad2ccf1e8e0bc751e6a1603fb5a76d2df9b08b"
+}
