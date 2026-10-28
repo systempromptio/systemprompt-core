@@ -206,7 +206,7 @@ pub fn folders_router(state: DocumentsState) -> Router {
         .route("/", get(folders::list).post(folders::create))
         .route(
             "/{id}",
-            axum::routing::patch(folders::update).delete(folders::delete),
+            patch(folders::update).delete(folders::delete),
         )
         .route(
             "/{id}/grants",
