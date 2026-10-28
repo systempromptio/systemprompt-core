@@ -1,10 +1,11 @@
 //! The content checks an assembled upload passes before it becomes a blob.
 //!
 //! [`inspect`] sniffs the first bytes against the declared MIME type, then
-//! runs the kind's own check: the [`office`] zip-bomb guard over ranged
-//! reads, the [`image`] dimension cap and metadata strip, or the [`svg`]
-//! active-content refusal. Images and SVG are read whole, bounded by their
-//! own size limits; every other kind is checked without being buffered. A
+//! runs the kind's own check: the `office` zip-bomb guard, which inflates
+//! every entry into a counter as the archive streams past, the `image`
+//! dimension cap and metadata strip, or the `svg` active-content refusal.
+//! Images and SVG are read whole, bounded by their own size limits; every
+//! other kind is checked without being buffered. A
 //! type with no check of its own is stored as an opaque blob.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

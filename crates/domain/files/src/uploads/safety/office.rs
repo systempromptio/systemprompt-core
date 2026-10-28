@@ -1,71 +1,47 @@
 //! The zip-bomb guard for Office and OpenDocument uploads.
 //!
-//! The guard reads only the archive's end-of-central-directory record and
-//! its central directory, by ranged reads, so it never holds the archive in
-//! memory. It refuses an archive with more entries than allowed, a total
-//! declared uncompressed size over the limit, or an entry (over 1 MiB)
-//! whose compression ratio is past the limit. Zip64 archives are refused:
-//! their sizes live in extra fields this guard does not trust. Sizes are as
-//! the archive declares them; the import codec decompresses under its own
-//! input limits, so a lying header is caught there.
+//! The archive is read once, front to back, through its local file headers,
+//! and every entry is actually inflated into a counter; nothing is written
+//! anywhere and the archive is never held in memory. Limits apply to the
+//! bytes the entries really expand to, never to the sizes the headers
+//! declare, so a lying header gains nothing: the guard refuses more entries
+//! than allowed, a running total of decompressed bytes over the limit, or an
+//! entry (over 1 MiB) or a whole archive whose real ratio is past the limit.
+//! Zip64 sizes are read from the zip64 extra field. Encrypted entries,
+//! compression methods other than stored and deflate, and a stored entry of
+//! unknown length are refused. Inflating runs on a blocking thread fed by
+//! the storage stream.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_traits::{ByteRange, FileStorage, StoredFileId};
+use std::io::{self, BufRead, BufReader, Read};
 
-use super::read_range;
+use bytes::Bytes;
+use flate2::bufread::DeflateDecoder;
+use futures_util::StreamExt;
+use systemprompt_traits::{FileStorage, StoredFileId};
+use tokio::sync::mpsc;
+
 use crate::config::UploadLimits;
 use crate::uploads::error::{RefusalReason, UploadError, UploadResult};
 
-const EOCD_SIGNATURE: [u8; 4] = [0x50, 0x4b, 0x05, 0x06];
-const CENTRAL_SIGNATURE: [u8; 4] = [0x50, 0x4b, 0x01, 0x02];
-const EOCD_LEN: usize = 22;
-const EOCD_SEARCH: u64 = (EOCD_LEN as u64) + 0xffff;
-const CENTRAL_HEADER_LEN: usize = 46;
+const LOCAL_SIGNATURE: u32 = 0x0403_4b50;
+const CENTRAL_SIGNATURE: u32 = 0x0201_4b50;
+const END_SIGNATURE: u32 = 0x0605_4b50;
+const ZIP64_END_SIGNATURE: u32 = 0x0606_4b50;
+const DESCRIPTOR_SIGNATURE: u32 = 0x0807_4b50;
+const ZIP64_EXTRA: u16 = 0x0001;
+const FLAG_ENCRYPTED: u16 = 0x0001;
+const FLAG_DESCRIPTOR: u16 = 0x0008;
+const METHOD_STORED: u16 = 0;
+const METHOD_DEFLATE: u16 = 8;
 const RATIO_FLOOR_BYTES: u64 = 1024 * 1024;
-const MAX_DIRECTORY_BYTES: u64 = 64 * 1024 * 1024;
+const READ_BUFFER: usize = 64 * 1024;
+const PIPE_DEPTH: usize = 8;
 
 fn refuse(detail: impl Into<String>) -> UploadError {
     UploadError::refused(RefusalReason::ArchiveLimits, detail)
-}
-
-fn u16_at(bytes: &[u8], at: usize) -> u64 {
-    bytes
-        .get(at..at + 2)
-        .map_or(0, |b| u64::from(u16::from_le_bytes([b[0], b[1]])))
-}
-
-fn u32_at(bytes: &[u8], at: usize) -> u64 {
-    bytes.get(at..at + 4).map_or(0, |b| {
-        u64::from(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-    })
-}
-
-struct Directory {
-    entries: u64,
-    size: u64,
-    offset: u64,
-}
-
-fn directory(tail: &[u8]) -> UploadResult<Directory> {
-    let at = tail
-        .windows(4)
-        .rposition(|window| window == EOCD_SIGNATURE)
-        .filter(|at| tail.len() - at >= EOCD_LEN)
-        .ok_or_else(|| refuse("the archive has no end-of-central-directory record"))?;
-    let record = &tail[at..];
-    let entries = u16_at(record, 10);
-    let size = u32_at(record, 12);
-    let offset = u32_at(record, 16);
-    if entries == 0xffff || size == 0xffff_ffff || offset == 0xffff_ffff {
-        return Err(refuse("zip64 archives are not accepted"));
-    }
-    Ok(Directory {
-        entries,
-        size,
-        offset,
-    })
 }
 
 pub(crate) async fn check(
@@ -74,57 +50,212 @@ pub(crate) async fn check(
     size: u64,
     limits: &UploadLimits,
 ) -> UploadResult<()> {
-    let tail = read_range(storage, id, ByteRange::Suffix(EOCD_SEARCH.min(size))).await?;
-    let found = directory(&tail)?;
-    if found.entries > limits.office_max_entries {
-        return Err(refuse(format!(
-            "{} entries exceed the {}-entry limit",
-            found.entries, limits.office_max_entries
-        )));
+    let mut body = storage.open(id, None).await?.body;
+    let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(PIPE_DEPTH);
+    let limits = *limits;
+    let scanning = tokio::task::spawn_blocking(move || {
+        scan(
+            BufReader::with_capacity(READ_BUFFER, Pipe::new(receiver)),
+            size,
+            &limits,
+        )
+    });
+    while let Some(chunk) = body.next().await {
+        if sender.send(chunk.map_err(io::Error::other)).await.is_err() {
+            break;
+        }
     }
-    if found.size == 0 || found.size > MAX_DIRECTORY_BYTES || found.offset + found.size > size {
-        return Err(refuse("the central directory is out of bounds"));
-    }
-    let range = ByteRange::Bounded {
-        start: found.offset,
-        end: found.offset + found.size - 1,
-    };
-    let central = read_range(storage, id, range).await?;
-    walk(&central, found.entries, size, limits)
+    drop(sender);
+    scanning
+        .await
+        .map_err(|error| refuse(format!("the archive scan stopped: {error}")))?
 }
 
-fn walk(central: &[u8], entries: u64, size: u64, limits: &UploadLimits) -> UploadResult<()> {
-    let mut at = 0usize;
-    let mut total: u64 = 0;
-    for _ in 0..entries {
-        let header = central
-            .get(at..at.saturating_add(CENTRAL_HEADER_LEN))
-            .filter(|header| header[..4] == CENTRAL_SIGNATURE)
-            .ok_or_else(|| refuse("the central directory is malformed"))?;
-        let compressed = u32_at(header, 20);
-        let uncompressed = u32_at(header, 24);
-        if compressed == 0xffff_ffff || uncompressed == 0xffff_ffff {
-            return Err(refuse("zip64 entries are not accepted"));
+/// The storage stream as a blocking reader.
+struct Pipe {
+    receiver: mpsc::Receiver<io::Result<Bytes>>,
+    current: Bytes,
+}
+
+impl Pipe {
+    const fn new(receiver: mpsc::Receiver<io::Result<Bytes>>) -> Self {
+        Self {
+            receiver,
+            current: Bytes::new(),
         }
-        if uncompressed > RATIO_FLOOR_BYTES
-            && uncompressed / compressed.max(1) > limits.office_max_ratio
-        {
+    }
+}
+
+impl Read for Pipe {
+    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+        while self.current.is_empty() {
+            match self.receiver.blocking_recv() {
+                Some(chunk) => self.current = chunk?,
+                None => return Ok(0),
+            }
+        }
+        let n = out.len().min(self.current.len());
+        out[..n].copy_from_slice(&self.current.split_to(n));
+        Ok(n)
+    }
+}
+
+struct Entry {
+    flags: u16,
+    method: u16,
+    compressed: u64,
+    zip64: bool,
+}
+
+fn u16_at(bytes: &[u8], at: usize) -> u16 {
+    u16::from_le_bytes([bytes[at], bytes[at + 1]])
+}
+
+fn u32_at(bytes: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]])
+}
+
+fn u64_at(bytes: &[u8], at: usize) -> Option<u64> {
+    let b = bytes.get(at..at + 8)?;
+    Some(u64::from_le_bytes([
+        b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+    ]))
+}
+
+fn read_u32(reader: &mut impl Read) -> io::Result<u32> {
+    let mut word = [0u8; 4];
+    reader.read_exact(&mut word)?;
+    Ok(u32::from_le_bytes(word))
+}
+
+fn skip(reader: &mut impl Read, len: u64) -> io::Result<()> {
+    let skipped = io::copy(&mut reader.take(len), &mut io::sink())?;
+    if skipped == len {
+        Ok(())
+    } else {
+        Err(io::ErrorKind::UnexpectedEof.into())
+    }
+}
+
+/// The zip64 compressed size, when the 32-bit field defers to the extra.
+fn zip64_compressed(extra: &[u8], uncompressed32: u32, compressed32: u32) -> Option<u64> {
+    let mut at = 0;
+    while at + 4 <= extra.len() {
+        let id = u16_at(extra, at);
+        let len = usize::from(u16_at(extra, at + 2));
+        let data = extra.get(at + 4..at + 4 + len)?;
+        if id == ZIP64_EXTRA {
+            let skip_uncompressed = if uncompressed32 == u32::MAX { 8 } else { 0 };
+            return if compressed32 == u32::MAX {
+                u64_at(data, skip_uncompressed)
+            } else {
+                Some(u64::from(compressed32))
+            };
+        }
+        at += 4 + len;
+    }
+    None
+}
+
+fn local_entry(reader: &mut impl Read) -> io::Result<Entry> {
+    let mut header = [0u8; 26];
+    reader.read_exact(&mut header)?;
+    let flags = u16_at(&header, 2);
+    let method = u16_at(&header, 4);
+    let compressed32 = u32_at(&header, 14);
+    let uncompressed32 = u32_at(&header, 18);
+    skip(reader, u64::from(u16_at(&header, 22)))?;
+    let mut extra = vec![0u8; usize::from(u16_at(&header, 24))];
+    reader.read_exact(&mut extra)?;
+    let zip64 = zip64_compressed(&extra, uncompressed32, compressed32);
+    Ok(Entry {
+        flags,
+        method,
+        compressed: zip64.unwrap_or_else(|| u64::from(compressed32)),
+        zip64: zip64.is_some(),
+    })
+}
+
+/// Inflates or reads one entry's data into a counter; answers the bytes it
+/// expanded to and the bytes it took from the archive.
+fn entry_bytes<R: BufRead>(reader: &mut R, entry: &Entry, budget: u64) -> UploadResult<(u64, u64)> {
+    let over = |out: u64| out > budget;
+    match entry.method {
+        METHOD_STORED if entry.flags & FLAG_DESCRIPTOR != 0 => {
+            Err(refuse("a stored entry of unknown length is not accepted"))
+        },
+        METHOD_STORED => {
+            if over(entry.compressed) {
+                return Err(refuse("entries expand past the decompressed limit"));
+            }
+            skip(reader, entry.compressed).map_err(unreadable)?;
+            Ok((entry.compressed, entry.compressed))
+        },
+        METHOD_DEFLATE => {
+            let mut inflater = DeflateDecoder::new(reader);
+            let out = io::copy(&mut (&mut inflater).take(budget + 1), &mut io::sink())
+                .map_err(unreadable)?;
+            if over(out) {
+                return Err(refuse("entries expand past the decompressed limit"));
+            }
+            Ok((out, inflater.total_in()))
+        },
+        other => Err(refuse(format!(
+            "compression method {other} is not accepted"
+        ))),
+    }
+}
+
+fn unreadable(error: io::Error) -> UploadError {
+    refuse(format!("the archive could not be read: {error}"))
+}
+
+fn descriptor(reader: &mut impl Read, zip64: bool) -> io::Result<()> {
+    let first = read_u32(reader)?;
+    let after_crc = if zip64 { 16 } else { 8 };
+    let rest = if first == DESCRIPTOR_SIGNATURE {
+        4 + after_crc
+    } else {
+        after_crc
+    };
+    skip(reader, rest)
+}
+
+fn scan<R: BufRead>(mut reader: R, size: u64, limits: &UploadLimits) -> UploadResult<()> {
+    let mut entries: u64 = 0;
+    let mut total: u64 = 0;
+    loop {
+        match read_u32(&mut reader).map_err(unreadable)? {
+            LOCAL_SIGNATURE => {},
+            CENTRAL_SIGNATURE | END_SIGNATURE | ZIP64_END_SIGNATURE => break,
+            _ => return Err(refuse("the archive is malformed")),
+        }
+        entries += 1;
+        if entries > limits.office_max_entries {
             return Err(refuse(format!(
-                "an entry expands {uncompressed} bytes from {compressed}, past the {}x ratio",
+                "more than {} entries",
+                limits.office_max_entries
+            )));
+        }
+        let entry = local_entry(&mut reader).map_err(unreadable)?;
+        if entry.flags & FLAG_ENCRYPTED != 0 {
+            return Err(refuse("encrypted entries are not accepted"));
+        }
+        let budget = limits.office_max_uncompressed_bytes.saturating_sub(total);
+        let (out, taken) = entry_bytes(&mut reader, &entry, budget)?;
+        if out > RATIO_FLOOR_BYTES && out / taken.max(1) > limits.office_max_ratio {
+            return Err(refuse(format!(
+                "an entry expands {out} bytes from {taken}, past the {}x ratio",
                 limits.office_max_ratio
             )));
         }
-        total = total.saturating_add(uncompressed);
-        if total > limits.office_max_uncompressed_bytes {
-            return Err(refuse(format!(
-                "entries expand past the {}-byte limit",
-                limits.office_max_uncompressed_bytes
-            )));
+        total += out;
+        if entry.flags & FLAG_DESCRIPTOR != 0 {
+            descriptor(&mut reader, entry.zip64).map_err(unreadable)?;
         }
-        let variable = u16_at(header, 28) + u16_at(header, 30) + u16_at(header, 32);
-        at = at
-            .saturating_add(CENTRAL_HEADER_LEN)
-            .saturating_add(usize::try_from(variable).unwrap_or(usize::MAX));
+    }
+    if entries == 0 {
+        return Err(refuse("the archive has no entries"));
     }
     if total > RATIO_FLOOR_BYTES && total / size.max(1) > limits.office_max_ratio {
         return Err(refuse(format!(
