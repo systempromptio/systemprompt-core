@@ -80,8 +80,16 @@ impl CollabService {
         let base_bytes = self.revision_bytes(&base, limit).await?;
         let exported = entry.doc.export_model();
         entry.checkpoint_due_from = None;
-        let (model, media) = self.admit_live(entry.format, who, &base_bytes, exported).await;
-        let unchanged = unchanged_from(entry.format, &base_bytes, &model, &media)
+        let owners = entry.images.clone();
+        let live = self
+            .admit_live(entry.format, &owners, &base_bytes, exported)
+            .await;
+        if live.degraded
+            && let Err(error) = self.write_back(entry, who, &live.model, trace).await
+        {
+            tracing::warn!(%error, "placeholder could not be written into the live document");
+        }
+        let unchanged = unchanged_from(entry.format, &base_bytes, &live.model, &live.media)
             .inspect_err(|error| {
                 tracing::warn!(%error, "live checkpoint could not compare with its base");
             })
@@ -89,7 +97,7 @@ impl CollabService {
         if unchanged {
             return Ok(Checkpoint::Unchanged);
         }
-        let next = materialise_or_strip(entry.format, &base_bytes, &model, &media)
+        let next = materialise_or_strip(entry.format, &base_bytes, &live)
             .map_err(model_error(&document_id))?;
         let outcome = self
             .documents
@@ -158,10 +166,11 @@ impl CollabService {
         let limit = self.documents.config().max_upload_bytes;
         let base_bytes = self.revision_bytes(&base, limit).await?;
         let exported = entry.doc.export_model();
-        let (model, media) = self
-            .admit_live(entry.format, editor, &base_bytes, exported)
+        let owners = entry.images.clone();
+        let live = self
+            .admit_live(entry.format, &owners, &base_bytes, exported)
             .await;
-        let body = materialise_or_strip(entry.format, &base_bytes, &model, &media)
+        let body = materialise_or_strip(entry.format, &base_bytes, &live)
             .map_err(model_error(&document_id))?;
         let proposed = self
             .documents

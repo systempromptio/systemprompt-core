@@ -50,10 +50,34 @@ impl CollabService {
         let checkpoint_due = entry
             .checkpoint_due_from
             .is_some_and(|from| now.duration_since(from) >= self.tuning.checkpoint_after);
-        if checkpoint_due && let Some(editor) = entry.last_editor.clone() {
+        let backing_off = entry.checkpoint_retry_at.is_some_and(|at| now < at);
+        if checkpoint_due
+            && !backing_off
+            && let Some(editor) = entry.last_editor.clone()
+        {
             let trace = TraceId::system();
-            if let Err(error) = self.checkpoint(&mut entry, &editor, &trace).await {
-                tracing::warn!(session_id = %session, error = %error, "Edit session checkpoint failed");
+            match self.checkpoint(&mut entry, &editor, &trace).await {
+                Ok(_) => {
+                    entry.checkpoint_failures = 0;
+                    entry.checkpoint_retry_at = None;
+                },
+                Err(error) => {
+                    entry.checkpoint_failures = entry.checkpoint_failures.saturating_add(1);
+                    let wait = self
+                        .tuning
+                        .checkpoint_after
+                        .saturating_mul(1 << entry.checkpoint_failures.min(6));
+                    entry.checkpoint_retry_at = Some(now + wait);
+                    if entry.checkpoint_due_from.is_none() {
+                        entry.checkpoint_due_from = Some(now);
+                    }
+                    tracing::warn!(
+                        session_id = %session,
+                        error = %error,
+                        failures = entry.checkpoint_failures,
+                        "Edit session checkpoint failed; backing off"
+                    );
+                },
             }
         }
         entry.unsnapshotted == 0

@@ -83,7 +83,7 @@ pub(super) async fn resolve_media(
         None => Vec::new(),
     };
     let admitted = service
-        .admit_media(tools.uploads(), ctx.user_id(), refs, &held)
+        .admit_media(tools.uploads(), &|_| vec![ctx.user_id().clone()], refs, &held)
         .await;
     match admitted.refused.first() {
         Some(refused) => Err(refusal(

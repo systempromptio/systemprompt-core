@@ -39,6 +39,8 @@ mod apply;
 pub mod document;
 mod entry;
 mod error;
+mod image_owners;
+mod live_media;
 pub mod model;
 mod persist;
 mod session;
@@ -52,6 +54,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use systemprompt_identifiers::DocumentId;
 
 pub use error::CollabError;
+pub use image_owners::ImageOwners;
 pub use types::{
     Applied, ApplyRequest, Checkpoint, CollabTuning, CursorRequest, JoinMode, Joined, Left,
 };

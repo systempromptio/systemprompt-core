@@ -13,6 +13,7 @@ use systemprompt_models::documents::DocumentFormat;
 use tokio::sync::Mutex;
 
 use super::document::{ModelError, import};
+use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
 use crate::documents::engine::{EngineDoc, ModelView};
 use crate::documents::error::DocumentsError;
@@ -32,6 +33,9 @@ pub(super) struct CollabEntry {
     pub(super) checkpoint_due_from: Option<Instant>,
     pub(super) last_editor: Option<AuthenticatedUser>,
     pub(super) touched: Instant,
+    pub(super) images: ImageOwners,
+    pub(super) checkpoint_failures: u32,
+    pub(super) checkpoint_retry_at: Option<Instant>,
 }
 
 impl CollabEntry {
@@ -77,6 +81,9 @@ impl CollabService {
             checkpoint_due_from: None,
             last_editor: None,
             touched: Instant::now(),
+            images: ImageOwners::default(),
+            checkpoint_failures: 0,
+            checkpoint_retry_at: None,
         }));
         Ok(self.cache_insert(document.id.clone(), built))
     }

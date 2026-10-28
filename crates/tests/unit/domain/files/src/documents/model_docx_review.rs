@@ -1,11 +1,13 @@
 use systemprompt_files::documents::codecs::docx::{
     import_rich, materialise_rich, materialise_rich_with,
 };
+use systemprompt_files::documents::collab::ImageOwners;
 use systemprompt_files::documents::model::layout::{Margins, Section};
 use systemprompt_files::documents::model::{
     Block, BlockKind, EditLevel, Limits, ModelRejection, RichText, validate,
 };
 use systemprompt_files::documents::service::held_media_refs;
+use systemprompt_identifiers::UserId;
 use systemprompt_provider_contracts::documents::DocumentFormat;
 
 use super::docx_fixture::{entries, fixture, package_with, part};
@@ -201,4 +203,30 @@ fn an_edited_mid_body_break_keeps_its_untouched_children() {
     assert!(xml.contains("<w:cols w:num=\"2\" w:space=\"708\"/>"));
     assert!(xml.contains("w:top=\"720\" w:right=\"1440\""));
     assert!(xml.contains("w:header=\"708\""));
+}
+
+#[test]
+fn a_saved_docx_upload_counts_as_held() {
+    assert!(held_media_refs(DocumentFormat::Docx, &written()).contains(&BLOB.to_owned()));
+}
+
+#[test]
+fn an_image_keeps_its_inserting_editor_when_another_editor_types() {
+    let alice = UserId::new("alice");
+    let bob = UserId::new("bob");
+    let typed = RichText::of(vec![Block::new("p1", BlockKind::Paragraph, "Notes")]);
+    let mut inserted = typed.clone();
+    inserted.blocks.push(Block::new(
+        "img",
+        BlockKind::image(BLOB.to_owned(), String::new()),
+        "",
+    ));
+    let mut more = inserted.clone();
+    more.blocks[0].text = "Notes, edited".to_owned();
+    let mut owners = ImageOwners::default();
+    owners.record(&typed, &inserted, &alice);
+    owners.record(&inserted, &more, &bob);
+    let placing = owners.owners(BLOB);
+    assert_eq!(placing.first(), Some(&alice));
+    assert!(placing.contains(&bob), "every session editor may place it too");
 }

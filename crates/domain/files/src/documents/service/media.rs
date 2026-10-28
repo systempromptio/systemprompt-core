@@ -16,7 +16,7 @@ use systemprompt_models::documents::DocumentFormat;
 
 use super::DocumentService;
 use crate::documents::model::formats::import_rich_text;
-use crate::documents::model::{Media, MediaBlob, media_refs};
+use crate::documents::model::{BlockKind, Media, MediaBlob, RichText, media_refs};
 use crate::uploads::UploadService;
 
 /// The images a write may place, and the references it may not.
@@ -26,19 +26,53 @@ pub struct AdmittedMedia {
     pub refused: Vec<String>,
 }
 
-/// The uploaded-image references a revision's bytes already hold.
+/// The uploaded-image references a revision's bytes already hold. A docx
+/// holds a placed upload as its picture part `media/sp-<hash>.<ext>`, which
+/// counts as holding `<hash>`, so an image a checkpoint already saved stays
+/// placeable.
 #[must_use]
 pub fn held_media_refs(format: DocumentFormat, bytes: &[u8]) -> Vec<String> {
-    import_rich_text(format, bytes)
-        .map(|model| media_refs(&model))
-        .unwrap_or_default()
+    let Ok(model) = import_rich_text(format, bytes) else {
+        return Vec::new();
+    };
+    let mut held = media_refs(&model);
+    saved_uploads(&model, &mut held);
+    held.sort();
+    held.dedup();
+    held
+}
+
+fn saved_uploads(model: &RichText, into: &mut Vec<String>) {
+    for block in &model.blocks {
+        if let BlockKind::Image { blob, .. } = &block.kind
+            && let Some(hash) = saved_hash(blob)
+        {
+            into.push(hash);
+        }
+        for nested in block.kind.nested() {
+            saved_uploads(nested, into);
+        }
+    }
+    for part in model.running() {
+        saved_uploads(part, into);
+    }
+}
+
+/// `<hash>` from `docx-media:media/sp-<hash>.<ext>`.
+fn saved_hash(blob: &str) -> Option<String> {
+    let file = blob.strip_prefix("docx-media:media/sp-")?;
+    let hash = file.split('.').next()?;
+    (hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit())).then(|| hash.to_owned())
 }
 
 impl DocumentService {
+    /// `owners` answers, per reference, the users whose upload may place
+    /// it: the writer for an agent write, the inserting editor and every
+    /// session editor for a live checkpoint.
     pub async fn admit_media(
         &self,
         uploads: Option<&UploadService>,
-        owner: &UserId,
+        owners: &(dyn Fn(&str) -> Vec<UserId> + Sync),
         refs: Vec<String>,
         held: &[String],
     ) -> AdmittedMedia {
@@ -48,10 +82,15 @@ impl DocumentService {
                 admitted.refused.push(reference);
                 continue;
             };
-            let owned = match uploads {
-                Some(uploads) => uploads.require_owned_blob(owner, &hash).await.ok(),
-                None => None,
-            };
+            let mut owned = None;
+            if let Some(uploads) = uploads {
+                for owner in owners(&reference) {
+                    if let Ok(origin) = uploads.require_owned_blob(&owner, &hash).await {
+                        owned = Some(origin);
+                        break;
+                    }
+                }
+            }
             let mime = match owned {
                 Some(origin) => origin.mime,
                 None if held.contains(&reference) => "application/octet-stream".to_owned(),
