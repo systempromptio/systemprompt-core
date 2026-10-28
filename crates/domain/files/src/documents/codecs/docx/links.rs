@@ -61,8 +61,8 @@ impl Links {
         if let Some(id) = self.known.get(&target) {
             return Some(id.clone());
         }
-        let id = (1..)
-            .map(|n: u32| format!("rIdLink{n}"))
+        let id = (1..=u32::MAX)
+            .map(|n| format!("rIdLink{n}"))
             .find(|id| !self.taken.contains(id))?;
         self.taken.insert(id.clone());
         self.known.insert(target.clone(), id.clone());

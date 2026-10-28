@@ -84,13 +84,12 @@ impl Walk<'_> {
         };
         let key = || plain(node.text.as_deref().unwrap_or_default());
         if &node.id == self.target {
-            self.found = Some(match table {
-                Some(nth) => Found::Table(nth),
-                None => {
-                    let key = key();
-                    let nth = self.leaves.iter().filter(|leaf| **leaf == key).count();
-                    Found::Leaf(key, nth)
-                },
+            self.found = Some(if let Some(nth) = table {
+                Found::Table(nth)
+            } else {
+                let key = key();
+                let nth = self.leaves.iter().filter(|leaf| **leaf == key).count();
+                Found::Leaf(key, nth)
             });
             return;
         }

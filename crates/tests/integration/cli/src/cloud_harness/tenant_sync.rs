@@ -58,8 +58,15 @@ async fn tenant_list_appends_cloud_only_tenant_to_local_store() {
     assert_eq!(added.name, "Cloud Only");
     assert_eq!(added.region.as_deref(), Some("ams"));
     assert!(
-        store.tenants.iter().any(|t| t.id.as_str() == TENANT_ID),
-        "sync must not drop pre-existing local entries"
+        store
+            .tenants
+            .iter()
+            .any(|t| t.id.as_str() == OTHER_TENANT_ID),
+        "sync must not drop a self-managed record"
+    );
+    assert!(
+        !store.tenants.iter().any(|t| t.id.as_str() == TENANT_ID),
+        "sync drops a managed tenant the control plane no longer lists"
     );
 }
 

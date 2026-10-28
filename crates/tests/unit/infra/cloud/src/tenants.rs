@@ -459,6 +459,19 @@ fn control_plane_sync_never_touches_a_self_managed_record() {
 }
 
 #[test]
+fn control_plane_sync_drops_systemprompt_tenants_the_account_no_longer_lists() {
+    let gone = StoredTenant::from_tenant_info(&control_plane_info("sp-gone", "Gone"));
+    let mut store = TenantStore::new(vec![gone, self_managed("k8s-1", HostingProvider::Gke)]);
+
+    store.merge_control_plane(&[control_plane_info("sp-1", "Listed")]);
+
+    assert_eq!(store.len(), 2);
+    assert!(store.find_tenant(&TenantId::new("sp-gone")).is_none());
+    assert!(store.find_tenant(&TenantId::new("sp-1")).is_some());
+    assert!(store.find_tenant(&TenantId::new("k8s-1")).is_some());
+}
+
+#[test]
 fn control_plane_sync_updates_and_adds_systemprompt_tenants_beside_self_managed_ones() {
     let mut existing = StoredTenant::from_tenant_info(&control_plane_info("sp-1", "Old"));
     existing.name = "Old".to_owned();

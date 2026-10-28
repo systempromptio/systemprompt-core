@@ -84,7 +84,12 @@ impl Builder {
                 self.kind = Some(BlockKind::Code { language });
             },
             Tag::BlockQuote(_) => self.quote += 1,
-            Tag::List(first) => self.lists.push(first.is_some()),
+            Tag::List(first) => {
+                if matches!(self.kind, Some(BlockKind::ListItem { .. })) {
+                    self.flush();
+                }
+                self.lists.push(first.is_some());
+            },
             Tag::Item => {
                 let level = u8::try_from(self.lists.len().saturating_sub(1)).unwrap_or(u8::MAX);
                 let ordered = self.lists.last().copied().unwrap_or(false);

@@ -29,7 +29,7 @@ pub(super) fn cell(fresh: &mut FreshIds, text: Option<&String>) -> RichText {
     }
 }
 
-fn rows_mut(block: &mut Block) -> Result<&mut Vec<Vec<RichText>>, CodecError> {
+const fn rows_mut(block: &mut Block) -> Result<&mut Vec<Vec<RichText>>, CodecError> {
     match &mut block.kind {
         BlockKind::Table { rows } => Ok(rows),
         BlockKind::Raw { .. } => Err(malformed(

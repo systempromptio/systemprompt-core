@@ -10,7 +10,7 @@ use scraper::node::Text;
 use scraper::{ElementRef, Html, Node, StrTendril};
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::{
-    CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, required_hash,
+    CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, required_hash,
 };
 
 use super::super::anchors::{str_replace_once, verify_anchor};
@@ -211,6 +211,34 @@ fn append_markdown(html: &mut Html, body: NodeId, markdown: &str) -> Result<(), 
     Ok(())
 }
 
+fn replace_text(
+    html: &mut Html,
+    projection: &HtmlProjection,
+    op: &EditOp,
+    (node, expected_hash, text): (&NodeTarget, Option<&String>, &str),
+) -> Result<(), CodecError> {
+    let node = node.resolved()?;
+    let located = locate(html, projection, node)?;
+    if matches!(
+        located.kind,
+        NodeKind::Table | NodeKind::Row | NodeKind::Image
+    ) {
+        return Err(unsupported(op));
+    }
+    verify(html, node, located, required_hash(expected_hash)?)?;
+    let target_id = if located.kind == NodeKind::Pending {
+        fill_pending(html, located.tree_id)?
+    } else {
+        clear_children(html, located.tree_id)?;
+        located.tree_id
+    };
+    let mut target = html.tree.get_mut(target_id).ok_or(DETACHED)?;
+    target.append(Node::Text(Text {
+        text: StrTendril::from_slice(text),
+    }));
+    Ok(())
+}
+
 pub(super) fn apply_ops(
     html: &mut Html,
     projection: &HtmlProjection,
@@ -231,27 +259,7 @@ pub(super) fn apply_ops(
                 expected_hash,
                 text,
                 ..
-            } => {
-                let node = node.resolved()?;
-                let located = locate(html, projection, node)?;
-                if matches!(
-                    located.kind,
-                    NodeKind::Table | NodeKind::Row | NodeKind::Image
-                ) {
-                    return Err(unsupported(op));
-                }
-                verify(html, node, located, required_hash(expected_hash.as_ref())?)?;
-                let target_id = if located.kind == NodeKind::Pending {
-                    fill_pending(html, located.tree_id)?
-                } else {
-                    clear_children(html, located.tree_id)?;
-                    located.tree_id
-                };
-                let mut target = html.tree.get_mut(target_id).ok_or(DETACHED)?;
-                target.append(Node::Text(Text {
-                    text: StrTendril::from_slice(text),
-                }));
-            },
+            } => replace_text(html, projection, op, (node, expected_hash.as_ref(), text))?,
             EditOp::Delete {
                 node,
                 expected_hash,

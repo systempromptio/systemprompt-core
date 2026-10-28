@@ -40,6 +40,9 @@ impl TenantStore {
     }
 
     pub fn merge_control_plane(&mut self, infos: &[CloudTenantInfo]) {
+        self.tenants.retain(|tenant| {
+            !tenant.is_systemprompt_managed() || infos.iter().any(|info| info.id == tenant.id)
+        });
         for info in infos {
             match self.tenants.iter_mut().find(|t| t.id == info.id) {
                 Some(existing) if existing.is_systemprompt_managed() => {

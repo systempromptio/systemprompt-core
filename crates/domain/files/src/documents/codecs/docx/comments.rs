@@ -88,23 +88,20 @@ pub fn with_comments(bytes: &[u8], comments: &[NativeComment]) -> Result<Vec<u8>
     }
     let edited = markup::apply_splices(&src, splices)?;
     let bytes = replace_part(bytes, parts::DOCUMENT, edited.as_bytes())?;
-    match existing {
-        Some(xml) => {
-            let at = xml
-                .rfind("</w:comments>")
-                .ok_or(malformed("the comments part is not closed"))?;
-            let merged = format!("{}{entries}{}", &xml[..at], &xml[at..]);
-            replace_part(&bytes, COMMENTS, merged.as_bytes())
-        },
-        None => {
-            let part = format!(
-                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
-                 <w:comments xmlns:w=\"{W_NS}\">{entries}</w:comments>"
-            );
-            let bytes = add_part(&bytes, COMMENTS, part.as_bytes())?;
-            let bytes = declare_type(&bytes)?;
-            relate(&bytes)
-        },
+    if let Some(xml) = existing {
+        let at = xml
+            .rfind("</w:comments>")
+            .ok_or(malformed("the comments part is not closed"))?;
+        let merged = format!("{}{entries}{}", &xml[..at], &xml[at..]);
+        replace_part(&bytes, COMMENTS, merged.as_bytes())
+    } else {
+        let part = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+             <w:comments xmlns:w=\"{W_NS}\">{entries}</w:comments>"
+        );
+        let bytes = add_part(&bytes, COMMENTS, part.as_bytes())?;
+        let bytes = declare_type(&bytes)?;
+        relate(&bytes)
     }
 }
 
@@ -150,8 +147,8 @@ fn relate(bytes: &[u8]) -> Result<Vec<u8>, CodecError> {
     let at = rels
         .rfind("</Relationships>")
         .ok_or(malformed("the document relationships part is not closed"))?;
-    let id = (1..)
-        .map(|n: u32| format!("rIdComments{n}"))
+    let id = (1..=u32::MAX)
+        .map(|n| format!("rIdComments{n}"))
         .find(|id| !rels.contains(&format!("Id=\"{id}\"")))
         .ok_or(malformed("no relationship id is free"))?;
     let merged = format!(

@@ -122,14 +122,18 @@ fn markdown_is_edited_whole() {
 }
 
 #[test]
-fn only_html_and_markdown_are_collab_formats() {
-    assert!(is_collab_format(DocumentFormat::Html));
-    assert!(is_collab_format(DocumentFormat::Markdown));
+fn markup_and_office_text_formats_are_collab_formats() {
     for format in [
+        DocumentFormat::Html,
+        DocumentFormat::Markdown,
         DocumentFormat::Docx,
+        DocumentFormat::Odt,
+    ] {
+        assert!(is_collab_format(format), "{format:?}");
+    }
+    for format in [
         DocumentFormat::Xlsx,
         DocumentFormat::Pptx,
-        DocumentFormat::Odt,
         DocumentFormat::Text,
     ] {
         assert!(!is_collab_format(format));

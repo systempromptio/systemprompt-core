@@ -131,12 +131,15 @@ fn merge(marks: &mut Vec<Mark>) {
     marks.sort_by(|a, b| (&a.kind, a.start).cmp(&(&b.kind, b.start)));
     let mut merged: Vec<Mark> = Vec::with_capacity(marks.len());
     for mark in marks.drain(..) {
-        match merged.last_mut() {
-            Some(last) if last.kind == mark.kind && mark.start <= last.end => {
+        if let Some(last) = merged.last_mut() {
+            let same_kind = last.kind == mark.kind;
+            let adjoining = mark.start <= last.end;
+            if same_kind && adjoining {
                 last.end = last.end.max(mark.end);
-            },
-            _ => merged.push(mark),
+                continue;
+            }
         }
+        merged.push(mark);
     }
     merged.sort_by(|a, b| (a.start, a.end, &a.kind).cmp(&(b.start, b.end, &b.kind)));
     *marks = merged;

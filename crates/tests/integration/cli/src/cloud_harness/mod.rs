@@ -562,7 +562,7 @@ async fn tenant_rotate_local_tenant_rejected() {
     )
     .await
     .expect_err("local tenant cannot rotate");
-    assert!(err.to_string().contains("cloud tenants"));
+    assert!(err.to_string().contains("systemprompt.io tenants"));
 }
 
 #[tokio::test]

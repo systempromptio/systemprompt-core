@@ -133,10 +133,9 @@ impl Batch<'_> {
         for row in rows {
             out.push_str("<w:tr>");
             for column in 0..columns {
-                let cell = match row.get(column) {
-                    Some(spans) => self.runs(spans),
-                    None => String::new(),
-                };
+                let cell = row
+                    .get(column)
+                    .map_or_else(String::new, |spans| self.runs(spans));
                 let paragraph = self.new_paragraph("", &cell);
                 out.push_str(&format!(
                     "<w:tc><w:tcPr><w:tcW w:w=\"0\" w:type=\"auto\"/></w:tcPr>{paragraph}</w:tc>"

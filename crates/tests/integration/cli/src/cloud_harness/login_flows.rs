@@ -6,10 +6,11 @@ use serde_json::json;
 use systemprompt_cli::cloud::auth::{AuthCommands, complete_login};
 use systemprompt_cli::cloud::{self, CloudCommands, Environment};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
+use systemprompt_identifiers::TenantId;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use super::{FAR_FUTURE_JWT, USER_EMAIL, enter, json_ctx};
+use super::{FAR_FUTURE_JWT, OTHER_TENANT_ID, USER_EMAIL, enter, json_ctx};
 
 async fn mount_auth_me(server: &MockServer, body: serde_json::Value) {
     Mock::given(method("GET"))
@@ -70,8 +71,17 @@ async fn complete_login_persists_customer_account_tenant() {
         .expect("login with a fully populated cloud account");
 
     let store = stored_tenants();
-    assert_eq!(store.tenants.len(), 1);
-    let tenant = &store.tenants[0];
+    let managed: Vec<_> = store
+        .tenants
+        .iter()
+        .filter(|t| t.is_systemprompt_managed())
+        .collect();
+    assert_eq!(managed.len(), 1, "{:?}", store.tenants);
+    assert!(
+        store.find_tenant(&TenantId::new(OTHER_TENANT_ID)).is_some(),
+        "the self-managed record survives a login"
+    );
+    let tenant = managed[0];
     assert_eq!(tenant.id.as_str(), "t-rich");
     assert_eq!(tenant.name, "Rich Prod");
     assert_eq!(tenant.hostname.as_deref(), Some("rich.example.com"));
@@ -79,7 +89,7 @@ async fn complete_login_persists_customer_account_tenant() {
 }
 
 #[tokio::test]
-async fn complete_login_without_tenants_writes_empty_store() {
+async fn complete_login_without_tenants_keeps_only_self_managed_records() {
     let env = enter().await;
     env.server().reset().await;
     mount_auth_me(
@@ -95,7 +105,10 @@ async fn complete_login_without_tenants_writes_empty_store() {
         .await
         .expect("login for an account with no tenants");
 
-    assert!(stored_tenants().tenants.is_empty());
+    let store = stored_tenants();
+    assert_eq!(store.tenants.len(), 1, "{:?}", store.tenants);
+    assert_eq!(store.tenants[0].id.as_str(), OTHER_TENANT_ID);
+    assert!(!store.tenants[0].is_systemprompt_managed());
 }
 
 #[tokio::test]

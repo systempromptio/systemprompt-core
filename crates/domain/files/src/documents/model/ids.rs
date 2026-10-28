@@ -63,7 +63,10 @@ fn collect_ids<'a>(model: &'a RichText, into: &mut HashSet<&'a str>) {
 fn carry(live: &RichText, next: &mut RichText, fresh: &mut Fresh<'_>) {
     const LOOKAHEAD: usize = 64;
     let mut cursor = 0;
-    for block in &mut next.blocks {
+    for at in 0..next.blocks.len() {
+        let Some((block, rest)) = next.blocks[at..].split_first_mut() else {
+            break;
+        };
         let same = live
             .blocks
             .iter()
@@ -75,11 +78,17 @@ fn carry(live: &RichText, next: &mut RichText, fresh: &mut Fresh<'_>) {
             .blocks
             .get(cursor)
             .filter(|old| std::mem::discriminant(&old.kind) == std::mem::discriminant(&block.kind))
+            .filter(|old| {
+                !rest
+                    .iter()
+                    .take(LOOKAHEAD)
+                    .any(|later| later.kind == old.kind && later.text == old.text)
+            })
             .map(|old| (cursor, old));
         let matched = same.or(edited);
-        if let Some((at, old)) = matched {
+        if let Some((found, old)) = matched {
             block.id.clone_from(&old.id);
-            cursor = at + 1;
+            cursor = found + 1;
         } else {
             block.id = fresh.next_id();
         }

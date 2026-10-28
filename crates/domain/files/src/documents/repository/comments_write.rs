@@ -10,6 +10,14 @@ use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId
 use super::comments::DocumentCommentRepository;
 use super::rows::RepoResult;
 
+#[derive(Debug, Clone, Copy)]
+pub struct CommentBodyEdit<'a> {
+    pub comment: &'a DocumentCommentId,
+    pub author: &'a UserId,
+    pub body: &'a str,
+    pub mentions: &'a [UserId],
+}
+
 impl DocumentCommentRepository {
     pub async fn resolve(
         &self,
@@ -71,11 +79,14 @@ impl DocumentCommentRepository {
     pub async fn update_body(
         &self,
         document: &DocumentId,
-        comment: &DocumentCommentId,
-        author: &UserId,
-        body: &str,
-        mentions: &[UserId],
+        edit: CommentBodyEdit<'_>,
     ) -> RepoResult<bool> {
+        let CommentBodyEdit {
+            comment,
+            author,
+            body,
+            mentions,
+        } = edit;
         let mentions: Vec<String> = mentions
             .iter()
             .map(|user| user.as_str().to_owned())

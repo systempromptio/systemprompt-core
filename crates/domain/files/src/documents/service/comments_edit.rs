@@ -22,6 +22,7 @@ use systemprompt_models::documents::{
 use super::DocumentService;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{CommentRange, Document, DocumentComment};
+use crate::documents::repository::CommentBodyEdit;
 
 const MAX_MENTIONS: usize = 20;
 const MAX_CURSOR_CHARS: usize = 1_024;
@@ -75,10 +76,12 @@ impl DocumentService {
             .comments
             .update_body(
                 &document.id,
-                &request.comment,
-                &who.id,
-                &request.body,
-                &mentions,
+                CommentBodyEdit {
+                    comment: &request.comment,
+                    author: &who.id,
+                    body: &request.body,
+                    mentions: &mentions,
+                },
             )
             .await?;
         if !updated {

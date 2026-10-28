@@ -46,6 +46,7 @@ pub use access_requests::DocumentAccessRequestRepository;
 pub use blobs::DocumentBlobRepository;
 pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository, SnapshotMark};
 pub use comments::DocumentCommentRepository;
+pub use comments_write::CommentBodyEdit;
 pub use documents::DocumentRepository;
 pub use edit_sessions::DocumentEditSessionRepository;
 pub use folders::DocumentFolderRepository;

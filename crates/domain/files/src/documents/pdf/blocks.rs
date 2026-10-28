@@ -60,6 +60,11 @@ fn walk(node: &ProjectionNode, list_depth: usize, out: &mut Vec<Block>) {
             style: Style::Body,
             text: text_of(node),
         }),
+        NodeKind::Text if !node.children.is_empty() => {
+            for child in &node.children {
+                walk(child, list_depth, out);
+            }
+        },
         NodeKind::Text => out.push(Block::Paragraph {
             style: Style::Mono,
             text: node.text.clone().unwrap_or_default(),
