@@ -16,9 +16,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ContentHash, TraceId};
+use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{ActorKind, DocumentAction};
+use systemprompt_models::documents::{ActorKind, DocumentAction, DocumentFormat};
 
 use super::apply::update_event;
 use super::document::{import_rich_text, materialise, unchanged_from};
@@ -26,12 +26,13 @@ use super::entry::{CollabEntry, model_error, utf8};
 use super::model::body_of;
 use super::{Checkpoint, CollabError, CollabService};
 use crate::documents::engine::ModelView;
-use crate::documents::model::{Media, MediaBlob, carry_ids, media_refs};
+use crate::documents::model::{BlockKind, Media, RichText, carry_ids, media_refs};
 use crate::documents::models::RevisionAttribution;
 use crate::documents::repository::SnapshotMark;
 use crate::documents::revision::CommitBody;
 use crate::documents::service::{
     Author, CommentPolicy, CommitOutcome, CommitRequest, ProposeBodyRequest, RevisionOrigin,
+    held_media_refs,
 };
 
 const CHECKPOINT_MESSAGE: &str = "Live edit session checkpoint";
@@ -64,22 +65,36 @@ impl CollabService {
         Ok(())
     }
 
-    /// The bytes of every uploaded image the live model places, read from
-    /// the blob store the same way an agent's commit reads them.
-    async fn live_media(&self, model: &ModelView) -> Result<Media, CollabError> {
-        let mut media = Media::new();
-        let ModelView::RichText(rich) = model else {
-            return Ok(media);
+    /// The live model with every image the editor may not place swapped
+    /// for a placeholder paragraph, and the bytes of the images it may: an
+    /// image is placed when `who` uploaded it or the base revision already
+    /// holds it. A checkpoint never fails on an image; each one left out is
+    /// logged.
+    async fn admit_live(
+        &self,
+        format: DocumentFormat,
+        who: &AuthenticatedUser,
+        base_bytes: &[u8],
+        model: ModelView,
+    ) -> (ModelView, Media) {
+        let mut rich = match model {
+            ModelView::RichText(rich) => rich,
+            other => return (other, Media::new()),
         };
-        for reference in media_refs(rich) {
-            let Ok(hash) = ContentHash::try_new(&reference) else {
-                continue;
-            };
-            let bytes = self.documents.media_bytes(&hash).await?;
-            let mime = String::from("application/octet-stream");
-            media.insert(reference, MediaBlob { bytes, mime });
+        let held = held_media_refs(format, base_bytes);
+        let admitted = self
+            .documents
+            .admit_media(self.uploads.as_deref(), &who.id, media_refs(&rich), &held)
+            .await;
+        for refused in &admitted.refused {
+            tracing::warn!(
+                %format,
+                blob = %refused,
+                "live checkpoint left out an image the editor may not place"
+            );
         }
-        Ok(media)
+        placeholders(&mut rich, &admitted.refused);
+        (ModelView::RichText(rich), admitted.media)
     }
 
     pub(super) async fn checkpoint(
@@ -95,9 +110,9 @@ impl CollabService {
         };
         let limit = self.documents.config().max_upload_bytes;
         let base_bytes = self.revision_bytes(&base, limit).await?;
-        let model = entry.doc.export_model();
+        let exported = entry.doc.export_model();
         entry.checkpoint_due_from = None;
-        let media = self.live_media(&model).await?;
+        let (model, media) = self.admit_live(entry.format, who, &base_bytes, exported).await;
         if unchanged_from(entry.format, &base_bytes, &model, &media)
             .map_err(model_error(&document_id))?
         {
@@ -171,8 +186,10 @@ impl CollabService {
         let document_id = entry.session.document_id.clone();
         let limit = self.documents.config().max_upload_bytes;
         let base_bytes = self.revision_bytes(&base, limit).await?;
-        let model = entry.doc.export_model();
-        let media = self.live_media(&model).await?;
+        let exported = entry.doc.export_model();
+        let (model, media) = self
+            .admit_live(entry.format, editor, &base_bytes, exported)
+            .await;
         let body = materialise(entry.format, &base_bytes, &model, &media)
             .map_err(model_error(&document_id))?;
         let proposed = self
@@ -238,5 +255,30 @@ fn session_author(entry: &CollabEntry, trace: &TraceId) -> Author {
             trace_id: Some(trace.clone()),
             ..RevisionAttribution::default()
         },
+    }
+}
+
+const PLACEHOLDER: &str = "[image not available]";
+
+/// Replaces each image block whose blob is in `refused` with a paragraph
+/// saying so, keeping its id, inside table cells too.
+fn placeholders(model: &mut RichText, refused: &[String]) {
+    if refused.is_empty() {
+        return;
+    }
+    for block in &mut model.blocks {
+        match &mut block.kind {
+            BlockKind::Image { blob, .. } if refused.contains(blob) => {
+                block.kind = BlockKind::Paragraph;
+                block.text = PLACEHOLDER.to_owned();
+                block.marks.clear();
+            },
+            BlockKind::Table { rows, .. } => {
+                for cell in rows.iter_mut().flatten() {
+                    placeholders(cell, refused);
+                }
+            },
+            _ => {},
+        }
     }
 }

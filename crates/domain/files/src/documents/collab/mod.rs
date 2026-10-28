@@ -59,6 +59,7 @@ pub use types::{
 use self::entry::SharedEntry;
 use super::engine::DocumentEngine;
 use super::service::DocumentService;
+use crate::uploads::UploadService;
 
 /// The live co-editing service of one replica, built once at a composition
 /// root; its cache is per replica and its log is shared.
@@ -67,6 +68,7 @@ pub struct CollabService {
     documents: Arc<DocumentService>,
     tuning: CollabTuning,
     engine: Option<Arc<dyn DocumentEngine>>,
+    uploads: Option<Arc<UploadService>>,
     cache: Mutex<HashMap<DocumentId, SharedEntry>>,
 }
 
@@ -81,8 +83,17 @@ impl CollabService {
             documents,
             tuning,
             engine,
+            uploads: None,
             cache: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// The uploads service a checkpoint checks image ownership against;
+    /// without it only images the document already holds are placed.
+    #[must_use]
+    pub fn with_uploads(mut self, uploads: Arc<UploadService>) -> Self {
+        self.uploads = Some(uploads);
+        self
     }
 
     fn engine(&self) -> Result<&Arc<dyn DocumentEngine>, CollabError> {

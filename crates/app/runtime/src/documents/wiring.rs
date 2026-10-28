@@ -122,11 +122,10 @@ impl DocumentsRuntime {
                 Some(Arc::new(systemprompt_engine_loro::LoroEngine));
             #[cfg(not(feature = "engine-loro"))]
             let engine: Option<Arc<dyn DocumentEngine>> = None;
-            let collab = Arc::new(CollabService::new(
-                Arc::clone(&service),
-                CollabTuning::default(),
-                engine,
-            ));
+            let collab = Arc::new(
+                CollabService::new(Arc::clone(&service), CollabTuning::default(), engine)
+                    .with_uploads(Arc::clone(&uploads)),
+            );
             service.attach_collab(&collab);
             collab.start(&background_tasks);
             collab

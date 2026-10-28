@@ -1,28 +1,26 @@
 //! The image bytes a write needs, resolved before it is committed.
 //!
-//! A `docx` embeds its images, so every blob reference a content model or
-//! an op places (`insert_image`, an image `insert_block`) must be a
-//! `blob_ref` the caller uploaded with `documents_upload`. Ownership is
-//! checked through the uploads service, so a content hash alone never
-//! places bytes someone else uploaded; the bytes then come from the blob
-//! store. A reference that is already a URL or a picture the document
-//! holds needs no bytes.
+//! Every uploaded image a content model or an op places (`insert_image`,
+//! an image `insert_block`) must be a `blob_ref` the caller uploaded with
+//! `documents_upload`, or one the target document already holds: a hash
+//! is visible to every viewer and is not a capability. The rule is
+//! `DocumentService::admit_media`, the same one a live checkpoint applies.
+//! A reference that is a URL or a picture inside the document needs no
+//! bytes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::model::{
-    Block, BlockKind, Media, MediaBlob, RichText, media_refs,
-};
-use systemprompt_identifiers::ContentHash;
+use systemprompt_files::documents::model::{Block, BlockKind, Media, RichText, media_refs};
+use systemprompt_files::documents::service::held_media_refs;
+use systemprompt_identifiers::DocumentId;
 use systemprompt_models::documents::EditOp;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::refusal::refusal;
-use super::support::tool_error;
-use super::upload::upload_error;
+use super::support::{caller, tool_error};
 use crate::documents::refusal::RefusalCode;
 
 /// Every image reference in `model` and `ops` that needs its bytes.
@@ -54,40 +52,47 @@ pub(super) fn image_refs(model: Option<&RichText>, ops: &[EditOp]) -> Vec<String
     refs
 }
 
+/// The bytes of the images a write places, admitted for `document` (none
+/// for a create): each must be the caller's own upload or already held by
+/// the document's head. Anything else refuses the write, naming the image.
 pub(super) async fn resolve_media(
     tools: &DocumentsMcpTools,
     ctx: &RequestContext,
     refs: Vec<String>,
+    document: Option<&DocumentId>,
 ) -> Result<Media, McpError> {
-    let mut media = Media::new();
     if refs.is_empty() {
-        return Ok(media);
+        return Ok(Media::new());
     }
-    let uploads = tools.uploads().ok_or_else(|| {
-        refusal(
+    let service = tools.service();
+    let held = match document {
+        Some(document) => {
+            let who = caller(ctx)?;
+            let format = service
+                .get(who, document, ctx.trace_id())
+                .await
+                .map_err(tool_error)?
+                .document
+                .format;
+            let (_, bytes) = service
+                .read_bytes(who, document, None, ctx.trace_id())
+                .await
+                .map_err(tool_error)?;
+            held_media_refs(format, &bytes)
+        },
+        None => Vec::new(),
+    };
+    let admitted = service
+        .admit_media(tools.uploads(), ctx.user_id(), refs, &held)
+        .await;
+    match admitted.refused.first() {
+        Some(refused) => Err(refusal(
             RefusalCode::InvalidParams,
-            "this server does not accept uploads, so it cannot place images",
-        )
-    })?;
-    for reference in refs {
-        let hash = ContentHash::try_new(&reference).map_err(|_invalid| {
-            refusal(
-                RefusalCode::InvalidParams,
-                format!("image {reference} is not a blob_ref; upload it with documents_upload"),
-            )
-        })?;
-        let origin = uploads
-            .require_owned_blob(ctx.user_id(), &hash)
-            .await
-            .map_err(upload_error)?;
-        let bytes = tools.service().media_bytes(&hash).await.map_err(tool_error)?;
-        media.insert(
-            reference,
-            MediaBlob {
-                bytes,
-                mime: origin.mime,
-            },
-        );
+            format!(
+                "image {refused} is neither your upload nor already in this document; upload it \
+                 with documents_upload and pass its blob_ref"
+            ),
+        )),
+        None => Ok(admitted.media),
     }
-    Ok(media)
 }

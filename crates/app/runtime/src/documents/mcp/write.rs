@@ -87,7 +87,8 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     if mode == EditMode::Propose {
         return propose_ops(call).await;
     }
-    let media = resolve_media(call.tools, call.ctx, image_refs(None, &call.ops)).await?;
+    let refs = image_refs(None, &call.ops);
+    let media = resolve_media(call.tools, call.ctx, refs, Some(&call.document)).await?;
     let outcome = call
         .tools
         .service()
@@ -153,7 +154,7 @@ impl McpToolHandler for CreateHandler<'_> {
         let applied = input.ops.len();
         let content = content_model(input.content)?;
         let refs = image_refs(content.as_ref(), &input.ops);
-        let media = resolve_media(self.tools, ctx, refs).await?;
+        let media = resolve_media(self.tools, ctx, refs, None).await?;
         let (document, revision) = self
             .tools
             .service()
