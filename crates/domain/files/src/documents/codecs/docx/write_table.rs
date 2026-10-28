@@ -18,11 +18,7 @@ use crate::documents::model::layout::{TableProps, VAlign};
 const LOOK: &str = "<w:tblLook w:val=\"04A0\" w:firstRow=\"1\" w:lastRow=\"0\" \
     w:firstColumn=\"1\" w:lastColumn=\"0\" w:noHBand=\"0\" w:noVBand=\"1\"/>";
 
-pub(super) fn table(
-    rows: &[Vec<RichText>],
-    props: &TableProps,
-    ctx: &mut WriteCtx<'_>,
-) -> String {
+pub(super) fn table(rows: &[Vec<RichText>], props: &TableProps, ctx: &mut WriteCtx<'_>) -> String {
     let columns = rows
         .iter()
         .map(Vec::len)
@@ -80,7 +76,10 @@ pub(super) fn table(
                 continue;
             }
             let cell = props.cell(r, c);
-            let span = cell.colspan().min(u32::try_from(columns - c).unwrap_or(1)).max(1);
+            let span = cell
+                .colspan()
+                .min(u32::try_from(columns - c).unwrap_or(1))
+                .max(1);
             if cell.rowspan() > 1 {
                 for slot in remaining.iter_mut().skip(c).take(span as usize) {
                     *slot = cell.rowspan() - 1;
@@ -100,7 +99,10 @@ pub(super) fn table(
                 tc_pr.push_str(&format!("<w:vAlign w:val=\"{}\"/>", valign_name(valign)));
             }
             let mut body = String::new();
-            for block in row.get(c).map_or(&[][..], |content| content.blocks.as_slice()) {
+            for block in row
+                .get(c)
+                .map_or(&[][..], |content| content.blocks.as_slice())
+            {
                 body.push_str(&write_in_cell(block, ctx, cell.align));
             }
             if body.is_empty() {

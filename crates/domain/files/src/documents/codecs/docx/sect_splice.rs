@@ -70,18 +70,23 @@ pub(super) fn splice_sect_pr(
     splice(base_xml, edits)
 }
 
-fn references(
-    root: &Element,
-    base: &Section,
-    next: &Section,
-    ctx: &mut WriteCtx<'_>,
-) -> Vec<Edit> {
+fn references(root: &Element, base: &Section, next: &Section, ctx: &mut WriteCtx<'_>) -> Vec<Edit> {
     let slots = [
         (&base.header, &next.header, "header", "default"),
-        (&base.first_page_header, &next.first_page_header, "header", "first"),
+        (
+            &base.first_page_header,
+            &next.first_page_header,
+            "header",
+            "first",
+        ),
         (&base.even_header, &next.even_header, "header", "even"),
         (&base.footer, &next.footer, "footer", "default"),
-        (&base.first_page_footer, &next.first_page_footer, "footer", "first"),
+        (
+            &base.first_page_footer,
+            &next.first_page_footer,
+            "footer",
+            "first",
+        ),
         (&base.even_footer, &next.even_footer, "footer", "even"),
     ];
     let mut edits = Vec::new();
@@ -91,9 +96,9 @@ fn references(
             continue;
         }
         let name = format!("w:{tag}Reference");
-        let existing = root.children_named(&name).find(|reference| {
-            reference.attr("w:type").unwrap_or("default") == kind
-        });
+        let existing = root
+            .children_named(&name)
+            .find(|reference| reference.attr("w:type").unwrap_or("default") == kind);
         let written = wanted
             .as_ref()
             .and_then(|part| running_part(part, tag, ctx))
@@ -133,7 +138,11 @@ fn page_size(xml: &str, root: &Element, base: &Section, next: &Section) -> Vec<E
     };
     let landscape = next.orientation == Orientation::Landscape;
     let Some(element) = root.child("w:pgSz") else {
-        let orient = if landscape { " w:orient=\"landscape\"" } else { "" };
+        let orient = if landscape {
+            " w:orient=\"landscape\""
+        } else {
+            ""
+        };
         let at = before_any(root, &AFTER_SIZE);
         let written = format!(
             "<w:pgSz w:w=\"{}\" w:h=\"{}\"{orient}/>",
@@ -151,7 +160,11 @@ fn page_size(xml: &str, root: &Element, base: &Section, next: &Section) -> Vec<E
         tag = with_attr(&tag, "w:h", &twips(size.height).to_string());
     }
     if base.orientation != next.orientation {
-        tag = with_attr(&tag, "w:orient", if landscape { "landscape" } else { "portrait" });
+        tag = with_attr(
+            &tag,
+            "w:orient",
+            if landscape { "landscape" } else { "portrait" },
+        );
     }
     vec![(element.start, element.inner_start.min(element.end), tag)]
 }

@@ -89,7 +89,13 @@ pub(super) fn apply_rich_on_new(
 ) -> Result<Vec<u8>, DocumentsError> {
     let projection = codec.project(bytes)?;
     let resolved = resolve_targets(&projection, ops)?;
-    Ok(apply_rich_ops_with(format, bytes, &projection, &resolved.ops, media)?)
+    Ok(apply_rich_ops_with(
+        format,
+        bytes,
+        &projection,
+        &resolved.ops,
+        media,
+    )?)
 }
 
 impl super::DocumentService {

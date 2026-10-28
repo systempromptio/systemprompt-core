@@ -17,8 +17,8 @@ use super::read_drawing::{
     EMU_PER_PX, MAX_PART_BYTES, MEDIA_SCHEME, image_type, pixel_size, saved_upload_part,
 };
 use super::write::{WriteCtx, escape_attr, ppr};
-use crate::documents::model::{Block, BlockKind};
 use crate::documents::model::layout::ImageWrap;
+use crate::documents::model::{Block, BlockKind};
 
 const WP_NS: &str = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
 const A_NS: &str = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -67,7 +67,9 @@ pub(super) fn image_block(block: &Block, ctx: &mut WriteCtx<'_>) -> String {
 fn picture(blob: &str, ctx: &mut WriteCtx<'_>) -> Option<(String, Option<(u32, u32)>)> {
     if let Some(target) = blob.strip_prefix(MEDIA_SCHEME) {
         if !media_target_ok(target) {
-            ctx.fail(format!("image {blob} does not name a picture part under media/"));
+            ctx.fail(format!(
+                "image {blob} does not name a picture part under media/"
+            ));
             return None;
         }
         let natural = read_part(ctx.base, &format!("word/{target}"))
@@ -92,7 +94,9 @@ fn picture(blob: &str, ctx: &mut WriteCtx<'_>) -> Option<(String, Option<(u32, u
         }
     }
     let Some(media) = resolved.get(blob) else {
-        ctx.fail(format!("image {blob} was not resolved; upload it and pass its blob_ref"));
+        ctx.fail(format!(
+            "image {blob} was not resolved; upload it and pass its blob_ref"
+        ));
         return None;
     };
     let Some((extension, mime)) = image_type(&media.bytes) else {
@@ -185,8 +189,10 @@ pub(super) fn max_drawing_id(xml: &str) -> u32 {
 /// image extension.
 fn media_target_ok(target: &str) -> bool {
     let lower = target.to_ascii_lowercase();
-    let image = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".emf", ".wmf"]
-        .iter()
-        .any(|ext| lower.ends_with(ext));
+    let image = [
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".emf", ".wmf",
+    ]
+    .iter()
+    .any(|ext| lower.ends_with(ext));
     lower.starts_with("media/") && !lower.contains("..") && image
 }

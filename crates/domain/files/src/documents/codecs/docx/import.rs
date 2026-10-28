@@ -88,7 +88,10 @@ pub(super) fn segments(src: &str, ctx: &ReadCtx) -> Result<SegmentedBody, CodecE
         let block = read_segment(src, &range, is_para, ctx);
         if let Some(caption) = caption_of(&block)
             && let Some(image) = segments.last_mut()
-            && let BlockKind::Image { caption: slot @ None, .. } = &mut image.block.kind
+            && let BlockKind::Image {
+                caption: slot @ None,
+                ..
+            } = &mut image.block.kind
         {
             *slot = Some(caption);
             image.range.end = range.end;
@@ -105,7 +108,13 @@ pub(super) fn segments(src: &str, ctx: &ReadCtx) -> Result<SegmentedBody, CodecE
 fn read_segment(src: &str, range: &Range<usize>, is_para: bool, ctx: &ReadCtx) -> Block {
     let xml = &src[range.clone()];
     let Ok(element) = parse_xml("word/document.xml", xml) else {
-        return Block::new(String::new(), BlockKind::Raw { source: xml.to_owned() }, "");
+        return Block::new(
+            String::new(),
+            BlockKind::Raw {
+                source: xml.to_owned(),
+            },
+            "",
+        );
     };
     let read = if is_para {
         paragraph(xml, &element, ctx)
@@ -155,15 +164,14 @@ pub(super) fn settings(
         Some(name) => part_text(bytes, &name)?.and_then(|xml| read_theme(&xml)),
         None => None,
     };
-    let section = final_sect(src).and_then(|range| {
-        match parse_xml("word/document.xml", &src[range]) {
+    let section =
+        final_sect(src).and_then(|range| match parse_xml("word/document.xml", &src[range]) {
             Ok(element) => Some(section(&element, ctx)),
             Err(error) => {
                 tracing::warn!(%error, "final sectPr unreadable; the base section is kept");
                 None
             },
-        }
-    });
+        });
     Ok(DocumentSettings {
         styles,
         theme,

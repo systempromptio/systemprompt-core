@@ -52,7 +52,10 @@ fn style_def(style: &Element) -> Option<StyleDef> {
             .map(str::to_owned)
     };
     let rpr = style.child("w:rPr");
-    let run_val = |name: &str| rpr.and_then(|r| r.child(name)).and_then(|e| e.attr("w:val"));
+    let run_val = |name: &str| {
+        rpr.and_then(|r| r.child(name))
+            .and_then(|e| e.attr("w:val"))
+    };
     let flag = |name: &str| rpr.and_then(|r| r.child(name)).is_some_and(is_on);
     Some(StyleDef {
         id: style.attr("w:styleId")?.to_owned(),

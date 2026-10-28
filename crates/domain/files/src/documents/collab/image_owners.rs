@@ -62,7 +62,10 @@ impl ImageOwners {
             },
         };
         let Ok(len) = u32::try_from(owners.len()) else {
-            tracing::warn!(bytes = owners.len(), "edit session image owners too large; not sealed");
+            tracing::warn!(
+                bytes = owners.len(),
+                "edit session image owners too large; not sealed"
+            );
             return snapshot.to_vec();
         };
         let mut out = Vec::with_capacity(MAGIC.len() + 4 + owners.len() + snapshot.len());

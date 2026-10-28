@@ -239,4 +239,3 @@ fn session_author(entry: &CollabEntry, trace: &TraceId) -> Author {
         },
     }
 }
-

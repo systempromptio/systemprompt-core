@@ -27,7 +27,10 @@ pub(super) fn attrs_ok(attrs: &ParaAttrs) -> bool {
     indent_ok
         && attrs.space_before.is_none_or(|pt| pt <= MAX_POINTS)
         && attrs.space_after.is_none_or(|pt| pt <= MAX_POINTS)
-        && attrs.style.as_deref().is_none_or(|style| style.len() <= 128)
+        && attrs
+            .style
+            .as_deref()
+            .is_none_or(|style| style.len() <= 128)
 }
 
 pub(super) fn image_ok(blob: &str, width: Option<u32>, height: Option<u32>) -> bool {
@@ -46,9 +49,11 @@ pub(super) fn image_ok(blob: &str, width: Option<u32>, height: Option<u32>) -> b
 fn blob_ok(blob: &str) -> bool {
     let lower = blob.trim().to_ascii_lowercase();
     if let Some(target) = lower.strip_prefix("docx-media:") {
-        let image = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".emf", ".wmf"]
-            .iter()
-            .any(|ext| target.ends_with(ext));
+        let image = [
+            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".emf", ".wmf",
+        ]
+        .iter()
+        .any(|ext| target.ends_with(ext));
         return target.starts_with("media/") && !target.contains("..") && image;
     }
     if lower.starts_with("https:") || lower.starts_with("http:") {
@@ -85,7 +90,8 @@ pub(super) fn table_ok(rows: &[Vec<RichText>], props: &TableProps) -> bool {
                 continue;
             }
             let fits = c.checked_add(cols).is_some_and(|end| end <= columns)
-                && r.checked_add(rows_spanned).is_some_and(|end| end <= rows.len());
+                && r.checked_add(rows_spanned)
+                    .is_some_and(|end| end <= rows.len());
             if !fits {
                 return false;
             }

@@ -60,9 +60,7 @@ pub fn unchanged_from(
 ) -> Result<bool, ModelError> {
     let next = materialise(format, base, model, media)?;
     Ok(match model {
-        ModelView::RichText(_) => {
-            next == materialise(format, base, &import(format, base)?, media)?
-        },
+        ModelView::RichText(_) => next == materialise(format, base, &import(format, base)?, media)?,
         ModelView::Body(_) => next == base,
     })
 }

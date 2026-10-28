@@ -58,7 +58,9 @@ pub(super) fn runs(text: &str, active: &[&MarkKind], ctx: &mut WriteCtx<'_>) -> 
         rpr.push_str(CODE_FONT);
     } else if let Some(font) = font {
         let font = escape_attr(font);
-        rpr.push_str(&format!("<w:rFonts w:ascii=\"{font}\" w:hAnsi=\"{font}\"/>"));
+        rpr.push_str(&format!(
+            "<w:rFonts w:ascii=\"{font}\" w:hAnsi=\"{font}\"/>"
+        ));
     }
     for (key, tag) in [
         ("bold", "<w:b/>"),
@@ -76,7 +78,9 @@ pub(super) fn runs(text: &str, active: &[&MarkKind], ctx: &mut WriteCtx<'_>) -> 
         None => {},
     }
     if let Some(size) = size {
-        rpr.push_str(&format!("<w:sz w:val=\"{size}\"/><w:szCs w:val=\"{size}\"/>"));
+        rpr.push_str(&format!(
+            "<w:sz w:val=\"{size}\"/><w:szCs w:val=\"{size}\"/>"
+        ));
     }
     if let Some(name) = highlight {
         rpr.push_str(&format!("<w:highlight w:val=\"{name}\"/>"));
@@ -85,7 +89,9 @@ pub(super) fn runs(text: &str, active: &[&MarkKind], ctx: &mut WriteCtx<'_>) -> 
         rpr.push_str("<w:u w:val=\"single\"/>");
     }
     if let Some(fill) = fill {
-        rpr.push_str(&format!("<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"{fill}\"/>"));
+        rpr.push_str(&format!(
+            "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"{fill}\"/>"
+        ));
     }
     if let Some(vert) = vert {
         rpr.push_str(&format!("<w:vertAlign w:val=\"{vert}\"/>"));

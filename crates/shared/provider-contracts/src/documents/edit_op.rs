@@ -30,9 +30,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 
 use super::codec::CodecError;
-use super::layout_op::{
-    ApplyTheme, InsertBlock, SetParagraph, SetSection, SetStyle, UpdateTable,
-};
+use super::layout_op::{ApplyTheme, InsertBlock, SetParagraph, SetSection, SetStyle, UpdateTable};
 use super::projection::NodeKind;
 use super::rich_op::{InsertImage, InsertTable, SetBlockType, SetMarks, TableDelete, TableInsert};
 

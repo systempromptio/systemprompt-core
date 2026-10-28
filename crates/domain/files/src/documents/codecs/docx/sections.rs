@@ -72,7 +72,9 @@ pub(super) fn sect_pr(section: &Section, ctx: &mut WriteCtx<'_>) -> String {
             continue;
         };
         if let Some(rid) = running_part(model, tag, ctx) {
-            out.push_str(&format!("<w:{tag}Reference w:type=\"{kind}\" r:id=\"{rid}\"/>"));
+            out.push_str(&format!(
+                "<w:{tag}Reference w:type=\"{kind}\" r:id=\"{rid}\"/>"
+            ));
         }
     }
     if section.even_header.is_some() || section.even_footer.is_some() {
@@ -106,11 +108,7 @@ pub(super) fn sect_pr(section: &Section, ctx: &mut WriteCtx<'_>) -> String {
     out
 }
 
-pub(super) fn running_part(
-    model: &RichText,
-    tag: &str,
-    ctx: &mut WriteCtx<'_>,
-) -> Option<String> {
+pub(super) fn running_part(model: &RichText, tag: &str, ctx: &mut WriteCtx<'_>) -> Option<String> {
     let name = loop {
         ctx.part_seq = ctx.part_seq.saturating_add(1);
         let name = format!("sp-{tag}{}.xml", ctx.part_seq);
@@ -133,7 +131,8 @@ pub(super) fn running_part(
     );
     let part = format!("word/{name}");
     ctx.edits.put(&part, xml.into_bytes());
-    ctx.edits.override_type(&part, &format!("{PART_TYPE}.{tag}+xml"));
+    ctx.edits
+        .override_type(&part, &format!("{PART_TYPE}.{tag}+xml"));
     let rid = ctx.links.part_id(tag, &name);
     if rid.is_none() {
         ctx.fail("the document has no relationships part to hold a header or footer");
@@ -150,7 +149,11 @@ pub(super) const fn wants_title_page(section: &Section) -> bool {
 pub(super) fn finish_settings(ctx: &mut WriteCtx<'_>) -> Result<(), CodecError> {
     let mut wanted = Vec::new();
     if ctx.even_odd {
-        wanted.push(("<w:evenAndOddHeaders/>", "<w:evenAndOddHeaders", &AFTER_EVEN_ODD[..]));
+        wanted.push((
+            "<w:evenAndOddHeaders/>",
+            "<w:evenAndOddHeaders",
+            &AFTER_EVEN_ODD[..],
+        ));
     }
     if ctx.update_fields {
         wanted.push((
@@ -168,7 +171,8 @@ pub(super) fn finish_settings(ctx: &mut WriteCtx<'_>) -> Result<(), CodecError> 
             ctx.links
                 .part_id("settings", "settings.xml")
                 .ok_or(malformed("the document has no relationships part"))?;
-            ctx.edits.override_type(SETTINGS, &format!("{PART_TYPE}.settings+xml"));
+            ctx.edits
+                .override_type(SETTINGS, &format!("{PART_TYPE}.settings+xml"));
             format!(
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><w:settings \
                  xmlns:w=\"{W_NS}\"></w:settings>"

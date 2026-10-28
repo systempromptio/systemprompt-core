@@ -18,7 +18,10 @@ use crate::documents::model::{Block, BlockKind, RichText};
 use super::read::{ReadCtx, paragraph, points};
 
 pub(super) fn table(xml: &str, tbl: &Element, ctx: &ReadCtx) -> Option<BlockKind> {
-    if tbl.children_named("w:tr").any(|tr| tr.find("w:tbl").is_some()) {
+    if tbl
+        .children_named("w:tr")
+        .any(|tr| tr.find("w:tbl").is_some())
+    {
         return None;
     }
     let mut props = TableProps {
@@ -106,12 +109,7 @@ fn extend_rowspan(cells: &mut [Vec<CellProps>], column: usize) {
     }
 }
 
-fn cell(
-    xml: &str,
-    tc: &Element,
-    tc_pr: Option<&Element>,
-    ctx: &ReadCtx,
-) -> (RichText, CellProps) {
+fn cell(xml: &str, tc: &Element, tc_pr: Option<&Element>, ctx: &ReadCtx) -> (RichText, CellProps) {
     let mut blocks: Vec<Block> = tc
         .children_named("w:p")
         .map(|p| paragraph(xml, p, ctx).unwrap_or_else(|| raw(xml, p)))

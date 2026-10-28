@@ -62,7 +62,11 @@ impl Numbering {
         ordered: bool,
         settings: &DocumentSettings,
     ) -> Option<u32> {
-        let builtin = if ordered { BUILTIN_DECIMAL } else { BUILTIN_BULLET };
+        let builtin = if ordered {
+            BUILTIN_DECIMAL
+        } else {
+            BUILTIN_BULLET
+        };
         let def = def
             .and_then(|id| settings.numbering(id))
             .cloned()
@@ -103,11 +107,7 @@ impl Numbering {
         num
     }
 
-    pub(super) fn finish(
-        self,
-        edits: &mut PartEdits,
-        links: &mut Links,
-    ) -> Result<(), CodecError> {
+    pub(super) fn finish(self, edits: &mut PartEdits, links: &mut Links) -> Result<(), CodecError> {
         if self.nums.is_empty() {
             return Ok(());
         }
@@ -173,7 +173,11 @@ fn default_text(format: NumberFormat, ilvl: usize) -> String {
 
 fn builtin_def(id: &str, ordered: bool) -> NumberingDef {
     let formats = if ordered {
-        [NumberFormat::Decimal, NumberFormat::LowerLetter, NumberFormat::LowerRoman]
+        [
+            NumberFormat::Decimal,
+            NumberFormat::LowerLetter,
+            NumberFormat::LowerRoman,
+        ]
     } else {
         [NumberFormat::Bullet; 3]
     };

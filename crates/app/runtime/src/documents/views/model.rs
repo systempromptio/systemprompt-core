@@ -45,9 +45,9 @@ pub(super) async fn model_view(
         }
     })?;
     Ok(ReadOutput {
-        uri: input.verbose.then(|| {
-            DocumentUri::new(input.document_id.clone()).at_revision(revision.id.clone())
-        }),
+        uri: input
+            .verbose
+            .then(|| DocumentUri::new(input.document_id.clone()).at_revision(revision.id.clone())),
         revision_id: revision.id,
         content_sha256: input.verbose.then_some(projection.content_sha256),
         format: projection.format,

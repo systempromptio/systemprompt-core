@@ -113,7 +113,9 @@ pub(super) fn update_table(
 ) -> Result<(), CodecError> {
     let id = block.id.clone();
     let BlockKind::Table { rows, props } = &mut block.kind else {
-        return Err(refused(format!("update_table needs a table; {id} is not one")));
+        return Err(refused(format!(
+            "update_table needs a table; {id} is not one"
+        )));
     };
     let columns = rows.iter().map(Vec::len).max().unwrap_or(0);
     for cell in &op.cells {
@@ -147,7 +149,10 @@ pub(super) fn update_table(
         }
     }
     if let Some(widths) = &op.widths {
-        props.columns = widths.iter().map(|width| Column { width: *width }).collect();
+        props.columns = widths
+            .iter()
+            .map(|width| Column { width: *width })
+            .collect();
     }
     if let Some(header_rows) = op.header_rows {
         props.header_rows = header_rows;

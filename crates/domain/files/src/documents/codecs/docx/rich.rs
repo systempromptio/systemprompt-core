@@ -96,15 +96,15 @@ pub fn materialise_rich_with(
 
 /// The body with its final `w:sectPr` rewritten when the model's final
 /// section differs from the base's.
-fn with_final_section(
-    xml: String,
-    base: &DocumentSettings,
-    ctx: &mut WriteCtx<'_>,
-) -> String {
+fn with_final_section(xml: String, base: &DocumentSettings, ctx: &mut WriteCtx<'_>) -> String {
     let Some(section) = ctx.settings.section.clone() else {
         return xml;
     };
-    if base.section.as_ref().is_some_and(|held| same_section(held, &section)) {
+    if base
+        .section
+        .as_ref()
+        .is_some_and(|held| same_section(held, &section))
+    {
         return xml;
     }
     match final_sect(&xml) {
@@ -145,7 +145,10 @@ fn base_breaks(src: &str, body: &SegmentedBody) -> HashMap<String, (String, Sect
             let xml = &src[segment.range.clone()];
             let start = xml.find("<w:sectPr")?;
             let end = xml.rfind("</w:sectPr>")? + "</w:sectPr>".len();
-            Some((block.id.clone(), (xml[start..end].to_owned(), (**section).clone())))
+            Some((
+                block.id.clone(),
+                (xml[start..end].to_owned(), (**section).clone()),
+            ))
         })
         .collect()
 }

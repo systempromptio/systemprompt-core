@@ -19,11 +19,11 @@ use systemprompt_models::documents::{DocumentAction, DocumentCollabDegradedEvent
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::document::{ModelError, materialise};
-use crate::documents::models::DocumentEditSession;
 use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
 use crate::documents::engine::ModelView;
 use crate::documents::model::{BlockKind, Media, RichText, media_refs};
+use crate::documents::models::DocumentEditSession;
 use crate::documents::service::held_media_refs;
 
 /// A live model ready to write: images it may not place are placeholders.
@@ -58,8 +58,13 @@ impl CollabService {
         let wanted = media_refs(&rich);
         let limit = self.documents.config().max_upload_bytes;
         let held = held_media_refs(format, base_bytes, &wanted, limit);
-        let owners_of =
-            |reference: &str| owners.owner(reference).cloned().into_iter().collect::<Vec<_>>();
+        let owners_of = |reference: &str| {
+            owners
+                .owner(reference)
+                .cloned()
+                .into_iter()
+                .collect::<Vec<_>>()
+        };
         let admitted = self
             .documents
             .admit_media(self.uploads.as_deref(), &owners_of, wanted, &held)

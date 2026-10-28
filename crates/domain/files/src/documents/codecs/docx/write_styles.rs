@@ -56,7 +56,11 @@ fn style_xml(def: &StyleDef) -> String {
         StyleKind::Character => "character",
         StyleKind::Table => "table",
     };
-    let name = if def.name.is_empty() { &def.id } else { &def.name };
+    let name = if def.name.is_empty() {
+        &def.id
+    } else {
+        &def.name
+    };
     let mut out = format!(
         "<w:style w:type=\"{kind}\" w:customStyle=\"1\" w:styleId=\"{}\"><w:name w:val=\"{}\"/>",
         escape_attr(&def.id),
@@ -74,7 +78,9 @@ fn style_xml(def: &StyleDef) -> String {
     let mut rpr = String::new();
     if let Some(font) = &def.font {
         let font = escape_attr(font);
-        rpr.push_str(&format!("<w:rFonts w:ascii=\"{font}\" w:hAnsi=\"{font}\"/>"));
+        rpr.push_str(&format!(
+            "<w:rFonts w:ascii=\"{font}\" w:hAnsi=\"{font}\"/>"
+        ));
     }
     for (on, tag) in [(def.bold, "<w:b/>"), (def.italic, "<w:i/>")] {
         if on {
@@ -85,7 +91,9 @@ fn style_xml(def: &StyleDef) -> String {
         rpr.push_str(&format!("<w:color w:val=\"{color}\"/>"));
     }
     if let Some(size) = def.size.as_deref().and_then(half_points) {
-        rpr.push_str(&format!("<w:sz w:val=\"{size}\"/><w:szCs w:val=\"{size}\"/>"));
+        rpr.push_str(&format!(
+            "<w:sz w:val=\"{size}\"/><w:szCs w:val=\"{size}\"/>"
+        ));
     }
     if !rpr.is_empty() {
         out.push_str(&format!("<w:rPr>{rpr}</w:rPr>"));
@@ -110,7 +118,10 @@ pub(super) fn finish_theme(ctx: &mut WriteCtx<'_>, read: &ReadCtx) -> Result<(),
     }
     let root = parse_xml(&part, &xml)?;
     let mut edits = Vec::new();
-    for (font, face) in [("a:majorFont", &theme.heading_font), ("a:minorFont", &theme.body_font)] {
+    for (font, face) in [
+        ("a:majorFont", &theme.heading_font),
+        ("a:minorFont", &theme.body_font),
+    ] {
         let latin = root.find(font).and_then(|f| f.child("a:latin"));
         if let (Some(latin), Some(face)) = (latin, face) {
             edits.push(set_attr(&xml, latin, "typeface", face));
@@ -145,8 +156,17 @@ pub(super) fn set_attr(
             format!("{}{}{}", &tag[..from], escape_attr(value), &tag[to..])
         },
         None => {
-            let close = if tag.ends_with("/>") { tag.len() - 2 } else { tag.len() - 1 };
-            format!("{}{open}{}\"{}", &tag[..close], escape_attr(value), &tag[close..])
+            let close = if tag.ends_with("/>") {
+                tag.len() - 2
+            } else {
+                tag.len() - 1
+            };
+            format!(
+                "{}{open}{}\"{}",
+                &tag[..close],
+                escape_attr(value),
+                &tag[close..]
+            )
         },
     };
     (element.start, tag_end, rewritten)

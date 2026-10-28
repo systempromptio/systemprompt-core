@@ -55,7 +55,10 @@ pub fn materialise_rich_text_live(
     media: &Media,
 ) -> Result<(Vec<u8>, Vec<String>), ModelError> {
     if format != DocumentFormat::Markdown {
-        return Ok((materialise_rich_text_with(format, base, model, media)?, Vec::new()));
+        return Ok((
+            materialise_rich_text_with(format, base, model, media)?,
+            Vec::new(),
+        ));
     }
     let (degraded, warnings) = markdown::degrade(model);
     Ok((markdown::materialise(&degraded)?.into_bytes(), warnings))

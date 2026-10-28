@@ -29,7 +29,11 @@ pub(super) fn image_refs(model: Option<&RichText>, ops: &[EditOp]) -> Vec<String
     for op in ops {
         match op {
             EditOp::InsertImage(op) => {
-                blocks.push(Block::new("", BlockKind::image(op.blob.clone(), String::new()), ""));
+                blocks.push(Block::new(
+                    "",
+                    BlockKind::image(op.blob.clone(), String::new()),
+                    "",
+                ));
             },
             EditOp::InsertBlock(op) => {
                 let mut value = op.block.clone();
@@ -83,7 +87,12 @@ pub(super) async fn resolve_media(
         None => Vec::new(),
     };
     let admitted = service
-        .admit_media(tools.uploads(), &|_| vec![ctx.user_id().clone()], refs, &held)
+        .admit_media(
+            tools.uploads(),
+            &|_| vec![ctx.user_id().clone()],
+            refs,
+            &held,
+        )
         .await;
     match admitted.refused.first() {
         Some(refused) => Err(refusal(

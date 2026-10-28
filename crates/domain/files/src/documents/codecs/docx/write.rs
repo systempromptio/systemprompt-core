@@ -72,11 +72,7 @@ pub(super) fn write_block(block: &Block, ctx: &mut WriteCtx<'_>) -> String {
     write_in_cell(block, ctx, None)
 }
 
-pub(super) fn write_in_cell(
-    block: &Block,
-    ctx: &mut WriteCtx<'_>,
-    cell: Option<Align>,
-) -> String {
+pub(super) fn write_in_cell(block: &Block, ctx: &mut WriteCtx<'_>, cell: Option<Align>) -> String {
     match &block.kind {
         BlockKind::Raw { source } => source.clone(),
         BlockKind::Table { rows, props } => table(rows, props, ctx),
@@ -121,7 +117,13 @@ fn paragraph(block: &Block, ctx: &mut WriteCtx<'_>, cell: Option<Align>) -> Stri
             }),
         _ => None,
     };
-    let props = ppr(&block.attrs, style.as_deref(), num.as_deref(), &borders, cell);
+    let props = ppr(
+        &block.attrs,
+        style.as_deref(),
+        num.as_deref(),
+        &borders,
+        cell,
+    );
     let mut out = format!("<w:p>{props}");
     if let BlockKind::ListItem {
         checked: Some(ticked),
@@ -131,7 +133,10 @@ fn paragraph(block: &Block, ctx: &mut WriteCtx<'_>, cell: Option<Align>) -> Stri
         out.push_str(&run(None, if *ticked { "\u{2612} " } else { "\u{2610} " }));
     }
     if matches!(block.kind, BlockKind::Code { .. }) {
-        out.push_str(&run(Some(&format!("<w:rPr>{CODE_FONT}</w:rPr>")), &block.text));
+        out.push_str(&run(
+            Some(&format!("<w:rPr>{CODE_FONT}</w:rPr>")),
+            &block.text,
+        ));
     } else {
         for (text, active) in segments(&block.text, &block.marks) {
             out.push_str(&runs(&text, &active, ctx));

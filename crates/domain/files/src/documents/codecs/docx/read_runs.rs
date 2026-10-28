@@ -93,11 +93,16 @@ impl<'a> Runs<'a> {
     }
 
     fn run(&mut self, run: &'a Element) {
-        let base = run.child("w:rPr").map(|rpr| self.run_marks(rpr)).unwrap_or_default();
+        let base = run
+            .child("w:rPr")
+            .map(|rpr| self.run_marks(rpr))
+            .unwrap_or_default();
         for child in &run.children {
             match child.name.as_str() {
                 "w:t" => {
-                    let text = child.text("word/document.xml", self.xml).unwrap_or_default();
+                    let text = child
+                        .text("word/document.xml", self.xml)
+                        .unwrap_or_default();
                     self.push(&text, &base);
                 },
                 "w:tab" | "w:ptab" => self.push("\t", &base),
@@ -107,7 +112,9 @@ impl<'a> Runs<'a> {
                 },
                 "w:fldChar" => self.fld_char(child.attr("w:fldCharType").unwrap_or_default()),
                 "w:instrText" => {
-                    let text = child.text("word/document.xml", self.xml).unwrap_or_default();
+                    let text = child
+                        .text("word/document.xml", self.xml)
+                        .unwrap_or_default();
                     if let Some(instr) = self.instr.as_mut() {
                         instr.push_str(&text);
                     }
@@ -178,7 +185,9 @@ impl<'a> Runs<'a> {
             }),
             None => {},
         }
-        if let Some(color) = val("w:color").filter(|c| *c != "auto").map(|c| format!("#{c}"))
+        if let Some(color) = val("w:color")
+            .filter(|c| *c != "auto")
+            .map(|c| format!("#{c}"))
             && !(in_link && color.eq_ignore_ascii_case(LINK_COLOR))
         {
             marks.push(MarkKind::Color { value: color });

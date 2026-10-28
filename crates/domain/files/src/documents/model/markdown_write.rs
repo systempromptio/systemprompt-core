@@ -27,7 +27,11 @@ const REFUSED_MARKS: [&str; 6] = ["color", "highlight", "font", "size", "caps", 
 pub fn materialise(model: &RichText) -> Result<String, CodecError> {
     check_settings(model)?;
     let mut out = String::new();
-    if let Some(front) = model.document.as_ref().and_then(|d| d.front_matter.as_deref()) {
+    if let Some(front) = model
+        .document
+        .as_ref()
+        .and_then(|d| d.front_matter.as_deref())
+    {
         out.push_str("---\n");
         out.push_str(front.trim_end_matches('\n'));
         out.push_str("\n---\n\n");
@@ -38,7 +42,11 @@ pub fn materialise(model: &RichText) -> Result<String, CodecError> {
         check_block(block)?;
         let is_list = matches!(block.kind, BlockKind::ListItem { .. });
         if !body.is_empty() {
-            body.push_str(if is_list && previous_list { "\n" } else { "\n\n" });
+            body.push_str(if is_list && previous_list {
+                "\n"
+            } else {
+                "\n\n"
+            });
         }
         previous_list = is_list;
         write_block(&mut body, block)?;
@@ -96,11 +104,18 @@ fn check_block(block: &Block) -> Result<(), CodecError> {
             let plain = props.columns.iter().all(|c| c.width.is_none())
                 && props.header_rows <= 1
                 && props.style.is_none()
-                && props.cells.iter().flatten().all(|cell| *cell == Default::default());
+                && props
+                    .cells
+                    .iter()
+                    .flatten()
+                    .all(|cell| *cell == Default::default());
             (!plain).then_some("table widths, styles, shading or merged cells")
         },
         BlockKind::Image {
-            width, height, wrap, ..
+            width,
+            height,
+            wrap,
+            ..
         } => (width.is_some() || height.is_some() || *wrap != Default::default())
             .then_some("an image size or wrap"),
         BlockKind::PageBreak => Some("a page break"),
@@ -109,7 +124,9 @@ fn check_block(block: &Block) -> Result<(), CodecError> {
         _ => None,
     };
     match what {
-        Some(what) => Err(refused(format!("block {id} holds {what}, which Markdown cannot hold"))),
+        Some(what) => Err(refused(format!(
+            "block {id} holds {what}, which Markdown cannot hold"
+        ))),
         None => Ok(()),
     }
 }
@@ -170,7 +187,10 @@ fn write_block(out: &mut String, block: &Block) -> Result<(), CodecError> {
         BlockKind::Divider => out.push_str("---"),
         BlockKind::Raw { source } => out.push_str(source),
         BlockKind::PageBreak | BlockKind::SectionBreak { .. } | BlockKind::Toc { .. } => {
-            return Err(refused(format!("block {} cannot be written as Markdown", block.id)));
+            return Err(refused(format!(
+                "block {} cannot be written as Markdown",
+                block.id
+            )));
         },
     }
     Ok(())
@@ -268,7 +288,9 @@ fn degrade_block(block: &Block, warnings: &mut Vec<String>) -> Block {
                 ..TableProps::default()
             };
             if *props != plain {
-                warnings.push(format!("block {id}: dropped table widths, styling or merges"));
+                warnings.push(format!(
+                    "block {id}: dropped table widths, styling or merges"
+                ));
             }
             *props = plain;
         },

@@ -55,7 +55,8 @@ impl PartEdits {
         }
         if !self.defaults.is_empty() || !self.overrides.is_empty() {
             let types = content_types(base, &self.defaults, &self.overrides)?;
-            self.parts.insert(CONTENT_TYPES.to_owned(), types.into_bytes());
+            self.parts
+                .insert(CONTENT_TYPES.to_owned(), types.into_bytes());
         }
         let mut archive = ZipArchive::new(Cursor::new(base)).map_err(zip_error)?;
         let mut writer = ZipWriter::new(Cursor::new(Vec::new()));

@@ -5,9 +5,9 @@
 //! when (a) one of its owners completed the upload that produced it, and
 //! its bytes are then read from the blob store, or (b) the document
 //! already holds it (`held`, from the revision the write builds on), and
-//! it is then placed from the document's own bytes, never the store. Everything else is returned as refused,
-//! for the caller to refuse (an agent write) or degrade (a live
-//! checkpoint).
+//! it is then placed from the document's own bytes, never the store. Everything
+//! else is returned as refused, for the caller to refuse (an agent write) or
+//! degrade (a live checkpoint).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
