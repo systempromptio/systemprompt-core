@@ -3,13 +3,13 @@
 
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use axum::{Extension, Router};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use loro::{ExportMode, LoroDoc};
+use loro::{Container, ExportMode, LoroDoc, ValueOrContainer};
 use serde_json::{Value, json};
 use systemprompt_api::routes::documents::{DocumentsState, router};
 use systemprompt_database::DbPool;
@@ -68,7 +68,13 @@ fn update_from(joined: &Value, text: &str) -> Result<(String, String)> {
     let doc = LoroDoc::new();
     doc.import(&STANDARD.decode(joined["snapshot_b64"].as_str().expect("snapshot"))?)?;
     let before = doc.oplog_vv();
-    let body = doc.get_text("body");
+    let blocks = doc.get_movable_list("blocks");
+    let Some(ValueOrContainer::Container(Container::Map(block))) = blocks.get(0) else {
+        bail!("the joined snapshot carries no first block");
+    };
+    let Some(ValueOrContainer::Container(Container::Text(body))) = block.get("text") else {
+        bail!("the first block carries no text container");
+    };
     body.insert(body.len_unicode(), text)?;
     doc.commit();
     let update = doc.export(ExportMode::updates(&before))?;

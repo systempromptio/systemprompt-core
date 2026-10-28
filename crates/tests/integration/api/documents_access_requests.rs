@@ -128,7 +128,7 @@ async fn a_stranger_may_ask_once_the_owner_sees_it_and_a_grant_shares_the_level(
     let (status, refused) =
         call(docs(&state, &asker), Method::GET, &format!("/{id}"), None).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{refused}");
-    assert_eq!(refused["can_request"], true, "{refused}");
+    assert_eq!(refused["detail"]["can_request"], true, "{refused}");
 
     let (status, created) = ask(&state, &asker, &id, "comment").await?;
     assert_eq!(status, StatusCode::CREATED, "{created}");
@@ -154,7 +154,7 @@ async fn a_stranger_may_ask_once_the_owner_sees_it_and_a_grant_shares_the_level(
 
     let (status, not_yours) = access_view(&state, &asker, &id).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{not_yours}");
-    assert_eq!(not_yours["can_request"], true, "{not_yours}");
+    assert_eq!(not_yours["detail"]["can_request"], true, "{not_yours}");
 
     let (status, granted) = decide(&state, &owner, &id, &request, "grant").await?;
     assert_eq!(status, StatusCode::OK, "{granted}");
@@ -213,7 +213,7 @@ async fn a_decline_closes_the_request_and_only_share_holders_may_decide() -> Res
     let (status, still_out) =
         call(docs(&state, &asker), Method::GET, &format!("/{id}"), None).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{still_out}");
-    assert_eq!(still_out["can_request"], true, "{still_out}");
+    assert_eq!(still_out["detail"]["can_request"], true, "{still_out}");
     let (_, after) = access_view(&state, &owner, &id).await?;
     assert!(after.get("requests").is_none(), "{after}");
 

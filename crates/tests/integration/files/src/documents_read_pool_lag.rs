@@ -34,13 +34,6 @@ impl ReadPoolLag {
         let primary = test_db_pool().await;
         let read = PgPoolOptions::new()
             .max_connections(1)
-            .after_connect(|conn, _| {
-                Box::pin(async move {
-                    conn.execute("BEGIN ISOLATION LEVEL REPEATABLE READ")
-                        .await
-                        .map(|_| ())
-                })
-            })
             .connect(&test_database_url())
             .await
             .expect("lagging read pool");
@@ -61,8 +54,13 @@ impl ReadPoolLag {
     }
 
     async fn freeze(&self) {
-        sqlx::query("SELECT 1")
-            .execute(&*self.read)
+        let mut replica = self.read.acquire().await.expect("the replica connection");
+        replica
+            .execute("BEGIN ISOLATION LEVEL REPEATABLE READ")
+            .await
+            .expect("open the replica transaction");
+        replica
+            .execute("SELECT 1")
             .await
             .expect("freeze the replica snapshot");
     }

@@ -251,7 +251,7 @@ async fn access_requests_stay_not_found_while_the_install_disables_them() -> Res
     )
     .await?;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(refused.get("can_request").is_none(), "{refused}");
+    assert!(refused["detail"]["can_request"].is_null(), "{refused}");
     let ask = json!({ "level": "view", "message": "please" });
     let (status, _) = call(
         docs(&state, &stranger),
