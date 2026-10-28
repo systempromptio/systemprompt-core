@@ -20,7 +20,7 @@
 use std::ops::Range;
 
 use super::ids::IdSeq;
-use super::rich_text::{Block, RichText};
+use super::rich_text::{Block, BlockKind, RichText};
 
 #[derive(Debug, Clone)]
 pub struct Segment {
@@ -38,17 +38,63 @@ pub struct SegmentedBody {
 #[must_use]
 pub fn import(body: &SegmentedBody) -> RichText {
     let mut ids = IdSeq::default();
-    RichText {
-        blocks: body
-            .segments
-            .iter()
-            .map(|segment| {
-                let mut block = segment.block.clone();
-                block.id = ids.next_id();
-                block
-            })
-            .collect(),
-        document: None,
+    let mut model = RichText::of(body.segments.iter().map(|s| s.block.clone()).collect());
+    number(&mut model, &mut ids);
+    model
+}
+
+/// Numbers every block in document order, the blocks inside table cells
+/// and section headers and footers included.
+pub(crate) fn number(model: &mut RichText, ids: &mut IdSeq) {
+    for block in &mut model.blocks {
+        block.id = ids.next_id();
+        for nested in nested_mut(&mut block.kind) {
+            number(nested, ids);
+        }
+    }
+}
+
+/// Numbers the blocks of the final section's headers and footers after
+/// every body block, so their ids never collide with the body's.
+pub(crate) fn number_running(model: &mut RichText) {
+    let mut ids = IdSeq::default();
+    let mut body = RichText::of(model.blocks.clone());
+    number(&mut body, &mut ids);
+    let Some(section) = model.document.as_mut().and_then(|d| d.section.take()) else {
+        return;
+    };
+    let mut kind = BlockKind::SectionBreak {
+        section: Box::new(section),
+    };
+    for part in nested_mut(&mut kind) {
+        number(part, &mut ids);
+    }
+    if let (BlockKind::SectionBreak { section }, Some(settings)) = (kind, model.document.as_mut()) {
+        settings.section = Some(*section);
+    }
+}
+
+/// Whether two kinds are equal once their nested block ids are ignored.
+#[must_use]
+pub(crate) fn same_kind(a: &BlockKind, b: &BlockKind) -> bool {
+    unnumbered(a) == unnumbered(b)
+}
+
+fn nested_mut(kind: &mut BlockKind) -> Vec<&mut RichText> {
+    match kind {
+        BlockKind::Table { rows, .. } => rows.iter_mut().flatten().collect(),
+        BlockKind::SectionBreak { section } => [
+            &mut section.header,
+            &mut section.footer,
+            &mut section.first_page_header,
+            &mut section.first_page_footer,
+            &mut section.even_header,
+            &mut section.even_footer,
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        _ => Vec::new(),
     }
 }
 
@@ -57,7 +103,7 @@ pub fn splice(
     xml: &str,
     body: &SegmentedBody,
     model: &RichText,
-    write: impl Fn(&Block) -> String,
+    mut write: impl FnMut(&Block) -> String,
 ) -> String {
     let region = match (body.segments.first(), body.segments.last()) {
         (Some(first), Some(last)) => first.range.start..last.range.end,
@@ -102,5 +148,27 @@ fn find_same(segments: &[Segment], cursor: usize, block: &Block) -> Option<usize
 }
 
 fn same_content(a: &Block, b: &Block) -> bool {
-    a.kind == b.kind && a.attrs == b.attrs && a.text == b.text && a.marks == b.marks
+    a.attrs == b.attrs
+        && a.text == b.text
+        && a.marks == b.marks
+        && unnumbered(&a.kind) == unnumbered(&b.kind)
+}
+
+/// A kind with the ids of its nested blocks cleared, so a base segment
+/// (whose nested blocks were never numbered) matches its imported block.
+fn unnumbered(kind: &BlockKind) -> BlockKind {
+    let mut kind = kind.clone();
+    for nested in nested_mut(&mut kind) {
+        clear_ids(nested);
+    }
+    kind
+}
+
+fn clear_ids(model: &mut RichText) {
+    for block in &mut model.blocks {
+        block.id.clear();
+        for nested in nested_mut(&mut block.kind) {
+            clear_ids(nested);
+        }
+    }
 }

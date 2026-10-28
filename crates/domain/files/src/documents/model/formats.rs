@@ -14,7 +14,7 @@ use systemprompt_models::documents::DocumentFormat;
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::html_body::{body_of, splice_body};
-use super::{RichText, html, markdown};
+use super::{Media, RichText, html, markdown};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -42,13 +42,25 @@ pub fn materialise_rich_text(
     base: &[u8],
     model: &RichText,
 ) -> Result<Vec<u8>, ModelError> {
+    materialise_rich_text_with(format, base, model, &Media::new())
+}
+
+/// [`materialise_rich_text`] with the bytes of the images the model adds;
+/// see [`super::media_refs`]. Only `docx` embeds images, so only `docx`
+/// reads `media`.
+pub fn materialise_rich_text_with(
+    format: DocumentFormat,
+    base: &[u8],
+    model: &RichText,
+    media: &Media,
+) -> Result<Vec<u8>, ModelError> {
     match format {
         DocumentFormat::Markdown => Ok(markdown::materialise(model).into_bytes()),
         DocumentFormat::Html => {
             let base = std::str::from_utf8(base)?;
             Ok(splice_body(format, base, &html::materialise(model)).into_bytes())
         },
-        _ => office_materialise(format, base, model),
+        _ => office_materialise(format, base, model, media),
     }
 }
 
@@ -67,10 +79,11 @@ fn office_materialise(
     format: DocumentFormat,
     base: &[u8],
     model: &RichText,
+    media: &Media,
 ) -> Result<Vec<u8>, ModelError> {
     use crate::documents::codecs::{docx, odf};
     match format {
-        DocumentFormat::Docx => Ok(docx::materialise_rich(base, model)?),
+        DocumentFormat::Docx => Ok(docx::materialise_rich_with(base, model, media)?),
         DocumentFormat::Odt => Ok(odf::materialise_odt_rich(base, model)?),
         _ => Err(ModelError::Unsupported),
     }
@@ -86,6 +99,7 @@ const fn office_materialise(
     _format: DocumentFormat,
     _base: &[u8],
     _model: &RichText,
+    _media: &Media,
 ) -> Result<Vec<u8>, ModelError> {
     Err(ModelError::Unsupported)
 }

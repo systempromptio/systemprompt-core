@@ -16,6 +16,11 @@
 //! numbering properties as a list item, and drawings as image children
 //! carrying their relationship id.
 //!
+//! The `RichText` model of a package ([`import_rich`],
+//! [`materialise_rich_with`]) reads and writes much more: paragraph and run
+//! formatting, numbering, editable tables, drawings with their picture
+//! parts, sections with header and footer parts, fields, styles and theme.
+//!
 //! The parts are addressed by the `w:` prefix Word always writes for the
 //! main `WordprocessingML` namespace. Text inside text boxes, headers,
 //! footers, footnotes and comments is not projected.
@@ -27,21 +32,36 @@ mod apply;
 mod blank;
 mod comments;
 mod fragment;
+mod import;
 mod inline;
 mod insert;
 mod instantiate;
 mod links;
 mod markdown;
 mod markup;
+mod numbering;
+mod package;
 mod parts;
 mod preview;
 mod projection;
+mod read;
+mod read_drawing;
+mod read_numbering;
+mod read_runs;
+mod read_section;
+mod read_styles;
+mod read_table;
 mod rich;
 mod scan;
+mod sections;
 mod styles;
+mod write;
+mod write_drawing;
+mod write_styles;
+mod write_table;
 
 pub use comments::{NativeComment, with_comments};
-pub use rich::{import_rich, materialise_rich};
+pub use rich::{import_rich, materialise_rich, materialise_rich_with};
 
 use std::sync::Arc;
 

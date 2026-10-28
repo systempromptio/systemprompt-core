@@ -19,7 +19,7 @@ fn odt_body() -> String {
 }
 
 #[test]
-fn a_docx_body_imports_headings_lists_marks_and_raw_objects() {
+fn a_docx_body_imports_headings_lists_marks_tables_and_raw_objects() {
     let model = import_rich(&package_with(DOCUMENT_XML)).expect("import");
     let kinds: Vec<_> = model.blocks.iter().map(|b| &b.kind).collect();
     assert_eq!(kinds[0], &BlockKind::Heading { level: 1 });
@@ -45,8 +45,8 @@ fn a_docx_body_imports_headings_lists_marks_and_raw_objects() {
         "the drawing paragraph is kept verbatim"
     );
     assert!(
-        matches!(kinds[4], BlockKind::Raw { .. }),
-        "the table is kept verbatim"
+        matches!(kinds[4], BlockKind::Table { .. }),
+        "the table imports as an editable table"
     );
 }
 

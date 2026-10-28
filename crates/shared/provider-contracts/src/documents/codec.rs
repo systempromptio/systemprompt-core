@@ -55,6 +55,9 @@ pub enum CodecError {
     Io(#[from] std::io::Error),
     #[error("malformed document: {detail}")]
     Malformed { detail: &'static str },
+    /// The format cannot hold what the model asks for; `detail` names it.
+    #[error("the document cannot hold this content: {detail}")]
+    Refused { detail: String },
 }
 
 /// A node copied out of one revision's bytes for insertion into another.

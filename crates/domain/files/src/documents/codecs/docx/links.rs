@@ -106,10 +106,6 @@ impl Links {
         Some(id)
     }
 
-    pub(super) fn has_rels(&self) -> bool {
-        self.rels.is_some()
-    }
-
     /// Every relationship of the document part, id to target.
     pub(super) fn targets(bytes: &[u8]) -> Result<HashMap<String, String>, CodecError> {
         let Some(rels) = read_part(bytes, RELS)?.and_then(|raw| String::from_utf8(raw).ok()) else {
