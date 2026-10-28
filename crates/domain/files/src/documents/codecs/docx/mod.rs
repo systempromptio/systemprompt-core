@@ -53,6 +53,7 @@ mod read_styles;
 mod read_table;
 mod rich;
 mod scan;
+mod sect_splice;
 mod sections;
 mod styles;
 mod write;

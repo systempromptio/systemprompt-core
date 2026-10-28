@@ -20,6 +20,7 @@ use super::links::Links;
 use super::numbering::Numbering;
 use super::package::PartEdits;
 use super::parts::{DOCUMENT, read_document};
+use super::sect_splice::splice_sect_pr;
 use super::sections::{finish_settings, sect_pr};
 use super::write::{WriteCtx, write_block};
 use super::write_styles::{finish_styles, finish_theme};
@@ -100,10 +101,16 @@ fn with_final_section(
     if base.section.as_ref().is_some_and(|held| same_section(held, &section)) {
         return xml;
     }
-    let written = sect_pr(&section, ctx);
     match final_sect(&xml) {
-        Some(range) => format!("{}{written}{}", &xml[..range.start], &xml[range.end..]),
+        Some(range) => {
+            let written = match &base.section {
+                Some(held) => splice_sect_pr(&xml[range.clone()], held, &section, ctx),
+                None => sect_pr(&section, ctx),
+            };
+            format!("{}{written}{}", &xml[..range.start], &xml[range.end..])
+        },
         None => {
+            let written = sect_pr(&section, ctx);
             let at = insert_point(&xml);
             format!("{}{written}{}", &xml[..at], &xml[at..])
         },

@@ -173,6 +173,9 @@ pub struct Section {
     pub size: Option<PageSize>,
     #[serde(default, skip_serializing_if = "is_portrait")]
     pub orientation: Orientation,
+    /// Whether the first page has its own header and footer (`titlePg`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub title_page: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub margins: Option<Margins>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

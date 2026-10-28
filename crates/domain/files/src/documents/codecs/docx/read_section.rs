@@ -11,7 +11,7 @@ use crate::documents::codecs::xml_tree::Element;
 use crate::documents::model::RichText;
 use crate::documents::model::layout::{Margins, Orientation, PageSize, Section};
 
-use super::read::{ReadCtx, points};
+use super::read::{ReadCtx, is_on, points};
 
 pub(super) fn section(sect: &Element, ctx: &ReadCtx) -> Section {
     let mut section = Section::default();
@@ -24,6 +24,7 @@ pub(super) fn section(sect: &Element, ctx: &ReadCtx) -> Section {
             section.orientation = Orientation::Landscape;
         }
     }
+    section.title_page = sect.child("w:titlePg").is_some_and(is_on);
     if let Some(margin) = sect.child("w:pgMar") {
         let at = |name: &str| margin.attr(name).and_then(points).unwrap_or(0);
         section.margins = Some(Margins {

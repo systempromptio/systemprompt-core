@@ -99,14 +99,18 @@ pub(super) fn sect_pr(section: &Section, ctx: &mut WriteCtx<'_>) -> String {
             m.left * 20
         ));
     }
-    if section.first_page_header.is_some() || section.first_page_footer.is_some() {
+    if wants_title_page(section) {
         out.push_str("<w:titlePg/>");
     }
     out.push_str("</w:sectPr>");
     out
 }
 
-fn running_part(model: &RichText, tag: &str, ctx: &mut WriteCtx<'_>) -> Option<String> {
+pub(super) fn running_part(
+    model: &RichText,
+    tag: &str,
+    ctx: &mut WriteCtx<'_>,
+) -> Option<String> {
     let name = loop {
         ctx.part_seq = ctx.part_seq.saturating_add(1);
         let name = format!("sp-{tag}{}.xml", ctx.part_seq);
@@ -135,6 +139,10 @@ fn running_part(model: &RichText, tag: &str, ctx: &mut WriteCtx<'_>) -> Option<S
         ctx.fail("the document has no relationships part to hold a header or footer");
     }
     rid
+}
+
+pub(super) const fn wants_title_page(section: &Section) -> bool {
+    section.title_page || section.first_page_header.is_some() || section.first_page_footer.is_some()
 }
 
 /// Writes `w:evenAndOddHeaders` and `w:updateFields` into the settings part
