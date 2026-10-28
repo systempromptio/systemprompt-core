@@ -10,6 +10,8 @@ fn shared(document: &DocumentId) -> DocumentNotice {
         kind: NoticeKind::Shared,
         document_id: document.clone(),
         from: UserId::new("owner-user"),
+        from_name: Some("Owner".to_owned()),
+        document_name: Some("memo.docx".to_owned()),
         proposal_id: None,
         detail: Some("edit".to_owned()),
     }

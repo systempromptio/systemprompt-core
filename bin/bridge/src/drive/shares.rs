@@ -31,7 +31,7 @@ pub struct ReceivedShare {
 pub fn received(notice: &DocumentNotice, at: DateTime<Utc>) -> Option<ReceivedShare> {
     (notice.kind == NoticeKind::Shared).then(|| ReceivedShare {
         document_id: notice.document_id.clone(),
-        document_name: None,
+        document_name: notice.document_name.clone(),
         shared_by: Some(notice.from.clone()),
         level: notice.detail.clone(),
         received_at: at,
