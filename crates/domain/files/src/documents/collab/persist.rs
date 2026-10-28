@@ -86,7 +86,7 @@ impl CollabService {
             .await;
         if !live.refused.is_empty()
             && let Err(error) = self
-                .notify_degraded(entry, who, live.refused.clone(), trace)
+                .notify_degraded(&entry.session.clone(), who, live.refused.clone(), trace)
                 .await
         {
             tracing::warn!(%error, "degraded checkpoint could not be announced");

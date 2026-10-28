@@ -19,7 +19,7 @@ use systemprompt_models::documents::{DocumentAction, DocumentCollabDegradedEvent
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::document::{ModelError, materialise};
-use super::entry::CollabEntry;
+use crate::documents::models::DocumentEditSession;
 use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
 use crate::documents::engine::ModelView;
@@ -84,18 +84,18 @@ impl CollabService {
     /// placeholders; the live document itself is left as it is.
     pub(super) async fn notify_degraded(
         &self,
-        entry: &CollabEntry,
+        session: &DocumentEditSession,
         who: &AuthenticatedUser,
         images: Vec<String>,
         trace: &TraceId,
     ) -> Result<(), CollabError> {
         let document = self
-            .authorized(who, &entry.session.document_id, DocumentAction::View, trace)
+            .authorized(who, &session.document_id, DocumentAction::View, trace)
             .await?;
         let to = self.recipients(&document).await;
         let event = DocumentCollabDegradedEvent {
             document_id: document.id.clone(),
-            edit_session_id: entry.session.id.clone(),
+            edit_session_id: session.id.clone(),
             images,
         };
         self.documents.events().collab_degraded(&to, &event).await?;
