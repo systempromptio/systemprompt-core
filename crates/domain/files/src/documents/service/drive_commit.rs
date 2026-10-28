@@ -60,7 +60,7 @@ impl DocumentService {
                     bytes,
                     author,
                 };
-                let (_, revision) = self.import(who, request, trace).await?;
+                let (_, revision) = self.import_external(who, request, trace).await?;
                 return Ok(DriveCommitResponse::Committed {
                     revision_id: revision.id,
                 });
@@ -76,7 +76,7 @@ impl DocumentService {
             comments: CommentPolicy::detach(),
             op_id: None,
         };
-        Ok(match self.commit(who, request, trace).await? {
+        Ok(match self.commit_external(who, request, trace).await? {
             CommitOutcome::Committed(landed) => DriveCommitResponse::Committed {
                 revision_id: landed.revision.id,
             },

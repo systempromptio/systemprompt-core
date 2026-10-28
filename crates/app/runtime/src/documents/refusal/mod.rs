@@ -234,6 +234,7 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         DocumentsError::AccessRequestNotNeeded { .. } => Some(RefusalCode::AccessRequestNotNeeded),
         DocumentsError::AccessRequestClosed { .. } => Some(RefusalCode::AccessRequestClosed),
         DocumentsError::InvalidParams { .. }
+        | DocumentsError::ContentRefused { .. }
         | DocumentsError::GuardMissing { .. }
         | DocumentsError::InvalidName { .. }
         | DocumentsError::UnknownSubjectKind { .. }

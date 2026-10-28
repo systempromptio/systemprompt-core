@@ -171,7 +171,9 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
         | DocumentsError::CommentNotFound { .. } => not_found,
         DocumentsError::TooLarge { .. } => too_large,
         DocumentsError::LockHeld { .. } => locked,
-        DocumentsError::IntegrityMismatch { .. } | DocumentsError::Template { .. } => unprocessable,
+        DocumentsError::IntegrityMismatch { .. }
+        | DocumentsError::Template { .. }
+        | DocumentsError::ContentRefused { .. } => unprocessable,
         DocumentsError::Codec(codec) => codec_status(codec),
         _ => bad_request,
     }

@@ -95,7 +95,10 @@ pub(super) fn upload_error(error: UploadError) -> McpError {
         | UploadError::PartBudgetExhausted { .. } => RefusalCode::TooLarge,
         UploadError::NotFound | UploadError::BlobNotOwned(_) => RefusalCode::NotFound,
         UploadError::Refused { .. } => RefusalCode::IntegrityMismatch,
-        UploadError::Storage(_) | UploadError::Repository(_) | UploadError::Blob(_) => {
+        UploadError::Storage(_)
+        | UploadError::Repository(_)
+        | UploadError::Blob(_)
+        | UploadError::Interrupted(_) => {
             tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "document upload failed");
             return McpError::internal_error("the upload could not be stored", None);
         },

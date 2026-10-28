@@ -105,7 +105,10 @@ pub(super) async fn write(
         comments: CommentPolicy::detach(),
         op_id: query.op_id,
     };
-    let outcome = state.service.commit(&who.user, request, &who.trace).await?;
+    let outcome = state
+        .service
+        .commit_external(&who.user, request, &who.trace)
+        .await?;
     Ok(outcome_response(outcome, &id))
 }
 

@@ -173,5 +173,6 @@ pub struct CompletedUpload {
     pub blob: ContentHash,
     pub size_bytes: u64,
     pub detected_mime: String,
+    pub checked_kind: String,
     pub deduplicated: bool,
 }

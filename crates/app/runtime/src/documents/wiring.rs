@@ -113,6 +113,7 @@ impl DocumentsRuntime {
             events: Arc::new(DocumentEvents::new(Arc::new(event_router))),
             config,
         }));
+        service.attach_uploads(&uploads);
         #[cfg(feature = "collab")]
         let collab = {
             #[cfg(feature = "engine-loro")]

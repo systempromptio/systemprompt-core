@@ -4,10 +4,11 @@
 //! and compressed size are kept, so the streaming scan in `office` can
 //! check that the local entries tile the archive exactly.
 //!
-//! The records must close the archive: the end record's comment runs to the
-//! last byte, the directory ends where the (zip64) end record starts, and
-//! the directory is consumed exactly by its entries. Multi-disk archives
-//! are refused.
+//! The records must close the archive: exactly one end record whose comment
+//! runs to the last byte (two such candidates could be read differently by
+//! the guard and a codec, so they are refused), the directory ends where the
+//! (zip64) end record starts, and the directory is consumed exactly by its
+//! entries. Multi-disk archives are refused.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -114,14 +115,22 @@ async fn end_record(
     tail: &[u8],
     tail_start: u64,
 ) -> UploadResult<End> {
-    let at = (0..tail.len().saturating_sub(EOCD_LEN as usize - 1))
-        .rev()
-        .find(|&at| {
+    let candidates: Vec<usize> = (0..tail.len().saturating_sub(EOCD_LEN as usize - 1))
+        .filter(|&at| {
             le(tail, at, 4) == Some(u64::from(EOCD_SIGNATURE))
                 && le(tail, at + 20, 2)
                     .is_some_and(|comment| at as u64 + EOCD_LEN + comment == tail.len() as u64)
         })
-        .ok_or_else(|| refuse("the archive has no end-of-central-directory record"))?;
+        .collect();
+    let at = match candidates.as_slice() {
+        [at] => *at,
+        [] => return Err(refuse("the archive has no end-of-central-directory record")),
+        _ => {
+            return Err(refuse(
+                "the archive has more than one end-of-central-directory record",
+            ));
+        },
+    };
     let record = &tail[at..];
     if field(record, 4, 2)? != 0 || field(record, 6, 2)? != 0 {
         return Err(refuse("multi-disk archives are not accepted"));

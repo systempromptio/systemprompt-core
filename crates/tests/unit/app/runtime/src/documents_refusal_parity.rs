@@ -34,6 +34,7 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::GuardMissing { .. }
         | DocumentsError::SelfReview { .. }
         | DocumentsError::IntegrityMismatch { .. }
+        | DocumentsError::ContentRefused { .. }
         | DocumentsError::InvalidName { .. }
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::UnknownSubject { .. }

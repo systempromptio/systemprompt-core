@@ -20,6 +20,7 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use systemprompt_identifiers::{DocumentUploadId, TraceId, UserId};
 use systemprompt_traits::FileStorageError;
@@ -29,6 +30,10 @@ use super::models::{CompletedUpload, NewUpload, UploadSession, UploadStatus};
 use super::safety::{Subject, inspect};
 use super::service::UploadService;
 use super::stream::{Tally, assembled_storage_id, concatenated};
+
+/// How often a running completion refreshes its claim; the expiry job
+/// closes a claim not refreshed for an hour.
+const CLAIM_HEARTBEAT: Duration = Duration::from_secs(300);
 
 impl UploadService {
     pub async fn complete(
@@ -44,6 +49,7 @@ impl UploadService {
                 blob,
                 size_bytes: session.declared_size,
                 detected_mime: session.detected_mime.clone().unwrap_or_default(),
+                checked_kind: session.checked_kind.clone().unwrap_or_default(),
                 deduplicated: true,
                 session,
             });
@@ -57,19 +63,46 @@ impl UploadService {
                 .map_or(UploadStatus::Expired, |current| current.status);
             return Err(UploadError::Closed { status });
         }
-        match self.finish(&session).await {
+        let service = self.clone();
+        let completion = tokio::spawn(async move { service.finish_claimed(session).await });
+        completion.await?
+    }
+
+    /// Finishes a claimed upload on its own task, so a client that drops the
+    /// `complete` request (a proxy timeout) does not cancel the work and
+    /// strand the claim: the upload still completes and a retry answers it.
+    /// A heartbeat keeps the claim fresh while a large assembly runs, so the
+    /// expiry job only closes claims whose completion really died.
+    async fn finish_claimed(self, session: UploadSession) -> UploadResult<CompletedUpload> {
+        let heartbeat = {
+            let uploads = Arc::clone(&self.uploads);
+            let id = session.id.clone();
+            tokio::spawn(async move {
+                let mut tick = tokio::time::interval(CLAIM_HEARTBEAT);
+                tick.tick().await;
+                loop {
+                    tick.tick().await;
+                    if let Err(error) = uploads.touch_claim(&id).await {
+                        tracing::warn!(upload_id = %id, error = %error, "Failed to refresh an upload claim");
+                    }
+                }
+            })
+        };
+        let outcome = match self.finish(&session).await {
             Err(UploadError::Refused { reason, detail }) => {
                 self.refuse(&session, reason, &detail).await?;
                 Err(UploadError::Refused { reason, detail })
             },
             Err(error) => {
-                if let Err(release) = self.uploads.release(id).await {
-                    tracing::warn!(upload_id = %id, error = %release, "Failed to release a claimed upload");
+                if let Err(release) = self.uploads.release(&session.id).await {
+                    tracing::warn!(upload_id = %session.id, error = %release, "Failed to release a claimed upload");
                 }
                 Err(error)
             },
             ok => ok,
-        }
+        };
+        heartbeat.abort();
+        outcome
     }
 
     async fn finish(&self, session: &UploadSession) -> UploadResult<CompletedUpload> {
@@ -162,6 +195,7 @@ impl UploadService {
             blob: blob.hash,
             size_bytes: blob.size_bytes,
             detected_mime: inspected.detected_mime,
+            checked_kind: inspected.checked.as_str().to_owned(),
             deduplicated: !blob.inserted,
         })
     }

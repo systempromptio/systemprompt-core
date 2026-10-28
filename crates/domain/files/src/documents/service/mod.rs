@@ -38,6 +38,7 @@ mod first_revision;
 mod folders;
 mod fragments;
 mod grants;
+mod ingest;
 mod landed;
 mod landing;
 mod lifecycle;
@@ -101,6 +102,7 @@ pub struct DocumentService {
     access: Arc<DocumentAccessService>,
     events: Arc<DocumentEvents>,
     config: DocumentsConfig,
+    uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
     #[cfg(feature = "collab")]
     collab: Arc<std::sync::OnceLock<std::sync::Weak<super::collab::CollabService>>>,
 }
@@ -128,6 +130,7 @@ impl DocumentService {
             access: parts.access,
             events: parts.events,
             config: parts.config,
+            uploads: Arc::default(),
             #[cfg(feature = "collab")]
             collab: Arc::default(),
         }

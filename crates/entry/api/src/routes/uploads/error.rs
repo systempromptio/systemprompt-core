@@ -27,7 +27,10 @@ impl From<UploadError> for ApiHttpError {
             | UploadError::TooManyOpen { .. }
             | UploadError::PartBudgetExhausted { .. } => ErrorCode::RateLimited,
             UploadError::Refused { .. } => ErrorCode::ValidationError,
-            UploadError::Storage(_) | UploadError::Repository(_) | UploadError::Blob(_) => {
+            UploadError::Storage(_)
+            | UploadError::Repository(_)
+            | UploadError::Blob(_)
+            | UploadError::Interrupted(_) => {
                 return Self::from(ApiError::internal("upload storage failed", error));
             },
         };

@@ -12,6 +12,7 @@ use systemprompt_models::documents::DocumentFormat;
 
 use super::error::{RefusalReason, UploadError, UploadResult};
 use super::models::{BlobOrigin, UploadSession, UploadStatus};
+use super::safety::{Subject, inspect};
 use super::service::UploadService;
 use crate::documents::blob_store::BlobStoreError;
 
@@ -44,6 +45,11 @@ impl UploadService {
         max_bytes: u64,
     ) -> UploadResult<(Vec<u8>, BlobOrigin)> {
         let origin = self.require_owned_blob(owner, blob).await?;
+        let origin = if origin.checked_kind.is_none() {
+            self.recheck(owner, blob, origin).await?
+        } else {
+            origin
+        };
         if !origin.admits(format) {
             return Err(UploadError::refused(
                 RefusalReason::UncheckedFormat,
@@ -60,6 +66,30 @@ impl UploadService {
             },
             other => Ok((other?, origin)),
         }
+    }
+
+    /// Runs the content checks over a blob whose upload completed before
+    /// checks were recorded, and records the result, instead of refusing it
+    /// as unchecked; a blob the checks refuse is refused here.
+    async fn recheck(
+        &self,
+        owner: &UserId,
+        blob: &ContentHash,
+        origin: BlobOrigin,
+    ) -> UploadResult<BlobOrigin> {
+        let (id, size) = self.blobs.located(blob).await?;
+        let subject = Subject {
+            storage: self.storage.as_ref(),
+            id: &id,
+            size,
+            declared_mime: &origin.mime,
+        };
+        let checked = inspect(&subject, &self.limits).await?.checked.as_str();
+        self.uploads.set_checked_kind(owner, blob, checked).await?;
+        Ok(BlobOrigin {
+            checked_kind: Some(checked.to_owned()),
+            ..origin
+        })
     }
 
     /// Streams the blob a completed upload produced, optionally one range.

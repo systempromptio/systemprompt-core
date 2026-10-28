@@ -125,6 +125,8 @@ pub enum DocumentsError {
     },
     #[error("no codec is registered for {format} documents")]
     UnsupportedFormat { format: DocumentFormat },
+    #[error("the content was refused ({code}): {detail}")]
+    ContentRefused { code: &'static str, detail: String },
     #[error("cannot tell the document format of \"{name}\"; give the name a known extension")]
     UnknownFormat { name: String },
     #[error("{what} {id} does not exist or has been deleted")]

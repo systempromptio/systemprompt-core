@@ -87,6 +87,8 @@ pub enum UploadError {
     BlobNotOwned(ContentHash),
     #[error("upload storage failed")]
     Storage(#[from] FileStorageError),
+    #[error("the upload completion stopped")]
+    Interrupted(#[from] tokio::task::JoinError),
     #[error("upload repository failed")]
     Repository(#[from] RepositoryError),
     #[error("upload blob store failed")]
@@ -116,7 +118,9 @@ impl UploadError {
             Self::PartBudgetExhausted { .. } => "part_budget_exhausted",
             Self::MissingParts { .. } => "missing_parts",
             Self::Refused { reason, .. } => reason.as_str(),
-            Self::Storage(_) | Self::Repository(_) | Self::Blob(_) => "internal",
+            Self::Storage(_) | Self::Repository(_) | Self::Blob(_) | Self::Interrupted(_) => {
+                "internal"
+            },
         }
     }
 }

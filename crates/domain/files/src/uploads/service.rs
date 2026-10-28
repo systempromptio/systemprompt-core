@@ -1,6 +1,7 @@
-//! [`UploadService`]: opening a session, storing parts, progress, abort and
-//! expiry. Completion is in `complete`, and the blob reads an upload's
-//! owner may make are in `blobs`.
+//! [`UploadService`]: opening a session, storing parts and progress. Abort
+//! and expiry are in `lifecycle`, completion in `complete`, the blob reads
+//! an upload's owner may make in `blobs`, and ingesting outside bytes in
+//! `ingest`.
 //!
 //! Every call names the caller; a session another user opened answers
 //! [`UploadError::NotFound`], never its existence. Each lifecycle step is
@@ -14,13 +15,13 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use systemprompt_identifiers::{DocumentUploadId, TraceId, UserId};
-use systemprompt_traits::{FileByteStream, FileStorage, FileStorageError, StoredFileId};
+use systemprompt_traits::{FileByteStream, FileStorage};
 
 use super::error::{UploadError, UploadResult};
 use super::models::{NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus};
 use super::repository::{Admission, DocumentUploadRepository, SessionTerms};
 use super::safety::sniff::declared_kind;
-use super::stream::{Tally, assembled_storage_id, part_storage_id};
+use super::stream::{Tally, part_storage_id};
 use crate::config::UploadLimits;
 use crate::documents::blob_store::BlobStore;
 
@@ -259,64 +260,5 @@ impl UploadService {
             },
             None => UploadError::NotFound,
         })
-    }
-
-    pub async fn abort(&self, owner: &UserId, id: &DocumentUploadId) -> UploadResult<()> {
-        let session = self.open_session(owner, id).await?;
-        if self
-            .uploads
-            .mark_closed(id, UploadStatus::Open, UploadStatus::Aborted, None)
-            .await?
-        {
-            self.remove_objects(&session).await?;
-            tracing::info!(upload_id = %id, user_id = %owner, trace_id = %session.trace_id, "Upload aborted");
-        }
-        Ok(())
-    }
-
-    /// Closes up to `limit` open sessions past their expiry and deletes
-    /// their stored bytes; answers how many it closed.
-    pub async fn expire(&self, limit: i64) -> UploadResult<u64> {
-        let mut expired = 0;
-        for id in self.uploads.list_expired(limit).await? {
-            let Some(session) = self.uploads.find(&id).await? else {
-                continue;
-            };
-            if self
-                .uploads
-                .mark_closed(&id, session.status, UploadStatus::Expired, None)
-                .await?
-            {
-                self.remove_objects(&session).await?;
-                expired += 1;
-                tracing::info!(upload_id = %id, trace_id = %session.trace_id, "Upload expired");
-            }
-        }
-        Ok(expired)
-    }
-
-    pub(super) async fn remove_objects(&self, session: &UploadSession) -> UploadResult<()> {
-        for part in self.uploads.list_parts(&session.id).await? {
-            self.discard(&StoredFileId::new(part.storage_id)).await;
-        }
-        let assembled = assembled_storage_id(session.id.as_str());
-        let adopted = self
-            .blobs
-            .storage_id_of(&session.declared_sha256)
-            .await?
-            .is_some_and(|stored| stored == assembled);
-        if !adopted && self.storage.exists(&assembled).await? {
-            self.discard(&assembled).await;
-        }
-        Ok(())
-    }
-
-    pub(super) async fn discard(&self, id: &StoredFileId) {
-        match self.storage.delete(id).await {
-            Ok(()) | Err(FileStorageError::NotFound(_)) => {},
-            Err(error) => {
-                tracing::warn!(storage_id = %id, error = %error, "Failed to delete an upload object");
-            },
-        }
     }
 }

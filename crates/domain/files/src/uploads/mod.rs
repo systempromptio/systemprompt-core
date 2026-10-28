@@ -17,9 +17,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod blobs;
+mod claims;
 mod complete;
 pub mod error;
+mod ingest;
 pub mod job;
+mod lifecycle;
 pub mod models;
 pub mod repository;
 mod safety;
@@ -27,9 +30,10 @@ mod service;
 mod stream;
 
 pub use error::{RefusalReason, UploadError, UploadResult};
+pub use ingest::Ingested;
 pub use job::DocumentUploadExpiryJob;
 pub use models::{
-    CompletedUpload, NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus,
+    BlobOrigin, CompletedUpload, NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus,
 };
 pub use repository::DocumentUploadRepository;
 pub use service::{UploadService, UploadServiceParts};

@@ -171,6 +171,19 @@ impl BlobStore {
         })
     }
 
+    /// Where a blob is stored and how large it is, from its row.
+    pub async fn located(&self, hash: &ContentHash) -> Result<(StoredFileId, u64), BlobStoreError> {
+        let row = self
+            .blobs
+            .find_on_primary(hash)
+            .await?
+            .ok_or_else(|| BlobStoreError::NotFound { hash: hash.clone() })?;
+        Ok((
+            StoredFileId::new(row.storage_id),
+            row.size_bytes.unsigned_abs(),
+        ))
+    }
+
     pub async fn storage_id_of(
         &self,
         hash: &ContentHash,
