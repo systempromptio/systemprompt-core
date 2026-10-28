@@ -109,6 +109,21 @@ async fn discard(staging: &Path) {
     }
 }
 
+/// Removes a streamed write's staging file on every exit but a published
+/// one: an error, or the request future being dropped mid-stream.
+struct StagingGuard(Option<PathBuf>);
+
+impl Drop for StagingGuard {
+    fn drop(&mut self) {
+        if let Some(staging) = self.0.take()
+            && let Err(error) = std::fs::remove_file(&staging)
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(path = %staging.display(), error = %error, "staging file left behind");
+        }
+    }
+}
+
 async fn publish(staging: &Path, full: &Path) -> FileStorageResult<()> {
     if let Err(err) = fs::rename(staging, full).await {
         discard(staging).await;
@@ -149,21 +164,15 @@ impl FileStorage for LocalFileStorage {
             fs::create_dir_all(parent).await?;
         }
         let staging = staging_path(&full);
+        let mut guard = StagingGuard(Some(staging.clone()));
         let mut file = fs::File::create(&staging).await?;
         while let Some(chunk) = body.next().await {
-            let written = match chunk {
-                Ok(chunk) => file.write_all(&chunk).await.map_err(FileStorageError::Io),
-                Err(err) => Err(err),
-            };
-            if let Err(err) = written {
-                drop(file);
-                discard(&staging).await;
-                return Err(err);
-            }
+            file.write_all(&chunk?).await?;
         }
         file.sync_all().await?;
         drop(file);
         publish(&staging, &full).await?;
+        guard.0 = None;
         Ok(id_for(relative))
     }
 

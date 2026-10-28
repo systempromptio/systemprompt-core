@@ -5,7 +5,9 @@
 //! `Location` is the session URI) and `PUT`s each chunk to it with a
 //! `Content-Range`; every chunk but the last is a multiple of 256 KiB and
 //! is answered `308`, and the last names the total size. Only the chunk
-//! being sent is in memory. A failure cancels the session with `DELETE`.
+//! being sent is in memory. A failure cancels the session with `DELETE`, and
+//! so does a write cancelled mid-way, from a drop guard; a session nobody
+//! cancels expires on its own after a week.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,7 +36,11 @@ impl GcsFileStorage {
             return Ok(self.upload(name, content_type, &first).await?);
         }
         let session = self.open_session(name, content_type).await?;
-        match self.send_chunks(&session, first, &mut chunks).await {
+        let mut guard = CancelGuard {
+            http: Some(self.http.clone()),
+            session: session.clone(),
+        };
+        let result = match self.send_chunks(&session, first, &mut chunks).await {
             Ok(()) => Ok(()),
             Err(error) => {
                 if let Err(cancel) = self.http.delete(session.clone()).send().await {
@@ -42,7 +48,9 @@ impl GcsFileStorage {
                 }
                 Err(error)
             },
-        }
+        };
+        guard.http = None;
+        result
     }
 
     async fn open_session(&self, name: &str, content_type: &str) -> Result<Url, GcsError> {
@@ -128,6 +136,30 @@ impl GcsFileStorage {
             }
         }
         Ok(())
+    }
+}
+
+/// Cancels a resumable session whose write was dropped mid-way (the request
+/// future was cancelled). The write disarms it once it has finished or
+/// cancelled the session itself.
+struct CancelGuard {
+    http: Option<reqwest::Client>,
+    session: Url,
+}
+
+impl Drop for CancelGuard {
+    fn drop(&mut self) {
+        let Some(http) = self.http.take() else {
+            return;
+        };
+        let session = self.session.clone();
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(async move {
+                if let Err(cancel) = http.delete(session).send().await {
+                    tracing::warn!(error = %cancel, "Failed to cancel a dropped resumable upload");
+                }
+            });
+        }
     }
 }
 

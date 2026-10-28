@@ -5,7 +5,11 @@
 //! (`PUT ?partNumber=n&uploadId=…`) and completes it with the parts' ETags
 //! (`POST ?uploadId=…`). Only the chunk being sent is in memory. Any
 //! failure aborts the upload (`DELETE ?uploadId=…`) so no parts are left
-//! billed in the bucket. S3 can answer a complete with `200` and an
+//! billed in the bucket, and so does a write cancelled mid-way (a dropped
+//! request future), from a drop guard that spawns the abort. A process
+//! killed outright runs no guard: configure the bucket with an
+//! `AbortIncompleteMultipartUpload` lifecycle rule (one day) as the
+//! backstop. S3 can answer a complete with `200` and an
 //! `<Error>` body, which is treated as a failure.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -52,13 +56,20 @@ impl S3FileStorage {
             return Ok(self.put(name, content_type, &first).await?);
         }
         let upload_id = self.create_multipart(name, content_type).await?;
-        match self.send_parts(name, &upload_id, first, &mut chunks).await {
+        let mut guard = AbortGuard {
+            storage: Some(self.detached()),
+            name: name.to_owned(),
+            upload_id: upload_id.clone(),
+        };
+        let result = match self.send_parts(name, &upload_id, first, &mut chunks).await {
             Ok(etags) => match self.complete_multipart(name, &upload_id, &etags).await {
                 Ok(()) => Ok(()),
                 Err(error) => Err(self.abandon(name, &upload_id, error.into()).await),
             },
             Err(error) => Err(self.abandon(name, &upload_id, error).await),
-        }
+        };
+        guard.storage = None;
+        result
     }
 
     async fn send_parts(
@@ -153,6 +164,11 @@ impl S3FileStorage {
     }
 
     async fn abandon(&self, name: &str, upload_id: &str, error: StreamPutError) -> StreamPutError {
+        self.abort_multipart(name, upload_id).await;
+        error
+    }
+
+    async fn abort_multipart(&self, name: &str, upload_id: &str) {
         let aborted = self
             .call(Call {
                 method: Method::DELETE,
@@ -166,7 +182,43 @@ impl S3FileStorage {
         if let Err(abort) = aborted {
             tracing::warn!(object = name, error = %abort, "Failed to abort an S3 multipart upload");
         }
-        error
+    }
+
+    /// An owned copy of this backend, for an abort that outlives the call.
+    fn detached(&self) -> Self {
+        Self::new(
+            self.params.clone(),
+            self.credentials.clone(),
+            self.http.clone(),
+        )
+    }
+}
+
+/// Aborts a multipart upload whose write was dropped mid-way (the client
+/// disconnected and the request future was cancelled), so its parts are not
+/// left billed in the bucket. The write disarms it once it has completed or
+/// aborted the upload itself.
+struct AbortGuard {
+    storage: Option<S3FileStorage>,
+    name: String,
+    upload_id: String,
+}
+
+impl Drop for AbortGuard {
+    fn drop(&mut self) {
+        let Some(storage) = self.storage.take() else {
+            return;
+        };
+        let name = std::mem::take(&mut self.name);
+        let upload_id = std::mem::take(&mut self.upload_id);
+        match tokio::runtime::Handle::try_current() {
+            Ok(runtime) => {
+                runtime.spawn(async move { storage.abort_multipart(&name, &upload_id).await });
+            },
+            Err(_) => {
+                tracing::warn!(object = %name, "A cancelled S3 multipart upload could not be aborted");
+            },
+        }
     }
 }
 
