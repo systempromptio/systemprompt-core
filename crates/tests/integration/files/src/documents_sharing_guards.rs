@@ -46,8 +46,8 @@ fn grant(document: &DocumentId, kind: &str, value: &str, level: AccessLevel) -> 
         level,
         valid_until: None,
         message: None,
+        via_agent: None,
     }
-    via_agent: None,
 }
 
 async fn legacy_own_grant(h: &Harness, document: &DocumentId, owner: &UserId, user: &UserId) {

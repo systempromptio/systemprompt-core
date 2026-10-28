@@ -47,13 +47,12 @@ fn share_on(target: GrantTarget, kind: &str, value: &str, level: AccessLevel) ->
         level,
         valid_until: None,
         message: None,
+        via_agent: None,
     }
-    via_agent: None,
 }
 
 fn doc_share(id: &DocumentId, kind: &str, value: &str, level: AccessLevel) -> ShareRequest {
     share_on(GrantTarget::Document(id.clone()), kind, value, level)
-    via_agent: None,
 }
 
 async fn history(h: &Harness, owner: &AuthenticatedUser, id: &DocumentId) -> Vec<GrantEventKind> {
