@@ -85,18 +85,18 @@ pub(super) fn sect_pr(section: &Section, ctx: &mut WriteCtx<'_>) -> String {
         };
         out.push_str(&format!(
             "<w:pgSz w:w=\"{}\" w:h=\"{}\"{orient}/>",
-            size.width * 20,
-            size.height * 20
+            size.width.saturating_mul(20),
+            size.height.saturating_mul(20)
         ));
     }
     if let Some(m) = &section.margins {
         out.push_str(&format!(
             "<w:pgMar w:top=\"{}\" w:right=\"{}\" w:bottom=\"{}\" w:left=\"{}\" w:header=\"708\" \
              w:footer=\"708\" w:gutter=\"0\"/>",
-            m.top * 20,
-            m.right * 20,
-            m.bottom * 20,
-            m.left * 20
+            m.top.saturating_mul(20),
+            m.right.saturating_mul(20),
+            m.bottom.saturating_mul(20),
+            m.left.saturating_mul(20)
         ));
     }
     if wants_title_page(section) {

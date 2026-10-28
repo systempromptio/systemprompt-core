@@ -49,7 +49,10 @@ pub(super) fn table(
     out.push_str("</w:tblPr><w:tblGrid>");
     for width in &widths {
         match width {
-            Some(points) => out.push_str(&format!("<w:gridCol w:w=\"{}\"/>", points * 20)),
+            Some(points) => {
+                let twips = points.saturating_mul(20);
+                out.push_str(&format!("<w:gridCol w:w=\"{twips}\"/>"));
+            },
             None => out.push_str("<w:gridCol/>"),
         }
     }
@@ -108,7 +111,10 @@ pub(super) fn table(
 
 fn tc_width(widths: &[Option<u32>], from: usize, span: u32) -> String {
     let covered = widths.iter().skip(from).take(span as usize);
-    match covered.map(|w| w.map(|points| points * 20)).sum::<Option<u32>>() {
+    let total = covered
+        .map(|w| w.map(|points| points.saturating_mul(20)))
+        .try_fold(0u32, |sum, twips| twips.map(|t| sum.saturating_add(t)));
+    match total {
         Some(twips) => format!("<w:tcW w:w=\"{twips}\" w:type=\"dxa\"/>"),
         None => "<w:tcW w:w=\"0\" w:type=\"auto\"/>".to_owned(),
     }

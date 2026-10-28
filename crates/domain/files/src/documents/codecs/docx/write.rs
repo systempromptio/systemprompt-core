@@ -166,21 +166,21 @@ pub(super) fn ppr(
         out.push_str("<w:spacing");
         for (name, value) in [("before", attrs.space_before), ("after", attrs.space_after)] {
             if let Some(points) = value {
-                out.push_str(&format!(" w:{name}=\"{}\"", points * 20));
+                out.push_str(&format!(" w:{name}=\"{}\"", points.saturating_mul(20)));
             }
         }
         out.push_str("/>");
     }
     if let Some(indent) = &attrs.indent {
         let first = match indent.first_line {
-            n if n < 0 => format!(" w:hanging=\"{}\"", n.unsigned_abs() * 20),
+            n if n < 0 => format!(" w:hanging=\"{}\"", n.unsigned_abs().saturating_mul(20)),
             0 => String::new(),
-            n => format!(" w:firstLine=\"{}\"", n.unsigned_abs() * 20),
+            n => format!(" w:firstLine=\"{}\"", n.unsigned_abs().saturating_mul(20)),
         };
         out.push_str(&format!(
             "<w:ind w:left=\"{}\" w:right=\"{}\"{first}/>",
-            indent.left * 20,
-            indent.right * 20
+            indent.left.saturating_mul(20),
+            indent.right.saturating_mul(20)
         ));
     }
     if let Some(align) = attrs.align.or(cell) {

@@ -21,7 +21,8 @@ use crate::documents::model::layout::ImageWrap;
 const WP_NS: &str = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
 const A_NS: &str = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const PIC_NS: &str = "http://schemas.openxmlformats.org/drawingml/2006/picture";
-const MAX_WIDTH: u32 = 624;
+const MAX_WIDTH: u64 = 624;
+const MAX_PIXELS: u64 = 4096;
 
 pub(super) fn image_block(block: &Block, ctx: &mut WriteCtx<'_>) -> String {
     let BlockKind::Image {
@@ -95,16 +96,23 @@ fn picture(blob: &str, ctx: &mut WriteCtx<'_>) -> Option<(String, Option<(u32, u
     Some((target, pixel_size(&media.bytes)))
 }
 
+/// The drawing's extent in EMUs. Sizes are clamped to 1..=4096px (and a
+/// size the model leaves out comes from the picture, capped at the text
+/// width) before the EMU conversion, in 64-bit arithmetic.
 fn size(width: Option<u32>, height: Option<u32>, natural: Option<(u32, u32)>) -> (u64, u64) {
-    let (nw, nh) = natural.filter(|(w, h)| *w > 0 && *h > 0).unwrap_or((480, 320));
-    let (w, h) = match (width, height) {
+    let (nw, nh) = natural
+        .filter(|(w, h)| *w > 0 && *h > 0)
+        .map_or((480, 320), |(w, h)| (u64::from(w), u64::from(h)));
+    let scale = |a: u64, b: u64, c: u64| a.saturating_mul(b) / c.max(1);
+    let (w, h) = match (width.map(u64::from), height.map(u64::from)) {
         (Some(w), Some(h)) => (w, h),
-        (Some(w), None) => (w, w * nh / nw),
-        (None, Some(h)) => (h * nw / nh, h),
-        (None, None) if nw > MAX_WIDTH => (MAX_WIDTH, MAX_WIDTH * nh / nw),
+        (Some(w), None) => (w, scale(w, nh, nw)),
+        (None, Some(h)) => (scale(h, nw, nh), h),
+        (None, None) if nw > MAX_WIDTH => (MAX_WIDTH, scale(MAX_WIDTH, nh, nw)),
         (None, None) => (nw, nh),
     };
-    (u64::from(w.max(1)) * EMU_PER_PX, u64::from(h.max(1)) * EMU_PER_PX)
+    let emu = |px: u64| px.clamp(1, MAX_PIXELS).saturating_mul(EMU_PER_PX);
+    (emu(w), emu(h))
 }
 
 fn drawing(rid: &str, id: u32, alt: &str, cx: u64, cy: u64, wrap: ImageWrap) -> String {

@@ -145,7 +145,10 @@ impl Numbering {
 }
 
 fn level_xml(ilvl: usize, level: &NumberingLevel) -> String {
-    let indent = level.indent.map_or((ilvl as u32 + 1) * 720, |points| points * 20);
+    let default_indent = (ilvl as u32).saturating_add(1).saturating_mul(720);
+    let indent = level
+        .indent
+        .map_or(default_indent, |points| points.saturating_mul(20));
     let text = if level.text.is_empty() {
         default_text(level.format, ilvl)
     } else {
