@@ -27,6 +27,7 @@ pub mod net;
 pub mod oauth;
 pub mod orphans;
 pub mod paths;
+pub mod pdf;
 pub mod poll;
 pub mod schema;
 pub mod secrets;
@@ -85,6 +86,7 @@ pub use oauth::{
     OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET, TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
 pub use paths::{canonical_tempdir, repo_path, repo_root};
+pub use pdf::{parse_pdf, ParsedPdf};
 pub use poll::{block_on, eventually};
 pub use schema::{install_extension_schemas, install_extension_schemas_with_config};
 pub use secrets::{ensure_test_secrets_bootstrap, fixture_at_rest_cipher, install_named_secret};

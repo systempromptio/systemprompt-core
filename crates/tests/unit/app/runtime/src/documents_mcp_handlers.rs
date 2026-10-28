@@ -368,12 +368,24 @@ async fn export_links_and_previews_the_revision() {
             .as_deref()
             .is_some_and(|html| html.contains("hello"))
     );
-    let pdf = ExportHandler { tools: &h.tools }
+    let (pdf, _) = ExportHandler { tools: &h.tools }
         .handle(input(ExportFormat::Pdf, ExportAs::Url), &ctx, &exec())
         .await
-        .expect_err("no codec renders pdf");
+        .expect("pdf url");
+    assert_eq!(pdf.revision_id, revision);
+    assert!(
+        pdf.url.as_deref().is_some_and(|url| url.starts_with(&format!(
+            "https://docs.example.test/api/v1/documents/{document}/content?revision={revision}&format=pdf&access_token="
+        ))),
+        "{:?}",
+        pdf.url
+    );
+    let preview = ExportHandler { tools: &h.tools }
+        .handle(input(ExportFormat::Pdf, ExportAs::Preview), &ctx, &exec())
+        .await
+        .expect_err("pdf has no preview");
     assert_eq!(
-        pdf.data.as_ref().expect("refusal")["code"],
+        preview.data.as_ref().expect("refusal")["code"],
         "unsupported_format"
     );
 }

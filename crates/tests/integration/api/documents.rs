@@ -657,7 +657,7 @@ async fn the_files_server_cannot_reach_document_blobs() -> Result<()> {
     Ok(())
 }
 
-fn mint_download(
+pub(super) fn mint_download(
     authority: &dyn systemprompt_models::auth::TokenAuthority,
     owner: &AuthedFixture,
     audience: &str,

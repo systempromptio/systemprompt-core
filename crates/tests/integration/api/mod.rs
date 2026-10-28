@@ -188,6 +188,7 @@ mod documents;
 mod documents_collab;
 #[cfg(test)]
 mod documents_parity;
+mod documents_pdf;
 #[cfg(test)]
 mod documents_read_parity;
 #[cfg(test)]

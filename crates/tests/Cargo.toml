@@ -242,6 +242,7 @@ keyring-core = "1"
 linux-keyutils-keyring-store = "1"
 tar = "0.4"
 flate2 = "1.1"
+lopdf = { version = "=0.45.0", default-features = false }
 hex = "0.4"
 
 # Property-based testing

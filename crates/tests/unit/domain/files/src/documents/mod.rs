@@ -30,6 +30,7 @@ mod model_ops;
 mod model_rich_text;
 mod node_ids;
 mod odf_fixture;
+mod pdf_render;
 mod pptx_fixture;
 mod registry;
 mod targets;
