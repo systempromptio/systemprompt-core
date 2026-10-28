@@ -22,7 +22,7 @@ pub mod select;
 pub(in crate::commands::cloud) use progress::CliDeployProgress;
 pub(in crate::commands::cloud) use select::resolve_profile;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -53,11 +53,11 @@ pub(super) struct DeployArgs {
     pub wait: bool,
 }
 
-pub(super) async fn execute(
-    args: DeployArgs,
+async fn preflight(
+    args: &DeployArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-) -> Result<()> {
+) -> Result<Option<(Profile, PathBuf)>> {
     CliService::section("systemprompt.io Cloud Deploy");
 
     let (profile, profile_path) = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
@@ -79,8 +79,22 @@ pub(super) async fn execute(
     }
     if args.check {
         CliService::success("Deploy preflight passed (--check; nothing deployed)");
-        return Ok(());
+        return Ok(None);
     }
+    Ok(Some((profile, profile_path)))
+}
+
+pub(super) async fn execute(
+    args: DeployArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
+    let Some((profile, profile_path)) = preflight(&args, prompter, config).await? else {
+        return Ok(());
+    };
+    let profile_dir = profile_path
+        .parent()
+        .ok_or_else(|| anyhow!("Invalid profile path"))?;
 
     let kind = DeployProviderKind::for_provider(profile.hosting_provider())?;
     let profile_name = ProfileName::try_new(profile.name.as_str()).with_context(|| {
